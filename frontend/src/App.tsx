@@ -8,7 +8,10 @@ import { DoctorDashboard } from './components/doctor/DoctorDashboard';
 import { LabDashboard } from './components/lab/LabDashboard';
 import { PharmacyDashboard } from './components/pharmacy/PharmacyDashboard';
 import { BillingDashboard } from './components/billing/BillingDashboard';
+import { AuthGateway } from './components/shared/AuthGateway';
+import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
 
 interface Toast {
   id: string;
@@ -20,8 +23,12 @@ interface Toast {
 function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('compounder');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [session, setSession] = useState<any>(null);
+  const [activeProfile, setActiveProfile] = useState<any>(null);
+  const [isBypassMode, setIsBypassMode] = useState<boolean>(true); // Dev bypass default for smooth testing
 
   useEffect(() => {
+    // Sync the active role with MediflowApiService simulated checks
     let apiRole: string = currentRole;
     if (currentRole === 'lab') apiRole = 'lab_technician';
     else if (currentRole === 'pharmacy') apiRole = 'pharmacist';
@@ -30,6 +37,38 @@ function App() {
   }, [currentRole]);
 
   useEffect(() => {
+    // 1. Check existing Supabase session and load active profile
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            if (profile) {
+              setActiveProfile(profile);
+              let defaultRole: UserRole = 'compounder';
+              if (profile.role === 'doctor') defaultRole = 'doctor';
+              else if (profile.role === 'lab_technician') defaultRole = 'lab';
+              else if (profile.role === 'pharmacist') defaultRole = 'pharmacy';
+              else if (profile.role === 'admin' || profile.role === 'platform_admin') defaultRole = 'billing';
+              setCurrentRole(defaultRole);
+            }
+          });
+      }
+    });
+
+    // 2. Setup auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (!session) {
+        setActiveProfile(null);
+      }
+    });
+
+    // 3. Listen to incoming application toast triggers
     const handleToast = (e: Event) => {
       const customEvent = e as CustomEvent<Omit<Toast, 'id'>>;
       if (!customEvent.detail) return;
@@ -46,13 +85,101 @@ function App() {
     };
 
     window.addEventListener('mediflow-toast', handleToast);
+    
     return () => {
+      subscription.unsubscribe();
       window.removeEventListener('mediflow-toast', handleToast);
     };
   }, []);
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const handleAuthSuccess = (session: any, profile: any) => {
+    setSession(session);
+    setActiveProfile(profile);
+    
+    let defaultRole: UserRole = 'compounder';
+    if (profile.role === 'doctor') defaultRole = 'doctor';
+    else if (profile.role === 'lab_technician') defaultRole = 'lab';
+    else if (profile.role === 'pharmacist') defaultRole = 'pharmacy';
+    else if (profile.role === 'admin' || profile.role === 'platform_admin') defaultRole = 'billing';
+    
+    setCurrentRole(defaultRole);
+
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, {
+      id,
+      title: 'Professional Portal Initialized',
+      message: `Successfully authenticated as ${profile.display_name}. Role: ${profile.role.toUpperCase()}`,
+      type: 'success'
+    }]);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setActiveProfile(null);
+    setCurrentRole('compounder');
+    
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, {
+      id,
+      title: 'Workspace De-authenticated',
+      message: 'Logged out of Mediflow Clinical Connected Care.',
+      type: 'info'
+    }]);
+  };
+
+  const handleToggleBypass = (bypass: boolean) => {
+    setIsBypassMode(bypass);
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, {
+      id,
+      title: bypass ? 'Bypass Mode Enabled' : 'Strict Mode Enforced',
+      message: bypass
+        ? 'Authorization checks bypassed. Dynamic switcher active for E2E testing.'
+        : 'Enterprise security constraints active. Dashboards locked to professional profile role.',
+      type: bypass ? 'warning' : 'success'
+    }]);
+  };
+
+  const handleRoleChange = (role: UserRole) => {
+    if (!isBypassMode && activeProfile) {
+      // Mapping of active profile roles to allowed navbar dashboard modules
+      const allowedRoles: Record<string, UserRole[]> = {
+        'doctor': ['doctor'],
+        'lab_technician': ['lab'],
+        'pharmacist': ['pharmacy'],
+        'admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy'],
+        'platform_admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy']
+      };
+
+      const userRole = activeProfile.role;
+      const allowed = allowedRoles[userRole] || [];
+
+      if (!allowed.includes(role)) {
+        const errorMsg = `De-authorization: Account role (${userRole.replace('_', ' ')}) is not permitted to view the ${role.toUpperCase()} module under active compliance policy.`;
+        
+        const id = crypto.randomUUID();
+        setToasts(prev => [...prev, {
+          id,
+          title: 'Access Restricted',
+          message: errorMsg,
+          type: 'error'
+        }]);
+
+        // Post a security violation log inside the immutable Supabase activity ledger
+        api.writeAuditLog('SECURITY_VIOLATION_ROUTING_ATTEMPT', {
+          failedRoleSwitch: role,
+          activeRole: userRole,
+          displayName: activeProfile.display_name
+        });
+        return;
+      }
+    }
+    setCurrentRole(role);
   };
 
   const renderDashboard = () => {
@@ -72,15 +199,45 @@ function App() {
     }
   };
 
+  // Block viewport rendering if not securely authenticated
+  if (!session || !activeProfile) {
+    return (
+      <>
+        <AuthGateway onAuthSuccess={handleAuthSuccess} />
+        {/* Render fallback toast overlay for auth portal status info */}
+        <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+          {toasts.map(t => (
+            <div key={t.id} className="pointer-events-auto flex items-start gap-3 p-4 rounded-2xl bg-clinical-950/80 backdrop-blur-xl border border-rose-500/20 shadow-lg shadow-rose-500/10 transition-all duration-300 animate-slide-in">
+              <AlertCircle className="h-5 w-5 text-rose-400 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-white tracking-wide">{t.title}</h4>
+                <p className="text-xs text-clinical-300 mt-1">{t.message}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-clinical-950 text-clinical-100 flex flex-col font-sans select-none">
       {/* Shared Ecosystem Navigation Header */}
-      <Navbar currentRole={currentRole} onChangeRole={setCurrentRole} />
+      <Navbar 
+        currentRole={currentRole} 
+        onChangeRole={handleRoleChange}
+        activeProfile={activeProfile}
+        onSignOut={handleSignOut}
+        isBypassMode={isBypassMode}
+        onToggleBypass={handleToggleBypass}
+      />
 
-      {/* Primary Dashboard viewport wrapper */}
+      {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
       <main className="flex-1 pb-16">
         <div className="animate-fade-in">
-          {renderDashboard()}
+          <ErrorBoundary>
+            {renderDashboard()}
+          </ErrorBoundary>
         </div>
       </main>
 

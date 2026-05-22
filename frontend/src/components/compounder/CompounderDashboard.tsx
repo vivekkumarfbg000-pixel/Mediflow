@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
-import type { Patient, WhatsAppSession } from '../../types';
+import type { Patient, WhatsAppSession, ClinicStaff } from '../../types';
 import { 
   Smartphone, 
   Upload, 
@@ -46,6 +46,41 @@ export const CompounderDashboard: React.FC = () => {
   const [replyInput, setReplyInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Clinic Staff State
+  const [staffList, setStaffList] = useState<ClinicStaff[]>([]);
+  const [activeStaffId, setActiveStaffId] = useState<string | null>(null);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState<'compounder' | 'receptionist' | 'admin'>('compounder');
+
+  const handleRegisterStaff = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffName.trim()) return;
+    api.registerClinicStaff(newStaffName.trim(), newStaffRole);
+    setNewStaffName('');
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Registered ${newStaffName} as ${newStaffRole} successfully.`,
+        type: 'success',
+        title: 'Clinic Staff Registered'
+      }
+    }));
+  };
+
+  const handleToggleStaffActive = (staffId: string, currentStatus: boolean) => {
+    api.toggleStaffActive(staffId, !currentStatus);
+  };
+
+  const handleSelectActiveStaff = (staffId: string) => {
+    api.setActiveStaffId(staffId);
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Active Checked-In Staff updated.`,
+        type: 'info',
+        title: 'Checked-In Active Staff'
+      }
+    }));
+  };
+
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -66,8 +101,13 @@ export const CompounderDashboard: React.FC = () => {
     const syncData = () => {
       const dbPatients = api.getPatients();
       const dbSessions = api.getWhatsAppSessions();
+      const dbStaff = api.getClinicStaff();
+      const activeId = api.getActiveStaffId();
+
       setPatients(dbPatients);
       setSessions(dbSessions);
+      setStaffList(dbStaff);
+      setActiveStaffId(activeId);
       
       setActiveSession(prev => {
         if (!prev) return null;
@@ -126,19 +166,8 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   const simulatePatientConsent = (phone: string) => {
-    // Simulate user tapping "Grant Access" inside WhatsApp
-    api.updateWhatsAppState(phone, 'AWAITING_CONFIRMATION', {
-      consentGranted: true,
-      consentTime: new Date().toISOString()
-    });
-    
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        message: 'Patient consent registered to the secure clinical network.',
-        type: 'success',
-        title: 'Consent Granted'
-      }
-    }));
+    // Simulate user tapping "Grant Access" inside WhatsApp by routing message payload
+    api.processIncomingWhatsAppMessage(phone, '1');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -425,6 +454,105 @@ export const CompounderDashboard: React.FC = () => {
       {/* RIGHT COLUMN: WhatsApp patient simulation panel */}
       <div className="lg:col-span-4 space-y-6">
         
+        {/* Clinic Staff Console */}
+        <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-50" />
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-teal-400 text-xl font-bold">badge</span>
+            Clinic Staff Console
+          </h2>
+          
+          {/* Active checked-in status */}
+          <div className="mb-5 p-3.5 bg-teal-500/10 border border-teal-500/20 rounded-xl flex items-center justify-between">
+            <div>
+              <span className="text-[10px] text-teal-400 uppercase tracking-widest font-bold">Current Shift Lead</span>
+              <h4 className="font-bold text-white text-sm mt-0.5">
+                {activeStaffId 
+                  ? staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder' 
+                  : 'No Staff Checked-in'}
+              </h4>
+            </div>
+            <span className={`text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded uppercase ${
+              activeStaffId ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+            }`}>
+              {activeStaffId ? 'ACTIVE SHIFT' : 'SHIFT VACANT'}
+            </span>
+          </div>
+
+          {/* Quick Staff Registration Form */}
+          <form onSubmit={handleRegisterStaff} className="flex gap-3 mb-5">
+            <input
+              type="text"
+              required
+              value={newStaffName}
+              onChange={(e) => setNewStaffName(e.target.value)}
+              placeholder="Enter name..."
+              className="flex-1 input-field text-xs py-2 focus:ring-1 focus:ring-teal-500 text-white"
+            />
+            <select
+              value={newStaffRole}
+              onChange={(e) => setNewStaffRole(e.target.value as any)}
+              className="input-field bg-clinical-950 text-xs py-2 w-32 focus:ring-1 focus:ring-teal-500"
+            >
+              <option value="compounder">Compounder</option>
+              <option value="receptionist">Receptionist</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button type="submit" className="btn-primary px-4 py-2 text-xs bg-teal-600 hover:bg-teal-500 border-teal-500 text-white">
+              Add
+            </button>
+          </form>
+
+          {/* Staff List */}
+          <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
+            {staffList.length === 0 ? (
+              <p className="text-clinical-500 text-xs text-center py-2">No staff registered. Add compounders above.</p>
+            ) : (
+              staffList.map(staff => (
+                <div 
+                  key={staff.id} 
+                  className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
+                    activeStaffId === staff.id 
+                      ? 'bg-teal-500/5 border-teal-500/30' 
+                      : 'bg-surface-container-lowest/30 border-outline-variant'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => handleSelectActiveStaff(staff.id)}
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                        activeStaffId === staff.id 
+                          ? 'border-teal-400 bg-teal-400/20' 
+                          : 'border-clinical-600 hover:border-clinical-400'
+                      }`}
+                    >
+                      {activeStaffId === staff.id && <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />}
+                    </button>
+                    <div>
+                      <h5 className="font-bold text-white text-xs flex items-center gap-1.5">
+                        {staff.staffName}
+                        <span className="text-[10px] text-teal-400 font-mono capitalize">({staff.role})</span>
+                      </h5>
+                      <span className="text-[9px] text-clinical-500 font-mono">ID: {staff.id.substring(0, 8)}...</span>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => handleToggleStaffActive(staff.id, staff.isActive)}
+                    className={`text-[9px] font-bold tracking-wider px-2 py-0.5 rounded transition-all ${
+                      staff.isActive 
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20' 
+                        : 'bg-clinical-500/10 text-clinical-400 border border-clinical-500/20 hover:bg-clinical-500/20'
+                    }`}
+                  >
+                    {staff.isActive ? 'IN SHIFT' : 'OFF SHIFT'}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* Real-time WhatsApp Loop simulator */}
         <div className="glass-panel border-white/10 shadow-xl overflow-hidden flex flex-col h-[600px] relative">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-500 opacity-60" />

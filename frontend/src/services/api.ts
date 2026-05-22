@@ -9,7 +9,9 @@ import type {
   SeasonalForecast,
   DiagnosticTest,
   HistoricalBiomarker,
-  ChatMessage
+  ChatMessage,
+  ClinicStaff,
+  FinancialLedgerEntry
 } from '../types';
 
 export interface DBEncounterMedication {
@@ -120,9 +122,27 @@ class MediflowApiService {
   public simulatedRole = 'compounder';
 
   constructor() {
-    // Start initial sync and period sync to fetch background trigger creations
+    // Start initial sync
     this.syncFromSupabase();
-    setInterval(() => this.syncFromSupabase(), 4000);
+
+    // Setup Supabase Realtime WebSocket subscription for all public changes
+    // This allows instant interconnect updates across compounder, doctor, lab, pharmacy, and billing
+    supabase
+      .channel('mediflow-pod-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          console.log('[Mediflow Realtime] Event received:', payload.table, payload.eventType);
+          this.syncFromSupabase();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Mediflow Realtime] Channel status changed:', status);
+      });
+
+    // Reduce polling frequency as a fallback backup mechanism
+    setInterval(() => this.syncFromSupabase(), 15000);
   }
 
   setSimulatedRole(role: string) {
@@ -194,6 +214,7 @@ class MediflowApiService {
           }
         });
       }
+      this.save('active_consent_ids', Array.from(activePatientIds));
 
       // 1. Sync Patients
       const { data: dbPatients } = await supabase.from('patient_registry').select('*');
@@ -346,6 +367,7 @@ class MediflowApiService {
         const holds = dbHolds.map(h => ({
           id: h.id,
           pharmacyId: h.pharmacy_entity_id,
+          patientId: h.patient_id,
           medicineName: h.medicine_name,
           dosage: h.dosage || '',
           quantity: h.quantity,
@@ -407,6 +429,40 @@ class MediflowApiService {
         this.save('seasonal_forecasts', forecasts);
       }
 
+      // 9. Sync Clinic Staff
+      const { data: dbStaff } = await supabase.from('clinic_staff').select('*');
+      if (dbStaff) {
+        const staff = dbStaff.map(s => ({
+          id: s.id,
+          entityId: s.entity_id,
+          userId: s.user_id || undefined,
+          staffName: s.staff_name,
+          role: s.role as ClinicStaff['role'],
+          isActive: s.is_active,
+          createdAt: s.created_at
+        }));
+        this.save('clinic_staff', staff);
+      }
+
+      // 10. Sync Financial Ledgers
+      const { data: dbLedgers } = await supabase.from('financial_ledgers').select('*');
+      if (dbLedgers) {
+        const ledgers = dbLedgers.map(l => ({
+          id: l.id,
+          invoiceId: l.invoice_id,
+          sourceEntityId: l.source_entity_id,
+          destinationEntityId: l.destination_entity_id,
+          transactionType: l.transaction_type as FinancialLedgerEntry['transactionType'],
+          grossAmount: Number(l.gross_amount),
+          commissionRate: Number(l.commission_rate),
+          netPayout: Number(l.net_payout),
+          paymentStatus: l.payment_status as FinancialLedgerEntry['paymentStatus'],
+          settledAt: l.settled_at,
+          createdAt: l.created_at
+        }));
+        this.save('financial_ledgers', ledgers);
+      }
+
     } catch (e) {
       console.error('Error synchronizing with Supabase', e);
     } finally {
@@ -431,6 +487,11 @@ class MediflowApiService {
     patients.push(newPatient);
     this.save('patients', patients);
 
+    const staffList = this.getClinicStaff();
+    const activeStaffId = this.getActiveStaffId();
+    const activeStaff = staffList.find(s => s.id === activeStaffId);
+    const registeredBy = activeStaff?.userId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101';
+
     // Asynchronously insert into Supabase
     supabase.from('patient_registry').insert({
       id: newPatient.id,
@@ -441,11 +502,16 @@ class MediflowApiService {
       allergies: newPatient.allergies,
       chronic_conditions: newPatient.chronicConditions,
       abha_id: newPatient.abhaId,
-      registered_by: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101', // seeded doctor
+      registered_by: registeredBy,
       registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' // seeded clinic
     }).then(({ error }) => {
       if (error) console.error('Error registering patient in Supabase:', error);
-      else this.writeAuditLog('patient_registered', { name: newPatient.name, phone: newPatient.phone }, newPatient.id);
+      else this.writeAuditLog('patient_registered', { 
+        name: newPatient.name, 
+        phone: newPatient.phone, 
+        registeredByStaffId: activeStaffId || 'None',
+        registeredByStaffName: activeStaff?.staffName || 'System'
+      }, newPatient.id);
       this.syncFromSupabase();
     });
 
@@ -780,14 +846,14 @@ class MediflowApiService {
     encounters.push(newEncounter);
     this.save('encounters', encounters);
 
-    // 1. Asynchronously insert clinical encounter to Supabase
+    // 1. Asynchronously insert clinical encounter to Supabase in 'active' status
     supabase.from('encounters').insert({
       id: encounterId,
       patient_id: newEncounter.patientId,
       doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101', // Doctor Vivek
       entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Clinic entity
       clinical_notes: newEncounter.clinicalNotes,
-      status: 'completed'
+      status: 'active'
     }).then(async ({ error }) => {
       if (error) {
         console.error('Error inserting encounter into Supabase:', error);
@@ -818,7 +884,18 @@ class MediflowApiService {
         await supabase.from('encounter_diagnostics').insert(diagsPayload);
       }
 
-      // 4. Update the local cache so we sync lab requisitions, holds, invoices, and session state
+      // 4. Update the encounter status to 'completed' to trigger trg_encounter_submitted AFTER child rows exist
+      const { error: updateError } = await supabase
+        .from('encounters')
+        .update({ status: 'completed' })
+        .eq('id', encounterId);
+
+      if (updateError) {
+        console.error('Error completing encounter in Supabase:', updateError);
+        return;
+      }
+
+      // 5. Update the local cache so we sync lab requisitions, holds, invoices, and session state
       // that are automatically routed and created by the database triggers!
       setTimeout(() => this.syncFromSupabase(), 800);
     });
@@ -1042,6 +1119,112 @@ class MediflowApiService {
         this.syncFromSupabase();
       });
     }
+  }
+
+  // Clinic Staff Operations
+  getClinicStaff(): ClinicStaff[] {
+    return this.load<ClinicStaff[]>('clinic_staff', []);
+  }
+
+  registerClinicStaff(name: string, role: 'compounder' | 'receptionist' | 'admin'): void {
+    const newStaff: ClinicStaff = {
+      id: crypto.randomUUID(),
+      entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      staffName: name,
+      role,
+      isActive: true,
+      createdAt: new Date().toISOString()
+    };
+    const staffList = this.getClinicStaff();
+    staffList.push(newStaff);
+    this.save('clinic_staff', staffList);
+    this.notify();
+
+    // Async write to Supabase
+    supabase.from('clinic_staff').insert({
+      id: newStaff.id,
+      entity_id: newStaff.entityId,
+      staff_name: newStaff.staffName,
+      role: newStaff.role,
+      is_active: newStaff.isActive,
+      created_at: newStaff.createdAt
+    }).then(({ error }) => {
+      if (error) console.error('Error inserting clinic staff into Supabase:', error);
+      else {
+        this.writeAuditLog('clinic_staff_registered', { staffId: newStaff.id, name, role }, newStaff.id);
+        this.syncFromSupabase();
+      }
+    });
+  }
+
+  toggleStaffActive(staffId: string, isActive: boolean): void {
+    const staffList = this.getClinicStaff();
+    const idx = staffList.findIndex(s => s.id === staffId);
+    if (idx !== -1) {
+      staffList[idx].isActive = isActive;
+      this.save('clinic_staff', staffList);
+      this.notify();
+
+      supabase.from('clinic_staff').update({
+        is_active: isActive
+      }).eq('id', staffId).then(({ error }) => {
+        if (error) console.error('Error updating clinic staff in Supabase:', error);
+        else {
+          this.writeAuditLog('clinic_staff_shift_toggled', { staffId, isActive }, staffId);
+          this.syncFromSupabase();
+        }
+      });
+    }
+  }
+
+  getActiveStaffId(): string | null {
+    return localStorage.getItem('active_staff_id');
+  }
+
+  setActiveStaffId(staffId: string | null): void {
+    if (staffId) {
+      localStorage.setItem('active_staff_id', staffId);
+    } else {
+      localStorage.removeItem('active_staff_id');
+    }
+    this.notify();
+  }
+
+  // Reagent replenishment
+  replenishReagentStock(reagentName: string, volume: number): void {
+    const reagents = this.getReagentStocks();
+    const idx = reagents.findIndex(r => r.reagentName === reagentName);
+    if (idx !== -1) {
+      const newVolume = reagents[idx].stockVolume + volume;
+      reagents[idx].stockVolume = newVolume;
+      this.save('reagents', reagents);
+      this.notify();
+
+      supabase.from('reagent_inventory').update({
+        stock_volume: newVolume
+      }).eq('reagent_name', reagentName).then(({ error }) => {
+        if (error) console.error('Error replenishing reagent in Supabase:', error);
+        else {
+          this.writeAuditLog('reagent_replenished', { reagentName, replenishedVolume: volume, newVolume }, reagentName);
+          this.syncFromSupabase();
+        }
+      });
+    }
+  }
+
+  // Financial ledgers (split billing)
+  getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
+    const ledgers = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    if (invoiceId) {
+      return ledgers.filter(l => l.invoiceId === invoiceId);
+    }
+    return ledgers;
+  }
+
+  // Check if patient has active consent in local storage
+  isPatientConsentActive(patientId: string): boolean {
+    const ids = this.load<string[]>('active_consent_ids', []);
+    return ids.includes(patientId);
   }
 }
 

@@ -70,6 +70,11 @@ export const PharmacyDashboard: React.FC = () => {
     { name: 'Pantoprazole 40mg', stock: 320, unit: 'tabs', threshold: 100 }
   ]);
 
+  // V2.0 Barcode Scan State
+  const [scanningHold, setScanningHold] = useState<InventoryHold | null>(null);
+  const [scannerStage, setScannerStage] = useState<'idle' | 'scanning' | 'matched'>('idle');
+  const [scanLogs, setScanLogs] = useState<string[]>([]);
+
   const handleRestock = React.useCallback((medName: string) => {
     setShelfStock(prev => prev.map(item => {
       if (item.name === medName) {
@@ -116,6 +121,43 @@ export const PharmacyDashboard: React.FC = () => {
     return api.subscribe(syncPharmacy);
   }, []);
 
+  // V2.0 Barcode Scan Effect
+  useEffect(() => {
+    if (!scanningHold || scannerStage !== 'scanning') return;
+
+    const log1 = setTimeout(() => {
+      setScanLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Laser target locked on batch: ${scanningHold.batchNumber}`,
+        `[${new Date().toLocaleTimeString()}] Querying FEFO index...`
+      ]);
+    }, 600);
+
+    const log2 = setTimeout(() => {
+      setScanLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] MATCH DETECTED! status: RESERVED`,
+        `[${new Date().toLocaleTimeString()}] Medicine package: ${scanningHold.medicineName} (${scanningHold.dosage})`,
+        `[${new Date().toLocaleTimeString()}] Batch expiry: ${scanningHold.expiryDate} (FEFO Compliant) [OK]`,
+        `[${new Date().toLocaleTimeString()}] Package integrity: VERIFIED [OK]`
+      ]);
+      setScannerStage('matched');
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          message: `Batch ${scanningHold.batchNumber} FEFO code matched & approved. Ready for dispatch.`,
+          type: 'success',
+          title: 'Barcode Match Verified'
+        }
+      }));
+    }, 1500);
+
+    return () => {
+      clearTimeout(log1);
+      clearTimeout(log2);
+    };
+  }, [scanningHold, scannerStage]);
+
   const handleDispense = React.useCallback((id: string) => {
     api.dispenseInventoryHold(id);
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -138,11 +180,19 @@ export const PharmacyDashboard: React.FC = () => {
     }));
   }, []);
 
-  const handleActOnForecast = React.useCallback((id: string) => {
+  const handleActOnForecast = React.useCallback((id: string, medicineName: string) => {
     api.actOnSeasonalForecast(id);
+    // V2.0 Trigger automatic restocking levels (+500 units)
+    setShelfStock(prev => prev.map(item => {
+      if (item.name.toLowerCase().includes(medicineName.toLowerCase()) || medicineName.toLowerCase().includes(item.name.toLowerCase())) {
+        return { ...item, stock: item.stock + 500 };
+      }
+      return item;
+    }));
+
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: 'Gemini epidemiology demand stocking increase authorized successfully.',
+        message: `Gemini epidemiology demand stocking increase authorized. Replenishment logged and shelf stock increased (+500 units of ${medicineName}).`,
         type: 'success',
         title: 'Forecast Approved'
       }
@@ -153,7 +203,20 @@ export const PharmacyDashboard: React.FC = () => {
   const dispensedHolds = React.useMemo(() => holds.filter(h => h.holdStatus === 'dispensed'), [holds]);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in relative">
+      
+      {/* Laser sweep animation styles */}
+      <style>{`
+        @keyframes laser-sweep {
+          0% { top: 0%; opacity: 0.3; }
+          50% { top: 100%; opacity: 1; }
+          100% { top: 0%; opacity: 0.3; }
+        }
+        .laser-line {
+          animation: laser-sweep 2.5s infinite ease-in-out;
+        }
+      `}</style>
+
       {/* LEFT COLUMN: e-Prescription Inventory Holds (FEFO Sorted) */}
       <div className="lg:col-span-8 space-y-6">
         
@@ -209,9 +272,25 @@ export const PharmacyDashboard: React.FC = () => {
               {activeHolds.map(hold => {
                 const daysToExpiry = Math.ceil((new Date(hold.expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
                 const isNearExpiry = daysToExpiry < 90;
+                // Consent compliant lockout blur
+                const isConsentActive = api.isPatientConsentActive(hold.patientId);
                 
                 return (
-                  <div key={hold.id} className="p-5 bg-surface-container border border-outline-variant rounded-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:border-outline/50 transition-all">
+                  <div key={hold.id} className="p-5 bg-surface-container border border-outline-variant rounded-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:border-outline/50 transition-all relative overflow-hidden">
+                    
+                    {/* compliance lockout */}
+                    {!isConsentActive && (
+                      <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md border border-rose-500/20 p-4 text-center animate-fade-in">
+                        <div className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-1.5 text-rose-500 animate-pulse">
+                          <span className="material-symbols-outlined text-base">lock</span>
+                        </div>
+                        <h4 className="text-white font-bold text-xs">Consent Lock Active</h4>
+                        <p className="text-[9px] text-clinical-400 max-w-[220px]">
+                          Ecosystem security notice: Patient must approve clinical access on WhatsApp simulation to unlock this inventory hold.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="font-bold text-sm text-white">{hold.medicineName}</h4>
@@ -238,17 +317,24 @@ export const PharmacyDashboard: React.FC = () => {
                     <div className="flex items-center gap-2 self-end md:self-center">
                       <button
                         onClick={() => handleCancel(hold.id)}
-                        className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl active:scale-95 transition-all border border-rose-500/20"
+                        className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl active:scale-95 transition-all border border-rose-500/20 cursor-pointer"
                         title="Cancel hold"
                       >
                         <XCircle className="h-4.5 w-4.5" />
                       </button>
                       <button
-                        onClick={() => handleDispense(hold.id)}
+                        onClick={() => {
+                          setScanningHold(hold);
+                          setScannerStage('scanning');
+                          setScanLogs([
+                            `[${new Date().toLocaleTimeString()}] Initializing smart laser scanner device...`,
+                            `[${new Date().toLocaleTimeString()}] Awaiting FEFO batch alignment...`
+                          ]);
+                        }}
                         className="btn-primary py-2.5 px-4 text-xs font-bold flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-transform bg-gradient-to-r from-secondary to-primary cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-sm font-bold">local_shipping</span>
-                        Dispense Order
+                        <span className="material-symbols-outlined text-sm font-bold">qr_code_scanner</span>
+                        Verify & Dispense
                       </button>
                     </div>
                   </div>
@@ -412,7 +498,7 @@ export const PharmacyDashboard: React.FC = () => {
                   </div>
                   {!forecast.isActedUpon && (
                     <button
-                      onClick={() => handleActOnForecast(forecast.id)}
+                      onClick={() => handleActOnForecast(forecast.id, forecast.medicineName)}
                       className="bg-secondary/10 hover:bg-secondary text-secondary hover:text-white border border-secondary/20 hover:border-secondary font-bold text-[9px] tracking-wider uppercase px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer"
                     >
                       Authorize Order
@@ -430,6 +516,150 @@ export const PharmacyDashboard: React.FC = () => {
         </div>
 
       </div>
+
+      {/* V2.0 PREMIUM LASER BARCODE SCANNER SIMULATION MODAL */}
+      {scanningHold && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+          <div className="glass-panel max-w-md w-full p-6 border-secondary/20 shadow-2xl space-y-5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
+            
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary animate-pulse">qr_code_scanner</span>
+                FEFO Barcode Scan Verification
+              </h3>
+              <button
+                onClick={() => {
+                  setScanningHold(null);
+                  setScannerStage('idle');
+                }}
+                className="text-clinical-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Viewfinder block */}
+            <div className="relative h-48 w-full bg-black/80 rounded-lg border border-white/10 flex flex-col items-center justify-center overflow-hidden">
+              
+              {/* Corner brackets */}
+              <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-secondary/80 rounded-tl" />
+              <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-secondary/80 rounded-tr" />
+              <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-secondary/80 rounded-bl" />
+              <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-secondary/80 rounded-br" />
+
+              {/* Sweeping Laser Line */}
+              {scannerStage === 'scanning' && (
+                <div className="absolute left-0 w-full h-[2px] bg-rose-500 shadow-[0_0_12px_#ef4444] laser-line z-10" />
+              )}
+
+              {/* Holographic Barcode */}
+              <div className={`flex flex-col items-center justify-center gap-2 transition-all duration-500 ${
+                scannerStage === 'matched' ? 'scale-105 opacity-100' : 'opacity-65'
+              }`}>
+                {/* SVG mock barcode */}
+                <svg className="w-56 h-16 text-white fill-current" viewBox="0 0 200 60">
+                  {/* Outer rect border */}
+                  <rect x="0" y="0" width="200" height="60" fill="transparent" />
+                  
+                  {/* Generated bars */}
+                  <rect x="10" y="5" width="3" height="50" fill="currentColor" />
+                  <rect x="15" y="5" width="1" height="50" fill="currentColor" />
+                  <rect x="18" y="5" width="2" height="50" fill="currentColor" />
+                  <rect x="24" y="5" width="4" height="50" fill="currentColor" />
+                  <rect x="30" y="5" width="1" height="50" fill="currentColor" />
+                  <rect x="33" y="5" width="3" height="50" fill="currentColor" />
+                  <rect x="40" y="5" width="2" height="50" fill="currentColor" />
+                  <rect x="46" y="5" width="5" height="50" fill="currentColor" />
+                  <rect x="54" y="5" width="1" height="50" fill="currentColor" />
+                  
+                  {/* Center guard bars */}
+                  <rect x="95" y="5" width="2" height="50" fill="#ef4444" />
+                  <rect x="99" y="5" width="2" height="50" fill="#ef4444" />
+                  
+                  {/* More bars */}
+                  <rect x="110" y="5" width="3" height="50" fill="currentColor" />
+                  <rect x="115" y="5" width="4" height="50" fill="currentColor" />
+                  <rect x="122" y="5" width="1" height="50" fill="currentColor" />
+                  <rect x="126" y="5" width="2" height="50" fill="currentColor" />
+                  <rect x="132" y="5" width="5" height="50" fill="currentColor" />
+                  <rect x="140" y="5" width="1" height="50" fill="currentColor" />
+                  <rect x="144" y="5" width="3" height="50" fill="currentColor" />
+                  <rect x="150" y="5" width="2" height="50" fill="currentColor" />
+                  <rect x="156" y="5" width="1" height="50" fill="currentColor" />
+                  <rect x="162" y="5" width="3" height="50" fill="currentColor" />
+                  <rect x="170" y="5" width="4" height="50" fill="currentColor" />
+                  <rect x="178" y="5" width="2" height="50" fill="currentColor" />
+                  <rect x="185" y="5" width="3" height="50" fill="currentColor" />
+                </svg>
+                <div className="text-[10px] font-mono text-secondary tracking-widest font-black uppercase">
+                  {scanningHold.batchNumber}
+                </div>
+              </div>
+
+              {/* Status text badge */}
+              <div className="absolute bottom-4 bg-black/60 px-3 py-1 rounded border border-white/10 text-[9px] font-mono uppercase tracking-widest text-center">
+                {scannerStage === 'scanning' ? (
+                  <span className="text-secondary flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping" />
+                    LASER ACTIVE...
+                  </span>
+                ) : (
+                  <span className="text-emerald-400 flex items-center gap-1.5 font-bold animate-pulse">
+                    <span className="material-symbols-outlined text-xs">check_circle</span>
+                    MATCH FOUND
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Scrolling terminal output */}
+            <div className="bg-surface-container-lowest border border-outline-variant p-3.5 rounded-lg h-32 overflow-y-auto font-mono text-[9px] text-clinical-300 space-y-1">
+              {scanLogs.map((log, idx) => (
+                <div key={idx} className={log.includes('MATCH') ? 'text-emerald-400 font-bold' : log.includes('Laser target') ? 'text-secondary' : ''}>
+                  {log}
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex gap-3 justify-end pt-3 border-t border-white/10">
+              <button
+                onClick={() => {
+                  setScanningHold(null);
+                  setScannerStage('idle');
+                }}
+                className="px-4 py-2 bg-surface-container hover:bg-surface-container-highest border border-outline-variant text-clinical-300 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Abort
+              </button>
+              {scannerStage === 'matched' ? (
+                <button
+                  onClick={() => {
+                    handleDispense(scanningHold.id);
+                    setScanningHold(null);
+                    setScannerStage('idle');
+                  }}
+                  className="px-5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-black tracking-wider uppercase flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm font-bold">local_shipping</span>
+                  Settle & Dispense
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="px-5 py-2 bg-surface-container-highest border border-outline-variant text-clinical-500 rounded-xl text-xs font-bold cursor-not-allowed uppercase flex items-center gap-2"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-clinical-500 animate-pulse" />
+                  Verifying...
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

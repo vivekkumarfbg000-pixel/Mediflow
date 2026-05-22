@@ -131,6 +131,7 @@ export interface LabRequisition {
 export interface InventoryHold {
   id: string;
   pharmacyId: string;
+  patientId: string;
   medicineName: string;
   dosage: string;
   quantity: number;
@@ -166,3 +167,18 @@ export interface SeasonalForecast {
   isActedUpon: boolean;
   createdAt: string;
 }
+
+export interface FinancialLedgerEntry {
+  id: string;
+  invoiceId: string;
+  sourceEntityId: string;
+  destinationEntityId: string;
+  transactionType: 'appointment_fee' | 'medicine_commission' | 'lab_commission' | 'platform_fee';
+  grossAmount: number;
+  commissionRate: number;
+  netPayout: number;
+  paymentStatus: 'pending' | 'cleared' | 'disputed';
+  settledAt: string | null;
+  createdAt: string;
+}
+

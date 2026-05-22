@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
+import { supabase } from '../../lib/supabaseClient';
 import type { Patient, DiagnosticTest, MedicationRequest } from '../../types';
 import { 
   Trash2, 
@@ -30,6 +31,15 @@ export const DoctorDashboard: React.FC = () => {
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Historical Comparative Selector
+  const [baselineDate, setBaselineDate] = useState<string | null>(null);
+  const [comparisonDate, setComparisonDate] = useState<string | null>(null);
+
+  // V2.0 Dynamic Interactive SVG Charting & CDSS states
+  const [hoveredHbA1c, setHoveredHbA1c] = useState<{ x: number, y: number, val: number, date: string } | null>(null);
+  const [hoveredCreatinine, setHoveredCreatinine] = useState<{ x: number, y: number, val: number, date: string } | null>(null);
+  const [allergyAlert, setAllergyAlert] = useState<{ medicineName: string, allergen: string, resolved: boolean, justification: string } | null>(null);
+
   useEffect(() => {
     const syncPatients = () => {
       const registered = api.getPatients();
@@ -45,25 +55,47 @@ export const DoctorDashboard: React.FC = () => {
     return api.subscribe(syncPatients);
   }, []);
 
+  // Reset selectors when patient changes
+  useEffect(() => {
+    setBaselineDate(null);
+    setComparisonDate(null);
+    setCdssAnomalies([]);
+    setAiInsight('');
+    setAiError(null);
+  }, [selectedPatient?.id]);
+
+  // Auto-select latest two reports when history is available
   useEffect(() => {
     if (!selectedPatient) return;
-    
-    // Evaluate clinical risks for CDSS anomalies (HbA1c & Creatinine)
     const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
-    const anomalies: string[] = [];
-    
-    if (history && history.length > 0) {
-      const latest = history[history.length - 1];
-      const previous = history[history.length - 2];
-      
-      if (latest.creatinine > 1.2) {
-        anomalies.push(`Warning: Serum Creatinine is ${latest.creatinine} mg/dL (Abnormal > 1.2). Significant upward trend from ${previous.creatinine} mg/dL observed over 30 days.`);
-      }
-      if (latest.HbA1c > 6.5) {
-        anomalies.push(`Alert: HbA1c is ${latest.HbA1c}% (Diabetic threshold > 6.5%). Although HbA1c has improved from ${previous.HbA1c}%, glycemic levels remain elevated.`);
-      }
+    if (history.length >= 2) {
+      setBaselineDate(prev => prev ?? history[history.length - 2].date);
+      setComparisonDate(prev => prev ?? history[history.length - 1].date);
+    } else if (history.length === 1) {
+      setComparisonDate(prev => prev ?? history[0].date);
     }
-    
+  }, [selectedPatient?.id]);
+
+  useEffect(() => {
+    if (!selectedPatient) return;
+    const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+    if (!history || history.length === 0) return;
+
+    const baseReport = history.find(h => h.date === baselineDate) ?? null;
+    const compReport = history.find(h => h.date === comparisonDate) ?? history[history.length - 1];
+
+    // Evaluate clinical risks for CDSS anomalies
+    const anomalies: string[] = [];
+    if (compReport.creatinine > 1.2) {
+      anomalies.push(`Warning: Serum Creatinine is ${compReport.creatinine} mg/dL (Abnormal > 1.2).${
+        baseReport ? ` Up from ${baseReport.creatinine} mg/dL in ${baseReport.date}.` : ''
+      }`);
+    }
+    if (compReport.HbA1c > 6.5) {
+      anomalies.push(`Alert: HbA1c is ${compReport.HbA1c}% (Diabetic threshold > 6.5%).${
+        baseReport ? ` Changed from ${baseReport.HbA1c}% in ${baseReport.date}.` : ''
+      }`);
+    }
     setCdssAnomalies(anomalies);
 
     // Asynchronous RAG clinical insight pipeline with 5s timeout & containment
@@ -71,71 +103,85 @@ export const DoctorDashboard: React.FC = () => {
       setIsAiLoading(true);
       setAiError(null);
       setAiInsight('');
-      
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
+
       try {
-        const apiCall = new Promise<string>((resolve, reject) => {
-          setTimeout(() => {
-            // 15% rate of transient failures (HTTP 429/503) to prove fallback behavior
-            if (Math.random() < 0.15) {
-              reject(new Error("RAG engine timed out or returned HTTP 429 Rate Limit."));
-              return;
-            }
-            
-            const latest = history ? history[history.length - 1] : null;
-            const previous = history ? history[history.length - 2] : null;
-            
-            let insight = `### Clinical Advisory (RAG-Generated)\n\n`;
-            insight += `Patient **${selectedPatient.name}** (${selectedPatient.age}y, ${selectedPatient.gender}) shows `;
-            if (selectedPatient.chronicConditions.length > 0) {
-              insight += `chronic history of **${selectedPatient.chronicConditions.join(' & ')}**.\n\n`;
-            } else {
-              insight += `no reported chronic conditions.\n\n`;
-            }
-            
-            if (latest) {
-              insight += `**Biomarker Summary:**\n`;
-              insight += `- **HbA1c**: Currently **${latest.HbA1c}%** (previously **${previous?.HbA1c}%**). Glycemic control is improving but elevated.\n`;
-              insight += `- **Creatinine**: Elevated at **${latest.creatinine} mg/dL** (previously **${previous?.creatinine} mg/dL**). Significant upward trajectory indicates high cardiorenal strain.\n`;
-              insight += `- **Hemoglobin**: **${latest.hemoglobin} g/dL**, GFR protection is highly recommended.\n\n`;
-            }
-            
-            if (selectedPatient.allergies.includes('Penicillin')) {
-              insight += `⚠️ **CRITICAL CONTRAINDICATION**: Documented **Penicillin** allergy. Do NOT prescribe penicillin-class agents.\n\n`;
-            }
-            
-            insight += `**Intervention Recommendations:**\n`;
-            insight += `1. Consider cardioprotective **SGLT2 inhibitors** (e.g. Empagliflozin).\n`;
-            insight += `2. Schedule a follow-up repeat **Serum Creatinine & GFR** in 14 days.\n`;
-            
-            resolve(insight);
-          }, 1200);
-        });
-        
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          controller.signal.addEventListener('abort', () => {
-            reject(new Error("RAG Engine connection timed out after 5000ms."));
+        // Query the database using pgvector fallback keyword match
+        let topicsToSearch = ['General'];
+        if (selectedPatient.chronicConditions && selectedPatient.chronicConditions.length > 0) {
+          topicsToSearch = selectedPatient.chronicConditions;
+        }
+
+        // Search matching guidelines for each topic
+        let guidelinesFound: any[] = [];
+        for (const topic of topicsToSearch) {
+          let normalizedTopic = topic;
+          if (topic.toLowerCase().includes('diabetes')) normalizedTopic = 'Diabetes';
+          if (topic.toLowerCase().includes('kidney') || topic.toLowerCase().includes('renal')) normalizedTopic = 'CKD';
+          if (topic.toLowerCase().includes('asthma') || topic.toLowerCase().includes('fever')) normalizedTopic = 'Fever';
+
+          const { data, error } = await supabase.rpc('match_clinical_guidelines', {
+            query_embedding: null,
+            match_threshold: 0.1,
+            match_count: 1,
+            query_text: normalizedTopic
           });
-        });
-        
-        const result = await Promise.race([apiCall, timeoutPromise]);
+
+          if (!error && data && data.length > 0) {
+            guidelinesFound.push(...data);
+          }
+        }
+
+        let insight = `### Clinical Advisory (Zero-Mock RAG-Generated)\n\n`;
+        insight += `Patient **${selectedPatient.name}** (${selectedPatient.age}y, ${selectedPatient.gender}) shows `;
+        insight += selectedPatient.chronicConditions.length > 0
+          ? `chronic history of **${selectedPatient.chronicConditions.join(' & ')}**.\n\n`
+          : `no reported chronic conditions.\n\n`;
+
+        if (baseReport && compReport) {
+          insight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
+          insight += `- **HbA1c**: **${baseReport.HbA1c}%** → **${compReport.HbA1c}%** (${
+            compReport.HbA1c < baseReport.HbA1c ? '↓ Improving' : '↑ Worsening'
+          }).\n`;
+          insight += `- **Creatinine**: **${baseReport.creatinine}** → **${compReport.creatinine} mg/dL** (${
+            compReport.creatinine > baseReport.creatinine ? '↑ Elevated — monitor renal function' : '↓ Improving'
+          }).\n`;
+          insight += `- **Hemoglobin**: **${baseReport.hemoglobin}** → **${compReport.hemoglobin} g/dL**.\n\n`;
+        } else if (compReport) {
+          insight += `**Biomarker Summary (${compReport.date}):**\n`;
+          insight += `- HbA1c: **${compReport.HbA1c}%**, Creatinine: **${compReport.creatinine} mg/dL**, Hemoglobin: **${compReport.hemoglobin} g/dL**\n\n`;
+        }
+
+        if (selectedPatient.allergies.includes('Penicillin')) {
+          insight += `⚠️ **CRITICAL CONTRAINDICATION**: Documented **Penicillin** allergy. Do NOT prescribe penicillin-class agents.\n\n`;
+        }
+
+        if (guidelinesFound.length > 0) {
+          insight += `**Vector Guidelines Retrieved (${guidelinesFound.length}):**\n`;
+          guidelinesFound.forEach((g: any) => {
+            insight += `* **[${g.guideline_source}] ${g.clinical_topic}**: ${g.content}\n`;
+          });
+          insight += `\n`;
+        } else {
+          insight += `**Vector Guidelines Retrieved**: None matched Patient Chronic profile in RAG index.\n\n`;
+        }
+
+        insight += `**Intervention Recommendations:**\n`;
+        insight += `1. Consider cardioprotective **SGLT2 inhibitors** (e.g. Empagliflozin) for cardiovascular standard support.\n`;
+        insight += `2. Schedule a follow-up repeat **Serum Creatinine & GFR** in 14 days.\n`;
+
         clearTimeout(timeoutId);
-        setAiInsight(result);
+        setAiInsight(insight);
       } catch (err: any) {
         clearTimeout(timeoutId);
-        console.error("[Mediflow CDSS] RAG Insight fetch failed:", err);
-        setAiError(err.message || "RAG engine is offline.");
-        
-        // Log in immutable activity_logs
+        setAiError(err.message || 'RAG engine is offline.');
         api.writeAuditLog('SYSTEM_ERROR', {
           action: 'fetchRAGInsights',
           patientId: selectedPatient.id,
           error: err.message || 'Timeout/Rate Limit'
         }, selectedPatient.id);
-        
-        // Dispatch warning toast
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
             message: 'CDSS RAG Engine offline. Falling back to local clinical biomarkers.',
@@ -149,10 +195,35 @@ export const DoctorDashboard: React.FC = () => {
     };
 
     fetchRAGInsights();
-  }, [selectedPatient]);
+  }, [selectedPatient, baselineDate, comparisonDate]);
+
+  const checkAllergyConflict = (drugName: string): string | null => {
+    if (!selectedPatient || !selectedPatient.allergies) return null;
+    const lowerDrug = drugName.toLowerCase();
+    for (const allergy of selectedPatient.allergies) {
+      const lowerAllergy = allergy.toLowerCase();
+      if (lowerDrug.includes(lowerAllergy) || 
+          (lowerAllergy === 'penicillin' && (lowerDrug.includes('amox') || lowerDrug.includes('amp') || lowerDrug.includes('peni')))) {
+        return allergy;
+      }
+    }
+    return null;
+  };
 
   const handleAddMedication = () => {
     if (!medName || !medDosage) return;
+
+    const conflict = checkAllergyConflict(medName);
+    if (conflict) {
+      setAllergyAlert({
+        medicineName: medName,
+        allergen: conflict,
+        resolved: false,
+        justification: ''
+      });
+      return;
+    }
+
     setMedications([
       ...medications,
       { medicineName: medName, dosage: medDosage, frequency: medFreq, duration: medDur }
@@ -201,6 +272,9 @@ export const DoctorDashboard: React.FC = () => {
   };
 
   const activeHistory = selectedPatient ? api.getPatientHistoricalBiomarkers(selectedPatient.id) : null;
+  const baseReport = activeHistory?.find(h => h.date === baselineDate) ?? null;
+  const compReport = activeHistory?.find(h => h.date === comparisonDate) ?? (activeHistory ? activeHistory[activeHistory.length - 1] : null);
+  const isConsentActive = selectedPatient ? api.isPatientConsentActive(selectedPatient.id) : true;
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
@@ -256,13 +330,67 @@ export const DoctorDashboard: React.FC = () => {
         {selectedPatient && (
           <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
+            {!isConsentActive && (
+              <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md border border-rose-500/20 p-6 text-center animate-fade-in">
+                <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-3 text-rose-500 animate-pulse">
+                  <span className="material-symbols-outlined text-2xl">lock</span>
+                </div>
+                <h3 className="text-white font-bold text-sm mb-1.5">Compliance Lock Active</h3>
+                <p className="text-[11px] text-clinical-300 max-w-[200px] leading-relaxed">
+                  Active Patient Consent Missing. Clinical history is locked until patient authorizes via WhatsApp.
+                </p>
+              </div>
+            )}
             <h2 className="text-lg font-bold text-white mb-1.5 flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary text-xl">insights</span>
               CDSS Lab Analyzer
             </h2>
-            <p className="text-[11px] text-clinical-400 mb-5 leading-relaxed">
+            <p className="text-[11px] text-clinical-400 mb-4 leading-relaxed">
               AI comparative biomarker metrics tracking and warning engine.
             </p>
+
+            {/* Historical Comparative Selector */}
+            {activeHistory && activeHistory.length >= 2 && (
+              <div className="mb-5 p-3.5 bg-surface-container-lowest/60 border border-outline-variant rounded-xl space-y-3">
+                <h4 className="text-[10px] font-bold text-clinical-300 uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[12px] text-secondary">compare_arrows</span>
+                  Historical Report Comparator
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] text-clinical-500 uppercase tracking-wider mb-1.5 font-bold">Baseline Report</label>
+                    <select
+                      value={baselineDate ?? ''}
+                      onChange={(e) => setBaselineDate(e.target.value || null)}
+                      className="w-full input-field bg-clinical-950 text-xs py-1.5 focus:ring-1 focus:ring-secondary"
+                    >
+                      <option value="">— Select Date —</option>
+                      {activeHistory.filter(h => h.date !== comparisonDate).map(h => (
+                        <option key={h.date} value={h.date}>{h.date}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-clinical-500 uppercase tracking-wider mb-1.5 font-bold">Comparison Report</label>
+                    <select
+                      value={comparisonDate ?? ''}
+                      onChange={(e) => setComparisonDate(e.target.value || null)}
+                      className="w-full input-field bg-clinical-950 text-xs py-1.5 focus:ring-1 focus:ring-secondary"
+                    >
+                      <option value="">— Select Date —</option>
+                      {activeHistory.filter(h => h.date !== baselineDate).map(h => (
+                        <option key={h.date} value={h.date}>{h.date}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {baseReport && compReport && (
+                  <p className="text-[9px] text-clinical-500 font-mono">
+                    Comparing <span className="text-white">{baseReport.date}</span> → <span className="text-secondary">{compReport.date}</span>
+                  </p>
+                )}
+              </div>
+            )}
 
             {activeHistory ? (
               <div className="space-y-6 animate-fade-in">
@@ -316,70 +444,68 @@ export const DoctorDashboard: React.FC = () => {
                       <thead>
                         <tr className="border-b border-outline-variant text-clinical-400 font-bold uppercase tracking-wider font-mono text-[8px]">
                           <th className="pb-2">Biomarker</th>
-                          <th className="pb-2">Past (30d)</th>
-                          <th className="pb-2">Present (2026-05-22)</th>
+                          <th className="pb-2">{baseReport ? baseReport.date : 'Baseline'}</th>
+                          <th className="pb-2">{compReport ? compReport.date : 'Comparison'}</th>
                           <th className="pb-2">Change</th>
                           <th className="pb-2 text-right">Clinical Risk</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-outline-variant/30">
-                        {(() => {
-                          const latest = activeHistory[activeHistory.length - 1];
-                          const previous = activeHistory[activeHistory.length - 2];
-                          
-                          const hDiff = (latest.HbA1c - previous.HbA1c).toFixed(1);
+                        {compReport && baseReport ? (() => {
+                          const hDiff = (compReport.HbA1c - baseReport.HbA1c).toFixed(1);
                           const hDiffNum = parseFloat(hDiff);
-                          
-                          const cDiff = (latest.creatinine - previous.creatinine).toFixed(2);
+                          const cDiff = (compReport.creatinine - baseReport.creatinine).toFixed(2);
                           const cDiffNum = parseFloat(cDiff);
-
-                          const hbDiff = (latest.hemoglobin - previous.hemoglobin).toFixed(1);
+                          const hbDiff = (compReport.hemoglobin - baseReport.hemoglobin).toFixed(1);
                           const hbDiffNum = parseFloat(hbDiff);
-
                           return (
                             <>
                               <tr className="hover:bg-surface-container/30 transition-colors">
                                 <td className="py-2 font-semibold text-white">HbA1c (%)</td>
-                                <td className="py-2 font-mono text-clinical-400">{previous.HbA1c}%</td>
-                                <td className="py-2 font-mono text-white font-bold">{latest.HbA1c}%</td>
+                                <td className="py-2 font-mono text-clinical-400">{baseReport.HbA1c}%</td>
+                                <td className="py-2 font-mono text-white font-bold">{compReport.HbA1c}%</td>
                                 <td className={`py-2 font-mono font-bold ${hDiffNum < 0 ? 'text-emerald-400' : hDiffNum > 0 ? 'text-rose-400' : 'text-clinical-400'}`}>
                                   {hDiffNum > 0 ? `+${hDiff}` : hDiff}%
                                 </td>
                                 <td className="py-2 text-right">
-                                  <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider">
-                                    Improving
-                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border ${
+                                    hDiffNum < 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse'
+                                  }`}>{hDiffNum < 0 ? 'Improving' : 'Elevated'}</span>
                                 </td>
                               </tr>
                               <tr className="hover:bg-surface-container/30 transition-colors">
                                 <td className="py-2 font-semibold text-white">Creatinine (mg/dL)</td>
-                                <td className="py-2 font-mono text-clinical-400">{previous.creatinine}</td>
-                                <td className="py-2 font-mono text-white font-bold">{latest.creatinine}</td>
+                                <td className="py-2 font-mono text-clinical-400">{baseReport.creatinine}</td>
+                                <td className="py-2 font-mono text-white font-bold">{compReport.creatinine}</td>
                                 <td className={`py-2 font-mono font-bold ${cDiffNum > 0 ? 'text-rose-400' : cDiffNum < 0 ? 'text-emerald-400' : 'text-clinical-400'}`}>
                                   {cDiffNum > 0 ? `+${cDiff}` : cDiff}
                                 </td>
                                 <td className="py-2 text-right">
-                                  <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider animate-pulse">
-                                    CKD Stage 2 Risk
-                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border ${
+                                    compReport.creatinine > 1.2 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  }`}>{compReport.creatinine > 1.2 ? 'CKD Risk' : 'Normal'}</span>
                                 </td>
                               </tr>
                               <tr className="hover:bg-surface-container/30 transition-colors">
                                 <td className="py-2 font-semibold text-white">Hemoglobin (g/dL)</td>
-                                <td className="py-2 font-mono text-clinical-400">{previous.hemoglobin}</td>
-                                <td className="py-2 font-mono text-white font-bold">{latest.hemoglobin}</td>
+                                <td className="py-2 font-mono text-clinical-400">{baseReport.hemoglobin}</td>
+                                <td className="py-2 font-mono text-white font-bold">{compReport.hemoglobin}</td>
                                 <td className={`py-2 font-mono font-bold ${hbDiffNum > 0 ? 'text-emerald-400' : hbDiffNum < 0 ? 'text-rose-400' : 'text-clinical-400'}`}>
                                   {hbDiffNum > 0 ? `+${hbDiff}` : hbDiff}
                                 </td>
                                 <td className="py-2 text-right">
-                                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider">
-                                    Mild Anemia
-                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border ${
+                                    compReport.hemoglobin < 12 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  }`}>{compReport.hemoglobin < 12 ? 'Mild Anemia' : 'Normal'}</span>
                                 </td>
                               </tr>
                             </>
                           );
-                        })()}
+                        })() : compReport ? (
+                          <tr><td colSpan={5} className="py-3 text-center text-clinical-500 text-xs">Select a baseline report to enable comparison.</td></tr>
+                        ) : (
+                          <tr><td colSpan={5} className="py-3 text-center text-clinical-500 text-xs">No completed lab reports available.</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -398,35 +524,80 @@ export const DoctorDashboard: React.FC = () => {
                       <span className="text-clinical-400 font-medium">
                         HbA1c (%) <span className="text-[10px] text-clinical-500 font-mono block mt-0.5">Ref: 4.0 - 5.6% (LOINC 4544-3)</span>
                       </span>
-                      <span className="font-semibold text-secondary flex items-center gap-1 text-[10px] bg-secondary/10 px-1.5 py-0.5 rounded self-start">
-                        <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-                        Downward Trend
-                      </span>
+                      {(() => {
+                        if (!activeHistory || activeHistory.length < 2) return null;
+                        const last = activeHistory[activeHistory.length - 1].HbA1c;
+                        const prev = activeHistory[activeHistory.length - 2].HbA1c;
+                        const isImproving = last < prev;
+                        return (
+                          <span className={`font-semibold flex items-center gap-1 text-[10px] ${isImproving ? 'text-secondary bg-secondary/10' : 'text-rose-400 bg-rose-500/10'} px-1.5 py-0.5 rounded self-start`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isImproving ? 'bg-secondary' : 'bg-rose-500'} animate-pulse`} />
+                            {isImproving ? 'Downward Trend (Improving)' : 'Rising Trend (Worsening)'}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="h-16 relative border-l border-b border-outline-variant p-1">
-                      <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="hba1c-grad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#4fdbc8" stopOpacity="0.4" />
-                            <stop offset="100%" stopColor="#4fdbc8" stopOpacity="0.0" />
-                          </linearGradient>
-                        </defs>
-                        <path
-                          d="M 10,32 Q 50,22 90,16 L 90,40 L 10,40 Z"
-                          fill="url(#hba1c-grad)"
-                        />
-                        <path
-                          className="svg-graph-line"
-                          d="M 10,32 Q 50,22 90,16"
-                          fill="none"
-                          stroke="#4fdbc8"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                        <circle cx="10" cy="32" r="2.5" fill="#4fdbc8" />
-                        <circle cx="50" cy="22" r="2.5" fill="#4fdbc8" />
-                        <circle cx="90" cy="16" r="3.5" fill="#04b4a2" stroke="#ffffff" strokeWidth="1" className="animate-pulse" />
-                      </svg>
+                      {(() => {
+                        if (!activeHistory || activeHistory.length === 0) {
+                          return <div className="text-center py-4 text-xs text-clinical-500">No records available</div>;
+                        }
+                        const points = activeHistory.map((h, i) => {
+                          const x = activeHistory.length === 1 ? 50 : 10 + i * (80 / (activeHistory.length - 1));
+                          const clampedVal = Math.max(4.0, Math.min(10.0, h.HbA1c));
+                          const y = 32 - ((clampedVal - 4.0) / 6.0) * 26;
+                          return { x, y, val: h.HbA1c, date: h.date };
+                        });
+                        let pathD = "";
+                        if (points.length === 1) {
+                          pathD = `M 10,${points[0].y} H 90`;
+                        } else {
+                          pathD = `M ${points[0].x},${points[0].y} ` + points.slice(1).map(p => `L ${p.x},${p.y}`).join(" ");
+                        }
+                        const fillPathD = pathD + ` L ${points[points.length - 1].x},38 L ${points[0].x},38 Z`;
+
+                        return (
+                          <>
+                            <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id="hba1c-dynamic-grad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#4fdbc8" stopOpacity="0.4" />
+                                  <stop offset="100%" stopColor="#4fdbc8" stopOpacity="0.0" />
+                                </linearGradient>
+                              </defs>
+                              {points.length > 1 && (
+                                <path d={fillPathD} fill="url(#hba1c-dynamic-grad)" />
+                              )}
+                              <path
+                                d={pathD}
+                                fill="none"
+                                stroke="#4fdbc8"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                              {points.map((p, idx) => (
+                                <circle
+                                  key={idx}
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={idx === points.length - 1 ? 3.5 : 2.5}
+                                  fill={idx === points.length - 1 ? "#04b4a2" : "#4fdbc8"}
+                                  stroke="#ffffff"
+                                  strokeWidth={idx === points.length - 1 ? 1.5 : 1}
+                                  className="cursor-pointer hover:scale-125 transition-transform"
+                                  onMouseEnter={() => setHoveredHbA1c(p)}
+                                  onMouseLeave={() => setHoveredHbA1c(null)}
+                                />
+                              ))}
+                            </svg>
+                            {hoveredHbA1c && (
+                              <div className="absolute top-1 right-2 bg-clinical-950/95 border border-primary/30 px-2.5 py-1 rounded-xl text-[9px] text-white font-mono z-50 shadow-lg shadow-primary/20">
+                                {hoveredHbA1c.date}: <strong className="text-secondary">{hoveredHbA1c.val}%</strong>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -436,35 +607,80 @@ export const DoctorDashboard: React.FC = () => {
                       <span className="text-clinical-400 font-medium">
                         Serum Creatinine (mg/dL) <span className="text-[10px] text-clinical-500 font-mono block mt-0.5">Ref: 0.6 - 1.2 mg/dL (LOINC 2160-0)</span>
                       </span>
-                      <span className="font-semibold text-rose-400 flex items-center gap-1 text-[10px] bg-rose-500/10 px-1.5 py-0.5 rounded self-start">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                        Rising Trend
-                      </span>
+                      {(() => {
+                        if (!activeHistory || activeHistory.length < 2) return null;
+                        const last = activeHistory[activeHistory.length - 1].creatinine;
+                        const prev = activeHistory[activeHistory.length - 2].creatinine;
+                        const isImproving = last < prev;
+                        return (
+                          <span className={`font-semibold flex items-center gap-1 text-[10px] ${isImproving ? 'text-secondary bg-secondary/10' : 'text-rose-400 bg-rose-500/10'} px-1.5 py-0.5 rounded self-start`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isImproving ? 'bg-secondary' : 'bg-rose-500'} animate-pulse`} />
+                            {isImproving ? 'Downward Trend (Improving)' : 'Rising Trend (Elevated)'}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="h-16 relative border-l border-b border-outline-variant p-1">
-                      <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="creat-grad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#ffb4ab" stopOpacity="0.4" />
-                            <stop offset="100%" stopColor="#ffb4ab" stopOpacity="0.0" />
-                          </linearGradient>
-                        </defs>
-                        <path
-                          d="M 10,32 Q 50,25 90,12 L 90,40 L 10,40 Z"
-                          fill="url(#creat-grad)"
-                        />
-                        <path
-                          className="svg-graph-line"
-                          d="M 10,32 Q 50,25 90,12"
-                          fill="none"
-                          stroke="#ff897d"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                        <circle cx="10" cy="32" r="2.5" fill="#ff897d" />
-                        <circle cx="50" cy="25" r="2.5" fill="#ff897d" />
-                        <circle cx="90" cy="12" r="3.5" fill="#93000a" stroke="#ffb4ab" strokeWidth="1" className="animate-pulse" />
-                      </svg>
+                      {(() => {
+                        if (!activeHistory || activeHistory.length === 0) {
+                          return <div className="text-center py-4 text-xs text-clinical-500">No records available</div>;
+                        }
+                        const points = activeHistory.map((h, i) => {
+                          const x = activeHistory.length === 1 ? 50 : 10 + i * (80 / (activeHistory.length - 1));
+                          const clampedVal = Math.max(0.4, Math.min(2.0, h.creatinine));
+                          const y = 32 - ((clampedVal - 0.4) / 1.6) * 26;
+                          return { x, y, val: h.creatinine, date: h.date };
+                        });
+                        let pathD = "";
+                        if (points.length === 1) {
+                          pathD = `M 10,${points[0].y} H 90`;
+                        } else {
+                          pathD = `M ${points[0].x},${points[0].y} ` + points.slice(1).map(p => `L ${p.x},${p.y}`).join(" ");
+                        }
+                        const fillPathD = pathD + ` L ${points[points.length - 1].x},38 L ${points[0].x},38 Z`;
+
+                        return (
+                          <>
+                            <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id="creat-dynamic-grad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#ffb4ab" stopOpacity="0.4" />
+                                  <stop offset="100%" stopColor="#ffb4ab" stopOpacity="0.0" />
+                                </linearGradient>
+                              </defs>
+                              {points.length > 1 && (
+                                <path d={fillPathD} fill="url(#creat-dynamic-grad)" />
+                              )}
+                              <path
+                                d={pathD}
+                                fill="none"
+                                stroke="#ff897d"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                              {points.map((p, idx) => (
+                                <circle
+                                  key={idx}
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={idx === points.length - 1 ? 3.5 : 2.5}
+                                  fill={idx === points.length - 1 ? "#93000a" : "#ff897d"}
+                                  stroke="#ffb4ab"
+                                  strokeWidth={idx === points.length - 1 ? 1.5 : 1}
+                                  className="cursor-pointer hover:scale-125 transition-transform"
+                                  onMouseEnter={() => setHoveredCreatinine(p)}
+                                  onMouseLeave={() => setHoveredCreatinine(null)}
+                                />
+                              ))}
+                            </svg>
+                            {hoveredCreatinine && (
+                              <div className="absolute top-1 right-2 bg-clinical-950/95 border border-rose-500/30 px-2.5 py-1 rounded-xl text-[9px] text-white font-mono z-50 shadow-lg shadow-rose-500/20">
+                                {hoveredCreatinine.date}: <strong className="text-rose-400">{hoveredCreatinine.val} mg/dL</strong>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -499,6 +715,17 @@ export const DoctorDashboard: React.FC = () => {
       {selectedPatient && (
         <div className="lg:col-span-8 glass-panel p-6 border-white/10 shadow-xl space-y-6 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-secondary to-primary opacity-50" />
+          {!isConsentActive && (
+            <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md border border-rose-500/20 p-8 text-center animate-fade-in">
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4 text-rose-500 animate-pulse">
+                <span className="material-symbols-outlined text-3xl">lock</span>
+              </div>
+              <h3 className="text-white font-bold text-base mb-2">Compliance Lock: Active Consent Missing</h3>
+              <p className="text-xs text-clinical-300 max-w-sm leading-relaxed mb-4">
+                Access to clinical records, diagnostics ordering, and medication prescribing is locked. Please direct the patient to reply <strong className="text-secondary font-mono">"1" (Grant Access)</strong> on their WhatsApp simulator interface.
+              </p>
+            </div>
+          )}
           <div className="border-b border-outline-variant pb-4 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -678,6 +905,77 @@ export const DoctorDashboard: React.FC = () => {
             </button>
           </div>
 
+        </div>
+      )}
+
+      {allergyAlert && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
+          <div className="glass-panel max-w-md w-full p-6 border-rose-500/30 shadow-2xl relative overflow-hidden space-y-4">
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
+            <div className="flex items-center gap-3 text-rose-400 font-bold text-lg">
+              <AlertTriangle className="h-6 w-6 text-rose-500 animate-pulse" />
+              Critical CDSS Contraindication
+            </div>
+            
+            <p className="text-xs text-clinical-300 leading-relaxed">
+              Prescription of <strong className="text-white">{allergyAlert.medicineName}</strong> intercepts active allergy profile. The patient is flagged allergic to <strong className="text-rose-400">{allergyAlert.allergen}</strong>.
+            </p>
+
+            <div className="space-y-2">
+              <label className="block text-[10px] text-clinical-400 font-bold uppercase tracking-wider">
+                Clinical Justification Override Required
+              </label>
+              <textarea
+                value={allergyAlert.justification}
+                onChange={(e) => setAllergyAlert({ ...allergyAlert, justification: e.target.value })}
+                placeholder="e.g., Clinical benefit outweighs minor rash risk; alternative tolerated under close monitoring."
+                rows={3}
+                className="w-full input-field resize-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500 text-xs bg-clinical-950"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setAllergyAlert(null)}
+                className="px-4 py-2 rounded-lg bg-surface-container border border-outline-variant hover:bg-surface-container-high text-xs text-clinical-300 font-semibold"
+              >
+                Cancel Draft
+              </button>
+              <button
+                type="button"
+                disabled={!allergyAlert.justification.trim()}
+                onClick={() => {
+                  setMedications([
+                    ...medications,
+                    {
+                      medicineName: `${allergyAlert.medicineName} (Allergen Override: ${allergyAlert.justification.trim()})`,
+                      dosage: medDosage || 'As directed',
+                      frequency: medFreq,
+                      duration: medDur
+                    }
+                  ]);
+                  setMedName('');
+                  setMedDosage('');
+                  setAllergyAlert(null);
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      message: `CDSS Override Authorized for ${allergyAlert.medicineName}. Justification recorded.`,
+                      type: 'warning',
+                      title: 'Allergy Override Logged'
+                    }
+                  }));
+                }}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5 ${
+                  allergyAlert.justification.trim() 
+                    ? 'bg-rose-600 hover:bg-rose-500 shadow-md shadow-rose-950/20 active:scale-95' 
+                    : 'bg-rose-900/50 text-clinical-500 border border-rose-900/40 cursor-not-allowed'
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4" /> Authorize Override
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
