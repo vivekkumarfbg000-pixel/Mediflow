@@ -1,3 +1,4 @@
+// Mediflow Connected Care Ecosystem - Premium Dashboard v1.0.0
 import { useState } from 'react';
 import { Navbar } from './components/shared/Navbar';
 import type { UserRole } from './components/shared/Navbar';
