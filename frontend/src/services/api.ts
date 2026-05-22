@@ -45,7 +45,7 @@ export interface DBLabRequisition {
   test_name: string;
   barcode: string;
   status: string;
-  quantitative_result?: string | null;
+  lab_reports?: { result_value: string }[] | null;
   created_at: string;
   assigned_technician_id: string | null;
   patient: { name: string } | null;
@@ -287,10 +287,10 @@ class MediflowApiService {
         test_name,
         barcode,
         status,
-        quantitative_result,
         created_at,
         assigned_technician_id,
-        patient:patient_registry(name)
+        patient:patient_registry(name),
+        lab_reports(result_value)
       `);
 
       if (this.simulatedRole === 'lab_technician') {
@@ -321,7 +321,7 @@ class MediflowApiService {
             testName: r.test_name,
             barcode: r.barcode,
             status: r.status === 'processing' ? 'collected' : (r.status === 'completed' ? 'completed' : r.status),
-            quantitativeResult: r.quantitative_result || undefined,
+            quantitativeResult: r.lab_reports?.[0]?.result_value || undefined,
             reagentDeductions: r.status === 'completed' ? getReagents(r.loinc_code) : [],
             createdAt: r.created_at
           };
@@ -930,7 +930,6 @@ class MediflowApiService {
       // Async publish lab report
       supabase.from('lab_requisitions').update({
         status: 'completed',
-        quantitative_result: resultValue,
         updated_at: new Date().toISOString()
       }).eq('id', reqId).then(async ({ error }) => {
         if (error) {
