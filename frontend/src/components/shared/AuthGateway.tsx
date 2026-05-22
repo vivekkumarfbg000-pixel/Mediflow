@@ -84,7 +84,26 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      // Fetch the mock profile securely from Supabase public.profiles to verify the UUID exists
+      // Map user role to pre-seeded email in Supabase auth
+      let authEmail = '';
+      if (user.role === 'doctor') authEmail = 'doctor@mediflow.com';
+      else if (user.role === 'lab_technician') authEmail = 'labtech@mediflow.com';
+      else if (user.role === 'pharmacist') authEmail = 'pharmacist@mediflow.com';
+      else if (user.role === 'patient') authEmail = 'patient1@mediflow.com';
+
+      if (!authEmail) {
+        throw new Error(`Mapping failed for role: ${user.role}`);
+      }
+
+      // Perform a real authentication to establish the {authenticated} session for RLS compliance
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: 'password123'
+      });
+
+      if (authError) throw authError;
+
+      // Fetch the authenticated user's profile from Supabase public.profiles (now successfully authenticated!)
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
@@ -95,18 +114,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         throw new Error(`Profile seed verification failed: ${profileErr.message}`);
       }
 
-      // Simulate a verified session carrying the pre-seeded JWT profile payload
-      const mockSession = {
-        access_token: `mock_jwt_for_${user.role}_${user.id}`,
-        user: {
-          id: user.id,
-          email: `${user.role}@mediflow.in`,
-          user_metadata: { role: user.role }
-        }
-      };
-
       // Notify App of successful secure login
-      onAuthSuccess(mockSession, profile);
+      onAuthSuccess(authData.session, profile);
     } catch (err: any) {
       setErrorMsg(err.message || 'Demo profile loading failed.');
     } finally {
