@@ -15,6 +15,11 @@
   --color-clinical-900: #0f172a;
   --color-clinical-950: #020617;
 
+  /* Stitch Primary Color Override for custom elements */
+  --color-primary: #b4c5ff;
+  --color-primary-container: #004ac6;
+  --color-on-primary-container: #b8c8ff;
+  
   --color-primary-50: #eef2ff;
   --color-primary-100: #e0e7ff;
   --color-primary-200: #c7d2fe;
@@ -34,6 +39,13 @@
   --color-success-500: #22c55e;
   --color-success-600: #16a34a;
 
+  /* Stitch Secondary / Medical Teal */
+  --color-secondary: #4fdbc8;
+  --color-secondary-container: #04b4a2;
+  --color-on-secondary-container: #003f38;
+  --color-secondary-fixed: #71f8e4;
+  --color-secondary-fixed-dim: #4fdbc8;
+  
   --color-accent-50: #f0fdfa;
   --color-accent-100: #ccfbf1;
   --color-accent-200: #99f6e4;
@@ -42,44 +54,210 @@
   --color-accent-500: #14b8a6;
   --color-accent-600: #0d9488;
 
+  /* Stitch Custom Tonal Tokens */
+  --color-surface: #0c1324;
+  --color-surface-dim: #0c1324;
+  --color-surface-bright: #33394c;
+  --color-surface-container-lowest: #070d1f;
+  --color-surface-container-low: #151b2d;
+  --color-surface-container: #191f31;
+  --color-surface-container-high: #23293c;
+  --color-surface-container-highest: #2e3447;
+  --color-on-surface: #dce1fb;
+  --color-on-surface-variant: #c3c6d6;
+  --color-outline: #8d90a0;
+  --color-outline-variant: #434654;
+  
   --font-sans: 'Outfit', 'Inter', 'sans-serif';
   --animate-pulse-subtle: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 body {
-  @apply bg-clinical-950 text-clinical-100 font-sans antialiased overflow-x-hidden;
+  @apply bg-clinical-950 text-on-surface font-sans antialiased overflow-x-hidden;
+  background-color: #020617;
 }
 
-.glass-panel {
-  @apply bg-clinical-900/60 backdrop-blur-md border border-clinical-800/80 shadow-xl rounded-2xl;
-}
-
-.glass-panel-hover {
-  @apply transition-all duration-300 hover:bg-clinical-900/85 hover:border-primary-500/30 hover:-translate-y-0.5 hover:shadow-2xl;
-}
-
-.btn-primary {
-  @apply bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-500 hover:to-accent-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all duration-200 shadow-md active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
-}
-
-.btn-secondary {
-  @apply bg-clinical-800/85 hover:bg-clinical-700/85 text-clinical-100 font-medium px-4 py-2.5 rounded-xl border border-clinical-700/60 transition-all duration-200 active:scale-[0.98];
-}
-
-.input-field {
-  @apply bg-clinical-950/80 border border-clinical-800 text-clinical-100 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 placeholder-clinical-500 transition-all duration-200;
-}
-
-/* Custom clinical scrollbar */
+/* Custom premium scrollbar for clinical dashboards */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-clinical-950;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-clinical-800 rounded-full hover:bg-clinical-700;
+  background: rgba(141, 144, 160, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(141, 144, 160, 0.5);
+}
+
+/* Premium Dark-Glassmorphism Panel surface */
+.glass-panel {
+  background-color: rgba(21, 27, 45, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.05), 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  border-radius: 0.75rem;
+}
+
+.glass-panel-hover:hover {
+  background-color: rgba(46, 52, 71, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Premium Dark-Glassmorphism Modal */
+.glass-modal {
+  background-color: rgba(25, 31, 49, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(255, 255, 255, 0.25);
+  border-left-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 30px rgba(180, 197, 255, 0.05);
+  border-radius: 0.75rem;
+}
+
+.glass-panel-inner {
+  background: rgba(35, 41, 60, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top-color: rgba(255, 255, 255, 0.08);
+  border-left-color: rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+}
+
+.inner-glow-border {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.2);
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Form Inputs styling matching style guide */
+.input-field, .clinical-input {
+  background-color: #0f172a;
+  border: 1px solid rgba(141, 144, 160, 0.4);
+  color: #dce1fb;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.875rem;
+}
+
+.input-field:focus, .clinical-input:focus {
+  outline: none;
+  border-color: #004ac6;
+  box-shadow: 0 0 0 2px rgba(0, 74, 198, 0.2);
+}
+
+/* Primary Button Styling */
+.btn-primary {
+  background: linear-gradient(180deg, #1b55d0 0%, #004ac6 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 74, 198, 0.2);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  opacity: 0.95;
+  box-shadow: 0 4px 16px rgba(0, 74, 198, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Secondary Button Styling */
+.btn-secondary {
+  background-color: rgba(141, 144, 160, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #dce1fb;
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(141, 144, 160, 0.25);
+  color: #ffffff;
+}
+
+/* Repeating gradient simulated barcode Decal */
+.simulated-barcode {
+  background: repeating-linear-gradient(
+    to right,
+    #dce1fb,
+    #dce1fb 2px,
+    transparent 2px,
+    transparent 4px,
+    #dce1fb 4px,
+    #dce1fb 5px,
+    transparent 5px,
+    transparent 8px,
+    #dce1fb 8px,
+    #dce1fb 12px,
+    transparent 12px,
+    transparent 15px
+  );
+  border-radius: 4px;
+}
+
+/* Document physical scan laser overlay */
+.scanner-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+
+.scanner-beam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to right, transparent, #4fdbc8, transparent);
+  box-shadow: 0 4px 10px rgba(79, 219, 200, 0.5);
+  animation: scan 2.5s infinite linear;
+  z-index: 10;
+}
+
+/* Smooth Graph Line Drawing Effect */
+.svg-graph-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawGraph 2s ease-out forwards;
+}
+
+@keyframes scan {
+  0% { top: -5%; }
+  50% { top: 105%; }
+  100% { top: -5%; }
+}
+
+@keyframes drawGraph {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
