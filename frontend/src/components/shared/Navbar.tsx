@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../../services/api';
 import { 
   Activity, 
   UserPlus, 
@@ -16,6 +17,14 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentRole, onChangeRole }) => {
+  const [isSyncing, setIsSyncing] = useState(api.isSyncing);
+
+  useEffect(() => {
+    return api.subscribe(() => {
+      setIsSyncing(api.isSyncing);
+    });
+  }, []);
+
   const roles = [
     { id: 'compounder', name: 'Compounder', icon: UserPlus, color: 'text-accent-500 bg-accent-500/10' },
     { id: 'doctor', name: 'Doctor Dashboard', icon: Stethoscope, color: 'text-primary-500 bg-primary-500/10' },
@@ -35,6 +44,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, onChangeRole }) => 
           <div>
             <h1 className="font-extrabold text-xl tracking-tight text-white flex items-center gap-2">
               Mediflow <span className="text-accent-400 font-medium text-xs bg-accent-950 border border-accent-800 px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse-subtle">Pod Hub</span>
+              <span className={`flex items-center gap-1.5 text-[9px] px-2 py-0.5 rounded-full border transition-all duration-300 font-mono tracking-wider font-bold ${
+                isSyncing 
+                  ? 'bg-primary-500/15 text-primary border-primary/25'
+                  : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-primary animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
+                {isSyncing ? 'Syncing' : 'Live'}
+              </span>
             </h1>
             <p className="text-clinical-400 text-xs font-medium">Hyper-Local Connected Care Network</p>
           </div>

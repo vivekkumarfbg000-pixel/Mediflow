@@ -20,12 +20,33 @@ export interface ClinicStaff {
   createdAt: string;
 }
 
+export interface HistoricalBiomarker {
+  date: string;
+  HbA1c: number;
+  creatinine: number;
+  hemoglobin: number;
+}
+
+export interface ChatMessage {
+  sender: 'bot' | 'patient';
+  text: string;
+  timestamp?: string;
+  time?: string;
+}
+
+export interface WhatsAppSessionData {
+  chatHistory?: ChatMessage[];
+  consentGranted?: boolean;
+  consentTime?: string | null;
+  [key: string]: any;
+}
+
 export interface WhatsAppSession {
   id: string;
   patientPhone: string;
-  currentState: 'AWAITING_WELCOME' | 'AWAITING_CONFIRMATION' | 'AWAITING_PAYMENT' | 'BOOKING_VIRTUAL';
+  currentState: 'AWAITING_WELCOME' | 'AWAITING_CONFIRMATION' | 'AWAITING_PAYMENT' | 'BOOKING_VIRTUAL' | 'COMPLETED' | 'FAILED_DELIVERY';
   lastInteraction: string;
-  sessionData: Record<string, any>;
+  sessionData: WhatsAppSessionData;
 }
 
 export interface MedicationRequest {

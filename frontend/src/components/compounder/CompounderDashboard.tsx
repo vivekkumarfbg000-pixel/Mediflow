@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import type { Patient, WhatsAppSession } from '../../types';
 import { 
@@ -10,6 +10,15 @@ import {
   ShieldAlert,
   ShieldCheck
 } from 'lucide-react';
+
+const OCR_MOCK_NAMES = [
+  { name: 'Rohan Gupta', age: 34, gender: 'Male' as const, chronic: ['Hypertension'], allergies: ['Sulfa Drugs'] },
+  { name: 'Meera Sen', age: 29, gender: 'Female' as const, chronic: ['Hypothyroidism'], allergies: [] },
+  { name: 'Vikram Patel', age: 48, gender: 'Male' as const, chronic: ['Type-2 Diabetes'], allergies: ['Aspirin'] },
+  { name: 'Neha Kapoor', age: 41, gender: 'Female' as const, chronic: ['Asthma'], allergies: ['Dust'] },
+  { name: 'Kiran Verma', age: 52, gender: 'Male' as const, chronic: ['High Cholesterol'], allergies: ['Penicillin'] },
+  { name: 'Rajesh Mishra', age: 44, gender: 'Male' as const, chronic: ['Hypertension', 'Chronic Kidney Disease'], allergies: [] }
+];
 
 export const CompounderDashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -28,13 +37,47 @@ export const CompounderDashboard: React.FC = () => {
   // Prescription scan state
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
+  const [scannedPatientInfo, setScannedPatientInfo] = useState<{ name: string; phone: string } | null>(null);
 
   // Selected patient to initiate loop
   const [activeSession, setActiveSession] = useState<WhatsAppSession | null>(null);
 
+  // Chat simulator input & scroll states
+  const [replyInput, setReplyInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    setPatients(api.getPatients());
-    setSessions(api.getWhatsAppSessions());
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeSession?.sessionData?.chatHistory]);
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyInput.trim() || !activeSession) return;
+    const text = replyInput.trim();
+    setReplyInput('');
+
+    // Trigger state machine router & bot dispatch
+    await api.processIncomingWhatsAppMessage(activeSession.patientPhone, text);
+  };
+
+  useEffect(() => {
+    const syncData = () => {
+      const dbPatients = api.getPatients();
+      const dbSessions = api.getWhatsAppSessions();
+      setPatients(dbPatients);
+      setSessions(dbSessions);
+      
+      setActiveSession(prev => {
+        if (!prev) return null;
+        const fresh = dbSessions.find(s => s.patientPhone === prev.patientPhone);
+        return fresh || null;
+      });
+    };
+
+    syncData();
+    return api.subscribe(syncData);
   }, []);
 
   const handleRegister = (e: React.FormEvent) => {
@@ -51,8 +94,14 @@ export const CompounderDashboard: React.FC = () => {
       abhaId: abhaId || undefined
     });
 
-    setPatients(api.getPatients());
-    
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Patient ${name} registered successfully. ABHA profile linked.`,
+        type: 'success',
+        title: 'Patient Registered'
+      }
+    }));
+
     // Reset Form
     setName('');
     setPhone('');
@@ -65,8 +114,15 @@ export const CompounderDashboard: React.FC = () => {
 
   const handleInitiateLoop = (patient: Patient) => {
     const session = api.initiateWhatsAppSession(patient.phone);
-    setSessions(api.getWhatsAppSessions());
     setActiveSession(session);
+    
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `WhatsApp verification session initiated for ${patient.name}.`,
+        type: 'info',
+        title: 'WhatsApp Loop Started'
+      }
+    }));
   };
 
   const simulatePatientConsent = (phone: string) => {
@@ -75,22 +131,58 @@ export const CompounderDashboard: React.FC = () => {
       consentGranted: true,
       consentTime: new Date().toISOString()
     });
-    setSessions(api.getWhatsAppSessions());
-    const sess = api.getWhatsAppSessions().find(s => s.patientPhone === phone);
-    if (sess) {
-      setActiveSession(sess);
-    }
+    
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: 'Patient consent registered to the secure clinical network.',
+        type: 'success',
+        title: 'Consent Granted'
+      }
+    }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setIsScanning(true);
       setScanSuccess(false);
+      setScannedPatientInfo(null);
       
-      // Simulate physical scanner reading text
+      // Simulate physical scanner reading text & extracting clinical markers
       setTimeout(() => {
         setIsScanning(false);
         setScanSuccess(true);
+
+        // Select a random candidate to register dynamically
+        const candidate = OCR_MOCK_NAMES[Math.floor(Math.random() * OCR_MOCK_NAMES.length)];
+        const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
+        const dynamicPhone = `98${randomDigits}`;
+        const dynamicAbha = `12-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        // Dynamic registration via api.ts
+        const registered = api.registerPatient({
+          name: candidate.name,
+          phone: dynamicPhone,
+          age: candidate.age,
+          gender: candidate.gender,
+          allergies: candidate.allergies,
+          chronicConditions: candidate.chronic,
+          abhaId: dynamicAbha
+        });
+
+        // Dynamic WhatsApp opt-in session payload fired instantly
+        const session = api.initiateWhatsAppSession(dynamicPhone);
+        
+        // Update local dashboard states
+        setScannedPatientInfo({ name: registered.name, phone: registered.phone });
+        setActiveSession(session);
+        
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            message: `OCR Digitized: Registered patient ${registered.name} (+91 ${registered.phone}) and fired WhatsApp bot welcome payload!`,
+            type: 'success',
+            title: 'OCR Extraction Complete'
+          }
+        }));
       }, 2000);
     }
   };
@@ -312,8 +404,8 @@ export const CompounderDashboard: React.FC = () => {
                   <CheckCircle className="h-6 w-6" />
                 </div>
                 <h4 className="font-semibold text-white text-sm">Prescription Digitized Successfully!</h4>
-                <p className="text-xs text-emerald-400 bg-emerald-500/5 py-1 px-3 border border-emerald-500/10 rounded-md max-w-sm mx-auto">
-                  Scan matched: Aarav Sharma (p-1). Paracetamol hold mapped.
+                <p className="text-xs text-emerald-400 bg-emerald-500/5 py-1.5 px-3 border border-emerald-500/10 rounded-md max-w-sm mx-auto leading-relaxed">
+                  Scan matched: <strong className="text-white font-bold">{scannedPatientInfo?.name}</strong> (+91 {scannedPatientInfo?.phone}). WhatsApp Consent Loop Fired!
                 </p>
               </div>
             ) : (
@@ -371,49 +463,55 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="bg-surface-container/60 border border-outline-variant p-3.5 rounded-xl flex gap-3 leading-relaxed">
                   <ShieldAlert className="h-5 w-5 text-secondary flex-shrink-0 mt-0.5" />
                   <p className="text-clinical-400 text-[10px] leading-relaxed">
-                    Mediflow utilizes time-bound patient-controlled consent. Opt-in link sent to +91 {activeSession.patientPhone}.
+                    Mediflow utilizes time-bound patient-controlled consent. Opt-in link sent to +91 {activeSession.patientPhone}. Current state: <span className="font-mono text-emerald-400 uppercase font-semibold">{activeSession.currentState}</span>
                   </p>
                 </div>
 
-                {/* Bot Welcome message */}
-                <div className="max-w-[85%] bg-surface-container p-4 rounded-2xl rounded-tl-none border border-outline-variant space-y-2 shadow-md">
-                  <p className="text-white leading-relaxed">
-                    Hello! Welcome to <strong className="text-secondary font-bold">Mediflow Healthcare</strong>. 🏥
-                  </p>
-                  <p className="text-clinical-300 leading-relaxed">
-                    To securely synchronize your clinical e-prescriptions, lab report cards, and invoices, please grant permission.
-                  </p>
-                  <div className="mt-3 pt-3 border-t border-outline-variant flex flex-col gap-2">
-                    {activeSession.currentState === 'AWAITING_WELCOME' ? (
-                      <button
-                        onClick={() => simulatePatientConsent(activeSession.patientPhone)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                {/* Dynamic Messages */}
+                {(activeSession.sessionData.chatHistory || []).map((msg, idx: number) => {
+                  const isBot = msg.sender === 'bot';
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`flex ${isBot ? 'justify-start' : 'justify-end'} animate-fade-in`}
+                    >
+                      <div 
+                        className={`max-w-[85%] p-4 rounded-2xl border shadow-md relative ${
+                          isBot 
+                            ? 'bg-surface-container rounded-tl-none border-outline-variant text-white' 
+                            : 'bg-emerald-600/90 rounded-tr-none border-emerald-500/30 text-white'
+                        }`}
                       >
-                        <span className="material-symbols-outlined text-xs">lock_open</span>
-                        Grant Access (Patient)
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider justify-center">
-                        <ShieldCheck className="h-4 w-4 text-emerald-400" /> Consent Saved & Registered
-                      </div>
-                    )}
-                  </div>
-                </div>
+                        <p className="leading-relaxed whitespace-pre-line">{msg.text}</p>
+                        
+                        {/* If it's a welcome message from the bot and the state is still AWAITING_WELCOME, show the consent button */}
+                        {isBot && msg.text.includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
+                          <div className="mt-3 pt-3 border-t border-outline-variant/50 flex flex-col gap-2">
+                            <button
+                              onClick={() => simulatePatientConsent(activeSession.patientPhone)}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-xs">lock_open</span>
+                              Grant Access (Patient)
+                            </button>
+                          </div>
+                        )}
 
-                {/* Awaiting Confirmation follow-up */}
-                {activeSession.currentState !== 'AWAITING_WELCOME' && (
-                  <div className="max-w-[85%] bg-surface-container p-4 rounded-2xl rounded-tl-none border border-outline-variant space-y-1.5 animate-fade-in shadow-md">
-                    <p className="text-white leading-relaxed">
-                      Thank you! Your patient consent is committed to the secure ledger. 
-                    </p>
-                    <p className="text-emerald-400 leading-relaxed font-bold tracking-wider uppercase text-[10px]">
-                      State: READY_FOR_ENCOUNTER
-                    </p>
-                    <p className="text-[9px] text-clinical-500 mt-2 font-mono">
-                      Timestamp: {new Date(activeSession.sessionData.consentTime).toLocaleTimeString()}
-                    </p>
-                  </div>
-                )}
+                        {/* If it is an active consent registered state, show a clean indicator */}
+                        {isBot && msg.text.includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
+                          <div className="mt-2 flex items-center gap-1 text-emerald-400 text-[9px] font-bold uppercase tracking-wider">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> Consent Registered
+                          </div>
+                        )}
+
+                        <span className="block text-[8px] text-clinical-500 text-right mt-1.5 font-mono">
+                          {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={chatEndRef} />
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
@@ -430,17 +528,27 @@ export const CompounderDashboard: React.FC = () => {
           </div>
 
           {/* WhatsApp Footer */}
-          <div className="bg-surface-container p-3 border-t border-outline-variant flex gap-2">
+          <form onSubmit={handleSendReply} className="bg-surface-container p-3 border-t border-outline-variant flex gap-2">
             <input
               type="text"
-              disabled
-              placeholder="Simulated WhatsApp Interface"
-              className="flex-1 bg-surface-container-lowest/80 border border-outline-variant rounded-xl px-3 py-2 text-xs text-clinical-500 focus:outline-none"
+              value={replyInput}
+              onChange={(e) => setReplyInput(e.target.value)}
+              disabled={!activeSession}
+              placeholder={activeSession ? "Type a reply (e.g. '1', 'STOP CONSENT', 'REFILL')..." : "Simulated WhatsApp Interface"}
+              className="flex-1 bg-surface-container-lowest/80 border border-outline-variant rounded-xl px-3 py-2 text-xs text-white placeholder-clinical-500 focus:outline-none focus:border-emerald-500/50"
             />
-            <button disabled className="p-2 rounded-xl bg-surface-container-highest text-clinical-500">
+            <button 
+              type="submit"
+              disabled={!activeSession || !replyInput.trim()} 
+              className={`p-2 rounded-xl transition-colors ${
+                activeSession && replyInput.trim() 
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer animate-pulse' 
+                  : 'bg-surface-container-highest text-clinical-500'
+              }`}
+            >
               <Send className="h-4 w-4" />
             </button>
-          </div>
+          </form>
         </div>
 
       </div>

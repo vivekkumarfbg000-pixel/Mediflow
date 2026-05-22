@@ -7,32 +7,150 @@ import {
   Lightbulb
 } from 'lucide-react';
 
+export interface PharmacyShelfStock {
+  name: string;
+  stock: number;
+  unit: string;
+  threshold: number;
+}
+
+const ShelfStockRow = React.memo<{
+  item: PharmacyShelfStock;
+  onRestock: (name: string) => void;
+}>(({ item, onRestock }) => {
+  const isLow = item.stock < item.threshold;
+  return (
+    <tr className="hover:bg-surface-container/50 transition-colors">
+      <td className="p-3.5 text-white font-semibold">{item.name}</td>
+      <td className="p-3.5">
+        <span className={`font-mono font-bold ${isLow ? 'text-rose-400 font-black' : 'text-emerald-400'}`}>
+          {item.stock} {item.unit}
+        </span>
+      </td>
+      <td className="p-3.5 text-clinical-400 font-mono">{item.threshold} {item.unit}</td>
+      <td className="p-3.5 text-center">
+        {isLow ? (
+          <span className="inline-flex items-center gap-1 text-[9px] font-black text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            LOW STOCK
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            SECURE
+          </span>
+        )}
+      </td>
+      <td className="p-3.5 text-right">
+        <button
+          onClick={() => onRestock(item.name)}
+          className={`text-[9px] font-bold tracking-wider uppercase px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer border ${
+            isLow 
+              ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-500 hover:border-rose-600' 
+              : 'bg-surface-container-highest text-clinical-300 border-outline-variant hover:text-white hover:border-outline'
+          }`}
+        >
+          {isLow ? 'Auto-Restock' : 'Restock +500'}
+        </button>
+      </td>
+    </tr>
+  );
+});
+
+ShelfStockRow.displayName = 'ShelfStockRow';
+
 export const PharmacyDashboard: React.FC = () => {
   const [holds, setHolds] = useState<InventoryHold[]>([]);
   const [forecasts, setForecasts] = useState<SeasonalForecast[]>([]);
+  const [shelfStock, setShelfStock] = useState<PharmacyShelfStock[]>([
+    { name: 'Metformin 500mg', stock: 450, unit: 'tabs', threshold: 100 },
+    { name: 'Paracetamol 650mg', stock: 45, unit: 'tabs', threshold: 100 },
+    { name: 'Amoxicillin 250mg', stock: 120, unit: 'caps', threshold: 100 },
+    { name: 'Atorvastatin 10mg', stock: 15, unit: 'tabs', threshold: 50 },
+    { name: 'Pantoprazole 40mg', stock: 320, unit: 'tabs', threshold: 100 }
+  ]);
 
-  useEffect(() => {
-    setHolds(api.getInventoryHolds());
-    setForecasts(api.getSeasonalForecasts());
+  const handleRestock = React.useCallback((medName: string) => {
+    setShelfStock(prev => prev.map(item => {
+      if (item.name === medName) {
+        return { ...item, stock: item.stock + 500 };
+      }
+      return item;
+    }));
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Authorized Gemini B2B automated bulk restock order: +500 units of ${medName}.`,
+        type: 'success',
+        title: 'Restock Order Dispatched'
+      }
+    }));
   }, []);
 
-  const handleDispense = (id: string) => {
+  useEffect(() => {
+    const alertedBatches = new Set<string>();
+
+    const syncPharmacy = () => {
+      const dbHolds = api.getInventoryHolds();
+      const dbForecasts = api.getSeasonalForecasts();
+      setHolds(dbHolds);
+      setForecasts(dbForecasts);
+
+      // Expiry alerting logic for held items
+      const active = dbHolds.filter(h => h.holdStatus === 'held');
+      active.forEach(hold => {
+        const daysToExpiry = Math.ceil((new Date(hold.expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+        if (daysToExpiry < 90 && !alertedBatches.has(hold.batchNumber)) {
+          alertedBatches.add(hold.batchNumber);
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: {
+              message: `FEFO WARNING: Batch ${hold.batchNumber} of ${hold.medicineName} expires in ${daysToExpiry} days. Prioritize dispensing.`,
+              type: 'warning',
+              title: 'FEFO Expiry Alert'
+            }
+          }));
+        }
+      });
+    };
+
+    syncPharmacy();
+    return api.subscribe(syncPharmacy);
+  }, []);
+
+  const handleDispense = React.useCallback((id: string) => {
     api.dispenseInventoryHold(id);
-    setHolds(api.getInventoryHolds());
-  };
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: 'Prescription inventory package successfully dispensed and POS settled.',
+        type: 'success',
+        title: 'POS Dispensed'
+      }
+    }));
+  }, []);
 
-  const handleCancel = (id: string) => {
+  const handleCancel = React.useCallback((id: string) => {
     api.cancelInventoryHold(id);
-    setHolds(api.getInventoryHolds());
-  };
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: 'Prescription reserve cancelled. Medicine returned to active stock.',
+        type: 'info',
+        title: 'Reservation Cancelled'
+      }
+    }));
+  }, []);
 
-  const handleActOnForecast = (id: string) => {
+  const handleActOnForecast = React.useCallback((id: string) => {
     api.actOnSeasonalForecast(id);
-    setForecasts(api.getSeasonalForecasts());
-  };
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: 'Gemini epidemiology demand stocking increase authorized successfully.',
+        type: 'success',
+        title: 'Forecast Approved'
+      }
+    }));
+  }, []);
 
-  const activeHolds = holds.filter(h => h.holdStatus === 'held');
-  const dispensedHolds = holds.filter(h => h.holdStatus === 'dispensed');
+  const activeHolds = React.useMemo(() => holds.filter(h => h.holdStatus === 'held'), [holds]);
+  const dispensedHolds = React.useMemo(() => holds.filter(h => h.holdStatus === 'dispensed'), [holds]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
@@ -63,6 +181,31 @@ export const PharmacyDashboard: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
+              
+              {/* Critical FEFO Expiry Countdown Warning Banner */}
+              {activeHolds.some(h => Math.ceil((new Date(h.expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) < 90) && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl space-y-2.5 animate-pulse relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 via-amber-500 to-transparent" />
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider font-mono">
+                    <span className="material-symbols-outlined text-sm text-amber-400">warning</span>
+                    CRITICAL EXPIRY ALERT (FEFO BATCH CONTROL)
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-clinical-300">
+                    The following pre-allocated medicine holds are under the 90-day expiry threshold. Prioritize dispatches to maintain ecosystem clinical compliance:
+                  </p>
+                  <ul className="text-[10px] space-y-1.5 list-disc list-inside font-mono">
+                    {activeHolds.map(hold => {
+                      const days = Math.ceil((new Date(hold.expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+                      if (days >= 90) return null;
+                      return (
+                        <li key={hold.id} className="text-amber-400 font-semibold">
+                          {hold.medicineName} (Batch: {hold.batchNumber}) — <strong className="text-rose-400 font-black">{days} Days to Expiry</strong>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
               {activeHolds.map(hold => {
                 const daysToExpiry = Math.ceil((new Date(hold.expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
                 const isNearExpiry = daysToExpiry < 90;
@@ -113,6 +256,37 @@ export const PharmacyDashboard: React.FC = () => {
               })}
             </div>
           )}
+        </div>
+
+        {/* Component 3: Active Shelf Stock Inventory & Low-Stock Alerts */}
+        <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 opacity-55" />
+          <h2 className="text-lg font-bold text-white mb-1.5 flex items-center gap-2">
+            <span className="material-symbols-outlined text-secondary text-xl">inventory</span>
+            Active Shelf Stock Inventory & Alerts
+          </h2>
+          <p className="text-xs text-clinical-400 mb-5 leading-relaxed">
+            Real-time pharmacy shop shelf stock status. Flashing alerts indicate items falling below safety margins.
+          </p>
+
+          <div className="border border-outline-variant rounded-xl overflow-hidden glass-panel-inner">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-surface-container text-clinical-300 border-b border-outline-variant font-bold uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="p-3.5">Medicine Name</th>
+                  <th className="p-3.5">Stock Level</th>
+                  <th className="p-3.5 font-mono">Threshold</th>
+                  <th className="p-3.5 text-center">Alert Status</th>
+                  <th className="p-3.5 text-right">Supply Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant bg-surface-container-lowest/30">
+                {shelfStock.map((item) => (
+                  <ShelfStockRow key={item.name} item={item} onRestock={handleRestock} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* History of Dispensed Medicine Holds */}
