@@ -75,3 +75,22 @@ BEGIN
     RETURN extensions.pgp_sym_decrypt(encrypted_token, secret_key);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. Helper function to decrypt a tenant's WABA connection details by phone_number_id
+CREATE OR REPLACE FUNCTION public.decrypt_tenant_waba_connection(p_phone_number_id TEXT, p_secret_key TEXT)
+RETURNS TABLE (
+    pod_id UUID,
+    entity_id UUID,
+    decrypted_token TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        wc.pod_id,
+        wc.entity_id,
+        public.decrypt_waba_token(wc.encrypted_system_user_token, p_secret_key) AS decrypted_token
+    FROM public.waba_connections wc
+    WHERE wc.phone_number_id = p_phone_number_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+

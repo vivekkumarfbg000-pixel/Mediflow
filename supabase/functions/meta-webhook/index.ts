@@ -194,42 +194,230 @@ async function triggerBotReplyPipeline(ctx: {
   const { session, incomingText, decryptedToken, phoneId } = ctx;
   const patientPhone = session.patient_phone;
   const state = session.current_state;
+  const cleaned = incomingText.trim().toLowerCase();
 
   let replyText = "";
+  let nextState = state;
+  const sessionData = session.session_data ?? {};
+  const chatHistory = sessionData.chatHistory ?? [];
 
-  if (state === "AWAITING_WELCOME") {
-    replyText = `Welcome to Mediflow Integrated Clinic Automated Support! 🩺\n\nTo allow Doctor and AI-RAG agents to securely analyze historical diagnostic indicators and process e-prescriptions, please reply with *1* to grant consent.`;
-  } else if (state === "AWAITING_CONFIRMATION") {
-    if (incomingText.trim() === "1") {
-      replyText = `Consent granted! Thank you. Your medical data is securely partitioned. We have initialized active pre-consultation worksheets for the Doctor session. 🟢`;
-    } else {
-      replyText = `Please reply with *1* to verify consent and proceed with secure medical data synthesis.`;
-    }
+  // Query patient profile if patient_id exists
+  let patient: any = null;
+  if (session.patient_id) {
+    const { data: pat } = await supabase
+      .from("patient_registry")
+      .select("*")
+      .eq("id", session.patient_id)
+      .single();
+    patient = pat;
   } else {
-    // Default fallback routing using conversational state
-    replyText = `Thank you for your message. An administrative agent or AI CDSS scribe has received your update and will reconcile your profile shortly.`;
+    // Attempt lookup by phone
+    const { data: pat } = await supabase
+      .from("patient_registry")
+      .select("*")
+      .eq("phone", patientPhone)
+      .single();
+    if (pat) {
+      patient = pat;
+      session.patient_id = pat.id;
+    }
+  }
+
+  // Conversational state machine router logic
+  switch (state) {
+    case "AWAITING_WELCOME":
+      if (["1", "grant access", "yes", "approve", "grant"].includes(cleaned)) {
+        nextState = "AWAITING_CONFIRMATION";
+        sessionData.consentGranted = true;
+        sessionData.consentTime = new Date().toISOString();
+        replyText = "Bahut bahut dhanyawad! Aapka clinical consent safe tarike se secure ledger mein register ho gaya hai. State: READY_FOR_ENCOUNTER. 🟢";
+
+        // Asynchronously register patient opt-in consent
+        if (patient) {
+          await supabase.from("patient_consents").insert({
+            patient_id: patient.id,
+            consent_type: "data_processing",
+            granted_at: new Date().toISOString(),
+            granted_by_role: "patient"
+          });
+        }
+      } else if (["stop consent", "stop", "revoke", "stop_consent"].includes(cleaned)) {
+        replyText = "Consent process rok diya gaya hai. Aap jab chahein tab '1' reply karke dobara shuru kar sakte hain.";
+      } else {
+        replyText = "Hum samajh nahi paaye. 🤖 Apne records safe sync karne ke liye please upar click kijiye ya bas *1* reply karke authorize kijiye.";
+      }
+      break;
+
+    case "AWAITING_CONFIRMATION":
+      if (["stop consent", "stop", "revoke", "stop_consent"].includes(cleaned)) {
+        nextState = "AWAITING_WELCOME";
+        sessionData.consentGranted = false;
+        sessionData.consentTime = null;
+        replyText = "Aapka digital consent cancel ho gaya hai aur profile lock kar di gayi hai. Wapas shuru karne ke liye '1' reply kijiye.";
+
+        if (patient) {
+          await supabase.from("patient_consents").update({
+            revoked_at: new Date().toISOString()
+          }).eq("patient_id", patient.id).is("revoked_at", null);
+        }
+      } else if (cleaned.includes("book") || cleaned === "2") {
+        nextState = "BOOKING_VIRTUAL";
+        replyText = "Ji bilkul! Mediflow scheduling shuru ho gayi hai. Kya aap Virtual Video Call par consult karna chahte hain ya Physical clinic aakar?\n\nProceed karne ke liye please **VIRTUAL** ya **PHYSICAL** reply kijiye.";
+      } else if (["1", "grant access", "yes"].includes(cleaned)) {
+        replyText = "Aapka clinical consent pehle se hi active aur registered hai! Appointment book karne ke liye **BOOK** reply kijiye.";
+      } else {
+        replyText = "Aapka clinical consent active hai! 🟢 Batayein main aapki kya help karoon? Reply kijiye:\n- *BOOK*: Doctor appointment book karne ke liye\n- *REPORT*: Apni lab reports dekhne ke liye\n- *SUMMARY*: Prescription aur medicine dose schedule ke liye\n- Ya phir koi bhi health related query pooch sakte hain! 😊";
+      }
+      break;
+
+    case "BOOKING_VIRTUAL":
+      if (cleaned.includes("virtual") || cleaned.includes("physical")) {
+        nextState = "AWAITING_PAYMENT";
+        const isVirtual = cleaned.includes("virtual");
+        const fee = isVirtual ? 400 : 500;
+        const upiPayload = `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${fee}.00&cu=INR&tn=MEDIFLOW-APPT-${patientPhone.substring(5)}`;
+
+        replyText = `Doctor Vivek ke liye slot lock kar diya gaya hai. Total Appointment Fee: ₹${fee}.00.\n\nSecure booking ke liye please is UPI link ka use kijiye ya QR code scan kijiye:\n\n${upiPayload}\n\nPayment karne ke baad please **PAY** reply kijiye, hum turant meeting link bhej denge! 🧾`;
+      } else {
+        replyText = "Please slot lock karne ke liye 'VIRTUAL' ya 'PHYSICAL' reply kijiye.";
+      }
+      break;
+
+    case "AWAITING_PAYMENT":
+      if (cleaned.includes("pay") || cleaned.includes("clear") || cleaned === "1") {
+        // Query pending invoice
+        let pendingInv: any = null;
+        if (patient) {
+          const { data } = await supabase
+            .from("unified_invoices")
+            .select("*")
+            .eq("patient_id", patient.id)
+            .eq("payment_status", "pending")
+            .limit(1)
+            .maybeSingle();
+          pendingInv = data;
+        }
+
+        if (pendingInv) {
+          replyText = `Aapka outstanding invoice pending hai. Please ₹${pendingInv.total_amount}.00 clear karne ke liye is direct payment link ka use kijiye:\n\n${pendingInv.upi_qr_payload || "upi://pay?pa=mediflow@icici&pn=Mediflow&am=" + pendingInv.total_amount}\n\nPayment confirm hote hi aapki booking active ho jayegi!`;
+        } else {
+          nextState = "COMPLETED";
+          replyText = "Payment confirm ho gaya hai! 🟢 Aapka physical/virtual checkup active hai. We look forward to seeing you!";
+        }
+      } else if (["stop consent", "stop", "revoke"].includes(cleaned)) {
+        replyText = "Dues pending rehne par consent cancel nahi kiya ja sakta. Please pehle apna payment clear kijiye.";
+      } else {
+        replyText = "Payment pending hai. Settle karne ke liye QR code scan kijiye, ya 'PAY' reply kijiye.";
+      }
+      break;
+
+    case "COMPLETED":
+      const awaitingAction = sessionData.awaitingProactiveAction;
+
+      if (cleaned === "yes" && awaitingAction === "refill") {
+        sessionData.awaitingProactiveAction = null;
+        replyText = "Refill confirm ho gaya hai! 📦 Compounder ne verify kar diya hai aur Patna Pharmacy se dawa ka packet aapke address ke liye nikal raha hai. Aap is chat par track kar sakte hain. Dhanyawad!";
+      } else if (cleaned === "home" && awaitingAction === "lab") {
+        sessionData.awaitingProactiveAction = null;
+        replyText = "Home sample collection confirm ho gaya hai! 🔬 Hamare lab technician (Lalit Prasad) kal subah 8:00 AM par ghar aakar sample collect karenge. Dhyaan rahe ki test se 8 ghante pehle tak fasting rakhni hai. Slot lock ho gaya hai! 🟢";
+      } else if (cleaned.includes("refill") || cleaned.includes("medicine") || cleaned.includes("reorder")) {
+        nextState = "COMPLETED";
+        replyText = "Medicine refill request mil gaya hai! 📦 Humne Patna counter par aapki dawa reserve kar di hai. Compounder jald hi bhej denge.";
+      } else if (cleaned.includes("report") || cleaned.includes("pathology") || cleaned.includes("test")) {
+        // Query approved lab reports
+        let reports: any[] = [];
+        if (patient) {
+          const { data } = await supabase
+            .from("lab_reports")
+            .select("*")
+            .eq("patient_id", patient.id)
+            .eq("status", "approved")
+            .order("timestamp", { ascending: false });
+          reports = data ?? [];
+        }
+
+        if (reports.length > 0) {
+          const rep = reports[0];
+          const barcode = `MED-${rep.loinc_code || "4544-3"}-${rep.id.toUpperCase().substring(0, 8)}`;
+          replyText = `*Aapki pathology report aa gayi hai!* 🔬\n\nPatient Name: ${patient?.name || rep.patient_name || "Aarav Sharma"}\nTest: ${rep.test_name}\nLOINC Code: ${rep.loinc_code || "4544-3"}\nStatus: Approved 🟢\n\n*Report Summary*:\n\"${rep.results}\"\n\n*Security Barcode*: ${barcode}`;
+        } else {
+          replyText = "Aapka koi approved pathology report abhi on file nahi hai. Lab technician ke results update karne ka wait kijiye.";
+        }
+      } else if (cleaned.includes("summary") || cleaned.includes("soap") || cleaned.includes("schedule") || cleaned.includes("revisit")) {
+        // Query encounters with medications
+        let encounters: any[] = [];
+        if (patient) {
+          const { data } = await supabase
+            .from("encounters")
+            .select("*, encounter_medications(*)")
+            .eq("patient_id", patient.id)
+            .eq("status", "completed")
+            .order("created_at", { ascending: false });
+          encounters = data ?? [];
+        }
+
+        if (encounters.length > 0) {
+          const enc = encounters[0];
+          const meds = enc.encounter_medications ?? [];
+          const drugTable = meds.map((m: any) => `• ${m.medicine_name} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join("\n");
+
+          replyText = `*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n\"${enc.clinical_notes || "Patient clinical condition is stable."}\"\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\nDoctor Vivek ne aapko **14 din** ke baad follow-up ke liye Patna branch mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
+        } else {
+          replyText = "Aapke profile par koi completed consultation encounter nahi mila.";
+        }
+      } else if (["stop consent", "stop", "revoke"].includes(cleaned)) {
+        nextState = "AWAITING_WELCOME";
+        replyText = "Aapka clinical consent cancel kar diya gaya hai aur profile lock ho gayi hai. Wapas shuru karne ke liye '1' reply kijiye.";
+      } else {
+        // RAG health query advice
+        let chronicAdvice = "";
+        const chronicConditions = patient?.chronic_conditions ?? patient?.chronicConditions ?? [];
+        const isSugarPatient = chronicConditions.some((c: string) => c.toLowerCase().includes("diabetes") || c.toLowerCase().includes("sugar"));
+        
+        if (isSugarPatient) {
+          chronicAdvice = "\n\n*Important RAG Note (Sugar patients ke liye)*: Aapka average 3-month sugar level (HbA1c 7.2%) thoda jyada hai. Meetha aur carbohydrate kam kijiye, LOINC: 4544-3 test har 3 mahine mein karayein, aur agar creatinine level 1.2 mg/dL se jyada ho toh heavy pain-killers (Ibuprofen) bilkul na lein.";
+        } else {
+          chronicAdvice = "\n\n*RAG Clinical Guidelines Note*: Paani khoob pijiye, low-sodium diet lijiye, aur rozana apna checkup logs maintain kijiye.";
+        }
+
+        replyText = `*Mediflow AI-RAG support team* 🤖\n\nAapke query \"${incomingText}\" ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
+      }
+      break;
+
+    case "FAILED_DELIVERY":
+      if (cleaned) {
+        nextState = "AWAITING_WELCOME";
+        replyText = "Re-establishing connection loop. Dobara shuru karne ke liye '1' reply kijiye.";
+      }
+      break;
+
+    default:
+      replyText = "Namaste! Mediflow Automated Assistant online. Main aapki kya sahayata kar sakta hoon?";
+      break;
   }
 
   const currentTime = new Date().toISOString();
-
-  // Update DB session state
-  const sessionData = session.session_data ?? {};
-  const chatHistory = sessionData.chatHistory ?? [];
   chatHistory.push({ sender: "bot", text: replyText, timestamp: currentTime });
 
-  let nextState = state;
-  if (state === "AWAITING_WELCOME" && incomingText.trim() === "1") {
-    nextState = "AWAITING_CONFIRMATION";
-  }
+  // Update DB session state
+  const updatedData = {
+    ...sessionData,
+    chatHistory
+  };
 
-  await supabase
+  const { error: updateErr } = await supabase
     .from("whatsapp_sessions")
     .update({
       current_state: nextState,
-      session_data: { ...sessionData, chatHistory },
+      patient_id: session.patient_id,
+      session_data: updatedData,
       last_interaction: currentTime
     })
     .eq("id", session.id);
+
+  if (updateErr) {
+    console.error("[Meta Webhook] Failed to update session after bot reply:", updateErr);
+  }
 
   // Send Outbound Graph API message
   try {
@@ -255,3 +443,4 @@ async function triggerBotReplyPipeline(ctx: {
     console.error("[Meta Outbound] Failed to dispatch API message:", err);
   }
 }
+
