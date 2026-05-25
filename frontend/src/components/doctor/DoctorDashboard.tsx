@@ -8,6 +8,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
+import { AgenticConsole } from '../shared/AgenticConsole';
 
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp'>('overview');
@@ -931,6 +932,14 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in text-slate-800 font-sans">
         {/* Left Column: Quick Metrics & CDSS AI Feed */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Agentic Console Telemetry Scribe */}
+          <AgenticConsole onWorkflowExecuted={() => {
+            setPatients(api.getPatients());
+            setPathologyReports(api.getPathologyReports());
+            setFinancialLedgers(api.getFinancialLedgers());
+            setWhatsAppSessions(api.getWhatsAppSessions());
+          }} />
+
           {/* Quick Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[

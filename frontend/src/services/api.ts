@@ -2036,6 +2036,32 @@ If no prescription image could be loaded or fetched, generate a highly realistic
     this.pushWhatsAppMessageFromBot(phone, message);
     this.writeAuditLog('PROACTIVE_LAB_NUDGE_SENT', { phone, patientName: patient.name }, null);
   }
+
+  async saveAgentTaskPipeline(pipeline: {
+    patient_id: string;
+    original_prompt: string;
+    parsed_intent: string;
+    steps_json: any[];
+    status: string;
+  }): Promise<{ error: any }> {
+    const { error } = await supabase
+      .from('agent_task_pipelines')
+      .insert({
+        patient_id: pipeline.patient_id,
+        original_prompt: pipeline.original_prompt,
+        parsed_intent: pipeline.parsed_intent,
+        steps_json: pipeline.steps_json,
+        status: pipeline.status
+      });
+    
+    if (error) {
+      console.error('[Mediflow API] Error saving agent task pipeline:', error);
+    } else {
+      await this.writeAuditLog('AGENT_PIPELINE_SAVED', { patientId: pipeline.patient_id }, pipeline.patient_id);
+      this.syncFromSupabase();
+    }
+    return { error };
+  }
 }
 
 export const api = new MediflowApiService();
