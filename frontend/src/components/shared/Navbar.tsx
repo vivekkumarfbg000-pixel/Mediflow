@@ -330,7 +330,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Switcher Navigation */}
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-start lg:justify-end">
-            <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-clinical-900 border border-clinical-800/60 max-w-full overflow-x-auto scrollbar-none">
+            <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-full bg-clinical-900 border border-clinical-800/60 max-w-full overflow-x-auto scrollbar-none">
               {roles.map((r) => {
                 const Icon = r.icon;
                 const isActive = currentRole === r.id;
@@ -338,16 +338,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     key={r.id}
                     onClick={() => onChangeRole(r.id as UserRole)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${
+                    className={`flex items-center gap-2.5 px-3 py-1 rounded-full text-xs md:text-sm font-bold transition-all duration-300 cursor-pointer ${
                       isActive
                         ? 'bg-clinical-800 text-white border border-clinical-700/80 shadow-md scale-[1.02]'
                         : 'text-clinical-400 hover:text-clinical-100 hover:bg-clinical-800/40 border border-transparent'
                     }`}
                   >
-                    <div className={`p-1 rounded-lg ${r.color}`}>
-                      <Icon className="h-4 w-4" />
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${r.color}`}>
+                      <Icon className="h-3.5 w-3.5" />
                     </div>
-                    <span>{r.name}</span>
+                    <span className="pr-1">{r.name}</span>
                   </button>
                 );
               })}
