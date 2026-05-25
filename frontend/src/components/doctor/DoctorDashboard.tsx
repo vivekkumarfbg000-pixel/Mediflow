@@ -2269,9 +2269,9 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Premium Glassmorphic Segmented Control - Scrollable on mobile, wraps on desktop */}
-        <div className="mt-6 pt-4 border-t border-slate-100/80 w-full">
-          <div className="flex lg:flex-wrap items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-100 rounded-2xl overflow-x-auto lg:overflow-visible scrollbar-none w-full">
+        {/* Premium Glassmorphic Segmented Control - Hidden on mobile viewports, wraps beautifully on desktop */}
+        <div className="hidden lg:block mt-6 pt-4 border-t border-slate-100/80 w-full">
+          <div className="flex lg:flex-wrap items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-100 rounded-2xl w-full">
             {[
               { id: 'overview', label: 'Command Center', icon: 'dashboard', color: 'from-primary-600 to-primary-500' },
               { id: 'consultation', label: 'Consultation Queue', icon: 'clinical_notes', color: 'from-accent-600 to-accent-500' },
