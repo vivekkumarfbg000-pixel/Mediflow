@@ -51,6 +51,27 @@ export class ClinicalSafetyAgent {
       };
     }
 
+    // 3. Duplicate Prescription / Idempotency Safety Intercept
+    const encounters = api.getEncounters().filter(e => e.patientId === patientId);
+    if (encounters.length > 0) {
+      const todayStr = new Date().toDateString();
+      const duplicateFound = encounters.some(e => {
+        const encDate = new Date(e.createdAt).toDateString();
+        if (encDate !== todayStr) return false;
+        
+        const hasSameDrug = e.medications.some(m => m.medicineName.toLowerCase() === cleanDrug || cleanDrug.includes(m.medicineName.toLowerCase()) || m.medicineName.toLowerCase().includes(cleanDrug));
+        return hasSameDrug;
+      });
+
+      if (duplicateFound) {
+        return {
+          success: false,
+          message: `DUPLICATE WORK INTERCEPTED: Identical prescription already committed today.`,
+          detail: `Duplicate Alert: "${drugName}" has already been authorized for patient ${patient.name} in today's Care session.`
+        };
+      }
+    }
+
     return {
       success: true,
       message: `Safety check passed. No contraindications or drug-allergy flags for ${patient.name}.`
