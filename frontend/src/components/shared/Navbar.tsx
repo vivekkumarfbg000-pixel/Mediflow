@@ -14,7 +14,6 @@ import {
   Terminal,
   ChevronUp,
   ChevronDown,
-  Smartphone,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -274,7 +273,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'lab', name: 'Pathology Lab', icon: Beaker, color: 'text-blue-500 bg-blue-500/10' },
     { id: 'pharmacy', name: 'Pharmacy POS', icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-500/10' },
     { id: 'billing', name: 'UPI Ledger', icon: QrCode, color: 'text-rose-500 bg-rose-500/10' },
-    { id: 'patient', name: 'Patient App', icon: Smartphone, color: 'text-emerald-400 bg-emerald-500/10' },
   ];
 
   return (
