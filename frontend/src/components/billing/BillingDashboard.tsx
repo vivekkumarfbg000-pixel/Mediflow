@@ -95,8 +95,12 @@ export const BillingDashboard: React.FC = () => {
   const handleSelectInvoice = (inv: UnifiedInvoice) => {
     setSelectedInvoice(inv);
     setSelectedNode('escrow');
+    const patients = api.getPatients();
+    const patient = patients.find(p => p.id === inv.patientId);
+    if (patient) {
+      api.setActivePatient(patient);
+    }
   };
-
   const handleSimulatePayment = (id: string) => {
     setIsSimulatingPayment(true);
 

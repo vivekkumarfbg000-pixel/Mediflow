@@ -11,7 +11,10 @@ import type {
   HistoricalBiomarker,
   ChatMessage,
   ClinicStaff,
-  FinancialLedgerEntry
+  FinancialLedgerEntry,
+  PharmacyInventoryItem,
+  WhatsAppDrugOrder,
+  PathologyReport
 } from '../types';
 
 export interface DBEncounterMedication {
@@ -895,8 +898,37 @@ class MediflowApiService {
         return;
       }
 
-      // 5. Update the local cache so we sync lab requisitions, holds, invoices, and session state
-      // that are automatically routed and created by the database triggers!
+      // 5. Transition patient's WhatsApp session state to AWAITING_PAYMENT
+      const patient = this.getPatients().find(p => p.id === newEncounter.patientId);
+      if (patient) {
+        const sessions = this.getWhatsAppSessions();
+        const existing = sessions.find(s => s.patientPhone === patient.phone);
+        if (existing) {
+          existing.currentState = 'AWAITING_PAYMENT';
+          existing.lastInteraction = new Date().toISOString();
+          const currentHistory = existing.sessionData.chatHistory || [];
+          currentHistory.push({
+            sender: 'bot',
+            text: `*Dr. Sharma* has signed off your Clinical e-Prescription (e-Rx) and care invoice.\n\n*Generic Medicines ordered*:\n${newEncounter.medications.map(m => `💊 ${m.medicineName} (${m.frequency}, ${m.duration})`).join('\n')}\n\n*Diagnostics Ordered*:\n${newEncounter.diagnosticTests.map(t => `🧪 ${t.name}`).join('\n')}\n\n*Payment Pending*: A unified care pod invoice is generated. Please pay below:`,
+            time: new Date().toISOString()
+          });
+          existing.sessionData = {
+            ...existing.sessionData,
+            chatHistory: currentHistory
+          };
+          this.save('whatsapp_sessions', sessions);
+          
+          await supabase.from('whatsapp_sessions').update({
+            current_state: 'AWAITING_PAYMENT',
+            session_data: existing.sessionData,
+            last_interaction: new Date().toISOString()
+          }).eq('patient_phone', patient.phone);
+          
+          await this.writeAuditLog('WHATSAPP_STATE_TRANSITION', { phone: patient.phone, newState: 'AWAITING_PAYMENT' }, existing.id);
+        }
+      }
+
+      // 6. Update the local cache so we sync lab requisitions, holds, invoices, and session state
       setTimeout(() => this.syncFromSupabase(), 800);
     });
 
@@ -1225,6 +1257,450 @@ class MediflowApiService {
   isPatientConsentActive(patientId: string): boolean {
     const ids = this.load<string[]>('active_consent_ids', []);
     return ids.includes(patientId);
+  }
+
+  getActivePatient(): Patient | null {
+    const activeId = localStorage.getItem('mediflow_active_patient_id');
+    if (!activeId) return null;
+    const patients = this.getPatients();
+    return patients.find(p => p.id === activeId) || null;
+  }
+
+  setActivePatient(patient: Patient | null): void {
+    if (patient) {
+      localStorage.setItem('mediflow_active_patient_id', patient.id);
+    } else {
+      localStorage.removeItem('mediflow_active_patient_id');
+    }
+    this.notify();
+  }
+
+  getActivePatientCareStage(patientId: string): 'registered' | 'diagnosing' | 'lab' | 'pharmacy' | 'settled' {
+    const encounters = this.load<any[]>('encounters', []);
+    const requisitions = this.load<any[]>('lab_requisitions', []);
+    const holds = this.load<any[]>('inventory_holds', []);
+    const invoices = this.load<any[]>('unified_invoices', []);
+
+    const patientEncounters = encounters.filter(e => e.patientId === patientId);
+    const patientReqs = requisitions.filter(r => r.patientId === patientId);
+    const patientHolds = holds.filter(h => h.patientId === patientId);
+    const patientInvoices = invoices.filter(i => i.patientId === patientId);
+
+    // 5. Ledger Settled: If we have invoices, and all are paid/cleared
+    const pendingInvoices = patientInvoices.filter(i => i.paymentStatus === 'pending');
+    const hasPaidInvoice = patientInvoices.some(i => i.paymentStatus === 'paid' || i.paymentStatus === 'cleared' || i.paymentStatus === 'completed');
+    
+    // 4. Pharmacy Verification: If there are active inventory holds ('held' or 'pending') or if there is a pending invoice that has a pharmacy fee
+    const hasActiveHolds = patientHolds.some(h => h.holdStatus === 'held' || h.holdStatus === 'pending' || h.holdStatus === 'hold');
+    const hasPendingPharmacyInvoice = pendingInvoices.some(i => i.pharmacyFee > 0);
+
+    // 3. Lab Processing: If there are lab requisitions with status 'pending' or 'collected' (which means not completed yet)
+    const hasActiveReqs = patientReqs.some(r => r.status === 'pending' || r.status === 'collected' || r.status === 'processed' || r.status === 'processing');
+
+    // 2. Diagnosing (CDSS): If there is an active encounter (status === 'active')
+    const hasActiveEncounter = patientEncounters.some(e => e.status === 'active');
+
+    if (hasPaidInvoice && pendingInvoices.length === 0 && !hasActiveHolds && !hasActiveReqs && !hasActiveEncounter) {
+      return 'settled';
+    }
+    if (hasActiveHolds || hasPendingPharmacyInvoice) {
+      return 'pharmacy';
+    }
+    if (hasActiveReqs) {
+      return 'lab';
+    }
+    if (hasActiveEncounter) {
+      return 'diagnosing';
+    }
+    return 'registered';
+  }
+
+  // --- DOCTOR ECOSYSTEM EXTENSIONS (ROADMAP PHASE) ---
+
+  getPharmacyInventory(): PharmacyInventoryItem[] {
+    const defaultItems: PharmacyInventoryItem[] = [
+      { id: 'item-1', name: 'Metformin 500mg', stock: 120, price: 15, dosage: '1 Tab' },
+      { id: 'item-2', name: 'Amoxicillin 250mg', stock: 80, price: 25, dosage: '1 Cap' },
+      { id: 'item-3', name: 'Atorvastatin 10mg', stock: 150, price: 30, dosage: '1 Tab' },
+      { id: 'item-4', name: 'Paracetamol 650mg', stock: 300, price: 5, dosage: '1 Tab' },
+      { id: 'item-5', name: 'Azithromycin 500mg', stock: 45, price: 120, dosage: '1 Tab' }
+    ];
+    return this.load<PharmacyInventoryItem[]>('pharmacy_inventory', defaultItems);
+  }
+
+  savePharmacyInventory(items: PharmacyInventoryItem[]) {
+    this.save('pharmacy_inventory', items);
+    this.notify();
+  }
+
+  getWhatsAppDrugOrders(): WhatsAppDrugOrder[] {
+    const defaultOrders: WhatsAppDrugOrder[] = [
+      {
+        id: 'ord-101',
+        patientName: 'Aarav Sharma',
+        patientPhone: '9876543210',
+        drugNames: ['Metformin 500mg x10', 'Atorvastatin 10mg x5'],
+        amount: 300,
+        location: 'Sector-B, Kankarbagh, Patna',
+        deliveryStatus: 'delivered',
+        timestamp: '2026-05-24T18:30:00Z'
+      },
+      {
+        id: 'ord-102',
+        patientName: 'Priyanka Verma',
+        patientPhone: '8765432109',
+        drugNames: ['Amoxicillin 250mg x15'],
+        amount: 375,
+        location: 'Boring Road Crossing, Patna',
+        deliveryStatus: 'enroute',
+        timestamp: new Date().toISOString()
+      }
+    ];
+    return this.load<WhatsAppDrugOrder[]>('whatsapp_drug_orders', defaultOrders);
+  }
+
+  saveWhatsAppDrugOrders(orders: WhatsAppDrugOrder[]) {
+    this.save('whatsapp_drug_orders', orders);
+    this.notify();
+  }
+
+  simulateIncomingWhatsAppOrder() {
+    const orders = this.getWhatsAppDrugOrders();
+    const patients = this.getPatients();
+    const activePatient = patients[Math.floor(Math.random() * patients.length)] || { name: 'Aarav Sharma', phone: '9876543210' };
+    
+    const possibleDrugs = [
+      { name: 'Metformin 500mg', price: 15 },
+      { name: 'Paracetamol 650mg', price: 5 },
+      { name: 'Amoxicillin 250mg', price: 25 },
+      { name: 'Azithromycin 500mg', price: 120 }
+    ];
+    const selectedDrug = possibleDrugs[Math.floor(Math.random() * possibleDrugs.length)];
+    const qty = Math.floor(Math.random() * 10) + 5;
+    const amount = selectedDrug.price * qty;
+    
+    const locations = [
+      'Bailey Road, Patna',
+      'Boring Canal Road, Patna',
+      'Rajendra Nagar, Patna',
+      'Patliputra Colony, Patna'
+    ];
+    const location = locations[Math.floor(Math.random() * locations.length)];
+
+    const newOrder: WhatsAppDrugOrder = {
+      id: `ord-${Math.floor(103 + Math.random() * 900)}`,
+      patientName: activePatient.name,
+      patientPhone: activePatient.phone,
+      drugNames: [`${selectedDrug.name} x${qty}`],
+      amount,
+      location,
+      deliveryStatus: 'pending',
+      timestamp: new Date().toISOString()
+    };
+
+    orders.unshift(newOrder);
+    this.saveWhatsAppDrugOrders(orders);
+
+    this.writeAuditLog('WHATSAPP_BOT_ORDER_RECEIVED', {
+      orderId: newOrder.id,
+      patientName: newOrder.patientName,
+      amount: newOrder.amount,
+      drugs: newOrder.drugNames
+    });
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'New WhatsApp Order! 💬',
+        message: `Patient ${newOrder.patientName} ordered ${newOrder.drugNames.join(', ')} via WhatsApp Bot.`,
+        type: 'info'
+      }
+    }));
+  }
+
+  updateWhatsAppOrderStatus(orderId: string, status: WhatsAppDrugOrder['deliveryStatus']) {
+    const orders = this.getWhatsAppDrugOrders();
+    const idx = orders.findIndex(o => o.id === orderId);
+    if (idx !== -1) {
+      const oldStatus = orders[idx].deliveryStatus;
+      orders[idx].deliveryStatus = status;
+      this.saveWhatsAppDrugOrders(orders);
+
+      this.writeAuditLog('WHATSAPP_ORDER_STATUS_CHANGED', {
+        orderId,
+        from: oldStatus,
+        to: status
+      });
+
+      // If marked delivered, record the split billing commission payout inside ledger!
+      if (status === 'delivered') {
+        const order = orders[idx];
+        const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
+        
+        // 10% Pharmacy drug commission split to Clinic/Doctor
+        const commissionAmt = parseFloat((order.amount * 0.1).toFixed(2));
+        const newLedger: FinancialLedgerEntry = {
+          id: `tx-${crypto.randomUUID().substring(0, 8)}`,
+          invoiceId: `inv-${orderId}`,
+          sourceEntityId: 'pharmacy-partner-entity',
+          destinationEntityId: 'clinic-admin-entity',
+          transactionType: 'medicine_commission',
+          grossAmount: order.amount,
+          commissionRate: 0.1,
+          netPayout: commissionAmt,
+          paymentStatus: 'cleared',
+          settledAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+        ledgerEntries.unshift(newLedger);
+        this.save('financial_ledgers', ledgerEntries);
+
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Delivery Confirmed! 🚚',
+            message: `Order ${orderId} delivered. 10% Drug Sales Commission (₹${commissionAmt}) processed!`,
+            type: 'success'
+          }
+        }));
+      }
+    }
+  }
+
+  getPathologyReports(): PathologyReport[] {
+    const defaultReports: PathologyReport[] = [
+      {
+        id: 'rep-201',
+        patientId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401',
+        patientName: 'Aarav Sharma',
+        loincCode: '4544-3',
+        testName: 'HbA1c (Glycated Hemoglobin)',
+        status: 'approved',
+        compounderScanned: true,
+        results: 'HbA1c level is 7.2% (Abnormal > 6.5% - Diabetic Glycemic range). Recommended: Metformin 500mg twice daily.',
+        timestamp: '2026-05-24T14:20:00Z'
+      },
+      {
+        id: 'rep-202',
+        patientId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        patientName: 'Priyanka Verma',
+        loincCode: '2160-0',
+        testName: 'Serum Creatinine',
+        status: 'pending',
+        compounderScanned: true,
+        timestamp: '2026-05-25T08:30:00Z'
+      }
+    ];
+    return this.load<PathologyReport[]>('pathology_reports', defaultReports);
+  }
+
+  savePathologyReports(reports: PathologyReport[]) {
+    this.save('pathology_reports', reports);
+    this.notify();
+  }
+
+  processPathologyReport(reportId: string, results: string) {
+    const reports = this.getPathologyReports();
+    const idx = reports.findIndex(r => r.id === reportId);
+    if (idx !== -1) {
+      reports[idx].status = 'approved';
+      reports[idx].results = results;
+      this.savePathologyReports(reports);
+
+      this.writeAuditLog('LAB_REPORT_APPROVED', {
+        reportId,
+        patientName: reports[idx].patientName,
+        testName: reports[idx].testName,
+        results
+      });
+
+      // Add a lab fee split to the ledger
+      const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
+      const newLedger: FinancialLedgerEntry = {
+        id: `tx-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: `inv-rep-${reportId}`,
+        sourceEntityId: 'lab-partner-entity',
+        destinationEntityId: 'clinic-admin-entity',
+        transactionType: 'lab_commission',
+        grossAmount: 350,
+        commissionRate: 0.15, // 15% Pathology Referral Commission
+        netPayout: 52.5,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      ledgerEntries.unshift(newLedger);
+      this.save('financial_ledgers', ledgerEntries);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Lab Report Approved! 🧪',
+          message: `Report for ${reports[idx].patientName} is approved and dispatched to WhatsApp. Commission logged.`,
+          type: 'success'
+        }
+      }));
+    }
+  }
+
+  generateAISummaryReport(patientId: string): string {
+    const patients = this.getPatients();
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return 'Patient profile not found.';
+
+    // 1. Gather patient encounters for medications and note compilations
+    const encounters = this.getEncounters().filter(e => e.patientId === patientId);
+    const activeMedications = encounters.flatMap(e => e.medications);
+    const history = this.getPatientHistoricalBiomarkers(patientId) || [];
+
+    // Compile dynamic, multi-dimensional clinical RAG report
+    let summary = `### AI Longitudinal Multi-Dimensional Analysis — ${patient.name}\n`;
+    summary += `*Generated via Mediflow CDSS pgvector RAG Index on ${new Date().toLocaleDateString()}*\n\n`;
+
+    if (activeMedications.length > 0) {
+      summary += `#### 💊 Active Prescribed Pharmacotherapy:\n`;
+      // Remove duplicate generic drug listings
+      const seen = new Set<string>();
+      activeMedications.forEach(med => {
+        if (!seen.has(med.medicineName)) {
+          seen.add(med.medicineName);
+          summary += `- **${med.medicineName}**: ${med.dosage} (${med.frequency} for ${med.duration})\n`;
+        }
+      });
+      summary += `\n`;
+    } else {
+      summary += `#### 💊 Active Prescribed Pharmacotherapy:\nNo active clinical e-prescriptions recorded in current active pod session.\n\n`;
+    }
+
+    if (history.length > 0) {
+      summary += `#### 🩺 Lab Biomarker Trends (Comparative Trajectory):\n`;
+      history.forEach(h => {
+        summary += `- **${h.date}**: HbA1c: **${h.HbA1c}%** | Creatinine: **${h.creatinine} mg/dL** | Hemoglobin: **${h.hemoglobin} g/dL**\n`;
+      });
+      summary += `\n`;
+    }
+
+    if (patient.chronicConditions.includes('Type-2 Diabetes')) {
+      summary += `#### 🔍 Clinical Decision Support (CDSS Guidelines):\n`;
+      summary += `- **Renal Clearance Alert**: HbA1c matches Type-2 Diabetes control limits. Avoid nephrotoxic agents (NSAIDs) due to borderline Serum Creatinine trend shifts. Schedule home microalbuminuria panel via Patna Diagnostics.\n\n`;
+    }
+
+    summary += `#### ⚠️ Active CDSS Contraindications:\n`;
+    if (patient.allergies.includes('Penicillin')) {
+      summary += `- **CRITICAL WARNING**: Documented **Penicillin** allergy. Direct beta-lactams are completely blocked.\n`;
+    } else {
+      summary += `- No active allergen conflicts intercepted in the current diagnostic card.\n`;
+    }
+
+    return summary;
+  }
+
+  async parsePrescriptionOCR(imageUri: string): Promise<{
+    patientName: string;
+    patientAge: number;
+    patientGender: 'Male' | 'Female' | 'Other';
+    medications: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
+    diagnosticTests: DiagnosticTest[];
+  }> {
+    // Simulate Gemini Vision AI OCR parsing latency and satisfy compiler unused warning
+    if (imageUri) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    
+    // Structured response simulating handwritten prescription parsing (Bailey Road Clinic Patna)
+    return {
+      patientName: 'Aarav Sharma',
+      patientAge: 45,
+      patientGender: 'Male',
+      medications: [
+        { medicineName: 'Metformin 500mg', dosage: '1 Tab', frequency: '1-0-1', duration: '10 Days' },
+        { medicineName: 'Atorvastatin 10mg', dosage: '1 Tab', frequency: '0-0-1', duration: '30 Days' }
+      ],
+      diagnosticTests: [
+        MASTER_TEST_CATALOG[0], // HbA1c (Glycated Hemoglobin)
+        MASTER_TEST_CATALOG[1]  // Serum Creatinine
+      ]
+    };
+  }
+
+  getPharmacyItemBatches(itemId: string): Array<{ batchNumber: string; expiryDate: string; stock: number }> {
+    // Return mock batch details mapping to FEFO expiry strategy
+    switch (itemId) {
+      case 'item-1': // Metformin
+        return [
+          { batchNumber: 'MET26A-01', expiryDate: new Date(new Date().getTime() + 15 * 24 * 3600 * 1000).toISOString().split('T')[0], stock: 30 }, // Expiring in 15 days (Critical FEFO Alert!)
+          { batchNumber: 'MET26B-02', expiryDate: new Date(new Date().getTime() + 180 * 24 * 3600 * 1000).toISOString().split('T')[0], stock: 90 }
+        ];
+      case 'item-2': // Amoxicillin
+        return [
+          { batchNumber: 'AMX26C-03', expiryDate: new Date(new Date().getTime() + 45 * 24 * 3600 * 1000).toISOString().split('T')[0], stock: 20 },
+          { batchNumber: 'AMX26D-04', expiryDate: new Date(new Date().getTime() + 300 * 24 * 3600 * 1000).toISOString().split('T')[0], stock: 60 }
+        ];
+      case 'item-3': // Atorvastatin
+        return [
+          { batchNumber: 'ATV26E-05', expiryDate: new Date(new Date().getTime() + 120 * 24 * 3600 * 1000).toISOString().split('T')[0], stock: 150 }
+        ];
+      default:
+        return [
+          { batchNumber: 'GEN26-00', expiryDate: new Date(new Date().getTime() + 240 * 24 * 3600 * 1000).toISOString().split('T')[0], stock: 50 }
+        ];
+    }
+  }
+
+  generateAIPatientSummary(patientId: string): string {
+    const patients = this.getPatients();
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return 'No patient data resolved.';
+
+    return `Patient ${patient.name} (${patient.age}y, ${patient.gender}) presents active chronic management for ${patient.chronicConditions.join(', ') || 'general complaints'}. Overall wellness score: 84/100. CDSS recommends continuous monitoring of blood pressure, bi-weekly capillary blood glucose, and strict avoidance of documented allergy triggers (${patient.allergies.join(', ') || 'NKDA'}).`;
+  }
+
+  pushWhatsAppMessageFromBot(phone: string, text: string): void {
+    const sessions = this.getWhatsAppSessions();
+    const existing = sessions.find(s => s.patientPhone === phone);
+    if (existing) {
+      const currentHistory = existing.sessionData.chatHistory || [];
+      currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
+      existing.sessionData = {
+        ...existing.sessionData,
+        chatHistory: currentHistory
+      };
+      this.save('whatsapp_sessions', sessions);
+      
+      supabase.from('whatsapp_sessions').update({
+        session_data: existing.sessionData,
+        last_interaction: new Date().toISOString()
+      }).eq('patient_phone', phone).then(({ error }) => {
+        if (error) console.error('Error updating whatsapp session:', error);
+        this.writeAuditLog('WHATSAPP_BOT_OUTGOING_MESSAGE', { phone, message: text }, existing.id);
+        this.syncFromSupabase();
+      });
+      this.notify();
+    }
+  }
+
+  dispatchWhatsAppLoyaltyOffer(patientId: string, offerType: string): string {
+    const patients = this.getPatients();
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return 'Patient not found.';
+
+    let message = '';
+    if (offerType === 'discount_30') {
+      message = `*Mediflow Patient Care Loyalty:* Dear ${patient.name}, as part of your ongoing care pod benefits, here is a special coupon for **30% Off on your next medicine refill** at our adjacent Pharmacy. Code: **MF-LOYAL30**`;
+    } else if (offerType === 'virtual_appointment') {
+      message = `*Mediflow Care Loyalty:* Dear ${patient.name}, thank you for your recent visit. To support your clinical path, a **Free Virtual Follow-up Appointment with the Doctor** is unlocked for you in 10 days. Book directly via this chat.`;
+    } else {
+      message = `*Mediflow Connect:* Quick Portal Link enabled for Patient ${patient.name} to view invoices and schedule pathology sample collection.`;
+    }
+
+    this.writeAuditLog('LOYALTY_OFFER_DISPATCHED', {
+      patientId,
+      patientName: patient.name,
+      offerType,
+      message
+    });
+
+    // Push into active WhatsApp session chat history
+    this.pushWhatsAppMessageFromBot(patient.phone, message);
+
+    return message;
   }
 }
 

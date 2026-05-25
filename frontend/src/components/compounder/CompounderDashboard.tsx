@@ -11,14 +11,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
-const OCR_MOCK_NAMES = [
-  { name: 'Rohan Gupta', age: 34, gender: 'Male' as const, chronic: ['Hypertension'], allergies: ['Sulfa Drugs'] },
-  { name: 'Meera Sen', age: 29, gender: 'Female' as const, chronic: ['Hypothyroidism'], allergies: [] },
-  { name: 'Vikram Patel', age: 48, gender: 'Male' as const, chronic: ['Type-2 Diabetes'], allergies: ['Aspirin'] },
-  { name: 'Neha Kapoor', age: 41, gender: 'Female' as const, chronic: ['Asthma'], allergies: ['Dust'] },
-  { name: 'Kiran Verma', age: 52, gender: 'Male' as const, chronic: ['High Cholesterol'], allergies: ['Penicillin'] },
-  { name: 'Rajesh Mishra', age: 44, gender: 'Male' as const, chronic: ['Hypertension', 'Chronic Kidney Disease'], allergies: [] }
-];
+
 
 export const CompounderDashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -124,7 +117,7 @@ export const CompounderDashboard: React.FC = () => {
     e.preventDefault();
     if (!name || !phone || !age) return;
 
-    api.registerPatient({
+    const registered = api.registerPatient({
       name,
       phone,
       age: Number(age),
@@ -133,6 +126,8 @@ export const CompounderDashboard: React.FC = () => {
       chronicConditions: chronicInput.split(',').map(s => s.trim()).filter(Boolean),
       abhaId: abhaId || undefined
     });
+
+    api.setActivePatient(registered);
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -153,6 +148,7 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   const handleInitiateLoop = (patient: Patient) => {
+    api.setActivePatient(patient);
     const session = api.initiateWhatsAppSession(patient.phone);
     setActiveSession(session);
     
@@ -170,49 +166,64 @@ export const CompounderDashboard: React.FC = () => {
     api.processIncomingWhatsAppMessage(phone, '1');
   };
 
+  const [isCameraActive, setIsCameraActive] = useState(false);
+
+  const handleOCRScan = async (sourceType: 'camera' | 'file') => {
+    setIsScanning(true);
+    setScanSuccess(false);
+    setScannedPatientInfo(null);
+    
+    try {
+      // Simulate Gemini Vision AI OCR parsing latency
+      const parsedData = await api.parsePrescriptionOCR(sourceType === 'camera' ? 'camera_snapshot.png' : 'uploaded_file.png');
+      
+      setIsScanning(false);
+      setScanSuccess(true);
+      setIsCameraActive(false);
+
+      // Auto-populate manual entry states
+      setName(parsedData.patientName);
+      setAge(parsedData.patientAge);
+      setGender(parsedData.patientGender);
+      setPhone('9876543210'); // Default demo number matching simulator Aarav Sharma
+      setAbhaId('12-3456-7890-1234');
+      setAllergiesInput('Penicillin');
+      setChronicInput('Type-2 Diabetes, Hypertension');
+
+      // Directly register the patient in the database to trigger WhatsApp Sandbox!
+      const registered = api.registerPatient({
+        name: parsedData.patientName,
+        phone: '9876543210',
+        age: parsedData.patientAge,
+        gender: parsedData.patientGender,
+        allergies: ['Penicillin'],
+        chronicConditions: ['Type-2 Diabetes', 'Hypertension'],
+        abhaId: '12-3456-7890-1234'
+      });
+
+      api.setActivePatient(registered);
+
+      // Instantly start WhatsApp opt-in welcome session
+      const session = api.initiateWhatsAppSession('9876543210');
+      setScannedPatientInfo({ name: registered.name, phone: registered.phone });
+      setActiveSession(session);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          message: `Gemini OCR Extracted: Digitized patient Aarav Sharma (+91 9876543210). Auto-populated registration worksheets & fired Patient WhatsApp Sandbox!`,
+          type: 'success',
+          title: 'AI OCR Extraction Complete'
+        }
+      }));
+    } catch (err) {
+      setIsScanning(false);
+      console.error(err);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setIsScanning(true);
-      setScanSuccess(false);
-      setScannedPatientInfo(null);
-      
-      // Simulate physical scanner reading text & extracting clinical markers
-      setTimeout(() => {
-        setIsScanning(false);
-        setScanSuccess(true);
-
-        // Select a random candidate to register dynamically
-        const candidate = OCR_MOCK_NAMES[Math.floor(Math.random() * OCR_MOCK_NAMES.length)];
-        const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
-        const dynamicPhone = `98${randomDigits}`;
-        const dynamicAbha = `12-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-        // Dynamic registration via api.ts
-        const registered = api.registerPatient({
-          name: candidate.name,
-          phone: dynamicPhone,
-          age: candidate.age,
-          gender: candidate.gender,
-          allergies: candidate.allergies,
-          chronicConditions: candidate.chronic,
-          abhaId: dynamicAbha
-        });
-
-        // Dynamic WhatsApp opt-in session payload fired instantly
-        const session = api.initiateWhatsAppSession(dynamicPhone);
-        
-        // Update local dashboard states
-        setScannedPatientInfo({ name: registered.name, phone: registered.phone });
-        setActiveSession(session);
-        
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            message: `OCR Digitized: Registered patient ${registered.name} (+91 ${registered.phone}) and fired WhatsApp bot welcome payload!`,
-            type: 'success',
-            title: 'OCR Extraction Complete'
-          }
-        }));
-      }, 2000);
+      handleOCRScan('file');
     }
   };
 
@@ -401,52 +412,133 @@ export const CompounderDashboard: React.FC = () => {
 
         {/* Scan physical prescription */}
         <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
-          <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-            <span className="material-symbols-outlined text-secondary text-xl">scanner</span>
-            Physical Prescription Scanning
-          </h2>
-          <p className="text-clinical-400 text-xs mb-5 leading-relaxed">
-            Upload or snap a physical hand-written note to digitize and attach to the care queue.
-          </p>
+          {/* Custom style inject block to ensure smooth animation under pure HTML components */}
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes scannerSweep {
+              0% { top: 0%; }
+              50% { top: 100%; }
+              100% { top: 0%; }
+            }
+            .animate-scanner-sweep {
+              animation: scannerSweep 3s infinite linear;
+            }
+          `}} />
           
-          <div className="scanner-container border-2 border-dashed border-outline-variant rounded-xl p-8 text-center bg-surface-container-lowest/30 hover:border-secondary/40 hover:bg-surface-container-lowest/50 transition-all duration-300 relative group cursor-pointer">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="absolute inset-0 opacity-0 cursor-pointer z-20"
-            />
-            {isScanning && <div className="scanner-beam" />}
-            
-            {isScanning ? (
-              <div className="space-y-4 py-3 animate-pulse">
-                <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
-                  <span className="material-symbols-outlined text-4xl text-secondary animate-spin">sync</span>
-                </div>
-                <h4 className="font-semibold text-white text-sm">Digitizing Handwriting & OCR Extraction...</h4>
-                <p className="text-xs text-clinical-400">Mapping extraction values to patient record catalog.</p>
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary text-xl">scanner</span>
+                Gemini Vision AI OCR Rx Scanner
+              </h2>
+              <p className="text-clinical-400 text-xs mt-1 leading-relaxed">
+                Scan handwritten physical prescriptions using high-definition AI Vision model extraction layers.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsCameraActive(!isCameraActive)}
+              className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                isCameraActive
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  : 'bg-clinical-900 border-clinical-800 text-clinical-400 hover:text-clinical-200'
+              }`}
+            >
+              {isCameraActive ? 'Cancel Camera' : 'Activate Camera'}
+            </button>
+          </div>
+          
+          {isScanning ? (
+            <div className="border border-outline-variant rounded-xl p-8 text-center bg-surface-container-lowest/30 animate-pulse space-y-4">
+              <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+                <span className="material-symbols-outlined text-4xl text-secondary animate-spin">sync</span>
               </div>
-            ) : scanSuccess ? (
-              <div className="space-y-3 py-3 animate-fade-in">
-                <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                  <CheckCircle className="h-6 w-6" />
-                </div>
+              <h4 className="font-semibold text-white text-sm">Digitizing Handwriting & OCR Extraction...</h4>
+              <div className="text-[10px] font-mono text-emerald-400 bg-emerald-500/5 py-1 px-3.5 border border-emerald-500/10 rounded max-w-xs mx-auto space-y-1">
+                <p>⚡ running vision convolutional layers...</p>
+                <p>⚡ generic drug mapping to FHIR...</p>
+                <p>⚡ auto-populating demographic worksheets...</p>
+              </div>
+            </div>
+          ) : scanSuccess ? (
+            <div className="border border-emerald-500/20 rounded-xl p-6 text-center bg-emerald-500/5 animate-fade-in space-y-3.5">
+              <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
                 <h4 className="font-semibold text-white text-sm">Prescription Digitized Successfully!</h4>
-                <p className="text-xs text-emerald-400 bg-emerald-500/5 py-1.5 px-3 border border-emerald-500/10 rounded-md max-w-sm mx-auto leading-relaxed">
-                  Scan matched: <strong className="text-white font-bold">{scannedPatientInfo?.name}</strong> (+91 {scannedPatientInfo?.phone}). WhatsApp Consent Loop Fired!
-                </p>
+                <p className="text-xs text-clinical-400 mt-1">Matched generics Metformin & Atorvastatin. Fired consent opt-in WhatsApp logs.</p>
               </div>
-            ) : (
-              <div className="space-y-3 py-3">
+              <div className="text-xs text-emerald-400 bg-emerald-500/10 py-2 px-4 border border-emerald-500/20 rounded-xl max-w-sm mx-auto leading-relaxed font-semibold">
+                Patient: <strong className="text-white font-bold">{scannedPatientInfo?.name}</strong> (+91 {scannedPatientInfo?.phone})
+              </div>
+              <button
+                onClick={() => setScanSuccess(false)}
+                className="text-[10px] text-clinical-400 hover:text-white uppercase tracking-wider font-bold underline"
+              >
+                Scan Another Prescription
+              </button>
+            </div>
+          ) : isCameraActive ? (
+            <div className="relative w-full h-64 bg-slate-950 border border-outline-variant rounded-xl overflow-hidden shadow-2xl flex flex-col items-center justify-between p-4 group">
+              {/* Blur script handwritten rx note background */}
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-25 filter blur-[0.5px] transition-all duration-500"
+                style={{ backgroundImage: 'url("https://media.istockphoto.com/id/1149495759/vector/doctors-prescription-rx-handwritten-recipe.jpg?s=612x612&w=0&k=20&c=0sB7bKkR36K9e6i-M4w9U-qV6R38U-xS0e9600s_c=")' }} 
+              />
+              
+              {/* Viewfinder Target Corner Brackets */}
+              <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-emerald-400" />
+              <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-emerald-400" />
+              <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-emerald-400" />
+              <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-emerald-400" />
+              
+              {/* Animating Green Laser Line sweep */}
+              <div className="absolute left-0 w-full h-[2.5px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34d399] animate-scanner-sweep z-10" />
+
+              {/* Monospace telemetry HUD overlay details */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700/50 px-3 py-1 rounded text-[8px] text-emerald-400 font-mono tracking-widest uppercase z-10 flex items-center gap-1.5 shadow-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Gemini Vision AI: READY
+              </div>
+
+              {/* Centered Reticle */}
+              <div className="flex-1 flex items-center justify-center relative">
+                <div className="w-14 h-14 border border-emerald-400/20 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
+                </div>
+              </div>
+
+              {/* Viewfinder bottom capture trigger button */}
+              <button
+                onClick={() => handleOCRScan('camera')}
+                className="w-full max-w-xs btn-primary bg-emerald-600 hover:bg-emerald-500 border-emerald-500 py-2.5 text-xs font-bold rounded-xl transition-all shadow-xl hover:scale-102 flex justify-center items-center gap-1.5 text-white-force relative z-20"
+              >
+                <span className="material-symbols-outlined text-sm">photo_camera</span>
+                Capture and Transcribe with Gemini
+              </button>
+            </div>
+          ) : (
+            <div className="scanner-container border-2 border-dashed border-outline-variant rounded-xl p-8 text-center bg-surface-container-lowest/30 hover:border-secondary/40 hover:bg-surface-container-lowest/50 transition-all duration-300 relative group cursor-pointer">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer z-20"
+              />
+              <div className="space-y-4 py-3 flex flex-col items-center">
                 <div className="p-3.5 bg-surface-container-lowest/80 rounded-full inline-flex group-hover:scale-105 group-hover:border-secondary transition-all duration-300 border border-outline-variant shadow-md">
                   <Upload className="h-6 w-6 text-secondary animate-pulse" />
                 </div>
-                <h4 className="font-bold text-white text-sm">Click to Scan or Upload Note</h4>
-                <p className="text-xs text-clinical-400">Supports JPG, PNG, PDF formats from clinical devices</p>
+                <div>
+                  <h4 className="font-bold text-white text-sm">Click to Scan or Upload Note</h4>
+                  <p className="text-xs text-clinical-400 mt-1">Supports JPG, PNG, PDF formats from clinical devices</p>
+                </div>
+                <div className="text-[10px] text-slate-500 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full uppercase tracking-wider font-semibold font-mono">
+                  Or click "Activate Camera" above
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
       </div>

@@ -131,6 +131,15 @@ export const LabDashboard: React.FC = () => {
     return api.subscribe(syncLab);
   }, []);
 
+  useEffect(() => {
+    if (activeReq) {
+      const patients = api.getPatients();
+      const patient = patients.find(p => p.id === activeReq.patientId);
+      if (patient) {
+        api.setActivePatient(patient);
+      }
+    }
+  }, [activeReqId, requisitions]);
   const handleCollectSample = React.useCallback((req: LabRequisition) => {
     api.collectLabSample(req.id);
     setPrintLabelReq(req);

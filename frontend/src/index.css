@@ -3,46 +3,47 @@
 @import "tailwindcss";
 
 @theme {
-  --color-clinical-50: #f8fafc;
-  --color-clinical-100: #f1f5f9;
-  --color-clinical-200: #e2e8f0;
-  --color-clinical-300: #cbd5e1;
-  --color-clinical-400: #94a3b8;
-  --color-clinical-500: #64748b;
-  --color-clinical-600: #475569;
-  --color-clinical-700: #334155;
-  --color-clinical-800: #1e293b;
-  --color-clinical-900: #0f172a;
-  --color-clinical-950: #020617;
+  /* Elegant high-contrast light mode clinical scale */
+  --color-clinical-50: #0f172a;       /* Darkest slate for high contrast headers */
+  --color-clinical-100: #1e293b;      /* Primary body text slate-800 */
+  --color-clinical-200: #334155;      /* Secondary text slate-700 */
+  --color-clinical-300: #475569;      /* Caption slate-600 */
+  --color-clinical-400: #64748b;      /* Muted text slate-500 */
+  --color-clinical-500: #94a3b8;      /* Borders / dividers slate-400 */
+  --color-clinical-600: #cbd5e1;      /* Light border slate-300 */
+  --color-clinical-700: #e2e8f0;      /* Ultra-light border slate-200 */
+  --color-clinical-800: #f1f5f9;      /* Card/List backgrounds slate-100 */
+  --color-clinical-850: #f8fafc;      /* Subtle hover/panel background slate-50 */
+  --color-clinical-900: #fafafa;      /* Alternative layout surface gray-50 */
+  --color-clinical-950: #ffffff;      /* Main canvas background pure white */
 
-  /* Stitch Primary Color Override for custom elements */
-  --color-primary: #b4c5ff;
-  --color-primary-container: #004ac6;
-  --color-on-primary-container: #b8c8ff;
+  /* Curated medical colors (professional clinical blue/indigo/teal) */
+  --color-primary: #0f62fe;            /* Modern medical blue */
+  --color-primary-container: #edf5ff;
+  --color-on-primary-container: #002d9c;
   
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
 
-  --color-success-50: #f0fdf4;
-  --color-success-100: #dcfce7;
-  --color-success-200: #bbf7d0;
-  --color-success-300: #86efac;
-  --color-success-400: #4ade80;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-200: #a7f3d0;
+  --color-success-300: #6ee7b7;
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
 
-  /* Stitch Secondary / Medical Teal */
-  --color-secondary: #4fdbc8;
-  --color-secondary-container: #04b4a2;
-  --color-on-secondary-container: #003f38;
+  --color-secondary: #007d70;          /* Medical Teal */
+  --color-secondary-container: #e6f6f4;
+  --color-on-secondary-container: #003730;
   --color-secondary-fixed: #71f8e4;
   --color-secondary-fixed-dim: #4fdbc8;
   
@@ -54,19 +55,19 @@
   --color-accent-500: #14b8a6;
   --color-accent-600: #0d9488;
 
-  /* Stitch Custom Tonal Tokens */
-  --color-surface: #0c1324;
-  --color-surface-dim: #0c1324;
-  --color-surface-bright: #33394c;
-  --color-surface-container-lowest: #070d1f;
-  --color-surface-container-low: #151b2d;
-  --color-surface-container: #191f31;
-  --color-surface-container-high: #23293c;
-  --color-surface-container-highest: #2e3447;
-  --color-on-surface: #dce1fb;
-  --color-on-surface-variant: #c3c6d6;
-  --color-outline: #8d90a0;
-  --color-outline-variant: #434654;
+  /* Surface tokens mapped to crisp white / soft slate for light mode */
+  --color-surface: #ffffff;
+  --color-surface-dim: #f8fafc;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f8fafc;
+  --color-surface-container: #f1f5f9;
+  --color-surface-container-high: #e2e8f0;
+  --color-surface-container-highest: #cbd5e1;
+  --color-on-surface: #0f172a;
+  --color-on-surface-variant: #334155;
+  --color-outline: #64748b;
+  --color-outline-variant: #e2e8f0;
   
   --font-sans: 'Outfit', 'Inter', 'sans-serif';
   --animate-pulse-subtle: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -74,7 +75,7 @@
 
 body {
   @apply bg-clinical-950 text-on-surface font-sans antialiased overflow-x-hidden;
-  background-color: #020617;
+  background-color: #f8fafc; /* Crisp professional slate background */
 }
 
 /* Custom premium scrollbar for clinical dashboards */
@@ -88,90 +89,86 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(141, 144, 160, 0.3);
+  background: rgba(148, 163, 184, 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(141, 144, 160, 0.5);
+  background: rgba(148, 163, 184, 0.5);
 }
 
-/* Premium Dark-Glassmorphism Panel surface */
+/* Premium Light-Glassmorphism Panel surface - High-end modern card shadow */
 .glass-panel {
-  background-color: rgba(21, 27, 45, 0.6);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.05), 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  border-radius: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  border-radius: 1rem;
 }
 
 .glass-panel-hover:hover {
-  background-color: rgba(46, 52, 71, 0.6);
-  border-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 1);
+  border-color: rgba(203, 213, 225, 1);
   transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Premium Dark-Glassmorphism Modal */
+/* Premium Light-Glassmorphism Modal */
 .glass-modal {
-  background-color: rgba(25, 31, 49, 0.8);
+  background-color: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-top-color: rgba(255, 255, 255, 0.25);
-  border-left-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 0 30px rgba(180, 197, 255, 0.05);
-  border-radius: 0.75rem;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+  border-radius: 1rem;
 }
 
 .glass-panel-inner {
-  background: rgba(35, 41, 60, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-top-color: rgba(255, 255, 255, 0.08);
-  border-left-color: rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 0.75rem;
 }
 
 .inner-glow-border {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-top-color: rgba(255, 255, 255, 0.2);
-  border-left-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 /* Form Inputs styling matching style guide */
 .input-field, .clinical-input {
-  background-color: #0f172a;
-  border: 1px solid rgba(141, 144, 160, 0.4);
-  color: #dce1fb;
-  border-radius: 0.5rem;
+  background-color: #ffffff;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  color: #0f172a;
+  border-radius: 0.75rem;
   padding: 0.625rem 1rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.875rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
 }
 
 .input-field:focus, .clinical-input:focus {
   outline: none;
-  border-color: #004ac6;
-  box-shadow: 0 0 0 2px rgba(0, 74, 198, 0.2);
+  border-color: #0f62fe;
+  box-shadow: 0 0 0 3px rgba(15, 98, 254, 0.12);
 }
 
 /* Primary Button Styling */
 .btn-primary {
-  background: linear-gradient(180deg, #1b55d0 0%, #004ac6 100%);
+  background: linear-gradient(180deg, #2563eb 0%, #0f62fe 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  color: #ffffff !important;
   font-weight: 600;
   padding: 0.625rem 1.5rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 74, 198, 0.2);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(15, 98, 254, 0.18);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .btn-primary:hover {
   opacity: 0.95;
-  box-shadow: 0 4px 16px rgba(0, 74, 198, 0.35);
+  box-shadow: 0 4px 16px rgba(15, 98, 254, 0.3);
   transform: translateY(-1px);
 }
 
@@ -181,93 +178,121 @@ body {
 
 /* Secondary Button Styling */
 .btn-secondary {
-  background-color: rgba(141, 144, 160, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: #dce1fb;
-  font-weight: 500;
+  background-color: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  color: #334155;
+  font-weight: 600;
   padding: 0.625rem 1.25rem;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .btn-secondary:hover {
-  background-color: rgba(141, 144, 160, 0.25);
-  color: #ffffff;
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #0f172a;
 }
 
-/* Repeating gradient simulated barcode Decal */
+/* Light Mode Overrides for text contrast */
+.glass-panel .text-white,
+.glass-panel .text-clinical-100,
+.glass-panel span.text-white {
+  color: var(--color-clinical-100) !important;
+}
+
+.glass-panel h1.text-white,
+.glass-panel h2.text-white,
+.glass-panel h3.text-white,
+.glass-panel h4.text-white,
+.glass-panel .font-bold.text-white,
+.glass-panel strong.text-white {
+  color: var(--color-clinical-50) !important;
+}
+
+/* Specific elements that need to remain white */
+.btn-primary, 
+.btn-primary *,
+.bg-gradient-to-tr.from-primary-600.to-accent-600 *,
+.bg-gradient-to-r.from-primary.to-secondary,
+.bg-gradient-to-r.from-primary.to-secondary *,
+.text-white-force,
+.bg-rose-600.text-white,
+.bg-rose-600.text-white * {
+  color: #ffffff !important;
+}
+
+/* Specific background highlights */
+.glass-panel .bg-clinical-950,
+.glass-panel .bg-clinical-900\/20,
+.glass-panel .bg-clinical-900\/40,
+.glass-panel .bg-black\/30 {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
+}
+
+/* Navbar light mode fixes */
+nav.border-b.border-clinical-800\/80 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+nav.border-b.border-clinical-800\/80 h1.text-white,
+nav.border-b.border-clinical-800\/80 strong.text-white {
+  color: var(--color-clinical-50) !important;
+}
+
+nav button.bg-clinical-800.text-white {
+  background-color: var(--color-clinical-50) !important;
+  color: #ffffff !important;
+  border-color: var(--color-clinical-50) !important;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.15);
+}
+
+/* Telemetry Drawer layout light theme */
+.fixed.bottom-0.bg-clinical-950\/95 {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(226, 232, 240, 1) !important;
+  box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.fixed.bottom-0.bg-clinical-950\/95 .text-white {
+  color: var(--color-clinical-50) !important;
+}
+
+.fixed.bottom-0.bg-clinical-950\/95 .text-clinical-100 {
+  color: var(--color-clinical-100) !important;
+}
+
+.fixed.bottom-0.bg-clinical-950\/95 .bg-clinical-900\/30 {
+  background-color: rgba(241, 245, 249, 0.5) !important;
+}
+
+/* Barcode graphics matching light mode */
 .simulated-barcode {
   background: repeating-linear-gradient(
     to right,
-    #dce1fb,
-    #dce1fb 2px,
+    #475569,
+    #475569 2px,
     transparent 2px,
     transparent 4px,
-    #dce1fb 4px,
-    #dce1fb 5px,
+    #475569 4px,
+    #475569 5px,
     transparent 5px,
     transparent 8px,
-    #dce1fb 8px,
-    #dce1fb 12px,
+    #475569 8px,
+    #475569 12px,
     transparent 12px,
     transparent 15px
   );
-  border-radius: 4px;
+  opacity: 0.3;
 }
 
-/* Document physical scan laser overlay */
-.scanner-container {
-  position: relative;
-  overflow: hidden;
-  border-radius: 0.5rem;
+/* SVGs / charts light style */
+svg text {
+  fill: var(--color-clinical-300) !important;
 }
 
-.scanner-beam {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(to right, transparent, #4fdbc8, transparent);
-  box-shadow: 0 4px 10px rgba(79, 219, 200, 0.5);
-  animation: scan 2.5s infinite linear;
-  z-index: 10;
+svg line, svg path.domain {
+  stroke: rgba(226, 232, 240, 1) !important;
 }
-
-/* Smooth Graph Line Drawing Effect */
-.svg-graph-line {
-  stroke-dasharray: 1000;
-  stroke-dashoffset: 1000;
-  animation: drawGraph 2s ease-out forwards;
-}
-
-@keyframes scan {
-  0% { top: -5%; }
-  50% { top: 105%; }
-  100% { top: -5%; }
-}
-
-@keyframes drawGraph {
-  to { stroke-dashoffset: 0; }
-}
-
-/* Animation utilities */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideIn {
-  from { transform: translateX(120%) translateY(0); opacity: 0; filter: blur(4px); }
-  to { transform: translateX(0) translateY(0); opacity: 1; filter: blur(0); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-slide-in {
-  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-

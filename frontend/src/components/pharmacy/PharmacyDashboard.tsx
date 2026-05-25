@@ -121,6 +121,15 @@ export const PharmacyDashboard: React.FC = () => {
     return api.subscribe(syncPharmacy);
   }, []);
 
+  useEffect(() => {
+    if (scanningHold) {
+      const patients = api.getPatients();
+      const patient = patients.find(p => p.id === scanningHold.patientId);
+      if (patient) {
+        api.setActivePatient(patient);
+      }
+    }
+  }, [scanningHold]);
   // V2.0 Barcode Scan Effect
   useEffect(() => {
     if (!scanningHold || scannerStage !== 'scanning') return;

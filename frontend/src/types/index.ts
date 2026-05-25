@@ -182,3 +182,59 @@ export interface FinancialLedgerEntry {
   createdAt: string;
 }
 
+export interface Pod {
+  id: string;
+  name: string;
+  location?: string;
+  clinicCode: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface Entity {
+  id: string;
+  podId: string;
+  entityType: 'clinic' | 'lab' | 'pharmacy';
+  name: string;
+  address?: string;
+  phone?: string;
+  gstin?: string;
+  subscriptionTier?: string;
+  monthlyFee?: number;
+  status: 'pending' | 'approved' | 'rejected' | 'revoked';
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface PharmacyInventoryItem {
+  id: string;
+  name: string;
+  stock: number;
+  price: number;
+  dosage: string;
+}
+
+export interface WhatsAppDrugOrder {
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  drugNames: string[];
+  amount: number;
+  location: string;
+  deliveryStatus: 'pending' | 'dispatching' | 'enroute' | 'delivered';
+  timestamp: string;
+}
+
+export interface PathologyReport {
+  id: string;
+  patientId: string;
+  patientName: string;
+  loincCode: string;
+  testName: string;
+  status: 'pending' | 'approved';
+  compounderScanned: boolean;
+  results?: string;
+  timestamp: string;
+}
+
+
