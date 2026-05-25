@@ -1436,8 +1436,9 @@ class MediflowApiService {
         const order = orders[idx];
         const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
         
-        // 10% Pharmacy drug commission split to Clinic/Doctor
-        const commissionAmt = parseFloat((order.amount * 0.1).toFixed(2));
+        // 3% Platform fee and 48.5% split between Doctor & Pharmacy
+        const platformAmt = parseFloat((order.amount * 0.03).toFixed(2));
+        const commissionAmt = parseFloat((order.amount * 0.485).toFixed(2));
         const newLedger: FinancialLedgerEntry = {
           id: `tx-${crypto.randomUUID().substring(0, 8)}`,
           invoiceId: `inv-${orderId}`,
@@ -1445,19 +1446,32 @@ class MediflowApiService {
           destinationEntityId: 'clinic-admin-entity',
           transactionType: 'medicine_commission',
           grossAmount: order.amount,
-          commissionRate: 0.1,
+          commissionRate: 0.485,
           netPayout: commissionAmt,
           paymentStatus: 'cleared',
           settledAt: new Date().toISOString(),
           createdAt: new Date().toISOString()
         };
-        ledgerEntries.unshift(newLedger);
+        const platformLedger: FinancialLedgerEntry = {
+          id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+          invoiceId: `inv-${orderId}`,
+          sourceEntityId: 'pharmacy-partner-entity',
+          destinationEntityId: 'platform-admin-entity',
+          transactionType: 'platform_fee',
+          grossAmount: order.amount,
+          commissionRate: 0.03,
+          netPayout: platformAmt,
+          paymentStatus: 'cleared',
+          settledAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+        ledgerEntries.unshift(newLedger, platformLedger);
         this.save('financial_ledgers', ledgerEntries);
 
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
             title: 'Delivery Confirmed! 🚚',
-            message: `Order ${orderId} delivered. 10% Drug Sales Commission (₹${commissionAmt}) processed!`,
+            message: `Order ${orderId} delivered. Platform Fee (₹${platformAmt}) & Doctor split (₹${commissionAmt}) processed!`,
             type: 'success'
           }
         }));
@@ -1514,6 +1528,8 @@ class MediflowApiService {
 
       // Add a lab fee split to the ledger
       const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
+      const platformAmt = parseFloat((350 * 0.03).toFixed(2));
+      const commissionAmt = parseFloat((350 * 0.485).toFixed(2));
       const newLedger: FinancialLedgerEntry = {
         id: `tx-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: `inv-rep-${reportId}`,
@@ -1521,19 +1537,32 @@ class MediflowApiService {
         destinationEntityId: 'clinic-admin-entity',
         transactionType: 'lab_commission',
         grossAmount: 350,
-        commissionRate: 0.15, // 15% Pathology Referral Commission
-        netPayout: 52.5,
+        commissionRate: 0.485, 
+        netPayout: commissionAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
-      ledgerEntries.unshift(newLedger);
+      const platformLedger: FinancialLedgerEntry = {
+        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: `inv-rep-${reportId}`,
+        sourceEntityId: 'lab-partner-entity',
+        destinationEntityId: 'platform-admin-entity',
+        transactionType: 'platform_fee',
+        grossAmount: 350,
+        commissionRate: 0.03,
+        netPayout: platformAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      ledgerEntries.unshift(newLedger, platformLedger);
       this.save('financial_ledgers', ledgerEntries);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Lab Report Approved! 🧪',
-          message: `Report for ${reports[idx].patientName} is approved and dispatched to WhatsApp. Commission logged.`,
+          message: `Report approved. Platform Fee (₹${platformAmt}) & Doctor split (₹${commissionAmt}) processed!`,
           type: 'success'
         }
       }));
