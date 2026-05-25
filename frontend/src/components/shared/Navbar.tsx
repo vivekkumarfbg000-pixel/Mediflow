@@ -268,44 +268,192 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'patient', name: 'Patient App', icon: Smartphone, color: 'text-emerald-400 bg-emerald-500/10' },
   ];
 
-  const getProfileTheme = () => {
-    if (!activeProfile) return 'border-clinical-800 text-clinical-400';
-    switch (activeProfile.role) {
-      case 'doctor': return 'border-primary-500/30 text-primary-400 bg-primary-500/5';
-      case 'lab_technician': return 'border-blue-500/30 text-blue-400 bg-blue-500/5';
-      case 'pharmacist': return 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5';
-      case 'patient': return 'border-purple-500/30 text-purple-400 bg-purple-500/5';
-      default: return 'border-accent-500/30 text-accent-400 bg-accent-500/5';
-    }
-  };
-
   return (
-    <nav className="border-b border-slate-100 bg-white/75 backdrop-blur-xl sticky top-0 z-50 px-4 md:px-8 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)]">
-      <div className="max-w-7xl mx-auto flex flex-col gap-4">
-        {/* Main Nav Items */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          {/* Brand Header */}
-          <div className="flex items-center justify-between w-full lg:w-auto">
+    <>
+      {/* Premium Desktop Left Sidebar Navigation */}
+      <aside className="hidden lg:flex flex-col fixed top-0 bottom-0 left-0 w-64 bg-white border-r border-slate-100 z-40 p-5 justify-between">
+        {/* Top: Brand Logo and Connected Info */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md shrink-0">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-1">
+                Mediflow 
+                <span className="text-primary font-bold text-[8px] bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                  POD HUB
+                </span>
+              </h1>
+              <span className="flex items-center gap-1 text-[9px] font-mono tracking-wider font-bold text-emerald-500 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                SYSTEM LIVE
+              </span>
+            </div>
+          </div>
+
+          {/* Connection Status Card */}
+          {activePod && (
+            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+              <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Workspace</span>
+              <span className="block text-xs font-bold text-slate-700 truncate">{activeEntity?.name}</span>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                Code: <span className="font-bold text-slate-700 font-mono">{activePod.clinicCode}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Unified Care Loop Stepper in Sidebar */}
+          {activePatient && (
+            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3 animate-fade-in">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Patient Loop</span>
+                <span className="text-xs font-bold text-slate-700 truncate">{activePatient.name}</span>
+              </div>
+              
+              <div className="flex flex-col gap-2.5 font-semibold text-[10px]">
+                {[
+                  { id: 'registered', label: 'Registered' },
+                  { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                  { id: 'lab', label: 'Lab Processing' },
+                  { id: 'pharmacy', label: 'Pharmacy Verif.' },
+                  { id: 'settled', label: 'Ledger Settled' }
+                ].map((step, idx, arr) => {
+                  const stages = arr.map(s => s.id);
+                  const currentIdx = stages.indexOf(activePatientStage);
+                  const isCompleted = idx < currentIdx;
+                  const isActive = idx === currentIdx;
+                  
+                  return (
+                    <div key={step.id} className="flex items-center gap-2">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] font-bold shrink-0 transition-all duration-350 ${
+                        isActive 
+                          ? 'bg-primary/10 border-primary text-primary scale-105 shadow-sm' 
+                          : isCompleted 
+                            ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
+                            : 'bg-white border-slate-200 text-slate-300'
+                      }`}>
+                        {isCompleted ? '✓' : idx + 1}
+                      </div>
+                      <span className={`truncate leading-none ${isActive ? 'text-primary font-bold' : isCompleted ? 'text-emerald-600 font-medium' : 'text-slate-400 font-medium'}`}>
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Vertical Menu Options */}
+          <div className="space-y-1.5 pt-2">
+            <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-2 mb-2">Ecosystem Modules</span>
+            {roles.map((r) => {
+              const Icon = r.icon;
+              const isActive = currentRole === r.id;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => onChangeRole(r.id as UserRole)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
+                    isActive
+                      ? 'bg-slate-50 text-slate-900 border border-slate-100 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/50 border border-transparent'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                    isActive 
+                      ? 'bg-primary text-white shadow-md shadow-primary/20 scale-105' 
+                      : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600'
+                  }`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className="flex-1 text-left">{r.name}</span>
+                  
+                  {isActive && (
+                    <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-primary" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Bottom: Active Profile Badge & Workspace Actions */}
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+          {activeProfile && (
+            <div className="space-y-3">
+              {/* Profile Details Badge */}
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/50 border border-slate-100/60 font-sans">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                  {activeProfile.display_name.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
+                  <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
+                </div>
+              </div>
+
+              {/* Dev Bypass Trigger */}
+              <button 
+                onClick={() => onToggleBypass(!isBypassMode)}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                  isBypassMode 
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 shadow-sm shadow-amber-500/5' 
+                    : 'bg-slate-50 border-slate-100 text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {isBypassMode ? (
+                  <>
+                    <ShieldAlert className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                    Bypass Active
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+                    Secure Mode
+                  </>
+                )}
+              </button>
+
+              {/* Log Out Button */}
+              <button
+                onClick={onSignOut}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-500 hover:text-rose-500 rounded-xl transition-all duration-300 font-semibold text-xs cursor-pointer"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign Out Workspace
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Mobile Top Header Navigation */}
+      <nav className="lg:hidden border-b border-slate-100 bg-white/75 backdrop-blur-xl sticky top-0 z-50 px-4 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)] w-full">
+        <div className="max-w-7xl mx-auto flex flex-col gap-4">
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md">
                 <Activity className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="font-extrabold text-xl tracking-tight text-white flex items-center gap-2">
-                  Mediflow <span className="text-accent-400 font-medium text-xs bg-accent-950 border border-accent-800 px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse-subtle">Pod Hub</span>
-                  <span className={`flex items-center gap-1.5 text-[9px] px-2 py-0.5 rounded-full border transition-all duration-300 font-mono tracking-wider font-bold ${
+                <h1 className="font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-1.5">
+                  Mediflow <span className="text-accent-600 font-bold text-[8px] bg-accent-50 border border-accent-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse-subtle">POD HUB</span>
+                  <span className={`flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded-full border transition-all duration-300 font-mono font-bold ${
                     isSyncing 
-                      ? 'bg-primary-500/15 text-primary border-primary/25'
-                      : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+                      ? 'bg-primary/10 text-primary border-primary/25'
+                      : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
                   }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-primary' : 'bg-emerald-400 animate-pulse'}`} />
+                    <span className={`w-1 h-1 rounded-full ${isSyncing ? 'bg-primary' : 'bg-emerald-500 animate-pulse'}`} />
                     {isSyncing ? 'Syncing' : 'Live'}
                   </span>
                 </h1>
-                <p className="text-clinical-400 text-xs font-semibold">
+                <p className="text-slate-400 text-[10px] font-semibold mt-0.5">
                   {activePod ? (
                     <>
-                      Connected to <strong className="text-white">{activeEntity?.name}</strong> • Code: <strong className="text-primary font-mono">{activePod.clinicCode}</strong>
+                      Connected to <strong className="text-slate-600 font-bold">{activeEntity?.name}</strong> • Code: <strong className="text-primary font-mono">{activePod.clinicCode}</strong>
                     </>
                   ) : (
                     'Hyper-Local Connected Care Network'
@@ -314,26 +462,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Mobile Header Action Row */}
-            <div className="lg:hidden flex items-center gap-2">
-              {/* Dev Bypass Trigger on Mobile */}
+            {/* Mobile Actions */}
+            <div className="flex items-center gap-2">
               <button 
                 onClick={() => onToggleBypass(!isBypassMode)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                   isBypassMode 
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
-                    : 'bg-clinical-900 border-clinical-800 text-clinical-400'
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' 
+                    : 'bg-slate-50 border-slate-100 text-slate-500'
                 }`}
               >
                 {isBypassMode ? <ShieldAlert className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
                 Bypass
               </button>
 
-              {/* Sign Out Trigger on Mobile */}
               {activeProfile && (
                 <button
                   onClick={onSignOut}
-                  className="p-1.5 bg-clinical-900 hover:bg-rose-500/10 border border-clinical-800 hover:border-rose-500/30 text-clinical-400 hover:text-rose-400 rounded-lg transition-all duration-300 cursor-pointer"
+                  className="p-1.5 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/30 text-slate-500 hover:text-rose-500 rounded-lg transition-all duration-300 cursor-pointer"
                   title="Sign out of professional workspace"
                 >
                   <LogOut className="h-3.5 w-3.5" />
@@ -342,168 +488,96 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Switcher Navigation - Hidden on Mobile Viewports, Shown on Desktop */}
-          <div className="hidden lg:flex flex-wrap items-center gap-3 w-full lg:w-auto justify-start lg:justify-end">
-            <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-full bg-clinical-900 border border-clinical-800/60 max-w-full overflow-x-auto scrollbar-none">
-              {roles.map((r) => {
-                const Icon = r.icon;
-                const isActive = currentRole === r.id;
-                return (
-                  <button
-                    key={r.id}
-                    onClick={() => onChangeRole(r.id as UserRole)}
-                    className={`flex items-center gap-2.5 px-3 py-1 rounded-full text-xs md:text-sm font-bold transition-all duration-300 cursor-pointer ${
-                      isActive
-                        ? 'bg-clinical-800 text-white border border-clinical-700/80 shadow-md scale-[1.02]'
-                        : 'text-clinical-400 hover:text-clinical-100 hover:bg-clinical-800/40 border border-transparent'
-                    }`}
-                  >
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${r.color}`}>
-                      <Icon className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="pr-1">{r.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* User Profile Console & Sign Out */}
-            {activeProfile && (
-              <div className="flex items-center gap-3">
-                {/* Bypass Mode Toggle for Demos */}
-                <button 
-                  onClick={() => onToggleBypass(!isBypassMode)}
-                  className={`hidden lg:flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-[10px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                    isBypassMode 
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 shadow-lg shadow-amber-500/5' 
-                      : 'bg-clinical-900 border-clinical-800 text-clinical-400 hover:text-clinical-200'
-                  }`}
-                  title="Toggle authorization check bypass for demonstrating full pod loop transitions in a single window"
-                >
-                  {isBypassMode ? (
-                    <>
-                      <ShieldAlert className="h-3.5 w-3.5 text-amber-400 animate-pulse-subtle" />
-                      Bypass Active
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="h-3.5 w-3.5 text-clinical-400" />
-                      Secure Mode
-                    </>
-                  )}
-                </button>
-
-                {/* Active Profile Info Badge */}
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${getProfileTheme()} text-xs font-semibold`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                  <span>{activeProfile.display_name}</span>
-                  <span className="text-[9px] uppercase opacity-75 font-bold tracking-widest pl-1 border-l border-clinical-800 ml-1">
-                    {activeProfile.role.replace('_', ' ')}
-                  </span>
-                </div>
-
-                {/* Sign Out Trigger */}
-                <button
-                  onClick={onSignOut}
-                  className="p-2.5 bg-clinical-900 hover:bg-rose-500/10 border border-clinical-800 hover:border-rose-500/30 text-clinical-400 hover:text-rose-400 rounded-xl transition-all duration-300 cursor-pointer"
-                  title="Sign out of professional workspace"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
+          {/* Unified Care Loop Progress Ribbon */}
+          {activePatient && (
+            <div className="mt-1 pt-2 border-t border-slate-100 flex flex-col gap-2 text-[10px] animate-fade-in">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[8px]">Active Loop:</span>
+                <span className="text-slate-700 font-bold">{activePatient.name}</span>
+                <span className="text-slate-400 font-mono">({activePatient.id.substring(0, 8)})</span>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Unified Care Loop Progress Ribbon */}
-        {activePatient && (
-          <div className="mt-2 pt-2.5 border-t border-clinical-800/40 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs animate-fade-in pb-1">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Active Loop:</span>
-              <span className="text-white font-bold">{activePatient.name}</span>
-              <span className="text-[10px] text-clinical-500 font-mono">({activePatient.id.substring(0, 8)})</span>
-            </div>
-            
-            {/* Stepper Steps */}
-            <div className="flex items-center gap-1.5 md:gap-4 max-w-full overflow-x-auto scrollbar-none font-semibold text-[9.5px] md:text-xs">
-              {[
-                { id: 'registered', label: 'Registered' },
-                { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
-                { id: 'lab', label: 'Lab Processing' },
-                { id: 'pharmacy', label: 'Pharmacy Verification' },
-                { id: 'settled', label: 'Ledger Settled' }
-              ].map((step, idx, arr) => {
-                const stages = arr.map(s => s.id);
-                const currentIdx = stages.indexOf(activePatientStage);
-                const isCompleted = idx < currentIdx;
-                const isActive = idx === currentIdx;
-                
-                return (
-                  <React.Fragment key={step.id}>
-                    <div className={`flex items-center gap-1.5 transition-all duration-500 ${
-                      isActive 
-                        ? 'text-secondary drop-shadow-[0_0_8px_rgba(79,219,200,0.5)] scale-[1.02]' 
-                        : isCompleted 
-                          ? 'text-emerald-400' 
-                          : 'text-clinical-500'
-                    }`}>
-                      <div className={`w-4.5 h-4.5 md:w-5 md:h-5 rounded-full flex items-center justify-center border text-[9px] font-mono font-bold transition-all duration-500 ${
+              
+              {/* Stepper Steps */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none font-semibold text-[9px]">
+                {[
+                  { id: 'registered', label: 'Registered' },
+                  { id: 'diagnosing', label: 'Diagnosing' },
+                  { id: 'lab', label: 'Lab' },
+                  { id: 'pharmacy', label: 'Pharmacy' },
+                  { id: 'settled', label: 'Settled' }
+                ].map((step, idx, arr) => {
+                  const stages = arr.map(s => s.id);
+                  const currentIdx = stages.indexOf(activePatientStage);
+                  const isCompleted = idx < currentIdx;
+                  const isActive = idx === currentIdx;
+                  
+                  return (
+                    <React.Fragment key={step.id}>
+                      <div className={`flex items-center gap-1 transition-all duration-500 ${
                         isActive 
-                          ? 'bg-secondary/10 border-secondary text-secondary' 
+                          ? 'text-primary' 
                           : isCompleted 
-                            ? 'bg-emerald-500/10 border-emerald-400 text-emerald-400' 
-                            : 'bg-clinical-950 border-clinical-800 text-clinical-500'
+                            ? 'text-emerald-500' 
+                            : 'text-slate-300'
                       }`}>
-                        {isCompleted ? '✓' : idx + 1}
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border text-[8px] font-mono font-bold transition-all duration-500 ${
+                          isActive 
+                            ? 'bg-primary/10 border-primary text-primary' 
+                            : isCompleted 
+                              ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
+                              : 'bg-white border-slate-100 text-slate-300'
+                        }`}>
+                          {isCompleted ? '✓' : idx + 1}
+                        </div>
+                        <span className="whitespace-nowrap">{step.label}</span>
                       </div>
-                      <span className="whitespace-nowrap">{step.label}</span>
-                    </div>
-                    
-                    {idx < arr.length - 1 && (
-                      <div className={`w-2 md:w-8 h-[1.5px] rounded transition-all duration-500 shrink-0 ${
-                        idx < currentIdx 
-                          ? 'bg-emerald-500/50' 
-                          : 'bg-clinical-800'
-                      }`} />
-                    )}
-                  </React.Fragment>
-                );
-              })}
+                      
+                      {idx < arr.length - 1 && (
+                        <div className={`w-2 h-[1px] rounded transition-all duration-500 shrink-0 ${
+                          idx < currentIdx 
+                            ? 'bg-emerald-400' 
+                            : 'bg-slate-100'
+                        }`} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </nav>
 
       {/* Ecosystem Live Pipeline Telemetry HUD Bottom Drawer */}
       <div 
-        className={`fixed left-0 right-0 z-40 transition-all duration-500 ease-in-out border-t border-clinical-800 bg-clinical-950/95 backdrop-blur-md shadow-2xl flex flex-col lg:bottom-0 ${
+        className={`fixed left-0 right-0 lg:left-64 z-40 transition-all duration-500 ease-in-out border-t border-slate-100 bg-white/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,23,42,0.02)] flex flex-col lg:bottom-0 ${
           isHudExpanded ? 'h-[230px]' : 'h-[36px]'
         } bottom-16`}
       >
         {/* HUD Top Bar Toggler */}
         <div 
           onClick={() => setIsHudExpanded(!isHudExpanded)}
-          className="h-[35px] shrink-0 px-4 md:px-8 border-b border-clinical-800/40 flex items-center justify-between cursor-pointer hover:bg-clinical-900/40 select-none transition-colors"
+          className="h-[35px] shrink-0 px-4 md:px-8 border-b border-slate-100/40 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 select-none transition-colors"
         >
           <div className="flex items-center gap-2 md:gap-3.5">
             <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
-              <span className="text-[10px] md:text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
-                <Terminal className="h-3.5 w-3.5 text-secondary" />
-                Ecosystem Live Pipeline Telemetry HUD
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              <span className="text-[10px] md:text-xs font-bold text-slate-700 tracking-wide flex items-center gap-1.5 font-sans">
+                <Terminal className="h-3.5 w-3.5 text-primary" />
+                Ecosystem Live Telemetry HUD
               </span>
             </div>
             
-            <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-clinical-900 border border-clinical-800 text-clinical-400">
+            <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-slate-500">
               CDC Channels: active
             </div>
           </div>
           
           <div className="flex items-center gap-4">
-            <span className="text-[9px] font-mono text-clinical-400">
-              {logs.length} events logged in this session
+            <span className="text-[9px] font-mono text-slate-400">
+              {logs.length} events logged
             </span>
-            <div className="text-clinical-400 hover:text-white transition-colors">
+            <div className="text-slate-400 hover:text-slate-700 transition-colors">
               {isHudExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
             </div>
           </div>
@@ -511,16 +585,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* HUD Log Output Panel */}
         {isHudExpanded && (
-          <div className="flex-1 p-4 overflow-y-auto font-mono text-[10.5px] leading-relaxed space-y-2 bg-clinical-950/50">
+          <div className="flex-1 p-4 overflow-y-auto font-mono text-[10.5px] leading-relaxed space-y-2 bg-slate-50/50">
             {logs.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-clinical-500 text-xs italic">
+              <div className="h-full flex items-center justify-center text-slate-400 text-xs italic">
                 Scanning database pipeline... Listening for Postgres CDC mutations.
               </div>
             ) : (
               logs.map((log) => (
-                <div key={log.id} className="flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-clinical-900/30 py-0.5 px-2 rounded transition-colors group">
+                <div key={log.id} className="flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-slate-100/30 py-0.5 px-2 rounded transition-colors group">
                   {/* Timestamp */}
-                  <span className="text-clinical-500 shrink-0 select-none">[{log.timestamp}]</span>
+                  <span className="text-slate-400 shrink-0 select-none">[{log.timestamp}]</span>
                   
                   {/* Event tag */}
                   <span className={`text-[8.5px] font-bold tracking-widest px-1.5 py-0.5 rounded shrink-0 uppercase ${getLogTagStyle(log.action_type)}`}>
@@ -529,13 +603,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   
                   {/* Role descriptor */}
                   {log.role && log.role !== 'system' && (
-                    <span className="text-clinical-400 font-bold uppercase text-[8px] bg-clinical-900 px-1 py-0.2 rounded border border-clinical-800">
+                    <span className="text-slate-400 font-bold uppercase text-[8px] bg-slate-50 px-1 py-0.2 rounded border border-slate-100">
                       {log.role}
                     </span>
                   )}
                   
                   {/* Log body */}
-                  <span className="text-clinical-100 font-medium break-all">{log.text}</span>
+                  <span className="text-slate-600 font-medium break-all">{log.text}</span>
                 </div>
               ))
             )}
@@ -544,7 +618,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-clinical-200 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
         <div className="flex items-center justify-around h-16">
           {roles.map((r) => {
             const Icon = r.icon;
@@ -566,18 +640,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-300 cursor-pointer relative ${
                   isActive 
                     ? 'text-primary' 
-                    : 'text-clinical-400 hover:text-clinical-200'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <div className={`p-1.5 rounded-xl transition-all duration-300 ${
                   isActive 
                     ? 'bg-primary/10 text-primary scale-110 shadow-sm' 
-                    : 'bg-transparent text-clinical-400'
+                    : 'bg-transparent text-slate-400'
                 }`}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <span className={`text-[9px] font-bold mt-1 tracking-tight transition-colors duration-300 ${
-                  isActive ? 'text-primary font-extrabold' : 'text-clinical-400'
+                  isActive ? 'text-primary font-extrabold' : 'text-slate-400'
                 }`}>
                   {label}
                 </span>
@@ -591,7 +665,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           })}
         </div>
       </div>
-    </nav>
+    </>
   );
 };
-

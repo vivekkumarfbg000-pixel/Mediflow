@@ -156,7 +156,7 @@ function AppContent({
       />
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
-      <main className="flex-1 pb-32 lg:pb-16">
+      <main className="flex-1 pb-32 lg:pb-16 lg:pl-64">
         <div className="animate-fade-in">
           <ErrorBoundary>
             {renderDashboard()}
