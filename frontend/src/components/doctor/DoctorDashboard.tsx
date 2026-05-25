@@ -1143,24 +1143,31 @@ export const DoctorDashboard: React.FC = () => {
             </div>
 
             {/* Ambient AI Medical Scribe Card */}
-            <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4">
+            <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-5 shadow-sm">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary animate-pulse">mic</span>
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    Ambient AI Medical Scribe (Gemini MedLM 2.5)
+                  <span className={`material-symbols-outlined text-primary ${isAmbientScribing ? 'animate-pulse text-primary' : 'text-slate-400'}`}>mic</span>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-sans">
+                    Ambient AI Medical Scribe <span className="text-[10px] text-slate-400 font-medium normal-case">(Gemini MedLM 2.5)</span>
                   </h3>
                 </div>
-                <span className="text-[8px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono">
-                  Live Listening Engine
-                </span>
+                {isAmbientScribing ? (
+                  <span className="flex items-center gap-1.5 text-[9px] bg-primary/10 text-primary border border-primary/25 px-2.5 py-1 rounded-full font-extrabold uppercase tracking-wider animate-pulse-wave">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                    Ambient Scribing Active
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200/30 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider font-sans">
+                    Listening Engine Idle
+                  </span>
+                )}
               </div>
 
               {/* Scribe Visualizer Row */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                <div className="md:col-span-8 flex flex-col justify-center bg-slate-900 border border-slate-800 rounded-xl p-4 h-24 relative overflow-hidden">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+                <div className="md:col-span-8 flex flex-col justify-center bg-white border border-slate-100 rounded-2xl p-4 h-24 relative overflow-hidden shadow-inner">
                   {isAmbientScribing ? (
-                    <div className="absolute inset-0 bg-slate-950 flex flex-col justify-center items-center px-4 space-y-2">
+                    <div className="absolute inset-0 bg-primary/5 flex flex-col justify-center items-center px-4 space-y-2 backdrop-blur-sm">
                       <div className="flex items-center justify-center gap-1.5 h-8">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => {
                           const heights = [12, 28, 16, 32, 20, 36, 14, 24, 38, 18, 30, 15, 26, 12, 20];
@@ -1168,7 +1175,7 @@ export const DoctorDashboard: React.FC = () => {
                           return (
                             <div 
                               key={i} 
-                              className="w-1 bg-secondary rounded-full animate-bounce"
+                              className="w-1.5 bg-primary/80 rounded-full animate-bounce"
                               style={{ 
                                 height: `${heights[i % heights.length]}px`, 
                                 animationDuration: '0.8s',
@@ -1178,23 +1185,23 @@ export const DoctorDashboard: React.FC = () => {
                           );
                         })}
                       </div>
-                      <div className="text-[9px] text-secondary font-bold uppercase tracking-widest font-mono animate-pulse">
+                      <div className="text-[10px] text-primary font-extrabold uppercase tracking-widest font-sans animate-pulse">
                         {activeScribeScript === 'custom' 
                           ? `Recording Live Opus Audio... ${recordingDuration}s` 
                           : `Simulating Ambient speech... ${scribeTimeRemaining}s`}
                       </div>
                     </div>
                   ) : isMedLmParsing ? (
-                    <div className="absolute inset-0 bg-slate-950 flex flex-col justify-center items-center px-4 space-y-2">
-                      <span className="material-symbols-outlined text-xl text-primary animate-spin">sync</span>
-                      <div className="text-[9px] text-primary font-bold uppercase tracking-widest font-mono animate-pulse">
+                    <div className="absolute inset-0 bg-primary/5 flex flex-col justify-center items-center px-4 space-y-2 backdrop-blur-sm">
+                      <span className="material-symbols-outlined text-2xl text-primary animate-spin">sync</span>
+                      <div className="text-[10px] text-primary font-bold uppercase tracking-widest font-sans animate-pulse">
                         Gemini MedLM Synthesizing Dialogue & CDSS Rules...
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-col justify-center items-center h-full text-center space-y-1">
-                      <span className="material-symbols-outlined text-slate-500 text-lg">graphic_eq</span>
-                      <div className="text-[9px] text-slate-400 font-mono">
+                      <span className="material-symbols-outlined text-slate-400 text-xl">graphic_eq</span>
+                      <div className="text-[10px] text-slate-400 font-sans font-medium">
                         {audioBlob ? `Opus WebM Audio Cached (${(audioBlob.size / 1024).toFixed(1)} KB) - Ready` : 'Awaiting micro consultation recording trigger...'}
                       </div>
                     </div>
@@ -1205,7 +1212,7 @@ export const DoctorDashboard: React.FC = () => {
                   {isAmbientScribing && activeScribeScript === 'custom' ? (
                     <button
                       onClick={stopRecordingAndProcess}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-rose-500 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md hover:scale-[1.01] transition-all animate-pulse text-white-force cursor-pointer"
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all animate-pulse text-white-force cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-sm text-white-force animate-spin">stop</span>
                       Stop & Process Scribe
@@ -1218,7 +1225,7 @@ export const DoctorDashboard: React.FC = () => {
                         startRecording();
                       }}
                       disabled={isAmbientScribing || isMedLmParsing}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-secondary bg-secondary text-white text-xs font-bold shadow-sm hover:scale-[1.01] transition-all disabled:opacity-50 cursor-pointer"
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-primary bg-primary text-white text-xs font-bold shadow-sm hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 text-white-force cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-sm text-white-force">mic</span>
                       Record Consult
@@ -1240,7 +1247,7 @@ export const DoctorDashboard: React.FC = () => {
                         }
                       }));
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-2 border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-sm">restart_alt</span>
                     Reset Encounter
@@ -1257,9 +1264,9 @@ export const DoctorDashboard: React.FC = () => {
                   <button
                     onClick={() => handleTriggerScenario('diabetes')}
                     disabled={isAmbientScribing || isMedLmParsing}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] cursor-pointer ${
                       activeScribeScript === 'diabetes'
-                        ? 'bg-secondary/10 border-secondary'
+                        ? 'bg-primary/5 border-primary'
                         : 'bg-white border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -1270,9 +1277,9 @@ export const DoctorDashboard: React.FC = () => {
                   <button
                     onClick={() => handleTriggerScenario('infection')}
                     disabled={isAmbientScribing || isMedLmParsing}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] cursor-pointer ${
                       activeScribeScript === 'infection'
-                        ? 'bg-secondary/10 border-secondary'
+                        ? 'bg-primary/5 border-primary'
                         : 'bg-white border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -1289,9 +1296,9 @@ export const DoctorDashboard: React.FC = () => {
                   <button
                     onClick={() => handleTriggerScenario('renal')}
                     disabled={isAmbientScribing || isMedLmParsing}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] cursor-pointer ${
                       activeScribeScript === 'renal'
-                        ? 'bg-secondary/10 border-secondary'
+                        ? 'bg-primary/5 border-primary'
                         : 'bg-white border-slate-200 hover:bg-slate-50'
                     }`}
                   >

@@ -144,7 +144,7 @@ function AppContent({
   }
 
   return (
-    <div className="min-h-screen bg-clinical-950 text-clinical-100 flex flex-col font-sans select-none">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none">
       {/* Shared Ecosystem Navigation Header */}
       <Navbar 
         currentRole={currentRole} 

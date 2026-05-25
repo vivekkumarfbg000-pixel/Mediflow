@@ -280,7 +280,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <nav className="border-b border-clinical-800/80 bg-clinical-950/70 backdrop-blur-md sticky top-0 z-50 px-4 md:px-8 py-3">
+    <nav className="border-b border-slate-100 bg-white/75 backdrop-blur-xl sticky top-0 z-50 px-4 md:px-8 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)]">
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
         {/* Main Nav Items */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
