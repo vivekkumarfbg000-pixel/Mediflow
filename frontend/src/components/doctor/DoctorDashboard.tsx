@@ -57,6 +57,8 @@ export const DoctorDashboard: React.FC = () => {
   const [patientRAGSummary, setPatientRAGSummary] = useState('');
   const [selectedDirectoryPatient, setSelectedDirectoryPatient] = useState<Patient | null>(null);
 
+  const { activePod } = useClinic();
+
   // Ambient AI Scribe States
   const [isAmbientScribing, setIsAmbientScribing] = useState(false);
   const [scribeTimeRemaining, setScribeTimeRemaining] = useState(0);
@@ -71,8 +73,49 @@ export const DoctorDashboard: React.FC = () => {
   const durationIntervalRef = React.useRef<any>(null);
   const recognitionRef = React.useRef<any>(null);
 
-  // Clinic pod information from context
-  const { activePod } = useClinic();
+  // Mobile swipe gesture navigation logic
+  const touchStartXRef = React.useRef<number | null>(null);
+  const touchStartYRef = React.useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+    
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+
+    // Must be horizontal swipe: deltaX magnitude must be much larger than deltaY to prevent vertical scroll conflicts
+    if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
+      const tabs: Array<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients'> = [
+        'overview', 
+        'consultation', 
+        'financials', 
+        'pharmacy', 
+        'pathology', 
+        'patients'
+      ];
+      const currentIdx = tabs.indexOf(activeTab);
+      
+      if (deltaX > 0) {
+        // Swipe Right -> Previous Tab
+        if (currentIdx > 0) {
+          setActiveTab(tabs[currentIdx - 1]);
+        }
+      } else {
+        // Swipe Left -> Next Tab
+        if (currentIdx < tabs.length - 1) {
+          setActiveTab(tabs[currentIdx + 1]);
+        }
+      }
+    }
+  };
 
   useEffect(() => {
     const syncDashboardData = () => {
@@ -1459,7 +1502,7 @@ export const DoctorDashboard: React.FC = () => {
             <div className="flex justify-end pt-5 border-t border-slate-100">
               <button
                 onClick={handleSaveEncounter}
-                className="btn-primary px-8 flex items-center gap-2 hover:scale-102 transition-transform"
+                className="btn-primary px-8 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-white-force"
               >
                 <CheckCircle2 className="h-5 w-5 text-white-force" /> Submit Encounter & Route Mappings
               </button>
@@ -2244,7 +2287,7 @@ export const DoctorDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-6 animate-fade-in text-slate-800">
+    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-6 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Ecosystem Command Header */}
       <div className="glass-panel p-6 border-slate-200/80 shadow-md relative overflow-hidden bg-white">
         <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary via-secondary to-accent-400" />
@@ -2308,6 +2351,52 @@ export const DoctorDashboard: React.FC = () => {
       {/* Main Tab Render Container */}
       <div className="w-full">
         {renderTabContent()}
+      </div>
+
+      {/* Contextual Floating Action Button (FAB) for Mobile Viewports */}
+      <div className="lg:hidden fixed bottom-20 right-6 z-[80] transition-all duration-300">
+        {activeTab === 'consultation' && (
+          isAmbientScribing && activeScribeScript === 'custom' ? (
+            <button
+              onClick={stopRecordingAndProcess}
+              className="bg-rose-600 border border-rose-500 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300 animate-pulse text-white-force cursor-pointer"
+              title="Stop Consultation Recording"
+            >
+              <span className="material-symbols-outlined text-2xl font-bold text-white-force">stop</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (isMedLmParsing) return;
+                setActiveScribeScript("custom");
+                startRecording();
+              }}
+              disabled={isAmbientScribing || isMedLmParsing}
+              className="bg-gradient-to-tr from-primary-600 to-accent-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300 border border-primary/25 disabled:opacity-50 text-white-force cursor-pointer"
+              title="Record Consultation"
+            >
+              <span className="material-symbols-outlined text-2xl font-bold text-white-force">mic</span>
+            </button>
+          )
+        )}
+        
+        {activeTab === 'overview' && (
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                detail: {
+                  title: 'Ecosystem CDSS Scan 🛡️',
+                  message: 'Automated telemetry & passive CDSS scanning triggered.',
+                  type: 'info'
+                }
+              }));
+            }}
+            className="bg-gradient-to-tr from-secondary-600 to-primary-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300 border border-secondary/25 text-white-force cursor-pointer"
+            title="Scan Health Alerts"
+          >
+            <span className="material-symbols-outlined text-2xl font-bold text-white-force">shield_alert</span>
+          </button>
+        )}
       </div>
 
       {/* Premium Fixed Bottom Navigation Bar for Doctor Dashboard on Mobile Viewports */}

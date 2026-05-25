@@ -16,6 +16,7 @@ import { ClinicProvider, useClinic } from './context/ClinicContext';
 import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
 import { PatientWhatsAppSimulator } from './components/shared/PatientWhatsAppSimulator';
 import { PatientMobileDashboard } from './components/shared/PatientMobileDashboard';
+import { CommandBar } from './components/shared/CommandBar';
 
 interface Toast {
   id: string;
@@ -55,6 +56,18 @@ function AppContent({
   const { partnerStatus } = useClinic();
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandBarOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const renderDashboard = () => {
     switch (currentRole) {
@@ -237,6 +250,14 @@ function AppContent({
       </button>
 
       <PatientWhatsAppSimulator isOpen={isSimulatorOpen} onClose={() => setIsSimulatorOpen(false)} />
+      <CommandBar 
+        isOpen={isCommandBarOpen}
+        onClose={() => setIsCommandBarOpen(false)}
+        currentRole={currentRole}
+        onChangeRole={handleRoleChange}
+        isBypassMode={isBypassMode}
+        onToggleBypass={handleToggleBypass}
+      />
     </div>
   );
 }
