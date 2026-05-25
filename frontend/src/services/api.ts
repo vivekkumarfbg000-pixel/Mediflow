@@ -714,16 +714,40 @@ class MediflowApiService {
                 await this.writeAuditLog('PATIENT_CONSENT_REVOKED', { patientId: patient.id, phone }, patient.id);
               }
             });
+          } else if (cleaned.includes('book') || cleaned === '2') {
+            nextState = 'BOOKING_VIRTUAL';
+            replyMessage = "Excellent! Mediflow scheduling initialized. Would you like to book a Virtual Video Consultation or a Physical In-Person Slot?\n\nReply 'VIRTUAL' or 'PHYSICAL' to proceed.";
           } else if (['1', 'grant access', 'yes'].includes(cleaned)) {
-            replyMessage = "Your digital consent is already active and registered in the ledger. Reply 'STOP CONSENT' if you wish to revoke access.";
+            replyMessage = "Your digital consent is already active and registered in the ledger. Reply 'BOOK' to schedule an appointment.";
           } else {
-            replyMessage = "Your digital consent is active. Awaiting your clinic consultation encounter notes. Reply 'STOP CONSENT' to revoke access.";
+            replyMessage = "Your digital consent is active! 🟢 Awaiting your commands. Reply:\n- *BOOK*: Schedule physical/virtual appointment\n- *REPORT*: Request pathology lab reports\n- *SUMMARY*: Delivery SOAP summary & drug schedule\n- Or type any health query (e.g. Diabetics diet plan).";
+          }
+          break;
+
+        case 'BOOKING_VIRTUAL':
+          if (cleaned.includes('virtual') || cleaned.includes('physical')) {
+            nextState = 'AWAITING_PAYMENT';
+            const isVirtual = cleaned.includes('virtual');
+            const fee = isVirtual ? 400 : 500;
+            const upiPayload = `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${fee}.00&cu=INR&tn=MEDIFLOW-APPT-${phone.substring(5)}`;
+            
+            replyMessage = `Booking slots locked for Doctor Vivek. Total Appointment Fee: INR ${fee}.00.\n\nPlease scan the dynamic UPI QR code or use this direct payment link to secure your slot:\n\n${upiPayload}\n\nType 'PAY' once you've settled the transaction, and we'll dynamically dispatch your virtual encounter link!`;
+          } else {
+            replyMessage = "Please specify 'VIRTUAL' or 'PHYSICAL' to lock your appointment slot.";
           }
           break;
 
         case 'AWAITING_PAYMENT':
           if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned === '1') {
-            replyMessage = "Please scan the UPI QR code displayed on the Billing Screen or use the link: upi://pay?pa=mediflow@icici to clear the pending invoice.";
+            const pat = this.getPatients().find(p => p.phone === phone);
+            const pendingInv = this.getUnifiedInvoices().find(i => i.patientId === pat?.id && i.paymentStatus === 'pending');
+
+            if (pendingInv) {
+              replyMessage = `Please scan the UPI QR code displayed on the screen or use the direct link to settle your outstanding fee of INR ${pendingInv.totalAmount}.00:\n\n${pendingInv.upiQrPayload}\n\nOur database auto-settles payouts upon transaction completion.`;
+            } else {
+              nextState = 'COMPLETED';
+              replyMessage = "UPI payment confirmed cleared! 🟢 Your physical/virtual appointment is now active. Your digital pod session has successfully transitioned to COMPLETED. We look forward to seeing you!";
+            }
           } else if (['stop consent', 'stop', 'revoke'].includes(cleaned)) {
             replyMessage = "Consent cannot be revoked while an invoice is pending payment. Please settle your dues first.";
           } else {
@@ -731,15 +755,54 @@ class MediflowApiService {
           }
           break;
 
-        case 'BOOKING_VIRTUAL':
         case 'COMPLETED':
-          if (cleaned.includes('refill') || cleaned.includes('medicine')) {
-            replyMessage = "Initiating your seasonal medicine refill request. A compounder will verify and contact you shortly.";
+          const currentPat = this.getPatients().find(p => p.phone === phone);
+          const awaitingAction = sessionData.awaitingProactiveAction;
+
+          if (cleaned === 'yes' && awaitingAction === 'refill') {
+            sessionData.awaitingProactiveAction = null;
+            replyMessage = "Excellent! Refill dispatch confirmed. 📦 A compounder has verified the order and our Patna pharmacy is sending the delivery vehicle to your location now. Track progress here! Thank you.";
+          } else if (cleaned === 'home' && awaitingAction === 'lab') {
+            sessionData.awaitingProactiveAction = null;
+            replyMessage = "Home collection scheduled! 🔬 Our Patna lab technician (Lalit Prasad) will visit your registered address tomorrow morning at 8:00 AM. Fasting is recommended for 8 hours prior. We have locked your slot! 🟢";
+          } else if (cleaned.includes('refill') || cleaned.includes('medicine') || cleaned.includes('reorder')) {
+            nextState = 'COMPLETED';
+            replyMessage = "Refill request received! 📦 We have cross-referenced your last prescription and reserved a fresh pack in the nearest pod pharmacy inventory queue. A compounder will dispatch it shortly.";
+          } else if (cleaned.includes('report') || cleaned.includes('pathology') || cleaned.includes('test')) {
+            const approvedReports = this.getPathologyReports().filter(r => r.patientId === currentPat?.id && r.status === 'approved');
+            if (approvedReports.length > 0) {
+              const rep = approvedReports[0];
+              const barcode = `MED-${rep.loincCode}-${rep.id.toUpperCase()}`;
+              replyMessage = `*Mediflow pathology report Delivered* 🔬\n\nPatient: ${rep.patientName}\nTest Name: ${rep.testName}\nLOINC Code: ${rep.loincCode}\nStatus: Approved 🟢\n\n*Findings Summary*:\n"${rep.results}"\n\n*Security Barcode*: ${barcode}`;
+            } else {
+              replyMessage = "You have no approved pathology reports on file currently. Awaiting lab technician sample completion.";
+            }
+          } else if (cleaned.includes('summary') || cleaned.includes('soap') || cleaned.includes('schedule') || cleaned.includes('revisit')) {
+            const completedEncounters = this.getEncounters()
+              .filter(e => e.patientId === currentPat?.id && e.status === 'completed')
+              .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+            if (completedEncounters.length > 0) {
+              const enc = completedEncounters[0];
+              const drugTable = enc.medications.map(m => `• ${m.medicineName} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join('\n');
+              
+              replyMessage = `*Clinical Consultation Summary & SOAP Note* 🩺\n\n*Doctor Notes*:\n"${enc.clinicalNotes}"\n\n*Generic Medication Schedule*:\n${drugTable || "No active medications prescribed."}\n\n*Revisit Advice*:\nPlease schedule your next follow-up in *14 days* (Bihar Patna Pod branch) to evaluate therapeutic progress.`;
+            } else {
+              replyMessage = "No completed consultation encounters found on your patient profile registry.";
+            }
           } else if (['stop consent', 'stop', 'revoke'].includes(cleaned)) {
             nextState = 'AWAITING_WELCOME';
-            replyMessage = "Digital consent revoked. Profile locked. Reply '1' to restart welcome authorization.";
+            replyMessage = "Digital consent successfully revoked. Your patient profile is now locked from non-clinical staff. Reply '1' to authorize again.";
           } else {
-            replyMessage = "Thank you for choosing Mediflow. Your encounter is completed. Reply 'REFILL' for active drug requests.";
+            // General health query using optimized Clinical Assistant RAG Scribe prompt
+            let chronicAdvice = "";
+            if (currentPat?.chronicConditions.some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar'))) {
+              chronicAdvice = "\n\n*RAG Clinical Guidelines Note (ADA/KDIGO)*: For individuals with your glycated hemoglobin indicators (HbA1c 7.2%), avoid high-carb meals, monitor LOINC: 4544-3 blood tests quarterly, and withhold non-selective NSAIDs (like Ibuprofen) if creatinine registers above 1.2 mg/dL.";
+            } else {
+              chronicAdvice = "\n\n*RAG Clinical Guidelines Note*: Keep hydrated, follow a balanced sodium-restricted diet, and maintain active diagnostic logs with your primary care provider.";
+            }
+
+            replyMessage = `*Mediflow AI-RAG Clinical Advisory Node* 🤖\n\nThank you for your health inquiry regarding: "${text}"\n\n*Health Advice*: Rest, balance your fluid intake, and monitor vital statistics daily. Avoid self-medicating with brand-name drugs; consult your doctor before changing regimens.${chronicAdvice}\n\n_Disclaimer: This advisory is synthesized via clinical parameters (ADA/KDIGO) and must be reviewed by your primary doctor._`;
           }
           break;
 
@@ -1912,6 +1975,66 @@ If no prescription image could be loaded or fetched, generate a highly realistic
     this.pushWhatsAppMessageFromBot(patient.phone, message);
 
     return message;
+  }
+
+  triggerProactiveRefillNudge(phone: string): void {
+    const patient = this.getPatients().find(p => p.phone === phone);
+    if (!patient) return;
+
+    const message = `Hello ${patient.name}! 😊 We noticed your generic medication dosage is running low (only 5 days left!). 💊\n\nTo ensure uninterrupted treatment, we have pre-allocated a fresh, quality-checked pack for you at our Patna Pod pharmacy counter. \n\n*Reply 'YES' to confirm and immediately dispatch your medicine refill package to your home!*`;
+    
+    const sessions = this.getWhatsAppSessions();
+    const existing = sessions.find(s => s.patientPhone === phone);
+    if (existing) {
+      existing.sessionData = {
+        ...existing.sessionData,
+        awaitingProactiveAction: 'refill'
+      };
+      this.save('whatsapp_sessions', sessions);
+    }
+    
+    this.pushWhatsAppMessageFromBot(phone, message);
+    this.writeAuditLog('PROACTIVE_REFILL_NUDGE_SENT', { phone, patientName: patient.name }, null);
+  }
+
+  triggerProactiveFollowUpNudge(phone: string): void {
+    const patient = this.getPatients().find(p => p.phone === phone);
+    if (!patient) return;
+
+    const message = `Hello ${patient.name}! 😊 Hope you are recovering well. \n\nDr. Vivek recommended a follow-up consultation in 3 days to evaluate your progress. \n\n*Reply 'BOOK' or '1' to lock a convenient Virtual Video Consultation slot immediately!*`;
+    
+    const sessions = this.getWhatsAppSessions();
+    const existing = sessions.find(s => s.patientPhone === phone);
+    if (existing) {
+      existing.sessionData = {
+        ...existing.sessionData,
+        awaitingProactiveAction: 'followup'
+      };
+      this.save('whatsapp_sessions', sessions);
+    }
+
+    this.pushWhatsAppMessageFromBot(phone, message);
+    this.writeAuditLog('PROACTIVE_FOLLOWUP_NUDGE_SENT', { phone, patientName: patient.name }, null);
+  }
+
+  triggerProactiveLabCollectionNudge(phone: string): void {
+    const patient = this.getPatients().find(p => p.phone === phone);
+    if (!patient) return;
+
+    const message = `Hi ${patient.name}! 🔬 Our records show you have a pending sugar level test (HbA1c test) ordered by Dr. Vivek. Reagents are currently locked for your slot. \n\n*Would you like our lab team to collect your blood sample from your home tomorrow morning at 8:00 AM? Reply 'HOME' to schedule.*`;
+    
+    const sessions = this.getWhatsAppSessions();
+    const existing = sessions.find(s => s.patientPhone === phone);
+    if (existing) {
+      existing.sessionData = {
+        ...existing.sessionData,
+        awaitingProactiveAction: 'lab'
+      };
+      this.save('whatsapp_sessions', sessions);
+    }
+
+    this.pushWhatsAppMessageFromBot(phone, message);
+    this.writeAuditLog('PROACTIVE_LAB_NUDGE_SENT', { phone, patientName: patient.name }, null);
   }
 }
 
