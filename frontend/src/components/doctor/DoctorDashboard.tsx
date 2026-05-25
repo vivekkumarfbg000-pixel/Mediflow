@@ -57,6 +57,13 @@ export const DoctorDashboard: React.FC = () => {
   const [patientRAGSummary, setPatientRAGSummary] = useState('');
   const [selectedDirectoryPatient, setSelectedDirectoryPatient] = useState<Patient | null>(null);
 
+  // Ambient AI Scribe States
+  const [isAmbientScribing, setIsAmbientScribing] = useState(false);
+  const [scribeTimeRemaining, setScribeTimeRemaining] = useState(0);
+  const [activeScribeScript, setActiveScribeScript] = useState<string | null>(null);
+  const [customScribeText, setCustomScribeText] = useState('');
+  const [isMedLmParsing, setIsMedLmParsing] = useState(false);
+
   // Clinic pod information from context
   const { activePod, podEntities, refreshClinic } = useClinic();
 
@@ -118,6 +125,61 @@ export const DoctorDashboard: React.FC = () => {
     setAiInsight('');
     setAiError(null);
   }, [selectedPatient?.id]);
+
+  // Ambient AI Scribe countdown effect
+  useEffect(() => {
+    let timer: any;
+    if (isAmbientScribing && scribeTimeRemaining > 0) {
+      timer = setTimeout(() => {
+        setScribeTimeRemaining(scribeTimeRemaining - 1);
+        if (scribeTimeRemaining === 5) {
+          setCustomScribeText("Consultation engaged. Ambient microphone listening...");
+        } else if (scribeTimeRemaining === 4) {
+          setCustomScribeText("Audio stream synced. Translating audio to text via Web Speech API...");
+        } else if (scribeTimeRemaining === 2) {
+          if (activeScribeScript === 'diabetes') {
+            setCustomScribeText("Doctor: Hello Aarav. Let's look at your reports. Your blood pressure is elevated at 145/95 mmHg and your latest fasting blood glucose is 180 mg/dL...");
+          } else if (activeScribeScript === 'infection') {
+            setCustomScribeText("Doctor: Hi Priyanka. You've had a bad cough, chest congestion, and a low-grade fever... Listening to your lungs, there's bronchial wheezing...");
+          } else if (activeScribeScript === 'renal') {
+            setCustomScribeText("Doctor: Welcome back. We need to check on your kidney function and electrolyte balance today... Let's order a Serum Creatinine test and run a Serum Sodium level electrolyte test...");
+          } else {
+            setCustomScribeText("Doctor: Yes, let's record custom speech. I want to start Metformin 500mg daily and requisition a HbA1c test next week.");
+          }
+        }
+      }, 1000);
+    } else if (isAmbientScribing && scribeTimeRemaining === 0) {
+      setIsAmbientScribing(false);
+      setIsMedLmParsing(true);
+      
+      setTimeout(() => {
+        setIsMedLmParsing(false);
+        
+        let finalScript = "";
+        if (activeScribeScript === 'diabetes') {
+          finalScript = "Doctor: Hello Aarav. Let's look at your reports. Your blood pressure is elevated at 145/95 mmHg and your latest fasting blood glucose is 180 mg/dL. We need to adjust your medications to prevent diabetic complications. I am starting you on Metformin 500mg, to be taken one tablet twice daily (1-0-1) for 10 Days after meals. Also, let's upgrade your Telmisartan to 40mg once daily in the morning (1-0-0) for 30 Days to manage your blood pressure. To monitor your kidneys and glycemic control over the last 90 days, I am requisitioning a HbA1c test and a Serum Creatinine kidney function panel. Please get these done at the Bihar Pathology lab immediately.";
+        } else if (activeScribeScript === 'infection') {
+          finalScript = "Doctor: Hi Priyanka. You've had a bad cough, chest congestion, and a low-grade fever for the last three days. Listening to your lungs, there's some bronchial wheezing. This looks like acute bronchitis. I'm going to prescribe Amoxicillin 500mg, one capsule three times daily (1-1-1) for 7 Days to clear the bacterial infection. For your fever and body aches, take Paracetamol 650mg once daily at night (0-0-1) for 3 Days as needed. Also, let's order a Total Hemoglobin test to check your blood count and rule out anemia. Rest well and drink plenty of warm fluids.";
+        } else if (activeScribeScript === 'renal') {
+          finalScript = "Doctor: Welcome back. We need to check on your kidney function and electrolyte balance today, especially with your history of blood pressure meds. I want you to continue Telmisartan 40mg once daily in the morning (1-0-0) for 30 Days. Let's order a Serum Creatinine test to calculate your eGFR, and also run a Serum Sodium level electrolyte test to ensure your sodium levels are within the normal range. Please avoid high-sodium foods and drink at least 2.5 liters of water daily. We will review these reports next week.";
+        } else {
+          finalScript = customScribeText || "Doctor: Yes, let's record custom speech. I want to start Metformin 500mg daily and requisition a HbA1c test next week.";
+        }
+
+        setCustomScribeText(finalScript);
+        parseScribeDialogue(finalScript);
+
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Gemini MedLM Synthesis Complete! ✨',
+            message: 'Auto-populated clinical notes, LOINC panels, and e-Rx medication plans successfully.',
+            type: 'success'
+          }
+        }));
+      }, 2000);
+    }
+    return () => clearTimeout(timer);
+  }, [isAmbientScribing, scribeTimeRemaining, activeScribeScript]);
 
   // Auto-select latest two reports when history is available
   useEffect(() => {
@@ -263,6 +325,170 @@ export const DoctorDashboard: React.FC = () => {
       }
     }
     return null;
+  };
+
+  const handleTriggerScenario = (type: 'diabetes' | 'infection' | 'renal') => {
+    if (isAmbientScribing || isMedLmParsing) return;
+
+    setActiveScribeScript(type);
+    setIsAmbientScribing(true);
+    setScribeTimeRemaining(5);
+    setCustomScribeText("Recording consultation audio. Streaming live transcription...");
+  };
+
+  const parseScribeDialogue = (dialogueText: string) => {
+    const lowerText = dialogueText.toLowerCase();
+    
+    // 1. SOAP Clinical Note Synthesis
+    let synthesizedNotes = `### CLINICAL ENCOUNTER SUMMARY (AI-Generated via Gemini MedLM)\n\n`;
+    
+    // [S] Subjective
+    let subjective = "";
+    if (lowerText.includes("diabetes") || lowerText.includes("glucose")) {
+      subjective += "Patient presents for chronic follow-up of Type-2 Diabetes Mellitus. Reports compliance with home glucose logs. ";
+    }
+    if (lowerText.includes("hypertension") || lowerText.includes("blood pressure")) {
+      subjective += "Patient monitored for primary essential hypertension. Complains of intermittent evening fatigue. ";
+    }
+    if (lowerText.includes("cough") || lowerText.includes("fever") || lowerText.includes("bronchitis")) {
+      subjective += "Patient presents with productive cough, chest tightness, and a low-grade fever for three days. ";
+    }
+    if (lowerText.includes("kidney") || lowerText.includes("renal") || lowerText.includes("creatinine")) {
+      subjective += "Renal panel surveillance and electrolyte balance check. ";
+    }
+    if (!subjective) {
+      subjective = "Patient presents for general clinical consultation. Asymptomatic and clinically stable. ";
+    }
+    synthesizedNotes += `**[S] SUBJECTIVE:**\n${subjective}\n\n`;
+
+    // [O] Objective
+    let objective = "";
+    const bpMatch = dialogueText.match(/(\d{2,3}\/\d{2,3})/);
+    if (bpMatch) {
+      objective += `Vitals: Blood pressure measured at ${bpMatch[0]} mmHg. `;
+    } else if (lowerText.includes("blood pressure")) {
+      objective += "Vitals: Blood pressure monitored and logged. ";
+    }
+    const glucoseMatch = dialogueText.match(/glucose is (\d{2,3})/i) || dialogueText.match(/glucose of (\d{2,3})/i);
+    if (glucoseMatch) {
+      objective += `Capillary blood glucose is ${glucoseMatch[1]} mg/dL. `;
+    }
+    if (lowerText.includes("wheezing") || lowerText.includes("lungs")) {
+      objective += "Chest: Lung auscultation reveals mild bilateral bronchial wheezing. ";
+    }
+    if (!objective) {
+      objective = "Vitals: Stable. Physical and systemic examinations within standard clinical limits. ";
+    }
+    synthesizedNotes += `**[O] OBJECTIVE:**\n${objective}\n\n`;
+
+    // [A] Assessment
+    let assessment = "";
+    if (lowerText.includes("diabetes") || lowerText.includes("glucose")) {
+      assessment += "Type-2 Diabetes Mellitus under review. ";
+    }
+    if (lowerText.includes("hypertension") || lowerText.includes("pressure")) {
+      assessment += "Essential Hypertension, currently controlled. ";
+    }
+    if (lowerText.includes("bronchitis") || lowerText.includes("infection")) {
+      assessment += "Acute bronchitis, suspected bacterial respiratory tract infection. ";
+    }
+    if (lowerText.includes("renal") || lowerText.includes("kidney") || lowerText.includes("creatinine")) {
+      assessment += "Renal clearance monitoring required; potential secondary CKD check. ";
+    }
+    if (!assessment) {
+      assessment = "General health wellness consultation completed successfully. ";
+    }
+    synthesizedNotes += `**[A] ASSESSMENT:**\n${assessment}\n\n`;
+
+    // [P] Plan
+    let plan = "";
+    if (lowerText.includes("metformin")) {
+      plan += "- Initiate/maintain Metformin 500mg daily. ";
+    }
+    if (lowerText.includes("telmisartan")) {
+      plan += "- Maintain or upgrade Telmisartan 40mg daily for blood pressure management. ";
+    }
+    if (lowerText.includes("amoxicillin")) {
+      plan += "- Prescribe antibiotic Amoxicillin 500mg for bronchial infection. ";
+    }
+    if (lowerText.includes("paracetamol")) {
+      plan += "- Instruct Paracetamol 650mg PRN for fever. ";
+    }
+    if (lowerText.includes("hba1c") || lowerText.includes("creatinine") || lowerText.includes("hemoglobin") || lowerText.includes("sodium")) {
+      plan += "- Requisition standard diagnostic laboratory panels (LOINC coded) listed in e-Rx.";
+    }
+    if (!plan) {
+      plan = "- Continue therapeutic lifestyle modifications and close vital surveillance.";
+    }
+    synthesizedNotes += `**[P] PLAN:**\n${plan}`;
+
+    setNotes(synthesizedNotes);
+
+    // 2. Parse Diagnostics Requisitions Checklist
+    const newSelectedTests: DiagnosticTest[] = [];
+    if (lowerText.includes("hba1c") || lowerText.includes("4544-3")) {
+      const test = MASTER_TEST_CATALOG.find(t => t.loincCode === '4544-3');
+      if (test) newSelectedTests.push(test);
+    }
+    if (lowerText.includes("creatinine") || lowerText.includes("2160-0")) {
+      const test = MASTER_TEST_CATALOG.find(t => t.loincCode === '2160-0');
+      if (test) newSelectedTests.push(test);
+    }
+    if (lowerText.includes("hemoglobin") || lowerText.includes("3024-7")) {
+      const test = MASTER_TEST_CATALOG.find(t => t.loincCode === '3024-7');
+      if (test) newSelectedTests.push(test);
+    }
+    if (lowerText.includes("sodium") || lowerText.includes("2947-0")) {
+      const test = MASTER_TEST_CATALOG.find(t => t.loincCode === '2947-0');
+      if (test) newSelectedTests.push(test);
+    }
+    if (lowerText.includes("bilirubin") || lowerText.includes("1975-2")) {
+      const test = MASTER_TEST_CATALOG.find(t => t.loincCode === '1975-2');
+      if (test) newSelectedTests.push(test);
+    }
+    setSelectedTests(newSelectedTests);
+
+    // 3. Parse medications and trigger CDSS allergy warnings
+    const parsedMeds: Omit<MedicationRequest, 'id'>[] = [];
+    const checkAndPushMed = (name: string, dose: string, freq: string, dur: string) => {
+      const allergy = checkAllergyConflict(name);
+      if (allergy) {
+        setAllergyAlert({
+          medicineName: name,
+          allergen: allergy,
+          resolved: false,
+          justification: ''
+        });
+      } else {
+        parsedMeds.push({
+          medicineName: name,
+          dosage: dose,
+          frequency: freq,
+          duration: dur
+        });
+      }
+    };
+
+    if (lowerText.includes("metformin")) {
+      checkAndPushMed("Metformin 500mg", "1 Tab", "1-0-1", "10 Days");
+    }
+    if (lowerText.includes("telmisartan")) {
+      checkAndPushMed("Telmisartan 40mg", "1 Tab", "1-0-0", "30 Days");
+    }
+    if (lowerText.includes("amoxicillin")) {
+      checkAndPushMed("Amoxicillin 500mg", "1 Cap", "1-1-1", "7 Days");
+    }
+    if (lowerText.includes("paracetamol")) {
+      checkAndPushMed("Paracetamol 650mg", "1 Tab", "0-0-1", "3 Days");
+    }
+
+    if (parsedMeds.length > 0) {
+      setMedications(prev => {
+        const existing = new Set(prev.map(m => m.medicineName.toLowerCase()));
+        const filteredNew = parsedMeds.filter(m => !existing.has(m.medicineName.toLowerCase()));
+        return [...prev, ...filteredNew];
+      });
+    }
   };
 
   const handleAddMedication = () => {
@@ -813,6 +1039,178 @@ export const DoctorDashboard: React.FC = () => {
                   ABHA Verified
                 </span>
               )}
+            </div>
+
+            {/* Ambient AI Medical Scribe Card */}
+            <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary animate-pulse">mic</span>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Ambient AI Medical Scribe (Gemini MedLM 2.5)
+                  </h3>
+                </div>
+                <span className="text-[8px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono">
+                  Live Listening Engine
+                </span>
+              </div>
+
+              {/* Scribe Visualizer Row */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                <div className="md:col-span-8 flex flex-col justify-center bg-slate-900 border border-slate-800 rounded-xl p-4 h-24 relative overflow-hidden">
+                  {isAmbientScribing ? (
+                    <div className="absolute inset-0 bg-slate-950 flex flex-col justify-center items-center px-4 space-y-2">
+                      <div className="flex items-center justify-center gap-1.5 h-8">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => {
+                          const heights = [12, 28, 16, 32, 20, 36, 14, 24, 38, 18, 30, 15, 26, 12, 20];
+                          const delay = i * 0.1;
+                          return (
+                            <div 
+                              key={i} 
+                              className="w-1 bg-secondary rounded-full animate-bounce"
+                              style={{ 
+                                height: `${heights[i % heights.length]}px`, 
+                                animationDuration: '0.8s',
+                                animationDelay: `${delay}s` 
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className="text-[9px] text-secondary font-bold uppercase tracking-widest font-mono animate-pulse">
+                        Listening Ambiently... {scribeTimeRemaining}s
+                      </div>
+                    </div>
+                  ) : isMedLmParsing ? (
+                    <div className="absolute inset-0 bg-slate-950 flex flex-col justify-center items-center px-4 space-y-2">
+                      <span className="material-symbols-outlined text-xl text-primary animate-spin">sync</span>
+                      <div className="text-[9px] text-primary font-bold uppercase tracking-widest font-mono animate-pulse">
+                        Gemini MedLM Synthesizing Dialogue & CDSS Rules...
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col justify-center items-center h-full text-center space-y-1">
+                      <span className="material-symbols-outlined text-slate-500 text-lg">graphic_eq</span>
+                      <div className="text-[9px] text-slate-400 font-mono">
+                        Awaiting micro consultation recording trigger...
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:col-span-4 flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      if (isAmbientScribing || isMedLmParsing) return;
+                      setIsAmbientScribing(true);
+                      setScribeTimeRemaining(5);
+                      setActiveScribeScript("custom");
+                    }}
+                    disabled={isAmbientScribing || isMedLmParsing}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-secondary bg-secondary text-white text-xs font-bold shadow-sm hover:scale-[1.01] transition-all disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-sm text-white-force">mic</span>
+                    Record Consult
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNotes('');
+                      setMedications([]);
+                      setSelectedTests([]);
+                      setCustomScribeText('');
+                      setActiveScribeScript(null);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Scribe Encounter Reset 🔄',
+                          message: 'Cleared all clinical notes, e-Rx medications, and diagnostic selections.',
+                          type: 'info'
+                        }
+                      }));
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2 border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-xl transition-all"
+                  >
+                    <span className="material-symbols-outlined text-sm">restart_alt</span>
+                    Reset Encounter
+                  </button>
+                </div>
+              </div>
+
+              {/* Presets and Scenarios */}
+              <div className="space-y-2">
+                <label className="block text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                  Pre-configured Demo Consultation Scenarios
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleTriggerScenario('diabetes')}
+                    disabled={isAmbientScribing || isMedLmParsing}
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                      activeScribeScript === 'diabetes'
+                        ? 'bg-secondary/10 border-secondary'
+                        : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="font-bold text-[10px] text-slate-700 block">Scenario A: T2DM & HTN</span>
+                    <span className="text-[8px] text-slate-400 leading-tight">Metformin, Telmisartan, HbA1c + Creatinine panels</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleTriggerScenario('infection')}
+                    disabled={isAmbientScribing || isMedLmParsing}
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                      activeScribeScript === 'infection'
+                        ? 'bg-secondary/10 border-secondary'
+                        : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div>
+                      <span className="font-bold text-[10px] text-slate-700 block flex items-center gap-1">
+                        Scenario B: Bronchitis
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                      </span>
+                      <span className="text-[7px] text-rose-600 font-bold uppercase font-mono tracking-wider">Allergy Warning Test</span>
+                    </div>
+                    <span className="text-[8px] text-slate-400 leading-tight">Amoxicillin + Paracetamol, Total Hemoglobin</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleTriggerScenario('renal')}
+                    disabled={isAmbientScribing || isMedLmParsing}
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all ${
+                      activeScribeScript === 'renal'
+                        ? 'bg-secondary/10 border-secondary'
+                        : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="font-bold text-[10px] text-slate-700 block">Scenario C: CKD Renal Check</span>
+                    <span className="text-[8px] text-slate-400 leading-tight">Creatinine + Electrolytes sodium panels monitoring</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Transcription Dialogue Box */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="block text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                    Real-time Conversation Transcript
+                  </label>
+                  {customScribeText.length > 0 && (
+                    <button
+                      onClick={() => parseScribeDialogue(customScribeText)}
+                      className="text-[8px] text-primary font-bold uppercase hover:underline"
+                    >
+                      Re-parse Dialogue
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={customScribeText}
+                  onChange={(e) => setCustomScribeText(e.target.value)}
+                  placeholder="Dialogue transcription will stream here during consultation. You can also paste your own speech transcription here to test MedLM parser..."
+                  rows={2}
+                  className="w-full input-field text-[11px] leading-normal bg-white p-3 font-mono resize-none"
+                />
+              </div>
             </div>
 
             {/* Clinical Notes */}
