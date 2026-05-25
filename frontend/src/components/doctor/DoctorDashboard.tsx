@@ -2269,70 +2269,45 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic 6-Tab Navigation Bar - Hidden on mobile viewports */}
-        <div className="hidden lg:flex flex-wrap gap-2 mt-6 pt-4 border-t border-slate-100">
-          {[
-            { id: 'overview', label: 'Command Center', icon: 'dashboard' },
-            { id: 'consultation', label: 'Consultation Queue', icon: 'clinical_notes' },
-            { id: 'financials', label: 'Financial Reports', icon: 'account_balance_wallet' },
-            { id: 'pharmacy', label: 'Medical Shop', icon: 'pill' },
-            { id: 'pathology', label: 'Pathology Lab', icon: 'biotech' },
-            { id: 'patients', label: 'Patient Directory', icon: 'group' }
-          ].map(tab => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer ${
-                  isActive
-                    ? 'bg-primary text-white shadow-md shadow-primary/20 hover:opacity-95 text-white-force'
-                    : 'bg-slate-50 text-slate-600 border border-slate-200/50 hover:bg-slate-100 hover:text-slate-800'
-                }`}
-              >
-                <span className="material-symbols-outlined text-base">{tab.icon}</span>
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Premium Glassmorphic Segmented Control - Scrollable on mobile, wraps on desktop */}
+        <div className="mt-6 pt-4 border-t border-slate-100/80 w-full">
+          <div className="flex lg:flex-wrap items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-100 rounded-2xl overflow-x-auto lg:overflow-visible scrollbar-none w-full">
+            {[
+              { id: 'overview', label: 'Command Center', icon: 'dashboard', color: 'from-primary-600 to-primary-500' },
+              { id: 'consultation', label: 'Consultation Queue', icon: 'clinical_notes', color: 'from-accent-600 to-accent-500' },
+              { id: 'financials', label: 'Financial Reports', icon: 'account_balance_wallet', color: 'from-emerald-600 to-emerald-500' },
+              { id: 'pharmacy', label: 'Medical Shop', icon: 'pill', color: 'from-rose-600 to-rose-500' },
+              { id: 'pathology', label: 'Pathology Lab', icon: 'biotech', color: 'from-blue-600 to-blue-500' },
+              { id: 'patients', label: 'Patient Directory', icon: 'group', color: 'from-indigo-600 to-indigo-500' }
+            ].map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-350 cursor-pointer shrink-0 relative ${
+                    isActive
+                      ? `bg-gradient-to-tr ${tab.color} text-white shadow-md shadow-slate-900/5 hover:scale-[1.02] active:scale-[0.98] text-white-force`
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white border border-transparent hover:border-slate-100'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-base ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                    {tab.icon}
+                  </span>
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white border border-slate-900/10 shadow-sm" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Main Tab Render Container */}
       <div className="w-full">
         {renderTabContent()}
-      </div>
-
-      {/* Responsive Fixed Bottom Navigation Bar for Mobile Viewports */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl px-2 py-3 flex justify-between items-center z-[90] pb-safe">
-        {[
-          { id: 'overview', label: 'Command', icon: 'dashboard' },
-          { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
-          { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
-          { id: 'pharmacy', label: 'Pharmacy', icon: 'pill' },
-          { id: 'pathology', label: 'Lab', icon: 'biotech' },
-          { id: 'patients', label: 'Patients', icon: 'group' }
-        ].map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex flex-col items-center gap-1 flex-1 transition-all cursor-pointer ${
-                isActive 
-                  ? 'text-primary scale-105 font-bold font-sans' 
-                  : 'text-slate-400 hover:text-slate-600 font-sans'
-              }`}
-            >
-              <span className={`material-symbols-outlined text-[20px] ${isActive ? 'text-primary' : 'text-slate-400'}`}>
-                {tab.icon}
-              </span>
-              <span className="text-[7px] uppercase tracking-wider font-extrabold truncate w-full text-center">
-                {tab.label}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       {/* Allergy overrides modal */}
