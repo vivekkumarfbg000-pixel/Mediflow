@@ -2289,62 +2289,61 @@ export const DoctorDashboard: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-6 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Ecosystem Command Header */}
-      <div className="glass-panel p-6 border-slate-200/80 shadow-md relative overflow-hidden bg-white">
-        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary via-secondary to-accent-400" />
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-2xl animate-pulse">hub</span>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 font-sans">Dr. Sharma's Care Dashboard</h1>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Mediflow Pod Tenant Host • Clinic Code: <span className="font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'MF-PATNA101'}</span>
-            </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-2">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <span className="material-symbols-outlined text-primary/75 text-2xl animate-pulse">hub</span>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 font-sans">Dr. Sharma's Care Dashboard</h1>
           </div>
-          
-          {/* Quick Stats Pill */}
-          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/80 px-4 py-2 rounded-xl text-xs font-medium">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          <p className="text-xs font-medium text-slate-400 mt-1.5 flex items-center gap-2">
+            Mediflow Pod Tenant Host 
+            <span className="text-slate-300 font-bold">•</span>
+            Clinic Code: 
+            <span className="font-mono font-bold text-slate-500 bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-md text-[10px]">
+              {activePod?.clinicCode || 'MF-PATNA101'}
             </span>
-            <span className="text-slate-600 font-semibold font-mono">Real-Time Sync: Connected</span>
-          </div>
+          </p>
         </div>
+        
+        {/* Quick Stats Pill */}
+        <div className="flex items-center gap-2.5 bg-white border border-slate-200/80 shadow-xs px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 transition-all">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="font-mono tracking-tight">Real-Time Sync: Connected</span>
+        </div>
+      </div>
 
-        {/* Premium Glassmorphic Segmented Control - Hidden on mobile viewports, wraps beautifully on desktop */}
-        <div className="hidden lg:block mt-6 pt-4 border-t border-slate-100/80 w-full">
-          <div className="flex lg:flex-wrap items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-100 rounded-2xl w-full">
-            {[
-              { id: 'overview', label: 'Command Center', icon: 'dashboard', color: 'from-primary-600 to-primary-500' },
-              { id: 'consultation', label: 'Consultation Queue', icon: 'clinical_notes', color: 'from-accent-600 to-accent-500' },
-              { id: 'financials', label: 'Financial Reports', icon: 'account_balance_wallet', color: 'from-emerald-600 to-emerald-500' },
-              { id: 'pharmacy', label: 'Medical Shop', icon: 'pill', color: 'from-rose-600 to-rose-500' },
-              { id: 'pathology', label: 'Pathology Lab', icon: 'biotech', color: 'from-blue-600 to-blue-500' },
-              { id: 'patients', label: 'Patient Directory', icon: 'group', color: 'from-indigo-600 to-indigo-500' }
-            ].map(tab => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-350 cursor-pointer shrink-0 relative ${
-                    isActive
-                      ? `bg-gradient-to-tr ${tab.color} text-white shadow-md shadow-slate-900/5 hover:scale-[1.02] active:scale-[0.98] text-white-force`
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-white border border-transparent hover:border-slate-100'
-                  }`}
-                >
-                  <span className={`material-symbols-outlined text-base ${isActive ? 'text-white' : 'text-slate-400'}`}>
-                    {tab.icon}
-                  </span>
-                  <span>{tab.label}</span>
-                  {isActive && (
-                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-white border border-slate-900/10 shadow-sm" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+      {/* Premium Stripe-Style Segmented Control - Hidden on mobile viewports, wraps beautifully on desktop */}
+      <div className="hidden lg:block mt-2 w-full">
+        <div className="flex lg:flex-wrap items-center gap-1 p-1 bg-slate-100/70 border border-slate-200/40 rounded-2xl w-full">
+          {[
+            { id: 'overview', label: 'Command Center', icon: 'dashboard' },
+            { id: 'consultation', label: 'Consultation Queue', icon: 'clinical_notes' },
+            { id: 'financials', label: 'Financial Reports', icon: 'account_balance_wallet' },
+            { id: 'pharmacy', label: 'Medical Shop', icon: 'pill' },
+            { id: 'pathology', label: 'Pathology Lab', icon: 'biotech' },
+            { id: 'patients', label: 'Patient Directory', icon: 'group' }
+          ].map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-300 cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50 hover:scale-[1.02] active:scale-[0.98]'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/60 border border-transparent'
+                }`}
+              >
+                <span className={`material-symbols-outlined text-base ${isActive ? 'text-slate-850' : 'text-slate-400'}`}>
+                  {tab.icon}
+                </span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
