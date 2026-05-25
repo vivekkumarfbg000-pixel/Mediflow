@@ -371,3 +371,13 @@ svg line, svg path.domain {
   animation: slide-in-left 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes dash {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.animate-dash-flow {
+  animation: dash 1.5s linear infinite;
+}
+

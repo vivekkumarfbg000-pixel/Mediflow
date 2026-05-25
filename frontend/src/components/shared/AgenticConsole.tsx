@@ -383,6 +383,25 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
             disabled={isExecuting}
           />
           
+          {isListening && (
+            <div className="flex items-center gap-1 px-2.5 h-6 shrink-0 border-l border-slate-800 animate-fade-in select-none">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(bar => {
+                const delay = (bar * 0.12).toFixed(2);
+                return (
+                  <span 
+                    key={bar} 
+                    className="w-0.5 bg-emerald-400 rounded-full animate-bounce shrink-0 shadow-[0_0_6px_rgba(52,211,153,0.4)]"
+                    style={{
+                      height: `${(bar % 2 === 0 ? 10 : 16)}px`,
+                      animationDelay: `${delay}s`,
+                      animationDuration: '0.5s'
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <button
               type="button"
