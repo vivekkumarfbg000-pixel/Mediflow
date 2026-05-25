@@ -56,6 +56,7 @@ export const DoctorDashboard: React.FC = () => {
   const [selectedPatientForRAG, setSelectedPatientForRAG] = useState<string>('');
   const [patientRAGSummary, setPatientRAGSummary] = useState('');
   const [selectedDirectoryPatient, setSelectedDirectoryPatient] = useState<Patient | null>(null);
+  const [restockThreshold, setRestockThreshold] = useState(85);
 
   const { activePod } = useClinic();
 
@@ -887,41 +888,182 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
   const isConsentActive = selectedPatient ? api.isPatientConsentActive(selectedPatient.id) : true;
 
   // TAB 1 RENDER: Overview Command Center
+  // TAB 1 RENDER: Overview Command Center
   const renderOverviewTab = () => {
     const pendingLabCount = pathologyReports.filter(r => r.status === 'pending').length;
     const grossRev = financialLedgers.reduce((acc, entry) => acc + entry.grossAmount, 0);
     const netPayout = financialLedgers.reduce((acc, entry) => acc + entry.netPayout, 0);
 
+    // Calculate split revenues
+    const clinicCut = financialLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0) * 0.485;
+    const pharmacyComm = financialLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
+    const labComm = financialLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
+    const platformCut = grossRev * 0.03;
+
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in text-slate-800">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in text-slate-800 font-sans">
         {/* Left Column: Quick Metrics & CDSS AI Feed */}
         <div className="lg:col-span-2 space-y-6">
           {/* Quick Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Today's Queue", val: patients.length, unit: "patients", icon: "group", color: "bg-blue-50/50 border-blue-100 text-blue-600" },
-              { label: "Gross Revenue", val: `₹${grossRev.toLocaleString()}`, unit: "total sales", icon: "payments", color: "bg-emerald-50/50 border-emerald-100 text-emerald-600" },
-              { label: "Net Payout", val: `₹${netPayout.toLocaleString()}`, unit: "net splits", icon: "account_balance", color: "bg-indigo-50/50 border-indigo-100 text-indigo-600" },
-              { label: "Lab Approvals", val: pendingLabCount, unit: "pending test", icon: "science", color: "bg-amber-50/50 border-amber-100 text-amber-600" }
+              { label: "Today's Queue", val: patients.length, unit: "patients", icon: "group", color: "border-blue-100 text-blue-600 bg-blue-50/20", glow: "bg-blue-400" },
+              { label: "Gross Revenue", val: `₹${grossRev.toLocaleString()}`, unit: "total sales", icon: "payments", color: "border-emerald-100 text-emerald-600 bg-emerald-50/20", glow: "bg-emerald-400" },
+              { label: "Net Payout", val: `₹${netPayout.toLocaleString()}`, unit: "net splits", icon: "account_balance", color: "border-indigo-100 text-indigo-600 bg-indigo-50/20", glow: "bg-indigo-400" },
+              { label: "Lab Approvals", val: pendingLabCount, unit: "pending test", icon: "science", color: "border-amber-100 text-amber-600 bg-amber-50/20", glow: "bg-amber-400" }
             ].map((card, i) => (
-              <div key={i} className={`p-4 rounded-2xl border bg-white shadow-sm flex flex-col justify-between ${card.color}`}>
+              <div key={i} className={`p-4.5 rounded-2xl border bg-white shadow-sm flex flex-col justify-between hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 relative overflow-hidden group cursor-pointer ${card.color}`}>
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-current to-transparent opacity-15" />
                 <div className="flex justify-between items-start">
-                  <span className="material-symbols-outlined text-2xl">{card.icon}</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Live</span>
+                  <span className="material-symbols-outlined text-2xl group-hover:rotate-12 transition-transform duration-300">{card.icon}</span>
+                  <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest bg-white/80 border border-slate-200/50 px-2 py-0.5 rounded-full shadow-xs">
+                    <span className={`w-1.5 h-1.5 rounded-full ${card.glow} animate-pulse`} />
+                    Sync
+                  </span>
                 </div>
                 <div className="mt-4">
-                  <div className="text-xl font-bold tracking-tight text-slate-800">{card.val}</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">{card.label}</div>
+                  <div className="text-xl font-bold tracking-tight text-slate-800 font-mono">{card.val}</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{card.label}</div>
                 </div>
               </div>
             ))}
           </div>
 
+          {/* Widget 1: Active Consultation Queue Worklist */}
+          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-4">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-40" />
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-500 text-xl font-bold animate-pulse">pending_actions</span>
+                <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Active Patient Consultation Queue</h2>
+              </div>
+              <span className="text-[9px] font-bold font-mono px-2.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-500 rounded-full">
+                {patients.length} Registered
+              </span>
+            </div>
+            
+            <div className="space-y-3">
+              {patients.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs italic">
+                  No patients checked in today.
+                </div>
+              ) : (
+                patients.map(p => (
+                  <div key={p.id} className="p-4 bg-slate-50/50 border border-slate-200/50 hover:border-blue-200 hover:bg-slate-50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 group">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2.5">
+                        <strong className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{p.name}</strong>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-200/60 text-slate-500 rounded">
+                          {p.age}y • {p.gender}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="font-mono bg-white border px-1.5 py-0.5 rounded-sm">{p.abhaId || 'ABHA-PENDING'}</span>
+                        {p.chronicConditions.map((c, i) => (
+                          <span key={i} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md font-medium text-[8px] uppercase tracking-wider">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setSelectedPatient(p);
+                        setActiveTab('consultation');
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'Consultation Initialized! 🩺',
+                            message: `Directly navigated to Consultation worksheet for ${p.name}.`,
+                            type: 'success'
+                          }
+                        }));
+                      }}
+                      className="px-3.5 py-2 bg-white hover:bg-blue-600 hover:text-white border border-slate-200/80 hover:border-blue-500 rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-600 shadow-xs hover:scale-102 transition-all flex items-center justify-center gap-1.5 cursor-pointer self-start sm:self-auto hover:text-white-force"
+                    >
+                      <span className="material-symbols-outlined text-xs">clinical_notes</span>
+                      Begin Consultation
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Widget 2: Epidemiological Sewage Pathogen Density Surveillance */}
+          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-5">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-emerald-500 opacity-40" />
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-teal-500 text-xl font-bold">water_ec</span>
+                <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Epidemiological Sewage Pathogen Density</h2>
+              </div>
+              <span className="text-[9px] font-mono font-bold tracking-widest text-teal-500 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-md uppercase">
+                Active pre-monsoon
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+              <div className="md:col-span-4 space-y-1">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pathogen Density Index</div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold font-mono tracking-tight text-slate-800">86%</span>
+                  <span className="text-[10px] text-rose-500 font-bold tracking-wide flex items-center font-mono">▲ Critical</span>
+                </div>
+                <div className="text-[9px] text-slate-400 leading-relaxed">
+                  Surveillance node: Patna Central Drainage Section-IV
+                </div>
+              </div>
+
+              {/* Restock safety threshold slider */}
+              <div className="md:col-span-8 p-4 bg-slate-50 border border-slate-200/40 rounded-2xl space-y-3">
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <span>B2B Restock Safety Threshold</span>
+                  <span className="text-teal-600 font-mono text-xs">{restockThreshold}% Safety</span>
+                </div>
+                <input
+                  type="range"
+                  min="50"
+                  max="95"
+                  value={restockThreshold}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setRestockThreshold(val);
+                    if (val < 86) {
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'B2B Restock Dispatched! 📦',
+                          message: `Pathogen level (86%) exceeded safety threshold (${val}%). Automated restocks sent to Pharmacy!`,
+                          type: 'success'
+                        }
+                      }));
+                    }
+                  }}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-500 focus:outline-none"
+                />
+                <div className="text-[8px] text-slate-400 leading-relaxed flex justify-between">
+                  <span>50% (High Margin)</span>
+                  <span>Safety Slider Control</span>
+                  <span>95% (Sensitive Trigger)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex gap-3 text-xs text-slate-600 items-start">
+              <span className="material-symbols-outlined text-emerald-500 text-sm font-bold mt-0.5">local_shipping</span>
+              <p className="text-[10px] leading-relaxed">
+                <strong className="text-slate-800 font-bold">B2B Restocking Automation Active: </strong>
+                When pathogen density exceeds the safety margin, the system dispatches bulk restock orders for critical medications (Amoxicillin, Reagents) at adjacent partner counters.
+              </p>
+            </div>
+          </div>
+
           {/* AI Passive CDSS Feed */}
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
+          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-4">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-amber-500 opacity-40" />
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">shield_alert</span>
-              <h2 className="text-base font-bold text-slate-800">CDSS & RAG Passive Clinical Advisory</h2>
+              <span className="material-symbols-outlined text-rose-500 text-xl font-bold animate-pulse">shield_alert</span>
+              <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">CDSS & RAG Clinical Advisories</h2>
             </div>
             <div className="space-y-3">
               <div className="p-3.5 bg-rose-50 border border-rose-100 rounded-xl flex gap-3 text-xs text-rose-700">
@@ -951,25 +1093,70 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
 
         {/* Right Column: Approved Lab Reports Tracker */}
         <div className="space-y-6">
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl h-full flex flex-col justify-between">
+          {/* Widget 3: Unified Financial Splits Ledger */}
+          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-4">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-indigo-500 opacity-40" />
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-500 text-xl font-bold">account_balance_wallet</span>
+              <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Financial Splits Ledger</h2>
+            </div>
+            
+            <div className="space-y-3.5 text-xs text-slate-600">
+              {[
+                { label: "Clinic Admin Fee", val: `₹${clinicCut.toFixed(0)}`, percent: 48.5, color: "bg-emerald-500" },
+                { label: "Pharmacy Splits Ledger", val: `₹${pharmacyComm.toFixed(0)}`, percent: 28.5, color: "bg-blue-500" },
+                { label: "Laboratory Partner Node", val: `₹${labComm.toFixed(0)}`, percent: 20, color: "bg-indigo-500" },
+                { label: "Mediflow Platform Fee (3%)", val: `₹${platformCut.toFixed(0)}`, percent: 3, color: "bg-slate-400" }
+              ].map((split, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
+                    <span>{split.label}</span>
+                    <span className="font-mono text-slate-700">{split.val} ({split.percent}%)</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${split.color}`} style={{ width: `${split.percent}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Widget 4: Approved Pathology Barcode Reports Tracker */}
+          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl h-full flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500 to-pink-500 opacity-40" />
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-secondary text-xl">done_all</span>
-                <h2 className="text-base font-bold text-slate-800">Approved Pathology Reports</h2>
+                <span className="material-symbols-outlined text-purple-500 text-xl font-bold">done_all</span>
+                <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Approved pathology reports</h2>
               </div>
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
                 {pathologyReports.filter(r => r.status === 'approved').map(report => (
-                  <div key={report.id} className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl space-y-2 hover:bg-slate-100/85 transition-all">
+                  <div key={report.id} className="p-3 bg-slate-50 border border-slate-200/50 rounded-2xl space-y-2 hover:bg-slate-100/50 hover:border-slate-300/60 transition-all group">
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="text-xs font-bold text-slate-700">{report.patientName}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{report.testName}</div>
+                        <div className="text-[9px] text-slate-400 mt-0.5">{report.testName}</div>
                       </div>
                       <span className="text-[8px] font-mono bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Approved</span>
                     </div>
+
+                    {/* Holographic Barcode */}
+                    <div className="bg-white border border-slate-200 p-2 rounded-xl flex flex-col items-center gap-1 shadow-xs group-hover:scale-102 transition-transform">
+                      <div className="h-8 w-full flex items-center justify-between px-1.5 opacity-60">
+                        {Array.from({ length: 28 }).map((_, idx) => (
+                          <div
+                            key={idx}
+                            className="h-full bg-slate-900"
+                            style={{ width: `${idx % 3 === 0 ? 3 : (idx % 2 === 0 ? 1 : 2)}px` }}
+                          />
+                        ))}
+                      </div>
+                      <div className="text-[8px] font-mono text-slate-400 font-bold select-all">{"MED-" + report.loincCode + "-" + report.id.toUpperCase()}</div>
+                    </div>
+
                     <button
                       onClick={() => setSelectedApprovedReport(report)}
-                      className="w-full text-center text-[10px] text-primary hover:text-primary-700 font-bold tracking-wide uppercase border border-primary/20 hover:border-primary/40 bg-white py-1.5 rounded-lg transition-colors"
+                      className="w-full text-center text-[9px] text-primary hover:text-primary-700 font-bold tracking-wider uppercase border border-primary/20 hover:border-primary/40 bg-white py-2 rounded-xl transition-all cursor-pointer hover:scale-102 active:scale-98"
                     >
                       Review RAG Diagnostic Summary
                     </button>
@@ -978,7 +1165,7 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
               </div>
             </div>
             
-            <div className="mt-4 pt-4 border-t border-slate-100 text-[10px] text-slate-400 italic">
+            <div className="mt-4 pt-4 border-t border-slate-100 text-[9px] text-slate-400 italic">
               * Pathology data is synced instantly via the local pod laboratory partner node.
             </div>
           </div>
@@ -991,8 +1178,8 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
               <div className="space-y-6 overflow-y-auto pr-1">
                 <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="text-base font-bold text-slate-800">Approved Pathology Summary</h3>
-                    <p className="text-xs text-slate-400 mt-1">{selectedApprovedReport.patientName} • {selectedApprovedReport.testName}</p>
+                    <h3 className="text-base font-bold text-slate-800 font-sans">Approved Pathology Summary</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-sans">{selectedApprovedReport.patientName} • {selectedApprovedReport.testName}</p>
                   </div>
                   <button
                     onClick={() => setSelectedApprovedReport(null)}
@@ -1008,7 +1195,7 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
                   </div>
                   <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-3 leading-relaxed">
                     <strong className="block text-slate-800 font-semibold">Laboratory Findings:</strong>
-                    <p className="whitespace-pre-line text-slate-600">{selectedApprovedReport.results || 'Pending laboratory diagnostic findings entry...'}</p>
+                    <p className="whitespace-pre-line text-slate-600 font-sans">{selectedApprovedReport.results || 'Pending laboratory diagnostic findings entry...'}</p>
                   </div>
 
                   <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl space-y-3">
