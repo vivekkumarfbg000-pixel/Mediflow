@@ -2320,7 +2320,7 @@ export const DoctorDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6 animate-fade-in text-slate-800">
+    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-6 animate-fade-in text-slate-800">
       {/* Ecosystem Command Header */}
       <div className="glass-panel p-6 border-slate-200/80 shadow-md relative overflow-hidden bg-white">
         <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary via-secondary to-accent-400" />
@@ -2345,8 +2345,8 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic 7-Tab Navigation Bar */}
-        <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-slate-100">
+        {/* Dynamic 7-Tab Navigation Bar - Hidden on mobile viewports */}
+        <div className="hidden lg:flex flex-wrap gap-2 mt-6 pt-4 border-t border-slate-100">
           {[
             { id: 'overview', label: 'Command Center', icon: 'dashboard' },
             { id: 'consultation', label: 'Consultation Queue', icon: 'clinical_notes' },
@@ -2378,6 +2378,39 @@ export const DoctorDashboard: React.FC = () => {
       {/* Main Tab Render Container */}
       <div className="w-full">
         {renderTabContent()}
+      </div>
+
+      {/* Responsive Fixed Bottom Navigation Bar for Mobile Viewports */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl px-2 py-3 flex justify-between items-center z-[90] pb-safe">
+        {[
+          { id: 'overview', label: 'Command', icon: 'dashboard' },
+          { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
+          { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
+          { id: 'pharmacy', label: 'Pharmacy', icon: 'pill' },
+          { id: 'pathology', label: 'Lab', icon: 'biotech' },
+          { id: 'patients', label: 'Patients', icon: 'group' },
+          { id: 'network', label: 'Network', icon: 'hub' }
+        ].map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex flex-col items-center gap-1 flex-1 transition-all cursor-pointer ${
+                isActive 
+                  ? 'text-primary scale-105 font-bold font-sans' 
+                  : 'text-slate-400 hover:text-slate-600 font-sans'
+              }`}
+            >
+              <span className={`material-symbols-outlined text-[20px] ${isActive ? 'text-primary' : 'text-slate-400'}`}>
+                {tab.icon}
+              </span>
+              <span className="text-[7px] uppercase tracking-wider font-extrabold truncate w-full text-center">
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Allergy overrides modal */}
