@@ -250,21 +250,25 @@ nav button.bg-clinical-800.text-white {
 }
 
 /* Telemetry Drawer layout light theme */
-.fixed.bottom-0.bg-clinical-950\/95 {
+.fixed.bottom-0.bg-clinical-950\/95,
+.fixed.bottom-16.bg-clinical-950\/95 {
   background-color: rgba(255, 255, 255, 0.98) !important;
   border-color: rgba(226, 232, 240, 1) !important;
   box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.05);
 }
 
-.fixed.bottom-0.bg-clinical-950\/95 .text-white {
+.fixed.bottom-0.bg-clinical-950\/95 .text-white,
+.fixed.bottom-16.bg-clinical-950\/95 .text-white {
   color: var(--color-clinical-50) !important;
 }
 
-.fixed.bottom-0.bg-clinical-950\/95 .text-clinical-100 {
+.fixed.bottom-0.bg-clinical-950\/95 .text-clinical-100,
+.fixed.bottom-16.bg-clinical-950\/95 .text-clinical-100 {
   color: var(--color-clinical-100) !important;
 }
 
-.fixed.bottom-0.bg-clinical-950\/95 .bg-clinical-900\/30 {
+.fixed.bottom-0.bg-clinical-950\/95 .bg-clinical-900\/30,
+.fixed.bottom-16.bg-clinical-950\/95 .bg-clinical-900\/30 {
   background-color: rgba(241, 245, 249, 0.5) !important;
 }
 

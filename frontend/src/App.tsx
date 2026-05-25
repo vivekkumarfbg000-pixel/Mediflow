@@ -156,7 +156,7 @@ function AppContent({
       />
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-32 lg:pb-16">
         <div className="animate-fade-in">
           <ErrorBoundary>
             {renderDashboard()}
@@ -211,7 +211,7 @@ function AppContent({
       </div>
 
       {/* Ecosystem Footer Status bar */}
-      <footer className="border-t border-clinical-800/80 bg-clinical-950/80 backdrop-blur-md py-4 text-center text-[10px] text-clinical-500 font-semibold uppercase tracking-wider sticky bottom-0">
+      <footer className="border-t border-clinical-800/80 bg-clinical-950/80 backdrop-blur-md py-4 text-center text-[10px] text-clinical-500 font-semibold uppercase tracking-wider sticky bottom-0 hidden lg:block">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>Mediflow Clinical Network Pod • Patna Zone 1</span>
           <span className="flex items-center gap-1.5 text-accent-500 bg-accent-500/10 px-2.5 py-0.5 rounded-full border border-accent-500/25">

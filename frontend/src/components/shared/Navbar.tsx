@@ -314,22 +314,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Dev Bypass Trigger on Mobile */}
-            <button 
-              onClick={() => onToggleBypass(!isBypassMode)}
-              className={`lg:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 ${
-                isBypassMode 
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
-                  : 'bg-clinical-900 border-clinical-800 text-clinical-400'
-              }`}
-            >
-              {isBypassMode ? <ShieldAlert className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
-              Bypass
-            </button>
+            {/* Mobile Header Action Row */}
+            <div className="lg:hidden flex items-center gap-2">
+              {/* Dev Bypass Trigger on Mobile */}
+              <button 
+                onClick={() => onToggleBypass(!isBypassMode)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                  isBypassMode 
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
+                    : 'bg-clinical-900 border-clinical-800 text-clinical-400'
+                }`}
+              >
+                {isBypassMode ? <ShieldAlert className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
+                Bypass
+              </button>
+
+              {/* Sign Out Trigger on Mobile */}
+              {activeProfile && (
+                <button
+                  onClick={onSignOut}
+                  className="p-1.5 bg-clinical-900 hover:bg-rose-500/10 border border-clinical-800 hover:border-rose-500/30 text-clinical-400 hover:text-rose-400 rounded-lg transition-all duration-300 cursor-pointer"
+                  title="Sign out of professional workspace"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Switcher Navigation */}
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-start lg:justify-end">
+          {/* Switcher Navigation - Hidden on Mobile Viewports, Shown on Desktop */}
+          <div className="hidden lg:flex flex-wrap items-center gap-3 w-full lg:w-auto justify-start lg:justify-end">
             <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-full bg-clinical-900 border border-clinical-800/60 max-w-full overflow-x-auto scrollbar-none">
               {roles.map((r) => {
                 const Icon = r.icon;
@@ -462,9 +476,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Ecosystem Live Pipeline Telemetry HUD Bottom Drawer */}
       <div 
-        className={`fixed bottom-0 left-0 right-0 z-40 transition-all duration-500 ease-in-out border-t border-clinical-800 bg-clinical-950/95 backdrop-blur-md shadow-2xl flex flex-col ${
+        className={`fixed left-0 right-0 z-40 transition-all duration-500 ease-in-out border-t border-clinical-800 bg-clinical-950/95 backdrop-blur-md shadow-2xl flex flex-col lg:bottom-0 ${
           isHudExpanded ? 'h-[230px]' : 'h-[36px]'
-        }`}
+        } bottom-16`}
       >
         {/* HUD Top Bar Toggler */}
         <div 
@@ -527,6 +541,55 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-clinical-200 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16">
+          {roles.map((r) => {
+            const Icon = r.icon;
+            const isActive = currentRole === r.id;
+            
+            // Map role ID to a short professional label for the bottom nav
+            let label = r.name;
+            if (r.id === 'compounder') label = 'Comp.';
+            else if (r.id === 'doctor') label = 'Doctor';
+            else if (r.id === 'lab') label = 'Lab';
+            else if (r.id === 'pharmacy') label = 'Pharmacy';
+            else if (r.id === 'billing') label = 'Ledger';
+            else if (r.id === 'patient') label = 'Patient';
+
+            return (
+              <button
+                key={r.id}
+                onClick={() => onChangeRole(r.id as UserRole)}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-300 cursor-pointer relative ${
+                  isActive 
+                    ? 'text-primary' 
+                    : 'text-clinical-400 hover:text-clinical-200'
+                }`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all duration-300 ${
+                  isActive 
+                    ? 'bg-primary/10 text-primary scale-110 shadow-sm' 
+                    : 'bg-transparent text-clinical-400'
+                }`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className={`text-[9px] font-bold mt-1 tracking-tight transition-colors duration-300 ${
+                  isActive ? 'text-primary font-extrabold' : 'text-clinical-400'
+                }`}>
+                  {label}
+                </span>
+                
+                {/* Active Indicator dot */}
+                {isActive && (
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
