@@ -168,14 +168,13 @@ export const CompounderDashboard: React.FC = () => {
 
   const [isCameraActive, setIsCameraActive] = useState(false);
 
-  const handleOCRScan = async (sourceType: 'camera' | 'file') => {
+  const handleOCRScan = async (sourceType: 'camera' | 'file', base64Data?: string) => {
     setIsScanning(true);
     setScanSuccess(false);
     setScannedPatientInfo(null);
     
     try {
-      // Simulate Gemini Vision AI OCR parsing latency
-      const parsedData = await api.parsePrescriptionOCR(sourceType === 'camera' ? 'camera_snapshot.png' : 'uploaded_file.png');
+      const parsedData = await api.parsePrescriptionOCR(base64Data || (sourceType === 'camera' ? 'camera_snapshot.png' : 'uploaded_file.png'));
       
       setIsScanning(false);
       setScanSuccess(true);
@@ -223,7 +222,17 @@ export const CompounderDashboard: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      handleOCRScan('file');
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = reader.result as string;
+        handleOCRScan('file', base64Data);
+      };
+      reader.onerror = (error) => {
+        console.error("Error reading file:", error);
+        handleOCRScan('file');
+      };
+      reader.readAsDataURL(file);
     }
   };
 

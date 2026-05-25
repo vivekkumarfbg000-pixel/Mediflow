@@ -15,7 +15,6 @@ interface CommandBarProps {
 export const CommandBar: React.FC<CommandBarProps> = ({
   isOpen,
   onClose,
-  currentRole,
   onChangeRole,
   isBypassMode,
   onToggleBypass,

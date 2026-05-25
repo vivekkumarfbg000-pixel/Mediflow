@@ -236,7 +236,7 @@ export const DoctorDashboard: React.FC = () => {
       setAiInsight('');
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       try {
         // Query the database using pgvector fallback keyword match
@@ -265,61 +265,174 @@ export const DoctorDashboard: React.FC = () => {
           }
         }
 
-        let insight = `### Clinical Advisory (Zero-Mock RAG-Generated)\n\n`;
-        insight += `Patient **${selectedPatient.name}** (${selectedPatient.age}y, ${selectedPatient.gender}) shows `;
-        insight += selectedPatient.chronicConditions.length > 0
+        let defaultInsight = `### Clinical Advisory (Static Fallback)\n\n`;
+        defaultInsight += `Patient **${selectedPatient.name}** (${selectedPatient.age}y, ${selectedPatient.gender}) shows `;
+        defaultInsight += selectedPatient.chronicConditions.length > 0
           ? `chronic history of **${selectedPatient.chronicConditions.join(' & ')}**.\n\n`
           : `no reported chronic conditions.\n\n`;
 
         if (baseReport && compReport) {
-          insight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
-          insight += `- **HbA1c**: **${baseReport.HbA1c}%** → **${compReport.HbA1c}%** (${
+          defaultInsight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
+          defaultInsight += `- **HbA1c**: **${baseReport.HbA1c}%** → **${compReport.HbA1c}%** (${
             compReport.HbA1c < baseReport.HbA1c ? '↓ Improving' : '↑ Worsening'
           }).\n`;
-          insight += `- **Creatinine**: **${baseReport.creatinine}** → **${compReport.creatinine} mg/dL** (${
+          defaultInsight += `- **Creatinine**: **${baseReport.creatinine}** → **${compReport.creatinine} mg/dL** (${
             compReport.creatinine > baseReport.creatinine ? '↑ Elevated — monitor renal function' : '↓ Improving'
           }).\n`;
-          insight += `- **Hemoglobin**: **${baseReport.hemoglobin}** → **${compReport.hemoglobin} g/dL**.\n\n`;
+          defaultInsight += `- **Hemoglobin**: **${baseReport.hemoglobin}** → **${compReport.hemoglobin} g/dL**.\n\n`;
         } else if (compReport) {
-          insight += `**Biomarker Summary (${compReport.date}):**\n`;
-          insight += `- HbA1c: **${compReport.HbA1c}%**, Creatinine: **${compReport.creatinine} mg/dL**, Hemoglobin: **${compReport.hemoglobin} g/dL**\n\n`;
+          defaultInsight += `**Biomarker Summary (${compReport.date}):**\n`;
+          defaultInsight += `- HbA1c: **${compReport.HbA1c}%**, Creatinine: **${compReport.creatinine} mg/dL**, Hemoglobin: **${compReport.hemoglobin} g/dL**\n\n`;
         }
 
         if (selectedPatient.allergies.includes('Penicillin')) {
-          insight += `⚠️ **CRITICAL CONTRAINDICATION**: Documented **Penicillin** allergy. Do NOT prescribe penicillin-class agents.\n\n`;
+          defaultInsight += `⚠️ **CRITICAL CONTRAINDICATION**: Documented **Penicillin** allergy. Do NOT prescribe penicillin-class agents.\n\n`;
         }
 
         if (guidelinesFound.length > 0) {
-          insight += `**Vector Guidelines Retrieved (${guidelinesFound.length}):**\n`;
+          defaultInsight += `**Vector Guidelines Retrieved (${guidelinesFound.length}):**\n`;
           guidelinesFound.forEach((g: any) => {
-            insight += `* **[${g.guideline_source}] ${g.clinical_topic}**: ${g.content}\n`;
+            defaultInsight += `* **[${g.guideline_source}] ${g.clinical_topic}**: ${g.content}\n`;
           });
-          insight += `\n`;
+          defaultInsight += `\n`;
         } else {
-          insight += `**Vector Guidelines Retrieved**: None matched Patient Chronic profile in RAG index.\n\n`;
+          defaultInsight += `**Vector Guidelines Retrieved**: None matched Patient Chronic profile in RAG index.\n\n`;
         }
 
-        insight += `**Intervention Recommendations:**\n`;
-        insight += `1. Consider cardioprotective **SGLT2 inhibitors** (e.g. Empagliflozin) for cardiovascular standard support.\n`;
-        insight += `2. Schedule a follow-up repeat **Serum Creatinine & GFR** in 14 days.\n`;
+        defaultInsight += `**Intervention Recommendations:**\n`;
+        defaultInsight += `1. Consider cardioprotective **SGLT2 inhibitors** (e.g. Empagliflozin) for cardiovascular standard support.\n`;
+        defaultInsight += `2. Schedule a follow-up repeat **Serum Creatinine & GFR** in 14 days.\n`;
+
+        // If Mistral API key is configured, perform live synthesis
+        const mistralApiKey = import.meta.env.VITE_MISTRAL_API_KEY;
+        if (!mistralApiKey) {
+          setAiInsight(defaultInsight);
+          clearTimeout(timeoutId);
+          return;
+        }
+
+        const promptText = `You are a clinical advisory assistant powered by Mistral Large and Mediflow RAG index.
+Analyze the following patient profile and the retrieved standard clinical guidelines.
+Generate a deeply personalized, highly specific Clinical Advisory report for the doctor.
+Highlight comparative biomarker trends (if available), chronic management alerts, and active contraindications (like allergies).
+
+Patient Profile:
+Name: ${selectedPatient.name}
+Age: ${selectedPatient.age}
+Gender: ${selectedPatient.gender}
+Chronic Conditions: ${selectedPatient.chronicConditions.join(', ') || 'None'}
+Allergies: ${selectedPatient.allergies.join(', ') || 'NKDA'}
+
+Biomarkers:
+${baseReport && compReport ? `Comparative trend:
+- HbA1c: ${baseReport.HbA1c}% in ${baseReport.date} -> ${compReport.HbA1c}% in ${compReport.date}
+- Creatinine: ${baseReport.creatinine} mg/dL in ${baseReport.date} -> ${compReport.creatinine} mg/dL in ${compReport.date}
+- Hemoglobin: ${baseReport.hemoglobin} g/dL in ${baseReport.date} -> ${compReport.hemoglobin} g/dL in ${compReport.date}` : `Current levels:
+- HbA1c: ${compReport?.HbA1c}%
+- Creatinine: ${compReport?.creatinine} mg/dL
+- Hemoglobin: ${compReport?.hemoglobin} g/dL`}
+
+Retrieved Clinical Guidelines:
+${guidelinesFound.map((g: any) => `* [${g.guideline_source}] ${g.clinical_topic}: ${g.content}`).join('\n') || 'No specific matching guidelines retrieved.'}
+
+Format the output strictly as elegant GitHub Markdown.
+Structure it with sections:
+- ### 🩺 Live AI Clinical RAG Analysis
+- #### 📋 Biomarker Trajectory & Assessment
+- #### 🔬 Guidelines Cross-Reference & Recommendations
+- #### ⚠️ Critical Risk & Contraindications Alerts
+
+Keep the tone professional, clinical, objective, and precise.`;
+
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${mistralApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'mistral-large-latest',
+            messages: [
+              { role: 'user', content: promptText }
+            ],
+            temperature: 0.15
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Mistral API returned ${response.status} ${response.statusText}`);
+        }
+
+        const resData = await response.json();
+        const synthesizedInsight = resData.choices?.[0]?.message?.content;
+        if (!synthesizedInsight) {
+          throw new Error("Mistral API returned an empty completion.");
+        }
 
         clearTimeout(timeoutId);
-        setAiInsight(insight);
+        setAiInsight(synthesizedInsight);
+
       } catch (err: any) {
+        console.warn("[Mistral Live RAG Synthesis Failed, falling back to static]:", err);
         clearTimeout(timeoutId);
-        setAiError(err.message || 'RAG engine is offline.');
-        api.writeAuditLog('SYSTEM_ERROR', {
-          action: 'fetchRAGInsights',
-          patientId: selectedPatient.id,
-          error: err.message || 'Timeout/Rate Limit'
-        }, selectedPatient.id);
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            message: 'CDSS RAG Engine offline. Falling back to local clinical biomarkers.',
-            type: 'warning',
-            title: 'RAG Engine Offline'
+        
+        let topicsToSearch = ['General'];
+        if (selectedPatient.chronicConditions && selectedPatient.chronicConditions.length > 0) {
+          topicsToSearch = selectedPatient.chronicConditions;
+        }
+
+        let guidelinesFound: any[] = [];
+        for (const topic of topicsToSearch) {
+          let normalizedTopic = topic;
+          if (topic.toLowerCase().includes('diabetes')) normalizedTopic = 'Diabetes';
+          if (topic.toLowerCase().includes('kidney') || topic.toLowerCase().includes('renal')) normalizedTopic = 'CKD';
+          if (topic.toLowerCase().includes('asthma') || topic.toLowerCase().includes('fever')) normalizedTopic = 'Fever';
+
+          const { data } = await supabase.rpc('match_clinical_guidelines', {
+            query_embedding: null,
+            match_threshold: 0.1,
+            match_count: 1,
+            query_text: normalizedTopic
+          });
+
+          if (data && data.length > 0) {
+            guidelinesFound.push(...data);
           }
-        }));
+        }
+
+        let fallbackInsight = `### Clinical Advisory (Static Fallback)\n\n`;
+        fallbackInsight += `Patient **${selectedPatient.name}** (${selectedPatient.age}y, ${selectedPatient.gender}) shows `;
+        fallbackInsight += selectedPatient.chronicConditions.length > 0
+          ? `chronic history of **${selectedPatient.chronicConditions.join(' & ')}**.\n\n`
+          : `no reported chronic conditions.\n\n`;
+
+        if (baseReport && compReport) {
+          fallbackInsight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
+          fallbackInsight += `- **HbA1c**: **${baseReport.HbA1c}%** → **${compReport.HbA1c}%** (${
+            compReport.HbA1c < baseReport.HbA1c ? '↓ Improving' : '↑ Worsening'
+          }).\n`;
+          fallbackInsight += `- **Creatinine**: **${baseReport.creatinine}** → **${compReport.creatinine} mg/dL** (${
+            compReport.creatinine > baseReport.creatinine ? '↑ Elevated — monitor renal function' : '↓ Improving'
+          }).\n`;
+          fallbackInsight += `- **Hemoglobin**: **${baseReport.hemoglobin}** → **${compReport.hemoglobin} g/dL**.\n\n`;
+        } else if (compReport) {
+          fallbackInsight += `**Biomarker Summary (${compReport.date}):**\n`;
+          fallbackInsight += `- HbA1c: **${compReport.HbA1c}%**, Creatinine: **${compReport.creatinine} mg/dL**, Hemoglobin: **${compReport.hemoglobin} g/dL**\n\n`;
+        }
+
+        if (selectedPatient.allergies.includes('Penicillin')) {
+          fallbackInsight += `⚠️ **CRITICAL CONTRAINDICATION**: Documented **Penicillin** allergy. Do NOT prescribe penicillin-class agents.\n\n`;
+        }
+
+        if (guidelinesFound.length > 0) {
+          fallbackInsight += `**Vector Guidelines Retrieved (${guidelinesFound.length}):**\n`;
+          guidelinesFound.forEach((g: any) => {
+            fallbackInsight += `* **[${g.guideline_source}] ${g.clinical_topic}**: ${g.content}\n`;
+          });
+          fallbackInsight += `\n`;
+        }
+
+        setAiInsight(fallbackInsight);
       } finally {
         setIsAiLoading(false);
       }
@@ -453,68 +566,66 @@ export const DoctorDashboard: React.FC = () => {
     }, 2500);
   };
 
-  const processBatchDialogue = (dialogueText: string) => {
+  const processBatchDialogue = async (dialogueText: string) => {
+    setIsMedLmParsing(true);
     try {
-      const lowerText = dialogueText.toLowerCase();
-      
-      // Strict structural AI extraction rules simulating Gemini MedLM 2.5
-      let subjective = "Patient routine review follow-up encounter.";
-      let objective = "Vitals evaluated. Cardiovascular status stable.";
-      let assessment = "Chronic indices monitoring.";
-      let diagnostics: string[] = [];
-      let medicationsToPrescribe: Array<{ name: string; dose: string; freq: string; dur: string }> = [];
-
-      // Regex / keyword parser representing strict prompt matching
-      if (lowerText.includes("diabetes") || lowerText.includes("glucose") || lowerText.includes("metformin")) {
-        subjective = "Patient presents for chronic review of Type-2 Diabetes Mellitus and stage-1 Hypertension.";
-        objective = "Blood pressure measured at 145/95 mmHg. Fasting blood sugar level is 180 mg/dL.";
-        assessment = "Type-2 Diabetes Mellitus with borderline renal clearance and stage-1 Hypertension.";
-        diagnostics.push("4544-3"); // HbA1c
-        diagnostics.push("2160-0"); // Creatinine
-        medicationsToPrescribe.push({ name: "Metformin 500mg", dose: "1 Tab", freq: "1-0-1", dur: "10 Days" });
-        medicationsToPrescribe.push({ name: "Telmisartan 40mg", dose: "1 Tab", freq: "1-0-0", dur: "30 Days" });
-      } else if (lowerText.includes("cough") || lowerText.includes("bronchitis") || lowerText.includes("amoxicillin") || lowerText.includes("fever")) {
-        subjective = "Patient presents with persistent cough, chest congestion, and low-grade fever for three days.";
-        objective = "Chest auscultation reveals mild bilateral bronchial wheezing. Core Temp: 99.8°F.";
-        assessment = "Acute Bronchitis (suspected secondary bacterial respiratory infection).";
-        diagnostics.push("3024-7"); // Total Hemoglobin
-        medicationsToPrescribe.push({ name: "Amoxicillin 500mg", dose: "1 Cap", freq: "1-1-1", dur: "7 Days" });
-        medicationsToPrescribe.push({ name: "Paracetamol 650mg", dose: "1 Tab", freq: "0-0-1", dur: "3 Days" });
-      } else if (lowerText.includes("renal") || lowerText.includes("kidney") || lowerText.includes("creatinine") || lowerText.includes("sodium")) {
-        subjective = "Renal clearance monitoring and routine electrolyte check.";
-        objective = "Asymptomatic. Cardiovascular status stable. Clinically well-hydrated.";
-        assessment = "Chronic renal panel surveillance with borderline creatinine index review.";
-        diagnostics.push("2160-0"); // Creatinine
-        diagnostics.push("2947-0"); // Serum Sodium
-        medicationsToPrescribe.push({ name: "Telmisartan 40mg", dose: "1 Tab", freq: "1-0-0", dur: "30 Days" });
-      } else {
-        // Fallbacks
-        if (lowerText.includes("metformin")) {
-          medicationsToPrescribe.push({ name: "Metformin 500mg", dose: "1 Tab", freq: "1-0-1", dur: "10 Days" });
-        }
-        if (lowerText.includes("hba1c")) {
-          diagnostics.push("4544-3");
-        }
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+      if (!apiKey) {
+        throw new Error("No Groq API key found in VITE_GROQ_API_KEY");
       }
 
-      // Enforce minified JSON format representing core LLM response payload
-      const extractedJsonStr = JSON.stringify({
-        clinicalNotes: {
-          presentingComplaints: subjective,
-          systemicExamination: objective,
-          provisionalDiagnosis: assessment
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
         },
-        diagnosticPanels: diagnostics,
-        medications: medicationsToPrescribe
+        body: JSON.stringify({
+          model: 'llama-3.1-70b-versatile',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert clinical scribe powered by MedLM. Analyze the provided doctor-patient consultation dialogue transcript.
+Extract a professional SOAP (Subjective, Objective, Assessment, Plan) chart, suggested e-prescription drug mappings, and diagnostic LOINC codes.
+Return a strict JSON object with EXACTLY this schema (no markdown block wrapper, no other text):
+{
+  "clinicalNotes": {
+    "presentingComplaints": "Subjective notes summarizing patient symptoms, duration, history...",
+    "systemicExamination": "Objective notes summarizing vitals, examinations...",
+    "provisionalDiagnosis": "Assessment notes summarizing clinical impressions and diagnoses..."
+  },
+  "diagnosticPanels": ["LOINC codes for requested diagnostic tests from catalog (HbA1c is 4544-3, Serum Creatinine is 2160-0, Total Hemoglobin is 3024-7, Serum Sodium is 2947-0, Total Bilirubin is 1975-2)"],
+  "medications": [
+    { "name": "Exact Brand or Generic Name (e.g. Metformin 500mg, Amoxicillin 500mg, Telmisartan 40mg, Paracetamol 650mg, Atorvastatin 10mg)", "dose": "e.g., 1 Tab", "freq": "e.g., 1-0-1", "dur": "e.g., 7 Days" }
+  ]
+}`
+            },
+            {
+              role: 'user',
+              content: dialogueText
+            }
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" }
+        })
       });
 
-      console.log("[Gemini MedLM 2.5] Strict Structural AI Output JSON:", extractedJsonStr);
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
+      }
 
-      // UI Hydration: Parse resulting JSON directly into React states cleanly
+      const resJson = await response.json();
+      const extractedJsonStr = resJson.choices?.[0]?.message?.content;
+      if (!extractedJsonStr) {
+        throw new Error("Groq API returned an empty completion.");
+      }
+
+      console.log("[Groq Scribe] Live Structural AI Output JSON:", extractedJsonStr);
+
       const data = JSON.parse(extractedJsonStr);
 
       // Hydrate notes
-      const soapNotes = `### CLINICAL ENCOUNTER SUMMARY (AI-Generated via Gemini MedLM)\n\n` +
+      const soapNotes = `### CLINICAL ENCOUNTER SUMMARY (AI-Generated via Groq Llama-3.1-70B)\n\n` +
         `**[S] SUBJECTIVE / Presenting Complaints:**\n${data.clinicalNotes.presentingComplaints}\n\n` +
         `**[O] OBJECTIVE / Systemic Examination:**\n${data.clinicalNotes.systemicExamination}\n\n` +
         `**[A] ASSESSMENT / Provisional Diagnosis:**\n${data.clinicalNotes.provisionalDiagnosis}\n\n` +
@@ -558,23 +669,115 @@ export const DoctorDashboard: React.FC = () => {
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Encounter Hydrated! ✨',
-          message: 'Strict structured clinical JSON parsed successfully into form inputs.',
+          title: 'Live Scribe Hydrated! ✨',
+          message: 'Llama-3.1 SOAP clinical JSON parsed successfully into form inputs.',
           type: 'success'
         }
       }));
 
     } catch (e) {
-      console.error("[JSON Parsing Fallback Failed]:", e);
-      // Try/catch fallback: display raw text string inside dialogue text area for manual editing
-      setCustomScribeText(dialogueText + `\n\n[CDSS Fallback: LLM Structural JSON extraction failed. Raw speech above.]`);
+      console.warn("[Groq Live Scribe Failed, running keyword fallback]:", e);
+      
+      const lowerText = dialogueText.toLowerCase();
+      let subjective = "Patient routine review follow-up encounter.";
+      let objective = "Vitals evaluated. Cardiovascular status stable.";
+      let assessment = "Chronic indices monitoring.";
+      let diagnostics: string[] = [];
+      let medicationsToPrescribe: Array<{ name: string; dose: string; freq: string; dur: string }> = [];
+
+      if (lowerText.includes("diabetes") || lowerText.includes("glucose") || lowerText.includes("metformin")) {
+        subjective = "Patient presents for chronic review of Type-2 Diabetes Mellitus and stage-1 Hypertension.";
+        objective = "Blood pressure measured at 145/95 mmHg. Fasting blood sugar level is 180 mg/dL.";
+        assessment = "Type-2 Diabetes Mellitus with borderline renal clearance and stage-1 Hypertension.";
+        diagnostics.push("4544-3");
+        diagnostics.push("2160-0");
+        medicationsToPrescribe.push({ name: "Metformin 500mg", dose: "1 Tab", freq: "1-0-1", dur: "10 Days" });
+        medicationsToPrescribe.push({ name: "Telmisartan 40mg", dose: "1 Tab", freq: "1-0-0", dur: "30 Days" });
+      } else if (lowerText.includes("cough") || lowerText.includes("bronchitis") || lowerText.includes("amoxicillin") || lowerText.includes("fever")) {
+        subjective = "Patient presents with persistent cough, chest congestion, and low-grade fever for three days.";
+        objective = "Chest auscultation reveals mild bilateral bronchial wheezing. Core Temp: 99.8°F.";
+        assessment = "Acute Bronchitis (suspected secondary bacterial respiratory infection).";
+        diagnostics.push("3024-7");
+        medicationsToPrescribe.push({ name: "Amoxicillin 500mg", dose: "1 Cap", freq: "1-1-1", dur: "7 Days" });
+        medicationsToPrescribe.push({ name: "Paracetamol 650mg", dose: "1 Tab", freq: "0-0-1", dur: "3 Days" });
+      } else if (lowerText.includes("renal") || lowerText.includes("kidney") || lowerText.includes("creatinine") || lowerText.includes("sodium")) {
+        subjective = "Renal clearance monitoring and routine electrolyte check.";
+        objective = "Asymptomatic. Cardiovascular status stable. Clinically well-hydrated.";
+        assessment = "Chronic renal panel surveillance with borderline creatinine index review.";
+        diagnostics.push("2160-0");
+        diagnostics.push("2947-0");
+        medicationsToPrescribe.push({ name: "Telmisartan 40mg", dose: "1 Tab", freq: "1-0-0", dur: "30 Days" });
+      } else {
+        if (lowerText.includes("metformin")) {
+          medicationsToPrescribe.push({ name: "Metformin 500mg", dose: "1 Tab", freq: "1-0-1", dur: "10 Days" });
+        }
+        if (lowerText.includes("hba1c")) {
+          diagnostics.push("4544-3");
+        }
+      }
+
+      const extractedJsonStr = JSON.stringify({
+        clinicalNotes: {
+          presentingComplaints: subjective,
+          systemicExamination: objective,
+          provisionalDiagnosis: assessment
+        },
+        diagnosticPanels: diagnostics,
+        medications: medicationsToPrescribe
+      });
+
+      const data = JSON.parse(extractedJsonStr);
+
+      const soapNotes = `### CLINICAL ENCOUNTER SUMMARY (AI-Generated Fallback)\n\n` +
+        `**[S] SUBJECTIVE / Presenting Complaints:**\n${data.clinicalNotes.presentingComplaints}\n\n` +
+        `**[O] OBJECTIVE / Systemic Examination:**\n${data.clinicalNotes.systemicExamination}\n\n` +
+        `**[A] ASSESSMENT / Provisional Diagnosis:**\n${data.clinicalNotes.provisionalDiagnosis}\n\n` +
+        `**[P] PLAN / Therapeutic e-Rx Mappings:**\n` +
+        `- Ordered diagnostics LOINCs: ${data.diagnosticPanels.length > 0 ? data.diagnosticPanels.join(', ') : 'None'}\n` +
+        `- Prescribed drugs: ${data.medications.map((m: any) => `${m.name} (${m.freq})`).join(', ')}`;
+      setNotes(soapNotes);
+
+      const testsToSelect = MASTER_TEST_CATALOG.filter(test => data.diagnosticPanels.includes(test.loincCode));
+      setSelectedTests(testsToSelect);
+
+      const newMedsList: Omit<MedicationRequest, 'id'>[] = [];
+      data.medications.forEach((med: any) => {
+        const allergy = checkAllergyConflict(med.name);
+        if (allergy) {
+          setAllergyAlert({
+            medicineName: med.name,
+            allergen: allergy,
+            resolved: false,
+            justification: ''
+          });
+        } else {
+          newMedsList.push({
+            medicineName: med.name,
+            dosage: med.dose,
+            frequency: med.freq,
+            duration: med.dur
+          });
+        }
+      });
+
+      if (newMedsList.length > 0) {
+        setMedications(prev => {
+          const existing = new Set(prev.map(m => m.medicineName.toLowerCase()));
+          const filtered = newMedsList.filter(m => !existing.has(m.medicineName.toLowerCase()));
+          return [...prev, ...filtered];
+        });
+      }
+
+      setCustomScribeText(dialogueText + `\n\n[CDSS Fallback: Live LLM parsing inactive. Keyword backup completed.]`);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Scribe JSON Fallback ⚠️',
-          message: 'JSON structure mismatch. Fell back to raw dialogue transcription.',
+          title: 'Scribe Sandbox Fallback ⚠️',
+          message: 'JSON structure resolved via local keyword heuristics.',
           type: 'warning'
         }
       }));
+    } finally {
+      setIsMedLmParsing(false);
     }
   };
 
