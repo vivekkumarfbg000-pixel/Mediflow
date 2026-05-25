@@ -2310,6 +2310,48 @@ export const DoctorDashboard: React.FC = () => {
         {renderTabContent()}
       </div>
 
+      {/* Premium Fixed Bottom Navigation Bar for Doctor Dashboard on Mobile Viewports */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200/80 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-2 py-3 flex justify-between items-center z-50 pb-safe-bottom h-16">
+        {[
+          { id: 'overview', label: 'Command', icon: 'dashboard', color: 'text-primary-600' },
+          { id: 'consultation', label: 'Consult', icon: 'clinical_notes', color: 'text-accent-600' },
+          { id: 'financials', label: 'Finance', icon: 'account_balance_wallet', color: 'text-emerald-600' },
+          { id: 'pharmacy', label: 'Pharmacy', icon: 'pill', color: 'text-rose-600' },
+          { id: 'pathology', label: 'Lab', icon: 'biotech', color: 'text-blue-600' },
+          { id: 'patients', label: 'Patients', icon: 'group', color: 'text-indigo-600' }
+        ].map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all cursor-pointer relative ${
+                isActive 
+                  ? `${tab.color} scale-105 font-bold` 
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <div className={`p-1.5 rounded-xl transition-all duration-300 ${
+                isActive 
+                  ? 'bg-slate-50 scale-110 shadow-sm' 
+                  : 'bg-transparent'
+              }`}>
+                <span className="material-symbols-outlined text-[22px] block">
+                  {tab.icon}
+                </span>
+              </div>
+              <span className="text-[8px] uppercase tracking-wider font-extrabold truncate w-full text-center mt-1">
+                {tab.label}
+              </span>
+              
+              {isActive && (
+                <span className={`absolute bottom-0 w-1.5 h-1.5 rounded-full ${isActive ? 'bg-current' : 'bg-transparent'}`} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Allergy overrides modal */}
       {allergyAlert && renderAllergyAlertModal()}
     </div>

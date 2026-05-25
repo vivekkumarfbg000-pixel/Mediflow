@@ -938,53 +938,55 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
-        <div className="flex items-center justify-around h-16">
-          {roles.map((r) => {
-            const Icon = r.icon;
-            const isActive = currentRole === r.id;
-            
-            // Map role ID to a short professional label for the bottom nav
-            let label = r.name;
-            if (r.id === 'compounder') label = 'Comp.';
-            else if (r.id === 'doctor') label = 'Doctor';
-            else if (r.id === 'lab') label = 'Lab';
-            else if (r.id === 'pharmacy') label = 'Pharmacy';
-            else if (r.id === 'billing') label = 'Ledger';
-            else if (r.id === 'patient') label = 'Patient';
+      {currentRole !== 'doctor' && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+          <div className="flex items-center justify-around h-16">
+            {roles.map((r) => {
+              const Icon = r.icon;
+              const isActive = currentRole === r.id;
+              
+              // Map role ID to a short professional label for the bottom nav
+              let label = r.name;
+              if (r.id === 'compounder') label = 'Comp.';
+              else if (r.id === 'doctor') label = 'Doctor';
+              else if (r.id === 'lab') label = 'Lab';
+              else if (r.id === 'pharmacy') label = 'Pharmacy';
+              else if (r.id === 'billing') label = 'Ledger';
+              else if (r.id === 'patient') label = 'Patient';
 
-            return (
-              <button
-                key={r.id}
-                onClick={() => onChangeRole(r.id as UserRole)}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-300 cursor-pointer relative ${
-                  isActive 
-                    ? 'text-primary' 
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <div className={`p-1.5 rounded-xl transition-all duration-300 ${
-                  isActive 
-                    ? 'bg-primary/10 text-primary scale-110 shadow-sm' 
-                    : 'bg-transparent text-slate-400'
-                }`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <span className={`text-[9px] font-bold mt-1 tracking-tight transition-colors duration-300 ${
-                  isActive ? 'text-primary font-extrabold' : 'text-slate-400'
-                }`}>
-                  {label}
-                </span>
-                
-                {/* Active Indicator dot */}
-                {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />
-                )}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => onChangeRole(r.id as UserRole)}
+                  className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-300 cursor-pointer relative ${
+                    isActive 
+                      ? 'text-primary' 
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-xl transition-all duration-300 ${
+                    isActive 
+                      ? 'bg-primary/10 text-primary scale-110 shadow-sm' 
+                      : 'bg-transparent text-slate-400'
+                  }`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <span className={`text-[9px] font-bold mt-1 tracking-tight transition-colors duration-300 ${
+                    isActive ? 'text-primary font-extrabold' : 'text-slate-400'
+                  }`}>
+                    {label}
+                  </span>
+                  
+                  {/* Active Indicator dot */}
+                  {isActive && (
+                    <span className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 };
