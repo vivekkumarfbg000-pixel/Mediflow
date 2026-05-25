@@ -344,27 +344,57 @@ Structure it with sections:
 
 Keep the tone professional, clinical, objective, and precise.`;
 
-        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${mistralApiKey}`
-          },
-          body: JSON.stringify({
-            model: 'mistral-large-latest',
-            messages: [
-              { role: 'user', content: promptText }
-            ],
-            temperature: 0.15
-          })
-        });
+        let synthesizedInsight = '';
+        try {
+          const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${mistralApiKey}`
+            },
+            body: JSON.stringify({
+              model: 'mistral-large-latest',
+              messages: [
+                { role: 'user', content: promptText }
+              ],
+              temperature: 0.15
+            })
+          });
 
-        if (!response.ok) {
-          throw new Error(`Mistral API returned ${response.status} ${response.statusText}`);
+          if (!response.ok) {
+            throw new Error(`Mistral API returned ${response.status} ${response.statusText}`);
+          }
+
+          const resData = await response.json();
+          synthesizedInsight = resData.choices?.[0]?.message?.content || '';
+        } catch (mistralErr) {
+          console.warn("[Mistral Live RAG Synthesis failed, initiating backup failover to Groq Llama-3.3-70B]:", mistralErr);
+          const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
+          if (groqApiKey) {
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${groqApiKey}`
+              },
+              body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                  { role: 'user', content: promptText }
+                ],
+                temperature: 0.2
+              })
+            });
+
+            if (response.ok) {
+              const resData = await response.json();
+              synthesizedInsight = resData.choices?.[0]?.message?.content || '';
+            } else {
+              console.warn("[Groq RAG Backup also failed]");
+            }
+          }
         }
 
-        const resData = await response.json();
-        const synthesizedInsight = resData.choices?.[0]?.message?.content;
         if (!synthesizedInsight) {
           throw new Error("Mistral API returned an empty completion.");
         }
@@ -581,7 +611,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'llama-3.1-70b-versatile',
+          model: 'llama-3.3-70b-versatile',
           messages: [
             {
               role: 'system',
