@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export const PatientMobileDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills' | 'vitals'>('home');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default Aarav Sharma
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
@@ -696,15 +696,128 @@ export const PatientMobileDashboard: React.FC = () => {
                 </div>
               )}
 
+              {/* TAB 5: VITALS & DEMO CONTROLLER */}
+              {activeTab === 'vitals' && (
+                <div className="space-y-4 animate-fade-in text-slate-800">
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                    <Activity className="h-4 w-4 text-rose-500 animate-pulse" />
+                    Telehealth Vital Logger
+                  </h3>
+
+                  {/* Active Patient Switcher inside mobile */}
+                  <div className="bg-white border border-slate-200/50 shadow-sm rounded-2xl p-4 space-y-3">
+                    <div>
+                      <label className="block text-[8.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                        Active Simulation Profile
+                      </label>
+                      <select
+                        value={selectedPhone}
+                        onChange={e => setSelectedPhone(e.target.value)}
+                        className="w-full input-field py-2 text-[11px] bg-slate-50 border-slate-200"
+                      >
+                        {patients.map(p => (
+                          <option key={p.id} value={p.phone}>{p.name} ({p.phone})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {activePatient && (
+                      <div className="text-[9.5px] text-slate-500 font-sans leading-relaxed pt-2 border-t border-slate-100">
+                        <strong>Chronic list</strong>: {activePatient.chronicConditions.join(', ') || 'None'}<br/>
+                        <strong>Allergies</strong>: {activePatient.allergies.join(', ') || 'NKDA'}<br/>
+                        <strong>ABHA ID</strong>: {activePatient.abhaId || 'Not set'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Form to log vitals */}
+                  <form onSubmit={handleLogVitals} className="space-y-3 bg-white border border-slate-200/50 shadow-sm rounded-2xl p-4">
+                    <span className="block text-[8.5px] font-bold text-slate-400 uppercase tracking-widest">
+                      Record Biomarkers
+                    </span>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Glucose (mg/dL)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 130"
+                        value={loggedGlucose}
+                        onChange={e => setLoggedGlucose(e.target.value !== '' ? Number(e.target.value) : '')}
+                        className="w-full input-field text-[11px] py-1.5 border-slate-200 bg-slate-50"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-wide">BP Systolic</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 120"
+                          value={loggedBpSystolic}
+                          onChange={e => setLoggedBpSystolic(e.target.value !== '' ? Number(e.target.value) : '')}
+                          className="w-full input-field text-[11px] py-1.5 border-slate-200 bg-slate-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-wide">BP Diastolic</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 80"
+                          value={loggedBpDiastolic}
+                          onChange={e => setLoggedBpDiastolic(e.target.value !== '' ? Number(e.target.value) : '')}
+                          className="w-full input-field text-[11px] py-1.5 border-slate-200 bg-slate-50"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full btn-primary bg-primary hover:opacity-95 text-[10px] py-2 flex justify-center items-center gap-1 text-white-force font-bold rounded-xl cursor-pointer shadow-sm"
+                    >
+                      <Activity className="h-3.5 w-3.5 text-white-force animate-pulse" />
+                      Sync Vitals to Care Pod
+                    </button>
+                  </form>
+
+                  {/* PWA simulated Install status */}
+                  <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-4 space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[8px] text-secondary font-bold uppercase tracking-widest font-mono">
+                        PWA Capabilities Status
+                      </span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span>Service Worker Active:</span>
+                      <span className="text-emerald-400 font-bold font-mono">ONLINE</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'PWA Installed Successfully! 📱',
+                            message: 'Mediflow Care Connected Ecosystem registered on your home screen.',
+                            type: 'success'
+                          }
+                        }));
+                      }}
+                      className="w-full bg-secondary text-slate-950 font-extrabold text-[10px] py-2 rounded-xl hover:scale-101 transition-transform flex justify-center items-center gap-1.5 cursor-pointer"
+                    >
+                      <Smartphone className="h-3.5 w-3.5" />
+                      Add to Mobile Home Screen
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* Simulated smartphone bottom tab bar navigation */}
-            <div className="bg-white border-t border-slate-200 py-2.5 px-6 flex justify-between items-center shrink-0 z-40">
+            <div className="bg-white border-t border-slate-200 py-2.5 px-4 flex justify-between items-center shrink-0 z-40">
               {[
                 { id: 'home', label: 'Home', icon: Home },
                 { id: 'records', label: 'Records', icon: FileText },
                 { id: 'wallet', label: 'Wallet', icon: Wallet },
-                { id: 'refills', label: 'Refills', icon: RefreshCw }
+                { id: 'refills', label: 'Refills', icon: RefreshCw },
+                { id: 'vitals', label: 'Health', icon: Activity }
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;

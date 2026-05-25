@@ -1,0 +1,18 @@
+{
+  "name": "Mediflow Care Connected Ecosystem",
+  "short_name": "Mediflow",
+  "description": "Hyper-Local Multi-Tenant Care Pod SaaS Network",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090d16",
+  "theme_color": "#0f62fe",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
