@@ -1263,8 +1263,12 @@ class MediflowApiService {
     const forecasts = this.getSeasonalForecasts();
     const idx = forecasts.findIndex(f => f.id === forecastId);
     if (idx !== -1) {
-      forecasts[idx].isActedUpon = true;
+      const forecast = forecasts[idx];
+      forecast.isActedUpon = true;
       this.save('seasonal_forecasts', forecasts);
+
+      // Increment stock by 100 units dynamically inside local inventory
+      this.restockPharmacyInventoryItem(forecast.medicineName, 100);
 
       supabase.from('seasonal_demand_forecasts').update({
         is_acted_upon: true
@@ -1454,6 +1458,19 @@ class MediflowApiService {
   savePharmacyInventory(items: PharmacyInventoryItem[]) {
     this.save('pharmacy_inventory', items);
     this.notify();
+  }
+
+  restockPharmacyInventoryItem(itemId: string, quantity: number) {
+    const items = this.getPharmacyInventory();
+    const updated = items.map(item => {
+      if (item.id === itemId || item.name.toLowerCase().includes(itemId.toLowerCase())) {
+        const newStock = item.stock + quantity;
+        this.writeAuditLog('pharmacy_inventory_restocked', { itemId: item.id, medicineName: item.name, quantity, oldStock: item.stock, newStock }, item.id);
+        return { ...item, stock: newStock };
+      }
+      return item;
+    });
+    this.savePharmacyInventory(updated);
   }
 
   getWhatsAppDrugOrders(): WhatsAppDrugOrder[] {

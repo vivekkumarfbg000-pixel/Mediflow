@@ -11,6 +11,9 @@ import { useClinic } from '../../context/ClinicContext';
 import { AgenticConsole } from '../shared/AgenticConsole';
 import { SystemHealthCockpit } from '../admin/SystemHealthCockpit';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
+import { BiomarkerChart } from './BiomarkerChart';
+import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
+import { SeasonalForecastWidget } from '../pharmacy/SeasonalForecastWidget';
 
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp'>('overview');
@@ -942,6 +945,11 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
             setFinancialLedgers(api.getFinancialLedgers());
             setWhatsAppSessions(api.getWhatsAppSessions());
           }} />
+
+          {/* Biomarker SVG Chart Trend Line */}
+          {(selectedPatient?.id || patients[0]?.id) && (
+            <BiomarkerChart patientId={selectedPatient?.id || patients[0]?.id} />
+          )}
 
           {/* Quick Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2124,7 +2132,8 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
   // TAB 4 RENDER: Medical Shop (Pharmacy)
   const renderPharmacyTab = () => {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-800 animate-fade-in">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-800 animate-fade-in">
         {/* Left Column: E-Pharmacy Stock Sync */}
         <div className="space-y-6">
           <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl h-full flex flex-col justify-between">
@@ -2269,6 +2278,10 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
             </div>
           </div>
         </div>
+        </div>
+        
+        {/* Seasonal Restocking Demand Forecast Widget */}
+        <SeasonalForecastWidget />
       </div>
     );
   };
@@ -2816,6 +2829,14 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
               <span className="material-symbols-outlined text-xs">info</span>
               * Uses Supabase Realtime to broadcast incoming patient responses instantly.
             </div>
+          </div>
+
+          {/* Onboarding Placard Generator */}
+          <div className="mt-4">
+            <ClinicPlacardGenerator 
+              activeWabaNumber={activeWabaConnection?.phone_number || '+91 90000 00000'}
+              clinicName={activePod?.name || 'Mediflow Smart Clinic'}
+            />
           </div>
         </div>
 
