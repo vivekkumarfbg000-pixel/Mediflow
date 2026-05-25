@@ -11,7 +11,7 @@ import { useClinic } from '../../context/ClinicContext';
 
 export const DoctorDashboard: React.FC = () => {
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'network'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients'>('overview');
   
   // Real-time API States
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -72,37 +72,7 @@ export const DoctorDashboard: React.FC = () => {
   const recognitionRef = React.useRef<any>(null);
 
   // Clinic pod information from context
-  const { activePod, podEntities, refreshClinic } = useClinic();
-
-  const handlePartnerStatusUpdate = async (entityId: string, status: 'approved' | 'revoked' | 'rejected') => {
-    try {
-      const { error } = await supabase
-        .from('entities')
-        .update({ status })
-        .eq('id', entityId);
-
-      if (error) throw error;
-
-      await refreshClinic();
-      
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: status === 'approved' ? 'Partner Approved! 🎉' : 'Partner Access Revoked 🔒',
-          message: `Ecosystem tenant connection request updated.`,
-          type: status === 'approved' ? 'success' : 'warning'
-        }
-      }));
-    } catch (err: any) {
-      console.error('[Mediflow DevSecOps] Tenant partner status update failed:', err);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Connection Status Updated',
-          message: `Partner status changed to ${status} in local pod cache.`,
-          type: 'success'
-        }
-      }));
-    }
-  };
+  const { activePod } = useClinic();
 
   useEffect(() => {
     const syncDashboardData = () => {
@@ -2178,170 +2148,6 @@ export const DoctorDashboard: React.FC = () => {
     );
   };
 
-  // TAB 7 RENDER: Clinic Network & Revocation controls
-  const renderNetworkTab = () => {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-800 animate-fade-in">
-        {/* Left Column: SVGs Clinic network visual node mapper */}
-        <div className="lg:col-span-2 glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="material-symbols-outlined text-primary text-xl">hub</span>
-              <h2 className="text-base font-bold text-slate-800">Interactive Clinical Pod Network</h2>
-            </div>
-            <p className="text-xs text-slate-400">Live visual node map tracking linked multi-tenant entities and connections.</p>
-          </div>
-
-          {/* Stunning SVG interactive node map */}
-          <div className="h-56 bg-slate-50 border border-slate-200/50 rounded-2xl relative flex items-center justify-center overflow-hidden">
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 60" preserveAspectRatio="none">
-              <line x1="50" y1="30" x2="15" y2="18" stroke="#cbd5e1" strokeWidth="0.8" />
-              <line x1="50" y1="30" x2="15" y2="42" stroke="#cbd5e1" strokeWidth="0.8" />
-              <line x1="50" y1="30" x2="85" y2="18" stroke="#007d70" strokeWidth="1" strokeDasharray="2,2" />
-              <line x1="50" y1="30" x2="85" y2="42" stroke="#0f62fe" strokeWidth="1" strokeDasharray="2,2" />
-
-              {/* Pulsing dynamic flow dots */}
-              <circle cx="67.5" cy="24" r="1.5" fill="#007d70">
-                <animate attributeName="cx" from="50" to="85" dur="3s" repeatCount="indefinite" />
-                <animate attributeName="cy" from="30" to="18" dur="3s" repeatCount="indefinite" />
-              </circle>
-              <circle cx="67.5" cy="36" r="1.5" fill="#0f62fe">
-                <animate attributeName="cx" from="50" to="85" dur="3.5s" repeatCount="indefinite" />
-                <animate attributeName="cy" from="30" to="42" dur="3.5s" repeatCount="indefinite" />
-              </circle>
-            </svg>
-
-            {/* Hub node: Doctor Clinic */}
-            <div className="absolute top-[22%] left-[40%] flex flex-col items-center z-10">
-              <div className="w-12 h-12 rounded-full bg-blue-100 border-2 border-primary shadow-md flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-lg">medical_services</span>
-              </div>
-              <span className="text-[9px] font-bold text-slate-800 bg-white border border-slate-200/80 px-2 py-0.5 rounded-full shadow-sm mt-1.5">Dr. Sharma (Host)</span>
-            </div>
-
-            {/* Partner Node: Pharmacy */}
-            <div className="absolute top-[8%] left-[75%] flex flex-col items-center z-10">
-              <div className="w-10 h-10 rounded-full bg-teal-50 border-2 border-teal-600 shadow-sm flex items-center justify-center text-teal-600">
-                <span className="material-symbols-outlined text-base">pill</span>
-              </div>
-              <span className="text-[8px] font-bold text-slate-700 bg-white border border-slate-200/80 px-1.5 py-0.5 rounded shadow-sm mt-1 font-sans">E-Pharmacy Partner</span>
-            </div>
-
-            {/* Partner Node: Lab */}
-            <div className="absolute top-[52%] left-[75%] flex flex-col items-center z-10">
-              <div className="w-10 h-10 rounded-full bg-amber-50 border-2 border-amber-500 shadow-sm flex items-center justify-center text-amber-500">
-                <span className="material-symbols-outlined text-base">biotech</span>
-              </div>
-              <span className="text-[8px] font-bold text-slate-700 bg-white border border-slate-200/80 px-1.5 py-0.5 rounded shadow-sm mt-1 font-sans">Pathology Lab Partner</span>
-            </div>
-
-            {/* Left Node: Compounder staff */}
-            <div className="absolute top-[8%] left-[5%] flex flex-col items-center z-10">
-              <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-600">
-                <span className="material-symbols-outlined text-base">badge</span>
-              </div>
-              <span className="text-[8px] font-bold text-slate-600 bg-white border border-slate-200/80 px-1.5 py-0.5 rounded shadow-sm mt-1 font-sans">Compounder Admin</span>
-            </div>
-
-            {/* Left Node: Receptionist staff */}
-            <div className="absolute top-[52%] left-[5%] flex flex-col items-center z-10">
-              <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-600">
-                <span className="material-symbols-outlined text-base">support_agent</span>
-              </div>
-              <span className="text-[8px] font-bold text-slate-600 bg-white border border-slate-200/80 px-1.5 py-0.5 rounded shadow-sm mt-1 font-sans">Receptionist Staff</span>
-            </div>
-          </div>
-          
-          <div className="text-[9px] font-mono text-slate-400 italic">
-            * Pulsing connections represent active encrypted telemetry packet flows across secure Supabase RLS policies.
-          </div>
-        </div>
-
-        {/* Right Column: Partners List & Revocation controls */}
-        <div className="space-y-6">
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl h-full flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary text-xl">gavel</span>
-                <h2 className="text-base font-bold text-slate-800">Ecosystem Mappings</h2>
-              </div>
-
-              {/* Linked Partners List */}
-              <div className="space-y-3">
-                <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Approved Pod Tenants</div>
-                
-                {podEntities.filter(e => e.entityType !== 'clinic' && e.status === 'approved').map(partner => (
-                  <div key={partner.id} className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl space-y-2 text-xs">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <strong className="block text-slate-700 font-semibold font-sans">{partner.name}</strong>
-                        <span className="text-[9px] text-slate-400">GSTIN: {partner.gstin || 'Pending GSTIN'}</span>
-                      </div>
-                      <span className="text-[8px] font-mono bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Active</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-1 border-t border-slate-200/40">
-                      <span className="text-[9px] text-slate-400">
-                        {partner.entityType === 'pharmacy' ? '10% commission split' : '15% pathology split'}
-                      </span>
-                      <button
-                        onClick={() => handlePartnerStatusUpdate(partner.id, 'revoked')}
-                        className="text-rose-500 hover:text-rose-700 font-bold uppercase tracking-wider text-[9px] cursor-pointer"
-                      >
-                        Revoke Access
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {podEntities.filter(e => e.entityType !== 'clinic' && e.status === 'approved').length === 0 && (
-                  <div className="text-[10px] text-slate-400 italic p-3 bg-slate-50 border border-slate-200/40 rounded-xl text-center">
-                    No approved tenant partners connected in the pod yet.
-                  </div>
-                )}
-
-                <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold pt-2">Pending Join Requests</div>
-                {podEntities.filter(e => e.status === 'pending').length > 0 ? (
-                  podEntities.filter(e => e.status === 'pending').map(request => (
-                    <div key={request.id} className="p-3 bg-amber-50/50 border border-amber-200/60 rounded-xl space-y-2 text-xs">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <strong className="block text-amber-900 font-semibold font-sans">{request.name}</strong>
-                          <span className="text-[9px] text-slate-400 font-sans font-medium">Type: {request.entityType} • {request.phone}</span>
-                        </div>
-                        <span className="text-[8px] font-mono bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>
-                      </div>
-                      <div className="flex gap-2 pt-1 border-t border-amber-200/20">
-                        <button
-                          onClick={() => handlePartnerStatusUpdate(request.id, 'approved')}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold py-1 rounded uppercase transition-colors font-sans cursor-pointer"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handlePartnerStatusUpdate(request.id, 'rejected')}
-                          className="flex-1 bg-slate-200 hover:bg-slate-350 text-slate-600 text-[9px] font-bold py-1 rounded uppercase transition-colors font-sans cursor-pointer"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-[10px] text-slate-400 italic p-3 bg-slate-50 border border-slate-200/40 rounded-xl text-center">
-                    No pending tenant join requests at the moment.
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-slate-100 text-[10px] text-slate-400 italic">
-              * Doctor is the Pod host and retains full tenant revocation and authorization governance.
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // ROUTER CONTROLLER: Render Active Tab Contents
   const renderTabContent = () => {
     switch (activeTab) {
@@ -2357,8 +2163,6 @@ export const DoctorDashboard: React.FC = () => {
         return renderPathologyTab();
       case 'patients':
         return renderPatientsTab();
-      case 'network':
-        return renderNetworkTab();
       default:
         return renderOverviewTab();
     }
@@ -2465,7 +2269,7 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic 7-Tab Navigation Bar - Hidden on mobile viewports */}
+        {/* Dynamic 6-Tab Navigation Bar - Hidden on mobile viewports */}
         <div className="hidden lg:flex flex-wrap gap-2 mt-6 pt-4 border-t border-slate-100">
           {[
             { id: 'overview', label: 'Command Center', icon: 'dashboard' },
@@ -2473,8 +2277,7 @@ export const DoctorDashboard: React.FC = () => {
             { id: 'financials', label: 'Financial Reports', icon: 'account_balance_wallet' },
             { id: 'pharmacy', label: 'Medical Shop', icon: 'pill' },
             { id: 'pathology', label: 'Pathology Lab', icon: 'biotech' },
-            { id: 'patients', label: 'Patient Directory', icon: 'group' },
-            { id: 'network', label: 'Clinic Network', icon: 'hub' }
+            { id: 'patients', label: 'Patient Directory', icon: 'group' }
           ].map(tab => {
             const isActive = activeTab === tab.id;
             return (
@@ -2508,8 +2311,7 @@ export const DoctorDashboard: React.FC = () => {
           { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
           { id: 'pharmacy', label: 'Pharmacy', icon: 'pill' },
           { id: 'pathology', label: 'Lab', icon: 'biotech' },
-          { id: 'patients', label: 'Patients', icon: 'group' },
-          { id: 'network', label: 'Network', icon: 'hub' }
+          { id: 'patients', label: 'Patients', icon: 'group' }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           return (
