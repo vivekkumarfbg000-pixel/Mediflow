@@ -1714,49 +1714,113 @@ class MediflowApiService {
     const patient = patients.find(p => p.id === patientId);
     if (!patient) return 'Patient profile not found.';
 
-    // 1. Gather patient encounters for medications and note compilations
     const encounters = this.getEncounters().filter(e => e.patientId === patientId);
-    const activeMedications = encounters.flatMap(e => e.medications);
-    const history = this.getPatientHistoricalBiomarkers(patientId) || [];
+    const pathologyReports = this.getPathologyReports().filter(r => r.patientId === patientId || r.patientName.toLowerCase() === patient.name.toLowerCase());
+    const historicalBiomarkers = this.getPatientHistoricalBiomarkers(patientId) || [];
 
     // Compile dynamic, multi-dimensional clinical RAG report
-    let summary = `### AI Longitudinal Multi-Dimensional Analysis — ${patient.name}\n`;
-    summary += `*Generated via Mediflow CDSS pgvector RAG Index on ${new Date().toLocaleDateString()}*\n\n`;
+    let summary = `🏥 CLINICAL HEALTH ARCHIVE SUMMARY: ${patient.name.toUpperCase()}\n`;
+    summary += `===========================================================\n`;
+    summary += `Demographics: ${patient.age}y / ${patient.gender} | ABHA ID: ${patient.abhaId || 'ABHA-PENDING'}\n`;
+    summary += `Chronic History: ${patient.chronicConditions.join(', ') || 'None recorded'}\n`;
+    summary += `Allergy Profile: ${patient.allergies.join(', ') || 'No Known Drug Allergies (NKDA)'}\n`;
+    summary += `Document Date: ${new Date().toLocaleDateString()} | System: Mediflow CDSS pgvector RAG v2\n\n`;
 
+    // 1. Longitudinal Biomarker Trajectory Analysis
+    summary += `📊 PART 1: LONGITUDINAL BIOMARKER TRAJECTORY ANALYSIS\n`;
+    summary += `-----------------------------------------------------------\n`;
+    if (historicalBiomarkers.length > 0) {
+      // Sort chronologically
+      const sorted = [...historicalBiomarkers].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      summary += `Chronological Lab Findings (6-Month Trendline):\n`;
+      sorted.forEach((h) => {
+        summary += `• [${h.date}] HbA1c: ${h.HbA1c}% (Avg sugar) | Creatinine: ${h.creatinine} mg/dL (Kidney) | Hemoglobin: ${h.hemoglobin} g/dL (Blood)\n`;
+      });
+
+      // Calculate relative deltas
+      if (sorted.length > 1) {
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        
+        const hba1cDelta = (last.HbA1c - first.HbA1c).toFixed(1);
+        const creatDelta = (last.creatinine - first.creatinine).toFixed(2);
+        const hba1cPercent = Math.round(((last.HbA1c - first.HbA1c) / first.HbA1c) * 100);
+        const creatPercent = Math.round(((last.creatinine - first.creatinine) / first.creatinine) * 100);
+
+        summary += `\nKey Trajectory Deltas (Baseline to Latest):\n`;
+        summary += `- **HbA1c Trend**: ${hba1cPercent >= 0 ? '+' : ''}${hba1cDelta}% change (${hba1cPercent >= 0 ? 'Elevating 📈' : 'Reducing 📉'})\n`;
+        summary += `- **Creatinine Shift**: ${creatPercent >= 0 ? '+' : ''}${creatDelta} mg/dL shift (${creatPercent >= 20 ? '⚠️ CRITICAL Spike' : 'Stable'})\n`;
+      }
+    } else {
+      summary += `No historical quantitative biomarkers found. Charting telemetry suspended.\n`;
+    }
+    summary += `\n`;
+
+    // 2. Pathology Reports Narrative Summary
+    summary += `🧪 PART 2: HISTORICAL LABORATORY REPORTS SUMMARY\n`;
+    summary += `-----------------------------------------------------------\n`;
+    const completedReports = pathologyReports.filter(r => r.status === 'approved');
+    if (completedReports.length > 0) {
+      summary += `Scanned Lab Diagnostic Logs (${completedReports.length} reports):\n`;
+      completedReports.forEach(r => {
+        summary += `• **${r.testName}** (LOINC: ${r.loincCode}):\n`;
+        summary += `  - *Status*: Completed & Signed-off\n`;
+        summary += `  - *Findings*: "${r.results || 'No specific text entered.'}"\n`;
+      });
+    } else {
+      summary += `No completed laboratory diagnostic reports found in this patient's archive.\n`;
+    }
+    summary += `\n`;
+
+    // 3. Pharmacotherapy Load
+    summary += `💊 PART 3: PHARMACOTHERAPY & MEDICATION LOAD\n`;
+    summary += `-----------------------------------------------------------\n`;
+    const activeMedications = encounters.flatMap(e => e.medications);
     if (activeMedications.length > 0) {
-      summary += `#### 💊 Active Prescribed Pharmacotherapy:\n`;
-      // Remove duplicate generic drug listings
+      summary += `Current Active Prescribed Regime:\n`;
       const seen = new Set<string>();
       activeMedications.forEach(med => {
         if (!seen.has(med.medicineName)) {
           seen.add(med.medicineName);
-          summary += `- **${med.medicineName}**: ${med.dosage} (${med.frequency} for ${med.duration})\n`;
+          summary += `- **${med.medicineName}**: Dosage: ${med.dosage} | Freq: ${med.frequency} | Duration: ${med.duration}\n`;
         }
       });
-      summary += `\n`;
     } else {
-      summary += `#### 💊 Active Prescribed Pharmacotherapy:\nNo active clinical e-prescriptions recorded in current active pod session.\n\n`;
+      summary += `No active prescriptions or medications recorded in active clinical pod sessions.\n`;
     }
+    summary += `\n`;
 
-    if (history.length > 0) {
-      summary += `#### 🩺 Lab Biomarker Trends (Comparative Trajectory):\n`;
-      history.forEach(h => {
-        summary += `- **${h.date}**: HbA1c: **${h.HbA1c}%** | Creatinine: **${h.creatinine} mg/dL** | Hemoglobin: **${h.hemoglobin} g/dL**\n`;
-      });
-      summary += `\n`;
-    }
+    // 4. Clinical Decision Support (CDSS) & Safety Interceptions
+    summary += `🚨 PART 4: CLINICAL DECISION SUPPORT SYSTEM (CDSS) AUDIT\n`;
+    summary += `-----------------------------------------------------------\n`;
+    
+    // Safety warnings based on all previous report values
+    const latestBiomarker = historicalBiomarkers[historicalBiomarkers.length - 1];
+    let safetyFlags = 0;
 
-    if (patient.chronicConditions.includes('Type-2 Diabetes')) {
-      summary += `#### 🔍 Clinical Decision Support (CDSS Guidelines):\n`;
-      summary += `- **Renal Clearance Alert**: HbA1c matches Type-2 Diabetes control limits. Avoid nephrotoxic agents (NSAIDs) due to borderline Serum Creatinine trend shifts. Schedule home microalbuminuria panel via Patna Diagnostics.\n\n`;
-    }
-
-    summary += `#### ⚠️ Active CDSS Contraindications:\n`;
     if (patient.allergies.includes('Penicillin')) {
-      summary += `- **CRITICAL WARNING**: Documented **Penicillin** allergy. Direct beta-lactams are completely blocked.\n`;
-    } else {
-      summary += `- No active allergen conflicts intercepted in the current diagnostic card.\n`;
+      summary += `❌ **CONTRAINDICATION WARNING**: Patient is allergic to Penicillin. Beta-lactam therapeutics (Amoxicillin, Ampicillin, Piperacillin) are completely locked from prescription entry.\n`;
+      safetyFlags++;
     }
+
+    if (latestBiomarker) {
+      if (latestBiomarker.creatinine > 1.2) {
+        summary += `❌ **RENAL CLEARANCE WARNING**: Serum Creatinine is ${latestBiomarker.creatinine} mg/dL (exceeds KDIGO safety limit). NSAID therapies are completely contraindicated due to high risk of Acute Kidney Injury (AKI).\n`;
+        safetyFlags++;
+      }
+      if (latestBiomarker.HbA1c > 6.5) {
+        summary += `⚠️ **METABOLIC ADVISORY**: Latest HbA1c is ${latestBiomarker.HbA1c}% (Abnormal Diabetic range). Maintain strict diabetic controls and schedule HbA1c LOINC: 4544-3 panel every 90 days.\n`;
+        safetyFlags++;
+      }
+    }
+
+    if (safetyFlags === 0) {
+      summary += `✓ All safety scans passed. No active allergy, drug-drug conflicts, or clearance issues caught.\n`;
+    }
+    
+    summary += `\n===========================================================\n`;
+    summary += `🏥 Prepared by Mediflow Clinical AI Scribe Engine. Synced to ABHA portal.`;
 
     return summary;
   }

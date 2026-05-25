@@ -507,7 +507,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     };
 
     fetchRAGInsights();
-  }, [selectedPatient, baselineDate, comparisonDate]);
+  }, [selectedPatient?.id, baselineDate, comparisonDate]);
 
   const checkAllergyConflict = (drugName: string): string | null => {
     if (!selectedPatient || !selectedPatient.allergies) return null;
