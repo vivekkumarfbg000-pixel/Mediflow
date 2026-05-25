@@ -5,7 +5,10 @@ import type { Patient, DiagnosticTest, MedicationRequest, PharmacyInventoryItem,
 import { 
   Trash2, 
   CheckCircle2, 
-  AlertTriangle
+  AlertTriangle,
+  ShieldAlert,
+  Activity,
+  HeartPulse
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { AgenticConsole } from '../shared/AgenticConsole';
@@ -1106,32 +1109,77 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
           </div>
 
           {/* AI Passive CDSS Feed */}
-          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-4">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-amber-500 opacity-40" />
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-rose-500 text-xl font-bold animate-pulse">shield_alert</span>
-              <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">CDSS & RAG Clinical Advisories</h2>
+          <div className="glass-panel p-6 bg-gradient-to-br from-white/95 via-slate-50/40 to-white/95 border border-slate-200/80 shadow-md shadow-slate-100/50 rounded-3xl relative overflow-hidden space-y-5 transition-all duration-300 hover:border-slate-300 hover:shadow-lg">
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-rose-500 via-amber-500 to-blue-500" />
+            
+            <div className="flex justify-between items-center pb-1">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8.5 h-8.5 rounded-2xl bg-rose-500/10 border border-rose-500/15 flex items-center justify-center text-rose-500 animate-pulse shadow-2xs">
+                  <ShieldAlert className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 font-sans">
+                    CDSS & RAG Clinical Advisories
+                  </h2>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 font-mono">Real-time Patient Safety Scan</p>
+                </div>
+              </div>
+              
+              <span className="flex items-center gap-1.5 text-[8px] font-extrabold font-mono uppercase tracking-widest bg-emerald-50 border border-emerald-100/70 text-emerald-600 px-3 py-1 rounded-full shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                Agent Active
+              </span>
             </div>
-            <div className="space-y-3">
-              <div className="p-3.5 bg-rose-50 border border-rose-100 rounded-xl flex gap-3 text-xs text-rose-700">
-                <span className="material-symbols-outlined text-rose-500 flex-shrink-0 mt-0.5">warning</span>
-                <div>
-                  <strong className="block font-semibold">Active Allergy Interception: Aarav Sharma</strong>
-                  Documented Penicillin allergy. Automated prescription scanner blocks beta-lactam class medications (Amoxicillin, Ampicillin) in current active pod session.
+
+            <div className="space-y-4 pt-1">
+              {/* Allergy Interception Card */}
+              <div className="p-4 bg-gradient-to-r from-rose-50/40 via-white to-white border border-slate-200/40 border-l-4 border-l-rose-500 hover:border-rose-350 hover:shadow-xs rounded-2xl flex gap-3.5 text-xs text-slate-600 transition-all duration-300 hover:-translate-y-[1px] group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/[0.015] rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform duration-300" />
+                <div className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <AlertTriangle className="h-4.5 w-4.5" />
+                </div>
+                <div className="space-y-1 relative z-10 flex-1">
+                  <div className="flex justify-between items-center">
+                    <strong className="font-extrabold text-[11px] text-rose-700 uppercase tracking-wide">Active Allergy Interception</strong>
+                    <span className="text-[8px] font-bold font-mono px-2 py-0.5 bg-rose-100/60 text-rose-800 rounded-md uppercase tracking-wider font-sans">Aarav Sharma</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-sans leading-relaxed pt-0.5">
+                    Documented Penicillin allergy. Automated prescription scanner blocks beta-lactam class medications (<span className="text-slate-700 font-bold">Amoxicillin</span>, <span className="text-slate-700 font-bold">Ampicillin</span>) in current active pod session.
+                  </p>
                 </div>
               </div>
-              <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl flex gap-3 text-xs text-amber-700">
-                <span className="material-symbols-outlined text-amber-500 flex-shrink-0 mt-0.5">info</span>
-                <div>
-                  <strong className="block font-semibold">Renal Filtration Clearance Shift: Priyanka Verma</strong>
-                  Serum Creatinine cleared at 1.4 mg/dL. Passive CDSS triggers glomerular filtration restriction alert. Suggest withholding high-dose active NSAID therapies.
+
+              {/* Renal Shift Card */}
+              <div className="p-4 bg-gradient-to-r from-amber-50/40 via-white to-white border border-slate-200/40 border-l-4 border-l-amber-500 hover:border-amber-350 hover:shadow-xs rounded-2xl flex gap-3.5 text-xs text-slate-600 transition-all duration-300 hover:-translate-y-[1px] group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/[0.015] rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform duration-300" />
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <HeartPulse className="h-4.5 w-4.5" />
+                </div>
+                <div className="space-y-1 relative z-10 flex-1">
+                  <div className="flex justify-between items-center">
+                    <strong className="font-extrabold text-[11px] text-amber-700 uppercase tracking-wide">Renal Filtration Clearance Shift</strong>
+                    <span className="text-[8px] font-bold font-mono px-2 py-0.5 bg-amber-100/60 text-amber-800 rounded-md uppercase tracking-wider font-sans">Priyanka Verma</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-sans leading-relaxed pt-0.5">
+                    Serum Creatinine cleared at <span className="text-slate-750 font-bold font-mono">1.4 mg/dL</span>. Passive CDSS triggers glomerular filtration restriction alert. Suggest withholding high-dose active NSAID therapies.
+                  </p>
                 </div>
               </div>
-              <div className="p-3.5 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 text-xs text-blue-700">
-                <span className="material-symbols-outlined text-blue-600 flex-shrink-0 mt-0.5">analytics</span>
-                <div>
-                  <strong className="block font-semibold">Missing Diagnostic Markers</strong>
-                  Diabetes-linked profiles lack active 90-day HbA1c tests. Recommend requisiting LOINC: 4544-3 on the next consultation.
+
+              {/* Missing Diagnostic Markers Card */}
+              <div className="p-4 bg-gradient-to-r from-blue-50/40 via-white to-white border border-slate-200/40 border-l-4 border-l-blue-500 hover:border-blue-350 hover:shadow-xs rounded-2xl flex gap-3.5 text-xs text-slate-600 transition-all duration-300 hover:-translate-y-[1px] group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/[0.015] rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform duration-300" />
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
+                  <Activity className="h-4.5 w-4.5" />
+                </div>
+                <div className="space-y-1 relative z-10 flex-1">
+                  <div className="flex justify-between items-center">
+                    <strong className="font-extrabold text-[11px] text-blue-700 uppercase tracking-wide">Missing Diagnostic Markers</strong>
+                    <span className="text-[8px] font-bold font-mono px-2 py-0.5 bg-blue-100/60 text-blue-800 rounded-md uppercase tracking-wider font-sans">Diabetic Profile</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-sans leading-relaxed pt-0.5">
+                    Diabetes-linked profiles lack active 90-day HbA1c tests. Recommend requisiting <span className="text-slate-750 font-bold font-mono">LOINC: 4544-3</span> on the next consultation.
+                  </p>
                 </div>
               </div>
             </div>
