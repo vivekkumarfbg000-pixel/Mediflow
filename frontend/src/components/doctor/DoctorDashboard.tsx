@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { AgenticConsole } from '../shared/AgenticConsole';
+import { SystemHealthCockpit } from '../admin/SystemHealthCockpit';
+import { StateHealingEngine } from '../../services/autoHealerAgent';
 
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp'>('overview');
@@ -132,6 +134,7 @@ export const DoctorDashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    StateHealingEngine.initGlobalListener();
     const syncDashboardData = () => {
       const registered = api.getPatients();
       setPatients(registered);
@@ -2111,6 +2114,9 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
             </table>
           </div>
         </div>
+
+        {/* System Health Telemetry Cockpit */}
+        <SystemHealthCockpit />
       </div>
     );
   };

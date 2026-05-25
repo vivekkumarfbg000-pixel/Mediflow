@@ -197,7 +197,7 @@ class MediflowApiService {
   }
 
   // Sync state FROM Supabase TO LocalStorage synchronously expected by dashboards
-  private async syncFromSupabase(): Promise<void> {
+  public async syncFromSupabase(): Promise<void> {
     this.isSyncing = true;
     this.notify();
     try {
