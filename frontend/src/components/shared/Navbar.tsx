@@ -14,7 +14,11 @@ import {
   Terminal,
   ChevronUp,
   ChevronDown,
-  Smartphone
+  Smartphone,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 
@@ -27,6 +31,8 @@ interface NavbarProps {
   onSignOut: () => void;
   isBypassMode: boolean;
   onToggleBypass: (bypass: boolean) => void;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebarCollapse?: (collapsed: boolean) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
@@ -35,10 +41,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeProfile, 
   onSignOut,
   isBypassMode,
-  onToggleBypass
+  onToggleBypass,
+  isSidebarCollapsed = false,
+  onToggleSidebarCollapse
 }) => {
   const { activePod, activeEntity } = useClinic();
   const [isSyncing, setIsSyncing] = useState(api.isSyncing);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [activePatient, setActivePatient] = useState<any>(null);
   const [activePatientStage, setActivePatientStage] = useState<string>('registered');
   const [logs, setLogs] = useState<any[]>([]);
@@ -271,54 +280,86 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       {/* Premium Desktop Left Sidebar Navigation */}
-      <aside className="hidden lg:flex flex-col fixed top-0 bottom-0 left-0 w-64 bg-white border-r border-slate-100 z-40 p-5 justify-between">
+      <aside 
+        onClick={() => {
+          if (isSidebarCollapsed) {
+            onToggleSidebarCollapse?.(false);
+          }
+        }}
+        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white border-r border-slate-100 z-40 justify-between transition-all duration-300 ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
+      >
+        {/* Collapse Toggle Button (Circular) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSidebarCollapse?.(!isSidebarCollapsed);
+          }}
+          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-white border border-slate-100 shadow-md items-center justify-center text-slate-400 hover:text-slate-700 hover:scale-105 transition-all z-50 cursor-pointer"
+          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          {isSidebarCollapsed ? (
+            <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronLeft className="h-3.5 w-3.5" />
+          )}
+        </button>
+
         {/* Top: Brand Logo and Connected Info */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
+        <div className={`space-y-6 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+          <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
             <div className="p-2.5 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md shrink-0">
               <Activity className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h1 className="font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-1">
-                Mediflow 
-                <span className="text-primary font-bold text-[8px] bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                  POD HUB
+            {!isSidebarCollapsed && (
+              <div className="animate-fade-in">
+                <h1 className="font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-1">
+                  Mediflow 
+                  <span className="text-primary font-bold text-[8px] bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    POD HUB
+                  </span>
+                </h1>
+                <span className="flex items-center gap-1 text-[9px] font-mono tracking-wider font-bold text-emerald-500 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  SYSTEM LIVE
                 </span>
-              </h1>
-              <span className="flex items-center gap-1 text-[9px] font-mono tracking-wider font-bold text-emerald-500 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                SYSTEM LIVE
-              </span>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Connection Status Card */}
           {activePod && (
-            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-              <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Workspace</span>
-              <span className="block text-xs font-bold text-slate-700 truncate">{activeEntity?.name}</span>
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                Code: <span className="font-bold text-slate-700 font-mono">{activePod.clinicCode}</span>
+            isSidebarCollapsed ? (
+              <div 
+                className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors"
+                title={`Active Workspace: ${activeEntity?.name} (Code: ${activePod.clinicCode})`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
-            </div>
+            ) : (
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1 animate-fade-in">
+                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Workspace</span>
+                <span className="block text-xs font-bold text-slate-700 truncate">{activeEntity?.name}</span>
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  Code: <span className="font-bold text-slate-700 font-mono">{activePod.clinicCode}</span>
+                </div>
+              </div>
+            )
           )}
 
           {/* Unified Care Loop Stepper in Sidebar */}
           {activePatient && (
-            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3 animate-fade-in">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Patient Loop</span>
-                <span className="text-xs font-bold text-slate-700 truncate">{activePatient.name}</span>
-              </div>
-              
-              <div className="flex flex-col gap-2.5 font-semibold text-[10px]">
+            isSidebarCollapsed ? (
+              <div 
+                className="flex flex-col items-center gap-2 p-2.5 bg-slate-50 border border-slate-100 rounded-full transition-colors"
+                title={`Active Patient Loop: ${activePatient.name}`}
+              >
                 {[
                   { id: 'registered', label: 'Registered' },
-                  { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
-                  { id: 'lab', label: 'Lab Processing' },
-                  { id: 'pharmacy', label: 'Pharmacy Verif.' },
-                  { id: 'settled', label: 'Ledger Settled' }
+                  { id: 'diagnosing', label: 'Diagnosing' },
+                  { id: 'lab', label: 'Lab' },
+                  { id: 'pharmacy', label: 'Pharmacy' },
+                  { id: 'settled', label: 'Settled' }
                 ].map((step, idx, arr) => {
                   const stages = arr.map(s => s.id);
                   const currentIdx = stages.indexOf(activePatientStage);
@@ -326,53 +367,104 @@ export const Navbar: React.FC<NavbarProps> = ({
                   const isActive = idx === currentIdx;
                   
                   return (
-                    <div key={step.id} className="flex items-center gap-2">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] font-bold shrink-0 transition-all duration-350 ${
+                    <div 
+                      key={step.id} 
+                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono font-bold border transition-all duration-350 ${
                         isActive 
-                          ? 'bg-primary/10 border-primary text-primary scale-105 shadow-sm' 
+                          ? 'bg-primary/10 border-primary text-primary scale-110 shadow-sm' 
                           : isCompleted 
                             ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
                             : 'bg-white border-slate-200 text-slate-300'
-                      }`}>
-                        {isCompleted ? '✓' : idx + 1}
-                      </div>
-                      <span className={`truncate leading-none ${isActive ? 'text-primary font-bold' : isCompleted ? 'text-emerald-600 font-medium' : 'text-slate-400 font-medium'}`}>
-                        {step.label}
-                      </span>
+                      }`}
+                    >
+                      {isCompleted ? '✓' : idx + 1}
                     </div>
                   );
                 })}
               </div>
-            </div>
+            ) : (
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3 animate-fade-in">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Patient Loop</span>
+                  <span className="text-xs font-bold text-slate-700 truncate">{activePatient.name}</span>
+                </div>
+                
+                <div className="flex flex-col gap-2.5 font-semibold text-[10px]">
+                  {[
+                    { id: 'registered', label: 'Registered' },
+                    { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                    { id: 'lab', label: 'Lab Processing' },
+                    { id: 'pharmacy', label: 'Pharmacy Verif.' },
+                    { id: 'settled', label: 'Ledger Settled' }
+                  ].map((step, idx, arr) => {
+                    const stages = arr.map(s => s.id);
+                    const currentIdx = stages.indexOf(activePatientStage);
+                    const isCompleted = idx < currentIdx;
+                    const isActive = idx === currentIdx;
+                    
+                    return (
+                      <div key={step.id} className="flex items-center gap-2">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] font-bold shrink-0 transition-all duration-350 ${
+                          isActive 
+                            ? 'bg-primary/10 border-primary text-primary scale-105 shadow-sm' 
+                            : isCompleted 
+                              ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
+                              : 'bg-white border-slate-200 text-slate-300'
+                        }`}>
+                          {isCompleted ? '✓' : idx + 1}
+                        </div>
+                        <span className={`truncate leading-none ${isActive ? 'text-primary font-bold' : isCompleted ? 'text-emerald-600 font-medium' : 'text-slate-400 font-medium'}`}>
+                          {step.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )
           )}
 
           {/* Vertical Menu Options */}
-          <div className="space-y-1.5 pt-2">
-            <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-2 mb-2">Ecosystem Modules</span>
+          <div className="space-y-1.5 pt-2 w-full">
+            {!isSidebarCollapsed && (
+              <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-2 mb-2 animate-fade-in">Ecosystem Modules</span>
+            )}
             {roles.map((r) => {
               const Icon = r.icon;
               const isActive = currentRole === r.id;
               return (
                 <button
                   key={r.id}
-                  onClick={() => onChangeRole(r.id as UserRole)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
+                  onClick={(e) => {
+                    // If collapsed, clicking switch expands sidebar as well
+                    if (isSidebarCollapsed) {
+                      e.stopPropagation();
+                      onChangeRole(r.id as UserRole);
+                      onToggleSidebarCollapse?.(false);
+                    } else {
+                      onChangeRole(r.id as UserRole);
+                    }
+                  }}
+                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2 rounded-full' : 'gap-3 px-3 py-2 rounded-full'} text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
                     isActive
                       ? 'bg-slate-50 text-slate-900 border border-slate-100 shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/50 border border-transparent'
                   }`}
+                  title={r.name}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
                     isActive 
                       ? 'bg-primary text-white shadow-md shadow-primary/20 scale-105' 
                       : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600'
                   }`}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <span className="flex-1 text-left">{r.name}</span>
+                  {!isSidebarCollapsed && (
+                    <span className="flex-1 text-left animate-fade-in">{r.name}</span>
+                  )}
                   
-                  {isActive && (
-                    <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-primary" />
+                  {isActive && !isSidebarCollapsed && (
+                    <span className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
                 </button>
               );
@@ -381,60 +473,113 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Bottom: Active Profile Badge & Workspace Actions */}
-        <div className="space-y-4 pt-4 border-t border-slate-100">
+        <div className={`space-y-4 pt-4 border-t border-slate-100 w-full ${isSidebarCollapsed ? 'flex flex-col items-center gap-3 pt-3' : ''}`}>
           {activeProfile && (
-            <div className="space-y-3">
-              {/* Profile Details Badge */}
-              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/50 border border-slate-100/60 font-sans">
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+            isSidebarCollapsed ? (
+              <div className="flex flex-col items-center gap-3 w-full">
+                {/* Collapsed Profile Avatar */}
+                <div 
+                  className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 cursor-pointer"
+                  title={`Active Profile: ${activeProfile.display_name} (${activeProfile.role})`}
+                >
                   {activeProfile.display_name.charAt(0)}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <span className="block text-xs font-bold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                  <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
-                </div>
+
+                {/* Collapsed Dev Bypass Trigger */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleBypass(!isBypassMode);
+                  }}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 cursor-pointer ${
+                    isBypassMode 
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' 
+                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600'
+                  }`}
+                  title={isBypassMode ? "Bypass Mode Active" : "Secure Mode Active"}
+                >
+                  {isBypassMode ? (
+                    <ShieldAlert className="h-4 w-4 text-amber-500 animate-pulse" />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4" />
+                  )}
+                </button>
+
+                {/* Collapsed Log Out Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSignOut();
+                  }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-400 hover:text-rose-500 transition-all duration-300 cursor-pointer"
+                  title="Sign Out Workspace"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
               </div>
+            ) : (
+              <div className="space-y-3 animate-fade-in">
+                {/* Profile Details Badge */}
+                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/50 border border-slate-100/60 font-sans">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                    {activeProfile.display_name.charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
+                    <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
+                  </div>
+                </div>
 
-              {/* Dev Bypass Trigger */}
-              <button 
-                onClick={() => onToggleBypass(!isBypassMode)}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                  isBypassMode 
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 shadow-sm shadow-amber-500/5' 
-                    : 'bg-slate-50 border-slate-100 text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {isBypassMode ? (
-                  <>
-                    <ShieldAlert className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
-                    Bypass Active
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
-                    Secure Mode
-                  </>
-                )}
-              </button>
+                {/* Dev Bypass Trigger */}
+                <button 
+                  onClick={() => onToggleBypass(!isBypassMode)}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                    isBypassMode 
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 shadow-sm shadow-amber-500/5' 
+                      : 'bg-slate-50 border-slate-100 text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {isBypassMode ? (
+                    <>
+                      <ShieldAlert className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                      Bypass Active
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+                      Secure Mode
+                    </>
+                  )}
+                </button>
 
-              {/* Log Out Button */}
-              <button
-                onClick={onSignOut}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-500 hover:text-rose-500 rounded-xl transition-all duration-300 font-semibold text-xs cursor-pointer"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Sign Out Workspace
-              </button>
-            </div>
+                {/* Log Out Button */}
+                <button
+                  onClick={onSignOut}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-500 hover:text-rose-500 rounded-full transition-all duration-300 font-semibold text-xs cursor-pointer"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Sign Out Workspace
+                </button>
+              </div>
+            )
           )}
         </div>
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="lg:hidden border-b border-slate-100 bg-white/75 backdrop-blur-xl sticky top-0 z-50 px-4 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)] w-full">
+      <nav className="md:hidden border-b border-slate-100 bg-white/75 backdrop-blur-xl sticky top-0 z-50 px-4 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)] w-full">
         <div className="max-w-7xl mx-auto flex flex-col gap-4">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
+              {/* Mobile Sidebar Drawer Hamburger Trigger */}
+              <button 
+                onClick={() => setIsMobileDrawerOpen(true)}
+                className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors cursor-pointer mr-1"
+                aria-label="Open Sidebar Drawer"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+
               <div className="p-2.5 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md">
                 <Activity className="h-6 w-6 text-white" />
               </div>
@@ -548,9 +693,186 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </nav>
 
+      {/* Mobile Drawer Slide-over Panel Sheet */}
+      {isMobileDrawerOpen && (
+        <div className="md:hidden fixed inset-0 z-[100] flex animate-fade-in">
+          {/* Drawer Backdrop Overlay */}
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+
+          {/* Drawer Content Sheet */}
+          <aside className="relative flex flex-col w-72 bg-white h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50">
+            <div className="space-y-6">
+              {/* Header inside drawer */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md">
+                    <Activity className="h-4.5 w-4.5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-extrabold text-sm tracking-tight text-slate-900">Mediflow</h2>
+                    <span className="text-[8px] font-mono tracking-wider font-bold text-emerald-500">SYSTEM LIVE</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+
+              {/* Active Workspace */}
+              {activePod && (
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                  <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Workspace</span>
+                  <span className="block text-xs font-bold text-slate-700 truncate">{activeEntity?.name}</span>
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    Code: <span className="font-bold text-slate-700 font-mono">{activePod.clinicCode}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Patient Care loop inside drawer */}
+              {activePatient && (
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Patient Loop</span>
+                    <span className="text-xs font-bold text-slate-700 truncate">{activePatient.name}</span>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2.5 font-semibold text-[10px]">
+                    {[
+                      { id: 'registered', label: 'Registered' },
+                      { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                      { id: 'lab', label: 'Lab Processing' },
+                      { id: 'pharmacy', label: 'Pharmacy Verif.' },
+                      { id: 'settled', label: 'Ledger Settled' }
+                    ].map((step, idx, arr) => {
+                      const stages = arr.map(s => s.id);
+                      const currentIdx = stages.indexOf(activePatientStage);
+                      const isCompleted = idx < currentIdx;
+                      const isActive = idx === currentIdx;
+                      
+                      return (
+                        <div key={step.id} className="flex items-center gap-2">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] font-bold shrink-0 transition-all duration-350 ${
+                            isActive 
+                              ? 'bg-primary/10 border-primary text-primary scale-105 shadow-sm' 
+                              : isCompleted 
+                                ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
+                                : 'bg-white border-slate-200 text-slate-300'
+                          }`}>
+                            {isCompleted ? '✓' : idx + 1}
+                          </div>
+                          <span className={`truncate leading-none ${isActive ? 'text-primary font-bold' : isCompleted ? 'text-emerald-600 font-medium' : 'text-slate-400 font-medium'}`}>
+                            {step.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Modules Switcher */}
+              <div className="space-y-1.5 pt-2">
+                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-2 mb-2">Ecosystem Modules</span>
+                {roles.map((r) => {
+                  const Icon = r.icon;
+                  const isActive = currentRole === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        onChangeRole(r.id as UserRole);
+                        setIsMobileDrawerOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-full text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
+                        isActive
+                          ? 'bg-slate-50 text-slate-900 border border-slate-100 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/50 border border-transparent'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                        isActive 
+                          ? 'bg-primary text-white shadow-md shadow-primary/20 scale-105' 
+                          : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600'
+                      }`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="flex-1 text-left">{r.name}</span>
+                      {isActive && (
+                        <span className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-primary" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom active profile and workspace actions inside drawer */}
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              {activeProfile && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/50 border border-slate-100/60 font-sans">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                      {activeProfile.display_name.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xs font-bold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
+                      <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      onToggleBypass(!isBypassMode);
+                      setIsMobileDrawerOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                      isBypassMode 
+                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 shadow-sm' 
+                        : 'bg-slate-50 border-slate-100 text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {isBypassMode ? (
+                      <>
+                        <ShieldAlert className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                        Bypass Active
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+                        Secure Mode
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onSignOut();
+                      setIsMobileDrawerOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-500 hover:text-rose-500 rounded-full transition-all duration-300 font-semibold text-xs cursor-pointer"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign Out Workspace
+                  </button>
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* Ecosystem Live Pipeline Telemetry HUD Bottom Drawer */}
       <div 
-        className={`fixed left-0 right-0 lg:left-64 z-40 transition-all duration-500 ease-in-out border-t border-slate-100 bg-white/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,23,42,0.02)] flex flex-col lg:bottom-0 ${
+        className={`fixed left-0 right-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'} z-40 transition-all duration-500 ease-in-out border-t border-slate-100 bg-white/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,23,42,0.02)] flex flex-col md:bottom-0 ${
           isHudExpanded ? 'h-[230px]' : 'h-[36px]'
         } bottom-16`}
       >
@@ -618,7 +940,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
         <div className="flex items-center justify-around h-16">
           {roles.map((r) => {
             const Icon = r.icon;
@@ -668,3 +990,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </>
   );
 };
+

@@ -54,6 +54,7 @@ function AppContent({
 }: AppContentProps) {
   const { partnerStatus } = useClinic();
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const renderDashboard = () => {
     switch (currentRole) {
@@ -153,10 +154,12 @@ function AppContent({
         onSignOut={handleSignOut}
         isBypassMode={isBypassMode}
         onToggleBypass={handleToggleBypass}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleSidebarCollapse={setIsSidebarCollapsed}
       />
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
-      <main className="flex-1 pb-32 lg:pb-16 lg:pl-64">
+      <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300`}>
         <div className="animate-fade-in">
           <ErrorBoundary>
             {renderDashboard()}
