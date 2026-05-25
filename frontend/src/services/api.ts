@@ -535,14 +535,74 @@ class MediflowApiService {
     while (attempt < maxAttempts) {
       attempt++;
       try {
-        // Simulate a transient rate-limit (HTTP 429) or gateway timeout error on the first attempt 
-        // for roughly 25% of messages to demonstrate the retry & exponential backoff mechanism in action.
+        // 1. Try to load live WABA connection configured for this pod/clinic
+        const { data: session } = await supabase.from('whatsapp_sessions').select('session_data').eq('patient_phone', phone).single();
+        const podId = session?.session_data?.podId;
+
+        if (podId) {
+          const { data: wabaConn } = await supabase
+            .from('waba_connections')
+            .select('*')
+            .eq('pod_id', podId)
+            .single();
+
+          if (wabaConn && wabaConn.waba_status === 'active') {
+            const { data: decryptedData, error: rpcErr } = await supabase.rpc('decrypt_tenant_waba_connection', {
+              p_phone_number_id: wabaConn.phone_number_id,
+              p_secret_key: 'mediflow_vault_key_2026'
+            });
+
+            if (!rpcErr && decryptedData && decryptedData.length > 0) {
+              const decryptedToken = decryptedData[0].decrypted_token;
+              const phoneId = wabaConn.phone_number_id;
+
+              const metaUrl = `https://graph.facebook.com/v21.0/${phoneId}/messages`;
+              let bodyPayload: Record<string, any> = {
+                messaging_product: "whatsapp",
+                recipient_type: "individual",
+                to: phone,
+                type: "text",
+                text: { body: payload.replyText ?? `Mediflow system update: ${template}` }
+              };
+
+              if (template === 'mediflow_welcome') {
+                bodyPayload = {
+                  messaging_product: "whatsapp",
+                  recipient_type: "individual",
+                  to: phone,
+                  type: "template",
+                  template: {
+                    name: "mediflow_welcome",
+                    language: { code: "en_US" }
+                  }
+                };
+              }
+
+              const res = await fetch(metaUrl, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${decryptedToken}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify(bodyPayload)
+              });
+
+              if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(`Meta Graph API responded with status ${res.status}: ${JSON.stringify(errData)}`);
+              }
+
+              return true;
+            }
+          }
+        }
+
+        // 2. Simulator Fallback: If no live connection is active, simulate latency and return success
         const isTransientError = Math.random() < 0.25;
         if (isTransientError && attempt < maxAttempts) {
           throw new Error("Meta Gateway Timeout (HTTP 504) or Rate-Limit Exceeded (HTTP 429)");
         }
 
-        // Simulate network latency (using payload & template to satisfy compiler unused warnings)
         if (payload || template) {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
