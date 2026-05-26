@@ -651,7 +651,7 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-6">
               <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-50" />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                   <div>
                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
