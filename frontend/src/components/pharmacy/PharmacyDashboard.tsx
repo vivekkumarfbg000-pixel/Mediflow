@@ -526,59 +526,59 @@ export const PharmacyDashboard: React.FC = () => {
       `}</style>
 
       {/* DASHBOARD HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-            <span className="material-symbols-outlined text-secondary text-3xl">medication</span>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+            <span className="material-symbols-outlined text-indigo-600 text-3xl">medication</span>
             Patna Smart Pharmacy Workdesk
             <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest ${
               isOnline 
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 animate-pulse' 
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-600 animate-pulse' 
+                : 'bg-rose-50 border-rose-200 text-rose-600'
             }`}>
               {isOnline ? 'Online' : 'Offline Mode (Local Cache)'}
             </span>
           </h1>
-          <p className="text-xs text-clinical-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Clinic ecosystem pharmacy dispatcher center connected with doctor holds, WhatsApp automated billing, and live FEFO batch compliance tracker.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="btn-primary py-2.5 px-4 text-xs font-bold flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform bg-gradient-to-r from-secondary to-primary cursor-pointer border-0 rounded-xl text-white font-semibold"
+            className="btn-primary"
           >
             <Plus className="h-4 w-4" /> Add Medicine
           </button>
           <button 
             onClick={() => setIsCsvImportOpen(true)}
-            className="glass-panel py-2.5 px-4 text-xs font-bold flex items-center gap-2 hover:bg-surface-container hover:text-white border-white/10 text-clinical-300 rounded-xl cursor-pointer"
+            className="btn-secondary"
           >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Bulk CSV Import
+            <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Bulk CSV Import
           </button>
           <button 
             onClick={() => setIsBillScanOpen(true)}
-            className="glass-panel py-2.5 px-4 text-xs font-bold flex items-center gap-2 hover:bg-surface-container hover:text-white border-white/10 text-clinical-300 rounded-xl cursor-pointer"
+            className="btn-secondary"
           >
-            <Camera className="h-4 w-4 text-secondary" /> Scan Supplier Invoice
+            <Camera className="h-4 w-4 text-indigo-500" /> Scan Supplier Invoice
           </button>
         </div>
       </div>
 
       {/* HORIZONTAL TAB SWITCHER */}
-      <div className="flex border-b border-white/10 overflow-x-auto gap-2 pb-0.5 no-scrollbar">
+      <div className="flex border-b border-slate-200 overflow-x-auto gap-2 pb-0.5 no-scrollbar">
         <button
           onClick={() => setActiveTab('prescription_queue')}
           className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
             activeTab === 'prescription_queue'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <span className="material-symbols-outlined text-sm">inventory_2</span>
           Prescription Queue
           {activeHoldsCount > 0 && (
-            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-secondary text-black font-black animate-pulse">
+            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-indigo-600 text-white font-bold animate-pulse">
               {activeHoldsCount}
             </span>
           )}
@@ -588,8 +588,8 @@ export const PharmacyDashboard: React.FC = () => {
           onClick={() => setActiveTab('inventory_catalog')}
           className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
             activeTab === 'inventory_catalog'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <span className="material-symbols-outlined text-sm">database</span>
@@ -600,14 +600,14 @@ export const PharmacyDashboard: React.FC = () => {
           onClick={() => setActiveTab('stock_alerts')}
           className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
             activeTab === 'stock_alerts'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <span className="material-symbols-outlined text-sm">warning</span>
           Stock Alerts
           {criticalStockCount > 0 && (
-            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-rose-500 text-white font-black animate-bounce">
+            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-rose-500 text-white font-bold animate-bounce">
               {criticalStockCount}
             </span>
           )}
@@ -617,14 +617,14 @@ export const PharmacyDashboard: React.FC = () => {
           onClick={() => setActiveTab('expiry_tracker')}
           className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
             activeTab === 'expiry_tracker'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <span className="material-symbols-outlined text-sm">event_busy</span>
           Expiry Tracker
           {criticalExpiryCount > 0 && (
-            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-amber-500 text-black font-black">
+            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-amber-500 text-black font-bold">
               {criticalExpiryCount}
             </span>
           )}
@@ -634,8 +634,8 @@ export const PharmacyDashboard: React.FC = () => {
           onClick={() => setActiveTab('ai_demand')}
           className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
             activeTab === 'ai_demand'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <span className="material-symbols-outlined text-sm">psychology</span>
