@@ -167,8 +167,8 @@ export const BillingDashboard: React.FC = () => {
         {/* Invoice Pipeline */}
         <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-primary opacity-50" />
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-rose-400 text-xl">account_balance_wallet</span>
+          <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-rose-400 text-[16px]">account_balance_wallet</span>
             Unified Bill Ledger
           </h2>
 
@@ -288,8 +288,8 @@ export const BillingDashboard: React.FC = () => {
                     </button>
                   )}
                 </div>
-                <h3 className="font-bold text-white text-lg mt-3 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-primary">account_balance</span>
+                <h3 className="font-semibold text-white text-sm mt-3 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-primary text-[16px]">account_balance</span>
                   Unified Split-Bill
                   <span className="text-clinical-400 font-medium text-xs font-mono uppercase bg-surface-container-high px-2 py-0.5 rounded ml-1">
                     ({selectedInvoice.id.substring(0, 8)}...)
@@ -441,7 +441,7 @@ export const BillingDashboard: React.FC = () => {
                   {/* Total Aggregate Sum */}
                   <div className="p-4 bg-surface-container border border-outline-variant rounded-xl flex items-center justify-between shadow-inner">
                     <span className="font-bold text-xs text-clinical-300 uppercase tracking-widest font-mono">Total Invoice Amount</span>
-                    <span className="font-black text-white text-lg flex items-center font-mono">
+                    <span className="font-bold text-white text-base flex items-center font-mono">
                       INR {selectedInvoice.totalAmount}.00
                     </span>
                   </div>
@@ -494,7 +494,7 @@ export const BillingDashboard: React.FC = () => {
                     const invoiceLedgers = ledgerEntries.filter(l => l.invoiceId === selectedInvoice.id);
                     return invoiceLedgers.length === 0 ? (
                       <div className="p-5 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center">
-                        <span className="material-symbols-outlined text-2xl text-clinical-600 block mb-2">receipt_long</span>
+                        <span className="material-symbols-outlined text-xl text-clinical-600 block mb-2">receipt_long</span>
                         <p className="text-[11px] text-clinical-500">No ledger rows yet. Trigger UPI callback to generate splits.</p>
                         <p className="text-[10px] text-clinical-600 mt-1 font-mono">DB trigger <code>trg_payment_cleared</code> populates rows on payment clearance.</p>
                       </div>

@@ -370,8 +370,8 @@ export const LabDashboard: React.FC = () => {
         {/* Active Test Requisitions */}
         <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
-          <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-xl">biotech</span>
+          <h2 className="text-sm font-semibold text-white mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-[16px]">biotech</span>
             Active Pathology Specimen & Requisition Queue
           </h2>
 
@@ -519,8 +519,8 @@ export const LabDashboard: React.FC = () => {
         {/* Diagnostic completed reports card */}
         <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-secondary text-xl">verified</span>
+          <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-secondary text-[16px]">verified</span>
             Completed Diagnostic Report Cards & Reagent Logs
           </h2>
           
@@ -577,8 +577,8 @@ export const LabDashboard: React.FC = () => {
           
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl">biotech</span>
+              <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[16px]">biotech</span>
                 Volumetric Reagent Ledger
               </h2>
               <p className="text-[11px] text-clinical-400 leading-relaxed">
@@ -803,8 +803,8 @@ export const LabDashboard: React.FC = () => {
         {activeReqId && activeReq && (
           <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden animate-fade-in">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
-            <h3 className="font-bold text-white mb-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary text-xl">edit_document</span>
+            <h3 className="font-semibold text-white mb-2 flex items-center gap-2 text-sm">
+              <span className="material-symbols-outlined text-secondary text-[16px]">edit_document</span>
               Biomarker Data Entry Form
             </h3>
             <p className="text-xs text-clinical-400 mb-4 leading-relaxed">
@@ -1041,8 +1041,8 @@ export const LabDashboard: React.FC = () => {
           <div className="glass-panel max-w-md w-full p-6 border-primary/20 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-primary" />
             <div className="flex items-center justify-between border-b border-outline-variant pb-3">
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl">label</span>
+              <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[16px]">label</span>
                 Specimen Label Printer
               </h3>
               <button

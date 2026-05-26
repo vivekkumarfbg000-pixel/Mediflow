@@ -528,8 +528,8 @@ export const PharmacyDashboard: React.FC = () => {
       {/* DASHBOARD HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-            <span className="material-symbols-outlined text-indigo-600 text-3xl">medication</span>
+          <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
+            <span className="material-symbols-outlined text-indigo-600 text-[20px]">medication</span>
             Patna Smart Pharmacy Workdesk
             <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest ${
               isOnline 
@@ -654,8 +654,8 @@ export const PharmacyDashboard: React.FC = () => {
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-50" />
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                   <div>
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-xl">inventory_2</span>
+                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-[16px]">inventory_2</span>
                       Active e-Prescription Reserves (FEFO Sorted)
                     </h2>
                     <p className="text-xs text-clinical-400 mt-1">
@@ -878,8 +878,8 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-rose-400 animate-pulse" />
+                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-rose-400 animate-pulse" />
                   Pharmacy Stock Deficit Alerts
                 </h2>
                 <p className="text-xs text-clinical-400 mt-1">
@@ -969,8 +969,8 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row items-center justify-between border-b border-white/10 pb-4 gap-4">
               <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-400">event_busy</span>
+                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-rose-400 text-[16px]">event_busy</span>
                   Consolidated Facility Expiry Tracker (FEFO)
                 </h2>
                 <p className="text-xs text-clinical-400 mt-1">
@@ -1129,8 +1129,8 @@ export const PharmacyDashboard: React.FC = () => {
             <div className="lg:col-span-8 space-y-6">
               <div className="glass-panel p-6 border-white/10 shadow-xl space-y-5">
                 <div>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-xl">psychology</span>
+                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-[16px]">psychology</span>
                     Gemini Seasonal Demand Surveillance Forecasts
                   </h2>
                   <p className="text-xs text-clinical-400 mt-1">

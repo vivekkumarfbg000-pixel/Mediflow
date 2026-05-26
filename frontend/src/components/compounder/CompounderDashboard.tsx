@@ -684,7 +684,7 @@ export const CompounderDashboard: React.FC = () => {
         {/* Top row: title + status */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pb-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+            <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
               <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-indigo-600 text-white shadow-sm">
                 <span className="material-symbols-outlined text-[20px]">medical_services</span>
               </span>
@@ -759,8 +759,8 @@ export const CompounderDashboard: React.FC = () => {
               {/* Search Registry */}
               <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-xl">person_search</span>
+                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[16px]">person_search</span>
                   Patient Registry Lookup
                 </h2>
                 <div className="relative">
@@ -836,8 +836,8 @@ export const CompounderDashboard: React.FC = () => {
 
               {/* Patient Registration Form */}
               <div className="glass-panel p-6 border-white/10 shadow-xl relative">
-                <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-xl">person_add</span>
+                <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[16px]">person_add</span>
                   Manual Patient Registration
                 </h2>
                 <p className="text-xs text-clinical-400 mb-4 leading-relaxed">
@@ -1002,8 +1002,8 @@ export const CompounderDashboard: React.FC = () => {
               {/* Active reports upload list */}
               <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
-                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2 border-b border-white/10 pb-4">
-                  <span className="material-symbols-outlined text-primary text-xl">upload_file</span>
+                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2 border-b border-white/10 pb-4">
+                  <span className="material-symbols-outlined text-primary text-[16px]">upload_file</span>
                   Scanned Reports Queue (Awaiting Doctor Diagnosis)
                 </h2>
 
@@ -1096,7 +1096,7 @@ export const CompounderDashboard: React.FC = () => {
 
                   {/* Dropzone mock */}
                   <div className="border border-dashed border-outline-variant rounded-xl p-5 text-center bg-black/25 select-none relative hover:border-secondary/50 transition-colors">
-                    <span className="material-symbols-outlined text-3xl text-clinical-400 mb-1.5">clinical_notes</span>
+                    <span className="material-symbols-outlined text-xl text-clinical-400 mb-1.5">clinical_notes</span>
                     <p className="text-[10px] text-white font-bold">Select report sheet scan photo</p>
                     <p className="text-[8px] text-clinical-500 mt-1">Accepts PDF, PNG, JPG (Max 5MB)</p>
                     <input type="file" disabled={isUploadingReport} className="absolute inset-0 opacity-0 cursor-pointer" />
