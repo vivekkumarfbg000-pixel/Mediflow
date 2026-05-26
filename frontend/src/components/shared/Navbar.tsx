@@ -324,7 +324,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {/* Top: Brand Logo and Connected Info */}
-        <div className={`space-y-6 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`space-y-3 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
             <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shrink-0 shadow-sm shadow-indigo-600/10">
               <svg className="h-4.5 w-4.5 animate-pulse-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
@@ -410,13 +410,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 })}
               </div>
             ) : (
-              <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
+              <div className="p-2.5 bg-white border border-slate-200/50 rounded-lg space-y-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Patient Loop</span>
-                  <span className="text-xs font-semibold text-slate-800 truncate">{activePatient.name}</span>
+                  <span className="text-[11px] font-semibold text-slate-800 truncate">{activePatient.name}</span>
                 </div>
                 
-                <div className="flex flex-col gap-2 font-medium text-[11px]">
+                <div className="flex flex-col gap-1.5 font-medium text-[10px]">
                   {[
                     { id: 'registered', label: 'Registered' },
                     { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
@@ -452,9 +452,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Vertical Menu Options */}
-          <div className="space-y-1.5 pt-2 w-full">
+          <div className="space-y-0.5 pt-2 w-full">
             {!isSidebarCollapsed && (
-              <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-3 mb-2 animate-fade-in">Ecosystem Modules</span>
+              <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-2 mb-1.5 animate-fade-in">Ecosystem Modules</span>
             )}
             {roles.map((r) => {
               const Icon = r.icon;
@@ -471,7 +471,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onChangeRole(r.id as UserRole);
                     }
                   }}
-                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-2 px-3 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
+                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-200 relative group cursor-pointer ${
                     isActive
                       ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
@@ -480,10 +480,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   {/* Left accent indicator line on active */}
                   {isActive && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-indigo-600 rounded-r" />
                   )}
                   
-                  <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
+                  <Icon className={`h-4 w-4 shrink-0 transition-colors ${
                     isActive 
                       ? 'text-indigo-600' 
                       : 'text-slate-400 group-hover:text-slate-600'
