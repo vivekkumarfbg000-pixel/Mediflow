@@ -679,69 +679,73 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* DASHBOARD HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-            <span className="material-symbols-outlined text-secondary text-3xl font-bold">clinical_fe</span>
-            Compounder Operations Desk
-            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest ${
-              isOnline 
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 animate-pulse' 
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-            }`}>
-              {isOnline ? 'Online' : 'Offline Mode (Local Cache)'}
+      {/* DASHBOARD HEADER — integrated tabs */}
+      <div className="border-b border-slate-200 pb-0">
+        {/* Top row: title + status */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pb-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+              <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-indigo-600 text-white shadow-sm">
+                <span className="material-symbols-outlined text-[20px]">medical_services</span>
+              </span>
+              Compounder Operations Desk
+              <span className={`text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-widest ${
+                isOnline
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600 animate-pulse'
+                  : 'bg-rose-50 border-rose-200 text-rose-600'
+              }`}>
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 ml-12">
+              Clinical checkup hub — appointments, medicine billing, pathology scans &amp; Shiprocket dispatches.
+            </p>
+          </div>
+          <div className="ml-12 md:ml-0 flex items-center gap-2 shrink-0">
+            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider font-mono">
+              {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} · Checked-In
             </span>
-          </h1>
-          <p className="text-xs text-clinical-400 mt-1">
-            Single clinical checkup ecosystem hub running appointments checkout, dynamic medicine billing, supplier invoices, pathology scans, and Shiprocket dispatches.
-          </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-clinical-400 font-bold">Shift Active:</span>
-          <span className="text-[10px] bg-secondary/15 text-secondary border border-secondary/20 px-3 py-1.5 rounded-full font-black uppercase tracking-wider font-mono">
-            {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} Checked-In
-          </span>
+
+        {/* Integrated Tab Switcher — lives in header */}
+        <div className="flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
+          <button
+            onClick={() => setActiveTab('registry')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'registry'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <UserCheck className="h-4 w-4" />
+            Patient Registry &amp; Shifts
+          </button>
+
+          <button
+            onClick={() => setActiveTab('pathology')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'pathology'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            Pathology Reports Queue
+          </button>
+
+          <button
+            onClick={() => setActiveTab('medicine_billing')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'medicine_billing'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <Coins className="h-4 w-4" />
+            Medicine Billing &amp; POS
+          </button>
         </div>
-      </div>
-
-      {/* HORIZONTAL TAB SWITCHER */}
-      <div className="flex border-b border-white/10 overflow-x-auto gap-2 pb-0.5 no-scrollbar select-none">
-        <button
-          onClick={() => setActiveTab('registry')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'registry'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
-          }`}
-        >
-          <UserCheck className="h-4 w-4" />
-          Patient Registry & Shifts
-        </button>
-
-        <button
-          onClick={() => setActiveTab('pathology')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'pathology'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
-          }`}
-        >
-          <FileText className="h-4 w-4 text-primary" />
-          Pathology Reports Queue
-        </button>
-
-        <button
-          onClick={() => setActiveTab('medicine_billing')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'medicine_billing'
-              ? 'border-secondary text-secondary font-black bg-secondary/5'
-              : 'border-transparent text-clinical-400 hover:text-white'
-          }`}
-        >
-          <Coins className="h-4 w-4 text-emerald-400 font-bold" />
-          Medicine Billing & POS
-        </button>
       </div>
 
       {/* TAB CONTENT SPACES */}
@@ -754,7 +758,7 @@ export const CompounderDashboard: React.FC = () => {
               
               {/* Search Registry */}
               <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-xl">person_search</span>
                   Patient Registry Lookup
