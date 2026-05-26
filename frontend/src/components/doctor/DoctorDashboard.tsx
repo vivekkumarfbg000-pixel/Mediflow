@@ -3988,62 +3988,67 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-6 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {/* Ecosystem Command Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-2">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary/75 text-2xl animate-pulse">hub</span>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 font-sans">Dr. Sharma's Care Dashboard</h1>
-          </div>
-          <p className="text-xs font-medium text-slate-400 mt-1.5 flex items-center gap-2">
-            Mediflow Pod Tenant Host 
-            <span className="text-slate-300 font-bold">•</span>
-            Clinic Code: 
-            <span className="font-mono font-bold text-slate-500 bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-md text-[10px]">
-              {activePod?.clinicCode || 'MF-PATNA101'}
-            </span>
-          </p>
-        </div>
-        
-        {/* Quick Stats Pill */}
-        <div className="flex items-center gap-2.5 bg-white border border-slate-200/80 shadow-xs px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 transition-all">
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span className="font-mono tracking-tight">Real-Time Sync: Connected</span>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
-      {/* Premium Stripe-Style Segmented Control - Hidden on mobile viewports, wraps beautifully on desktop */}
-      <div className="hidden lg:block mt-2 w-full">
-        <div className="flex lg:flex-wrap items-center gap-1 p-1 bg-slate-100/70 border border-slate-200/40 rounded-2xl w-full">
+      {/* ── HEADER BLOCK: title + tabs integrated ── */}
+      <div className="border-b border-slate-200 pb-0">
+
+        {/* Top row */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600 text-white shadow-sm shrink-0">
+              <span className="material-symbols-outlined text-[18px]">hub</span>
+            </span>
+            <div>
+              <h1 className="text-base font-semibold tracking-tight text-slate-800 font-sans leading-tight">Dr. Sharma's Care Dashboard</h1>
+              <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                Mediflow Pod Tenant Host
+                <span className="text-slate-300">·</span>
+                Clinic Code:
+                <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
+                  {activePod?.clinicCode || 'MF-PATNA101'}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {/* Status pill */}
+          <div className="flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
+            <span className="flex h-1.5 w-1.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            </span>
+            <span className="font-mono">Real-Time Sync: Connected</span>
+          </div>
+        </div>
+
+        {/* Desktop tab nav — integrated into header */}
+        <div className="hidden lg:flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px">
           {[
-            { id: 'overview', label: 'Command Center', icon: 'dashboard' },
-            { id: 'consultation', label: 'Consultation Queue', icon: 'clinical_notes' },
-            { id: 'financials', label: 'Financial Reports', icon: 'account_balance_wallet' },
-            { id: 'pharmacy', label: 'Medical Shop', icon: 'pill' },
-            { id: 'pathology', label: 'Pathology Lab', icon: 'biotech' },
-            { id: 'patients', label: 'Patient Directory', icon: 'group' },
-            { id: 'whatsapp', label: 'WhatsApp Inbox', icon: 'chat' },
-            { id: 'sop', label: 'Clinic SOP', icon: 'policy' }
+            { id: 'overview',      label: 'Command Center',      icon: 'dashboard' },
+            { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
+            { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
+            { id: 'pharmacy',      label: 'Medical Shop',        icon: 'pill' },
+            { id: 'pathology',     label: 'Pathology Lab',       icon: 'biotech' },
+            { id: 'patients',      label: 'Patient Directory',   icon: 'group' },
+            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' },
+            { id: 'sop',           label: 'Clinic SOP',          icon: 'policy' }
           ].map(tab => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-300 cursor-pointer shrink-0 ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold border-b-2 whitespace-nowrap transition-all cursor-pointer rounded-t-md ${
                   isActive
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200/50 hover:scale-[1.02] active:scale-[0.98]'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/60 border border-transparent'
+                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                 }`}
               >
-                <span className={`material-symbols-outlined text-base ${isActive ? 'text-slate-850' : 'text-slate-400'}`}>
-                  {tab.icon}
-                </span>
-                <span>{tab.label}</span>
+                <span className={`material-symbols-outlined text-[15px] ${
+                  isActive ? 'text-indigo-500' : 'text-slate-400'
+                }`}>{tab.icon}</span>
+                {tab.label}
               </button>
             );
           })}
@@ -4101,45 +4106,37 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
         )}
       </div>
 
-      {/* Premium Fixed Bottom Navigation Bar for Doctor Dashboard on Mobile Viewports */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200/80 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-2 py-3 flex justify-between items-center z-50 pb-safe-bottom h-16">
+      {/* ── MOBILE BOTTOM NAV (footer) ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex justify-around items-center z-50 h-14 px-1">
         {[
-          { id: 'overview', label: 'Command', icon: 'dashboard', color: 'text-primary-600' },
-          { id: 'consultation', label: 'Consult', icon: 'clinical_notes', color: 'text-accent-600' },
-          { id: 'financials', label: 'Finance', icon: 'account_balance_wallet', color: 'text-emerald-600' },
-          { id: 'pharmacy', label: 'Pharmacy', icon: 'pill', color: 'text-rose-600' },
-          { id: 'pathology', label: 'Lab', icon: 'biotech', color: 'text-blue-600' },
-          { id: 'patients', label: 'Patients', icon: 'group', color: 'text-indigo-600' },
-          { id: 'whatsapp', label: 'Chat', icon: 'chat', color: 'text-primary-600' },
-          { id: 'sop', label: 'SOP', icon: 'policy', color: 'text-violet-600' }
+          { id: 'overview',     label: 'Command',  icon: 'dashboard' },
+          { id: 'consultation', label: 'Consult',  icon: 'clinical_notes' },
+          { id: 'financials',   label: 'Finance',  icon: 'account_balance_wallet' },
+          { id: 'pathology',    label: 'Lab',      icon: 'biotech' },
+          { id: 'patients',     label: 'Patients', icon: 'group' },
+          { id: 'whatsapp',     label: 'Chat',     icon: 'chat' },
+          { id: 'pharmacy',     label: 'Pharmacy', icon: 'pill' },
+          { id: 'sop',          label: 'SOP',      icon: 'policy' }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all cursor-pointer relative ${
-                isActive 
-                  ? `${tab.color} scale-105 font-bold` 
-                  : 'text-slate-400 hover:text-slate-600'
+              className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all cursor-pointer ${
+                isActive ? 'text-indigo-600' : 'text-slate-400'
               }`}
             >
-              <div className={`p-1.5 rounded-xl transition-all duration-300 ${
-                isActive 
-                  ? 'bg-slate-50 scale-110 shadow-sm' 
-                  : 'bg-transparent'
+              <div className={`flex items-center justify-center w-8 h-6 rounded-lg transition-all ${
+                isActive ? 'bg-indigo-50' : ''
               }`}>
-                <span className="material-symbols-outlined text-[22px] block">
-                  {tab.icon}
-                </span>
+                <span className={`material-symbols-outlined block transition-all ${
+                  isActive ? 'text-[18px] font-bold' : 'text-[17px]'
+                }`}>{tab.icon}</span>
               </div>
-              <span className="text-[8px] uppercase tracking-wider font-extrabold truncate w-full text-center mt-1">
-                {tab.label}
-              </span>
-              
-              {isActive && (
-                <span className={`absolute bottom-0 w-1.5 h-1.5 rounded-full ${isActive ? 'bg-current' : 'bg-transparent'}`} />
-              )}
+              <span className={`text-[9px] font-semibold leading-none ${
+                isActive ? 'text-indigo-600' : 'text-slate-400'
+              }`}>{tab.label}</span>
             </button>
           );
         })}
