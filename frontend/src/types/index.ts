@@ -44,7 +44,16 @@ export interface WhatsAppSessionData {
 export interface WhatsAppSession {
   id: string;
   patientPhone: string;
-  currentState: 'AWAITING_WELCOME' | 'AWAITING_CONFIRMATION' | 'AWAITING_PAYMENT' | 'BOOKING_VIRTUAL' | 'COMPLETED' | 'FAILED_DELIVERY';
+  currentState:
+    | 'AWAITING_WELCOME'
+    | 'AWAITING_CONFIRMATION'
+    | 'AWAITING_PAYMENT'
+    | 'BOOKING_VIRTUAL'
+    | 'COMPLETED'
+    | 'FAILED_DELIVERY'
+    | 'MEDICINE_ORDERING'
+    | 'MEDICINE_AWAITING_PAYMENT'
+    | 'MEDICINE_READY_FOR_PICKUP';
   lastInteraction: string;
   sessionData: WhatsAppSessionData;
 }
@@ -52,9 +61,9 @@ export interface WhatsAppSession {
 export interface MedicationRequest {
   id: string;
   medicineName: string;
-  dosage: string; // e.g., "500mg"
-  frequency: string; // e.g., "1-0-1" or "Once Daily"
-  duration: string; // e.g., "5 days"
+  dosage: string;
+  frequency: string;
+  duration: string;
   expiryDate?: string;
   batchNumber?: string;
 }
@@ -65,8 +74,8 @@ export interface FHIRMedicationRequest {
   status: "active" | "completed" | "on-hold" | "stopped";
   intent: "order";
   subject: {
-    reference: string; // Patient ID
-    display: string; // Patient Name
+    reference: string;
+    display: string;
   };
   medicationCodeableConcept: {
     coding: Array<{
@@ -94,6 +103,7 @@ export interface DiagnosticTest {
   category: string;
   normalRange: string;
   unit: string;
+  price?: number;
 }
 
 export interface Encounter {
@@ -110,8 +120,8 @@ export interface Encounter {
 
 export interface ReagentDeduction {
   reagentName: string;
-  volumeDeducted: number; // e.g., 5
-  unit: string; // e.g., "ml"
+  volumeDeducted: number;
+  unit: string;
 }
 
 export interface LabRequisition {
@@ -119,7 +129,7 @@ export interface LabRequisition {
   encounterId: string;
   patientId: string;
   patientName: string;
-  testCode: string; // LOINC Code
+  testCode: string;
   testName: string;
   barcode: string;
   status: 'pending' | 'collected' | 'processed' | 'completed';
@@ -206,14 +216,98 @@ export interface Entity {
   createdAt: string;
 }
 
+// ─── PHARMACY INVENTORY (Extended with batch/expiry/threshold) ──────────────
 export interface PharmacyInventoryItem {
   id: string;
-  name: string;
-  stock: number;
-  price: number;
-  dosage: string;
+  name: string;                // Brand name e.g. "Metformin 500mg"
+  genericName: string;         // Generic e.g. "Metformin Hydrochloride"
+  category: string;            // "Antidiabetic" | "Antibiotic" etc.
+  manufacturer: string;        // "Sun Pharma", "Cipla"
+  batchNumber: string;         // Required for FEFO + expiry tracking
+  expiryDate: string;          // ISO date string "YYYY-MM-DD"
+  mrp: number;                 // Maximum Retail Price ₹
+  price: number;               // Selling Price ₹
+  stock: number;               // Current units available
+  unit: 'tabs' | 'caps' | 'vials' | 'ml' | 'gm' | 'strips';
+  threshold: number;           // Low-stock alert trigger level
+  dosage: string;              // e.g. "500mg"
+  addedAt: string;             // ISO datetime when batch was entered
+  hsn?: string;                // HSN code for GST bracket
 }
 
+// ─── CSV / BILL IMPORT ROW ───────────────────────────────────────────────────
+export interface MedicineImportRow {
+  name: string;
+  batchNumber: string;
+  expiryDate: string;
+  mrp: number;
+  price: number;
+  stock: number;
+  unit: string;
+  threshold: number;
+  dosage: string;
+  manufacturer?: string;
+  genericName?: string;
+  category?: string;
+  hsn?: string;
+}
+
+// ─── COUNTER LOYALTY DISCOUNT TRACKING ──────────────────────────────────────
+export interface CounterTransaction {
+  id: string;
+  patientId: string;
+  patientPhone: string;
+  patientName: string;
+  appointmentBookedAtCounter: boolean;
+  labBookedAtCounter: boolean;
+  discountEligible: boolean;   // true when both appointment + lab booked at counter
+  discountPercent: number;     // 10 if eligible, else 0
+  createdAt: string;
+}
+
+// ─── MEDICINE BILL (Compounder generates, sent to WhatsApp) ─────────────────
+export interface MedicineBillItem {
+  inventoryItemId: string;
+  name: string;
+  genericName: string;
+  dosage: string;
+  batchNumber: string;
+  expiryDate: string;
+  quantity: number;
+  mrp: number;
+  sellingPrice: number;
+  discountPercent: number;         // item-level discount %
+  gstPercent: number;              // 5% or 12% based on HSN
+  lineTotal: number;               // qty × price × (1 - disc) × (1 + gst)
+  alternativeSuggested?: string;   // alternative brand from inventory
+  alternativeInventoryId?: string;
+}
+
+export interface MedicineBill {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  encounterId?: string;             // linked prescription encounter if any
+  items: MedicineBillItem[];
+  subtotal: number;
+  loyaltyDiscountPercent: number;   // 0 or 10
+  loyaltyDiscountAmount: number;
+  itemDiscountAmount: number;
+  gstAmount: number;
+  totalAmount: number;
+  paymentMode: 'cash' | 'upi' | 'card' | 'whatsapp_pay';
+  upiQrPayload?: string;
+  status: 'draft' | 'confirmed' | 'paid' | 'cancelled';
+  source: 'counter' | 'whatsapp';
+  deliveryType?: 'pickup' | 'shiprocket';
+  deliveryAddress?: string;
+  deliveryCharge?: number;
+  shiprocketOrderId?: string;
+  createdAt: string;
+}
+
+// ─── WHATSAPP DRUG ORDERS (existing) ────────────────────────────────────────
 export interface WhatsAppDrugOrder {
   id: string;
   patientName: string;
@@ -237,4 +331,21 @@ export interface PathologyReport {
   timestamp: string;
 }
 
-
+export interface ClinicSop {
+  id: string;
+  entityId: string;
+  sopFileName: string;
+  sopText: string;
+  extractedConfig: {
+    doctor_fee: number;
+    test_prices: Record<string, number>;
+    splits: {
+      doctor: number;
+      platform: number;
+      lab: number;
+    };
+    guidelines: string[];
+  };
+  isActive: boolean;
+  createdAt: string;
+}

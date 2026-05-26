@@ -8,6 +8,47 @@ export const LabDashboard: React.FC = () => {
   const [requisitions, setRequisitions] = useState<LabRequisition[]>([]);
   const [reagents, setReagents] = useState<ReagentStock[]>([]);
 
+  // Autopilot and Gauge states
+  const [autopilotEnabled, setAutopilotEnabled] = useState(() => localStorage.getItem('reagent_autopilot_enabled') !== 'false');
+  const [autopilotLogs, setAutopilotLogs] = useState<{ reagentName: string; volume: number; timestamp: string }[]>([]);
+
+  useEffect(() => {
+    // Generate initial autopilot logs to simulate premium clinical history
+    setAutopilotLogs([
+      { reagentName: 'HbA1c Enzyme Reagent A', volume: 500, timestamp: new Date(Date.now() - 3600000 * 2.5).toISOString() },
+      { reagentName: 'Bilirubin Diazo Reagent', volume: 500, timestamp: new Date(Date.now() - 3600000 * 14.2).toISOString() }
+    ]);
+  }, []);
+
+  useEffect(() => {
+    const handleAutopilotEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setAutopilotLogs(prev => [
+        {
+          reagentName: detail.reagentName,
+          volume: detail.replenishedVolume,
+          timestamp: detail.timestamp
+        },
+        ...prev
+      ]);
+    };
+    window.addEventListener('mediflow-reagent-autopilot', handleAutopilotEvent);
+    return () => window.removeEventListener('mediflow-reagent-autopilot', handleAutopilotEvent);
+  }, []);
+
+  const toggleAutopilot = () => {
+    const nextVal = !autopilotEnabled;
+    setAutopilotEnabled(nextVal);
+    localStorage.setItem('reagent_autopilot_enabled', String(nextVal));
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: nextVal ? 'Autopilot armed and activated! Under-threshold volumes will auto-replenish.' : 'Autopilot deactivated. Manual stock replenishment required.',
+        type: nextVal ? 'success' : 'info',
+        title: nextVal ? 'Autopilot Armed' : 'Autopilot Offline'
+      }
+    }));
+  };
+
   // Reagent Replenishment state
   const [replenishReagent, setReplenishReagent] = useState('');
   const [replenishVol, setReplenishVol] = useState<number | ''>('');
@@ -531,73 +572,167 @@ export const LabDashboard: React.FC = () => {
       <div className="lg:col-span-4 space-y-6">
         
         {/* Reagent Chemical Inventory Ledger */}
-        <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+        <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden space-y-6">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
-          <h2 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-xl">database</span>
-            Reagent Chemical Ledger
-          </h2>
-          <p className="text-[11px] text-clinical-400 mb-4 leading-relaxed">
-            Real-time analyzer chemical stock tracking with auto-deduction.
-          </p>
-
-          {/* Low-Stock Warning Banner */}
-          {reagents.some(r => r.stockVolume < 100) && (
-            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2 animate-pulse">
-              <span className="material-symbols-outlined text-amber-400 text-base flex-shrink-0 mt-0.5">warning</span>
-              <div>
-                <div className="text-amber-300 text-[11px] font-bold">⚠️ Low Reagent Stock Alert</div>
-                <div className="text-amber-400/80 text-[10px] mt-0.5">
-                  {reagents.filter(r => r.stockVolume < 100).map(r => r.reagentName).join(', ')} below 100ml threshold.
-                </div>
-              </div>
+          
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-xl">biotech</span>
+                Volumetric Reagent Ledger
+              </h2>
+              <p className="text-[11px] text-clinical-400 leading-relaxed">
+                Real-time analyzer chemical stock volumetric liquid gauges.
+              </p>
             </div>
-          )}
+            {/* AUTOPILOT COCKPIT TOGGLE */}
+            <button
+              onClick={toggleAutopilot}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[10px] font-extrabold cursor-pointer hover:scale-105 active:scale-95 ${
+                autopilotEnabled
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                  : 'bg-clinical-950 border-outline-variant text-clinical-400'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${autopilotEnabled ? 'bg-emerald-400 animate-ping' : 'bg-clinical-500'}`}></span>
+              <span>{autopilotEnabled ? 'AUTOPILOT ARMED' : 'ARM AUTOPILOT'}</span>
+            </button>
+          </div>
 
-          <div className="space-y-3 mb-5">
+          {/* DYNAMIC 3D VOLUMETRIC CYLINDER GAUGES */}
+          <div className="grid grid-cols-5 gap-2.5 pt-4 bg-black/25 p-4 rounded-2xl border border-white/5 relative">
+            
+            {/* Tick marks on left side */}
+            <div className="absolute left-2.5 top-4 bottom-4 flex flex-col justify-between text-[8px] text-clinical-500 font-mono font-bold select-none h-[120px] pointer-events-none">
+              <span>1000ml</span>
+              <span>750ml</span>
+              <span>500ml</span>
+              <span>250ml</span>
+              <span>0ml</span>
+            </div>
+
             {reagents.map((reag, idx) => {
-              const percentage = (reag.stockVolume / 1000) * 100;
-              const isLow = reag.stockVolume < 100;
-              const isWarning = reag.stockVolume < 200;
+              const vol = reag.stockVolume;
+              const percent = Math.min(100, Math.max(0, (vol / 1000) * 100));
+              const isLow = vol < 100;
+              const isWarning = vol < 200;
+
+              // Determine gradient colors based on volume status
+              let fluidColor = 'from-emerald-500/70 to-teal-500/80';
+              let glowColor = 'shadow-[inset_0_0_12px_rgba(16,185,129,0.5)]';
+              let badgeColor = 'text-emerald-400 bg-emerald-500/10';
+              if (isLow) {
+                fluidColor = 'from-rose-500/80 to-red-600/90 animate-pulse';
+                glowColor = 'shadow-[inset_0_0_15px_rgba(239,68,68,0.7),0_0_10px_rgba(239,68,68,0.3)]';
+                badgeColor = 'text-rose-400 bg-rose-500/10 border border-rose-500/20';
+              } else if (isWarning) {
+                fluidColor = 'from-amber-400/80 to-orange-500/80';
+                glowColor = 'shadow-[inset_0_0_12px_rgba(245,158,11,0.6)]';
+                badgeColor = 'text-amber-400 bg-amber-500/10 border border-amber-500/20';
+              }
+
               return (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className={`text-xs ${isLow ? 'text-amber-300 font-bold' : 'text-clinical-300'}`}>{reag.reagentName}</span>
-                    <span className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded ${
-                      isLow 
-                        ? 'text-amber-400 bg-amber-500/10 border border-amber-500/30' 
-                        : isWarning 
-                          ? 'text-amber-200/70 bg-amber-500/5 border border-amber-500/10'
-                          : 'text-clinical-300 bg-transparent'
-                    }`}>
-                      {reag.stockVolume} {reag.unit}
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-surface-container-lowest rounded-full overflow-hidden border border-outline-variant p-[1px]">
+                <div key={idx} className="flex flex-col items-center group relative cursor-pointer" title={`${reag.reagentName}: ${vol}ml`}>
+                  {/* Cylinder Tube */}
+                  <div className="w-6.5 h-[120px] bg-slate-900/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner flex items-end">
+                    
+                    {/* Glass Reflection stripe */}
+                    <div className="absolute top-0 bottom-0 left-[20%] w-[1.5px] bg-white/15 z-20 pointer-events-none" />
+                    
+                    {/* Tick Mark Overlays */}
+                    <div className="absolute inset-0 flex flex-col justify-between py-1 z-10 opacity-30 select-none pointer-events-none">
+                      <div className="w-full h-[1px] bg-white/30" />
+                      <div className="w-full h-[1px] bg-white/30" />
+                      <div className="w-full h-[1px] bg-white/30" />
+                      <div className="w-full h-[1px] bg-white/30" />
+                      <div className="w-full h-[1px] bg-white/30" />
+                    </div>
+
+                    {/* Autopilot trigger indicator line at 200ml */}
+                    <div className="absolute bottom-[20%] left-0 right-0 h-[1px] border-b border-dashed border-cyan-400/40 z-10 pointer-events-none" title="Autopilot safety threshold (200ml)" />
+
+                    {/* Fluid Liquid with gradients and wave animation */}
                     <div 
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        isLow ? 'bg-amber-500' : isWarning ? 'bg-amber-400/60' : 'bg-gradient-to-r from-primary to-secondary'
-                      }`}
-                      style={{ width: `${Math.min(100, percentage)}%` }}
-                    />
+                      className={`w-full bg-gradient-to-t ${fluidColor} ${glowColor} transition-all duration-700 relative z-0`}
+                      style={{ height: `${percent}%`, animation: 'wave 3s ease-in-out infinite' }}
+                    >
+                      {/* Rising bubbling particles */}
+                      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <span className="bubble absolute w-1 h-1 bg-white/40 rounded-full bottom-0 left-[20%] animate-rise duration-3000"></span>
+                        <span className="bubble absolute w-1.5 h-1.5 bg-white/35 rounded-full bottom-0 left-[50%] animate-rise duration-2000"></span>
+                        <span className="bubble absolute w-0.8 h-0.8 bg-white/50 rounded-full bottom-0 left-[75%] animate-rise duration-4000"></span>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Reagent Mini Name (Hover tooltip/Label) */}
+                  <span className="text-[7px] text-clinical-400 text-center font-bold tracking-tight mt-2 line-clamp-2 leading-[8px] h-4">
+                    {reag.reagentName.replace(' Reagent', '').replace('Picrate B', 'Picrate')}
+                  </span>
+                  
+                  {/* Floating Volume Badge */}
+                  <span className={`text-[8px] font-mono font-bold mt-1 px-1.5 py-0.5 rounded ${badgeColor}`}>
+                    {vol}ml
+                  </span>
                 </div>
               );
             })}
           </div>
 
-          {/* Reagent Replenishment Form */}
+          {/* Autopilot action timeline */}
+          {autopilotLogs.length > 0 && (
+            <div className="border-t border-outline-variant pt-3.5 space-y-2 select-none">
+              <h4 className="text-[9px] font-bold text-clinical-300 uppercase tracking-widest flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-xs text-emerald-400 fill-current animate-pulse">history</span>
+                Autopilot Replenishment Logs
+              </h4>
+              <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                {autopilotLogs.map((log, i) => (
+                  <div key={i} className="flex justify-between items-center p-1.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-[9px] font-mono text-emerald-300">
+                    <span className="truncate max-w-[150px]">{log.reagentName}</span>
+                    <span className="shrink-0 font-bold">+500ml Auto-Restored</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Bubble Gauge CSS Keyframe Animations */}
+          <style>{`
+            @keyframes rise {
+              0% { transform: translateY(100%) scale(0.5); opacity: 0; }
+              20% { opacity: 0.8; }
+              80% { opacity: 0.8; }
+              100% { transform: translateY(-100px) scale(1.1); opacity: 0; }
+            }
+            .bubble {
+              display: block;
+              animation: rise infinite linear;
+            }
+            .animate-rise {
+              animation: rise 3s infinite linear;
+            }
+            .duration-2000 { animation-duration: 2s; }
+            .duration-3000 { animation-duration: 3s; }
+            .duration-4000 { animation-duration: 4s; }
+            @keyframes wave {
+              0%, 100% { border-top-left-radius: 4px; border-top-right-radius: 4px; }
+              50% { border-top-left-radius: 12px; border-top-right-radius: 12px; }
+            }
+          `}</style>
+
+          {/* Manual Reagent Replenishment Form */}
           <div className="border-t border-outline-variant pt-4">
             <h4 className="text-[10px] font-bold text-clinical-300 uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px] text-secondary">add_circle</span>
-              Replenish Stock
+              Manual Stock Override
             </h4>
             <form onSubmit={handleReplenish} className="space-y-3">
               <select
                 required
                 value={replenishReagent}
                 onChange={(e) => setReplenishReagent(e.target.value)}
-                className="w-full input-field bg-clinical-950 text-xs py-2 focus:ring-1 focus:ring-secondary"
+                className="w-full input-field bg-clinical-950 text-xs py-2 focus:ring-1 focus:ring-secondary border border-outline-variant"
               >
                 <option value="">— Select Reagent —</option>
                 {reagents.map(r => (
@@ -613,12 +748,12 @@ export const LabDashboard: React.FC = () => {
                   placeholder="Volume (ml)"
                   value={replenishVol}
                   onChange={(e) => setReplenishVol(e.target.value !== '' ? Number(e.target.value) : '')}
-                  className="flex-1 input-field text-xs py-2 focus:ring-1 focus:ring-secondary"
+                  className="flex-1 input-field text-xs py-2 focus:ring-1 focus:ring-secondary border border-outline-variant"
                 />
                 <button
                   type="submit"
                   disabled={replenishBusy}
-                  className="btn-primary py-2 px-3 text-xs font-bold bg-secondary hover:bg-secondary/80 border-secondary text-black hover:scale-105 active:scale-95 transition-all disabled:opacity-60"
+                  className="btn-primary py-2 px-3 text-xs font-bold bg-secondary hover:bg-secondary/80 border-secondary text-black hover:scale-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
                 >
                   {replenishBusy ? (
                     <span className="material-symbols-outlined text-sm animate-spin">sync</span>
@@ -632,7 +767,7 @@ export const LabDashboard: React.FC = () => {
 
           <div className="mt-4 flex items-start gap-2 bg-primary/5 border border-primary/10 p-3 rounded-lg text-[10px] text-primary leading-relaxed">
             <span className="material-symbols-outlined text-sm mt-0.5 flex-shrink-0">info</span>
-            <span>Automatic Reagent Deduction Trigger <code>on_lab_test_completed</code> is active. Stocks deduct upon report publish.</span>
+            <span>Autopilot deductions and safety triggers synchronize automatically in the background.</span>
           </div>
         </div>
 

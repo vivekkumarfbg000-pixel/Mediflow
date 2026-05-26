@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { TelemetryService } from './telemetry';
 import type { 
   Patient, 
   Encounter, 
@@ -14,7 +15,12 @@ import type {
   FinancialLedgerEntry,
   PharmacyInventoryItem,
   WhatsAppDrugOrder,
-  PathologyReport
+  PathologyReport,
+  ClinicSop,
+  MedicineBill,
+  MedicineBillItem,
+  CounterTransaction,
+  MedicineImportRow
 } from '../types';
 
 export interface DBEncounterMedication {
@@ -73,11 +79,11 @@ export interface DBInvoice {
 
 // Standard master test catalog based on LOINC codes
 export const MASTER_TEST_CATALOG: DiagnosticTest[] = [
-  { loincCode: '4544-3', name: 'HbA1c (Glycated Hemoglobin)', category: 'Diabetology', normalRange: '4.0 - 5.6', unit: '%' },
-  { loincCode: '2160-0', name: 'Serum Creatinine', category: 'Renal Panel', normalRange: '0.6 - 1.2', unit: 'mg/dL' },
-  { loincCode: '3024-7', name: 'Total Hemoglobin', category: 'Hematology', normalRange: '12.0 - 16.0', unit: 'g/dL' },
-  { loincCode: '2947-0', name: 'Serum Sodium', category: 'Electrolytes', normalRange: '135 - 145', unit: 'mEq/L' },
-  { loincCode: '1975-2', name: 'Total Bilirubin', category: 'Liver Function', normalRange: '0.2 - 1.2', unit: 'mg/dL' }
+  { loincCode: '4544-3', name: 'HbA1c (Glycated Hemoglobin)', category: 'Diabetology', normalRange: '4.0 - 5.6', unit: '%', price: 350 },
+  { loincCode: '2160-0', name: 'Serum Creatinine', category: 'Renal Panel', normalRange: '0.6 - 1.2', unit: 'mg/dL', price: 250 },
+  { loincCode: '3024-7', name: 'Total Hemoglobin', category: 'Hematology', normalRange: '12.0 - 16.0', unit: 'g/dL', price: 150 },
+  { loincCode: '2947-0', name: 'Serum Sodium', category: 'Electrolytes', normalRange: '135 - 145', unit: 'mEq/L', price: 200 },
+  { loincCode: '1975-2', name: 'Total Bilirubin', category: 'Liver Function', normalRange: '0.2 - 1.2', unit: 'mg/dL', price: 300 }
 ];
 
 export interface ReagentStock {
@@ -692,6 +698,9 @@ class MediflowApiService {
             });
           } else if (['stop consent', 'stop', 'revoke', 'stop_consent'].includes(cleaned)) {
             replyMessage = "Consent process rok diya gaya hai. Aap jab chahein tab '1' reply karke dobara shuru kar sakte hain.";
+          } else if (cleaned.includes('book') || cleaned === '2') {
+            nextState = 'BOOKING_VIRTUAL';
+            replyMessage = "Ji bilkul! Mediflow scheduling shuru ho gayi hai. Kya aap Virtual Video Call par consult karna chahte hain ya Physical clinic aakar?\n\nProceed karne ke liye please **VIRTUAL** ya **PHYSICAL** reply kijiye.";
           } else {
             // Unrecognized reply fallback: prevents infinite loops by remaining stable on AWAITING_WELCOME
             replyMessage = "Hum samajh nahi paaye. 🤖 Apne records safe sync karne ke liye please upar click kijiye ya bas *1* reply karke authorize kijiye.";
@@ -755,6 +764,162 @@ class MediflowApiService {
           }
           break;
 
+        case 'MEDICINE_ORDERING':
+          {
+            const activeInventory = this.getPharmacyInventory();
+            // Step A: Checking delivery option choice
+            if (sessionData.medicineOrderStage === 'CHOOSING_DELIVERY') {
+              if (cleaned === '1') {
+                // Counter Pickup chosen
+                const draftBill = sessionData.draftMedicineBill as MedicineBill;
+                draftBill.deliveryType = 'pickup';
+                draftBill.deliveryCharge = 0;
+                draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount;
+                draftBill.upiQrPayload = `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=MF-BILL-${draftBill.id.substring(4, 8)}`;
+                
+                sessionData.draftMedicineBill = draftBill;
+                sessionData.medicineOrderStage = 'AWAITING_PAYMENT';
+                nextState = 'MEDICINE_AWAITING_PAYMENT';
+                
+                this.saveMedicineBill(draftBill);
+
+                replyMessage = `🚶 *Counter Pickup Choose Kiya Gaya Hai (₹0.00 Delivery Charge)*\n\nTotal Payable Amount: *₹${draftBill.totalAmount.toFixed(2)}*\n\nSettle karne ke liye is direct payment link ka use kijiye:\n${draftBill.upiQrPayload}\n\nPayment karne ke baad please **PAY** reply kijiye!`;
+              } else if (cleaned === '2') {
+                // Shiprocket Home Delivery chosen
+                sessionData.medicineOrderStage = 'ENTERING_ADDRESS';
+                replyMessage = `🚚 *Shiprocket / Delhivery Home Delivery (₹45.00 Cheapest Rate Applied)*\n\nApna complete delivery address (Street, City, Pincode) type karke bhejein taaki hum logistics arrange kar sakein:`;
+              } else {
+                replyMessage = `Hum samajh nahi paaye. Please select delivery method:\n\n*1* - Counter Pickup (₹0.00)\n*2* - Shiprocket Home Delivery (₹45.00)`;
+              }
+            }
+            // Step B: Address entry
+            else if (sessionData.medicineOrderStage === 'ENTERING_ADDRESS') {
+              const draftBill = sessionData.draftMedicineBill as MedicineBill;
+              draftBill.deliveryType = 'shiprocket';
+              draftBill.deliveryCharge = 45;
+              draftBill.deliveryAddress = text;
+              draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount + draftBill.deliveryCharge;
+              draftBill.upiQrPayload = `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=MF-BILL-${draftBill.id.substring(4, 8)}`;
+              
+              sessionData.draftMedicineBill = draftBill;
+              sessionData.medicineOrderStage = 'AWAITING_PAYMENT';
+              nextState = 'MEDICINE_AWAITING_PAYMENT';
+              
+              this.saveMedicineBill(draftBill);
+
+              replyMessage = `📍 *Delivery Address Saved!* \n"${text}"\n\n*Invoice Summary (Cheapest Shipping applied):*\n- Medicine Subtotal: ₹${draftBill.subtotal.toFixed(2)}\n- GST: ₹${draftBill.gstAmount.toFixed(2)}\n- Shiprocket Delivery Charge: ₹45.00\n---------------------------------------\n*Total Amount Payable: ₹${draftBill.totalAmount.toFixed(2)}*\n\nSettle karne ke liye is link par click karein:\n${draftBill.upiQrPayload}\n\nPayment karne ke baad please **PAY** reply kijiye!`;
+            }
+            // Step C: Initial medicine name input
+            else {
+              // Patient typed medicine list, let's parse it!
+              // Try to find matching item in inventory
+              let matchedItem: PharmacyInventoryItem | undefined;
+              let qty = 10; // Default qty
+
+              for (const item of activeInventory) {
+                if (cleaned.toLowerCase().includes(item.name.toLowerCase()) || cleaned.toLowerCase().includes(item.genericName.toLowerCase())) {
+                  matchedItem = item;
+                  break;
+                }
+              }
+
+              // Extract number if any
+              const numMatch = cleaned.match(/\d+/);
+              if (numMatch) {
+                qty = Number(numMatch[0]);
+              }
+
+              if (matchedItem) {
+                // Create a draft bill
+                const patientObj = this.getPatients().find(p => p.phone === phone);
+                const billId = `bill-${Date.now()}`;
+                
+                const itemTotal = matchedItem.price * qty;
+                const gst = matchedItem.hsn === '300410' ? 0.12 : 0.05;
+                const gstAmt = itemTotal * gst;
+                
+                const billItem: MedicineBillItem = {
+                  inventoryItemId: matchedItem.id,
+                  name: matchedItem.name,
+                  genericName: matchedItem.genericName,
+                  dosage: matchedItem.dosage,
+                  batchNumber: matchedItem.batchNumber,
+                  expiryDate: matchedItem.expiryDate,
+                  quantity: qty,
+                  mrp: matchedItem.mrp,
+                  sellingPrice: matchedItem.price,
+                  discountPercent: 0,
+                  gstPercent: gst * 100,
+                  lineTotal: itemTotal
+                };
+
+                const draftBill: MedicineBill = {
+                  id: billId,
+                  patientId: patientObj?.id || 'pat-demo',
+                  patientName: patientObj?.name || 'WhatsApp Patient',
+                  patientPhone: phone,
+                  items: [billItem],
+                  subtotal: itemTotal,
+                  loyaltyDiscountPercent: 0,
+                  loyaltyDiscountAmount: 0,
+                  itemDiscountAmount: 0,
+                  gstAmount: gstAmt,
+                  totalAmount: itemTotal + gstAmt,
+                  paymentMode: 'whatsapp_pay',
+                  status: 'draft',
+                  source: 'whatsapp',
+                  createdAt: new Date().toISOString()
+                };
+
+                sessionData.draftMedicineBill = draftBill;
+                sessionData.medicineOrderStage = 'CHOOSING_DELIVERY';
+
+                replyMessage = `💊 *Live Patna Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${matchedItem.price.toFixed(2)}\n• Subtotal: ₹${itemTotal.toFixed(2)} (+₹${gstAmt.toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
+              } else {
+                replyMessage = `Aapka medicine query *"${text}"* match nahi hua. ⚠️ Hamare live catalog mein Paracetamol, Metformin, Amoxicillin, Atorvastatin aur Pantoprazole available hain. \n\nKaunsi medicine chahiye? Please correct brand/generic name type kijiye (e.g. "Metformin 30 tabs"):`;
+              }
+            }
+          }
+          break;
+
+        case 'MEDICINE_AWAITING_PAYMENT':
+          {
+            const draftBill = sessionData.draftMedicineBill as MedicineBill;
+            if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned === '1') {
+              if (draftBill) {
+                draftBill.status = 'paid';
+                this.saveMedicineBill(draftBill);
+                
+                // Actually dispense and deduct inventory!
+                this.dispenseMedicineBill(draftBill.id);
+
+                if (draftBill.deliveryType === 'shiprocket') {
+                  nextState = 'COMPLETED';
+                  const shipId = `SR-${Math.floor(100000 + Math.random() * 900000)}`;
+                  replyMessage = `🟢 *Payment Cleared!* \n\nShiprocket logistics partner se order arrange kar diya hai. \n🚀 *Tracking ID: ${shipId}*\n\nMedicines 24-48 hours mein deliver ho jayengi. Mediflow digital ecosystem choose karne ke liye shukriya! 📦`;
+                } else {
+                  nextState = 'MEDICINE_READY_FOR_PICKUP';
+                  replyMessage = `🟢 *Payment Cleared!* \n\nMedicines counter collection ke liye packing department mein bhej di gayi hain. \n\nShow this invoice ref to compounder at clinic counter: \n🔖 *Ref ID: #${draftBill.id.substring(4, 10).toUpperCase()}*`;
+                }
+              } else {
+                nextState = 'COMPLETED';
+                replyMessage = "Something went wrong with the payment transaction. Please request compounder to assist at Patna counter.";
+              }
+            } else {
+              replyMessage = `Dues pending hain. Please ₹${draftBill?.totalAmount.toFixed(2)} settle kijiye. UPI payload:\n${draftBill?.upiQrPayload}\n\nClear karne ke baad *PAY* reply karein.`;
+            }
+          }
+          break;
+
+        case 'MEDICINE_READY_FOR_PICKUP':
+          if (cleaned.includes('done') || cleaned.includes('clear') || cleaned === '1') {
+            nextState = 'COMPLETED';
+            replyMessage = "Medicine successfully collected from Patna Counter! Status updated to COMPLETED. Health is wealth! 🩺🟢";
+          } else {
+            replyMessage = "Dawa collect karne ke baad Patna counter compounder screen clear karenge ya aap 'DONE' reply kijiye.";
+          }
+          break;
+
         case 'COMPLETED':
           const currentPat = this.getPatients().find(p => p.phone === phone);
           const awaitingAction = sessionData.awaitingProactiveAction;
@@ -763,11 +928,98 @@ class MediflowApiService {
             sessionData.awaitingProactiveAction = null;
             replyMessage = "Refill confirm ho gaya hai! 📦 Compounder ne verify kar diya hai aur Patna Pharmacy se dawa ka packet aapke address ke liye nikal raha hai. Aap is chat par track kar sakte hain. Dhanyawad!";
           } else if (cleaned === 'home' && awaitingAction === 'lab') {
+            sessionData.awaitingProactiveAction = 'lab_slot';
+            replyMessage = "Please select a slot:\n1. 8:00 AM\n2. 10:00 AM\n3. 4:00 PM.";
+          } else if (awaitingAction === 'lab_slot' && ['1', '2', '3'].includes(cleaned)) {
             sessionData.awaitingProactiveAction = null;
-            replyMessage = "Home sample collection confirm ho gaya hai! 🔬 Hamare lab technician (Lalit Prasad) kal subah 8:00 AM par ghar aakar sample collect karenge. Dhyaan rahe ki test se 8 ghante pehle tak fasting rakhni hai. Slot lock ho gaya hai! 🟢";
-          } else if (cleaned.includes('refill') || cleaned.includes('medicine') || cleaned.includes('reorder')) {
-            nextState = 'COMPLETED';
-            replyMessage = "Medicine refill request mil gaya hai! 📦 Humne Patna counter par aapki dawa reserve kar di hai. Compounder jald hi bhej denge.";
+            const slotMap: Record<string, string> = { '1': '8:00 AM', '2': '10:00 AM', '3': '4:00 PM' };
+            const selectedSlot = slotMap[cleaned] || '8:00 AM';
+
+            // Process Doorstep collection fee in invoices
+            const invoices = this.getUnifiedInvoices();
+            const patientInvoice = invoices.find(i => i.patientId === currentPat?.id);
+            const invoiceId = patientInvoice ? patientInvoice.id : `inv-${crypto.randomUUID().substring(0, 8)}`;
+            if (patientInvoice) {
+              patientInvoice.totalAmount = (patientInvoice.totalAmount || 0) + 100;
+              this.save('unified_invoices', invoices);
+
+              // Update in remote Supabase
+              supabase.from('unified_invoices').update({
+                total_amount: patientInvoice.totalAmount
+              }).eq('id', patientInvoice.id).then(({ error }) => {
+                if (error) console.error('Error updating invoice total in Supabase:', error);
+              });
+            }
+
+            // Create the three doorstep splits in financial_ledgers:
+            const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
+            const doorstepSplits: FinancialLedgerEntry[] = [
+              {
+                id: `tx-tech-${crypto.randomUUID().substring(0, 8)}`,
+                invoiceId: invoiceId,
+                sourceEntityId: 'clinic-admin-entity',
+                destinationEntityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003', // Lalit Prasad (Lab Partner)
+                transactionType: 'lab_commission',
+                grossAmount: 100,
+                commissionRate: 0.70,
+                netPayout: 70,
+                paymentStatus: 'cleared',
+                settledAt: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+              },
+              {
+                id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
+                invoiceId: invoiceId,
+                sourceEntityId: 'clinic-admin-entity',
+                destinationEntityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003', // Lab partner
+                transactionType: 'lab_commission',
+                grossAmount: 100,
+                commissionRate: 0.20,
+                netPayout: 20,
+                paymentStatus: 'cleared',
+                settledAt: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+              },
+              {
+                id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+                invoiceId: invoiceId,
+                sourceEntityId: 'clinic-admin-entity',
+                destinationEntityId: 'platform-admin-entity',
+                transactionType: 'platform_fee',
+                grossAmount: 100,
+                commissionRate: 0.10,
+                netPayout: 10,
+                paymentStatus: 'cleared',
+                settledAt: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+              }
+            ];
+
+            ledgerEntries.unshift(...doorstepSplits);
+            this.save('financial_ledgers', ledgerEntries);
+
+            // Also insert splits into remote Supabase
+            const dbSplits = doorstepSplits.map(s => ({
+              invoice_id: s.invoiceId.includes('-') && s.invoiceId.length === 36 ? s.invoiceId : invoiceId,
+              source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+              destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' : s.destinationEntityId,
+              transaction_type: s.transactionType,
+              gross_amount: s.grossAmount,
+              commission_rate: s.commissionRate * 100,
+              net_payout: s.netPayout,
+              payment_status: 'cleared',
+              settled_at: new Date().toISOString()
+            }));
+
+            supabase.from('financial_ledgers').insert(dbSplits).then(({ error }) => {
+              if (error) console.error('Error inserting doorstep splits in Supabase:', error);
+            });
+
+            replyMessage = `Home sample collection confirm ho gaya hai! 🔬 Hamare lab technician (Lalit Prasad) kal subah ${selectedSlot} par ghar aakar sample collect karenge. Dhyaan rahe ki test se 8 ghante pehle tak fasting rakhni hai. Slot lock ho gaya hai! 🟢\n\n*Premium Collection Fee breakdown*:\n- Total: ₹100.00 Collection Fee added\n- Lab Tech fuel/incentive bonus: ₹70.00\n- Lab Partner split: ₹20.00\n- Platform commission: ₹10.00`;
+          } else if (cleaned.includes('refill') || cleaned.includes('medicine') || cleaned.includes('reorder') || cleaned.includes('order') || cleaned.includes('dawai')) {
+            nextState = 'MEDICINE_ORDERING';
+            sessionData.medicineOrderStage = 'INITIAL';
+            replyMessage = "Ji bilkul! Kaunsi dawaiyaan chahiye aapko? Please unka name aur total quantity type karke bhejein (For example: 'Metformin 30 tabs'):";
           } else if (cleaned.includes('report') || cleaned.includes('pathology') || cleaned.includes('test')) {
             const approvedReports = this.getPathologyReports().filter(r => r.patientId === currentPat?.id && r.status === 'approved');
             if (approvedReports.length > 0) {
@@ -795,14 +1047,28 @@ class MediflowApiService {
             replyMessage = "Aapka clinical consent cancel kar diya gaya hai aur profile lock ho gayi hai. Wapas shuru karne ke liye '1' reply kijiye.";
           } else {
             // General health query using optimized Clinical Assistant RAG Scribe prompt
-            let chronicAdvice = "";
-            if (currentPat?.chronicConditions.some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar'))) {
-              chronicAdvice = "\n\n*Important RAG Note (Sugar patients ke liye)*: Aapka average 3-month sugar level (HbA1c 7.2%) thoda jyada hai. Meetha aur carbohydrate kam kijiye, LOINC: 4544-3 test har 3 mahine mein karayein, aur agar creatinine level 1.2 mg/dL se jyada ho toh heavy pain-killers (Ibuprofen) bilkul na lein.";
-            } else {
-              chronicAdvice = "\n\n*RAG Clinical Guidelines Note*: Paani khoob pijiye, low-sodium diet lijiye, aur rozana apna checkup logs maintain kijiye.";
-            }
+            // Enforce 1-week (7 days) paid AI advice access gate rule
+            const clearedInvoices = this.getUnifiedInvoices()
+              .filter(i => i.patientId === currentPat?.id && i.paymentStatus === 'cleared')
+              .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            
+            const lastPaidInvoice = clearedInvoices[0];
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            const hasPaidInLastWeek = lastPaidInvoice && new Date(lastPaidInvoice.createdAt) >= oneWeekAgo;
 
-            replyMessage = `*Mediflow AI-RAG support team* 🤖\n\nAapke query \"${text}\" ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
+            if (!hasPaidInLastWeek) {
+              replyMessage = `*Mediflow AI Support Restricted* 🤖\n\nClinical AI Advice general health queries and RAG advisory are only accessible for **1 week (7 days)** after clearing your consultation/care fees. \n\n*Note*: Operational transactional features (such as booking appointments, virtual slot bookings, and medicine refills) remain **always active** for your profile. Please clear your recent dues or consult to unlock another week of rich clinical AI advice! 🟢`;
+            } else {
+              let chronicAdvice = "";
+              if (currentPat?.chronicConditions.some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar'))) {
+                chronicAdvice = "\n\n*Important RAG Note (Sugar patients ke liye)*: Aapka average 3-month sugar level (HbA1c 7.2%) thoda jyada hai. Meetha aur carbohydrate kam kijiye, LOINC: 4544-3 test har 3 mahine mein karayein, aur agar creatinine level 1.2 mg/dL se jyada ho toh heavy pain-killers (Ibuprofen) bilkul na lein.";
+              } else {
+                chronicAdvice = "\n\n*RAG Clinical Guidelines Note*: Paani khoob pijiye, low-sodium diet lijiye, aur rozana apna checkup logs maintain kijiye.";
+              }
+
+              replyMessage = `*Mediflow AI-RAG support team* 🤖\n\nAapke query \"${text}\" ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
+            }
           }
           break;
 
@@ -1155,6 +1421,78 @@ class MediflowApiService {
       req.quantitativeResult = resultValue;
       req.status = 'completed';
 
+      // Local reagent deduction & Autopilot Replenishment Logic
+      const loincCode = req.testCode;
+      let reagentName = '';
+      let deductionVolume = 0;
+      if (loincCode === '4544-3') {
+        reagentName = 'HbA1c Enzyme Reagent A';
+        deductionVolume = 1.5;
+      } else if (loincCode === '2160-0') {
+        reagentName = 'Creatinine Alkaline Picrate B';
+        deductionVolume = 2.0;
+      } else if (loincCode === '3024-7') {
+        reagentName = 'Drabkin Reagent (Hemoglobin)';
+        deductionVolume = 1.0;
+      } else if (loincCode === '2947-0') {
+        reagentName = 'Sodium Ion Reagent';
+        deductionVolume = 1.2;
+      } else if (loincCode === '1975-2') {
+        reagentName = 'Bilirubin Diazo Reagent';
+        deductionVolume = 1.8;
+      }
+
+      if (reagentName && deductionVolume > 0) {
+        const reagents = this.getReagentStocks();
+        const rIdx = reagents.findIndex(r => r.reagentName === reagentName);
+        if (rIdx !== -1) {
+          const currentStock = reagents[rIdx].stockVolume;
+          const newStock = Math.max(0, currentStock - deductionVolume);
+          reagents[rIdx].stockVolume = Number(newStock.toFixed(2));
+          this.save('reagents', reagents);
+          
+          // Check for Autopilot replenishment (safety threshold is 200ml)
+          const autopilotEnabled = localStorage.getItem('reagent_autopilot_enabled') !== 'false';
+          if (autopilotEnabled && newStock < 200) {
+            const replenishVolume = 500;
+            const finalStock = newStock + replenishVolume;
+            reagents[rIdx].stockVolume = Number(finalStock.toFixed(2));
+            this.save('reagents', reagents);
+            
+            // Reconcile to Supabase reagent_inventory
+            supabase.from('reagent_inventory')
+              .update({ stock_volume: finalStock })
+              .eq('reagent_name', reagentName)
+              .then(() => {
+                this.writeAuditLog('reagent_autopilot_replenished', { reagentName, replenishedVolume: replenishVolume, oldStock: newStock, finalStock }, reagentName);
+              });
+
+            // Log telemetry event
+            TelemetryService.track('reagent_autopilot_replenished', {
+              reagentName,
+              replenishedVolume: replenishVolume,
+              oldStock: newStock,
+              finalStock
+            });
+
+            // Trigger beautiful custom toast event
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                detail: {
+                  message: `Autopilot Triggered: ${reagentName} fell below 200ml. Automatically ordered 500ml!`,
+                  type: 'success',
+                  title: 'Autopilot Active'
+                }
+              }));
+
+              window.dispatchEvent(new CustomEvent('mediflow-reagent-autopilot', {
+                detail: { reagentName, replenishedVolume: replenishVolume, timestamp: new Date().toISOString() }
+              }));
+            }, 600);
+          }
+        }
+      }
+
       // Reagent deduction logic is implemented directly in the database function: public.on_lab_test_completed()
       // We also verify and publish structured results report card asynchronously in the background.
       this.save('lab_requisitions', requisitions);
@@ -1241,8 +1579,80 @@ class MediflowApiService {
       invoices[idx].paymentStatus = 'cleared';
       this.save('unified_invoices', invoices);
 
+      // Check if there is an active referral in the session
+      const sessions = this.getWhatsAppSessions();
+      const session = sessions.find(s => s.patientPhone === invoices[idx].patientPhone);
+      if (session?.sessionData?.referral) {
+        const ref = session.sessionData.referral;
+        const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
+        
+        const platformAmt = Math.max(10.00, parseFloat((500 * 0.03).toFixed(2))); // 3% Platform commission
+        
+        const referralLedger: FinancialLedgerEntry = {
+          id: `tx-ref-${crypto.randomUUID().substring(0, 8)}`,
+          invoiceId: invoiceId,
+          sourceEntityId: 'clinic-admin-entity',
+          destinationEntityId: 'clinic-admin-entity', // Dr. Vivek's clinic wallet gets the thank-you fee
+          transactionType: 'appointment_fee',
+          grossAmount: 500,
+          commissionRate: 0.10,
+          netPayout: ref.referralCommissionAmt || 50.00,
+          paymentStatus: 'cleared',
+          settledAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+
+        const platformLedger: FinancialLedgerEntry = {
+          id: `tx-plat-ref-${crypto.randomUUID().substring(0, 8)}`,
+          invoiceId: invoiceId,
+          sourceEntityId: 'clinic-admin-entity',
+          destinationEntityId: 'platform-admin-entity',
+          transactionType: 'platform_fee',
+          grossAmount: 500,
+          commissionRate: 0.03,
+          netPayout: platformAmt,
+          paymentStatus: 'cleared',
+          settledAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+
+        ledgerEntries.unshift(referralLedger, platformLedger);
+        this.save('financial_ledgers', ledgerEntries);
+
+        // Clear referral flag so it doesn't fire again
+        session.sessionData.referral = null;
+        this.save('whatsapp_sessions', sessions);
+
+        // Async write back to Supabase
+        const dbRefLedger = {
+          invoice_id: invoiceId,
+          source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Source: clinic
+          destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Destination: clinic
+          transaction_type: 'appointment_fee',
+          gross_amount: 500,
+          commission_rate: 10,
+          net_payout: 50.00,
+          payment_status: 'cleared',
+          settled_at: new Date().toISOString()
+        };
+        const dbPlatLedger = {
+          invoice_id: invoiceId,
+          source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          transaction_type: 'platform_fee',
+          gross_amount: 500,
+          commission_rate: 3,
+          net_payout: platformAmt,
+          payment_status: 'cleared',
+          settled_at: new Date().toISOString()
+        };
+
+        supabase.from('financial_ledgers').insert([dbRefLedger, dbPlatLedger]).then(({ error }) => {
+          if (error) console.error('Error inserting referral ledger splits in Supabase:', error);
+        });
+      }
+
       // Async write back to Supabase
-      // Note: the trigger public.on_payment_cleared() automatically splits commissions and updates WhatsApp state!
       supabase.from('unified_invoices').update({
         payment_status: 'cleared',
         paid_at: new Date().toISOString()
@@ -1446,11 +1856,91 @@ class MediflowApiService {
 
   getPharmacyInventory(): PharmacyInventoryItem[] {
     const defaultItems: PharmacyInventoryItem[] = [
-      { id: 'item-1', name: 'Metformin 500mg', stock: 120, price: 15, dosage: '1 Tab' },
-      { id: 'item-2', name: 'Amoxicillin 250mg', stock: 80, price: 25, dosage: '1 Cap' },
-      { id: 'item-3', name: 'Atorvastatin 10mg', stock: 150, price: 30, dosage: '1 Tab' },
-      { id: 'item-4', name: 'Paracetamol 650mg', stock: 300, price: 5, dosage: '1 Tab' },
-      { id: 'item-5', name: 'Azithromycin 500mg', stock: 45, price: 120, dosage: '1 Tab' }
+      {
+        id: 'item-1',
+        name: 'Metformin 500mg',
+        genericName: 'Metformin Hydrochloride',
+        category: 'Antidiabetic',
+        manufacturer: 'Sun Pharma',
+        batchNumber: 'MET26A-01',
+        expiryDate: new Date(new Date().getTime() + 15 * 24 * 3600 * 1000).toISOString().split('T')[0], // Expiring in 15 days
+        mrp: 15,
+        price: 15,
+        stock: 12,
+        unit: 'tabs',
+        threshold: 30,
+        dosage: '500mg',
+        addedAt: new Date().toISOString(),
+        hsn: '300490'
+      },
+      {
+        id: 'item-2',
+        name: 'Paracetamol 650mg',
+        genericName: 'Paracetamol',
+        category: 'Analgesic',
+        manufacturer: 'Cipla',
+        batchNumber: 'PAR26C-02',
+        expiryDate: new Date(new Date().getTime() + 365 * 24 * 3600 * 1000).toISOString().split('T')[0], // Safe
+        mrp: 5,
+        price: 5,
+        stock: 300,
+        unit: 'tabs',
+        threshold: 50,
+        dosage: '650mg',
+        addedAt: new Date().toISOString(),
+        hsn: '300490'
+      },
+      {
+        id: 'item-3',
+        name: 'Amoxicillin 250mg',
+        genericName: 'Amoxicillin Trihydrate',
+        category: 'Antibiotic',
+        manufacturer: 'Alkem',
+        batchNumber: 'AMX26D-03',
+        expiryDate: new Date(new Date().getTime() + 45 * 24 * 3600 * 1000).toISOString().split('T')[0], // Expiring in 45 days
+        mrp: 25,
+        price: 22,
+        stock: 8,
+        unit: 'caps',
+        threshold: 20,
+        dosage: '250mg',
+        addedAt: new Date().toISOString(),
+        hsn: '300410'
+      },
+      {
+        id: 'item-4',
+        name: 'Atorvastatin 10mg',
+        genericName: 'Atorvastatin Calcium',
+        category: 'Cardiovascular',
+        manufacturer: 'Lupin',
+        batchNumber: 'ATV26E-04',
+        expiryDate: new Date(new Date().getTime() - 5 * 24 * 3600 * 1000).toISOString().split('T')[0], // Expired 5 days ago!
+        mrp: 30,
+        price: 28,
+        stock: 150,
+        unit: 'tabs',
+        threshold: 40,
+        dosage: '10mg',
+        addedAt: new Date().toISOString(),
+        hsn: '300490'
+      },
+      {
+        id: 'item-5',
+        name: 'Pantoprazole 40mg',
+        genericName: 'Pantoprazole Sodium',
+        category: 'Gastrointestinal',
+        manufacturer: 'Sun Pharma',
+        batchNumber: 'PAN26F-05',
+        expiryDate: new Date(new Date().getTime() + 400 * 24 * 3600 * 1000).toISOString().split('T')[0], // Safe
+        mrp: 12,
+        price: 10,
+        stock: 5,
+        unit: 'tabs',
+        threshold: 15,
+        dosage: '40mg',
+        addedAt: new Date().toISOString(),
+        hsn: '300490'
+      }
     ];
     return this.load<PharmacyInventoryItem[]>('pharmacy_inventory', defaultItems);
   }
@@ -1460,17 +1950,363 @@ class MediflowApiService {
     this.notify();
   }
 
+  addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>): PharmacyInventoryItem {
+    const items = this.getPharmacyInventory();
+    const newItem: PharmacyInventoryItem = {
+      ...item,
+      id: `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      addedAt: new Date().toISOString()
+    };
+    items.push(newItem);
+    this.savePharmacyInventory(items);
+    this.writeAuditLog('pharmacy_inventory_added', { itemId: newItem.id, name: newItem.name, batch: newItem.batchNumber, stock: newItem.stock }, newItem.id);
+    return newItem;
+  }
+
+  private sanitizeFormula(val?: string): string {
+    if (!val) return '';
+    const trimmed = val.trim();
+    if (trimmed.startsWith('=') || trimmed.startsWith('+') || trimmed.startsWith('-') || trimmed.startsWith('@')) {
+      return `'${trimmed}`;
+    }
+    return trimmed;
+  }
+
+  private getMidnightUTC(dateStr?: string | Date): number {
+    const d = dateStr ? new Date(dateStr) : new Date();
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0);
+  }
+
+  addPharmacyInventoryBulk(rows: MedicineImportRow[]): { added: number; errors: string[] } {
+    const items = this.getPharmacyInventory();
+    let addedCount = 0;
+    const errors: string[] = [];
+
+    rows.forEach((row, index) => {
+      try {
+        if (!row.name || !row.batchNumber || !row.expiryDate || row.stock === undefined || row.price === undefined) {
+          throw new Error(`Row ${index + 1}: Missing required fields (Name, Batch, Expiry, Price, Stock).`);
+        }
+
+        const cleanName = this.sanitizeFormula(row.name);
+        const cleanBatch = this.sanitizeFormula(row.batchNumber);
+        
+        // Defensive numeric checks
+        const parsedPrice = Math.max(0.01, Number(row.price));
+        const parsedMrp = Math.max(parsedPrice, Number(row.mrp) || 0);
+        const parsedStock = Math.max(0, Math.floor(Number(row.stock)));
+        const parsedThreshold = Math.max(1, Math.floor(Number(row.threshold) || 10));
+        
+        const newItem: PharmacyInventoryItem = {
+          id: `item-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`,
+          name: cleanName,
+          genericName: this.sanitizeFormula(row.genericName || cleanName),
+          category: this.sanitizeFormula(row.category || 'General'),
+          manufacturer: this.sanitizeFormula(row.manufacturer || 'Generic Labs'),
+          batchNumber: cleanBatch,
+          expiryDate: row.expiryDate,
+          mrp: parsedMrp,
+          price: parsedPrice,
+          stock: parsedStock,
+          unit: (row.unit?.toLowerCase() as any) || 'tabs',
+          threshold: parsedThreshold,
+          dosage: this.sanitizeFormula(row.dosage || '10mg'),
+          addedAt: new Date().toISOString(),
+          hsn: this.sanitizeFormula(row.hsn || '300490')
+        };
+
+        items.push(newItem);
+        addedCount++;
+      } catch (err: any) {
+        errors.push(err.message || String(err));
+        TelemetryService.captureException(err, { section: "pharmacy_bulk_csv_row", rowIndex: index });
+      }
+    });
+
+    if (addedCount > 0) {
+      this.savePharmacyInventory(items);
+      this.writeAuditLog('pharmacy_inventory_bulk_added', { count: addedCount }, 'bulk');
+    }
+
+    return { added: addedCount, errors };
+  }
+
+  deletePharmacyInventoryItem(id: string): void {
+    const items = this.getPharmacyInventory();
+    const filtered = items.filter(item => item.id !== id);
+    this.savePharmacyInventory(filtered);
+    this.writeAuditLog('pharmacy_inventory_deleted', { id }, id);
+  }
+
   restockPharmacyInventoryItem(itemId: string, quantity: number) {
     const items = this.getPharmacyInventory();
     const updated = items.map(item => {
-      if (item.id === itemId || item.name.toLowerCase().includes(itemId.toLowerCase())) {
-        const newStock = item.stock + quantity;
+      if (item.id === itemId || item.name.toLowerCase() === itemId.toLowerCase()) {
+        const newStock = Math.max(0, item.stock + quantity);
         this.writeAuditLog('pharmacy_inventory_restocked', { itemId: item.id, medicineName: item.name, quantity, oldStock: item.stock, newStock }, item.id);
         return { ...item, stock: newStock };
       }
       return item;
     });
     this.savePharmacyInventory(updated);
+  }
+
+  getLowStockItems(): PharmacyInventoryItem[] {
+    return this.getPharmacyInventory().filter(item => item.stock <= item.threshold);
+  }
+
+  getExpiringItems(withinDays: number): PharmacyInventoryItem[] {
+    const todayMidnight = this.getMidnightUTC();
+    const targetMidnight = todayMidnight + withinDays * 24 * 3600 * 1000;
+    return this.getPharmacyInventory().filter(item => {
+      const expMidnight = this.getMidnightUTC(item.expiryDate);
+      return expMidnight >= todayMidnight && expMidnight <= targetMidnight;
+    }).sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+  }
+
+  getExpiredItems(): PharmacyInventoryItem[] {
+    const todayMidnight = this.getMidnightUTC();
+    return this.getPharmacyInventory().filter(item => {
+      const expMidnight = this.getMidnightUTC(item.expiryDate);
+      return expMidnight < todayMidnight;
+    }).sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+  }
+
+  // ─── MEDICINE BILLING API METHODS ──────────────────────────────────────────
+  getMedicineBills(): MedicineBill[] {
+    return this.load<MedicineBill[]>('medicine_bills', []);
+  }
+
+  saveMedicineBill(bill: MedicineBill): MedicineBill {
+    const bills = this.getMedicineBills();
+    const existsIndex = bills.findIndex(b => b.id === bill.id);
+    if (existsIndex >= 0) {
+      bills[existsIndex] = bill;
+    } else {
+      bills.push(bill);
+    }
+    this.save('medicine_bills', bills);
+    this.notify();
+    this.writeAuditLog('medicine_bill_saved', { billId: bill.id, total: bill.totalAmount, patientName: bill.patientName }, bill.patientId);
+    
+    // Decoupled offline queue trigger
+    if (!navigator.onLine) {
+      window.dispatchEvent(new CustomEvent('mediflow-pwa-queue-action', {
+        detail: { actionType: 'saveMedicineBill', payload: bill }
+      }));
+    } else {
+      // Async Remote Database save if online
+      supabase.from('medicine_bills').upsert({
+        id: bill.id,
+        patient_id: bill.patientId,
+        subtotal: bill.subtotal,
+        loyalty_discount_percent: bill.loyaltyDiscountPercent,
+        loyalty_discount_amount: bill.loyaltyDiscountAmount,
+        total_amount: bill.totalAmount,
+        payment_mode: bill.paymentMode,
+        status: bill.status,
+        source: bill.source
+      }).then(({ error }) => {
+        if (error) console.error('Error saving bill in Supabase:', error);
+      });
+    }
+
+    return bill;
+  }
+
+  getMedicineBillById(id: string): MedicineBill | null {
+    return this.getMedicineBills().find(b => b.id === id) || null;
+  }
+
+  updateMedicineBillStatus(id: string, status: MedicineBill['status']): void {
+    const bills = this.getMedicineBills();
+    const bill = bills.find(b => b.id === id);
+    if (bill) {
+      bill.status = status;
+      this.save('medicine_bills', bills);
+      this.notify();
+      this.writeAuditLog('medicine_bill_status_updated', { billId: id, status }, bill.patientId);
+    }
+  }
+
+  dispenseMedicineBill(id: string): void {
+    const bills = this.getMedicineBills();
+    const billIndex = bills.findIndex(b => b.id === id);
+    if (billIndex >= 0) {
+      const bill = bills[billIndex];
+      bill.status = 'paid';
+      
+      // Deduct stock from inventory for each item
+      const inventory = this.getPharmacyInventory();
+      bill.items.forEach(item => {
+        const invItem = inventory.find(inv => inv.id === item.inventoryItemId);
+        if (invItem) {
+          const oldStock = invItem.stock;
+          invItem.stock = Math.max(0, invItem.stock - item.quantity);
+          this.writeAuditLog('medicine_dispensed', { 
+            billId: id, 
+            itemId: invItem.id, 
+            medicineName: invItem.name, 
+            quantity: item.quantity, 
+            oldStock, 
+            newStock: invItem.stock 
+          }, invItem.id);
+        }
+      });
+      
+      this.savePharmacyInventory(inventory);
+      bills[billIndex] = bill;
+      this.save('medicine_bills', bills);
+      this.notify();
+      this.writeAuditLog('medicine_bill_dispensed', { billId: id }, bill.patientId);
+    }
+  }
+
+  // ─── LOYALTY DISCOUNT TRACKING ─────────────────────────────────────────────
+  getCounterTransactions(): CounterTransaction[] {
+    return this.load<CounterTransaction[]>('counter_transactions', []);
+  }
+
+  saveCounterTransaction(tx: CounterTransaction): void {
+    const txs = this.getCounterTransactions();
+    const idx = txs.findIndex(t => t.id === tx.id);
+    if (idx >= 0) {
+      txs[idx] = tx;
+    } else {
+      txs.push(tx);
+    }
+    this.save('counter_transactions', txs);
+    this.notify();
+  }
+
+  checkLoyaltyDiscount(patientId: string): boolean {
+    const txs = this.getCounterTransactions();
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Look for a transaction today for this patient where both Appt and Lab are booked at the counter
+    const tx = txs.find(t => 
+      t.patientId === patientId && 
+      t.createdAt.startsWith(todayStr) && 
+      t.appointmentBookedAtCounter && 
+      t.labBookedAtCounter
+    );
+    
+    return !!tx;
+  }
+
+  generateMedicineInvoiceMessage(bill: MedicineBill): string {
+    const itemsList = bill.items.map(item => 
+      `• ${item.name} (${item.dosage}) [Batch: ${item.batchNumber}] x ${item.quantity} = ₹${item.lineTotal.toFixed(2)}`
+    ).join('\n');
+
+    const loyaltyText = bill.loyaltyDiscountPercent > 0 
+      ? `\n🎉 Counter Loyalty Discount (10%): -₹${bill.loyaltyDiscountAmount.toFixed(2)}` 
+      : '';
+      
+    const itemDiscountText = bill.itemDiscountAmount > 0
+      ? `\n🏷 Additional Item Discount: -₹${bill.itemDiscountAmount.toFixed(2)}`
+      : '';
+
+    const deliveryText = bill.deliveryType === 'shiprocket'
+      ? `\n🚚 Shiprocket Delivery: ₹${bill.deliveryCharge?.toFixed(2)} to ${bill.deliveryAddress}`
+      : '\n🚶 Counter Pickup: ₹0.00';
+
+    return `🏥 *MEDIFLOW PHARMACY INVOICE*
+----------------------------------------
+Patient Name: *${bill.patientName}*
+Invoice Ref: #${bill.id.substring(4, 10).toUpperCase()}
+Date: ${new Date(bill.createdAt).toLocaleDateString()}
+
+*Medicines Ordered:*
+${itemsList}
+
+Subtotal: ₹${bill.subtotal.toFixed(2)}${loyaltyText}${itemDiscountText}
+GST (Tax): ₹${bill.gstAmount.toFixed(2)}${deliveryText}
+----------------------------------------
+*TOTAL AMOUNT PAYABLE: ₹${bill.totalAmount.toFixed(2)}*
+
+📱 Pay securely via UPI link below:
+${bill.upiQrPayload || `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${bill.totalAmount.toFixed(2)}&cu=INR&tn=MF-BILL-${bill.id.substring(4, 8)}`}
+
+${bill.deliveryType === 'shiprocket' 
+  ? '📍 Your order will be dispatched via Shiprocket once payment is cleared!' 
+  : '👉 Show this invoice screen at the clinic pharmacy counter to collect your medicines.'}
+Thank you for choosing Mediflow! 🟢`;
+  }
+
+  async parseSupplierBillOCR(base64: string): Promise<MedicineImportRow[]> {
+    if (!base64) return [];
+    // Simulated Gemini Pro Vision AI extracting supplier bill data
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    return [
+      {
+        name: 'Metformin 500mg',
+        batchNumber: 'MET26B-02',
+        expiryDate: new Date(new Date().getTime() + 180 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 15,
+        price: 13.5,
+        stock: 100,
+        unit: 'tabs',
+        threshold: 30,
+        dosage: '500mg',
+        manufacturer: 'Sun Pharma',
+        genericName: 'Metformin Hydrochloride',
+        category: 'Antidiabetic',
+        hsn: '300490'
+      },
+      {
+        name: 'Atorvastatin 10mg',
+        batchNumber: 'ATV26F-06',
+        expiryDate: new Date(new Date().getTime() + 240 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 30,
+        price: 27.0,
+        stock: 50,
+        unit: 'tabs',
+        threshold: 40,
+        dosage: '10mg',
+        manufacturer: 'Lupin',
+        genericName: 'Atorvastatin Calcium',
+        category: 'Cardiovascular',
+        hsn: '300490'
+      },
+      {
+        name: 'Paracetamol 650mg',
+        batchNumber: 'PAR26D-07',
+        expiryDate: new Date(new Date().getTime() + 300 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 5,
+        price: 4.2,
+        stock: 200,
+        unit: 'tabs',
+        threshold: 50,
+        dosage: '650mg',
+        manufacturer: 'Cipla',
+        genericName: 'Paracetamol',
+        category: 'Analgesic',
+        hsn: '300490'
+      }
+    ];
+  }
+
+  matchPrescriptionMedicines(names: string[]): PharmacyInventoryItem[] {
+    const inventory = this.getPharmacyInventory();
+    const matched: PharmacyInventoryItem[] = [];
+
+    names.forEach(name => {
+      // Find the first non-expired batch in inventory that fuzzy-matches name
+      const today = new Date().toISOString().split('T')[0];
+      const match = inventory.find(item => 
+        (item.name.toLowerCase().includes(name.toLowerCase()) || 
+         item.genericName.toLowerCase().includes(name.toLowerCase())) &&
+        item.expiryDate >= today &&
+        item.stock > 0
+      );
+      if (match) {
+        matched.push(match);
+      }
+    });
+
+    return matched;
   }
 
   getWhatsAppDrugOrders(): WhatsAppDrugOrder[] {
@@ -1576,8 +2412,8 @@ class MediflowApiService {
         const order = orders[idx];
         const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
         
-        // 3% Platform fee and 48.5% split between Doctor & Pharmacy
-        const platformAmt = parseFloat((order.amount * 0.03).toFixed(2));
+        // 3% Platform fee (minimum ₹10.00 protection) and 48.5% split between Doctor & Pharmacy
+        const platformAmt = Math.max(10.00, parseFloat((order.amount * 0.03).toFixed(2)));
         const commissionAmt = parseFloat((order.amount * 0.485).toFixed(2));
         const newLedger: FinancialLedgerEntry = {
           id: `tx-${crypto.randomUUID().substring(0, 8)}`,
@@ -1666,47 +2502,108 @@ class MediflowApiService {
         results
       });
 
-      // Add a lab fee split to the ledger
+      // Add a lab fee split to the ledger matching the restructured splits from active SOP
       const ledgerEntries = this.load<FinancialLedgerEntry[]>('financial_ledgers', []);
-      const platformAmt = parseFloat((350 * 0.03).toFixed(2));
-      const commissionAmt = parseFloat((350 * 0.485).toFixed(2));
-      const newLedger: FinancialLedgerEntry = {
-        id: `tx-${crypto.randomUUID().substring(0, 8)}`,
+      const testCatalogItem = MASTER_TEST_CATALOG.find(t => t.loincCode === reports[idx].loincCode);
+      const activeSop = this.getActiveSop();
+      
+      const testPrice = activeSop?.extractedConfig?.test_prices?.[reports[idx].loincCode] ?? testCatalogItem?.price ?? 350;
+      
+      const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
+      const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 3;
+      const splitLab = activeSop?.extractedConfig?.splits?.lab ?? 57;
+
+      const platformAmt = parseFloat((testPrice * (splitPlat / 100)).toFixed(2));
+      const docAmt = parseFloat((testPrice * (splitDoc / 100)).toFixed(2));
+      const labAmt = parseFloat((testPrice * (splitLab / 100)).toFixed(2));
+
+      const docLedger: FinancialLedgerEntry = {
+        id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: `inv-rep-${reportId}`,
         sourceEntityId: 'lab-partner-entity',
         destinationEntityId: 'clinic-admin-entity',
         transactionType: 'lab_commission',
-        grossAmount: 350,
-        commissionRate: 0.485, 
-        netPayout: commissionAmt,
+        grossAmount: testPrice,
+        commissionRate: splitDoc / 100, 
+        netPayout: docAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
+
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: `inv-rep-${reportId}`,
         sourceEntityId: 'lab-partner-entity',
         destinationEntityId: 'platform-admin-entity',
         transactionType: 'platform_fee',
-        grossAmount: 350,
-        commissionRate: 0.03,
+        grossAmount: testPrice,
+        commissionRate: splitPlat / 100,
         netPayout: platformAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
-      ledgerEntries.unshift(newLedger, platformLedger);
+
+      const labLedger: FinancialLedgerEntry = {
+        id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: `inv-rep-${reportId}`,
+        sourceEntityId: 'lab-partner-entity',
+        destinationEntityId: 'lab-partner-entity',
+        transactionType: 'lab_commission',
+        grossAmount: testPrice,
+        commissionRate: splitLab / 100,
+        netPayout: labAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+
+      ledgerEntries.unshift(docLedger, platformLedger, labLedger);
       this.save('financial_ledgers', ledgerEntries);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Lab Report Approved! 🧪',
-          message: `Report approved. Platform Fee (₹${platformAmt}) & Doctor split (₹${commissionAmt}) processed!`,
+          message: `Report approved. Splits: Doctor (₹${docAmt}) & Platform (₹${platformAmt}) & Lab (₹${labAmt}) settled!`,
           type: 'success'
         }
       }));
     }
+  }
+
+  // Clinic SOP Center Methods
+  getClinicSops(): ClinicSop[] {
+    const defaultSop: ClinicSop = {
+      id: 'sop-standard-1',
+      entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      sopFileName: 'Kankarbagh_Clinic_Standard_SOP.txt',
+      sopText: 'Doctor consultation fee: INR 450. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 3% Platform, 57% Lab.',
+      extractedConfig: {
+        doctor_fee: 450,
+        test_prices: { '4544-3': 350, '2160-0': 250, '3024-7': 150, '2947-0': 200, '1975-2': 300 },
+        splits: { doctor: 40, platform: 3, lab: 57 },
+        guidelines: [
+          'Auto-assign Lalit Prasad for tech verification',
+          'Allow doorstep sample collection scheduling',
+          'Hold pharmacy stock using FEFO',
+          'Verify patient consent prior to care pod routing'
+        ]
+      },
+      isActive: true,
+      createdAt: new Date().toISOString()
+    };
+    return this.load<ClinicSop[]>('clinic_sops', [defaultSop]);
+  }
+
+  saveClinicSops(sops: ClinicSop[]) {
+    this.save('clinic_sops', sops);
+    this.notify();
+  }
+
+  getActiveSop(): ClinicSop | null {
+    const sops = this.getClinicSops();
+    return sops.find(s => s.isActive) || null;
   }
 
   generateAISummaryReport(patientId: string): string {
@@ -2062,6 +2959,23 @@ If no prescription image could be loaded or fetched, generate a highly realistic
     const patient = this.getPatients().find(p => p.phone === phone);
     if (!patient) return;
 
+    // DevSecOps: Limit proactive marketing outbounds to high-value patients (Total Spent >= ₹1,000)
+    const completedInvoices = this.getUnifiedInvoices()
+      .filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
+    const totalSpent = completedInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+
+    if (totalSpent < 1000) {
+      console.warn(`[Mediflow DevSecOps] Proactive Refill Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Marketing Nudge Restrained 🛡️',
+          message: `Blocked auto-refill alert for ${patient.name} due to low-value threshold (Spent: ₹${totalSpent} < ₹1000).`,
+          type: 'warning'
+        }
+      }));
+      return;
+    }
+
     const message = `Hello ${patient.name}! 😊 We noticed your generic medication dosage is running low (only 5 days left!). 💊\n\nTo ensure uninterrupted treatment, we have pre-allocated a fresh, quality-checked pack for you at our Patna Pod pharmacy counter. \n\n*Reply 'YES' to confirm and immediately dispatch your medicine refill package to your home!*`;
     
     const sessions = this.getWhatsAppSessions();
@@ -2081,6 +2995,23 @@ If no prescription image could be loaded or fetched, generate a highly realistic
   triggerProactiveFollowUpNudge(phone: string): void {
     const patient = this.getPatients().find(p => p.phone === phone);
     if (!patient) return;
+
+    // DevSecOps: Limit proactive marketing outbounds to high-value patients (Total Spent >= ₹1,000)
+    const completedInvoices = this.getUnifiedInvoices()
+      .filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
+    const totalSpent = completedInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+
+    if (totalSpent < 1000) {
+      console.warn(`[Mediflow DevSecOps] Proactive Followup Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Marketing Nudge Restrained 🛡️',
+          message: `Blocked follow-up scheduling alert for ${patient.name} due to low-value threshold (Spent: ₹${totalSpent} < ₹1000).`,
+          type: 'warning'
+        }
+      }));
+      return;
+    }
 
     const message = `Hello ${patient.name}! 😊 Hope you are recovering well. \n\nDr. Vivek recommended a follow-up consultation in 3 days to evaluate your progress. \n\n*Reply 'BOOK' or '1' to lock a convenient Virtual Video Consultation slot immediately!*`;
     
@@ -2102,6 +3033,23 @@ If no prescription image could be loaded or fetched, generate a highly realistic
     const patient = this.getPatients().find(p => p.phone === phone);
     if (!patient) return;
 
+    // DevSecOps: Limit proactive marketing outbounds to high-value patients (Total Spent >= ₹1,000)
+    const completedInvoices = this.getUnifiedInvoices()
+      .filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
+    const totalSpent = completedInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+
+    if (totalSpent < 1000) {
+      console.warn(`[Mediflow DevSecOps] Proactive Lab Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Marketing Nudge Restrained 🛡️',
+          message: `Blocked lab collection alert for ${patient.name} due to low-value threshold (Spent: ₹${totalSpent} < ₹1000).`,
+          type: 'warning'
+        }
+      }));
+      return;
+    }
+
     const message = `Hi ${patient.name}! 🔬 Our records show you have a pending sugar level test (HbA1c test) ordered by Dr. Vivek. Reagents are currently locked for your slot. \n\n*Would you like our lab team to collect your blood sample from your home tomorrow morning at 8:00 AM? Reply 'HOME' to schedule.*`;
     
     const sessions = this.getWhatsAppSessions();
@@ -2116,6 +3064,64 @@ If no prescription image could be loaded or fetched, generate a highly realistic
 
     this.pushWhatsAppMessageFromBot(phone, message);
     this.writeAuditLog('PROACTIVE_LAB_NUDGE_SENT', { phone, patientName: patient.name }, null);
+  }
+
+  async referPatientToSpecialist(phone: string, targetDoctorId: string): Promise<void> {
+    try {
+      const sessions = this.getWhatsAppSessions();
+      const session = sessions.find(s => s.patientPhone === phone);
+      const patient = this.getPatients().find(p => p.phone === phone);
+      if (!session || !patient) {
+        console.warn(`[Mediflow Referrals] Session or Patient not found for phone ${phone}`);
+        return;
+      }
+
+      // Look up target doctor name / specialty
+      let doctorName = "Dr. Sinha";
+      let specialty = "Cardiologist";
+      if (targetDoctorId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317103') {
+        doctorName = "Dr. Sinha";
+        specialty = "Cardiologist";
+      } else if (targetDoctorId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102') {
+        doctorName = "Dr. Anjali";
+        specialty = "Gynecologist";
+      } else if (targetDoctorId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101') {
+        doctorName = "Dr. Raj";
+        specialty = "Pediatrician";
+      }
+
+      const nudgeMessage = `Dr. Vivek has referred you to ${specialty} ${doctorName}. Reply 'BOOK' to schedule your slot. 🩺`;
+
+      // Update whatsapp_sessions to AWAITING_WELCOME state
+      const referralData = {
+        referredByDoctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101', // Dr. Vivek
+        referredToDoctorId: targetDoctorId,
+        specialty,
+        doctorName,
+        referralCommissionAmt: 50.00 // flat ₹50 thank-you fee
+      };
+
+      const sessionData = {
+        ...session.sessionData,
+        referral: referralData
+      };
+
+      this.updateWhatsAppState(phone, 'AWAITING_WELCOME', sessionData);
+
+      // Trigger the WhatsApp message
+      this.pushWhatsAppMessageFromBot(phone, nudgeMessage);
+      await this.writeAuditLog('PATIENT_REFERRAL_INITIATED', { phone, targetDoctorId, specialty, doctorName }, patient.id);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Referral Nudge Sent! 📣',
+          message: `Referral nudge sent to ${patient.name} via WhatsApp. Awaiting BOOK response.`,
+          type: 'success'
+        }
+      }));
+    } catch (err) {
+      console.error('[Mediflow Referrals] Error initiating referral:', err);
+    }
   }
 
   async saveAgentTaskPipeline(pipeline: {

@@ -52,6 +52,28 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [logs, setLogs] = useState<any[]>([]);
   const [isHudExpanded, setIsHudExpanded] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+  const [offlineCount, setOfflineCount] = useState(0);
+
+  useEffect(() => {
+    const handlePwaSync = () => {
+      try {
+        const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+        setOfflineCount(queue.length);
+      } catch {
+        setOfflineCount(0);
+      }
+    };
+
+    handlePwaSync();
+    window.addEventListener('mediflow-pwa-sync-change', handlePwaSync);
+    window.addEventListener('online', handlePwaSync);
+    window.addEventListener('offline', handlePwaSync);
+    return () => {
+      window.removeEventListener('mediflow-pwa-sync-change', handlePwaSync);
+      window.removeEventListener('online', handlePwaSync);
+      window.removeEventListener('offline', handlePwaSync);
+    };
+  }, []);
 
   // Sync active patient and bypass states
   useEffect(() => {
@@ -319,6 +341,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="flex items-center gap-1 text-[9px] font-mono tracking-wider font-bold text-emerald-500 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   SYSTEM LIVE
+                </span>
+                {/* PWA Cache Status Badge */}
+                <span className={`flex items-center gap-1 text-[8px] font-mono tracking-wider font-extrabold mt-1 px-1.5 py-0.5 rounded-full border ${
+                  offlineCount > 0
+                    ? 'text-amber-500 bg-amber-500/10 border-amber-500/25 animate-pulse'
+                    : 'text-cyan-500 bg-cyan-500/10 border-cyan-500/25'
+                }`}>
+                  <span className={`w-1 h-1 rounded-full ${offlineCount > 0 ? 'bg-amber-400' : 'bg-cyan-400'}`}></span>
+                  <span>{offlineCount > 0 ? `PWA: ${offlineCount} QUEUED` : 'PWA: CACHE SYNCED'}</span>
                 </span>
               </div>
             )}

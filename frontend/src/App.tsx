@@ -17,6 +17,7 @@ import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen
 import { PatientWhatsAppSimulator } from './components/shared/PatientWhatsAppSimulator';
 import { PatientMobileDashboard } from './components/shared/PatientMobileDashboard';
 import { CommandBar } from './components/shared/CommandBar';
+import { PwaSyncManager } from './pwa';
 
 interface Toast {
   id: string;
@@ -268,6 +269,10 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [activeProfile, setActiveProfile] = useState<any>(null);
   const [isBypassMode, setIsBypassMode] = useState<boolean>(true); // Dev bypass default for smooth testing
+
+  useEffect(() => {
+    PwaSyncManager.registerServiceWorker();
+  }, []);
 
   useEffect(() => {
     // Sync the active role with MediflowApiService simulated checks

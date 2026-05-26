@@ -14,7 +14,7 @@ export const BillingDashboard: React.FC = () => {
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<UnifiedInvoice | null>(null);
   const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
-  const [activeTab, setActiveTab] = useState<'invoice' | 'ledger'>('invoice');
+  const [activeTab, setActiveTab] = useState<'invoice' | 'ledger' | 'analytics'>('invoice');
   const [ledgerEntries, setLedgerEntries] = useState<FinancialLedgerEntry[]>([]);
 
   // V2.0 Animated Split Payout Wheel Active Selection
@@ -324,9 +324,21 @@ export const BillingDashboard: React.FC = () => {
                   <span className="material-symbols-outlined text-sm font-bold">account_tree</span>
                   B2B Commission Ledger
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('analytics')}
+                  className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    activeTab === 'analytics'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
+                      : 'text-clinical-400 hover:text-white hover:bg-surface-container/30'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm font-bold">bar_chart</span>
+                  Executive Analytics
+                </button>
               </div>
 
-              {activeTab === 'invoice' ? (
+              {activeTab === 'invoice' && (
                 <>
                   {/* Bill Split visual catalog */}
                   <div className="space-y-3">
@@ -434,7 +446,9 @@ export const BillingDashboard: React.FC = () => {
                     </span>
                   </div>
                 </>
-              ) : (
+              )}
+
+              {activeTab === 'ledger' && (
                 /* Tab 2: Inter-Entity Commission Ledger — Live from financial_ledgers */
                 <div className="space-y-4 animate-fade-in text-xs">
                   {/* Summary Box */}
@@ -534,6 +548,93 @@ export const BillingDashboard: React.FC = () => {
                     <div className="flex justify-between">
                       <span>Bank Settlement Route ID:</span>
                       <span className="text-white uppercase font-bold">TXN_UPI_SPLIT_REF_{selectedInvoice.id.substring(0, 8).toUpperCase()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'analytics' && (
+                /* Tab 3: Executive Analytics */
+                <div className="space-y-6 animate-fade-in text-xs select-none">
+                  {/* Revenue Splits 3D Cylinder Grouped Bars */}
+                  <div className="glass-panel p-5 border-white/10 shadow-lg relative overflow-hidden bg-black/35 rounded-2xl border border-white/5">
+                    <h4 className="font-extrabold text-white text-xs uppercase tracking-widest font-mono mb-4 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-emerald-400 text-sm animate-pulse">analytics</span>
+                      Executive Clinic Revenue Splits & SaaS Commission
+                    </h4>
+
+                    <div className="space-y-4">
+                      {[
+                        { label: 'Doctor Consulting share', val: selectedInvoice.doctorFee, color: 'from-purple-500 to-indigo-600', pct: Math.round((Number(selectedInvoice.doctorFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
+                        { label: 'Pathology Lab testing share', val: selectedInvoice.labFee, color: 'from-blue-500 to-cyan-600', pct: Math.round((Number(selectedInvoice.labFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
+                        { label: 'Pharmacy Medicine checkout share', val: selectedInvoice.pharmacyFee, color: 'from-emerald-500 to-teal-600', pct: Math.round((Number(selectedInvoice.pharmacyFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
+                        { label: 'Mediflow SaaS Platform fee (5%)', val: selectedInvoice.platformFee, color: 'from-rose-500 to-red-600', pct: Math.round((Number(selectedInvoice.platformFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 }
+                      ].map((item, i) => (
+                        <div key={i} className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-bold text-clinical-300">
+                            <span>{item.label}</span>
+                            <span className="font-mono text-white">₹{item.val}.00 ({item.pct}%)</span>
+                          </div>
+                          {/* 3D horizontal cylinder bar */}
+                          <div className="h-4 w-full bg-slate-950/60 rounded-full border border-white/5 overflow-hidden shadow-inner p-[1px]">
+                            <div 
+                              className={`h-full rounded-full bg-gradient-to-r ${item.color} transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.05)]`}
+                              style={{ width: `${item.pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Expiry and Swapper Savings */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="glass-panel p-4 border-white/10 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                      <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-amber-400 text-sm">schedule</span>
+                        FEFO Expiry Burn Velocity
+                      </h5>
+                      <div className="flex items-center gap-4">
+                        {/* CSS circular meter */}
+                        <div className="relative w-12 h-12 rounded-full border-4 border-dashed border-emerald-500/30 flex items-center justify-center font-mono font-extrabold text-xs text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.1)]">
+                          94%
+                        </div>
+                        <div className="text-[10px] leading-relaxed text-clinical-400">
+                          <div className="text-white font-bold">FEFO Safety Clearance</div>
+                          <div className="mt-0.5">94% of unexpired inventory batches safely rotated.</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="glass-panel p-4 border-white/10 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                      <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-rose-400 text-sm">swap_horiz</span>
+                        Generic Brand Cost Savings
+                      </h5>
+                      <div className="flex items-center gap-4">
+                        <div className="relative w-12 h-12 rounded-full border-4 border-dashed border-rose-500/30 flex items-center justify-center font-mono font-extrabold text-xs text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.1)]">
+                          ₹420
+                        </div>
+                        <div className="text-[10px] leading-relaxed text-clinical-400">
+                          <div className="text-white font-bold">Total Patient Savings</div>
+                          <div className="mt-0.5">₹420 saved by swapping generic brands.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reagent Deduction Burn velocity & Speed */}
+                  <div className="glass-panel p-4 border-white/10 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                    <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono">Reagent & Wait Time Analytics</h5>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div className="p-3 bg-clinical-950/60 rounded-xl border border-white/5">
+                        <span className="text-clinical-400 block text-[9px] font-mono uppercase tracking-wider">Avg Lab Wait Time</span>
+                        <strong className="text-white text-base font-mono">1.8 Min</strong>
+                      </div>
+                      <div className="p-3 bg-clinical-950/60 rounded-xl border border-white/5">
+                        <span className="text-clinical-400 block text-[9px] font-mono uppercase tracking-wider">Reagents Ded. Volume</span>
+                        <strong className="text-secondary text-base font-mono">1.2 Litres</strong>
+                      </div>
                     </div>
                   </div>
                 </div>
