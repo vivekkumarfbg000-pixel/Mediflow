@@ -1,13 +1,15 @@
 // Mediflow Connected Care Ecosystem - Premium Dashboard v1.0.0
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Navbar } from './components/shared/Navbar';
 import type { UserRole } from './components/shared/Navbar';
 import { api } from './services/api';
-import { CompounderDashboard } from './components/compounder/CompounderDashboard';
-import { DoctorDashboard } from './components/doctor/DoctorDashboard';
-import { LabDashboard } from './components/lab/LabDashboard';
-import { PharmacyDashboard } from './components/pharmacy/PharmacyDashboard';
-import { BillingDashboard } from './components/billing/BillingDashboard';
+
+const CompounderDashboard = lazy(() => import('./components/compounder/CompounderDashboard').then(m => ({ default: m.CompounderDashboard })));
+const DoctorDashboard = lazy(() => import('./components/doctor/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
+const LabDashboard = lazy(() => import('./components/lab/LabDashboard').then(m => ({ default: m.LabDashboard })));
+const PharmacyDashboard = lazy(() => import('./components/pharmacy/PharmacyDashboard').then(m => ({ default: m.PharmacyDashboard })));
+const BillingDashboard = lazy(() => import('./components/billing/BillingDashboard').then(m => ({ default: m.BillingDashboard })));
+
 import { AuthGateway } from './components/shared/AuthGateway';
 import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
@@ -176,7 +178,16 @@ function AppContent({
       <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300`}>
         <div className="animate-fade-in">
           <ErrorBoundary>
-            {renderDashboard()}
+            <Suspense fallback={
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-500 rounded-full animate-spin"></div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-mono animate-pulse">Initializing Interface...</span>
+                </div>
+              </div>
+            }>
+              {renderDashboard()}
+            </Suspense>
           </ErrorBoundary>
         </div>
       </main>

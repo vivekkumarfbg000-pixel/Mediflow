@@ -920,7 +920,7 @@ class MediflowApiService {
           }
           break;
 
-        case 'COMPLETED':
+        case 'COMPLETED': {
           const currentPat = this.getPatients().find(p => p.phone === phone);
           const awaitingAction = sessionData.awaitingProactiveAction;
 
@@ -1070,7 +1070,8 @@ class MediflowApiService {
               replyMessage = `*Mediflow AI-RAG support team* 🤖\n\nAapke query \"${text}\" ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
             }
           }
-          break;
+        }
+        break;
 
         case 'FAILED_DELIVERY':
           if (cleaned) {

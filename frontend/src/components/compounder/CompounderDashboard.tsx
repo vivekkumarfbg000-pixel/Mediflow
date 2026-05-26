@@ -92,6 +92,15 @@ export const CompounderDashboard: React.FC = () => {
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'shiprocket'>('pickup');
   const [deliveryAddress, setDeliveryAddress] = useState('');
 
+  // Post-scan patient assignment & quick registration
+  const [assignSearchQuery, setAssignSearchQuery] = useState('');
+  const [showQuickReg, setShowQuickReg] = useState(false);
+  const [quickRegName, setQuickRegName] = useState('');
+  const [quickRegPhone, setQuickRegPhone] = useState('');
+  const [quickRegAge, setQuickRegAge] = useState('');
+  const [quickRegGender, setQuickRegGender] = useState<Patient['gender']>('Male');
+  const [quickRegAbha, setQuickRegAbha] = useState('');
+
   // Pathology upload scan queue states
   const [uploadPatientName, setUploadPatientName] = useState('');
   const [uploadTestCode, setUploadTestCode] = useState('4544-3'); // HbA1c standard
@@ -317,7 +326,7 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   const handleTriggerPrescriptionOcr = async () => {
-    if (!prescriptionImage || !billingPatient) return;
+    if (!prescriptionImage) return;
     setIsPrescriptionScanning(true);
     setOcrLogs([
       `[${new Date().toLocaleTimeString()}] Reading prescription visual bounds...`,
@@ -609,6 +618,53 @@ export const CompounderDashboard: React.FC = () => {
     p.phone.includes(searchQuery) ||
     (p.abhaId && p.abhaId.includes(searchQuery))
   );
+
+  const assignFilteredPatients = useMemo(() => {
+    if (!assignSearchQuery.trim()) return [];
+    return patients.filter(p => 
+      p.name.toLowerCase().includes(assignSearchQuery.toLowerCase().trim()) || 
+      p.phone.includes(assignSearchQuery.trim()) ||
+      (p.abhaId && p.abhaId.includes(assignSearchQuery.trim()))
+    );
+  }, [patients, assignSearchQuery]);
+
+  const handleQuickRegisterPatient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickRegName.trim() || !quickRegPhone.trim() || !quickRegAge) {
+      alert('Please fill in Name, Phone, and Age.');
+      return;
+    }
+
+    const registered = api.registerPatient({
+      name: quickRegName.trim(),
+      phone: quickRegPhone.trim(),
+      age: Number(quickRegAge),
+      gender: quickRegGender,
+      allergies: [],
+      chronicConditions: [],
+      abhaId: quickRegAbha.trim() || undefined
+    });
+
+    // Refresh clinical lists
+    setPatients(api.getPatients());
+    setBillingPatient(registered);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Registered & Assigned Patient: ${quickRegName.trim()} successfully!`,
+        type: 'success',
+        title: 'Patient Assigned'
+      }
+    }));
+
+    // Reset fields
+    setQuickRegName('');
+    setQuickRegPhone('');
+    setQuickRegAge('');
+    setQuickRegGender('Male');
+    setQuickRegAbha('');
+    setShowQuickReg(false);
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in">
@@ -1079,19 +1135,38 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                   
                   {billingPatient ? (
-                    <div className="p-2.5 rounded-xl border border-secondary/20 bg-secondary/5 font-mono text-[10px] text-secondary font-bold select-none shrink-0 leading-tight">
-                      🛒 BILLING PATIENT:<br />
-                      <strong className="text-white font-sans text-xs">{billingPatient.name}</strong>
+                    <div className="flex items-center gap-2 select-none shrink-0">
+                      <div className="p-2.5 rounded-xl border border-secondary/20 bg-secondary/5 font-mono text-[10px] text-secondary font-bold leading-tight">
+                        🛒 BILLING PATIENT:<br />
+                        <strong className="text-white font-sans text-xs">{billingPatient.name}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBillingPatient(null);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              message: 'Cleared active billing patient context. Ready to reassign.',
+                              type: 'info',
+                              title: 'Patient Cleared'
+                            }
+                          }));
+                        }}
+                        className="px-3.5 py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 font-bold rounded-lg uppercase tracking-wider text-[10px] transition-all cursor-pointer h-[42px] flex items-center justify-center font-semibold"
+                        title="Unassign patient"
+                      >
+                        SWITCH
+                      </button>
                     </div>
                   ) : (
-                    <div className="p-2 border border-rose-500/20 bg-rose-500/5 font-mono text-[10px] text-rose-400 font-bold shrink-0">
-                      ⚠️ CHOOSE PATIENT IN REGISTRY FIRST
+                    <div className="p-2.5 rounded-xl border border-rose-500/20 bg-rose-500/5 font-mono text-[10px] text-rose-400 font-bold shrink-0 select-none leading-tight animate-pulse">
+                      ⚠️ PATIENT UNASSIGNED:<br />
+                      <strong className="text-rose-300 font-sans text-xs font-semibold">Assign patient below</strong>
                     </div>
                   )}
                 </div>
 
-                {billingPatient && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     
                     {/* Prescription image upload */}
                     <div className="space-y-3">
@@ -1147,12 +1222,10 @@ export const CompounderDashboard: React.FC = () => {
                     </div>
 
                   </div>
-                )}
               </div>
 
               {/* Manual search and add in billing */}
-              {billingPatient && (
-                <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
+              <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
                   <h3 className="font-bold text-white text-base flex items-center gap-2 border-b border-white/10 pb-3">
                     <span className="material-symbols-outlined text-secondary">search</span>
                     Fuzzy Match Pharmacy Batches
@@ -1300,14 +1373,12 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
 
                 </div>
-              )}
-
             </div>
 
             {/* Right details block (30%): Loyalty, totals summary, dispatch */}
             <div className="lg:col-span-4 space-y-6">
               
-              {billingPatient && (
+              {billingPatient ? (
                 <div className="glass-panel p-6 border-white/10 shadow-xl space-y-5">
                   <h3 className="font-bold text-white text-base border-b border-white/10 pb-3 flex items-center gap-2">
                     <Coins className="h-5 w-5 text-emerald-400" />
@@ -1464,7 +1535,172 @@ export const CompounderDashboard: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="glass-panel p-6 border-white/10 shadow-xl space-y-5 animate-fade-in relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500/50 to-amber-500/50 opacity-60" />
+                  
+                  <h3 className="font-bold text-white text-base border-b border-white/10 pb-3 flex items-center gap-2 select-none">
+                    <span className="material-symbols-outlined text-rose-400">person_add</span>
+                    Assign Patient to Checkout
+                  </h3>
 
+                  <div className="space-y-4">
+                    <div className="flex gap-2 p-1 bg-surface-container rounded-xl border border-outline-variant select-none">
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickReg(false)}
+                        className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                          !showQuickReg 
+                            ? 'bg-secondary text-black shadow-md' 
+                            : 'text-clinical-400 hover:text-white'
+                        }`}
+                      >
+                        Search Registry
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickReg(true)}
+                        className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                          showQuickReg 
+                            ? 'bg-secondary text-black shadow-md' 
+                            : 'text-clinical-400 hover:text-white'
+                        }`}
+                      >
+                        Register New
+                      </button>
+                    </div>
+
+                    {!showQuickReg ? (
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Search patient by name, phone, or ABHA ID..."
+                            value={assignSearchQuery}
+                            onChange={(e) => setAssignSearchQuery(e.target.value)}
+                            className="w-full input-field pl-10 focus:ring-1 focus:ring-secondary focus:border-secondary text-xs py-2.5 bg-surface-container border-outline-variant text-white rounded-lg font-sans"
+                          />
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-clinical-400 h-4.5 w-4.5" />
+                        </div>
+
+                        {assignFilteredPatients.length > 0 ? (
+                          <div className="border border-outline-variant rounded-xl overflow-hidden divide-y divide-outline-variant bg-surface-container-lowest/50 glass-panel-inner max-h-[220px] overflow-y-auto select-none animate-fade-in font-sans">
+                            {assignFilteredPatients.map(p => (
+                              <div key={p.id} className="p-3 flex items-center justify-between hover:bg-surface-container/50 transition-colors font-sans">
+                                <div>
+                                  <h4 className="font-bold text-white text-xs font-sans">
+                                    {p.name} <span className="text-clinical-400 font-medium text-[10px]">({p.age}y, {p.gender})</span>
+                                  </h4>
+                                  <p className="text-[10px] text-clinical-300 mt-0.5 font-mono">{p.phone}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setBillingPatient(p);
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: {
+                                        message: `Loaded patient ${p.name} into active billing workspace!`,
+                                        type: 'info',
+                                        title: 'Patient Assigned'
+                                      }
+                                    }));
+                                  }}
+                                  className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer font-semibold font-sans"
+                                >
+                                  Assign
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : assignSearchQuery.trim() ? (
+                          <div className="p-4 text-center border border-dashed border-outline-variant rounded-xl text-clinical-400 text-xs bg-black/10 select-none font-sans">
+                            No matching patient found in registry.<br />
+                            <button
+                              type="button"
+                              onClick={() => setShowQuickReg(true)}
+                              className="text-secondary font-bold hover:underline mt-2 inline-block text-[10px] uppercase tracking-wider font-sans"
+                            >
+                              Create profile inline
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <form onSubmit={handleQuickRegisterPatient} className="space-y-3.5 font-sans">
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Patient Full Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Ramesh Kumar"
+                            value={quickRegName}
+                            onChange={(e) => setQuickRegName(e.target.value)}
+                            className="w-full bg-surface-container-lowest border border-outline-variant text-white px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-secondary font-semibold font-sans"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">WhatsApp Phone Number *</label>
+                          <input
+                            type="tel"
+                            required
+                            placeholder="e.g. 9876543210"
+                            value={quickRegPhone}
+                            onChange={(e) => setQuickRegPhone(e.target.value)}
+                            className="w-full bg-surface-container-lowest border border-outline-variant text-white px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-secondary font-semibold font-mono"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Age *</label>
+                            <input
+                              type="number"
+                              required
+                              min="1"
+                              max="120"
+                              placeholder="42"
+                              value={quickRegAge}
+                              onChange={(e) => setQuickRegAge(e.target.value)}
+                              className="w-full bg-surface-container-lowest border border-outline-variant text-white px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-secondary font-semibold font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Gender *</label>
+                            <select
+                              value={quickRegGender}
+                              onChange={(e) => setQuickRegGender(e.target.value as any)}
+                              className="w-full bg-surface-container-lowest border border-outline-variant text-white px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-secondary font-semibold font-sans"
+                            >
+                              <option value="Male" className="bg-surface-container-lowest text-white">Male</option>
+                              <option value="Female" className="bg-surface-container-lowest text-white">Female</option>
+                              <option value="Other" className="bg-surface-container-lowest text-white">Other</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">ABHA National Health ID (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 91-8843-9921-2210"
+                            value={quickRegAbha}
+                            onChange={(e) => setQuickRegAbha(e.target.value)}
+                            className="w-full bg-surface-container-lowest border border-outline-variant text-white px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-secondary font-semibold font-mono"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full py-2.5 bg-gradient-to-r from-secondary to-primary text-black hover:scale-105 active:scale-95 border-0 font-black tracking-wider uppercase rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer font-semibold transition-all mt-2 font-sans"
+                        >
+                          Register & Assign Patient
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </div>
               )}
 

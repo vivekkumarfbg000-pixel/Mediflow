@@ -9,6 +9,10 @@ RETURNS UUID AS $$
   ) LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER;
 
+-- Secure the function against public execution leaks
+REVOKE EXECUTE ON FUNCTION public.get_user_pod() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_user_pod() TO authenticated;
+
 -- 2. Add pod_id UUID column with fallback default to all transactional tables
 ALTER TABLE public.patient_registry ADD COLUMN IF NOT EXISTS pod_id UUID REFERENCES public.pods(id) ON DELETE CASCADE DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
 ALTER TABLE public.encounters ADD COLUMN IF NOT EXISTS pod_id UUID REFERENCES public.pods(id) ON DELETE CASCADE DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';

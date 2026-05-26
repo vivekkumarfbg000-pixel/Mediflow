@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
 import { 
-  Activity, 
   UserPlus, 
   Stethoscope, 
   Beaker, 
@@ -306,7 +305,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onToggleSidebarCollapse?.(false);
           }
         }}
-        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white border-r border-slate-100 z-40 justify-between transition-all duration-300 ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
+        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-slate-50 border-r border-slate-200/80 z-40 justify-between transition-all duration-300 ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
       >
         {/* Collapse Toggle Button (Circular) */}
         <button
@@ -314,7 +313,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             e.stopPropagation();
             onToggleSidebarCollapse?.(!isSidebarCollapsed);
           }}
-          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-white border border-slate-100 shadow-md items-center justify-center text-slate-400 hover:text-slate-700 hover:scale-105 transition-all z-50 cursor-pointer"
+          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-white border border-slate-200/80 shadow-sm items-center justify-center text-slate-400 hover:text-slate-700 hover:scale-105 transition-all z-50 cursor-pointer"
           title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isSidebarCollapsed ? (
@@ -327,30 +326,29 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Top: Brand Logo and Connected Info */}
         <div className={`space-y-6 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
-            <div className="p-2.5 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md shrink-0">
-              <Activity className="h-5 w-5 text-white" />
+            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shrink-0 shadow-sm shadow-indigo-600/10">
+              <svg className="h-4.5 w-4.5 animate-pulse-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
             </div>
             {!isSidebarCollapsed && (
-              <div className="animate-fade-in">
-                <h1 className="font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-1">
-                  Mediflow 
-                  <span className="text-primary font-bold text-[8px] bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                    POD HUB
-                  </span>
+              <div className="animate-fade-in flex flex-col">
+                <h1 className="text-base font-semibold tracking-tight text-slate-900 leading-none">
+                  Mediflow Care
                 </h1>
-                <span className="flex items-center gap-1 text-[9px] font-mono tracking-wider font-bold text-emerald-500 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  SYSTEM LIVE
-                </span>
-                {/* PWA Cache Status Badge */}
-                <span className={`flex items-center gap-1 text-[8px] font-mono tracking-wider font-extrabold mt-1 px-1.5 py-0.5 rounded-full border ${
-                  offlineCount > 0
-                    ? 'text-amber-500 bg-amber-500/10 border-amber-500/25 animate-pulse'
-                    : 'text-cyan-500 bg-cyan-500/10 border-cyan-500/25'
-                }`}>
-                  <span className={`w-1 h-1 rounded-full ${offlineCount > 0 ? 'bg-amber-400' : 'bg-cyan-400'}`}></span>
-                  <span>{offlineCount > 0 ? `PWA: ${offlineCount} QUEUED` : 'PWA: CACHE SYNCED'}</span>
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="flex items-center gap-1 text-[9px] font-semibold text-emerald-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live
+                  </span>
+                  <span className={`flex items-center gap-1 text-[8px] font-mono font-semibold px-1 py-0.2 rounded border ${
+                    offlineCount > 0
+                      ? 'text-amber-600 bg-amber-50/60 border-amber-200/60 animate-pulse'
+                      : 'text-cyan-600 bg-cyan-50/60 border-cyan-200/60'
+                  }`}>
+                    <span>{offlineCount > 0 ? `Queue: ${offlineCount}` : 'Synced'}</span>
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -359,18 +357,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           {activePod && (
             isSidebarCollapsed ? (
               <div 
-                className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors"
+                className="w-9 h-9 rounded-lg bg-white border border-slate-200/60 flex items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                 title={`Active Workspace: ${activeEntity?.name} (Code: ${activePod.clinicCode})`}
               >
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
             ) : (
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1 animate-fade-in">
-                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Workspace</span>
-                <span className="block text-xs font-bold text-slate-700 truncate">{activeEntity?.name}</span>
+              <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
+                <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Workspace</span>
+                <span className="block text-xs font-semibold text-slate-800 truncate">{activeEntity?.name}</span>
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  Code: <span className="font-bold text-slate-700 font-mono">{activePod.clinicCode}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                  Code: <span className="font-semibold text-slate-700 font-mono">{activePod.clinicCode}</span>
                 </div>
               </div>
             )
@@ -380,7 +378,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {activePatient && (
             isSidebarCollapsed ? (
               <div 
-                className="flex flex-col items-center gap-2 p-2.5 bg-slate-50 border border-slate-100 rounded-full transition-colors"
+                className="flex flex-col items-center gap-2 p-2 bg-white border border-slate-200/50 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors"
                 title={`Active Patient Loop: ${activePatient.name}`}
               >
                 {[
@@ -398,12 +396,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   return (
                     <div 
                       key={step.id} 
-                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-mono font-bold border transition-all duration-350 ${
+                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-semibold border transition-all duration-300 ${
                         isActive 
-                          ? 'bg-primary/10 border-primary text-primary scale-110 shadow-sm' 
+                          ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                           : isCompleted 
-                            ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
-                            : 'bg-white border-slate-200 text-slate-300'
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
+                            : 'bg-slate-50 border-slate-200 text-slate-400'
                       }`}
                     >
                       {isCompleted ? '✓' : idx + 1}
@@ -412,13 +410,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 })}
               </div>
             ) : (
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3 animate-fade-in">
+              <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Patient Loop</span>
-                  <span className="text-xs font-bold text-slate-700 truncate">{activePatient.name}</span>
+                  <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Patient Loop</span>
+                  <span className="text-xs font-semibold text-slate-800 truncate">{activePatient.name}</span>
                 </div>
                 
-                <div className="flex flex-col gap-2.5 font-semibold text-[10px]">
+                <div className="flex flex-col gap-2 font-medium text-[11px]">
                   {[
                     { id: 'registered', label: 'Registered' },
                     { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
@@ -433,16 +431,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                     
                     return (
                       <div key={step.id} className="flex items-center gap-2">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] font-bold shrink-0 transition-all duration-350 ${
+                        <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center border text-[9px] font-semibold shrink-0 transition-all duration-300 ${
                           isActive 
-                            ? 'bg-primary/10 border-primary text-primary scale-105 shadow-sm' 
+                            ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                             : isCompleted 
-                              ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
-                              : 'bg-white border-slate-200 text-slate-300'
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
+                              : 'bg-slate-50 border-slate-200 text-slate-400'
                         }`}>
                           {isCompleted ? '✓' : idx + 1}
                         </div>
-                        <span className={`truncate leading-none ${isActive ? 'text-primary font-bold' : isCompleted ? 'text-emerald-600 font-medium' : 'text-slate-400 font-medium'}`}>
+                        <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-400 font-normal'}`}>
                           {step.label}
                         </span>
                       </div>
@@ -456,7 +454,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Vertical Menu Options */}
           <div className="space-y-1.5 pt-2 w-full">
             {!isSidebarCollapsed && (
-              <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-2 mb-2 animate-fade-in">Ecosystem Modules</span>
+              <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-3 mb-2 animate-fade-in">Ecosystem Modules</span>
             )}
             {roles.map((r) => {
               const Icon = r.icon;
@@ -465,7 +463,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={r.id}
                   onClick={(e) => {
-                    // If collapsed, clicking switch expands sidebar as well
                     if (isSidebarCollapsed) {
                       e.stopPropagation();
                       onChangeRole(r.id as UserRole);
@@ -474,26 +471,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onChangeRole(r.id as UserRole);
                     }
                   }}
-                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2 rounded-full' : 'gap-3 px-3 py-2 rounded-full'} text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
+                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-2 px-3 rounded-lg' : 'gap-3 px-3 py-2 rounded-lg'} text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
                     isActive
-                      ? 'bg-slate-50 text-slate-900 border border-slate-100 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/50 border border-transparent'
+                      ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
                   }`}
                   title={r.name}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                    isActive 
-                      ? 'bg-primary text-white shadow-md shadow-primary/20 scale-105' 
-                      : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600'
-                  }`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  {!isSidebarCollapsed && (
-                    <span className="flex-1 text-left animate-fade-in">{r.name}</span>
+                  {/* Left accent indicator line on active */}
+                  {isActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
                   )}
                   
-                  {isActive && !isSidebarCollapsed && (
-                    <span className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-primary" />
+                  <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
+                    isActive 
+                      ? 'text-indigo-600' 
+                      : 'text-slate-400 group-hover:text-slate-600'
+                  }`} />
+                  
+                  {!isSidebarCollapsed && (
+                    <span className="flex-1 text-left animate-fade-in">{r.name}</span>
                   )}
                 </button>
               );
@@ -502,13 +499,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Bottom: Active Profile Badge & Workspace Actions */}
-        <div className={`space-y-4 pt-4 border-t border-slate-100 w-full ${isSidebarCollapsed ? 'flex flex-col items-center gap-3 pt-3' : ''}`}>
+        <div className={`space-y-4 pt-4 border-t border-slate-200/60 w-full ${isSidebarCollapsed ? 'flex flex-col items-center gap-3 pt-3' : ''}`}>
           {activeProfile && (
             isSidebarCollapsed ? (
               <div className="flex flex-col items-center gap-3 w-full">
                 {/* Collapsed Profile Avatar */}
                 <div 
-                  className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 cursor-pointer"
+                  className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                   title={`Active Profile: ${activeProfile.display_name} (${activeProfile.role})`}
                 >
                   {activeProfile.display_name.charAt(0)}
@@ -520,15 +517,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     e.stopPropagation();
                     onToggleBypass(!isBypassMode);
                   }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all duration-300 cursor-pointer ${
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${
                     isBypassMode 
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' 
-                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:text-slate-600'
+                      ? 'bg-amber-50 border-amber-200 text-amber-600' 
+                      : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600'
                   }`}
                   title={isBypassMode ? "Bypass Mode Active" : "Secure Mode Active"}
                 >
                   {isBypassMode ? (
-                    <ShieldAlert className="h-4 w-4 text-amber-500 animate-pulse" />
+                    <ShieldAlert className="h-4 w-4 text-amber-600 animate-pulse" />
                   ) : (
                     <ShieldCheck className="h-4 w-4" />
                   )}
@@ -540,7 +537,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     e.stopPropagation();
                     onSignOut();
                   }}
-                  className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-400 hover:text-rose-500 transition-all duration-300 cursor-pointer"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-400 hover:text-rose-500 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                   title="Sign Out Workspace"
                 >
                   <LogOut className="h-4 w-4" />
@@ -549,28 +546,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <div className="space-y-3 animate-fade-in">
                 {/* Profile Details Badge */}
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/50 border border-slate-100/60 font-sans">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white border border-slate-200/50 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
                     {activeProfile.display_name.charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                    <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
+                    <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
+                    <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
                   </div>
                 </div>
 
                 {/* Dev Bypass Trigger */}
                 <button 
                   onClick={() => onToggleBypass(!isBypassMode)}
-                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                     isBypassMode 
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 shadow-sm shadow-amber-500/5' 
-                      : 'bg-slate-50 border-slate-100 text-slate-500 hover:text-slate-700'
+                      ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
+                      : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   {isBypassMode ? (
                     <>
-                      <ShieldAlert className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                      <ShieldAlert className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
                       Bypass Active
                     </>
                   ) : (
@@ -584,7 +581,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* Log Out Button */}
                 <button
                   onClick={onSignOut}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-500 hover:text-rose-500 rounded-full transition-all duration-300 font-semibold text-xs cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 rounded-lg transition-all duration-200 font-semibold text-xs cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                 >
                   <LogOut className="h-3.5 w-3.5" />
                   Sign Out Workspace
@@ -596,25 +593,27 @@ export const Navbar: React.FC<NavbarProps> = ({
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="md:hidden border-b border-slate-100 bg-white/75 backdrop-blur-xl sticky top-0 z-50 px-4 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)] w-full">
+      <nav className="md:hidden border-b border-slate-200/80 bg-slate-50/80 backdrop-blur-xl sticky top-0 z-50 px-4 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)] w-full">
         <div className="max-w-7xl mx-auto flex flex-col gap-4">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
               {/* Mobile Sidebar Drawer Hamburger Trigger */}
               <button 
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors cursor-pointer mr-1"
+                className="p-1.5 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer mr-1"
                 aria-label="Open Sidebar Drawer"
               >
                 <Menu className="h-5 w-5" />
               </button>
 
-              <div className="p-2.5 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md">
-                <Activity className="h-6 w-6 text-white" />
+              <div className="flex items-center justify-center h-8.5 w-8.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shrink-0 shadow-sm shadow-indigo-600/10">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
               </div>
               <div>
-                <h1 className="font-extrabold text-base tracking-tight text-slate-900 flex items-center gap-1.5">
-                  Mediflow <span className="text-accent-600 font-bold text-[8px] bg-accent-50 border border-accent-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse-subtle">POD HUB</span>
+                <h1 className="font-semibold text-sm tracking-tight text-slate-900 flex items-center gap-1.5">
+                  Mediflow Care
                   <span className={`flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded-full border transition-all duration-300 font-mono font-bold ${
                     isSyncing 
                       ? 'bg-primary/10 text-primary border-primary/25'
@@ -627,10 +626,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <p className="text-slate-400 text-[10px] font-semibold mt-0.5">
                   {activePod ? (
                     <>
-                      Connected to <strong className="text-slate-600 font-bold">{activeEntity?.name}</strong> • Code: <strong className="text-primary font-mono">{activePod.clinicCode}</strong>
+                      Connected to <strong className="text-slate-600 font-bold">{activeEntity?.name}</strong>
                     </>
                   ) : (
-                    'Hyper-Local Connected Care Network'
+                    'Clinical Connected Care Network'
                   )}
                 </p>
               </div>
@@ -640,10 +639,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => onToggleBypass(!isBypassMode)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                   isBypassMode 
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' 
-                    : 'bg-slate-50 border-slate-100 text-slate-500'
+                    ? 'bg-amber-50 border-amber-200 text-amber-600' 
+                    : 'bg-white border-slate-200 text-slate-500'
                 }`}
               >
                 {isBypassMode ? <ShieldAlert className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
@@ -653,7 +652,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {activeProfile && (
                 <button
                   onClick={onSignOut}
-                  className="p-1.5 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/30 text-slate-500 hover:text-rose-500 rounded-lg transition-all duration-300 cursor-pointer"
+                  className="p-1.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-500 hover:text-rose-500 rounded-lg transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
                   title="Sign out of professional workspace"
                 >
                   <LogOut className="h-3.5 w-3.5" />
@@ -664,15 +663,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Unified Care Loop Progress Ribbon */}
           {activePatient && (
-            <div className="mt-1 pt-2 border-t border-slate-100 flex flex-col gap-2 text-[10px] animate-fade-in">
+            <div className="mt-1 pt-2 border-t border-slate-200/50 flex flex-col gap-2 text-[10px] animate-fade-in">
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[8px]">Active Loop:</span>
-                <span className="text-slate-700 font-bold">{activePatient.name}</span>
+                <span className="text-slate-400 font-semibold uppercase tracking-wider text-[8px]">Active Loop:</span>
+                <span className="text-slate-700 font-semibold">{activePatient.name}</span>
                 <span className="text-slate-400 font-mono">({activePatient.id.substring(0, 8)})</span>
               </div>
               
-              {/* Stepper Steps */}
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none font-semibold text-[9px]">
+              {/* Stepper Steps inside pure white container card */}
+              <div className="bg-white border border-slate-200/50 rounded-lg p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center gap-1.5 overflow-x-auto scrollbar-none font-semibold text-[9px]">
                 {[
                   { id: 'registered', label: 'Registered' },
                   { id: 'diagnosing', label: 'Diagnosing' },
@@ -689,17 +688,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <React.Fragment key={step.id}>
                       <div className={`flex items-center gap-1 transition-all duration-500 ${
                         isActive 
-                          ? 'text-primary' 
+                          ? 'text-indigo-600' 
                           : isCompleted 
-                            ? 'text-emerald-500' 
+                            ? 'text-emerald-600' 
                             : 'text-slate-300'
                       }`}>
-                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border text-[8px] font-mono font-bold transition-all duration-500 ${
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border text-[8px] font-semibold transition-all duration-500 ${
                           isActive 
-                            ? 'bg-primary/10 border-primary text-primary' 
+                            ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                             : isCompleted 
-                              ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
-                              : 'bg-white border-slate-100 text-slate-300'
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
+                              : 'bg-slate-50 border-slate-100 text-slate-300'
                         }`}>
                           {isCompleted ? '✓' : idx + 1}
                         </div>
@@ -710,7 +709,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <div className={`w-2 h-[1px] rounded transition-all duration-500 shrink-0 ${
                           idx < currentIdx 
                             ? 'bg-emerald-400' 
-                            : 'bg-slate-100'
+                            : 'bg-slate-200'
                         }`} />
                       )}
                     </React.Fragment>
@@ -732,23 +731,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
 
           {/* Drawer Content Sheet */}
-          <aside className="relative flex flex-col w-72 bg-white h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50">
+          <aside className="relative flex flex-col w-72 bg-slate-50 h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50">
             <div className="space-y-6">
               {/* Header inside drawer */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gradient-to-tr from-primary-600 to-accent-600 shadow-md">
-                    <Activity className="h-4.5 w-4.5 text-white" />
+                  <div className="flex items-center justify-center h-8.5 w-8.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shrink-0 shadow-sm">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
                   </div>
                   <div>
-                    <h2 className="font-extrabold text-sm tracking-tight text-slate-900">Mediflow</h2>
-                    <span className="text-[8px] font-mono tracking-wider font-bold text-emerald-500">SYSTEM LIVE</span>
+                    <h2 className="font-semibold text-sm tracking-tight text-slate-900 leading-none">Mediflow Care</h2>
+                    <span className="text-[9px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live
+                    </span>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setIsMobileDrawerOpen(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 >
                   <X className="h-4.5 w-4.5" />
                 </button>
@@ -756,25 +760,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Active Workspace */}
               {activePod && (
-                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
-                  <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Workspace</span>
-                  <span className="block text-xs font-bold text-slate-700 truncate">{activeEntity?.name}</span>
+                <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                  <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Workspace</span>
+                  <span className="block text-xs font-semibold text-slate-800 truncate">{activeEntity?.name}</span>
                   <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    Code: <span className="font-bold text-slate-700 font-mono">{activePod.clinicCode}</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                    Code: <span className="font-semibold text-slate-700 font-mono">{activePod.clinicCode}</span>
                   </div>
                 </div>
               )}
 
               {/* Patient Care loop inside drawer */}
               {activePatient && (
-                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+                <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Patient Loop</span>
-                    <span className="text-xs font-bold text-slate-700 truncate">{activePatient.name}</span>
+                    <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Patient Loop</span>
+                    <span className="text-xs font-semibold text-slate-800 truncate">{activePatient.name}</span>
                   </div>
                   
-                  <div className="flex flex-col gap-2.5 font-semibold text-[10px]">
+                  <div className="flex flex-col gap-2 font-medium text-[11px]">
                     {[
                       { id: 'registered', label: 'Registered' },
                       { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
@@ -789,16 +793,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                       
                       return (
                         <div key={step.id} className="flex items-center gap-2">
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] font-bold shrink-0 transition-all duration-350 ${
+                          <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center border text-[9px] font-semibold shrink-0 transition-all duration-300 ${
                             isActive 
-                              ? 'bg-primary/10 border-primary text-primary scale-105 shadow-sm' 
+                              ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                               : isCompleted 
-                                ? 'bg-emerald-500/10 border-emerald-400 text-emerald-500' 
-                                : 'bg-white border-slate-200 text-slate-300'
+                                ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
+                                : 'bg-slate-50 border-slate-200 text-slate-400'
                           }`}>
                             {isCompleted ? '✓' : idx + 1}
                           </div>
-                          <span className={`truncate leading-none ${isActive ? 'text-primary font-bold' : isCompleted ? 'text-emerald-600 font-medium' : 'text-slate-400 font-medium'}`}>
+                          <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-400 font-normal'}`}>
                             {step.label}
                           </span>
                         </div>
@@ -810,7 +814,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Modules Switcher */}
               <div className="space-y-1.5 pt-2">
-                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-2 mb-2">Ecosystem Modules</span>
+                <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
                 {roles.map((r) => {
                   const Icon = r.icon;
                   const isActive = currentRole === r.id;
@@ -821,23 +825,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onChangeRole(r.id as UserRole);
                         setIsMobileDrawerOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-full text-xs font-bold transition-all duration-300 relative group cursor-pointer ${
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
                         isActive
-                          ? 'bg-slate-50 text-slate-900 border border-slate-100 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/50 border border-transparent'
+                          ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
                       }`}
                     >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                        isActive 
-                          ? 'bg-primary text-white shadow-md shadow-primary/20 scale-105' 
-                          : 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600'
-                      }`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <span className="flex-1 text-left">{r.name}</span>
                       {isActive && (
-                        <span className="absolute right-3.5 w-1.5 h-1.5 rounded-full bg-primary" />
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
                       )}
+                      <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
+                        isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                      }`} />
+                      <span className="flex-1 text-left">{r.name}</span>
                     </button>
                   );
                 })}
@@ -845,16 +845,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Bottom active profile and workspace actions inside drawer */}
-            <div className="space-y-4 pt-4 border-t border-slate-100">
+            <div className="space-y-4 pt-4 border-t border-slate-200/60">
               {activeProfile && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/50 border border-slate-100/60 font-sans">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white border border-slate-200/50 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
                       {activeProfile.display_name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xs font-bold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                      <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
+                      <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
+                      <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
                     </div>
                   </div>
 
@@ -863,15 +863,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onToggleBypass(!isBypassMode);
                       setIsMobileDrawerOpen(false);
                     }}
-                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-full border text-[9px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                       isBypassMode 
-                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 shadow-sm' 
-                        : 'bg-slate-50 border-slate-100 text-slate-500 hover:text-slate-700'
+                        ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
+                        : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
                     }`}
                   >
                     {isBypassMode ? (
                       <>
-                        <ShieldAlert className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                        <ShieldAlert className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
                         Bypass Active
                       </>
                     ) : (
@@ -887,7 +887,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onSignOut();
                       setIsMobileDrawerOpen(false);
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 hover:bg-rose-500/10 border border-slate-100 hover:border-rose-500/25 text-slate-500 hover:text-rose-500 rounded-full transition-all duration-300 font-semibold text-xs cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 rounded-lg transition-all duration-200 font-semibold text-xs cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                     Sign Out Workspace
@@ -970,7 +970,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
       {currentRole !== 'doctor' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
           <div className="flex items-center justify-around h-16">
             {roles.map((r) => {
               const Icon = r.icon;
@@ -989,28 +989,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={r.id}
                   onClick={() => onChangeRole(r.id as UserRole)}
-                  className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-300 cursor-pointer relative ${
+                  className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative ${
                     isActive 
-                      ? 'text-primary' 
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'text-indigo-600' 
+                      : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  <div className={`p-1.5 rounded-xl transition-all duration-300 ${
+                  <div className={`p-1.5 rounded-lg transition-all duration-200 ${
                     isActive 
-                      ? 'bg-primary/10 text-primary scale-110 shadow-sm' 
+                      ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
                       : 'bg-transparent text-slate-400'
                   }`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <span className={`text-[9px] font-bold mt-1 tracking-tight transition-colors duration-300 ${
-                    isActive ? 'text-primary font-extrabold' : 'text-slate-400'
+                  <span className={`text-[9px] font-semibold mt-1 tracking-tight transition-colors duration-200 ${
+                    isActive ? 'text-indigo-600 font-bold' : 'text-slate-400'
                   }`}>
                     {label}
                   </span>
                   
                   {/* Active Indicator dot */}
                   {isActive && (
-                    <span className="absolute bottom-1 w-1 h-1 rounded-full bg-primary" />
+                    <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
                   )}
                 </button>
               );

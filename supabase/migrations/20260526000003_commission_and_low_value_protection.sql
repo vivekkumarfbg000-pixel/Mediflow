@@ -187,3 +187,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Secure the trigger function against public privilege leakage
+REVOKE EXECUTE ON FUNCTION public.on_encounter_submitted() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.on_encounter_submitted() TO authenticated;

@@ -68,6 +68,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+REVOKE EXECUTE ON FUNCTION public.encrypt_waba_token(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.encrypt_waba_token(TEXT, TEXT) TO authenticated;
+
 -- Decrypts an encrypted token back into plain text
 CREATE OR REPLACE FUNCTION public.decrypt_waba_token(encrypted_token BYTEA, secret_key TEXT)
 RETURNS TEXT AS $$
@@ -75,6 +78,9 @@ BEGIN
     RETURN extensions.pgp_sym_decrypt(encrypted_token, secret_key);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE EXECUTE ON FUNCTION public.decrypt_waba_token(BYTEA, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.decrypt_waba_token(BYTEA, TEXT) TO authenticated;
 
 -- 5. Helper function to decrypt a tenant's WABA connection details by phone_number_id
 CREATE OR REPLACE FUNCTION public.decrypt_tenant_waba_connection(p_phone_number_id TEXT, p_secret_key TEXT)
@@ -94,3 +100,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+REVOKE EXECUTE ON FUNCTION public.decrypt_tenant_waba_connection(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.decrypt_tenant_waba_connection(TEXT, TEXT) TO authenticated;
