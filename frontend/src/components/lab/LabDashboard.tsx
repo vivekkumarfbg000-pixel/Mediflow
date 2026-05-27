@@ -1002,17 +1002,56 @@ export const LabDashboard: React.FC = () => {
               </div>
 
               {/* Dark Terminal Live Code Preview */}
-              <div className="border border-outline-variant/60 rounded-lg overflow-hidden bg-black/40">
-                <div className="bg-surface-container px-3 py-1.5 border-b border-outline-variant/60 flex items-center justify-between">
-                  <span className="text-[9px] text-green-400 font-mono font-bold tracking-wider flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                    chemistry_analyzer_output.json
-                  </span>
-                  <span className="text-[7px] text-clinical-400 font-mono font-bold">LIVE PREVIEW</span>
+              <div className="border border-slate-800 rounded-xl overflow-hidden bg-[#070b15] shadow-[0_12px_24px_-4px_rgba(0,0,0,0.4)] transition-all duration-300">
+                <div className="bg-[#0f1524] px-4 py-2.5 border-b border-slate-800/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {/* Terminal window window controls */}
+                    <div className="flex gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                    </div>
+                    <span className="text-[10px] text-slate-300 font-mono font-bold tracking-wider ml-2 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      chemistry_analyzer_output.json
+                    </span>
+                  </div>
+                  <span className="text-[8px] text-slate-500 font-mono font-black tracking-widest uppercase bg-slate-900 px-2 py-0.5 rounded border border-slate-800/50">LIVE PREVIEW</span>
                 </div>
-                <pre className="p-3 text-[9px] font-mono text-green-400 overflow-x-auto max-h-40 leading-relaxed scrollbar-thin">
-                  {jsonPayload}
-                </pre>
+                <div className="py-4 text-[9px] font-mono text-slate-300 overflow-x-auto max-h-56 leading-relaxed scrollbar-thin bg-[#070b15]">
+                  <pre className="m-0 bg-transparent text-left select-text">
+                    {(() => {
+                      try {
+                        const parsed = JSON.parse(jsonPayload);
+                        const highlightedLines = JSON.stringify(parsed, null, 2).split('\n').map((line, i) => {
+                          let formattedLine = line
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;');
+                          
+                          // syntax highlight keys (sky-300)
+                          formattedLine = formattedLine.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")(\s*:)/g, '<span class="text-sky-300 font-semibold">$1</span>$3');
+                          // syntax highlight string values (emerald-400)
+                          formattedLine = formattedLine.replace(/(:\s*)("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")/g, '$1<span class="text-emerald-400">$2</span>');
+                          // syntax highlight numbers (amber-400)
+                          formattedLine = formattedLine.replace(/(:\s*)(\d+(?:\.\d+)?)/g, '$1<span class="text-amber-400 font-bold">$2</span>');
+                          // syntax highlight booleans & null (violet-400)
+                          formattedLine = formattedLine.replace(/(:\s*)(true|false|null)/g, '$1<span class="text-violet-400 font-bold">$2</span>');
+                          
+                          return (
+                            <div key={i} className="min-h-[1.25rem] px-5 hover:bg-slate-900/30 transition-colors flex" style={{ contentVisibility: 'auto' }}>
+                              <span className="w-6 shrink-0 text-slate-600 select-none text-[8px] text-right pr-2 border-r border-slate-800/30 mr-3">{i + 1}</span>
+                              <span className="flex-1 whitespace-pre" dangerouslySetInnerHTML={{ __html: formattedLine }} />
+                            </div>
+                          );
+                        });
+                        return highlightedLines;
+                      } catch (e) {
+                        return <div className="px-5 text-rose-400 font-bold font-mono py-2 bg-rose-500/10 border border-rose-500/20 rounded-lg mx-5">Malformed JSON output payload.</div>;
+                      }
+                    })()}
+                  </pre>
+                </div>
               </div>
 
               <div className="flex gap-2 justify-end pt-2">

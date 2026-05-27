@@ -45,3 +45,4 @@ When the user asks you to build, refactor, or explain any feature of the Mediflo
 2. Draft a precise architectural schema or block diagram if building logic modules.
 3. Write the exact code or SQL script. Never skip standard error boundaries, loading UI states, or SQL transactional rollbacks (BEGIN/EXCEPTION/ROLLBACK).
 4. Verify code compatibility across React hooks, Supabase clients, and RLS tables.
+5. OBLIGATORY TECH TEAM VALIDATION: You must ALWAYS run the local Tech Team pipeline (Teach-team-main/scripts) for every code modification, bug fix, or database update. Execute the SecOps static taint check (security_taint_check.js), database telemetry (diagnose_telemetry.js), and browser-based Puppeteer smoke chaos check (verify_ui_e2e.js from 'frontend') to guarantee 100% security, compilation, and behavior integrity before completion.
