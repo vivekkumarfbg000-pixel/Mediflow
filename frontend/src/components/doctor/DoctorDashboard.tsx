@@ -115,6 +115,12 @@ export const DoctorDashboard: React.FC = () => {
 
   const { activePod } = useClinic();
 
+  // SaaS Doctor States
+  const [hinglishSummary, setHinglishSummary] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [comparativeTrend, setComparativeTrend] = useState('');
+  const [isGeneratingTrend, setIsGeneratingTrend] = useState(false);
+
   // Ambient AI Scribe States
   const [isAmbientScribing, setIsAmbientScribing] = useState(false);
   const [scribeTimeRemaining, setScribeTimeRemaining] = useState(0);
@@ -1844,195 +1850,149 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
               )}
             </div>
 
-            {/* Ambient AI Medical Scribe Card */}
-            <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-5 shadow-sm">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-primary ${isAmbientScribing ? 'animate-pulse text-primary' : 'text-slate-400'}`}>mic</span>
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-sans">
-                    Ambient AI Medical Scribe <span className="text-[10px] text-slate-400 font-medium normal-case">(Gemini MedLM 2.5)</span>
-                  </h3>
-                </div>
-                {isAmbientScribing ? (
-                  <span className="flex items-center gap-1.5 text-[9px] bg-primary/10 text-primary border border-primary/25 px-2.5 py-1 rounded-full font-extrabold uppercase tracking-wider animate-pulse-wave">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                    Ambient Scribing Active
-                  </span>
-                ) : (
-                  <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200/30 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider font-sans">
-                    Listening Engine Idle
-                  </span>
-                )}
+            {/* Electronic Consultation Record Gating, Suggestions, and AI Summaries */}
+            <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-6 shadow-sm">
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-xs text-primary font-bold">edit_note</span>
+                  Final 10-15 Min Suggestions & Directions
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Record patient suggestions here (e.g., meetha kam khana hai, daily walk karna hai, start insulin)..."
+                  rows={4}
+                  className="w-full input-field bg-white text-xs leading-relaxed"
+                />
               </div>
 
-              {/* Scribe Visualizer Row */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
-                <div className="md:col-span-8 flex flex-col justify-center bg-white border border-slate-100 rounded-2xl p-4 h-24 relative overflow-hidden shadow-inner">
-                  {isAmbientScribing ? (
-                    <div className="absolute inset-0 bg-primary/5 flex flex-col justify-center items-center px-4 space-y-2 backdrop-blur-sm">
-                      <div className="flex items-center justify-center gap-1.5 h-8">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => {
-                          const heights = [12, 28, 16, 32, 20, 36, 14, 24, 38, 18, 30, 15, 26, 12, 20];
-                          const delay = i * 0.1;
-                          return (
-                            <div 
-                              key={i} 
-                              className="w-1.5 bg-primary/80 rounded-full animate-bounce"
-                              style={{ 
-                                height: `${heights[i % heights.length]}px`, 
-                                animationDuration: '0.8s',
-                                animationDelay: `${delay}s` 
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                      <div className="text-[10px] text-primary font-extrabold uppercase tracking-widest font-sans animate-pulse">
-                        {activeScribeScript === 'custom' 
-                          ? `Recording Live Opus Audio... ${recordingDuration}s` 
-                          : `Simulating Ambient speech... ${scribeTimeRemaining}s`}
-                      </div>
-                    </div>
-                  ) : isMedLmParsing ? (
-                    <div className="absolute inset-0 bg-primary/5 flex flex-col justify-center items-center px-4 space-y-2 backdrop-blur-sm">
-                      <span className="material-symbols-outlined text-2xl text-primary animate-spin">sync</span>
-                      <div className="text-[10px] text-primary font-bold uppercase tracking-widest font-sans animate-pulse">
-                        Gemini MedLM Synthesizing Dialogue & CDSS Rules...
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col justify-center items-center h-full text-center space-y-1">
-                      <span className="material-symbols-outlined text-slate-400 text-xl">graphic_eq</span>
-                      <div className="text-[10px] text-slate-400 font-sans font-medium">
-                        {audioBlob ? `Opus WebM Audio Cached (${(audioBlob.size / 1024).toFixed(1)} KB) - Ready` : 'Awaiting micro consultation recording trigger...'}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="md:col-span-4 flex flex-col gap-2">
-                  {isAmbientScribing && activeScribeScript === 'custom' ? (
-                    <button
-                      onClick={stopRecordingAndProcess}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all animate-pulse text-white-force cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm text-white-force animate-spin">stop</span>
-                      Stop & Process Scribe
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (isMedLmParsing) return;
-                        setActiveScribeScript("custom");
-                        startRecording();
-                      }}
-                      disabled={isAmbientScribing || isMedLmParsing}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-primary bg-primary text-white text-xs font-bold shadow-sm hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 text-white-force cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm text-white-force">mic</span>
-                      Record Consult
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setNotes('');
-                      setMedications([]);
-                      setSelectedTests([]);
-                      setCustomScribeText('');
-                      setActiveScribeScript(null);
-                      setAudioBlob(null);
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={async () => {
+                    if (!notes.trim()) {
+                      alert('Please write suggestions first.');
+                      return;
+                    }
+                    setIsGeneratingSummary(true);
+                    try {
+                      const summary = await api.generateConsultHinglishSummary(selectedPatient.id, notes);
+                      setHinglishSummary(summary);
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                         detail: {
-                          title: 'Scribe Encounter Reset 🔄',
-                          message: 'Cleared all clinical notes, e-Rx medications, and diagnostic selections.',
-                          type: 'info'
+                          title: 'Hinglish AI Summary Generated! ✨',
+                          message: 'Clinical summary generated successfully in friendly Hinglish.',
+                          type: 'success'
+                        }
+                      }));
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setIsGeneratingSummary(false);
+                    }
+                  }}
+                  disabled={isGeneratingSummary}
+                  className="flex-1 bg-primary text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 text-white-force cursor-pointer animate-fade-in"
+                >
+                  {isGeneratingSummary ? 'Generating...' : '🤖 Generate AI Hinglish Summary'}
+                </button>
+              </div>
+
+              {hinglishSummary && (
+                <div className="p-4 bg-indigo-50/60 border border-indigo-150 rounded-xl space-y-3 animate-fade-in">
+                  <h4 className="font-bold text-[10px] text-indigo-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-xs">chat</span>
+                    Hinglish Clinical Summary
+                  </h4>
+                  <p className="text-xs text-slate-750 whitespace-pre-line leading-relaxed font-semibold italic">
+                    "{hinglishSummary}"
+                  </p>
+                  <button
+                    onClick={() => {
+                      api.pushWhatsAppMessageFromBot(selectedPatient.phone, hinglishSummary);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'WhatsApp Summary Dispatched! 📱',
+                          message: `Friendly Hinglish instructions sent to +91 ${selectedPatient.phone}.`,
+                          type: 'success'
                         }
                       }));
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl active:scale-[0.98] transition-all cursor-pointer"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
                   >
-                    <span className="material-symbols-outlined text-sm">restart_alt</span>
-                    Reset Encounter
+                    <span className="material-symbols-outlined text-xs text-white-force">send</span>
+                    Send to Patient WhatsApp
                   </button>
                 </div>
-              </div>
+              )}
 
-              {/* Presets and Scenarios */}
-              <div className="space-y-2">
-                <label className="block text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                  Pre-configured Demo Consultation Scenarios
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <button
-                    onClick={() => handleTriggerScenario('diabetes')}
-                    disabled={isAmbientScribing || isMedLmParsing}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] cursor-pointer ${
-                      activeScribeScript === 'diabetes'
-                        ? 'bg-primary/5 border-primary'
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="font-bold text-[10px] text-slate-700 block">Scenario A: T2DM & HTN</span>
-                    <span className="text-[8px] text-slate-400 leading-tight">Metformin, Telmisartan, HbA1c + Creatinine panels</span>
-                  </button>
+              {/* REVISIT LAB TREND COMPARISON */}
+              {activeHistory && activeHistory.length > 0 && (
+                <div className="border-t border-slate-200/80 pt-4 space-y-4">
+                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span className="material-symbols-outlined text-rose-500 text-sm">analytics</span>
+                    Revisit Mode: Comparative Lab Trend Analysis
+                  </h3>
+                  <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
+                    Compare current biomarkers with historical reports to analyze improvement metrics.
+                  </p>
 
-                  <button
-                    onClick={() => handleTriggerScenario('infection')}
-                    disabled={isAmbientScribing || isMedLmParsing}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] cursor-pointer ${
-                      activeScribeScript === 'infection'
-                        ? 'bg-primary/5 border-primary'
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div>
-                      <span className="font-bold text-[10px] text-slate-700 block flex items-center gap-1">
-                        Scenario B: Bronchitis
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                      </span>
-                      <span className="text-[7px] text-rose-600 font-bold uppercase font-mono tracking-wider">Allergy Warning Test</span>
-                    </div>
-                    <span className="text-[8px] text-slate-400 leading-tight">Amoxicillin + Paracetamol, Total Hemoglobin</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleTriggerScenario('renal')}
-                    disabled={isAmbientScribing || isMedLmParsing}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-20 transition-all active:scale-[0.98] cursor-pointer ${
-                      activeScribeScript === 'renal'
-                        ? 'bg-primary/5 border-primary'
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="font-bold text-[10px] text-slate-700 block">Scenario C: CKD Renal Check</span>
-                    <span className="text-[8px] text-slate-400 leading-tight">Creatinine + Electrolytes sodium panels monitoring</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Custom Transcription Dialogue Box */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="block text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                    Real-time Conversation Transcript
-                  </label>
-                  {customScribeText.length > 0 && (
+                  <div className="flex gap-3">
                     <button
-                      onClick={() => processBatchDialogue(customScribeText)}
-                      className="text-[8px] text-primary font-bold uppercase hover:underline"
+                      onClick={async () => {
+                        if (!compReport) return;
+                        setIsGeneratingTrend(true);
+                        try {
+                          const trend = await api.generateComparativeLabTrend(selectedPatient.id, 'HbA1c', compReport.HbA1c);
+                          setComparativeTrend(trend);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Lab Trend Analyzed! 📊',
+                              message: 'Comparative trend calculated successfully.',
+                              type: 'success'
+                            }
+                          }));
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setIsGeneratingTrend(false);
+                        }
+                      }}
+                      disabled={isGeneratingTrend}
+                      className="w-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-white-force"
                     >
-                      Re-parse Dialogue
+                      {isGeneratingTrend ? 'Analyzing...' : '📊 Generate Comparative AI Summary'}
                     </button>
+                  </div>
+
+                  {comparativeTrend && (
+                    <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl space-y-3 animate-fade-in">
+                      <h4 className="font-bold text-[10px] text-rose-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-xs">trending_down</span>
+                        Biomarker Improvement Trend
+                      </h4>
+                      <p className="text-xs text-slate-750 leading-relaxed font-semibold italic">
+                        "{comparativeTrend}"
+                      </p>
+                      <button
+                        onClick={() => {
+                          api.pushWhatsAppMessageFromBot(selectedPatient.phone, comparativeTrend);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Trend Sent! 📱',
+                              message: `Comparative lab trend pushed to +91 ${selectedPatient.phone} via WhatsApp.`,
+                              type: 'success'
+                            }
+                          }));
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
+                      >
+                        <span className="material-symbols-outlined text-xs text-white-force">send</span>
+                        Push Trend report to Patient WhatsApp
+                      </button>
+                    </div>
                   )}
                 </div>
-                <textarea
-                  value={customScribeText}
-                  onChange={(e) => setCustomScribeText(e.target.value)}
-                  placeholder="Dialogue transcription will stream here during consultation. You can also paste your own speech transcription here to test MedLM parser..."
-                  rows={2}
-                  className="w-full input-field text-[11px] leading-normal bg-white p-3 font-mono resize-none"
-                />
-              </div>
+              )}
             </div>
 
             {/* Clinical Notes */}

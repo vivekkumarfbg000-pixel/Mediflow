@@ -52,6 +52,7 @@ export const PharmacyDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [expiryFilter, setExpiryFilter] = useState<'all' | 'expired' | 'expiring'>('all');
+  const [verifySearch, setVerifySearch] = useState('');
 
   // Scanner modal states
   const [scanningHold, setScanningHold] = useState<InventoryHold | null>(null);
@@ -647,223 +648,124 @@ export const PharmacyDashboard: React.FC = () => {
 
       {/* TAB CONTENT AREAS */}
       <div className="space-y-6">
-        
-        {/* TAB 1: PRESCRIPTION QUEUE */}
+           {/* TAB 1: PRESCRIPTION QUEUE (SAAS PAYMENTS GATED VERIFICATION HUB) */}
         {activeTab === 'prescription_queue' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-8 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-50" />
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                  <div>
-                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-[16px]">inventory_2</span>
-                      Active e-Prescription Reserves (FEFO Sorted)
-                    </h2>
-                    <p className="text-xs text-clinical-400 mt-1">
-                      Medicine reserves matched from doctors prescriptions awaiting dispense checklist.
-                    </p>
-                  </div>
-                  <span className="text-[10px] bg-secondary/15 text-secondary border border-secondary/25 px-3 py-1 rounded-full font-bold uppercase tracking-wider font-mono">
-                    FEFO Enabled
-                  </span>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-600 opacity-60" />
+              
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4 mb-6">
+                <div>
+                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-emerald-400 text-base">verified</span>
+                    Gate 3: Paid Invoice Dispensation Verification Hub
+                  </h2>
+                  <p className="text-xs text-clinical-400 mt-1">
+                    Lookup and verify patient digital invoices that have cleared payment. Read-only verification before physical dispensing.
+                  </p>
                 </div>
-
-                {holds.filter(h => h.holdStatus === 'held').length === 0 ? (
-                  <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
-                    No active prescription reserves in the checkup loop.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {holds.filter(h => h.holdStatus === 'held').map(hold => {
-                      const daysToExpiry = Math.ceil((new Date(hold.expiryDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
-                      const isNearExpiry = daysToExpiry < 90;
-                      const isConsentActive = api.isPatientConsentActive(hold.patientId);
-
-                      return (
-                        <div key={hold.id} className="p-5 bg-surface-container border border-outline-variant rounded-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:border-outline/50 transition-all relative overflow-hidden">
-                          {!isConsentActive && (
-                            <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md border border-rose-500/20 p-4 text-center">
-                              <AlertCircle className="h-6 w-6 text-rose-500 animate-pulse mb-1.5" />
-                              <h4 className="text-white font-bold text-xs">Consent Verification Locked</h4>
-                              <p className="text-[9px] text-clinical-400 max-w-[240px]">
-                                Patient must verify consent via WhatsApp opt-in welcome prompt to permit dispensing.
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="font-bold text-sm text-white">{hold.medicineName}</h4>
-                              <span className="text-[9px] font-bold text-clinical-300 bg-surface-container-highest border border-outline-variant px-2 py-0.5 rounded font-mono">
-                                Batch: {hold.batchNumber}
-                              </span>
-                            </div>
-                            <p className="text-xs text-clinical-300">Dosage: {hold.dosage} • Target Qty: <strong className="text-white font-mono">{hold.quantity} units</strong></p>
-                            
-                            <div className="flex flex-wrap items-center gap-3 pt-1.5 text-[10px]">
-                              <span className={`flex items-center gap-1 font-semibold font-mono ${isNearExpiry ? 'text-rose-400' : 'text-clinical-400'}`}>
-                                <Calendar className="h-3.5 w-3.5" /> Expiry: {hold.expiryDate} ({daysToExpiry} days remaining)
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 self-end md:self-center">
-                            <button
-                              onClick={() => handleCancelHold(hold.id)}
-                              className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/20 transition-all cursor-pointer"
-                              title="Cancel hold"
-                            >
-                              <XCircle className="h-4.5 w-4.5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setScanningHold(hold);
-                                setScannerStage('scanning');
-                                setScanLogs([
-                                  `[${new Date().toLocaleTimeString()}] Booting laser scanner verification protocol...`,
-                                  `[${new Date().toLocaleTimeString()}] Awaiting barcode FEFO verification alignment...`
-                                ]);
-                              }}
-                              className="btn-primary py-2.5 px-4 text-xs font-bold flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-transform bg-gradient-to-r from-secondary to-primary cursor-pointer border-0 rounded-xl text-white font-semibold"
-                            >
-                              <span className="material-symbols-outlined text-sm font-bold">qr_code_scanner</span>
-                              Settle & Dispense
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="relative w-full md:max-w-xs">
+                  <input
+                    type="text"
+                    placeholder="Search by name or phone..."
+                    value={verifySearch}
+                    onChange={(e) => setVerifySearch(e.target.value)}
+                    className="w-full input-field pl-10 focus:ring-1 focus:ring-secondary focus:border-secondary text-xs py-2 bg-surface-container border-outline-variant text-white rounded-lg"
+                  />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-clinical-400 h-4 w-4" />
+                </div>
               </div>
 
-              {/* WhatsApp Bot Orders & Dispatch Simulator */}
-              <div className="glass-panel p-6 border-slate-200/85 shadow-xl relative overflow-hidden bg-white mt-6 space-y-4 text-slate-800 rounded-2xl">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-50" />
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-emerald-600 text-base">forum</span>
-                      WhatsApp Bot Digital Orders &amp; Dispatch Simulator
-                    </h2>
-                    <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Simulate customer orders routed directly from Patna WhatsApp sessions.</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      api.simulateIncomingWhatsAppOrder();
-                      syncData();
-                    }}
-                    className="btn-primary py-2 px-4 rounded-xl text-xs flex items-center gap-2 self-start hover:scale-102 transition-transform bg-emerald-600 border-0 text-white font-semibold cursor-pointer text-white-force"
-                  >
-                    <span className="material-symbols-outlined text-sm text-white-force">add_alert</span>
-                    Simulate WhatsApp Order
-                  </button>
-                </div>
+              <div className="space-y-4">
+                {(() => {
+                  const patients = api.getPatients();
+                  const appointments = api.getAppointments();
+                  const prescriptions = api.getPrescriptions();
+                  const paidPharmaInvoices = api.getInvoices().filter(i => i.type === 'pharmacy' && i.status === 'paid');
+                  
+                  const filteredInvoices = paidPharmaInvoices.filter(invoice => {
+                    const appt = appointments.find(a => a.id === invoice.appointmentId);
+                    const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                    if (!patient) return false;
+                    
+                    const query = verifySearch.toLowerCase().trim();
+                    if (!query) return true;
+                    return patient.name.toLowerCase().includes(query) || patient.phone.includes(query);
+                  });
 
-                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                  {whatsAppOrders.length > 0 ? whatsAppOrders.map(order => {
-                    const isPending = order.deliveryStatus === 'pending';
-                    const isDispatch = order.deliveryStatus === 'dispatching';
-                    const isEnroute = order.deliveryStatus === 'enroute';
-                    const isDelivered = order.deliveryStatus === 'delivered';
-
+                  if (filteredInvoices.length === 0) {
                     return (
-                      <div key={order.id} className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-3 hover:border-slate-350 transition-colors">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-xs font-bold text-slate-800">{order.patientName}</div>
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">Order ID: {order.id} • {order.patientPhone}</div>
-                          </div>
-                          <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase ${
-                            isDelivered
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : isEnroute
-                              ? 'bg-blue-100 text-blue-700 animate-pulse'
-                              : isDispatch
-                              ? 'bg-indigo-100 text-indigo-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {order.deliveryStatus}
-                          </span>
-                        </div>
-
-                        <div className="text-xs text-slate-650 space-y-1">
-                          <div><strong className="text-slate-700 font-semibold">Prescribed:</strong> {order.drugNames.join(', ')}</div>
-                          <div><strong className="text-slate-700 font-semibold">Destination:</strong> {order.location}</div>
-                          <div className="font-bold text-slate-800 mt-1">Total Payout: ₹{order.amount.toFixed(2)} (10% Doctor split commission applies)</div>
-                        </div>
-
-                        {/* Delivery Simulator Buttons */}
-                        {!isDelivered && (
-                          <div className="flex gap-2 pt-2 border-t border-slate-200/50">
-                            {isPending && (
-                              <button
-                                onClick={() => {
-                                  api.updateWhatsAppOrderStatus(order.id, 'dispatching');
-                                  syncData();
-                                }}
-                                className="flex-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
-                              >
-                                Dispatch Order
-                              </button>
-                            )}
-                            {(isPending || isDispatch) && (
-                              <button
-                                onClick={() => {
-                                  api.updateWhatsAppOrderStatus(order.id, 'enroute');
-                                  syncData();
-                                }}
-                                className="flex-1 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
-                              >
-                                Set En Route
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                api.updateWhatsAppOrderStatus(order.id, 'delivered');
-                                syncData();
-                              }}
-                              className="flex-1 bg-emerald-50 border border-emerald-250 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
-                            >
-                              Confirm Delivery
-                            </button>
-                          </div>
-                        )}
+                      <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                        No paid medicine invoices matching search.
                       </div>
                     );
-                  }) : (
-                    <div className="text-center py-6 text-slate-400 text-xs italic animate-pulse">
-                      No active orders routed from the WhatsApp Bot channel.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+                  }
 
-            {/* Dispensed ledger */}
-            <div className="lg:col-span-4">
-              <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
-                <h3 className="font-bold text-white text-base flex items-center gap-2 border-b border-white/10 pb-3">
-                  <span className="material-symbols-outlined text-secondary">receipt_long</span>
-                  Recent Dispatches
-                </h3>
-                {holds.filter(h => h.holdStatus === 'dispensed').length === 0 ? (
-                  <p className="text-xs text-clinical-500 text-center py-4">No dispatches logged today.</p>
-                ) : (
-                  <div className="space-y-3.5 max-h-[400px] overflow-y-auto pr-1">
-                    {holds.filter(h => h.holdStatus === 'dispensed').slice(0, 5).map(h => (
-                      <div key={h.id} className="p-3 bg-surface-container-lowest/50 border border-outline-variant rounded-lg space-y-1.5">
-                        <div className="flex justify-between items-start">
-                          <h5 className="font-bold text-xs text-white leading-none">{h.medicineName}</h5>
-                          <span className="text-[8px] bg-emerald-500/10 text-emerald-400 font-bold px-2 py-0.5 rounded uppercase font-mono">OK</span>
-                        </div>
-                        <p className="text-[10px] text-clinical-400">Qty: {h.quantity} units • Batch: {h.batchNumber}</p>
-                        <p className="text-[8px] text-clinical-500 font-mono">Settled: {new Date(h.createdAt).toLocaleTimeString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredInvoices.map(invoice => {
+                        const appt = appointments.find(a => a.id === invoice.appointmentId);
+                        const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                        const prescription = appt ? prescriptions.find(p => p.appointmentId === appt.id) : null;
+
+                        return (
+                          <div key={invoice.id} className="p-5 bg-surface-container border border-outline-variant rounded-xl space-y-4 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 bg-emerald-600 text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                              PAID ✅
+                            </div>
+
+                            <div className="flex justify-between items-start border-b border-white/5 pb-2">
+                              <div>
+                                <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                                <p className="text-[10px] text-clinical-400 mt-0.5 font-mono">
+                                  Phone: +91 {patient ? patient.phone : 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {prescription && prescription.extractedMedicines && (
+                              <div className="bg-surface-container-lowest/80 border border-outline-variant p-3 rounded-lg space-y-2">
+                                <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">
+                                  Approved Medicines to Dispense
+                                </span>
+                                <div className="space-y-1.5">
+                                  {prescription.extractedMedicines.map((m, idx) => (
+                                    <div key={idx} className="text-[10px] text-clinical-300 font-mono flex items-center justify-between border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                                      <span>💊 {m.name} ({m.dosage})</span>
+                                      <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center pt-2">
+                              <div>
+                                <span className="text-[9px] text-clinical-400 block font-mono">Invoice: {invoice.id.substring(0, 8)}...</span>
+                                <span className="text-xs font-black text-white">Amount Verified: ₹{invoice.amount}</span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: `Receipt printed & verification ledger committed for ${patient?.name || 'patient'}.`,
+                                      type: 'success',
+                                      title: 'Invoice Verified'
+                                    }
+                                  }));
+                                }}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-xs animate-pulse">print</span>
+                                Print Dispense Slip
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

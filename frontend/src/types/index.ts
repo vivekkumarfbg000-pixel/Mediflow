@@ -361,3 +361,43 @@ export interface ClinicSop {
   isActive: boolean;
   createdAt: string;
 }
+
+// ─── SaaS 3-GATE WORKFLOW ENTITIES ───────────────────────────────────────────
+export interface Appointment {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  status: 'pending_payment' | 'ready_for_consult' | 'completed';
+  createdAt: string;
+}
+
+export interface Invoice {
+  id: string;
+  appointmentId: string;
+  type: 'consult' | 'lab' | 'pharmacy';
+  amount: number;
+  status: 'unpaid' | 'paid';
+  createdAt: string;
+}
+
+export interface LabReport {
+  id: string;
+  patientId: string;
+  appointmentId: string;
+  fileUrl?: string;
+  resultData?: any;
+  aiSummary?: string;
+  createdAt: string;
+}
+
+export interface Prescription {
+  id: string;
+  appointmentId: string;
+  extractedMedicines?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+  }>;
+  extractedTests?: string[];
+  createdAt: string;
+}

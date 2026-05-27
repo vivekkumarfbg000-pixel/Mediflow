@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
-import type { Patient, WhatsAppSession, ClinicStaff, PathologyReport, PharmacyInventoryItem, MedicineBillItem, MedicineBill, CounterTransaction } from '../../types';
+import type { Patient, WhatsAppSession, ClinicStaff, PathologyReport, PharmacyInventoryItem, MedicineBillItem, MedicineBill, CounterTransaction, Appointment, Invoice, Prescription, LabReport } from '../../types';
 import { 
   Smartphone, 
   Upload, 
@@ -19,7 +19,13 @@ import {
 } from 'lucide-react';
 
 export const CompounderDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'registry' | 'vitals'>('registry');
+  const [activeTab, setActiveTab] = useState<'registry' | 'vitals' | 'gate1' | 'gate2' | 'gate3'>('registry');
+
+  // SaaS Gate States
+  const [ocrScanningApptId, setOcrScanningApptId] = useState<string | null>(null);
+  const [revisitPatientId, setRevisitPatientId] = useState<string>('');
+  const [revisitDate, setRevisitDate] = useState<string>('');
+  const [revisitTime, setRevisitTime] = useState<string>('');
 
   // Swasthya Vitals Intake States
   const [vitalsPatient, setVitalsPatient] = useState<Patient | null>(null);
@@ -809,6 +815,42 @@ export const CompounderDashboard: React.FC = () => {
             <Activity className="h-4 w-4 text-rose-500" />
             Swasthya Vitals &amp; Token Desk
           </button>
+
+          <button
+            onClick={() => setActiveTab('gate1')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'gate1'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <Coins className="h-4 w-4 text-emerald-500" />
+            Gate 1: Consult Billing
+          </button>
+
+          <button
+            onClick={() => setActiveTab('gate2')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'gate2'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <FileText className="h-4 w-4 text-indigo-500" />
+            Gate 2: Lab Billing
+          </button>
+
+          <button
+            onClick={() => setActiveTab('gate3')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'gate3'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <QrCode className="h-4 w-4 text-amber-500" />
+            Gate 3: Pharmacy Billing
+          </button>
         </div>
       </div>
 
@@ -1397,6 +1439,426 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB 2: GATE 1 CONSULT BILLING */}
+        {activeTab === 'gate1' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-6 space-y-6">
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-600 opacity-60" />
+                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[16px]">point_of_sale</span>
+                  Initiate Gate 1: Consultation Invoice
+                </h2>
+                <p className="text-xs text-clinical-400 mb-4 leading-relaxed">
+                  Select a registered patient to generate a consult invoice of ₹450 and dispatch the WhatsApp payment nudge.
+                </p>
+                <div className="space-y-4">
+                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono block pl-1">
+                    Select Patient
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      const patientId = e.target.value;
+                      if (patientId) {
+                        api.createGate1Consult(patientId);
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            message: 'Consultation invoice created and WhatsApp payment nudge sent!',
+                            type: 'success',
+                            title: 'Invoice Generated'
+                          }
+                        }));
+                        e.target.value = "";
+                      }
+                    }}
+                    className="w-full input-field text-xs py-2.5 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>-- Choose Patient from Registry --</option>
+                    {patients.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} (+91 {p.phone})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-6 space-y-6">
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[16px]">receipt_long</span>
+                  Active Consult Invoices
+                </h2>
+                
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                  {api.getInvoices().filter(i => i.type === 'consult').length === 0 ? (
+                    <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                      No consultation invoices found.
+                    </div>
+                  ) : (
+                    api.getInvoices().filter(i => i.type === 'consult').map(invoice => {
+                      const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
+                      const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                      return (
+                        <div key={invoice.id} className="p-4 bg-surface-container border border-outline-variant rounded-xl flex items-center justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                              <span className="text-[9px] bg-indigo-500/10 text-indigo-400 font-mono font-bold px-2 py-0.5 rounded border border-indigo-500/20">
+                                CONSULT
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-clinical-400 mt-1 font-mono">
+                              Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}
+                            </p>
+                            <div className="text-[12px] font-bold text-emerald-400 mt-1">
+                              Amount: ₹{invoice.amount}
+                            </div>
+                          </div>
+                          <div>
+                            {invoice.status === 'unpaid' ? (
+                              <button
+                                onClick={() => {
+                                  api.settleSaaSInvoice(invoice.id);
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: `Gate 1 consultation fee settled. Patient moved to Doctor Chamber queue.`,
+                                      type: 'success',
+                                      title: 'Consult Settle'
+                                    }
+                                  }));
+                                }}
+                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                              >
+                                Mark Paid
+                              </button>
+                            ) : (
+                              <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-2.5 py-1 rounded border border-emerald-500/20 uppercase tracking-widest">
+                                PAID ✅
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: GATE 2 LAB BILLING & OCR */}
+        {activeTab === 'gate2' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-7 space-y-6">
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+                
+                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-400 text-base">biotech</span>
+                  Gate 2: Prescription OCR &amp; Lab Invoicing
+                </h2>
+                
+                <div className="space-y-6">
+                  {api.getAppointments().filter(a => a.status === 'ready_for_consult' || a.status === 'completed').length === 0 ? (
+                    <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                      No active consultation chambers matching Gate 2 bounds.
+                    </div>
+                  ) : (
+                    api.getAppointments().filter(a => a.status === 'ready_for_consult' || a.status === 'completed').map(appt => {
+                      const patient = patients.find(p => p.id === appt.patientId);
+                      const prescription = api.getPrescriptions().find(p => p.appointmentId === appt.id);
+                      const labInvoice = api.getInvoices().find(i => i.appointmentId === appt.id && i.type === 'lab');
+                      
+                      return (
+                        <div key={appt.id} className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-4">
+                          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                            <div>
+                              <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                              <p className="text-[9px] text-clinical-400 font-mono">Appt ID: {appt.id.substring(0, 8)}... | Status: {appt.status}</p>
+                            </div>
+                            <span className="text-[9px] bg-rose-500/10 text-rose-400 font-mono font-bold px-2 py-0.5 rounded border border-rose-500/20">
+                              CHAMBER OUT
+                            </span>
+                          </div>
+
+                          {!prescription ? (
+                            <div className="space-y-3">
+                              <p className="text-[10px] text-clinical-400">Upload Doctor's handwritten/printed prescription to run AI OCR and auto-generate invoices.</p>
+                              <div className="flex items-center gap-3">
+                                <label className="flex-1 flex items-center justify-center gap-2 border border-dashed border-outline-variant hover:border-secondary/50 rounded-lg p-3 bg-surface-container-lowest/60 hover:bg-surface-container-lowest cursor-pointer text-[10px] font-bold text-clinical-400 hover:text-white transition-colors">
+                                  <Upload className="h-4.5 w-4.5 text-secondary" />
+                                  <span>Select Rx Prescription</span>
+                                  <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        setOcrScanningApptId(appt.id);
+                                        api.runSaaSPrescriptionOCR(appt.id, file).then(() => {
+                                          setOcrScanningApptId(null);
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: {
+                                              message: 'AI OCR parsed prescription: Loaded tests and medicine invoices!',
+                                              type: 'success',
+                                              title: 'Prescription Parsed'
+                                            }
+                                          }));
+                                        });
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="bg-surface-container-lowest/80 border border-outline-variant p-3 rounded-lg space-y-2">
+                                <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">Extracted Lab Tests (AI OCR)</span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {prescription.extractedTests?.map((t, idx) => (
+                                    <span key={idx} className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-semibold px-2 py-0.5 rounded">
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {labInvoice && (
+                                <div className="flex items-center justify-between pt-1">
+                                  <div>
+                                    <span className="text-[9px] text-clinical-400 block font-mono">Lab Invoice: {labInvoice.id.substring(0, 8)}...</span>
+                                    <span className="text-[12px] font-black text-white">Lab Total: ₹{labInvoice.amount}</span>
+                                  </div>
+                                  <div>
+                                    {labInvoice.status === 'unpaid' ? (
+                                      <button
+                                        onClick={() => {
+                                          api.settleSaaSInvoice(labInvoice.id);
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: {
+                                              message: 'Lab invoice marked as PAID. Requisitions pushed to Lab Technician.',
+                                              type: 'success',
+                                              title: 'Lab Fee Settled'
+                                            }
+                                          }));
+                                        }}
+                                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                                      >
+                                        Mark Paid &amp; Route to Lab Tech
+                                      </button>
+                                    ) : (
+                                      <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
+                                        PAID &amp; SENT TO LAB ✅
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {ocrScanningApptId === appt.id && (
+                            <div className="p-3 bg-indigo-500/5 border border-indigo-500/15 rounded-lg flex items-center gap-2.5 animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                              <span className="text-[10px] text-indigo-400 font-mono font-semibold">Running LLM-OCR scanning on prescription...</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 space-y-6">
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
+                <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-rose-400 text-base">calendar_month</span>
+                  Revisit Scheduler Desk
+                </h2>
+                <p className="text-xs text-clinical-400 mb-4">
+                  Schedule revisit appointments for patients who have finalized their consultations or lab results.
+                </p>
+
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!revisitPatientId || !revisitDate || !revisitTime) {
+                      alert('Please select patient and fill out date/time');
+                      return;
+                    }
+                    const p = patients.find(pat => pat.id === revisitPatientId);
+                    if (p) {
+                      api.pushWhatsAppMessageFromBot(p.phone, `📅 *Mediflow Revisit Lock!* \n\nHello ${p.name}, your doctor revisit schedule is confirmed on *${revisitDate}* at *${revisitTime}*. Please arrive on time.`);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          message: `Revisit schedule locked on WhatsApp for ${p.name}!`,
+                          type: 'success',
+                          title: 'Revisit Booked'
+                        }
+                      }));
+                      setRevisitPatientId('');
+                      setRevisitDate('');
+                      setRevisitTime('');
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Patient</label>
+                    <select
+                      value={revisitPatientId}
+                      onChange={(e) => setRevisitPatientId(e.target.value)}
+                      className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                      required
+                    >
+                      <option value="" disabled>-- Select Patient --</option>
+                      {patients.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} (+91 {p.phone})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Date</label>
+                      <input 
+                        type="date"
+                        value={revisitDate}
+                        onChange={(e) => setRevisitDate(e.target.value)}
+                        className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Time Slot</label>
+                      <input 
+                        type="time"
+                        value={revisitTime}
+                        onChange={(e) => setRevisitTime(e.target.value)}
+                        className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                  >
+                    Lock Revisit &amp; Notify WhatsApp
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: GATE 3 PHARMACY BILLING */}
+        {activeTab === 'gate3' && (
+          <div className="grid grid-cols-1 gap-8">
+            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-500 opacity-60" />
+              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-400 text-base">medication</span>
+                Gate 3: Pharmacy Billing &amp; Dispensation release
+              </h2>
+              <p className="text-xs text-clinical-400 mb-6">
+                Active medicine bills requiring checkout payments before dispensing physical medications.
+              </p>
+
+              <div className="space-y-4">
+                {api.getInvoices().filter(i => i.type === 'pharmacy').length === 0 ? (
+                  <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                    No active pharmacy invoices found.
+                  </div>
+                ) : (
+                  api.getInvoices().filter(i => i.type === 'pharmacy').map(invoice => {
+                    const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
+                    const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                    const prescription = appt ? api.getPrescriptions().find(p => p.appointmentId === appt.id) : null;
+
+                    return (
+                      <div key={invoice.id} className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <div>
+                            <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                            <p className="text-[9px] text-clinical-400 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <div className="text-[12px] font-black text-amber-400">₹{invoice.amount}</div>
+                        </div>
+
+                        {prescription && prescription.extractedMedicines && (
+                          <div className="bg-surface-container-lowest/80 border border-outline-variant p-3 rounded-lg space-y-2">
+                            <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {prescription.extractedMedicines.map((m, idx) => (
+                                <div key={idx} className="text-[10px] text-clinical-300 font-mono flex items-center justify-between border-b border-white/5 pb-1">
+                                  <span>💊 {m.name} ({m.dosage})</span>
+                                  <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-1">
+                          {invoice.status === 'unpaid' ? (
+                            <button
+                              onClick={() => {
+                                api.settleSaaSInvoice(invoice.id);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    message: 'Pharmacy invoice marked as PAID. Dispatching instructions to patient WhatsApp.',
+                                    type: 'success',
+                                    title: 'Pharmacy Fee Settled'
+                                  }
+                                }));
+                              }}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                            >
+                              Mark Paid &amp; Release Dispense Receipt
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-3 py-1.5 rounded border border-emerald-500/20 uppercase tracking-widest">
+                                PAID ✅ (Dispensed)
+                              </span>
+                              <button
+                                onClick={() => {
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: 'Generating print queue spool... Receipt sent to clinical printer! 🖨️',
+                                      type: 'info',
+                                      title: 'Spooling Receipt'
+                                    }
+                                  }));
+                                }}
+                                className="p-1.5 rounded-lg border border-outline-variant hover:bg-surface-container-highest transition-colors text-white"
+                                title="Print Invoice"
+                              >
+                                <Printer className="h-4.5 w-4.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         )}
 
         {/* Real-time WhatsApp Loop simulator at the bottom */}

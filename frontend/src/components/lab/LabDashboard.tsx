@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import type { ReagentStock } from '../../services/api';
-import type { LabRequisition, Patient } from '../../types';
+import type { LabRequisition, Patient, Invoice } from '../../types';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mediflow Pathology Lab Dashboard  V2.0
@@ -13,6 +13,7 @@ type LabTab = 'queue' | 'walkin' | 'analytics' | 'reagents';
 export const LabDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<LabTab>('queue');
   const [requisitions, setRequisitions] = useState<LabRequisition[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [reagents, setReagents] = useState<ReagentStock[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -97,6 +98,7 @@ export const LabDashboard: React.FC = () => {
   useEffect(() => {
     const sync = () => {
       setRequisitions(api.getLabRequisitions());
+      setInvoices(api.getInvoices());
       setReagents(api.getReagentStocks());
       setPatients(api.getPatients());
     };
@@ -147,14 +149,22 @@ export const LabDashboard: React.FC = () => {
     setJsonPayload(JSON.stringify(data, null, 2));
   }, [activeReqId, hba1cVal, eagVal, creatinineVal, egfrVal, bunVal, hbVal, hctVal, genericVal, genericUnit, activeReq]);
 
-  /* ─── Derived lists ──────────────────────────────────────────── */
-  const pendingList = useMemo(() => requisitions.filter(r => r.status === 'pending'), [requisitions]);
+  /* ─── Derived lists with SaaS Gate 2 payment filtering ────────── */
+  const gatedRequisitions = useMemo(() => {
+    return requisitions.filter(r => {
+      if (r.encounterId === 'walkin') return true;
+      const inv = invoices.find(i => i.appointmentId === r.encounterId && i.type === 'lab');
+      return inv?.status === 'paid';
+    });
+  }, [requisitions, invoices]);
+
+  const pendingList = useMemo(() => gatedRequisitions.filter(r => r.status === 'pending'), [gatedRequisitions]);
   const collectedList = useMemo(
-    () => requisitions.filter(r => r.status === 'collected' || r.status === 'processed'),
-    [requisitions]
+    () => gatedRequisitions.filter(r => r.status === 'collected' || r.status === 'processed'),
+    [gatedRequisitions]
   );
-  const completedList = useMemo(() => requisitions.filter(r => r.status === 'completed'), [requisitions]);
-  const walkinList = useMemo(() => requisitions.filter(r => r.encounterId === 'walkin'), [requisitions]);
+  const completedList = useMemo(() => gatedRequisitions.filter(r => r.status === 'completed'), [gatedRequisitions]);
+  const walkinList = useMemo(() => gatedRequisitions.filter(r => r.encounterId === 'walkin'), [gatedRequisitions]);
   const filteredPatients = useMemo(
     () =>
       patients.filter(p =>

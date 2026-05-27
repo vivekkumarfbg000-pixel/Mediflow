@@ -3240,6 +3240,237 @@ If no prescription image could be loaded or fetched, generate a highly realistic
     }
   }
 
+  // ─── SaaS 3-GATE WORKFLOW API SIMULATIONS ──────────────────────────────────
+
+  getAppointments(): Appointment[] {
+    return this.load<Appointment[]>('saas_appointments', []);
+  }
+
+  saveAppointment(appt: Appointment): void {
+    const appts = this.getAppointments();
+    const idx = appts.findIndex(a => a.id === appt.id);
+    if (idx >= 0) appts[idx] = appt;
+    else appts.push(appt);
+    this.save('saas_appointments', appts);
+    this.notify();
+  }
+
+  getInvoices(): Invoice[] {
+    return this.load<Invoice[]>('saas_invoices', []);
+  }
+
+  saveInvoice(invoice: Invoice): void {
+    const invoices = this.getInvoices();
+    const idx = invoices.findIndex(i => i.id === invoice.id);
+    if (idx >= 0) invoices[idx] = invoice;
+    else invoices.push(invoice);
+    this.save('saas_invoices', invoices);
+    this.notify();
+  }
+
+  getLabReports(): LabReport[] {
+    return this.load<LabReport[]>('saas_lab_reports', []);
+  }
+
+  saveLabReport(report: LabReport): void {
+    const reports = this.getLabReports();
+    const idx = reports.findIndex(r => r.id === report.id);
+    if (idx >= 0) reports[idx] = report;
+    else reports.push(report);
+    this.save('saas_lab_reports', reports);
+    this.notify();
+  }
+
+  getPrescriptions(): Prescription[] {
+    return this.load<Prescription[]>('saas_prescriptions', []);
+  }
+
+  savePrescription(rx: Prescription): void {
+    const prescriptions = this.getPrescriptions();
+    const idx = prescriptions.findIndex(p => p.id === rx.id);
+    if (idx >= 0) prescriptions[idx] = rx;
+    else prescriptions.push(rx);
+    this.save('saas_prescriptions', prescriptions);
+    this.notify();
+  }
+
+  // --- 3-GATE FLOW TRIGGER METHODS ---
+
+  createGate1Consult(patientId: string): void {
+    const apptId = crypto.randomUUID();
+    const newAppt: Appointment = {
+      id: apptId,
+      patientId,
+      doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101', // Dr Vivek
+      status: 'pending_payment',
+      createdAt: new Date().toISOString()
+    };
+    this.saveAppointment(newAppt);
+
+    const newInvoice: Invoice = {
+      id: crypto.randomUUID(),
+      appointmentId: apptId,
+      type: 'consult',
+      amount: 450,
+      status: 'unpaid',
+      createdAt: new Date().toISOString()
+    };
+    this.saveInvoice(newInvoice);
+    
+    // Auto nudge WhatsApp session
+    const patient = this.getPatients().find(p => p.id === patientId);
+    if (patient) {
+      this.pushWhatsAppMessageFromBot(patient.phone, `🟢 *Welcome to Mediflow Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹450* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=mediflow@icici&pn=Mediflow&am=450.00_`);
+    }
+  }
+
+  settleSaaSInvoice(invoiceId: string): void {
+    const invoices = this.getInvoices();
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv) return;
+    inv.status = 'paid';
+    this.save('saas_invoices', invoices);
+
+    const appt = this.getAppointments().find(a => a.id === inv.appointmentId);
+    if (appt) {
+      if (inv.type === 'consult') {
+        appt.status = 'ready_for_consult';
+        this.saveAppointment(appt);
+        
+        // Push patient into doctor queue
+        this.updatePatientQueueStatus(appt.patientId, 'awaiting_consultation');
+        
+        const patient = this.getPatients().find(p => p.id === appt.patientId);
+        if (patient) {
+          this.pushWhatsAppMessageFromBot(patient.phone, `✅ *Consultation Fee Received!* \n\nPatient has been added to Doctor Vivek's active queue. Please enter the consultation chamber when called.`);
+        }
+      } else if (inv.type === 'lab') {
+        const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
+        if (rx && rx.extractedTests) {
+          rx.extractedTests.forEach(testName => {
+            const loinc = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase() === testName.toLowerCase())?.loincCode || 'unknown';
+            const reqId = crypto.randomUUID();
+            const requisitions = this.load<any[]>('lab_requisitions', []);
+            requisitions.push({
+              id: reqId,
+              encounterId: appt.id,
+              patientId: appt.patientId,
+              patientName: this.getPatients().find(p => p.id === appt.patientId)?.name || 'Unknown',
+              testCode: loinc,
+              testName: testName,
+              barcode: `BAR-${appt.id.substring(0, 8).toUpperCase()}-${loinc}`,
+              status: 'pending',
+              createdAt: new Date().toISOString()
+            });
+            this.save('lab_requisitions', requisitions);
+          });
+        }
+        const patient = this.getPatients().find(p => p.id === appt.patientId);
+        if (patient) {
+          this.pushWhatsAppMessageFromBot(patient.phone, `✅ *Pathology Lab Fees Settled!* \n\nLab requests have been dispatched to Lab Tech Lalit Prasad. Please proceed to the lab collection counter.`);
+        }
+      } else if (inv.type === 'pharmacy') {
+        appt.status = 'completed';
+        this.saveAppointment(appt);
+        
+        const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
+        if (rx && rx.extractedMedicines) {
+          rx.extractedMedicines.forEach(med => {
+            const holds = this.load<any[]>('inventory_holds', []);
+            holds.push({
+              id: crypto.randomUUID(),
+              patientId: appt.patientId,
+              medicineName: med.name,
+              dosage: med.dosage,
+              quantity: 10,
+              holdStatus: 'dispensed',
+              expiryDate: '2027-12-31',
+              batchNumber: 'BATCH-2026-X1',
+              createdAt: new Date().toISOString()
+            });
+            this.save('inventory_holds', holds);
+          });
+        }
+
+        const patient = this.getPatients().find(p => p.id === appt.patientId);
+        if (patient) {
+          this.pushWhatsAppMessageFromBot(patient.phone, `✅ *Pharmacy Invoice Paid!* \n\nYour digital invoice has been sent to your WhatsApp. Please show this receipt at the medicine counter to collect your medicines.`);
+        }
+      }
+    }
+    this.notify();
+  }
+
+  async runSaaSPrescriptionOCR(appointmentId: string, file: File | string): Promise<Prescription> {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const rx: Prescription = {
+      id: crypto.randomUUID(),
+      appointmentId,
+      extractedMedicines: [
+        { name: 'Calpol 650', dosage: '1 tab', frequency: '1-0-1' },
+        { name: 'Metformin 500mg', dosage: '1 tab', frequency: '1-0-0' }
+      ],
+      extractedTests: ['HbA1c (Glycated Hemoglobin)', 'Serum Creatinine'],
+      createdAt: new Date().toISOString()
+    };
+    this.savePrescription(rx);
+    
+    const labInvoice: Invoice = {
+      id: crypto.randomUUID(),
+      appointmentId,
+      type: 'lab',
+      amount: 600,
+      status: 'unpaid',
+      createdAt: new Date().toISOString()
+    };
+    this.saveInvoice(labInvoice);
+
+    const pharmaInvoice: Invoice = {
+      id: crypto.randomUUID(),
+      appointmentId,
+      type: 'pharmacy',
+      amount: 150,
+      status: 'unpaid',
+      createdAt: new Date().toISOString()
+    };
+    this.saveInvoice(pharmaInvoice);
+
+    return rx;
+  }
+
+  async generateConsultHinglishSummary(patientId: string, suggestionsText: string): Promise<string> {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const patient = this.getPatients().find(p => p.id === patientId);
+    const pName = patient ? patient.name : 'Patient';
+
+    return `Namaste ${pName} ji. Dr. Sharma ne aapke suggestions record kiye hain:
+1. Aapko diet control karni hai aur meetha bilkul kam khana hai.
+2. ${suggestionsText || 'Aapki dawaiyaan update kar di gayi hain.'}
+3. Reports aane ke baad ek baar revisit time schedule par zaroor milein.
+Dhyan rakhein aur time par medicine lein!`;
+  }
+
+  async generateComparativeLabTrend(patientId: string, newReportTest: string, newReportVal: number): Promise<string> {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const history = this.getPatientHistoricalBiomarkers(patientId);
+    if (history.length > 0) {
+      const prevHbA1c = history[history.length - 1].HbA1c;
+      const difference = prevHbA1c - newReportVal;
+      const pct = ((difference / prevHbA1c) * 100).toFixed(1);
+      
+      if (difference > 0) {
+        return `Aapki HbA1c Report aayi hai: ${newReportVal}%. Pichli baar se yeh level ${pct}% behtar (kam) hua hai. Bahut badhiya! Apni routine aur diet aisi hi maintain rakhein.`;
+      } else {
+        return `Aapki HbA1c Report aayi hai: ${newReportVal}%. Pichli baar se yeh level ${Math.abs(Number(pct))}% badh gaya hai. Sugar levels control karne ke liye dosage change aur strict diet zaroor discuss karein.`;
+      }
+    }
+    
+    return `Aapki HbA1c Report aayi hai: ${newReportVal}%. Yeh aapki pehli HbA1c report hai, to iska trend future checkups me compare hoga. Apne clinical routine par dhyan dein.`;
+  }
+
   async saveAgentTaskPipeline(pipeline: {
     patient_id: string;
     original_prompt: string;
