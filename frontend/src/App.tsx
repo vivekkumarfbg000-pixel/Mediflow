@@ -77,25 +77,25 @@ function AppContent({
     switch (currentRole) {
       case 'compounder':
         return (
-          <RequireRole allowedRoles={['compounder']} role={currentRole}>
+          <RequireRole allowedRoles={['compounder']} role={currentRole} bypass={isBypassMode}>
             <CompounderDashboard />
           </RequireRole>
         );
       case 'doctor':
         return (
-          <RequireRole allowedRoles={['doctor']} role={currentRole}>
+          <RequireRole allowedRoles={['doctor']} role={currentRole} bypass={isBypassMode}>
             <DoctorDashboard />
           </RequireRole>
         );
       case 'lab':
         return (
-          <RequireRole allowedRoles={['lab']} role={currentRole}>
+          <RequireRole allowedRoles={['lab']} role={currentRole} bypass={isBypassMode}>
             <LabDashboard />
           </RequireRole>
         );
       case 'pharmacy':
         return (
-          <RequireRole allowedRoles={['pharmacy']} role={currentRole}>
+          <RequireRole allowedRoles={['pharmacy']} role={currentRole} bypass={isBypassMode}>
             <PharmacyDashboard />
           </RequireRole>
         );

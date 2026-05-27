@@ -7,6 +7,8 @@ interface RequireRoleProps {
   children: ReactNode;
   /** The role currently selected in the UI. */
   role: string;
+  /** When true, bypass standard role restrictions for testing. */
+  bypass?: boolean;
   /** Optional fallback UI; defaults to a denial card. */
   fallback?: ReactNode;
 }
@@ -15,14 +17,16 @@ interface RequireRoleProps {
  * RequireRole – wraps any dashboard section and hides it from
  * roles that are not in `allowedRoles`. Uses the UI's current
  * selected role so access decisions match the rendered section.
+ * Developer bypass mode disables the guard for testing.
  */
 export const RequireRole: React.FC<RequireRoleProps> = ({
   allowedRoles,
   children,
   fallback,
   role = api.simulatedRole,
+  bypass = false,
 }) => {
-  if (allowedRoles.includes(role)) {
+  if (bypass || allowedRoles.includes(role)) {
     return <>{children}</>;
   }
 
