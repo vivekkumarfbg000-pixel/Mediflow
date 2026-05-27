@@ -1,3 +1,12 @@
+export interface PatientVitals {
+  temperature: string;       // °F
+  bloodPressure: string;     // Systolic/Diastolic e.g. "120/80"
+  pulseRate: string;         // bpm
+  weight: string;            // kg
+  bloodSugar?: string;       // mg/dL (glucometer)
+  recordedAt: string;
+}
+
 export interface Patient {
   id: string;
   name: string;
@@ -7,6 +16,9 @@ export interface Patient {
   allergies: string[];
   chronicConditions: string[];
   abhaId?: string;
+  vitals?: PatientVitals;
+  tokenNumber?: string;
+  queueStatus?: 'awaiting_vitals' | 'awaiting_consultation' | 'completed';
   createdAt: string;
 }
 

@@ -482,7 +482,70 @@ class MediflowApiService {
 
   // Patients
   getPatients(): Patient[] {
-    return this.load<Patient[]>('patients', INITIAL_PATIENTS);
+    const rawPatients = this.load<Patient[]>('patients', INITIAL_PATIENTS);
+    const vitalsMap = this.load<Record<string, PatientVitals>>('vitals_map', {});
+    const tokensMap = this.load<Record<string, string>>('tokens_map', {});
+    const queueStatusMap = this.load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    
+    return rawPatients.map(p => ({
+      ...p,
+      vitals: vitalsMap[p.id] || p.vitals,
+      tokenNumber: tokensMap[p.id] || p.tokenNumber,
+      queueStatus: queueStatusMap[p.id] || p.queueStatus || 'awaiting_vitals'
+    }));
+  }
+
+  updatePatientVitalsAndToken(patientId: string, vitals: PatientVitals, token: string): void {
+    const vitalsMap = this.load<Record<string, PatientVitals>>('vitals_map', {});
+    const tokensMap = this.load<Record<string, string>>('tokens_map', {});
+    const queueStatusMap = this.load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    
+    vitalsMap[patientId] = vitals;
+    tokensMap[patientId] = token;
+    queueStatusMap[patientId] = 'awaiting_consultation';
+    
+    this.save('vitals_map', vitalsMap);
+    this.save('tokens_map', tokensMap);
+    this.save('queue_status_map', queueStatusMap);
+    
+    // Write audit log
+    const pat = this.getPatients().find(p => p.id === patientId);
+    this.writeAuditLog('PATIENT_VITALS_RECORDED', {
+      patientId,
+      patientName: pat?.name,
+      tokenNumber: token,
+      vitals
+    }, patientId);
+    
+    this.notify();
+  }
+
+  updatePatientQueueStatus(patientId: string, status: Patient['queueStatus']): void {
+    const queueStatusMap = this.load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    queueStatusMap[patientId] = status;
+    this.save('queue_status_map', queueStatusMap);
+    
+    const pat = this.getPatients().find(p => p.id === patientId);
+    this.writeAuditLog('PATIENT_QUEUE_STATUS_UPDATED', {
+      patientId,
+      patientName: pat?.name,
+      queueStatus: status
+    }, patientId);
+    
+    this.notify();
+  }
+
+  generateNextTokenNumber(): string {
+    const patients = this.getPatients();
+    const activeTokens = patients
+      .map(p => p.tokenNumber)
+      .filter((t): t is string => !!t && t.startsWith('TK-'));
+    
+    if (activeTokens.length === 0) return 'TK-01';
+    
+    const maxVal = Math.max(...activeTokens.map(t => parseInt(t.replace('TK-', ''))));
+    const nextVal = maxVal + 1;
+    return `TK-${nextVal.toString().padStart(2, '0')}`;
   }
 
   registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'>): Patient {
@@ -1525,6 +1588,65 @@ class MediflowApiService {
     }
   }
 
+  replenishReagentStock(reagentName: string, volumeToAdd: number): void {
+    const reagents = this.getReagentStocks();
+    const idx = reagents.findIndex(r => r.reagentName === reagentName);
+    if (idx !== -1) {
+      reagents[idx].stockVolume = Number((reagents[idx].stockVolume + volumeToAdd).toFixed(2));
+      this.save('reagents', reagents);
+      this.notify();
+
+      // Async sync to Supabase reagent_inventory
+      supabase.from('reagent_inventory')
+        .update({ stock_volume: reagents[idx].stockVolume })
+        .eq('reagent_name', reagentName)
+        .then(({ error }) => {
+          if (error) console.error('[Mediflow Lab] Failed to sync replenishment to Supabase:', error);
+          else this.writeAuditLog('reagent_manually_replenished', { reagentName, volumeAdded: volumeToAdd, newTotal: reagents[idx].stockVolume });
+        });
+    }
+  }
+
+  registerWalkinLabTest(patientId: string, testCode: string, testName: string): LabRequisition {
+    const patients = this.getPatients();
+    const patient = patients.find(p => p.id === patientId);
+    const barcode = `WALK-${Date.now()}-${testCode}`.toUpperCase();
+    const newReq: LabRequisition = {
+      id: crypto.randomUUID(),
+      encounterId: 'walkin',
+      patientId,
+      patientName: patient?.name || 'Walk-in Patient',
+      testCode,
+      testName,
+      barcode,
+      status: 'pending',
+      reagentDeductions: [],
+      createdAt: new Date().toISOString()
+    };
+    const existing = this.getLabRequisitions();
+    existing.unshift(newReq);
+    this.save('lab_requisitions', existing);
+    this.notify();
+
+    // Async push walk-in requisition to Supabase
+    supabase.from('lab_requisitions').insert({
+      id: newReq.id,
+      encounter_id: null,
+      patient_id: patientId,
+      loinc_code: testCode,
+      test_name: testName,
+      barcode,
+      status: 'pending',
+      assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+      created_at: newReq.createdAt
+    }).then(({ error }) => {
+      if (error) console.error('[Mediflow Lab] Walk-in requisition sync failed:', error);
+      else this.writeAuditLog('walkin_lab_test_registered', { patientId, testCode, testName, barcode }, patientId);
+    });
+
+    return newReq;
+  }
+
   // Pharmacy Inventory holds (FEFO sorted)
   getInventoryHolds(): InventoryHold[] {
     const holds = this.load<InventoryHold[]>('inventory_holds', []);
@@ -1760,27 +1882,7 @@ class MediflowApiService {
     this.notify();
   }
 
-  // Reagent replenishment
-  replenishReagentStock(reagentName: string, volume: number): void {
-    const reagents = this.getReagentStocks();
-    const idx = reagents.findIndex(r => r.reagentName === reagentName);
-    if (idx !== -1) {
-      const newVolume = reagents[idx].stockVolume + volume;
-      reagents[idx].stockVolume = newVolume;
-      this.save('reagents', reagents);
-      this.notify();
 
-      supabase.from('reagent_inventory').update({
-        stock_volume: newVolume
-      }).eq('reagent_name', reagentName).then(({ error }) => {
-        if (error) console.error('Error replenishing reagent in Supabase:', error);
-        else {
-          this.writeAuditLog('reagent_replenished', { reagentName, replenishedVolume: volume, newVolume }, reagentName);
-          this.syncFromSupabase();
-        }
-      });
-    }
-  }
 
   // Financial ledgers (split billing)
   getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {

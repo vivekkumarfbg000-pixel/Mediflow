@@ -17,9 +17,10 @@ import { StateHealingEngine } from '../../services/autoHealerAgent';
 import { BiomarkerChart } from './BiomarkerChart';
 import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
 import { SeasonalForecastWidget } from '../pharmacy/SeasonalForecastWidget';
+import { PodCommandCenter } from '../admin/PodCommandCenter';
 
 export const DoctorDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp' | 'sop'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
   
   // SOP States
   const [sopFile, setSopFile] = useState<File | null>(null);
@@ -149,7 +150,8 @@ export const DoctorDashboard: React.FC = () => {
 
     // Must be horizontal swipe: deltaX magnitude must be much larger than deltaY to prevent vertical scroll conflicts
     if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
-      const tabs: Array<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp' | 'sop'> = [
+      const tabs: Array<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
+        'pod_view',
         'overview', 
         'consultation', 
         'financials', 
@@ -3891,6 +3893,8 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
   // ROUTER CONTROLLER: Render Active Tab Contents
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'pod_view':
+        return <PodCommandCenter onSwitchToDashboard={(pod) => setActiveTab(pod as any)} />;
       case 'overview':
         return renderOverviewTab();
       case 'consultation':
@@ -4025,7 +4029,8 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
         {/* Desktop tab nav — integrated into header */}
         <div className="hidden lg:flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px">
           {[
-            { id: 'overview',      label: 'Command Center',      icon: 'dashboard' },
+            { id: 'pod_view',      label: 'Pod Command Center',  icon: 'hub' },
+            { id: 'overview',      label: 'Clinic Overview',     icon: 'dashboard' },
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
             { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
             { id: 'pharmacy',      label: 'Medical Shop',        icon: 'pill' },
@@ -4109,7 +4114,8 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
       {/* ── MOBILE BOTTOM NAV (footer) ── */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex justify-around items-center z-50 h-14 px-1">
         {[
-          { id: 'overview',     label: 'Command',  icon: 'dashboard' },
+          { id: 'pod_view',     label: 'Pod HUD',  icon: 'hub' },
+          { id: 'overview',     label: 'Clinic',   icon: 'dashboard' },
           { id: 'consultation', label: 'Consult',  icon: 'clinical_notes' },
           { id: 'financials',   label: 'Finance',  icon: 'account_balance_wallet' },
           { id: 'pathology',    label: 'Lab',      icon: 'biotech' },

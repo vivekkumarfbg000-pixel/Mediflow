@@ -296,6 +296,23 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'billing', name: 'UPI Ledger', icon: QrCode, color: 'text-rose-500 bg-rose-500/10' },
   ];
 
+  const allowedRolesMap: Record<string, string[]> = {
+    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient'],
+    'compounder': ['compounder'],
+    'lab_technician': ['lab'],
+    'pharmacist': ['pharmacy'],
+    'patient': ['patient'],
+    'admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient'],
+    'platform_admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient']
+  };
+
+  const activeUserRole = activeProfile?.role || 'compounder';
+  const allowedList = allowedRolesMap[activeUserRole] || [];
+
+  const visibleRoles = isBypassMode 
+    ? roles 
+    : roles.filter(r => allowedList.includes(r.id));
+
   return (
     <>
       {/* Premium Desktop Left Sidebar Navigation */}
@@ -456,7 +473,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {!isSidebarCollapsed && (
               <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-2 mb-1.5 animate-fade-in">Ecosystem Modules</span>
             )}
-            {roles.map((r) => {
+            {visibleRoles.map((r) => {
               const Icon = r.icon;
               const isActive = currentRole === r.id;
               return (
@@ -815,7 +832,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Modules Switcher */}
               <div className="space-y-1.5 pt-2">
                 <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
-                {roles.map((r) => {
+                {visibleRoles.map((r) => {
                   const Icon = r.icon;
                   const isActive = currentRole === r.id;
                   return (
@@ -972,7 +989,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {currentRole !== 'doctor' && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
           <div className="flex items-center justify-around h-16">
-            {roles.map((r) => {
+            {visibleRoles.map((r) => {
               const Icon = r.icon;
               const isActive = currentRole === r.id;
               

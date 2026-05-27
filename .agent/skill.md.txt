@@ -46,3 +46,7 @@ When the user asks you to build, refactor, or explain any feature of the Mediflo
 3. Write the exact code or SQL script. Never skip standard error boundaries, loading UI states, or SQL transactional rollbacks (BEGIN/EXCEPTION/ROLLBACK).
 4. Verify code compatibility across React hooks, Supabase clients, and RLS tables.
 5. OBLIGATORY TECH TEAM VALIDATION: You must ALWAYS run the local Tech Team pipeline (Teach-team-main/scripts) for every code modification, bug fix, or database update. Execute the SecOps static taint check (security_taint_check.js), database telemetry (diagnose_telemetry.js), and browser-based Puppeteer smoke chaos check (verify_ui_e2e.js from 'frontend') to guarantee 100% security, compilation, and behavior integrity before completion.
+
+### 6. WORKSPACE ISOLATION & SECURITY GUARDRAILS (STRICT COMPLIANCE REQUIRED)
+- **Strict Directory Boundary**: You must ONLY read from and write files to the designated workspace directory: `c:\Users\vivek\OneDrive\Desktop\Mediflow ecosystem`. Do NOT modify, create, update, or write files in any external directories (such as `c:\Users\vivek\Downloads\first emergency response\`).
+- **No Git Operations from External Locations**: All git staging, committing, and pushing must be done strictly within the working directory of the workspace (`c:\Users\vivek\OneDrive\Desktop\Mediflow ecosystem`) targeting only the `mediflow` repository configured there.

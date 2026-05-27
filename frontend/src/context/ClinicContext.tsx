@@ -10,7 +10,7 @@ interface ClinicContextType {
   isLoading: boolean;
   refreshClinic: () => Promise<void>;
   registerClinic: (name: string, phone: string, address: string, specialization: string) => Promise<any>;
-  joinClinic: (code: string, type: 'pharmacy' | 'lab', name: string, phone: string, address: string) => Promise<any>;
+  joinClinic: (code: string, type: 'pharmacy' | 'lab' | 'compounder', name: string, phone: string, address: string) => Promise<any>;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -203,7 +203,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     }
   };
 
-  const joinClinic = async (code: string, type: 'pharmacy' | 'lab', name: string, phone: string, address: string) => {
+  const joinClinic = async (code: string, type: 'pharmacy' | 'lab' | 'compounder', name: string, phone: string, address: string) => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.rpc('join_clinic_network', {

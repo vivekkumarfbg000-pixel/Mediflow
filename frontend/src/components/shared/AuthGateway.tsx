@@ -29,7 +29,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
   // Partner Join specific states
   const [clinicCode, setClinicCode] = useState('');
-  const [partnerType, setPartnerType] = useState<'pharmacy' | 'lab'>('pharmacy');
+  const [partnerType, setPartnerType] = useState<'pharmacy' | 'lab' | 'compounder'>('pharmacy');
   const [validatingCode, setValidatingCode] = useState(false);
   const [validatedClinicName, setValidatedClinicName] = useState<string | null>(null);
 
@@ -164,7 +164,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       });
 
       if (authError) throw authError;
-      if (!authData?.user) throw new Error('SignUp failed: No user returned.');
+      if (!authData?.user) {
+        throw new Error('This email address is already registered. Please Sign In instead or use a different email.');
+      }
+
+      if (!authData.session) {
+        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
+      }
 
       // 2. Wait a split second to allow on_auth_user_created trigger to run
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -220,7 +226,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
     try {
       // 1. Perform auth signUp
-      const userRole = partnerType === 'pharmacy' ? 'pharmacist' : 'lab_technician';
+      const userRole = partnerType === 'pharmacy' ? 'pharmacist' : partnerType === 'lab' ? 'lab_technician' : 'compounder';
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -233,7 +239,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       });
 
       if (authError) throw authError;
-      if (!authData?.user) throw new Error('SignUp failed: No user returned.');
+      if (!authData?.user) {
+        throw new Error('This email address is already registered. Please Sign In instead or use a different email.');
+      }
+
+      if (!authData.session) {
+        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
+      }
 
       // 2. Wait a split second to allow handle_new_user trigger to execute
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -744,6 +756,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   >
                     <option value="pharmacy">Pharmacy POS</option>
                     <option value="lab">Pathology Lab</option>
+                    <option value="compounder">Clinic Compounder</option>
                   </select>
                 </div>
                 <div className="space-y-1">

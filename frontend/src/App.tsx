@@ -408,7 +408,8 @@ export default function App() {
   const handleRoleChange = (role: UserRole) => {
     if (!isBypassMode && activeProfile) {
       const allowedRoles: Record<string, UserRole[]> = {
-        'doctor': ['doctor'],
+        'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient'],
+        'compounder': ['compounder'],
         'lab_technician': ['lab'],
         'pharmacist': ['pharmacy'],
         'patient': ['patient'],

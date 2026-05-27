@@ -6,19 +6,33 @@ import {
   Upload, 
   Send, 
   Search, 
-  ShieldAlert,
-  ShieldCheck,
-  Trash2,
-  Coins,
-  QrCode,
-  Printer,
-  Truck,
-  UserCheck,
-  FileText
+  ShieldAlert, 
+  ShieldCheck, 
+  Trash2, 
+  Coins, 
+  QrCode, 
+  Printer, 
+  Truck, 
+  UserCheck, 
+  FileText,
+  Activity
 } from 'lucide-react';
 
 export const CompounderDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'registry' | 'pathology' | 'medicine_billing'>('registry');
+  const [activeTab, setActiveTab] = useState<'registry' | 'vitals' | 'pathology' | 'medicine_billing'>('registry');
+
+  // Swasthya Vitals Intake States
+  const [vitalsPatient, setVitalsPatient] = useState<Patient | null>(null);
+  const [tempVal, setTempVal] = useState('98.6');
+  const [bpVal, setBpVal] = useState('120/80');
+  const [pulseVal, setPulseVal] = useState('72');
+  const [weightVal, setWeightVal] = useState('65');
+  const [sugarVal, setSugarVal] = useState('');
+  const [customToken, setCustomToken] = useState('');
+
+  // Vernacular Dosage Assistant States
+  const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');
+  const [dosageTemplate, setDosageTemplate] = useState<'od' | 'bd' | 'tds' | 'sos'>('od');
 
   // Registry Registry state
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -218,6 +232,68 @@ export const CompounderDashboard: React.FC = () => {
     setAllergiesInput('');
     setChronicInput('');
     setAbhaId('');
+  };
+
+  const handleRecordVitalsSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vitalsPatient) return;
+
+    const recordedToken = customToken.trim() || api.generateNextTokenNumber();
+
+    api.updatePatientVitalsAndToken(vitalsPatient.id, {
+      temperature: tempVal,
+      bloodPressure: bpVal,
+      pulseRate: pulseVal,
+      weight: weightVal,
+      bloodSugar: sugarVal || undefined,
+      recordedAt: new Date().toISOString()
+    }, recordedToken);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Vitals pre-loaded successfully for patient ${vitalsPatient.name}! Dispatched Token: ${recordedToken} to Doctor Vivek's chamber. 🩺`,
+        type: 'success',
+        title: 'Swasthya Token Dispatched'
+      }
+    }));
+
+    // Reset Form
+    setVitalsPatient(null);
+    setTempVal('98.6');
+    setBpVal('120/80');
+    setPulseVal('72');
+    setWeightVal('65');
+    setSugarVal('');
+    setCustomToken('');
+
+    syncData();
+  };
+
+  const handlePushDosageWhatsApp = async (patient: Patient, dosageText: string) => {
+    let session = sessions.find(s => s.patientPhone === patient.phone);
+    if (!session) {
+      session = api.initiateWhatsAppSession(patient.phone);
+    }
+    
+    const chatHistory = [
+      ...(session.sessionData.chatHistory || []),
+      { sender: 'bot' as const, text: `📋 *Swasthya Dosage Slip (दवाई पर्ची)*\n\n${dosageText}`, time: new Date().toISOString() }
+    ];
+    
+    api.updateWhatsAppState(patient.phone, session.currentState, {
+      ...session.sessionData,
+      chatHistory
+    });
+    
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Vernacular dosage slip pushed to +91 ${patient.phone} on WhatsApp!`,
+        type: 'success',
+        title: 'WhatsApp Slip Dispatched'
+      }
+    }));
+    
+    syncData();
   };
 
   const handleInitiateWhatsAppLoop = (patient: Patient) => {
@@ -723,6 +799,18 @@ export const CompounderDashboard: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('vitals')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'vitals'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <Activity className="h-4 w-4 text-rose-500" />
+            Swasthya Vitals &amp; Token Desk
+          </button>
+
+          <button
             onClick={() => setActiveTab('pathology')}
             className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
               activeTab === 'pathology'
@@ -990,6 +1078,363 @@ export const CompounderDashboard: React.FC = () => {
                 </form>
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1.5: SWAPSTHYA VITALS & TOKEN QUEUE */}
+        {activeTab === 'vitals' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Hand Queue / Token list */}
+            <div className="lg:col-span-6 space-y-6">
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-indigo-500 opacity-60" />
+                
+                <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
+                    Swasthya Token Queue (दैनिक टोकन कतार)
+                  </h2>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full animate-pulse-subtle">
+                    Live Status
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  {patients.length === 0 ? (
+                    <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                      No patients registered in active queue.
+                    </div>
+                  ) : (
+                    patients.map(p => {
+                      const hasVitals = !!p.vitals;
+                      const isAwaitingVitals = p.queueStatus === 'awaiting_vitals' || !p.queueStatus;
+                      const isAwaitingConsult = p.queueStatus === 'awaiting_consultation';
+                      const isCompleted = p.queueStatus === 'completed';
+
+                      return (
+                        <div 
+                          key={p.id} 
+                          className={`p-4 bg-surface-container border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${
+                            vitalsPatient?.id === p.id 
+                              ? 'border-rose-500/50 bg-rose-500/5 shadow-md shadow-rose-500/5' 
+                              : 'border-outline-variant hover:bg-surface-container-highest/40'
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-lg border ${
+                                p.tokenNumber 
+                                  ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/25' 
+                                  : 'bg-slate-500/10 text-slate-400 border-slate-500/25'
+                              }`}>
+                                {p.tokenNumber || 'NO TOKEN'}
+                              </span>
+                              <h4 className="font-bold text-white text-xs">{p.name}</h4>
+                              <span className="text-clinical-400 text-[10px] font-medium">({p.age}y · {p.gender})</span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[10px] text-clinical-400 font-semibold uppercase tracking-wider">
+                              <span className="flex items-center gap-1">
+                                <Smartphone className="h-3 w-3 text-secondary" />
+                                {p.phone}
+                              </span>
+                              {hasVitals && (
+                                <span className="text-emerald-400 flex items-center gap-1.5 bg-emerald-500/5 px-2 py-0.2 rounded border border-emerald-500/10">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                                  Vitals Logged
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Quick Vitals Info Bar */}
+                            {hasVitals && p.vitals && (
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5 pt-2.5 border-t border-white/5 text-[9px] font-mono text-clinical-300">
+                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🌡️ Temp: {p.vitals.temperature}°F</span>
+                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🩺 BP: {p.vitals.bloodPressure}</span>
+                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">💓 Pulse: {p.vitals.pulseRate} bpm</span>
+                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">⚖️ Wt: {p.vitals.weight} kg</span>
+                                {p.vitals.bloodSugar && <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5 text-amber-300">🩸 Sugar: {p.vitals.bloodSugar} mg/dL</span>}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isAwaitingVitals ? (
+                              <button
+                                onClick={() => {
+                                  setVitalsPatient(p);
+                                  setCustomToken(p.tokenNumber || api.generateNextTokenNumber());
+                                }}
+                                className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-black border border-rose-500/20 hover:border-rose-500 font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer"
+                              >
+                                Check Vitals
+                              </button>
+                            ) : isAwaitingConsult ? (
+                              <div className="flex flex-col items-end gap-1.5">
+                                <span className="text-[8px] bg-amber-500/10 text-amber-400 font-mono font-bold px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest animate-pulse-subtle">
+                                  In Doctor Chamber
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    api.updatePatientQueueStatus(p.id, 'completed');
+                                    syncData();
+                                  }}
+                                  className="text-[8px] text-clinical-400 hover:text-white underline cursor-pointer"
+                                >
+                                  Mark Completed
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[8px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
+                                Consult Complete
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Hand Forms (Intake & Translator) */}
+            <div className="lg:col-span-6 space-y-6">
+              {/* Vitals Intake Form */}
+              {vitalsPatient ? (
+                <div className="glass-panel p-6 border-white/10 shadow-xl relative animate-fade-in">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
+                  
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <span className="material-symbols-outlined text-rose-400 text-base">monitor_heart</span>
+                      Swasthya Vitals: {vitalsPatient.name}
+                    </h2>
+                    <button
+                      onClick={() => setVitalsPatient(null)}
+                      className="text-clinical-400 hover:text-white text-xs underline cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleRecordVitalsSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Token Number</label>
+                        <input
+                          type="text"
+                          required
+                          value={customToken}
+                          onChange={(e) => setCustomToken(e.target.value)}
+                          className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Temperature (°F)</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. 98.6"
+                            value={tempVal}
+                            onChange={(e) => setTempVal(e.target.value)}
+                            className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                          />
+                          {parseFloat(tempVal) > 100 && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="Fever Alert!" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">BP (mmHg)</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. 120/80"
+                            value={bpVal}
+                            onChange={(e) => setBpVal(e.target.value)}
+                            className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                          />
+                          {bpVal.includes('/') && parseInt(bpVal.split('/')[0]) > 140 && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" title="High BP Alert!" />
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Pulse (bpm)</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 72"
+                          value={pulseVal}
+                          onChange={(e) => setPulseVal(e.target.value)}
+                          className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Weight (kg)</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 65"
+                          value={weightVal}
+                          onChange={(e) => setWeightVal(e.target.value)}
+                          className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Blood Sugar (mg/dL) - Optional</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 110"
+                        value={sugarVal}
+                        onChange={(e) => setSugarVal(e.target.value)}
+                        className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 bg-gradient-to-r from-rose-500 to-indigo-500 hover:scale-[1.02] active:scale-[0.98] text-black font-black tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform"
+                    >
+                      Save &amp; Dispatch to Doctor 🩺
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="glass-panel p-6 border-white/10 shadow-xl relative text-center text-clinical-500 py-12">
+                  <Activity className="h-8 w-8 text-clinical-600 mx-auto mb-3 animate-pulse" />
+                  <p className="text-xs font-medium">Select an active patient from the Token Queue to record vitals.</p>
+                </div>
+              )}
+
+              {/* Localised Bhojpuri & Hindi Dosage Assistant */}
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-secondary opacity-60" />
+                
+                <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-base">translate</span>
+                    Dosage Slip Assistant (दवाई पर्ची सहायक)
+                  </h2>
+                  
+                  {/* Language switch */}
+                  <div className="flex bg-surface-container p-0.5 rounded-lg border border-outline-variant">
+                    <button
+                      onClick={() => setSelectedLanguage('hindi')}
+                      className={`px-2.5 py-1 text-[9px] font-black uppercase rounded cursor-pointer ${
+                        selectedLanguage === 'hindi' ? 'bg-secondary text-black' : 'text-clinical-400 hover:text-white'
+                      }`}
+                    >
+                      Hindi
+                    </button>
+                    <button
+                      onClick={() => setSelectedLanguage('bhojpuri')}
+                      className={`px-2.5 py-1 text-[9px] font-black uppercase rounded cursor-pointer ${
+                        selectedLanguage === 'bhojpuri' ? 'bg-secondary text-black' : 'text-clinical-400 hover:text-white'
+                      }`}
+                    >
+                      Bhojpuri
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { id: 'od', label: 'OD (1 Bar)' },
+                      { id: 'bd', label: 'BD (2 Bar)' },
+                      { id: 'tds', label: 'TDS (3 Bar)' },
+                      { id: 'sos', label: 'SOS' }
+                    ].map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => setDosageTemplate(t.id as any)}
+                        className={`py-2 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${
+                          dosageTemplate === t.id 
+                            ? 'bg-secondary/15 border-secondary text-secondary' 
+                            : 'border-outline-variant text-clinical-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Render vernacular dosage text */}
+                  {(() => {
+                    let hindiText = "";
+                    let bhojpuriText = "";
+                    let genericLabel = "";
+
+                    if (dosageTemplate === 'od') {
+                      hindiText = "दिन में एक बार: सुबह खाली पेट या रात को सोने से पहले (डॉक्टर के सलाह अनुसार)।";
+                      bhojpuriText = "दिन में एक बार: भोर में खाली पेट भा रात को सूते से पहिले (डॉक्टर साहेब के सलाह से)।";
+                      genericLabel = "OD Dosage Instruction";
+                    } else if (dosageTemplate === 'bd') {
+                      hindiText = "दिन में दो बार: सुबह और रात को खाना खाने के बाद (एक-एक गोली)।";
+                      bhojpuriText = "दिन में दो बार: सुबह अउरी रात को भोजन कइला के बाद (एक-एक गोली)।";
+                      genericLabel = "BD Dosage Instruction";
+                    } else if (dosageTemplate === 'tds') {
+                      hindiText = "दिन में तीन बार: सुबह, दोपहर और रात को भोजन के बाद (एक-एक गोली)।";
+                      bhojpuriText = "दिन में तीन बार: सुबह, दुपहरिया अउरी रात को खाना खइला के बाद (एक-एक गोली)।";
+                      genericLabel = "TDS Dosage Instruction";
+                    } else if (dosageTemplate === 'sos') {
+                      hindiText = "ज़रूरत पड़ने पर: अत्यधिक दर्द, बुखार या घबराहट होने पर ही लें।";
+                      bhojpuriText = "ज़रूरत पड़ला पर: जब बेसी दरद भा बुखार होखे, खाली तबे लीं।";
+                      genericLabel = "SOS Dosage Instruction";
+                    }
+
+                    const activeText = selectedLanguage === 'hindi' ? hindiText : bhojpuriText;
+
+                    return (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
+                          <span className="block text-[8px] font-bold text-secondary tracking-widest font-mono uppercase">
+                            {genericLabel} ({selectedLanguage.toUpperCase()})
+                          </span>
+                          <p className="text-xs text-white leading-relaxed font-semibold italic">
+                            "{activeText}"
+                          </p>
+                        </div>
+
+                        {/* Push button selection */}
+                        <div className="space-y-2">
+                          <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono block pl-1">
+                            Push Instruction to Active Patient
+                          </label>
+                          <select
+                            onChange={async (e) => {
+                              const patId = e.target.value;
+                              if (!patId) return;
+                              const pat = patients.find(p => p.id === patId);
+                              if (pat) {
+                                await handlePushDosageWhatsApp(pat, activeText);
+                                e.target.value = ""; // Reset dropdown selection
+                              }
+                            }}
+                            className="w-full input-field text-xs py-2.5 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer font-sans"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>-- Select Patient to Push Slip --</option>
+                            {patients.map(p => (
+                              <option key={p.id} value={p.id}>{p.name} (+91 {p.phone})</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         )}
