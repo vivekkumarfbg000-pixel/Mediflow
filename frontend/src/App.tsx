@@ -14,6 +14,7 @@ import { AuthGateway } from './components/shared/AuthGateway';
 import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
+import { RequireRole } from './components/ui/RequireRole';
 import { ClinicProvider, useClinic } from './context/ClinicContext';
 import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
 import { PatientWhatsAppSimulator } from './components/shared/PatientWhatsAppSimulator';
@@ -75,13 +76,29 @@ function AppContent({
   const renderDashboard = () => {
     switch (currentRole) {
       case 'compounder':
-        return <CompounderDashboard />;
+        return (
+          <RequireRole allowedRoles={['compounder']}>
+            <CompounderDashboard />
+          </RequireRole>
+        );
       case 'doctor':
-        return <DoctorDashboard />;
+        return (
+          <RequireRole allowedRoles={['doctor']}>
+            <DoctorDashboard />
+          </RequireRole>
+        );
       case 'lab':
-        return <LabDashboard />;
+        return (
+          <RequireRole allowedRoles={['lab_technician']}>
+            <LabDashboard />
+          </RequireRole>
+        );
       case 'pharmacy':
-        return <PharmacyDashboard />;
+        return (
+          <RequireRole allowedRoles={['pharmacist']}>
+            <PharmacyDashboard />
+          </RequireRole>
+        );
       case 'billing':
         return <BillingDashboard />;
       case 'patient':

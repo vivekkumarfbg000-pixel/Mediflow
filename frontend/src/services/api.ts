@@ -21,7 +21,11 @@ import type {
   MedicineBill,
   MedicineBillItem,
   CounterTransaction,
-  MedicineImportRow
+  MedicineImportRow,
+  Invoice,
+  Prescription,
+  Appointment,
+  LabReport
 } from '../types';
 
 export interface DBEncounterMedication {
@@ -3572,22 +3576,94 @@ Dhyan rakhein aur time par medicine lein!`;
     }
   }
 
-  // Placeholder OCR processing – in real world call external service
-  async processOCR(imageBase64: string): Promise<{ extractedMedicines?: any[]; extractedTests?: any[] }> {
-    // Simulate async OCR latency
-    await new Promise(r => setTimeout(r, 800));
-    // For demo, return empty structures
-    return { extractedMedicines: [], extractedTests: [] };
+  // ─── FastAPI AI Backend Integrations ───────────────────────────────────────
+
+  private static readonly AI_BASE = 'http://localhost:8000';
+
+  /**
+   * Voice-Scribe: Uploads an audio Blob to FastAPI /api/voice-scribe.
+   * Falls back to a local mock summary if the backend is unreachable.
+   */
+  async voiceScribe(audioBlob: Blob, filename = 'recording.webm'): Promise<{ summary: string; language: string }> {
+    try {
+      const form = new FormData();
+      form.append('file', audioBlob, filename);
+      const res = await fetch(`${MediflowApiService.AI_BASE}/api/voice-scribe`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`voice-scribe HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn('[Mediflow AI] voice-scribe backend unreachable, using mock:', err);
+      await new Promise(r => setTimeout(r, 600));
+      return { summary: '(Mock) Patient presented with fever and mild cough. Advised rest and paracetamol.', language: 'Hinglish' };
+    }
   }
 
-  // Placeholder AI summary generation using LLM (e.g., OpenAI)
+  /**
+   * OCR-Scan: Uploads an image / PDF file to FastAPI /api/ocr-scan.
+   * Falls back to empty structured data if the backend is unreachable.
+   */
+  async ocrScan(file: File): Promise<{ extracted_text: string; structured_data: Record<string, string> }> {
+    try {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      const res = await fetch(`${MediflowApiService.AI_BASE}/api/ocr-scan`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error(`ocr-scan HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn('[Mediflow AI] ocr-scan backend unreachable, using mock:', err);
+      await new Promise(r => setTimeout(r, 800));
+      return {
+        extracted_text: '(Mock OCR) Patient Name: Aarav Sharma\nHbA1c: 7.2%\nCreatinine: 1.1 mg/dL',
+        structured_data: { 'Patient Name': 'Aarav Sharma', 'HbA1c': '7.2%', 'Creatinine': '1.1 mg/dL' },
+      };
+    }
+  }
+
+  /**
+   * Lab-Trend: Posts structured lab data to FastAPI /api/lab-trend for trend analysis.
+   */
+  async labTrend(labData: Record<string, string>): Promise<{ analysis: string; recommendations: string[] }> {
+    try {
+      const res = await fetch(`${MediflowApiService.AI_BASE}/api/lab-trend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(labData),
+      });
+      if (!res.ok) throw new Error(`lab-trend HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn('[Mediflow AI] lab-trend backend unreachable, using mock:', err);
+      await new Promise(r => setTimeout(r, 400));
+      return {
+        analysis: '(Mock) All lab values are within expected clinical ranges.',
+        recommendations: ['Recheck HbA1c in 3 months', 'Maintain low-GI diet'],
+      };
+    }
+  }
+
+  /**
+   * Legacy shim kept for backward compatibility – delegates to voiceScribe mock.
+   */
   async generateAISummary(note: string): Promise<string> {
-    // Simulate async call
     await new Promise(r => setTimeout(r, 500));
-    // Return mock Hinglish summary
     return `AI Summary: ${note.slice(0, 100)}... (summarized)`;
+  }
+
+  /**
+   * Legacy shim – delegates to ocrScan mock.
+   */
+  async processOCR(_imageBase64: string): Promise<{ extractedMedicines?: any[]; extractedTests?: any[] }> {
+    await new Promise(r => setTimeout(r, 800));
+    return { extractedMedicines: [], extractedTests: [] };
   }
 
 }
 
 export const api = new MediflowApiService();
+

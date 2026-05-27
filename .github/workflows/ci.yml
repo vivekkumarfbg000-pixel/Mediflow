@@ -30,6 +30,15 @@ jobs:
         cd frontend
         npm ci
 
+    - name: Build Backend Docker Image
+      run: |
+        docker build -t mediflow-backend ./backend
+
+    - name: Run Frontend Tests
+      run: |
+        cd frontend
+        npm test
+
     - name: Verify TypeScript Compilation & Vite Build
       run: |
         cd frontend

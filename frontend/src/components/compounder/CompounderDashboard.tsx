@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
+import type {
+  PharmacyInventoryItem,
+  MedicineBill,
+  MedicineBillItem,
+  ChatMessage,
+  Invoice,
+  Prescription,
+  Patient,
+  WhatsAppSession,
+  ClinicStaff,
+  PathologyReport,
+  CounterTransaction
+} from '../../types';
+import InvoiceGenerator from './InvoiceGenerator';
 import { InvoiceCard } from '../InvoiceCard';
 import { 
   Smartphone, 
@@ -92,7 +106,7 @@ export const CompounderDashboard: React.FC = () => {
 
   // Pathology uploads state
   const [reports, setReports] = useState<PathologyReport[]>([]);
-
+  const [isInvoiceGeneratorOpen, setIsInvoiceGeneratorOpen] = useState(false);
 
   // ─── PHARMACY BILLING STATES ──────────────────────────────────────────────
   const [activeInventory, setActiveInventory] = useState<PharmacyInventoryItem[]>([]);
@@ -136,7 +150,7 @@ export const CompounderDashboard: React.FC = () => {
     setReports(api.getPathologyReports());
     setActiveInventory(api.getPharmacyInventory());
 
-    setActiveSession(prev => {
+    setActiveSession((prev: WhatsAppSession | null) => {
       if (!prev) return null;
       const fresh = api.getWhatsAppSessions().find(s => s.patientPhone === prev.patientPhone);
       return fresh || null;
@@ -783,10 +797,18 @@ export const CompounderDashboard: React.FC = () => {
               Clinical checkup hub — appointments, medicine billing, pathology scans &amp; Shiprocket dispatches.
             </p>
           </div>
-          <div className="ml-12 md:ml-0 flex items-center gap-2 shrink-0">
+          <div className="ml-12 md:ml-0 flex items-center gap-2 shrink-0 flex-wrap">
             <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider font-mono">
               {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} · Checked-In
             </span>
+            <button
+              type="button"
+              onClick={() => setIsInvoiceGeneratorOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-700 hover:bg-slate-100 transition"
+            >
+              <Printer className="h-4 w-4" />
+              Invoice Generator
+            </button>
           </div>
         </div>
 
@@ -856,6 +878,24 @@ export const CompounderDashboard: React.FC = () => {
 
       {/* TAB CONTENT SPACES */}
       <div className="space-y-6">
+        {isInvoiceGeneratorOpen && (
+          <div className="glass-panel p-6 border-white/10 shadow-xl animate-fade-in relative">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Invoice Generator</p>
+                <p className="text-xs text-slate-500">Open post-payment invoice workflow for scanned bills and receipts.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsInvoiceGeneratorOpen(false)}
+                className="text-xs font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+            <InvoiceGenerator />
+          </div>
+        )}
         
         {/* TAB 1: REGISTRY & STAFF */}
         {activeTab === 'registry' && (
@@ -1494,18 +1534,26 @@ export const CompounderDashboard: React.FC = () => {
                 </h2>
                 
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-            {/* Consult Invoices List */}
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-              {api.getInvoices().filter(i => i.type === 'consult').length === 0 ? (
-                <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
-                  No consultation invoices found.
+                  {api.getInvoices().filter(i => i.type === 'consult').length === 0 ? (
+                    <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                      No consultation invoices found.
+                    </div>
+                  ) : (
+                    api.getInvoices().filter(i => i.type === 'consult').map(invoice => {
+                      const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
+                      const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                      return (
+                        <InvoiceCard
+                          key={invoice.id}
+                          invoiceId={invoice.id}
+                          patientName={patient?.name ?? 'Unknown Patient'}
+                          amount={invoice.amount}
+                          status={invoice.status}
+                        />
+                      );
+                    })
+                  )}
                 </div>
-              ) : (
-                api.getInvoices().filter(i => i.type === 'consult').map(invoice => (
-                  <InvoiceCard key={invoice.id} invoice={invoice} patients={patients} />
-                ))
-              )}
-            </div>
               </div>
             </div>
           </div>
@@ -1762,7 +1810,7 @@ export const CompounderDashboard: React.FC = () => {
                             <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
                             <InvoiceCard
                               invoiceId={invoice.id}
-                              patientName={invoice.patientName}
+                              patientName={patient?.name ?? 'Unknown Patient'}
                               amount={invoice.amount}
                               status={invoice.status}
                               onPay={invoice.status === 'unpaid' ? () => {
@@ -1786,20 +1834,6 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
                           </div>
                         )}
-                                      message: 'Generating print queue spool... Receipt sent to clinical printer! 🖨️',
-                                      type: 'info',
-                                      title: 'Spooling Receipt'
-                                    }
-                                  }));
-                                }}
-                                className="p-1.5 rounded-lg border border-outline-variant hover:bg-surface-container-highest transition-colors text-white"
-                                title="Print Invoice"
-                              >
-                                <Printer className="h-4.5 w-4.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     );
                   })
@@ -1807,8 +1841,7 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-
-
+        )}
 
         {/* Real-time WhatsApp Loop simulator at the bottom */}
         <div className="glass-panel border-white/10 shadow-xl overflow-hidden flex flex-col h-[600px] relative mt-8">
@@ -1845,7 +1878,7 @@ export const CompounderDashboard: React.FC = () => {
                     </p>
                   </div>
 
-                  {(activeSession.sessionData.chatHistory || []).map((msg, idx) => {
+                  {(activeSession.sessionData.chatHistory || []).map((msg: ChatMessage, idx: number) => {
                     const isBot = msg.sender === 'bot';
                     return (
                       <div 
