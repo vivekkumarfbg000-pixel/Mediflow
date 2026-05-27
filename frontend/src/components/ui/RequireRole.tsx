@@ -5,22 +5,23 @@ interface RequireRoleProps {
   /** List of roles permitted to see the children. */
   allowedRoles: string[];
   children: ReactNode;
+  /** The role currently selected in the UI. */
+  role: string;
   /** Optional fallback UI; defaults to a denial card. */
   fallback?: ReactNode;
 }
 
 /**
  * RequireRole – wraps any dashboard section and hides it from
- * roles that are not in `allowedRoles`.  Uses the `api.simulatedRole`
- * so it stays in sync with the role-switcher in the Navbar.
+ * roles that are not in `allowedRoles`. Uses the UI's current
+ * selected role so access decisions match the rendered section.
  */
 export const RequireRole: React.FC<RequireRoleProps> = ({
   allowedRoles,
   children,
   fallback,
+  role = api.simulatedRole,
 }) => {
-  const role = api.simulatedRole;
-
   if (allowedRoles.includes(role)) {
     return <>{children}</>;
   }
