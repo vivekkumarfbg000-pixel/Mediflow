@@ -165,7 +165,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       if (authError) throw authError;
       if (!authData?.user) {
-        throw new Error('This email address is already registered. Please Sign In instead or use a different email.');
+        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
       }
 
       if (!authData.session) {
@@ -240,7 +240,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       if (authError) throw authError;
       if (!authData?.user) {
-        throw new Error('This email address is already registered. Please Sign In instead or use a different email.');
+        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
       }
 
       if (!authData.session) {
