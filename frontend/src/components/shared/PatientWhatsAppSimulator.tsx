@@ -12,6 +12,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default to Aarav Sharma
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [typedMessage, setTypedMessage] = useState<string>('');
   
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -22,6 +23,8 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
       setPatients(allPatients);
       const waSessions = api.getWhatsAppSessions();
       setSessions(waSessions);
+      const allInvoices = api.getUnifiedInvoices();
+      setInvoices(allInvoices);
       
       // Auto-initialize session if none exists for the selected phone number
       const activeSession = waSessions.find(s => s.patientPhone === selectedPhone);
@@ -44,6 +47,12 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
   const activeSession = sessions.find(s => s.patientPhone === selectedPhone);
   const chatHistory: ChatMessage[] = activeSession?.sessionData?.chatHistory || [];
   const activeState = activeSession?.currentState || 'AWAITING_WELCOME';
+
+  const pendingInvoice = invoices.find(i => i.patientId === activePatient?.id && i.paymentStatus === 'pending');
+  const docFee = pendingInvoice ? Number(pendingInvoice.doctorFee || 0) : 500;
+  const labFee = pendingInvoice ? Number(pendingInvoice.labFee || 0) : 350;
+  const pharmFee = pendingInvoice ? Number(pendingInvoice.pharmacyFee || 0) : 375;
+  const totalFee = pendingInvoice ? Number(pendingInvoice.totalAmount || 0) : 1225;
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -193,12 +202,12 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                 </div>
                 
                 <div className="text-[10px] space-y-1.5 text-slate-600">
-                  <div className="flex justify-between font-medium"><span>Doctor Appt Fee:</span><span className="font-mono text-slate-800">₹500.00</span></div>
-                  <div className="flex justify-between font-medium"><span>Lab Test charge:</span><span className="font-mono text-slate-800">₹350.00</span></div>
-                  <div className="flex justify-between font-medium"><span>Pharmacy Prescr:</span><span className="font-mono text-slate-800">₹375.00</span></div>
+                  <div className="flex justify-between font-medium"><span>Doctor Appt Fee:</span><span className="font-mono text-slate-800">₹{docFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between font-medium"><span>Lab Test charge:</span><span className="font-mono text-slate-800">₹{labFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between font-medium"><span>Pharmacy Prescr:</span><span className="font-mono text-slate-800">₹{pharmFee.toFixed(2)}</span></div>
                   <div className="flex justify-between font-bold text-slate-900 border-t border-slate-100 pt-1.5 text-[11px]">
                     <span>Total Amount:</span>
-                    <span className="font-mono text-primary">₹1,225.00</span>
+                    <span className="font-mono text-primary">₹{totalFee.toFixed(2)}</span>
                   </div>
                 </div>
 

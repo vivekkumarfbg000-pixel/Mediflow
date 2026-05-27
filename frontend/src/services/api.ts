@@ -131,6 +131,10 @@ class MediflowApiService {
   public simulatedRole = 'compounder';
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      (window as any).api = this;
+      (window as any).supabase = supabase;
+    }
     // Start initial sync
     this.syncFromSupabase();
 
@@ -815,7 +819,9 @@ class MediflowApiService {
             const pendingInv = this.getUnifiedInvoices().find(i => i.patientId === pat?.id && i.paymentStatus === 'pending');
 
             if (pendingInv) {
-              replyMessage = `Aapka outstanding invoice pending hai. Please ₹${pendingInv.totalAmount}.00 clear karne ke liye is direct payment link ka use kijiye:\n\n${pendingInv.upiQrPayload}\n\nPayment confirm hote hi aapki booking active ho jayegi!`;
+              this.clearInvoice(pendingInv.id);
+              nextState = 'COMPLETED';
+              replyMessage = `🟢 *Payment Cleared!* \n\nUnified Care Invoice of *₹${pendingInv.totalAmount.toFixed(2)}* has been settled via UPI Split Gateway. Payouts posted:\n- Doctor Account: ₹${pendingInv.doctorFee.toFixed(2)}\n- Lab Account: ₹${pendingInv.labFee.toFixed(2)}\n- Platform Commission (3%): ₹${pendingInv.platformFee.toFixed(2)}\n\nThank you for choosing Mediflow Connected Clinic! 🩺🟢`;
             } else {
               nextState = 'COMPLETED';
               replyMessage = "Payment confirm ho gaya hai! 🟢 Aapka physical/virtual checkup active hai. We look forward to seeing you!";
@@ -1164,6 +1170,13 @@ class MediflowApiService {
               sesss[sIdx].sessionData.chatHistory = currentHistory;
               this.save('whatsapp_sessions', sesss);
               this.notify();
+              
+              // Persist chatHistory update in remote Supabase to prevent overwrite by sync polling
+              supabase.from('whatsapp_sessions').update({
+                session_data: sesss[sIdx].sessionData
+              }).eq('patient_phone', phone).then(({ error }) => {
+                if (error) console.error('Error syncing bot reply to Supabase:', error);
+              });
             }
           }
         }, 600);
@@ -1236,14 +1249,13 @@ class MediflowApiService {
 
     // Get matching patient from registry to link foreign keys correctly
     supabase.from('patient_registry').select('id').eq('phone', phone).single().then(({ data: patient }) => {
-      supabase.from('whatsapp_sessions').insert({
-        id: newId,
+      supabase.from('whatsapp_sessions').upsert({
         patient_phone: phone,
         patient_id: patient?.id || null,
         current_state: 'AWAITING_WELCOME',
         last_interaction: new Date().toISOString(),
         session_data: newSession.sessionData
-      }).then(({ error }) => {
+      }, { onConflict: 'patient_phone' }).then(({ error }) => {
         if (error) console.error('Error creating whatsapp session in Supabase:', error);
         else {
           this.writeAuditLog('whatsapp_session_created', { phone }, newId);
