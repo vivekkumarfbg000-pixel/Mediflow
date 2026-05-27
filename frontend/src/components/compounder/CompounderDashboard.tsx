@@ -1596,14 +1596,15 @@ export const CompounderDashboard: React.FC = () => {
 
                           {!prescription ? (
                             <div className="space-y-3">
-                              <p className="text-[10px] text-clinical-400">Upload Doctor's handwritten/printed prescription to run AI OCR and auto-generate invoices.</p>
+                              <p className="text-[10px] text-slate-500">Upload or scan the doctor's handwritten/printed prescription to run AI OCR and auto-generate invoices.</p>
                               <div className="flex items-center gap-3">
-                                <label className="flex-1 flex items-center justify-center gap-2 border border-dashed border-outline-variant hover:border-secondary/50 rounded-lg p-3 bg-surface-container-lowest/60 hover:bg-surface-container-lowest cursor-pointer text-[10px] font-bold text-clinical-400 hover:text-white transition-colors">
-                                  <Upload className="h-4.5 w-4.5 text-secondary" />
-                                  <span>Select Rx Prescription</span>
+                                <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
+                                  <Upload className="h-5 w-5 text-indigo-600" />
+                                  <span>Upload / Scan Prescription</span>
+                                  <span className="text-[10px] text-slate-400 font-medium">Supports JPEG, PNG, and PDF</span>
                                   <input 
                                     type="file" 
-                                    accept="image/*" 
+                                    accept="image/*,application/pdf" 
                                     className="hidden" 
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
