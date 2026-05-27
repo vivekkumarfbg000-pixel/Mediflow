@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
-import type { Patient, WhatsAppSession, ClinicStaff, PathologyReport, PharmacyInventoryItem, MedicineBillItem, MedicineBill, CounterTransaction, Appointment, Invoice, Prescription, LabReport } from '../../types';
+import { InvoiceCard } from '../InvoiceCard';
 import { 
   Smartphone, 
   Upload, 
@@ -1494,58 +1494,18 @@ export const CompounderDashboard: React.FC = () => {
                 </h2>
                 
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
-                  {api.getInvoices().filter(i => i.type === 'consult').length === 0 ? (
-                    <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
-                      No consultation invoices found.
-                    </div>
-                  ) : (
-                    api.getInvoices().filter(i => i.type === 'consult').map(invoice => {
-                      const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
-                      const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
-                      return (
-                        <div key={invoice.id} className="p-4 bg-surface-container border border-outline-variant rounded-xl flex items-center justify-between gap-4">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
-                              <span className="text-[9px] bg-indigo-500/10 text-indigo-400 font-mono font-bold px-2 py-0.5 rounded border border-indigo-500/20">
-                                CONSULT
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-clinical-400 mt-1 font-mono">
-                              Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}
-                            </p>
-                            <div className="text-[12px] font-bold text-emerald-400 mt-1">
-                              Amount: ₹{invoice.amount}
-                            </div>
-                          </div>
-                          <div>
-                            {invoice.status === 'unpaid' ? (
-                              <button
-                                onClick={() => {
-                                  api.settleSaaSInvoice(invoice.id);
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
-                                      message: `Gate 1 consultation fee settled. Patient moved to Doctor Chamber queue.`,
-                                      type: 'success',
-                                      title: 'Consult Settle'
-                                    }
-                                  }));
-                                }}
-                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
-                              >
-                                Mark Paid
-                              </button>
-                            ) : (
-                              <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-2.5 py-1 rounded border border-emerald-500/20 uppercase tracking-widest">
-                                PAID ✅
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+            {/* Consult Invoices List */}
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+              {api.getInvoices().filter(i => i.type === 'consult').length === 0 ? (
+                <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                  No consultation invoices found.
                 </div>
+              ) : (
+                api.getInvoices().filter(i => i.type === 'consult').map(invoice => (
+                  <InvoiceCard key={invoice.id} invoice={invoice} patients={patients} />
+                ))
+              )}
+            </div>
               </div>
             </div>
           </div>
@@ -1800,6 +1760,22 @@ export const CompounderDashboard: React.FC = () => {
                         {prescription && prescription.extractedMedicines && (
                           <div className="bg-surface-container-lowest/80 border border-outline-variant p-3 rounded-lg space-y-2">
                             <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
+                            <InvoiceCard
+                              invoiceId={invoice.id}
+                              patientName={invoice.patientName}
+                              amount={invoice.amount}
+                              status={invoice.status}
+                              onPay={invoice.status === 'unpaid' ? () => {
+                                api.markInvoicePaid(invoice.id);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    message: 'Invoice marked as PAID and WhatsApp notification sent.',
+                                    type: 'success',
+                                    title: 'Invoice Paid'
+                                  }
+                                }));
+                              } : undefined}
+                            />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                               {prescription.extractedMedicines.map((m, idx) => (
                                 <div key={idx} className="text-[10px] text-clinical-300 font-mono flex items-center justify-between border-b border-white/5 pb-1">
@@ -1810,33 +1786,6 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
                           </div>
                         )}
-
-                        <div className="flex justify-end gap-3 pt-1">
-                          {invoice.status === 'unpaid' ? (
-                            <button
-                              onClick={() => {
-                                api.settleSaaSInvoice(invoice.id);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: {
-                                    message: 'Pharmacy invoice marked as PAID. Dispatching instructions to patient WhatsApp.',
-                                    type: 'success',
-                                    title: 'Pharmacy Fee Settled'
-                                  }
-                                }));
-                              }}
-                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
-                            >
-                              Mark Paid &amp; Release Dispense Receipt
-                            </button>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-3 py-1.5 rounded border border-emerald-500/20 uppercase tracking-widest">
-                                PAID ✅ (Dispensed)
-                              </span>
-                              <button
-                                onClick={() => {
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
                                       message: 'Generating print queue spool... Receipt sent to clinical printer! 🖨️',
                                       type: 'info',
                                       title: 'Spooling Receipt'
@@ -1858,8 +1807,8 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
-        )}
+
+
 
         {/* Real-time WhatsApp Loop simulator at the bottom */}
         <div className="glass-panel border-white/10 shadow-xl overflow-hidden flex flex-col h-[600px] relative mt-8">

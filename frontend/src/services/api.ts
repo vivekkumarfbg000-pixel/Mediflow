@@ -3496,6 +3496,98 @@ Dhyan rakhein aur time par medicine lein!`;
     }
     return { error };
   }
+  // Create a new appointment and return its ID
+  async createAppointment(appointment: {
+    patient_id: string;
+    doctor_id: string;
+    status?: string;
+  }): Promise<string> {
+    const { data, error } = await supabase.from('appointments').insert({
+      patient_id: appointment.patient_id,
+      doctor_id: appointment.doctor_id,
+      status: appointment.status ?? 'pending_payment',
+      created_at: new Date().toISOString(),
+    }).select('id').single();
+    if (error) {
+      console.error('[Mediflow API] createAppointment error:', error);
+      throw error;
+    }
+    await this.writeAuditLog('APPOINTMENT_CREATED', { appointmentId: data.id }, data.id);
+    this.syncFromSupabase();
+    return data.id;
+  }
+
+  // Generate a unified invoice for given appointment
+  async generateInvoice(appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number): Promise<string> {
+    const { data: patientData, error: patientErr } = await supabase.from('appointments').select('patient_id').eq('id', appointmentId).single();
+    if (patientErr) {
+      console.error('[Mediflow API] fetch patient for invoice error:', patientErr);
+      throw patientErr;
+    }
+    const { data, error } = await supabase.from('unified_invoices').insert({
+      encounter_id: appointmentId,
+      patient_id: patientData.patient_id,
+      doctor_fee: type === 'consult' ? amount : 0,
+      lab_fee: type === 'lab' ? amount : 0,
+      pharmacy_fee: type === 'pharmacy' ? amount : 0,
+      platform_fee: 0,
+      total_amount: amount,
+      payment_status: 'unpaid',
+      created_at: new Date().toISOString(),
+    }).select('id').single();
+    if (error) {
+      console.error('[Mediflow API] generateInvoice error:', error);
+      throw error;
+    }
+    await this.writeAuditLog('INVOICE_CREATED', { invoiceId: data.id, type, amount }, data.id);
+    this.syncFromSupabase();
+    return data.id;
+  }
+
+  // Mark invoice as paid and optionally trigger WhatsApp notification
+  async markInvoicePaid(invoiceId: string, sendWhatsApp = true): Promise<void> {
+    const { error } = await supabase.from('unified_invoices')
+      .update({ payment_status: 'paid' })
+      .eq('id', invoiceId);
+    if (error) {
+      console.error('[Mediflow API] markInvoicePaid error:', error);
+      throw error;
+    }
+    await this.writeAuditLog('INVOICE_PAID', { invoiceId }, invoiceId);
+    this.syncFromSupabase();
+    if (sendWhatsApp) {
+      const { data: inv } = await supabase.from('unified_invoices')
+        .select('patient_id')
+        .eq('id', invoiceId)
+        .single();
+      if (inv?.patient_id) {
+        const { data: patient } = await supabase.from('patient_registry')
+          .select('phone')
+          .eq('id', inv.patient_id)
+          .single();
+        if (patient?.phone) {
+          await this.sendWhatsAppMessagePayload(patient.phone, 'invoice_paid', { invoiceId });
+        }
+      }
+    }
+  }
+
+  // Placeholder OCR processing – in real world call external service
+  async processOCR(imageBase64: string): Promise<{ extractedMedicines?: any[]; extractedTests?: any[] }> {
+    // Simulate async OCR latency
+    await new Promise(r => setTimeout(r, 800));
+    // For demo, return empty structures
+    return { extractedMedicines: [], extractedTests: [] };
+  }
+
+  // Placeholder AI summary generation using LLM (e.g., OpenAI)
+  async generateAISummary(note: string): Promise<string> {
+    // Simulate async call
+    await new Promise(r => setTimeout(r, 500));
+    // Return mock Hinglish summary
+    return `AI Summary: ${note.slice(0, 100)}... (summarized)`;
+  }
+
 }
 
 export const api = new MediflowApiService();
