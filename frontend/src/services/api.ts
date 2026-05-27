@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { TelemetryService } from './telemetry';
 import type { 
   Patient, 
+  PatientVitals,
   Encounter, 
   LabRequisition, 
   InventoryHold, 

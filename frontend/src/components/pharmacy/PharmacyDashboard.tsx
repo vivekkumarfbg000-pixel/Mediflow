@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
-import type { InventoryHold, SeasonalForecast, PharmacyInventoryItem, MedicineImportRow } from '../../types';
+import type { InventoryHold, SeasonalForecast, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
   Calendar, 
   XCircle,
@@ -23,6 +23,7 @@ export const PharmacyDashboard: React.FC = () => {
   const [inventory, setInventory] = useState<PharmacyInventoryItem[]>([]);
   const [holds, setHolds] = useState<InventoryHold[]>([]);
   const [forecasts, setForecasts] = useState<SeasonalForecast[]>([]);
+  const [whatsAppOrders, setWhatsAppOrders] = useState<WhatsAppDrugOrder[]>([]);
   
   // Real-time Network Resilience State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -99,6 +100,7 @@ export const PharmacyDashboard: React.FC = () => {
     setInventory(api.getPharmacyInventory());
     setHolds(api.getInventoryHolds());
     setForecasts(api.getSeasonalForecasts());
+    setWhatsAppOrders(api.getWhatsAppDrugOrders());
   }, []);
 
   useEffect(() => {
@@ -734,6 +736,108 @@ export const PharmacyDashboard: React.FC = () => {
                     })}
                   </div>
                 )}
+              </div>
+
+              {/* WhatsApp Bot Orders & Dispatch Simulator */}
+              <div className="glass-panel p-6 border-slate-200/85 shadow-xl relative overflow-hidden bg-white mt-6 space-y-4 text-slate-800 rounded-2xl">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-50" />
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-emerald-600 text-base">forum</span>
+                      WhatsApp Bot Digital Orders &amp; Dispatch Simulator
+                    </h2>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Simulate customer orders routed directly from Patna WhatsApp sessions.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      api.simulateIncomingWhatsAppOrder();
+                      syncData();
+                    }}
+                    className="btn-primary py-2 px-4 rounded-xl text-xs flex items-center gap-2 self-start hover:scale-102 transition-transform bg-emerald-600 border-0 text-white font-semibold cursor-pointer text-white-force"
+                  >
+                    <span className="material-symbols-outlined text-sm text-white-force">add_alert</span>
+                    Simulate WhatsApp Order
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                  {whatsAppOrders.length > 0 ? whatsAppOrders.map(order => {
+                    const isPending = order.deliveryStatus === 'pending';
+                    const isDispatch = order.deliveryStatus === 'dispatching';
+                    const isEnroute = order.deliveryStatus === 'enroute';
+                    const isDelivered = order.deliveryStatus === 'delivered';
+
+                    return (
+                      <div key={order.id} className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-3 hover:border-slate-350 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-xs font-bold text-slate-800">{order.patientName}</div>
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">Order ID: {order.id} • {order.patientPhone}</div>
+                          </div>
+                          <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase ${
+                            isDelivered
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : isEnroute
+                              ? 'bg-blue-100 text-blue-700 animate-pulse'
+                              : isDispatch
+                              ? 'bg-indigo-100 text-indigo-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {order.deliveryStatus}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-slate-650 space-y-1">
+                          <div><strong className="text-slate-700 font-semibold">Prescribed:</strong> {order.drugNames.join(', ')}</div>
+                          <div><strong className="text-slate-700 font-semibold">Destination:</strong> {order.location}</div>
+                          <div className="font-bold text-slate-800 mt-1">Total Payout: ₹{order.amount.toFixed(2)} (10% Doctor split commission applies)</div>
+                        </div>
+
+                        {/* Delivery Simulator Buttons */}
+                        {!isDelivered && (
+                          <div className="flex gap-2 pt-2 border-t border-slate-200/50">
+                            {isPending && (
+                              <button
+                                onClick={() => {
+                                  api.updateWhatsAppOrderStatus(order.id, 'dispatching');
+                                  syncData();
+                                }}
+                                className="flex-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
+                              >
+                                Dispatch Order
+                              </button>
+                            )}
+                            {(isPending || isDispatch) && (
+                              <button
+                                onClick={() => {
+                                  api.updateWhatsAppOrderStatus(order.id, 'enroute');
+                                  syncData();
+                                }}
+                                className="flex-1 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
+                              >
+                                Set En Route
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                api.updateWhatsAppOrderStatus(order.id, 'delivered');
+                                syncData();
+                              }}
+                              className="flex-1 bg-emerald-50 border border-emerald-250 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors cursor-pointer"
+                            >
+                              Confirm Delivery
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }) : (
+                    <div className="text-center py-6 text-slate-400 text-xs italic animate-pulse">
+                      No active orders routed from the WhatsApp Bot channel.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

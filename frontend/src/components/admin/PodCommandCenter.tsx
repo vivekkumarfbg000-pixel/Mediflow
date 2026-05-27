@@ -85,7 +85,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onSwitchToDa
   const patientMetrics = useMemo(() => ({
     total: patients.length,
     awaitingConsultation: patients.filter(p => p.queueStatus === 'awaiting_consultation').length,
-    inConsultation: patients.filter(p => p.queueStatus === 'in_consultation').length,
+    inConsultation: patients.filter(p => (p.queueStatus as string) === 'in_consultation').length,
     completed: patients.filter(p => p.queueStatus === 'completed').length,
   }), [patients]);
 

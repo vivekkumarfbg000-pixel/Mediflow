@@ -16,11 +16,10 @@ import { SystemHealthCockpit } from '../admin/SystemHealthCockpit';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
 import { BiomarkerChart } from './BiomarkerChart';
 import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
-import { SeasonalForecastWidget } from '../pharmacy/SeasonalForecastWidget';
 import { PodCommandCenter } from '../admin/PodCommandCenter';
 
 export const DoctorDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
+  const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
   
   // SOP States
   const [sopFile, setSopFile] = useState<File | null>(null);
@@ -150,13 +149,11 @@ export const DoctorDashboard: React.FC = () => {
 
     // Must be horizontal swipe: deltaX magnitude must be much larger than deltaY to prevent vertical scroll conflicts
     if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
-      const tabs: Array<'overview' | 'consultation' | 'financials' | 'pharmacy' | 'pathology' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
+      const tabs: Array<'overview' | 'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
         'pod_view',
         'overview', 
         'consultation', 
         'financials', 
-        'pharmacy', 
-        'pathology', 
         'patients',
         'whatsapp',
         'sop'
@@ -1017,6 +1014,83 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
             ))}
           </div>
 
+          {/* Ecosystem Partner Node Status Cockpit */}
+          <div className="glass-panel p-6 bg-white border-slate-200/85 shadow-sm rounded-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-650 text-xl font-bold animate-pulse-subtle">hub</span>
+                Ecosystem Partner Node Status Cockpit
+              </h3>
+              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full">
+                Live Node Sync
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Pharmacy POS Node */}
+              <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-2 hover:border-slate-350 transition-colors">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-indigo-600 font-mono tracking-wider uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+                    Pharmacy POS Desk
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">Patna Central Shop</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-1.5">
+                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
+                    <div className="text-[8px] text-slate-405 font-bold uppercase tracking-wider">Pending</div>
+                    <div className="text-xs font-bold text-slate-700 mt-0.5">
+                      {whatsAppOrders.filter(o => o.deliveryStatus === 'pending').length} Holds
+                    </div>
+                  </div>
+                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
+                    <div className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">En Route</div>
+                    <div className="text-xs font-bold text-slate-700 mt-0.5">
+                      {whatsAppOrders.filter(o => o.deliveryStatus !== 'pending' && o.deliveryStatus !== 'delivered').length} Orders
+                    </div>
+                  </div>
+                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
+                    <div className="text-[8px] text-slate-405 font-bold uppercase tracking-wider">Low Stock</div>
+                    <div className="text-xs font-bold text-rose-650 mt-0.5">
+                      {pharmacyInventory.filter(i => i.stock <= 20).length} Drugs
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pathology Lab Node */}
+              <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-2 hover:border-slate-350 transition-colors">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-emerald-650 font-mono tracking-wider uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    Pathology Lab
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">Patna Diagnostics</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-1.5">
+                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
+                    <div className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">Requisitions</div>
+                    <div className="text-xs font-bold text-slate-700 mt-0.5">
+                      {pathologyReports.filter(r => r.status === 'pending').length} Draws
+                    </div>
+                  </div>
+                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
+                    <div className="text-[8px] text-slate-405 font-bold uppercase tracking-wider">Completed</div>
+                    <div className="text-xs font-bold text-emerald-605 mt-0.5">
+                      {pathologyReports.filter(r => (r.status as string) === 'completed' || r.status === 'approved').length} Reports
+                    </div>
+                  </div>
+                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
+                    <div className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">Split</div>
+                    <div className="text-xs font-bold text-slate-700 mt-0.5">
+                      15% Net
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Widget 1: Active Consultation Queue Worklist */}
           <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-4">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-40" />
@@ -1654,6 +1728,68 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
                   No historical diagnostic biomarkers available for this profile.
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Longitudinal RAG AI Diagnostic Summary Engine */}
+          {selectedPatient && isConsentActive && (
+            <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white mt-6 space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <span className="material-symbols-outlined text-indigo-500 text-xl font-bold animate-pulse-subtle">psychology</span>
+                <h2 className="text-sm font-extrabold text-slate-850 uppercase tracking-wider">
+                  Longitudinal AI RAG Summary
+                </h2>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed font-sans mt-1">
+                Runs pgvector vector-embedding search over historical biomarkers, encounters, allergies, and diagnostic history to compile clinical trajectories.
+              </p>
+
+              <div className="space-y-3">
+                {longitudinalRAGText ? (
+                  <div className="space-y-3 animate-fade-in">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl max-h-[220px] overflow-y-auto font-mono text-[10px] leading-relaxed text-slate-700 whitespace-pre-wrap select-text">
+                      {longitudinalRAGText}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const patPhone = selectedPatient ? selectedPatient.phone : '9876543210';
+                          api.pushWhatsAppMessageFromBot(patPhone, `*AI Longitudinal RAG Diagnostic Summary (Patna Zone 1)*:\n${longitudinalRAGText}`);
+
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Summary Pushed! 💬',
+                              message: 'Diagnostic summary has been sent via Twilio WhatsApp Gateway.',
+                              type: 'success'
+                            }
+                          }));
+                          setLongitudinalRAGText('');
+                        }}
+                        className="flex-1 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-xs">chat</span> Push to WhatsApp
+                      </button>
+                      <button
+                        onClick={() => setLongitudinalRAGText('')}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const summary = api.generateAISummaryReport(selectedPatient.id);
+                      setLongitudinalRAGText(summary);
+                    }}
+                    className="w-full bg-secondary hover:opacity-95 active:scale-95 transition-all text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-white-force"
+                  >
+                    <span className="material-symbols-outlined text-sm text-white-force">cognition</span>
+                    Generate AI RAG summary
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -2302,337 +2438,6 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* System Health Telemetry Cockpit */}
-        <SystemHealthCockpit />
-      </div>
-    );
-  };
-
-  // TAB 4 RENDER: Medical Shop (Pharmacy)
-  const renderPharmacyTab = () => {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-800 animate-fade-in">
-        {/* Left Column: E-Pharmacy Stock Sync */}
-        <div className="space-y-6">
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl h-full flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-primary text-xl">warehouse</span>
-                <h2 className="text-base font-bold text-slate-800">E-Pharmacy Inventory Sync</h2>
-              </div>
-              <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                {pharmacyInventory.map(item => {
-                  const isLow = item.stock <= 20;
-                  const isOut = item.stock === 0;
-                  return (
-                    <div key={item.id} className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl flex justify-between items-center">
-                      <div>
-                        <div className="text-xs font-bold text-slate-700">{item.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{item.dosage} • ₹{item.price}/tab</div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-[10px] font-bold ${isOut ? 'text-rose-500' : isLow ? 'text-amber-500' : 'text-slate-600'}`}>
-                          {item.stock} tabs left
-                        </div>
-                        <span className={`text-[8px] font-bold uppercase font-mono px-1.5 py-0.5 rounded mt-1 inline-block ${
-                          isOut ? 'bg-rose-100 text-rose-700' : isLow ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'High Stock'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-              <span>* Synced with Patna Central Pharmacy</span>
-              <button
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                    detail: {
-                      title: 'Inventory Synced! 🔄',
-                      message: 'Partner medicine stock listings verified successfully.',
-                      type: 'success'
-                    }
-                  }));
-                }}
-                className="text-primary hover:text-primary-700 font-bold uppercase tracking-wider flex items-center gap-0.5"
-              >
-                <span className="material-symbols-outlined text-[12px]">sync</span> Refresh Sync
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Columns: WhatsApp Bot Drug Orders Feed */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-emerald-600">forum</span>
-                  WhatsApp Bot Orders & Dispatch Simulator
-                </h2>
-                <p className="text-[10px] text-slate-400 mt-0.5">Simulate customer orders routed directly from Patna WhatsApp sessions.</p>
-              </div>
-              <button
-                onClick={() => api.simulateIncomingWhatsAppOrder()}
-                className="btn-primary py-2 px-4 rounded-xl text-xs flex items-center gap-2 self-start hover:scale-102 transition-transform"
-              >
-                <span className="material-symbols-outlined text-sm text-white-force">add_alert</span>
-                Simulate WhatsApp Order
-              </button>
-            </div>
-
-            <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-              {whatsAppOrders.length > 0 ? whatsAppOrders.map(order => {
-                const isPending = order.deliveryStatus === 'pending';
-                const isDispatch = order.deliveryStatus === 'dispatching';
-                const isEnroute = order.deliveryStatus === 'enroute';
-                const isDelivered = order.deliveryStatus === 'delivered';
-
-                return (
-                  <div key={order.id} className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-3 hover:border-slate-350 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-xs font-bold text-slate-800">{order.patientName}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">Order ID: {order.id} • {order.patientPhone}</div>
-                      </div>
-                      <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase ${
-                        isDelivered
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : isEnroute
-                          ? 'bg-blue-100 text-blue-700 animate-pulse'
-                          : isDispatch
-                          ? 'bg-indigo-100 text-indigo-700'
-                          : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {order.deliveryStatus}
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-slate-600 space-y-1">
-                      <div><strong className="text-slate-700 font-semibold">Prescribed:</strong> {order.drugNames.join(', ')}</div>
-                      <div><strong className="text-slate-700 font-semibold">Destination:</strong> {order.location}</div>
-                      <div className="font-bold text-slate-800 mt-1">Total Payout: ₹{order.amount.toFixed(2)} (10% Doctor split commission applies)</div>
-                    </div>
-
-                    {/* Delivery Simulator Buttons */}
-                    {!isDelivered && (
-                      <div className="flex gap-2 pt-2 border-t border-slate-200/50">
-                        {isPending && (
-                          <button
-                            onClick={() => api.updateWhatsAppOrderStatus(order.id, 'dispatching')}
-                            className="flex-1 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors"
-                          >
-                            Dispatch Order
-                          </button>
-                        )}
-                        {(isPending || isDispatch) && (
-                          <button
-                            onClick={() => api.updateWhatsAppOrderStatus(order.id, 'enroute')}
-                            className="flex-1 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors"
-                          >
-                            Set En Route
-                          </button>
-                        )}
-                        <button
-                          onClick={() => api.updateWhatsAppOrderStatus(order.id, 'delivered')}
-                          className="flex-1 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors"
-                        >
-                          Confirm Delivery
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              }) : (
-                <div className="text-center py-8 text-slate-400 text-xs italic">
-                  No active orders routed from the WhatsApp Bot channel.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        </div>
-        
-        {/* Seasonal Restocking Demand Forecast Widget */}
-        <SeasonalForecastWidget />
-      </div>
-    );
-  };
-
-  // TAB 5 RENDER: Pathology Lab
-  const renderPathologyTab = () => {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-800 animate-fade-in">
-        {/* Left Column: Pathology splits & diagnostics helper */}
-        <div className="space-y-6">
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">science</span>
-              <h2 className="text-base font-bold text-slate-800 font-sans">Lab Partner Profile</h2>
-            </div>
-            
-            <div className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl space-y-2 text-xs">
-              <div><strong className="text-slate-700">Lab Assistant:</strong> R. K. Sinha (Patna Diagnostics)</div>
-              <div><strong className="text-slate-700">Pod License:</strong> MC-PATNA-LAB202</div>
-              <div><strong className="text-slate-700">Referral Commission:</strong> 15% split on pathology fee</div>
-            </div>
-
-            {/* Run Pathology Test Form */}
-            {selectedPathologyReportForTest ? (
-              <div className="p-4 bg-amber-50/50 border border-amber-200/60 rounded-xl space-y-3">
-                <div className="flex justify-between items-center border-b border-amber-200/20 pb-2">
-                  <h3 className="text-xs font-bold text-amber-800">Run Diagnostics: {selectedPathologyReportForTest.patientName}</h3>
-                  <button onClick={() => setSelectedPathologyReportForTest(null)} className="text-slate-400 hover:text-slate-600">
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
-                </div>
-                <div className="space-y-2 text-xs">
-                  <div><strong className="text-slate-700">Test:</strong> {selectedPathologyReportForTest.testName}</div>
-                  <div><strong className="text-slate-700">LOINC:</strong> {selectedPathologyReportForTest.loincCode}</div>
-                  
-                  <div className="space-y-1 mt-2">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Input Diagnostic Findings:</label>
-                    <textarea
-                      value={labTestResults}
-                      onChange={e => setLabTestResults(e.target.value)}
-                      placeholder="e.g. HbA1c level is 7.2% (Abnormal > 6.5%). Recommended: clinical follow-up."
-                      rows={3}
-                      className="w-full input-field resize-none text-xs bg-white"
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      if (!labTestResults.trim()) return;
-                      api.processPathologyReport(selectedPathologyReportForTest.id, labTestResults);
-                      setSelectedPathologyReportForTest(null);
-                      setLabTestResults('');
-                    }}
-                    className="w-full btn-primary py-2 text-center text-xs font-semibold rounded-lg mt-2"
-                  >
-                    Approve and Submit results
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-slate-50 border border-slate-200/50 rounded-xl text-center text-xs text-slate-400 italic">
-                Select a scanned pending report from the queue to run test diagnostics findings.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Columns: Scanned Pending reports & RAG Engine */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Pending scanned reports queue */}
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <span className="material-symbols-outlined text-amber-600">pending_actions</span>
-              Scanned Pathology Queue (Compounder Uploads)
-            </h2>
-            <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-              {pathologyReports.filter(r => r.status === 'pending').length > 0 ? (
-                pathologyReports.filter(r => r.status === 'pending').map(report => (
-                  <div key={report.id} className="p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl flex justify-between items-center hover:border-slate-350 transition-colors">
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">{report.patientName}</div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">{report.testName} • LOINC {report.loincCode}</div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedPathologyReportForTest(report);
-                        setLabTestResults(`Biomarker results for ${report.testName} scanned successfully. HbA1c is 7.2% (Abnormal > 6.5%). Glycemic index is elevated.`);
-                      }}
-                      className="bg-primary/10 border border-primary/20 hover:bg-primary/20 text-primary text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Run Test Findings
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-400 text-xs italic">
-                  No scanned compounder reports awaiting diagnostics entry in the queue.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* RAG longitudinal prompt simulator */}
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">psychology</span>
-              Longitudinal RAG AI Diagnostic Summary Engine
-            </h2>
-            
-            <div className="flex gap-3">
-              <select
-                value={selectedPatientForRAG}
-                onChange={e => setSelectedPatientForRAG(e.target.value)}
-                className="flex-1 input-field text-xs bg-white"
-              >
-                <option value="">— Select Patient Profile —</option>
-                {patients.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <button
-                disabled={!selectedPatientForRAG}
-                onClick={() => {
-                  const summary = api.generateAISummaryReport(selectedPatientForRAG);
-                  setLongitudinalRAGText(summary);
-                }}
-                className={`px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 text-white ${
-                  selectedPatientForRAG ? 'bg-secondary hover:opacity-95' : 'bg-slate-300 cursor-not-allowed'
-                }`}
-              >
-                <span className="material-symbols-outlined text-sm text-white-force">cognition</span>
-                Generate AI Summary
-              </button>
-            </div>
-
-            {longitudinalRAGText && (
-              <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl space-y-3 animate-fade-in">
-                <div className="text-[10px] font-bold text-emerald-800 tracking-wider uppercase font-mono flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  RAG Comparative Advisory Output
-                </div>
-                <div className="text-xs text-slate-700 whitespace-pre-line leading-relaxed font-sans">
-                  {longitudinalRAGText}
-                </div>
-                
-                <div className="flex justify-end pt-2 border-t border-emerald-100/50">
-                  <button
-                    onClick={() => {
-                      const pat = api.getPatients().find(p => p.id === selectedPatientForRAG);
-                      const patPhone = pat ? pat.phone : '9876543210';
-                      api.pushWhatsAppMessageFromBot(patPhone, `*AI Longitudinal RAG Diagnostic Summary (Patna Zone 1)*:\n${longitudinalRAGText}`);
-
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Summary Pushed! 💬',
-                          message: 'Diagnostic summary has been sent via Twilio WhatsApp Gateway.',
-                          type: 'success'
-                        }
-                      }));
-                      setLongitudinalRAGText('');
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-lg flex items-center gap-1.5 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-xs text-white-force font-bold">chat</span>
-                    Push Summary to WhatsApp
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -3901,10 +3706,6 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
         return renderConsultationTab();
       case 'financials':
         return renderFinancialsTab();
-      case 'pharmacy':
-        return renderPharmacyTab();
-      case 'pathology':
-        return renderPathologyTab();
       case 'patients':
         return renderPatientsTab();
       case 'whatsapp':
@@ -4033,8 +3834,6 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
             { id: 'overview',      label: 'Clinic Overview',     icon: 'dashboard' },
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
             { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
-            { id: 'pharmacy',      label: 'Medical Shop',        icon: 'pill' },
-            { id: 'pathology',     label: 'Pathology Lab',       icon: 'biotech' },
             { id: 'patients',      label: 'Patient Directory',   icon: 'group' },
             { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' },
             { id: 'sop',           label: 'Clinic SOP',          icon: 'policy' }
@@ -4118,10 +3917,8 @@ Return a strict JSON object with EXACTLY this schema (no markdown block wrapper,
           { id: 'overview',     label: 'Clinic',   icon: 'dashboard' },
           { id: 'consultation', label: 'Consult',  icon: 'clinical_notes' },
           { id: 'financials',   label: 'Finance',  icon: 'account_balance_wallet' },
-          { id: 'pathology',    label: 'Lab',      icon: 'biotech' },
           { id: 'patients',     label: 'Patients', icon: 'group' },
           { id: 'whatsapp',     label: 'Chat',     icon: 'chat' },
-          { id: 'pharmacy',     label: 'Pharmacy', icon: 'pill' },
           { id: 'sop',          label: 'SOP',      icon: 'policy' }
         ].map(tab => {
           const isActive = activeTab === tab.id;
