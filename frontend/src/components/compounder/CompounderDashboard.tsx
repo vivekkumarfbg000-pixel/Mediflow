@@ -35,6 +35,10 @@ import {
 export const CompounderDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'registry' | 'vitals' | 'gate1' | 'gate2' | 'gate3'>('registry');
 
+  // Active patient in care loop
+  const [activePatient, setActivePatientState] = useState<Patient | null>(null);
+  const [activePatientStage, setActivePatientStage] = useState<'registered' | 'diagnosing' | 'lab' | 'pharmacy' | 'settled'>('registered');
+
   // SaaS Gate States
   const [ocrScanningApptId, setOcrScanningApptId] = useState<string | null>(null);
   const [revisitPatientId, setRevisitPatientId] = useState<string>('');
@@ -150,6 +154,16 @@ export const CompounderDashboard: React.FC = () => {
     setReports(api.getPathologyReports());
     setActiveInventory(api.getPharmacyInventory());
 
+    const activePat = api.getActivePatient();
+    setActivePatientState(activePat);
+    if (activePat) {
+      setActivePatientStage(api.getActivePatientCareStage(activePat.id));
+      setBillingPatient(activePat);
+    } else {
+      setActivePatientStage('registered');
+      setBillingPatient(null);
+    }
+
     setActiveSession((prev: WhatsAppSession | null) => {
       if (!prev) return null;
       const fresh = api.getWhatsAppSessions().find(s => s.patientPhone === prev.patientPhone);
@@ -167,6 +181,21 @@ export const CompounderDashboard: React.FC = () => {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [activeSession?.sessionData?.chatHistory]);
+
+  // Auto-focus active patient in vitals intake form if they do not have vitals recorded yet
+  useEffect(() => {
+    if (activePatient && !activePatient.vitals && !vitalsPatient) {
+      setVitalsPatient(activePatient);
+      setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
+    }
+  }, [activePatient, vitalsPatient]);
+
+  // Auto-focus active patient in Revisit Scheduler
+  useEffect(() => {
+    if (activePatient) {
+      setRevisitPatientId(activePatient.id);
+    }
+  }, [activePatient]);
 
   // Sync loyalty checkboxes when billing patient changes
   useEffect(() => {
@@ -775,6 +804,205 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
+      {/* ACTIVE PATIENT CARE LOOP HUD */}
+      {activePatient ? (
+        <div className="glass-panel p-6 border-indigo-500/20 shadow-xl relative overflow-hidden bg-gradient-to-r from-indigo-500/5 to-teal-500/5">
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 to-teal-500" />
+          
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            {/* Left: Patient Profile summary */}
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-lg border border-indigo-500/20 shrink-0">
+                {activePatient.name.charAt(0)}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 leading-none">{activePatient.name}</h3>
+                  <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full font-semibold">
+                    {activePatient.age}y · {activePatient.gender}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px] text-slate-400">phone</span>
+                  +91 {activePatient.phone}
+                  {activePatient.abhaId && (
+                    <span className="ml-2 font-mono text-[10px] text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                      ABHA: {activePatient.abhaId}
+                    </span>
+                  )}
+                </p>
+                {activePatient.vitals && (
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-semibold font-mono">
+                    <span className="bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 rounded">🌡️ {activePatient.vitals.temperature}°F</span>
+                    <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-1.5 py-0.2 rounded">🩺 {activePatient.vitals.bloodPressure}</span>
+                    <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.2 rounded">💓 {activePatient.vitals.pulseRate} bpm</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Center: Interactive Stepper */}
+            <div className="flex-1 max-w-xl">
+              <div className="flex items-center justify-between gap-1 select-none overflow-x-auto py-1 scrollbar-none">
+                {[
+                  { id: 'registered', label: '1. Registry', tab: 'registry' },
+                  { id: 'vitals', label: '2. Vitals Logged', tab: 'vitals' },
+                  { id: 'diagnosing', label: '3. CDSS Consult', tab: 'gate1' },
+                  { id: 'lab', label: '4. Lab (Gate 2)', tab: 'gate2' },
+                  { id: 'pharmacy', label: '5. Rx POS (Gate 3)', tab: 'gate3' },
+                  { id: 'settled', label: '6. Ledger Settled', tab: 'gate3' }
+                ].map((step, idx, arr) => {
+                  const stages = ['registered', 'vitals', 'diagnosing', 'lab', 'pharmacy', 'settled'];
+                  
+                  // Compute if this step is completed or active
+                  let isCompleted = false;
+                  let isActive = false;
+                  
+                  const activeIdx = stages.indexOf(activePatientStage);
+                  const currentStepIdx = stages.indexOf(step.id);
+                  
+                  if (step.id === 'vitals') {
+                    isCompleted = !!activePatient.vitals;
+                    isActive = !activePatient.vitals && activePatientStage === 'registered';
+                  } else if (step.id === 'registered') {
+                    isCompleted = true;
+                    isActive = false;
+                  } else {
+                    isCompleted = currentStepIdx < activeIdx || (activePatientStage === 'settled');
+                    isActive = activePatientStage === step.id;
+                  }
+
+                  return (
+                    <React.Fragment key={step.id}>
+                      <button
+                        onClick={() => {
+                          setActiveTab(step.tab as any);
+                          if (step.tab === 'vitals') {
+                            setVitalsPatient(activePatient);
+                            setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
+                          }
+                        }}
+                        className={`flex flex-col items-center gap-1 bg-transparent border-0 cursor-pointer p-0 group outline-none`}
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center border text-[9px] font-bold transition-all duration-300 ${
+                          isActive 
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20 scale-105' 
+                            : isCompleted 
+                              ? 'bg-emerald-500 border-emerald-500 text-white' 
+                              : 'bg-white border-slate-200 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'
+                        }`}>
+                          {isCompleted ? '✓' : idx + 1}
+                        </div>
+                        <span className={`text-[9px] font-bold whitespace-nowrap transition-colors ${
+                          isActive 
+                            ? 'text-indigo-600' 
+                            : isCompleted 
+                              ? 'text-emerald-600' 
+                              : 'text-slate-400 group-hover:text-slate-600'
+                        }`}>
+                          {step.label}
+                        </span>
+                      </button>
+                      
+                      {idx < arr.length - 1 && (
+                        <div className={`flex-1 h-[2px] min-w-[20px] rounded transition-all duration-500 ${
+                          isCompleted 
+                            ? 'bg-emerald-500' 
+                            : 'bg-slate-200'
+                        }`} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right: Contextual Actions & Close button */}
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Contextual Action Button */}
+              {(() => {
+                let btnText = "";
+                let targetTab: 'registry' | 'vitals' | 'gate1' | 'gate2' | 'gate3' = "registry";
+                let btnColor = "bg-indigo-600 hover:bg-indigo-500 text-white";
+                
+                if (!activePatient.vitals) {
+                  btnText = "Record Vitals";
+                  targetTab = "vitals";
+                  btnColor = "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/15 animate-pulse-wave";
+                } else if (activePatientStage === 'registered') {
+                  btnText = "Consultation Active";
+                  targetTab = "vitals";
+                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-white";
+                } else if (activePatientStage === 'diagnosing') {
+                  btnText = "Consult Billing (Gate 1)";
+                  targetTab = "gate1";
+                  btnColor = "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/15";
+                } else if (activePatientStage === 'lab') {
+                  btnText = "Pathology Lab (Gate 2)";
+                  targetTab = "gate2";
+                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/15";
+                } else if (activePatientStage === 'pharmacy') {
+                  btnText = "Pharmacy POS (Gate 3)";
+                  targetTab = "gate3";
+                  btnColor = "bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/15";
+                } else if (activePatientStage === 'settled') {
+                  btnText = "Care Loop Complete";
+                  targetTab = "registry";
+                  btnColor = "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20";
+                }
+
+                return (
+                  <button
+                    onClick={() => {
+                      setActiveTab(targetTab);
+                      if (targetTab === 'vitals') {
+                        setVitalsPatient(activePatient);
+                        setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
+                      }
+                    }}
+                    className={`px-4 py-2 text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 active:scale-95 flex items-center gap-1.5 ${btnColor}`}
+                  >
+                    <span className="material-symbols-outlined text-sm">double_arrow</span>
+                    {btnText}
+                  </button>
+                );
+              })()}
+
+              {/* Dismiss patient from HUD */}
+              <button
+                onClick={() => {
+                  api.setActivePatient(null);
+                  setActiveSession(null);
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: { message: 'Cleared active patient loop.', type: 'info', title: 'Loop Cleared' }
+                  }));
+                }}
+                className="p-2 text-slate-400 hover:text-slate-700 bg-white border border-slate-200/80 hover:bg-slate-50 rounded-xl transition-all cursor-pointer shadow-sm"
+                title="Dismiss Active Patient"
+              >
+                <span className="material-symbols-outlined text-[16px] block">close</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      ) : (
+        <div className="glass-panel p-6 border-dashed border-2 border-indigo-500/20 shadow-sm relative overflow-hidden bg-white/40 text-center py-8">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/2 to-teal-500/2 pointer-events-none" />
+          <div className="max-w-md mx-auto space-y-2.5">
+            <div className="h-10 w-10 rounded-full bg-indigo-500/5 text-indigo-500 flex items-center justify-center mx-auto border border-indigo-500/10 animate-pulse-subtle">
+              <span className="material-symbols-outlined text-xl animate-pulse">person_search</span>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">No Patient Session Active</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">
+                Search the Patient Registry or register a new patient manually to initiate the dynamic clinic care loop.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DASHBOARD HEADER — integrated tabs */}
       <div className="border-b border-slate-200 pb-0">
         {/* Top row: title + status */}
@@ -915,40 +1143,95 @@ export const CompounderDashboard: React.FC = () => {
                     placeholder="Search patient by phone, name, or ABHA ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full input-field pl-12 focus:ring-1 focus:ring-secondary focus:border-secondary text-sm py-2 bg-surface-container-lowest border-outline-variant text-white rounded-lg"
+                    className="w-full input-field pl-12 focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-600 text-sm py-2.5 bg-white border-slate-200 text-slate-800 rounded-xl"
                   />
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-clinical-400 h-5 w-5" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
                 </div>
 
                 {searchQuery && (
-                  <div className="mt-4 border border-outline-variant rounded-xl overflow-hidden divide-y divide-outline-variant bg-surface-container-lowest/50 glass-panel-inner animate-fade-in select-none">
+                  <div className="mt-4 border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white shadow-sm animate-fade-in select-none">
                     {filteredPatients.length === 0 ? (
-                      <div className="p-4 text-clinical-400 text-sm flex items-center gap-2">
-                        <span className="material-symbols-outlined text-rose-400 text-base">warning</span>
+                      <div className="p-5 text-slate-400 text-xs flex items-center gap-2">
+                        <span className="material-symbols-outlined text-rose-500 text-base">warning</span>
                         No matching patient found in ecosystem registry.
                       </div>
                     ) : (
                       filteredPatients.map(p => {
                         const sess = sessions.find(s => s.patientPhone === p.phone);
+                        const stage = api.getActivePatientCareStage(p.id);
+                        const isSelected = activePatient?.id === p.id;
+
                         return (
-                          <div key={p.id} className="p-4 flex items-center justify-between hover:bg-surface-container/50 transition-colors">
-                            <div>
-                              <h4 className="font-bold text-white text-sm">
-                                {p.name} <span className="text-clinical-400 font-medium text-xs">({p.age}y, {p.gender})</span>
+                          <div 
+                            key={p.id} 
+                            onClick={() => api.setActivePatient(p)}
+                            className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors cursor-pointer ${
+                              isSelected ? 'bg-indigo-50/40 border-l-4 border-indigo-600 pl-3' : ''
+                            }`}
+                          >
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                {p.name}
+                                <span className="text-[10px] text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-semibold">
+                                  {p.age}y · {p.gender}
+                                </span>
                               </h4>
-                              <p className="text-[11px] text-clinical-300 mt-1 flex items-center gap-3">
-                                <span className="flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-[10px] text-secondary">phone</span>
+                              
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[12px] text-slate-400">phone</span>
                                   {p.phone}
                                 </span>
-                              </p>
+                                
+                                {p.abhaId && (
+                                  <span className="text-[9px] font-mono text-slate-400 bg-slate-50 border border-slate-200 px-1 rounded">
+                                    ABHA: {p.abhaId}
+                                  </span>
+                                )}
+
+                                {/* Care stages indicators */}
+                                {p.vitals ? (
+                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-rose-50 border border-rose-200 text-rose-600 rounded">
+                                    🌡️ Vitals Logged
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-slate-50 border border-slate-200 text-slate-400 rounded">
+                                    Awaiting Vitals
+                                  </span>
+                                )}
+
+                                {stage === 'diagnosing' && (
+                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded animate-pulse-subtle">
+                                    🩺 In Consult
+                                  </span>
+                                )}
+                                {stage === 'lab' && (
+                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded animate-pulse-subtle">
+                                    🧪 Lab Requisitions
+                                  </span>
+                                )}
+                                {stage === 'pharmacy' && (
+                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-amber-50 border border-amber-200 text-amber-700 rounded animate-pulse-subtle">
+                                    💊 Rx Dispensation
+                                  </span>
+                                )}
+                                {stage === 'settled' && (
+                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded animate-pulse-subtle">
+                                    ✅ Settle Ledger
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex gap-2">
+                            
+                            <div className="flex gap-2 self-end sm:self-auto" onClick={e => e.stopPropagation()}>
                               <button
-                                onClick={() => handleInitiateWhatsAppLoop(p)}
-                                className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
+                                onClick={() => {
+                                  api.setActivePatient(p);
+                                  handleInitiateWhatsAppLoop(p);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
                                   sess 
-                                    ? 'bg-surface-container-highest text-white border-outline-variant' 
+                                    ? 'bg-slate-100 text-slate-700 border-slate-200/80 hover:bg-slate-200' 
                                     : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 hover:border-emerald-600'
                                 }`}
                               >
@@ -1439,19 +1722,60 @@ export const CompounderDashboard: React.FC = () => {
 
                     return (
                       <div className="space-y-4">
-                        <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
-                          <span className="block text-[8px] font-bold text-secondary tracking-widest font-mono uppercase">
-                            {genericLabel} ({selectedLanguage.toUpperCase()})
-                          </span>
-                          <p className="text-xs text-white leading-relaxed font-semibold italic">
+                        {/* Premium prescription-like styling */}
+                        <div className="p-5 bg-amber-50/40 border border-amber-200/50 rounded-2xl space-y-3 relative shadow-inner select-text">
+                          <div className="flex items-center justify-between border-b border-amber-900/10 pb-2">
+                            <span className="block text-[8px] font-bold text-amber-800 tracking-widest font-mono uppercase">
+                              {genericLabel} ({selectedLanguage.toUpperCase()})
+                            </span>
+                            <span className="text-[9px] font-mono text-amber-700/60 font-bold">MEDIFLOW RX-V1</span>
+                          </div>
+                          
+                          <p className="text-xs text-amber-900 leading-relaxed font-semibold italic">
                             "{activeText}"
                           </p>
+
+                          <div className="flex justify-between items-center pt-2 border-t border-amber-900/5">
+                            <div className="h-6 w-32 simulated-barcode rounded opacity-40" />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: { message: 'Dosage slip sent to thermal printer print spool...', type: 'success', title: 'Printed Successfully' }
+                                  }));
+                                }}
+                                className="p-1 bg-white hover:bg-amber-100/50 text-amber-800 border border-amber-200 rounded-lg transition active:scale-90 cursor-pointer"
+                                title="Print Slip"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Quick push to Active Patient */}
+                        {activePatient && (
+                          <div className="bg-indigo-50/50 border border-indigo-200/60 p-3 rounded-xl flex items-center justify-between gap-3 animate-fade-in">
+                            <div>
+                              <p className="text-[9px] text-indigo-700 font-bold uppercase tracking-wider font-mono">Push Target</p>
+                              <p className="text-xs text-slate-800 font-semibold mt-0.5">{activePatient.name}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handlePushDosageWhatsApp(activePatient, activeText)}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer transition active:scale-95 border-0 flex items-center gap-1"
+                            >
+                              <Smartphone className="h-3 w-3" />
+                              WhatsApp Slip
+                            </button>
+                          </div>
+                        )}
 
                         {/* Push button selection */}
                         <div className="space-y-2">
-                          <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono block pl-1">
-                            Push Instruction to Active Patient
+                          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono block pl-1">
+                            Push Instruction to Other Patient
                           </label>
                           <select
                             onChange={async (e) => {
@@ -1463,7 +1787,7 @@ export const CompounderDashboard: React.FC = () => {
                                 e.target.value = ""; // Reset dropdown selection
                               }
                             }}
-                            className="w-full input-field text-xs py-2.5 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer font-sans"
+                            className="w-full input-field text-xs py-2 px-3 bg-white border border-slate-200 text-slate-800 rounded-lg cursor-pointer font-sans"
                             defaultValue=""
                           >
                             <option value="" disabled>-- Select Patient to Push Slip --</option>
@@ -1577,19 +1901,36 @@ export const CompounderDashboard: React.FC = () => {
                       No active consultation chambers matching Gate 2 bounds.
                     </div>
                   ) : (
-                    api.getAppointments().filter(a => a.status === 'ready_for_consult' || a.status === 'completed').map(appt => {
+                    api.getAppointments().filter(a => a.status === 'ready_for_consult' || a.status === 'completed').sort((a, b) => {
+                      const isPatA = a.patientId === activePatient?.id;
+                      const isPatB = b.patientId === activePatient?.id;
+                      if (isPatA && !isPatB) return -1;
+                      if (!isPatA && isPatB) return 1;
+                      return 0;
+                    }).map(appt => {
                       const patient = patients.find(p => p.id === appt.patientId);
                       const prescription = api.getPrescriptions().find(p => p.appointmentId === appt.id);
                       const labInvoice = api.getInvoices().find(i => i.appointmentId === appt.id && i.type === 'lab');
+                      const isActiveAppt = appt.patientId === activePatient?.id;
                       
                       return (
-                        <div key={appt.id} className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-4">
+                        <div 
+                          key={appt.id} 
+                          className={`p-4 border rounded-xl space-y-4 transition-all duration-350 ${
+                            isActiveAppt 
+                              ? 'border-indigo-500 bg-indigo-500/5 shadow-md shadow-indigo-500/5' 
+                              : 'border-outline-variant bg-white'
+                          }`}
+                        >
                           <div className="flex items-center justify-between border-b border-white/5 pb-2">
                             <div>
-                              <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                              <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                {isActiveAppt && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping shrink-0" />}
+                                {patient ? patient.name : 'Unknown Patient'}
+                              </h4>
                               <p className="text-[9px] text-clinical-400 font-mono">Appt ID: {appt.id.substring(0, 8)}... | Status: {appt.status}</p>
                             </div>
-                            <span className="text-[9px] bg-rose-500/10 text-rose-400 font-mono font-bold px-2 py-0.5 rounded border border-rose-500/20">
+                            <span className="text-[9px] bg-indigo-100 text-indigo-750 font-mono font-bold px-2 py-0.5 rounded border border-indigo-200">
                               CHAMBER OUT
                             </span>
                           </div>
@@ -1628,11 +1969,11 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <div className="space-y-3">
-                              <div className="bg-surface-container-lowest/80 border border-outline-variant p-3 rounded-lg space-y-2">
-                                <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">Extracted Lab Tests (AI OCR)</span>
+                              <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-lg space-y-2">
+                                <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Extracted Lab Tests (AI OCR)</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {prescription.extractedTests?.map((t, idx) => (
-                                    <span key={idx} className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-semibold px-2 py-0.5 rounded">
+                                    <span key={idx} className="bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 text-[9px] font-semibold px-2 py-0.5 rounded">
                                       {t}
                                     </span>
                                   ))}
@@ -1643,7 +1984,7 @@ export const CompounderDashboard: React.FC = () => {
                                 <div className="flex items-center justify-between pt-1">
                                   <div>
                                     <span className="text-[9px] text-clinical-400 block font-mono">Lab Invoice: {labInvoice.id.substring(0, 8)}...</span>
-                                    <span className="text-[12px] font-black text-white">Lab Total: ₹{labInvoice.amount}</span>
+                                    <span className="text-[12px] font-black text-slate-800">Lab Total: ₹{labInvoice.amount}</span>
                                   </div>
                                   <div>
                                     {labInvoice.status === 'unpaid' ? (
@@ -1663,7 +2004,7 @@ export const CompounderDashboard: React.FC = () => {
                                         Mark Paid &amp; Route to Lab Tech
                                       </button>
                                     ) : (
-                                      <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
+                                      <span className="text-[9px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
                                         PAID &amp; SENT TO LAB ✅
                                       </span>
                                     )}
@@ -1675,8 +2016,8 @@ export const CompounderDashboard: React.FC = () => {
 
                           {ocrScanningApptId === appt.id && (
                             <div className="p-3 bg-indigo-500/5 border border-indigo-500/15 rounded-lg flex items-center gap-2.5 animate-pulse">
-                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                              <span className="text-[10px] text-indigo-400 font-mono font-semibold">Running LLM-OCR scanning on prescription...</span>
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-550 animate-ping" />
+                              <span className="text-[10px] text-indigo-600 font-mono font-semibold">Running LLM-OCR scanning on prescription...</span>
                             </div>
                           )}
                         </div>
@@ -1748,8 +2089,9 @@ export const CompounderDashboard: React.FC = () => {
                         required
                       />
                     </div>
+
                     <div className="space-y-1">
-                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Time Slot</label>
+                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Time</label>
                       <input 
                         type="time"
                         value={revisitTime}
@@ -1760,11 +2102,11 @@ export const CompounderDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
+                  <button 
                     type="submit"
-                    className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                    className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer"
                   >
-                    Lock Revisit &amp; Notify WhatsApp
+                    Lock Revisit &amp; Dispatch Bot Notification
                   </button>
                 </form>
               </div>
@@ -1772,43 +2114,63 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 4: GATE 3 PHARMACY BILLING */}
+        {/* TAB 5: GATE 3 PHARMACY BILLING */}
         {activeTab === 'gate3' && (
           <div className="grid grid-cols-1 gap-8">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-500 opacity-60" />
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-400 text-base">medication</span>
+              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-500 text-base">medication</span>
                 Gate 3: Pharmacy Billing &amp; Dispensation release
               </h2>
-              <p className="text-xs text-clinical-400 mb-6">
+              <p className="text-xs text-slate-500 mb-6">
                 Active medicine bills requiring checkout payments before dispensing physical medications.
               </p>
 
               <div className="space-y-4">
                 {api.getInvoices().filter(i => i.type === 'pharmacy').length === 0 ? (
-                  <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                  <div className="p-8 bg-surface-container-lowest/40 border border-slate-200/80 rounded-xl text-center text-sm text-slate-500">
                     No active pharmacy invoices found.
                   </div>
                 ) : (
-                  api.getInvoices().filter(i => i.type === 'pharmacy').map(invoice => {
+                  api.getInvoices().filter(i => i.type === 'pharmacy').sort((a, b) => {
+                    const apptA = api.getAppointments().find(x => x.id === a.appointmentId);
+                    const apptB = api.getAppointments().find(x => x.id === b.appointmentId);
+                    const isPatA = apptA?.patientId === activePatient?.id;
+                    const isPatB = apptB?.patientId === activePatient?.id;
+                    if (isPatA && !isPatB) return -1;
+                    if (!isPatA && isPatB) return 1;
+                    return 0;
+                  }).map(invoice => {
                     const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
                     const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
                     const prescription = appt ? api.getPrescriptions().find(p => p.appointmentId === appt.id) : null;
+                    const isActiveInvoice = patient?.id === activePatient?.id;
 
                     return (
-                      <div key={invoice.id} className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                      <div 
+                        key={invoice.id} 
+                        className={`p-4 border rounded-xl space-y-4 transition-all duration-350 ${
+                          isActiveInvoice 
+                            ? 'border-amber-500 bg-amber-500/5 shadow-md shadow-amber-500/5' 
+                            : 'border-slate-200/80 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                           <div>
-                            <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
-                            <p className="text-[9px] text-clinical-400 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
+                            <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                              {isActiveInvoice && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />}
+                              {patient ? patient.name : 'Unknown Patient'}
+                            </h4>
+                            <p className="text-[9px] text-slate-400 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
                           </div>
-                          <div className="text-[12px] font-black text-amber-400">₹{invoice.amount}</div>
+                          <div className="text-[12px] font-black text-amber-600">₹{invoice.amount}</div>
                         </div>
 
                         {prescription && prescription.extractedMedicines && (
-                          <div className="bg-surface-container-lowest/80 border border-outline-variant p-3 rounded-lg space-y-2">
-                            <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
+                          <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-lg space-y-3">
+                            <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
+                            
                             <InvoiceCard
                               invoiceId={invoice.id}
                               patientName={patient?.name ?? 'Unknown Patient'}
@@ -1825,14 +2187,31 @@ export const CompounderDashboard: React.FC = () => {
                                 }));
                               } : undefined}
                             />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
                               {prescription.extractedMedicines.map((m, idx) => (
-                                <div key={idx} className="text-[10px] text-clinical-300 font-mono flex items-center justify-between border-b border-white/5 pb-1">
+                                <div key={idx} className="text-[10px] text-slate-655 font-mono flex items-center justify-between border-b border-slate-100 pb-1">
                                   <span>💊 {m.name} ({m.dosage})</span>
-                                  <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
+                                  <span className="text-[9px] bg-slate-200/50 px-2 py-0.5 rounded text-slate-700 font-semibold">{m.frequency}</span>
                                 </div>
                               ))}
                             </div>
+
+                            {/* Split Ledger payout Details */}
+                            <div className="mt-2.5 pt-2.5 border-t border-slate-200/60 space-y-1.5 select-none">
+                              <span className="block text-[8px] font-bold text-indigo-700 tracking-widest uppercase font-mono">Dynamic Multi-Vendor Payout Splits</span>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] text-slate-500 font-mono">
+                                <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
+                                  <span>Platform Fee (3%):</span>
+                                  <span className="font-semibold text-slate-700">₹{(invoice.amount * 0.03).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
+                                  <span>Ecosystem Net Payout:</span>
+                                  <span className="font-semibold text-emerald-600">₹{(invoice.amount * 0.97).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </div>
+
                           </div>
                         )}
                       </div>
@@ -1845,37 +2224,37 @@ export const CompounderDashboard: React.FC = () => {
         )}
 
         {/* Real-time WhatsApp Loop simulator at the bottom */}
-        <div className="glass-panel border-white/10 shadow-xl overflow-hidden flex flex-col h-[600px] relative mt-8">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-500 opacity-60" />
+        <div className="glass-panel border-slate-200 shadow-xl overflow-hidden flex flex-col h-[600px] relative mt-8">
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-600 opacity-80" />
             
-            <div className="bg-surface-container p-4 border-b border-outline-variant flex items-center justify-between">
+            <div className="bg-[#075e54] p-4 border-b border-[#128c7e]/20 flex items-center justify-between">
               <div className="flex items-center gap-3 select-none">
-                <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400">
-                  <Smartphone className="h-5 w-5" />
+                <div className="h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center font-bold text-sm shrink-0 border border-white/20">
+                  💬
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">WhatsApp Sandbox Simulation Bot</h3>
-                  <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    LIVE GATEWAY CONNECTED
+                  <h3 className="font-bold text-sm text-white">WhatsApp Live Simulator Sandbox</h3>
+                  <p className="text-[10px] text-emerald-200 flex items-center gap-1 font-semibold tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-450 animate-pulse"></span>
+                    ACTIVE VERIFICATION SERVICE
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 bg-surface-container-lowest p-4 overflow-y-auto space-y-4 font-sans text-xs">
+            <div className="flex-1 bg-[#efeae2] p-4 overflow-y-auto space-y-4 font-sans text-xs">
               {activeSession ? (
                 <div className="space-y-4">
                   <div className="text-center select-none">
-                    <span className="bg-surface-container text-clinical-300 border border-outline-variant px-3 py-1 rounded-md text-[9px] font-bold tracking-widest uppercase font-mono">
-                      CHAT TIMELINE
+                    <span className="bg-slate-900/10 text-slate-600 px-3 py-1 rounded-md text-[9px] font-bold tracking-widest uppercase font-mono">
+                      TODAY
                     </span>
                   </div>
 
-                  <div className="bg-surface-container/60 border border-outline-variant p-3.5 rounded-xl flex gap-3 leading-relaxed select-none">
-                    <ShieldAlert className="h-5 w-5 text-secondary flex-shrink-0 mt-0.5" />
-                    <p className="text-clinical-400 text-[10px] leading-relaxed">
-                      Time-locked patient clinical consent simulation for +91 {activeSession.patientPhone}. Current state: <span className="font-mono text-emerald-400 uppercase font-semibold">{activeSession.currentState}</span>
+                  <div className="bg-white/90 border border-slate-200/80 p-3.5 rounded-xl flex gap-3 leading-relaxed shadow-sm select-none">
+                    <ShieldAlert className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-slate-600 text-[10px] leading-relaxed">
+                      Time-locked patient clinical consent simulation for +91 {activeSession.patientPhone}. Current state: <span className="font-mono text-emerald-600 uppercase font-semibold">{activeSession.currentState}</span>
                     </p>
                   </div>
 
@@ -1887,32 +2266,34 @@ export const CompounderDashboard: React.FC = () => {
                         className={`flex ${isBot ? 'justify-start' : 'justify-end'} animate-fade-in`}
                       >
                         <div 
-                          className={`max-w-[85%] p-4 rounded-2xl border shadow-md relative ${
+                          className={`max-w-[85%] p-3.5 rounded-2xl shadow-sm relative leading-relaxed ${
                             isBot 
-                              ? 'bg-surface-container rounded-tl-none border-outline-variant text-white' 
-                              : 'bg-emerald-600/90 rounded-tr-none border-emerald-500/30 text-white'
+                              ? 'bg-white rounded-tl-none text-slate-800' 
+                              : 'bg-[#d9fdd3] rounded-tr-none text-slate-850'
                           }`}
                         >
                           <p className="leading-relaxed whitespace-pre-line font-mono text-[11px] font-medium">{msg.text}</p>
                           
                           {isBot && msg.text.includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
-                            <div className="mt-3 pt-3 border-t border-outline-variant/50 flex flex-col gap-2 select-none">
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2 select-none">
                               <button
-                                onClick={() => api.processIncomingWhatsAppMessage(activeSession.patientPhone, '1')}
+                                onClick={() => {
+                                  api.processIncomingWhatsAppMessage(activeSession.patientPhone, '1');
+                                  syncData();
+                                }}
                                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer border-0"
                               >
                                 Grant Consent (Aarav Sharma)
                               </button>
                             </div>
                           )}
-
                           {isBot && msg.text.includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
-                            <div className="mt-2 flex items-center gap-1 text-emerald-400 text-[9px] font-bold uppercase tracking-wider select-none">
-                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 animate-pulse" /> Consent Registered
+                            <div className="mt-2 flex items-center gap-1 text-emerald-600 text-[9px] font-bold uppercase tracking-wider select-none">
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-650 animate-pulse" /> Consent Registered
                             </div>
                           )}
 
-                          <span className="block text-[8px] text-clinical-500 text-right mt-1.5 font-mono select-none">
+                          <span className="block text-[8px] text-slate-400 text-right mt-1.5 font-mono select-none">
                             {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                           </span>
                         </div>
@@ -1923,10 +2304,10 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 select-none">
-                  <span className="material-symbols-outlined text-6xl text-clinical-700 animate-pulse">forum</span>
+                  <span className="material-symbols-outlined text-6xl text-slate-400 animate-pulse">forum</span>
                   <div>
-                    <h4 className="font-bold text-white text-sm">No Active WhatsApp Loop</h4>
-                    <p className="text-clinical-400 text-xs mt-1 leading-relaxed">
+                    <h4 className="font-bold text-slate-700 text-sm">No Active WhatsApp Loop</h4>
+                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">
                       Lookup a patient in patient registry lookup or register a new one, then click "SMS opt-in" to trigger simulated messaging sandboxing.
                     </p>
                   </div>
@@ -1934,22 +2315,22 @@ export const CompounderDashboard: React.FC = () => {
               )}
             </div>
 
-            <form onSubmit={handleSendReply} className="bg-surface-container p-3 border-t border-outline-variant flex gap-2">
+            <form onSubmit={handleSendReply} className="bg-[#f0f2f5] p-3 border-t border-slate-200 flex gap-2">
               <input
                 type="text"
                 value={replyInput}
                 onChange={(e) => setReplyInput(e.target.value)}
                 disabled={!activeSession}
                 placeholder={activeSession ? "Type simulated message (e.g. '1', 'PAY', 'Metformin 30 tabs')..." : "Simulated WhatsApp Sandbox Interface"}
-                className="flex-1 bg-surface-container-lowest/80 border border-outline-variant rounded-xl px-3 py-2 text-xs text-white placeholder-clinical-500 focus:outline-none focus:border-emerald-500/50"
+                className="flex-1 bg-white border border-slate-200/80 rounded-full px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
               />
               <button 
                 type="submit"
                 disabled={!activeSession || !replyInput.trim()} 
-                className={`p-2 rounded-xl transition-colors border-0 ${
+                className={`p-2.5 rounded-full transition-colors border-0 shrink-0 ${
                   activeSession && replyInput.trim() 
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer' 
-                    : 'bg-surface-container-highest text-clinical-500'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow active:scale-95' 
+                    : 'bg-slate-200 text-slate-400'
                 }`}
               >
                 <Send className="h-4 w-4" />
