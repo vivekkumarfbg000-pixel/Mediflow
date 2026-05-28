@@ -7,7 +7,6 @@ import {
   FileText, 
   Wallet, 
   RefreshCw, 
-  Heart, 
   Activity, 
   AlertCircle, 
   ChevronRight, 
@@ -17,8 +16,13 @@ import {
   Coins,
   ShieldCheck,
   Award,
-  Flame
+  Flame,
+  Clock,
+  Sparkles
 } from 'lucide-react';
+import { MobileNav } from './MobileNav';
+import { MetricCard } from './MetricCard';
+import { MobileChart } from './MobileChart';
 
 export const PatientMobileDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills' | 'vitals'>('home');
@@ -81,15 +85,15 @@ export const PatientMobileDashboard: React.FC = () => {
       summary += `💡 **RAG CDSS Clinical Guideline Summary**:\n`;
       if (testName.toLowerCase().includes('hba1c')) {
         summary += `• Your HbA1c is at a borderline level. This confirms mild Glycemic Fluctuation.\n`;
-        summary += `• **CDSS Guideline**: Avoid any sudden dose switches. Avoid nephrotoxic painkillers (like ibuprofen/NSAIDs) due to borderline renal clearance trends.\n`;
-        summary += `• **Action Plan**: Dr. Sharma recommends continuous capillary blood glucose logs and home microalbuminuria screening.`;
+        summary += `• **CDSS Guideline**: Avoid any sudden dose switches. Avoid ibuprofen/NSAIDs due to borderline renal clearance.\n`;
+        summary += `• **Action Plan**: Dr. Sharma recommends continuous capillary blood glucose logs and home screening.`;
       } else {
         summary += `• Your indices are stable but require lifestyle coordination. Keep daily schedules aligned.\n`;
         summary += `• **CDSS Guideline**: Continuously sync logs to the care pod network.\n`;
         summary += `• **Action Plan**: Review updates directly inside the refills console.`;
       }
       setRagTranslationText(summary);
-    }, 1500);
+    }, 1200);
   };
 
   const handleTriggerUpiSheet = (invoice: UnifiedInvoice) => {
@@ -108,10 +112,7 @@ export const PatientMobileDashboard: React.FC = () => {
       setIsPaying(false);
       setPaymentSuccess(true);
       
-      // Settle payment in Supabase & cache reactively
       api.clearInvoice(activeUpiInvoice.id);
-
-      // Trigger bot session transition to COMPLETED/COMPLETED chat logs
       await api.processIncomingWhatsAppMessage(selectedPhone, 'pay');
 
       setTimeout(() => {
@@ -120,25 +121,23 @@ export const PatientMobileDashboard: React.FC = () => {
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
             title: 'UPI Payment Cleared! 🎉',
-            message: `₹${activeUpiInvoice.totalAmount} cleared. Ledger commissions splits settled.`,
+            message: `₹${activeUpiInvoice.totalAmount} cleared. Split payouts settled successfully.`,
             type: 'success'
           }
         }));
-      }, 1500);
+      }, 1200);
 
-    }, 2000);
+    }, 1500);
   };
 
   const handleOneClickRefill = async (medicineName: string) => {
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        title: 'Refill Request Received! 🔄',
-        message: `Auto-refill triggered for ${medicineName}. Routing holds directly to Pharmacy POS...`,
+        title: 'Refill Request Dispatched! 🔄',
+        message: `Auto-refill holds prepared for ${medicineName}. Synchronized to Pharmacy POS.`,
         type: 'info'
       }
     }));
-
-    // Trigger refills flow in WhatsApp bot logs and sync holds
     await api.processIncomingWhatsAppMessage(selectedPhone, 'refill');
   };
 
@@ -146,58 +145,61 @@ export const PatientMobileDashboard: React.FC = () => {
     e.preventDefault();
     if (!loggedGlucose && !loggedBpSystolic) return;
 
-    let logMessage = `Vitals logged successfully. `;
+    let logMessage = `Synced: `;
     if (loggedGlucose) logMessage += `Glucose: ${loggedGlucose} mg/dL. `;
-    if (loggedBpSystolic && loggedBpDiastolic) logMessage += `BP: ${loggedBpSystolic}/${loggedBpDiastolic} mmHg.`;
+    if (loggedBpSystolic && loggedBpDiastolic) logMessage += `BP: ${loggedBpSystolic}/${loggedBpDiastolic}.`;
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        title: 'Vitals Synced to Pod! 💓',
+        title: 'Health Vitals Synced! 💓',
         message: logMessage,
         type: 'success'
       }
     }));
 
-    // Reset inputs
     setLoggedGlucose('');
     setLoggedBpSystolic('');
     setLoggedBpDiastolic('');
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800 font-sans">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-300 font-sans select-none">
       
-      {/* LEFT COLUMN: Setup details */}
+      {/* LEFT COLUMN: Simulation controller */}
       <div className="lg:col-span-4 space-y-6">
-        <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-primary" />
-          <h2 className="text-base font-bold text-slate-900 mb-2 flex items-center gap-2">
-            <Smartphone className="h-5 w-5 text-emerald-500" />
-            Companion Patient App Simulator
+        <div className="bg-zinc-900 border border-white/5 p-6 rounded-2xl shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-500 to-indigo-500" />
+          <h2 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+            <Smartphone className="h-5 w-5 text-cyan-400" />
+            Ecosystem Device Simulator
           </h2>
-          <p className="text-slate-500 text-xs leading-relaxed mb-4">
-            This module models the **Patient Companion Mobile App**. Toggle the patient below to inspect e-prescriptions, RAG medical logs, settle bills, and auto-refill chronic medications!
+          <p className="text-zinc-400 text-xs leading-relaxed mb-4">
+            Toggle patient simulation profiles to inspect e-prescriptions, RAG medical summaries, settle bills via UPI, and trigger auto-refills within the pod network.
           </p>
 
-          <div className="space-y-4 pt-3 border-t border-slate-100">
+          <div className="space-y-4 pt-3 border-t border-white/5">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Active Patient profile:</label>
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                Simulated Patient Profile
+              </label>
               <select
                 value={selectedPhone}
                 onChange={e => setSelectedPhone(e.target.value)}
-                className="w-full input-field py-2 text-xs bg-slate-50 border-slate-200"
+                className="w-full bg-zinc-950 border border-white/10 rounded-xl py-2 px-3 text-xs text-white outline-none focus:border-cyan-500/30"
               >
                 {patients.map(p => (
-                  <option key={p.id} value={p.phone}>{p.name} ({p.phone})</option>
+                  <option key={p.id} value={p.phone} className="bg-zinc-900">{p.name} ({p.phone})</option>
                 ))}
               </select>
             </div>
 
             {activePatient && (
-              <div className="p-3.5 bg-slate-50 border border-slate-200/50 rounded-xl space-y-2">
-                <span className="text-[9px] font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold uppercase">ABHA Profile Active</span>
-                <h4 className="font-bold text-slate-800 text-xs">{activePatient.name}</h4>
-                <p className="text-[10px] text-slate-500 font-sans leading-relaxed">
+              <div className="p-3.5 bg-zinc-950/80 border border-white/5 rounded-xl space-y-2 text-xs">
+                <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                  ABHA Profile Connected
+                </span>
+                <h4 className="font-bold text-white">{activePatient.name}</h4>
+                <p className="text-[10px] text-zinc-400 leading-relaxed font-sans">
                   <strong>Chronic list</strong>: {activePatient.chronicConditions.join(', ') || 'None'}<br/>
                   <strong>Allergies</strong>: {activePatient.allergies.join(', ') || 'NKDA'}<br/>
                   <strong>ABHA Card ID</strong>: {activePatient.abhaId || 'Not set'}
@@ -207,50 +209,52 @@ export const PatientMobileDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Home Vitals Logging Form */}
-        <div className="glass-panel p-6 border-slate-200 shadow-xl bg-white relative">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-            <Heart className="h-4 w-4 text-rose-500" />
-            Home Telehealth logger
+        {/* Home Vitals Logger panel */}
+        <div className="bg-zinc-900 border border-white/5 p-6 rounded-2xl shadow-xl space-y-4">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
+            <Activity className="h-4 w-4 text-cyan-400" />
+            Telehealth Vital Logger
           </h3>
-          <form onSubmit={handleLogVitals} className="space-y-3">
+          <form onSubmit={handleLogVitals} className="space-y-3.5">
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Capillary Blood Glucose (mg/dL)</label>
+              <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase tracking-wide">
+                Glucose (mg/dL)
+              </label>
               <input
                 type="number"
                 placeholder="e.g. 130"
                 value={loggedGlucose}
                 onChange={e => setLoggedGlucose(e.target.value !== '' ? Number(e.target.value) : '')}
-                className="w-full input-field text-xs py-2 border-slate-200 bg-slate-50"
+                className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">BP Systolic</label>
+                <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase tracking-wide">BP Systolic</label>
                 <input
                   type="number"
                   placeholder="e.g. 120"
                   value={loggedBpSystolic}
                   onChange={e => setLoggedBpSystolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                  className="w-full input-field text-xs py-2 border-slate-200 bg-slate-50"
+                  className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">BP Diastolic</label>
+                <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase tracking-wide">BP Diastolic</label>
                 <input
                   type="number"
                   placeholder="e.g. 80"
                   value={loggedBpDiastolic}
                   onChange={e => setLoggedBpDiastolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                  className="w-full input-field text-xs py-2 border-slate-200 bg-slate-50"
+                  className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="w-full btn-primary bg-primary hover:opacity-95 text-xs py-2 flex justify-center items-center gap-1 text-white-force font-bold rounded-lg cursor-pointer"
+              className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer font-sans"
             >
-              <Activity className="h-3.5 w-3.5 text-white-force animate-pulse" />
+              <CheckCircle2 className="h-4 w-4" />
               Sync Vitals to Care Pod
             </button>
           </form>
@@ -260,180 +264,186 @@ export const PatientMobileDashboard: React.FC = () => {
       {/* RIGHT COLUMN: Mobile Viewport Container */}
       <div className="lg:col-span-8 flex justify-center items-center">
         
-        {/* Smartphone Bezel */}
-        <div className="w-full max-w-[360px] h-[640px] bg-slate-900 border-[7px] border-slate-950 rounded-[44px] shadow-2xl flex flex-col relative overflow-hidden ring-1 ring-slate-800">
+        {/* Smartphone Bezel Bezel-950 */}
+        <div className="w-full max-w-[360px] h-[640px] bg-zinc-950 border-[7px] border-zinc-900 rounded-[44px] shadow-2xl flex flex-col relative overflow-hidden ring-1 ring-white/10">
           
           {/* iOS Dynamic Island Notch */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-5.5 bg-slate-950 rounded-b-2xl z-50 flex justify-center items-center">
-            <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800" />
-            <div className="w-10 h-1 bg-slate-900 rounded-full ml-4" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-5.5 bg-zinc-900 rounded-b-2xl z-50 flex justify-center items-center border-b border-white/5">
+            <div className="w-2.5 h-2.5 rounded-full bg-zinc-950 border border-white/10" />
+            <div className="w-10 h-1 bg-zinc-950 rounded-full ml-4" />
           </div>
 
-          {/* Smartphone Screen Canvas */}
-          <div className="flex-1 bg-slate-50 flex flex-col justify-between overflow-hidden relative">
+          {/* Smartphone Screen Canvas (Dark Mode zinc-950 First) */}
+          <div className="flex-1 bg-zinc-950 flex flex-col justify-between overflow-hidden relative">
             
-            {/* Mock Top Status bar */}
-            <div className="pt-6.5 pb-2.5 px-6 bg-white flex justify-between items-center text-[10px] text-slate-600 font-semibold shrink-0 z-40">
-              <span>12:51 PM</span>
-              <div className="flex items-center gap-1 text-slate-800 font-mono">
-                <span className="text-[8px] font-bold uppercase text-emerald-600">5G</span>
-                <span className="material-symbols-outlined text-[10px] font-bold">wifi</span>
-                <span className="material-symbols-outlined text-[10px] text-emerald-500 font-bold">battery_full</span>
-              </div>
-            </div>
+            {/* Top Navigation & Status Monitor */}
+            <MobileNav 
+              activeTab={activeTab} 
+              onTabChange={setActiveTab} 
+              patientName={activePatient?.name || ''} 
+              isPodConnected={true} 
+            />
 
-            {/* Simulated App Screens container */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+            {/* Simulated App Screens Container */}
+            <div className="flex-1 overflow-y-auto px-4 py-3.5 space-y-4">
               
               {/* TAB 1: HOME */}
               {activeTab === 'home' && (
-                <div className="space-y-4 animate-fade-in text-slate-800">
+                <div className="space-y-4 animate-fade-in text-white">
+                  
                   {/* Dashboard header */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono">My Care companion</span>
-                      <h3 className="text-sm font-extrabold text-slate-900 mt-0.5">Namaste, {activePatient?.name.split(' ')[0]} 👋</h3>
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest font-mono">
+                        Patient Workspace
+                      </span>
+                      <h3 className="text-sm font-black text-white mt-0.5">
+                        Namaste, {activePatient?.name.split(' ')[0]} 👋
+                      </h3>
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 font-black text-xs">
                       {activePatient?.name.substring(0, 2).toUpperCase() || 'MF'}
                     </div>
                   </div>
 
-                  {/* Active Care pod status block */}
-                  <div className="bg-gradient-to-br from-emerald-500 to-[#075e54] rounded-2xl p-3.5 text-white shadow-lg space-y-2 relative overflow-hidden border border-emerald-400/20">
-                    <div className="absolute -right-8 -bottom-8 w-24 h-24 rounded-full bg-emerald-400/10" />
-                    <span className="text-[8px] bg-emerald-400/25 text-emerald-100 border border-emerald-400/30 px-2 py-0.5 rounded font-mono font-bold tracking-widest uppercase">
-                      Connected Pod Network
-                    </span>
-                    <h4 className="text-xs font-extrabold flex items-center gap-1.5 text-white-force">
-                      Patna Zone Pod
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-                    </h4>
-                    <p className="text-[10px] text-emerald-100/90 leading-relaxed font-sans">
-                      All clinical files, invoices, and drug auto-refills are secure-synced via pod.
-                    </p>
-                  </div>
-
-                  {/* Active Vitals panel */}
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Health Vitals</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-white p-3 rounded-2xl border border-slate-200/50 shadow-sm flex flex-col justify-between">
-                        <div className="flex justify-between items-center text-rose-500">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">Glucose</span>
-                          <Flame className="h-3.5 w-3.5 animate-pulse" />
+                  {/* Above-the-fold Telehealth Alerts (Datadog Style) */}
+                  {pendingInvoice ? (
+                    <div 
+                      onClick={() => setActiveTab('wallet')}
+                      className="p-3.5 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-rose-500/15 transition-all animate-pulse"
+                    >
+                      <div className="flex gap-2.5 items-center text-rose-300">
+                        <AlertCircle className="h-4.5 w-4.5 text-rose-400 shrink-0" />
+                        <div>
+                          <h4 className="font-extrabold text-[10px] tracking-wide uppercase">Critical Invoice Pending Settle</h4>
+                          <p className="text-[8.5px] text-rose-400 mt-0.5 leading-none">e-Rx generated. Settle pod dues immediately.</p>
                         </div>
-                        <div className="mt-2.5">
-                          <span className="text-base font-extrabold text-slate-900">142</span>
-                          <span className="text-[9px] text-slate-400 ml-1">mg/dL</span>
-                        </div>
-                        <span className="text-[8px] text-slate-400 mt-1">Post-prandial • Normal</span>
                       </div>
-
-                      <div className="bg-white p-3 rounded-2xl border border-slate-200/50 shadow-sm flex flex-col justify-between">
-                        <div className="flex justify-between items-center text-primary">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">BP Index</span>
-                          <Activity className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <div className="mt-2.5">
-                          <span className="text-base font-extrabold text-slate-900">128/82</span>
-                          <span className="text-[9px] text-slate-400 ml-1">mmHg</span>
-                        </div>
-                        <span className="text-[8px] text-slate-400 mt-1">Borderline-normal</span>
+                      <ChevronRight className="h-4.5 w-4.5 text-rose-400" />
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2.5 text-emerald-300">
+                      <ShieldCheck className="h-4.5 w-4.5 text-emerald-400 shrink-0" />
+                      <div>
+                        <h4 className="font-extrabold text-[10px] uppercase">Ecosystem Health Safe</h4>
+                        <p className="text-[8.5px] text-emerald-400 leading-none mt-0.5">No critical care warnings resolved.</p>
                       </div>
                     </div>
+                  )}
+
+                  {/* Stripe Progressive Disclosure Metric Cards */}
+                  <div className="space-y-3">
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Core Telehealth Biomarkers</span>
+                    
+                    {/* Glucose card */}
+                    <MetricCard 
+                      title="Capillary Glucose" 
+                      value="142" 
+                      unit="mg/dL" 
+                      subtitle="Post-prandial • Clinical Grade" 
+                      icon={Flame} 
+                      iconColorClass="text-rose-400" 
+                      accentColorClass="from-rose-500/10 to-transparent"
+                      detailsTitle="Glucose Diagnostic Summary"
+                    >
+                      <p>Active wellness logs reveal stable glycemic clearance. Recommended daily self-checks. Keep carbohydrates below 50g per meal.</p>
+                    </MetricCard>
+
+                    {/* BP Index card */}
+                    <MetricCard 
+                      title="BP Systolic / Diastolic" 
+                      value="128/82" 
+                      unit="mmHg" 
+                      subtitle="Stable pod connection telemetry" 
+                      icon={Activity} 
+                      iconColorClass="text-cyan-400" 
+                      accentColorClass="from-cyan-500/10 to-transparent"
+                      detailsTitle="BP Clinical Summary"
+                    >
+                      <p>Cardiovascular indices are within borderline-normal limits. Dr. Sharma advises a standard low-sodium diet regime.</p>
+                    </MetricCard>
                   </div>
 
-                  {/* Daily Medication schedule (Pill trackers) */}
-                  <div className="bg-white border border-slate-200/50 shadow-sm rounded-2xl p-3.5 space-y-3">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Today's Pill Scheduler</h4>
-                      <span className="text-[8px] text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded font-bold">2 Remaining</span>
+                  {/* Sparkline Visualization */}
+                  <MobileChart 
+                    title="Glucose Level" 
+                    points={[130, 145, 125, 142, 138, 142]} 
+                    labels={['May 22', 'Today']} 
+                  />
+
+                  {/* Daily Medicine scheduler */}
+                  <div className="bg-zinc-900 border border-white/5 rounded-2xl p-3.5 space-y-3.5">
+                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                      <h4 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Active e-Rx Pill Scheduler</h4>
+                      <span className="text-[8px] text-cyan-400 bg-cyan-500/10 border border-cyan-500/25 px-2 py-0.5 rounded font-bold font-mono">2 ACTIVE</span>
                     </div>
 
                     <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-2">
-                          <div className="w-7 h-7 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-500 shrink-0 mt-0.5">
-                            <span className="material-symbols-outlined text-sm font-bold">pill</span>
+                      <div className="flex justify-between items-center">
+                        <div className="flex gap-2.5 items-center">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 shrink-0">
+                            <span className="material-symbols-outlined text-sm">pill</span>
                           </div>
                           <div>
-                            <h5 className="font-extrabold text-slate-800 text-[11px]">Metformin 500mg</h5>
-                            <p className="text-[9px] text-slate-400 mt-0.5">1-0-1 • Take with breakfast & dinner</p>
+                            <h5 className="font-extrabold text-white text-[11px]">Metformin 500mg</h5>
+                            <p className="text-[8.5px] text-zinc-400 mt-0.5">1-0-1 • Take with breakfast & dinner</p>
                           </div>
                         </div>
-                        <span className="text-[8px] font-bold text-slate-500 font-mono">Next: 2h</span>
+                        <span className="text-[8.5px] font-bold text-zinc-500 font-mono">Next: 2h</span>
                       </div>
 
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-2">
-                          <div className="w-7 h-7 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5">
-                            <span className="material-symbols-outlined text-sm font-bold">pill</span>
+                      <div className="flex justify-between items-center">
+                        <div className="flex gap-2.5 items-center">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 shrink-0">
+                            <span className="material-symbols-outlined text-sm">pill</span>
                           </div>
                           <div>
-                            <h5 className="font-extrabold text-slate-800 text-[11px]">Atorvastatin 10mg</h5>
-                            <p className="text-[9px] text-slate-400 mt-0.5">0-0-1 • Take before bed</p>
+                            <h5 className="font-extrabold text-white text-[11px]">Atorvastatin 10mg</h5>
+                            <p className="text-[8.5px] text-zinc-400 mt-0.5">0-0-1 • Take before bed</p>
                           </div>
                         </div>
-                        <span className="text-[8px] font-bold text-slate-500 font-mono">Next: 8h</span>
+                        <span className="text-[8.5px] font-bold text-zinc-500 font-mono">Next: 8h</span>
                       </div>
                     </div>
                   </div>
-
-                  {/* Pending Action item quick shortcut */}
-                  {pendingInvoice && (
-                    <div 
-                      onClick={() => setActiveTab('wallet')}
-                      className="p-3 bg-amber-50 border border-amber-200/50 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-amber-100/50 transition-colors animate-pulse"
-                    >
-                      <div className="flex gap-2 items-center text-amber-800">
-                        <AlertCircle className="h-4 w-4 text-amber-500" />
-                        <div>
-                          <h4 className="font-bold text-[10px]">Unified Invoice Settle Pending</h4>
-                          <p className="text-[8.5px] text-amber-600 mt-0.5">Dr. Sharma signed off your e-Rx. Settle dues.</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-amber-500" />
-                    </div>
-                  )}
 
                 </div>
               )}
 
               {/* TAB 2: MEDICAL RECORDS */}
               {activeTab === 'records' && (
-                <div className="space-y-4 animate-fade-in text-slate-800">
-                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
-                    <FileText className="h-4 w-4 text-primary" />
-                    My Health Locker Logs
+                <div className="space-y-4 animate-fade-in text-white">
+                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wide">
+                    <FileText className="h-4 w-4 text-cyan-400" />
+                    Clinical Record Vault
                   </h3>
 
-                  {/* e-Prescriptions list section */}
+                  {/* e-Prescriptions history */}
                   <div className="space-y-2.5">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">e-Prescriptions History</span>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Active e-Prescriptions</span>
                     {activeEncounters.length === 0 ? (
-                      <p className="text-[10px] text-slate-500 italic bg-white p-3 rounded-2xl border border-slate-200/50 text-center">No active prescriptions locked in the pod.</p>
+                      <p className="text-[10px] text-zinc-500 italic bg-zinc-900 p-3 rounded-2xl border border-white/5 text-center">No active prescriptions locked in the pod.</p>
                     ) : (
                       activeEncounters.map(enc => (
-                        <div key={enc.id} className="bg-white p-3.5 rounded-2xl border border-slate-200/50 shadow-sm space-y-2">
+                        <div key={enc.id} className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h4 className="font-bold text-slate-800 text-[11px]">Encounter & e-Rx Record</h4>
-                              <span className="text-[8px] text-slate-400 block font-mono mt-0.5">{new Date(enc.createdAt).toLocaleDateString()}</span>
+                              <h4 className="font-extrabold text-white text-[11px]">e-Rx Prescription</h4>
+                              <span className="text-[8px] text-zinc-500 block font-mono mt-0.5">{new Date(enc.createdAt).toLocaleDateString()}</span>
                             </div>
-                            <span className="text-[8px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold uppercase">SIGNED OFF</span>
+                            <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-1.5 py-0.5 rounded font-mono font-bold uppercase">SIGNED OFF</span>
                           </div>
                           
                           {enc.clinicalNotes && (
-                            <p className="text-[9.5px] text-slate-500 italic border-l-2 border-slate-200 pl-2 leading-relaxed bg-slate-50 py-1 pr-1 rounded">
+                            <p className="text-[9.5px] text-zinc-400 italic border-l-2 border-cyan-500/30 pl-2 leading-relaxed bg-zinc-950/40 p-2 rounded">
                               " {enc.clinicalNotes} "
                             </p>
                           )}
 
-                          <div className="text-[9.5px] space-y-1">
-                            <span className="block text-[8px] font-bold text-slate-400 uppercase">Prescribed Generic Meds:</span>
+                          <div className="text-[9.5px] space-y-1.5">
+                            <span className="block text-[8px] font-bold text-zinc-500 uppercase font-mono tracking-wider">Prescribed Generic Meds:</span>
                             {enc.medications.map((m, idx) => (
-                              <div key={idx} className="flex justify-between font-semibold text-slate-700 text-[9px]">
+                              <div key={idx} className="flex justify-between font-semibold text-zinc-300 text-[9px]">
                                 <span>💊 {m.medicineName}</span>
                                 <span>{m.frequency} ({m.duration})</span>
                               </div>
@@ -446,42 +456,42 @@ export const PatientMobileDashboard: React.FC = () => {
 
                   {/* Pathology report with RAG interpretation drawer */}
                   <div className="space-y-2.5">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Qualitative Pathology Lab results</span>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Pathology Lab Reports</span>
                     {activeReports.length === 0 ? (
-                      <p className="text-[10px] text-slate-500 italic bg-white p-3 rounded-2xl border border-slate-200/50 text-center">No pathological records reported yet.</p>
+                      <p className="text-[10px] text-zinc-500 italic bg-zinc-900 p-3 rounded-2xl border border-white/5 text-center">No pathological records reported yet.</p>
                     ) : (
                       activeReports.map(rep => (
-                        <div key={rep.id} className="bg-white p-3.5 rounded-2xl border border-slate-200/50 shadow-sm space-y-3">
+                        <div key={rep.id} className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h4 className="font-bold text-slate-800 text-[11px]">{rep.testName}</h4>
-                              <span className="text-[8px] text-slate-400 block font-mono mt-0.5">LOINC Code: {rep.loincCode}</span>
+                              <h4 className="font-extrabold text-white text-[11px]">{rep.testName}</h4>
+                              <span className="text-[8px] text-zinc-500 block font-mono mt-0.5">LOINC Code: {rep.loincCode}</span>
                             </div>
-                            <span className="text-[8px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold uppercase">Approved</span>
+                            <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-1.5 py-0.5 rounded font-mono font-bold uppercase">Approved</span>
                           </div>
 
-                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/50 font-mono text-[10px] text-slate-700 leading-normal">
-                            <strong>Lab Finding:</strong> {rep.results || 'No quantitative diagnostics details resolved.'}
+                          <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-white/5 font-mono text-[9.5px] text-zinc-300 leading-normal">
+                            <strong>Diagnostic Finding:</strong> {rep.results || 'No quantitative diagnostics details resolved.'}
                           </div>
 
                           {/* Plain-Language RAG interpreter trigger */}
                           <div className="space-y-2">
                             {translatedRagReportId === rep.id ? (
                               isRagTranslating ? (
-                                <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl animate-pulse text-center space-y-2 text-primary">
+                                <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl animate-pulse text-center space-y-2 text-cyan-400">
                                   <span className="material-symbols-outlined text-lg animate-spin">sync</span>
-                                  <p className="text-[9px] font-bold font-mono tracking-wider uppercase">Running Vector RAG Translation...</p>
+                                  <p className="text-[8px] font-bold font-mono tracking-widest uppercase">Running Vector RAG Translation...</p>
                                 </div>
                               ) : (
-                                <div className="p-3.5 bg-blue-50 border border-blue-100 text-blue-900 rounded-xl space-y-2 animate-fade-in text-[10px] leading-relaxed">
-                                  <div className="flex items-center gap-1.5 text-primary text-[9px] font-bold tracking-widest uppercase font-mono border-b border-blue-200/50 pb-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                <div className="p-3.5 bg-cyan-950/80 border border-cyan-500/20 text-cyan-100 rounded-xl space-y-2.5 animate-fade-in text-[9.5px] leading-relaxed">
+                                  <div className="flex items-center gap-1.5 text-cyan-400 text-[8px] font-bold tracking-widest uppercase font-mono border-b border-white/5 pb-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                                     AI RAG plain language summary
                                   </div>
-                                  <p className="whitespace-pre-line font-medium text-slate-700">{ragTranslationText}</p>
+                                  <p className="whitespace-pre-line font-medium text-zinc-300">{ragTranslationText}</p>
                                   <button
                                     onClick={() => setTranslatedRagReportId(null)}
-                                    className="text-[8.5px] text-slate-400 hover:text-slate-600 block mt-1.5 font-bold uppercase tracking-wider underline cursor-pointer"
+                                    className="text-[8px] text-zinc-500 hover:text-zinc-300 block mt-1.5 font-bold uppercase tracking-wider underline cursor-pointer"
                                   >
                                     Close AI Advisory
                                   </button>
@@ -490,7 +500,7 @@ export const PatientMobileDashboard: React.FC = () => {
                             ) : (
                               <button
                                 onClick={() => handleTranslateRAG(rep.id, rep.testName, rep.results || '')}
-                                className="w-full btn-primary bg-primary hover:opacity-95 border-primary py-2 text-[9.5px] font-bold tracking-wider rounded-xl transition-all shadow-md flex justify-center items-center gap-1.5 text-white-force cursor-pointer"
+                                className="w-full py-2 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white font-bold text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md flex justify-center items-center gap-1 cursor-pointer"
                               >
                                 <span className="material-symbols-outlined text-xs">psychology</span>
                                 Run plain-language RAG AI Advisor
@@ -508,15 +518,16 @@ export const PatientMobileDashboard: React.FC = () => {
 
               {/* TAB 3: WALLET & BILLING */}
               {activeTab === 'wallet' && (
-                <div className="space-y-4 animate-fade-in text-slate-800">
-                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
-                    <Wallet className="h-4 w-4 text-emerald-500" />
+                <div className="space-y-4 animate-fade-in text-white">
+                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wide">
+                    <Wallet className="h-4 w-4 text-cyan-400" />
                     Digital Wallet & Insurance
                   </h3>
 
                   {/* ABHA Wallet Pass */}
-                  <div className="bg-gradient-to-tr from-cyan-600 to-indigo-600 rounded-2xl p-4 text-white shadow-lg space-y-4 relative border border-cyan-400/20">
-                    <div className="flex justify-between items-start">
+                  <div className="bg-gradient-to-tr from-cyan-600 to-indigo-600 rounded-2xl p-4 text-white shadow-lg space-y-4 relative border border-cyan-400/20 overflow-hidden">
+                    <div className="absolute -right-8 -bottom-8 w-24 h-24 rounded-full bg-white/5" />
+                    <div className="flex justify-between items-start relative">
                       <div className="space-y-1">
                         <span className="text-[7.5px] bg-white/20 border border-white/20 px-2 py-0.5 rounded font-mono font-bold tracking-widest uppercase">
                           NDHM • Health ID Pass
@@ -529,7 +540,7 @@ export const PatientMobileDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-end pt-2 border-t border-cyan-500/30">
+                    <div className="flex justify-between items-end pt-2 border-t border-cyan-500/30 relative">
                       <div>
                         <span className="text-[7px] text-cyan-200 block uppercase font-mono font-bold">Ecosystem Status</span>
                         <span className="text-[9.5px] font-bold flex items-center gap-1">
@@ -575,33 +586,33 @@ export const PatientMobileDashboard: React.FC = () => {
 
                   {/* Invoice listing */}
                   <div className="space-y-2.5">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Unified Care Invoices</span>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">Unified Care Invoices</span>
                     {activeInvoices.length === 0 ? (
-                      <p className="text-[10px] text-slate-500 italic bg-white p-3 rounded-2xl border border-slate-200/50 text-center">No care invoices recorded.</p>
+                      <p className="text-[10px] text-zinc-500 italic bg-zinc-900 p-3 rounded-2xl border border-white/5 text-center">No care invoices recorded.</p>
                     ) : (
                       activeInvoices.map(inv => (
-                        <div key={inv.id} className="bg-white p-3.5 rounded-2xl border border-slate-200/50 shadow-sm space-y-3">
+                        <div key={inv.id} className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3.5">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h4 className="font-extrabold text-slate-800 text-[11px]">Mediflow Care Invoice</h4>
-                              <span className="text-[8px] text-slate-400 block font-mono mt-0.5">ID: {inv.id.substring(0, 8)}...</span>
+                              <h4 className="font-extrabold text-white text-[11px]">Mediflow Pod Invoice</h4>
+                              <span className="text-[8px] text-zinc-500 block font-mono mt-0.5">ID: {inv.id.substring(0, 8)}...</span>
                             </div>
                             <span className={`text-[8.5px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
                               inv.paymentStatus === 'cleared'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-rose-100 text-rose-800 animate-pulse'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
+                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/25 animate-pulse'
                             }`}>
                               {inv.paymentStatus}
                             </span>
                           </div>
 
-                          <div className="text-[10px] space-y-1 text-slate-600">
-                            <div className="flex justify-between"><span>Doctor Consultation:</span><span className="font-mono text-slate-800">₹{inv.doctorFee}.00</span></div>
-                            <div className="flex justify-between"><span>Laboratory Pathology:</span><span className="font-mono text-slate-800">₹{inv.labFee}.00</span></div>
-                            <div className="flex justify-between"><span>Pharmacy prescription:</span><span className="font-mono text-slate-800">₹{inv.pharmacyFee}.00</span></div>
-                            <div className="flex justify-between font-bold text-slate-900 border-t border-slate-100 pt-1.5 text-[11px]">
+                          <div className="text-[9.5px] space-y-1 text-zinc-400">
+                            <div className="flex justify-between"><span>Doctor Consultation:</span><span className="font-mono text-zinc-300">₹{inv.doctorFee}.00</span></div>
+                            <div className="flex justify-between"><span>Laboratory Pathology:</span><span className="font-mono text-zinc-300">₹{inv.labFee}.00</span></div>
+                            <div className="flex justify-between"><span>Pharmacy prescription:</span><span className="font-mono text-zinc-300">₹{inv.pharmacyFee}.00</span></div>
+                            <div className="flex justify-between font-bold text-white border-t border-white/5 pt-1.5 text-[11px]">
                               <span>Total Amount:</span>
-                              <span className="font-mono text-primary">₹{inv.totalAmount}.00</span>
+                              <span className="font-mono text-cyan-400">₹{inv.totalAmount}.00</span>
                             </div>
                           </div>
 
@@ -609,9 +620,9 @@ export const PatientMobileDashboard: React.FC = () => {
                           {inv.paymentStatus === 'pending' && (
                             <button
                               onClick={() => handleTriggerUpiSheet(inv)}
-                              className="w-full btn-primary bg-emerald-500 hover:bg-emerald-600 border-emerald-500 py-2.5 text-xs font-bold rounded-xl transition-all shadow-md flex justify-center items-center gap-1.5 text-white-force cursor-pointer"
+                              className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-lg shadow-emerald-500/10 transition-all flex justify-center items-center gap-1.5 cursor-pointer text-white-force"
                             >
-                              <Coins className="h-4 w-4 text-white-force animate-spin-slow" />
+                              <Coins className="h-4 w-4 text-white-force" />
                               Settle Invoice via UPI (₹{inv.totalAmount})
                             </button>
                           )}
@@ -626,66 +637,66 @@ export const PatientMobileDashboard: React.FC = () => {
 
               {/* TAB 4: REFILL PLANNER */}
               {activeTab === 'refills' && (
-                <div className="space-y-4 animate-fade-in text-slate-800">
-                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
-                    <RefreshCw className="h-4 w-4 text-amber-500" />
+                <div className="space-y-4 animate-fade-in text-white">
+                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wide">
+                    <RefreshCw className="h-4 w-4 text-cyan-400" />
                     Chronic Refill Planner
                   </h3>
 
                   {/* Refills details card */}
-                  <div className="bg-white border border-slate-200/50 shadow-sm rounded-2xl p-4 space-y-3">
-                    <div className="flex gap-3 items-start text-amber-600 font-bold text-xs">
-                      <Award className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 space-y-3">
+                    <div className="flex gap-3 items-start text-cyan-400 font-bold text-xs">
+                      <Award className="h-4.5 w-4.5 text-cyan-400 shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="text-[11px]">Loyalty Auto-Refill Benefits</h4>
-                        <p className="text-[9px] text-slate-400 font-normal leading-relaxed mt-0.5">
-                          Patients managing active chronic management logs inside the pod qualify for instant auto-refill holds.
+                        <h4 className="text-[11px]">Ecosystem Auto-Refill Benefits</h4>
+                        <p className="text-[9px] text-zinc-400 font-normal leading-relaxed mt-0.5">
+                          Unified chronic refills are prepared automatically based on active clinical records. Dispatch refills in 1-Tap!
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">My Prescribed Chronics</span>
+                  <div className="space-y-3.5">
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block">My Prescribed Chronics</span>
                     
-                    <div className="bg-white p-3.5 rounded-2xl border border-slate-200/50 shadow-sm space-y-3">
+                    <div className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-500 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 shrink-0">
                             <span className="material-symbols-outlined text-sm font-bold">pill</span>
                           </div>
                           <div>
-                            <h4 className="font-extrabold text-slate-800 text-[11px]">Metformin 500mg</h4>
-                            <p className="text-[8.5px] text-slate-400 mt-0.5">Type-2 Diabetes Management</p>
+                            <h4 className="font-extrabold text-white text-[11px]">Metformin 500mg</h4>
+                            <p className="text-[8.5px] text-zinc-400 mt-0.5">Type-2 Diabetes Management</p>
                           </div>
                         </div>
-                        <span className="text-[8px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold font-mono">10 Days left</span>
+                        <span className="text-[8px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 px-1.5 py-0.5 rounded font-bold font-mono">10 Days left</span>
                       </div>
                       <button
                         onClick={() => handleOneClickRefill('Metformin 500mg')}
-                        className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-primary py-2 text-[9.5px] font-bold tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
+                        className="w-full bg-zinc-950 hover:bg-zinc-900 border border-white/10 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                         1-Tap Auto-Refill (Patna Pharmacy)
                       </button>
                     </div>
 
-                    <div className="bg-white p-3.5 rounded-2xl border border-slate-200/50 shadow-sm space-y-3">
+                    <div className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 shrink-0">
                             <span className="material-symbols-outlined text-sm font-bold">pill</span>
                           </div>
                           <div>
-                            <h4 className="font-extrabold text-slate-800 text-[11px]">Atorvastatin 10mg</h4>
-                            <p className="text-[8.5px] text-slate-400 mt-0.5">Hypertension Management</p>
+                            <h4 className="font-extrabold text-white text-[11px]">Atorvastatin 10mg</h4>
+                            <p className="text-[8.5px] text-zinc-400 mt-0.5">Hypertension Management</p>
                           </div>
                         </div>
-                        <span className="text-[8px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold font-mono">30 Days left</span>
+                        <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-1.5 py-0.5 rounded font-bold font-mono">30 Days left</span>
                       </div>
                       <button
                         onClick={() => handleOneClickRefill('Atorvastatin 10mg')}
-                        className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-primary py-2 text-[9.5px] font-bold tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
+                        className="w-full bg-zinc-950 hover:bg-zinc-900 border border-white/10 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                         1-Tap Auto-Refill (Patna Pharmacy)
@@ -696,33 +707,33 @@ export const PatientMobileDashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 5: VITALS & DEMO CONTROLLER */}
+              {/* TAB 5: VITALS & SIM STATUS */}
               {activeTab === 'vitals' && (
-                <div className="space-y-4 animate-fade-in text-slate-800">
-                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
-                    <Activity className="h-4 w-4 text-rose-500 animate-pulse" />
-                    Telehealth Vital Logger
+                <div className="space-y-4 animate-fade-in text-white">
+                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wide">
+                    <Activity className="h-4 w-4 text-cyan-400" />
+                    Simulation Status & Logs
                   </h3>
 
                   {/* Active Patient Switcher inside mobile */}
-                  <div className="bg-white border border-slate-200/50 shadow-sm rounded-2xl p-4 space-y-3">
+                  <div className="bg-zinc-900 border border-white/5 rounded-2xl p-4 space-y-3">
                     <div>
-                      <label className="block text-[8.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                        Active Simulation Profile
+                      <label className="block text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5">
+                        Simulation Active Profile
                       </label>
                       <select
                         value={selectedPhone}
                         onChange={e => setSelectedPhone(e.target.value)}
-                        className="w-full input-field py-2 text-[11px] bg-slate-50 border-slate-200"
+                        className="w-full bg-zinc-950 border border-white/10 rounded-xl py-2 px-3 text-xs text-white outline-none"
                       >
                         {patients.map(p => (
-                          <option key={p.id} value={p.phone}>{p.name} ({p.phone})</option>
+                          <option key={p.id} value={p.phone} className="bg-zinc-900">{p.name} ({p.phone})</option>
                         ))}
                       </select>
                     </div>
 
                     {activePatient && (
-                      <div className="text-[9.5px] text-slate-500 font-sans leading-relaxed pt-2 border-t border-slate-100">
+                      <div className="text-[9.5px] text-zinc-400 font-sans leading-relaxed pt-2 border-t border-white/5">
                         <strong>Chronic list</strong>: {activePatient.chronicConditions.join(', ') || 'None'}<br/>
                         <strong>Allergies</strong>: {activePatient.allergies.join(', ') || 'NKDA'}<br/>
                         <strong>ABHA ID</strong>: {activePatient.abhaId || 'Not set'}
@@ -731,60 +742,60 @@ export const PatientMobileDashboard: React.FC = () => {
                   </div>
 
                   {/* Form to log vitals */}
-                  <form onSubmit={handleLogVitals} className="space-y-3 bg-white border border-slate-200/50 shadow-sm rounded-2xl p-4">
-                    <span className="block text-[8.5px] font-bold text-slate-400 uppercase tracking-widest">
+                  <form onSubmit={handleLogVitals} className="space-y-3.5 bg-zinc-900 border border-white/5 rounded-2xl p-4">
+                    <span className="block text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest">
                       Record Biomarkers
                     </span>
                     <div>
-                      <label className="block text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Glucose (mg/dL)</label>
+                      <label className="block text-[9px] font-bold text-zinc-400 mb-1 uppercase tracking-wide">Glucose (mg/dL)</label>
                       <input
                         type="number"
                         placeholder="e.g. 130"
                         value={loggedGlucose}
                         onChange={e => setLoggedGlucose(e.target.value !== '' ? Number(e.target.value) : '')}
-                        className="w-full input-field text-[11px] py-1.5 border-slate-200 bg-slate-50"
+                        className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3.5">
                       <div>
-                        <label className="block text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-wide">BP Systolic</label>
+                        <label className="block text-[9px] font-bold text-zinc-400 mb-1 uppercase tracking-wide">BP Systolic</label>
                         <input
                           type="number"
                           placeholder="e.g. 120"
                           value={loggedBpSystolic}
                           onChange={e => setLoggedBpSystolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                          className="w-full input-field text-[11px] py-1.5 border-slate-200 bg-slate-50"
+                          className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-[9px] font-bold text-slate-500 mb-1 uppercase tracking-wide">BP Diastolic</label>
+                        <label className="block text-[9px] font-bold text-zinc-400 mb-1 uppercase tracking-wide">BP Diastolic</label>
                         <input
                           type="number"
                           placeholder="e.g. 80"
                           value={loggedBpDiastolic}
                           onChange={e => setLoggedBpDiastolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                          className="w-full input-field text-[11px] py-1.5 border-slate-200 bg-slate-50"
+                          className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                         />
                       </div>
                     </div>
                     <button
                       type="submit"
-                      className="w-full btn-primary bg-primary hover:opacity-95 text-[10px] py-2 flex justify-center items-center gap-1 text-white-force font-bold rounded-xl cursor-pointer shadow-sm"
+                      className="w-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider py-2.5 transition-all shadow-md flex justify-center items-center gap-1 cursor-pointer"
                     >
-                      <Activity className="h-3.5 w-3.5 text-white-force animate-pulse" />
+                      <Activity className="h-3.5 w-3.5 animate-pulse" />
                       Sync Vitals to Care Pod
                     </button>
                   </form>
 
-                  {/* PWA simulated Install status */}
-                  <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-4 space-y-2.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[8px] text-secondary font-bold uppercase tracking-widest font-mono">
+                  {/* PWA capabilities status bar */}
+                  <div className="bg-zinc-900 border border-white/5 text-white rounded-2xl p-4 space-y-2.5">
+                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                      <span className="text-[8px] text-cyan-400 font-bold uppercase tracking-widest font-mono">
                         PWA Capabilities Status
                       </span>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     </div>
-                    <div className="flex justify-between items-center text-[10px]">
+                    <div className="flex justify-between items-center text-[10px] font-semibold">
                       <span>Service Worker Active:</span>
                       <span className="text-emerald-400 font-bold font-mono">ONLINE</span>
                     </div>
@@ -793,13 +804,13 @@ export const PatientMobileDashboard: React.FC = () => {
                       onClick={() => {
                         window.dispatchEvent(new CustomEvent('mediflow-toast', {
                           detail: {
-                            title: 'PWA Installed Successfully! 📱',
-                            message: 'Mediflow Care Connected Ecosystem registered on your home screen.',
+                            title: 'PWA Connected successfully! 📱',
+                            message: 'Mediflow Care shortcut committed to smartphone home screen.',
                             type: 'success'
                           }
                         }));
                       }}
-                      className="w-full bg-secondary text-slate-950 font-extrabold text-[10px] py-2 rounded-xl hover:scale-101 transition-transform flex justify-center items-center gap-1.5 cursor-pointer"
+                      className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer text-zinc-300"
                     >
                       <Smartphone className="h-3.5 w-3.5" />
                       Add to Mobile Home Screen
@@ -810,91 +821,67 @@ export const PatientMobileDashboard: React.FC = () => {
 
             </div>
 
-            {/* Simulated smartphone bottom tab bar navigation */}
-            <div className="bg-white border-t border-slate-200 py-2.5 px-4 flex justify-between items-center shrink-0 z-40">
-              {[
-                { id: 'home', label: 'Home', icon: Home },
-                { id: 'records', label: 'Records', icon: FileText },
-                { id: 'wallet', label: 'Wallet', icon: Wallet },
-                { id: 'refills', label: 'Refills', icon: RefreshCw },
-                { id: 'vitals', label: 'Health', icon: Activity }
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                      isActive 
-                        ? 'text-primary scale-105' 
-                        : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    <Icon className="h-4.5 w-4.5" />
-                    <span className="text-[8px] font-bold uppercase tracking-wider">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
             {/* Google Pay Style mobile sheet modal backdrop */}
             {isUpiModalOpen && activeUpiInvoice && (
-              <div className="absolute inset-0 bg-black/60 z-50 flex flex-col justify-end animate-fade-in">
-                <div className="bg-white rounded-t-[32px] p-5 space-y-4 animate-slide-up shadow-2xl">
+              <div className="absolute inset-0 bg-black/80 z-50 flex flex-col justify-end animate-fade-in">
+                <div className="bg-zinc-900 rounded-t-[32px] p-5 space-y-4 border-t border-white/10 animate-slide-up shadow-2xl">
                   
                   {/* Modal Header */}
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                    <div className="flex gap-2 items-center">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <div className="flex gap-2 items-center text-white">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center justify-center font-bold text-xs">
                         G
                       </div>
-                      <h4 className="font-extrabold text-[11px] text-slate-800">Unified UPI Gateway (Patna Pod)</h4>
+                      <h4 className="font-extrabold text-[11px] uppercase tracking-wider font-mono">Unified UPI split payout</h4>
                     </div>
                     <button
                       onClick={() => setIsUpiModalOpen(false)}
-                      className="p-1 hover:bg-slate-100 rounded-full text-slate-400"
+                      className="p-1 hover:bg-white/5 rounded-full text-zinc-400"
                     >
                       <span className="material-symbols-outlined text-sm font-bold">close</span>
                     </button>
                   </div>
 
-                  {/* Payment success sheets */}
+                  {/* Payment success sheet */}
                   {paymentSuccess ? (
                     <div className="py-6 text-center space-y-3 animate-fade-in">
-                      <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                        <CheckCircle2 className="h-8 w-8 text-emerald-500 animate-bounce" />
+                      <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                        <CheckCircle2 className="h-8 w-8 text-emerald-400 animate-bounce" />
                       </div>
                       <div>
-                        <h4 className="font-extrabold text-slate-900 text-sm">Payment Approved!</h4>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Unified Care Split Ledgers Settled Successfully.</p>
+                        <h4 className="font-extrabold text-white text-sm">Payment Approved!</h4>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">Unified Care Split Ledgers Settled Successfully.</p>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-200/50">
-                        <span className="text-[8px] text-slate-400 block uppercase font-bold tracking-widest font-mono">Invoice Settle Total</span>
-                        <h2 className="text-xl font-extrabold text-primary font-mono mt-1">₹{activeUpiInvoice.totalAmount}.00</h2>
+                      <div className="text-center bg-zinc-950/80 p-4 rounded-2xl border border-white/5">
+                        <span className="text-[8px] text-zinc-500 block uppercase font-bold tracking-widest font-mono">Invoice Settle Total</span>
+                        <h2 className="text-xl font-extrabold text-cyan-400 font-mono mt-1">₹{activeUpiInvoice.totalAmount}.00</h2>
                       </div>
 
                       {/* Split calculations break logs */}
-                      <div className="text-[9px] bg-slate-50/50 p-3.5 border border-slate-200/50 rounded-2xl space-y-2">
-                        <span className="block text-[8px] font-bold text-slate-400 uppercase font-mono tracking-widest">Ecosystem Split Ledger settling</span>
-                        <div className="flex justify-between"><span>👩‍⚕️ Doctor Appt (doc-1):</span><span className="font-mono text-slate-700">₹{activeUpiInvoice.doctorFee}.00</span></div>
-                        <div className="flex justify-between"><span>🧪 Lab pathology (15% split):</span><span className="font-mono text-slate-700">₹{activeUpiInvoice.labFee}.00</span></div>
-                        <div className="flex justify-between"><span>💊 Pharmacy Inventory (10% split):</span><span className="font-mono text-slate-700">₹{activeUpiInvoice.pharmacyFee}.00</span></div>
+                      <div className="text-[9.5px] bg-zinc-950/50 p-3.5 border border-white/5 rounded-2xl space-y-2 text-zinc-400">
+                        <span className="block text-[8px] font-bold text-zinc-500 uppercase font-mono tracking-widest">Ecosystem Split Ledger Settles</span>
+                        <div className="flex justify-between"><span>👩‍⚕️ Doctor Appt (doc-1):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.doctorFee}.00</span></div>
+                        <div className="flex justify-between"><span>🧪 Lab Pathology (350/test):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.labFee}.00</span></div>
+                        <div className="flex justify-between"><span>💊 Pharmacy POS (150/hold):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.pharmacyFee}.00</span></div>
+                        <div className="flex justify-between border-t border-white/5 pt-1.5 font-bold text-white text-[10px]">
+                          <span>🛡️ Mediflow Fee (flat ₹10 min):</span>
+                          <span className="font-mono text-cyan-400">₹{activeUpiInvoice.platformFee}.00</span>
+                        </div>
                       </div>
 
                       {/* Pin code entering input sheet */}
                       <div>
-                        <label className="block text-[8.5px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">Enter 4-Digit UPI PIN</label>
+                        <label className="block text-[8.5px] font-bold text-zinc-500 uppercase tracking-widest mb-1.5 text-center">Enter 4-Digit UPI PIN</label>
                         <input
                           type="password"
                           maxLength={4}
                           placeholder="••••"
                           value={upiPin}
                           onChange={e => setUpiPin(e.target.value)}
-                          className="w-24 mx-auto text-center font-extrabold font-mono tracking-widest text-lg bg-slate-50 border border-slate-200 focus:outline-none focus:border-primary rounded-lg py-1 flex justify-center"
+                          className="w-24 mx-auto text-center font-extrabold font-mono tracking-widest text-lg bg-zinc-950 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 rounded-lg py-1 flex justify-center"
                         />
                       </div>
 
@@ -903,8 +890,8 @@ export const PatientMobileDashboard: React.FC = () => {
                         disabled={isPaying || upiPin.length < 4}
                         className={`w-full py-3 text-xs font-bold rounded-xl transition-all shadow-md flex justify-center items-center gap-1.5 text-white-force ${
                           upiPin.length === 4 && !isPaying
-                            ? 'bg-emerald-600 hover:bg-emerald-500 cursor-pointer text-white-force'
-                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 cursor-pointer text-white-force'
+                            : 'bg-zinc-800 text-zinc-500 border border-white/5 cursor-not-allowed'
                         }`}
                       >
                         {isPaying ? (

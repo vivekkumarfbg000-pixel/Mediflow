@@ -133,6 +133,9 @@ const INITIAL_PATIENTS: Patient[] = [
 class MediflowApiService {
   private listeners: Set<() => void> = new Set();
   public isSyncing = false;
+  public isVoiceScribing = false;
+  public isOcrScanning = false;
+  public isLabTrending = false;
   public simulatedRole = 'compounder';
 
   constructor() {
@@ -3605,6 +3608,8 @@ Dhyan rakhein aur time par medicine lein!`;
    * Falls back to a local mock summary if the backend is unreachable.
    */
   async voiceScribe(audioBlob: Blob, filename = 'recording.webm'): Promise<{ summary: string; language: string }> {
+    this.isVoiceScribing = true;
+    this.notify();
     try {
       const form = new FormData();
       form.append('file', audioBlob, filename);
@@ -3612,12 +3617,33 @@ Dhyan rakhein aur time par medicine lein!`;
         method: 'POST',
         body: form,
       });
-      if (!res.ok) throw new Error(`voice-scribe HTTP ${res.status}`);
-      return await res.json();
-    } catch (err) {
+      if (!res.ok) throw new Error(`voice-scribe HTTP status ${res.status}`);
+      const data = await res.json();
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Voice-Scribe Complete ✅',
+          message: 'Clinical session audio summarized successfully in Hinglish.',
+          type: 'success'
+        }
+      }));
+      return data;
+    } catch (err: any) {
       console.warn('[Mediflow AI] voice-scribe backend unreachable, using mock:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'AI Voice-Scribe Fallback',
+          message: `Local server offline (${err.message || err}). Loaded Hinglish clinical scribe fallback.`,
+          type: 'warning'
+        }
+      }));
       await new Promise(r => setTimeout(r, 600));
-      return { summary: '(Mock) Patient presented with fever and mild cough. Advised rest and paracetamol.', language: 'Hinglish' };
+      return { 
+        summary: 'Patient presented with sugar test result and cough state. HbA1c is 7.2 percent, serum creatinine is 1.1 mg/dL, and patient has a mild dry cough for three days. No known drug allergy.', 
+        language: 'Hinglish' 
+      };
+    } finally {
+      this.isVoiceScribing = false;
+      this.notify();
     }
   }
 
@@ -3626,6 +3652,8 @@ Dhyan rakhein aur time par medicine lein!`;
    * Falls back to empty structured data if the backend is unreachable.
    */
   async ocrScan(file: File): Promise<{ extracted_text: string; structured_data: Record<string, string> }> {
+    this.isOcrScanning = true;
+    this.notify();
     try {
       const form = new FormData();
       form.append('file', file, file.name);
@@ -3633,15 +3661,33 @@ Dhyan rakhein aur time par medicine lein!`;
         method: 'POST',
         body: form,
       });
-      if (!res.ok) throw new Error(`ocr-scan HTTP ${res.status}`);
-      return await res.json();
-    } catch (err) {
+      if (!res.ok) throw new Error(`ocr-scan HTTP status ${res.status}`);
+      const data = await res.json();
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'OCR Scan Complete ✅',
+          message: `Document parsed successfully with ${Object.keys(data.structured_data || {}).length} structured keys.`,
+          type: 'success'
+        }
+      }));
+      return data;
+    } catch (err: any) {
       console.warn('[Mediflow AI] ocr-scan backend unreachable, using mock:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'AI OCR-Scan Fallback',
+          message: `Local server offline (${err.message || err}). Extracted mock patient report data.`,
+          type: 'warning'
+        }
+      }));
       await new Promise(r => setTimeout(r, 800));
       return {
         extracted_text: '(Mock OCR) Patient Name: Aarav Sharma\nHbA1c: 7.2%\nCreatinine: 1.1 mg/dL',
         structured_data: { 'Patient Name': 'Aarav Sharma', 'HbA1c': '7.2%', 'Creatinine': '1.1 mg/dL' },
       };
+    } finally {
+      this.isOcrScanning = false;
+      this.notify();
     }
   }
 
@@ -3649,21 +3695,45 @@ Dhyan rakhein aur time par medicine lein!`;
    * Lab-Trend: Posts structured lab data to FastAPI /api/lab-trend for trend analysis.
    */
   async labTrend(labData: Record<string, string>): Promise<{ analysis: string; recommendations: string[] }> {
+    this.isLabTrending = true;
+    this.notify();
     try {
       const res = await fetch(`${MediflowApiService.AI_BASE}/api/lab-trend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(labData),
       });
-      if (!res.ok) throw new Error(`lab-trend HTTP ${res.status}`);
-      return await res.json();
-    } catch (err) {
+      if (!res.ok) throw new Error(`lab-trend HTTP status ${res.status}`);
+      const data = await res.json();
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Lab Trend Analyzed ✅',
+          message: 'Biomarker trajectory recommendations parsed successfully.',
+          type: 'success'
+        }
+      }));
+      return data;
+    } catch (err: any) {
       console.warn('[Mediflow AI] lab-trend backend unreachable, using mock:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'AI Lab-Trend Fallback',
+          message: `Local server offline (${err.message || err}). Extracted mock trend recommendations.`,
+          type: 'warning'
+        }
+      }));
       await new Promise(r => setTimeout(r, 400));
       return {
-        analysis: '(Mock) All lab values are within expected clinical ranges.',
-        recommendations: ['Recheck HbA1c in 3 months', 'Maintain low-GI diet'],
+        analysis: 'HbA1c is 7.2% which is in the diabetic range. Levels show minor elevation compared to pre-check.',
+        recommendations: [
+          'Prioritize low-GI dietary carbs intake control.',
+          'Recheck Glycated Hemoglobin (HbA1c) in 90 days.',
+          'Continue daily vitals tracking on WhatsApp.'
+        ],
       };
+    } finally {
+      this.isLabTrending = false;
+      this.notify();
     }
   }
 
