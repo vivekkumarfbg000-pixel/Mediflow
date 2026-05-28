@@ -1479,6 +1479,11 @@ class MediflowApiService {
     return this.load<LabRequisition[]>('lab_requisitions', []);
   }
 
+  saveLabRequisitions(reqs: LabRequisition[]): void {
+    this.save('lab_requisitions', reqs);
+    this.notify();
+  }
+
   collectLabSample(reqId: string): void {
     const requisitions = this.getLabRequisitions();
     const idx = requisitions.findIndex(r => r.id === reqId);
@@ -2864,6 +2869,7 @@ Thank you for choosing Mediflow! 🟢`;
 
   async parsePrescriptionOCR(imageUri: string): Promise<{
     patientName: string;
+    patientPhone?: string;
     patientAge: number;
     patientGender: 'Male' | 'Female' | 'Other';
     medications: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
@@ -2874,6 +2880,7 @@ Thank you for choosing Mediflow! 🟢`;
       console.warn('[Mediflow AI] No VITE_GEMINI_API_KEY found, falling back to simulated OCR data.');
       return {
         patientName: 'Aarav Sharma',
+        patientPhone: '9876543210',
         patientAge: 45,
         patientGender: 'Male',
         medications: [
@@ -2922,6 +2929,7 @@ Thank you for choosing Mediflow! 🟢`;
 Extract and return a strict, minified JSON object matching the following structure. Do not include markdown formatting or extra text.
 {
   "patientName": "string",
+  "patientPhone": "string",
   "patientAge": number,
   "patientGender": "Male" | "Female" | "Other",
   "medications": [
@@ -2930,7 +2938,7 @@ Extract and return a strict, minified JSON object matching the following structu
   "requestedLOINCCodes": ["string"]
 }
 
-If no prescription image could be loaded or fetched, generate a highly realistic simulated prescription digitization for a diabetic patient named "Aarav Sharma" (45 years old, Male) with Metformin 500mg (1-0-1 for 10 Days), Atorvastatin 10mg (0-0-1 for 30 Days), and diagnostic requests for HbA1c (LOINC 4544-3) and Serum Creatinine (LOINC 2160-0).`;
+If no prescription image could be loaded or fetched, generate a highly realistic simulated prescription digitization for a diabetic patient named "Aarav Sharma" (45 years old, Male, phone +91 9876543210) with Metformin 500mg (1-0-1 for 10 Days), Atorvastatin 10mg (0-0-1 for 30 Days), and diagnostic requests for HbA1c (LOINC 4544-3) and Serum Creatinine (LOINC 2160-0).`;
 
       const requestBody: any = {
         contents: [
@@ -2988,6 +2996,7 @@ If no prescription image could be loaded or fetched, generate a highly realistic
 
       return {
         patientName: parsed.patientName || 'Aarav Sharma',
+        patientPhone: parsed.patientPhone || '9876543210',
         patientAge: Number(parsed.patientAge) || 45,
         patientGender: parsed.patientGender || 'Male',
         medications: parsed.medications || [],
@@ -2998,6 +3007,7 @@ If no prescription image could be loaded or fetched, generate a highly realistic
       console.error('[Mediflow AI] OCR Extraction failed, falling back to simulated data:', error);
       return {
         patientName: 'Aarav Sharma',
+        patientPhone: '9876543210',
         patientAge: 45,
         patientGender: 'Male',
         medications: [

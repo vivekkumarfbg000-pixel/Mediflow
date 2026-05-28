@@ -117,6 +117,7 @@ export const CompounderDashboard: React.FC = () => {
 
   // Lab reports state
   const [fullLabReports, setFullLabReports] = useState<LabReport[]>([]);
+  const [reportFilterTab, setReportFilterTab] = useState<'pending' | 'approved'>('pending');
 
   // Prescription Dispatch states
   const [dispatchFile, setDispatchFile] = useState<File | null>(null);
@@ -141,6 +142,7 @@ export const CompounderDashboard: React.FC = () => {
   const [activeInventory, setActiveInventory] = useState<PharmacyInventoryItem[]>([]);
   const [billingPatient, setBillingPatient] = useState<Patient | null>(null);
   const [billingItems, setBillingItems] = useState<MedicineBillItem[]>([]);
+  const [customDiscountPercent, setCustomDiscountPercent] = useState<number>(0);
   
   // Search & add manual medicine in billing
   const [medSearchQuery, setMedSearchQuery] = useState('');
@@ -659,7 +661,7 @@ export const CompounderDashboard: React.FC = () => {
     });
 
     const isLoyaltyEligible = apptCounterBooked && labCounterBooked;
-    const loyaltyDiscountPercent = isLoyaltyEligible ? 10 : 0;
+    const loyaltyDiscountPercent = customDiscountPercent || (isLoyaltyEligible ? 10 : 0);
     
     // Loyalty discount is calculated on the subtotal after item-level discounts
     const postItemDiscountSubtotal = subtotal - itemDiscountAmount;
@@ -677,7 +679,7 @@ export const CompounderDashboard: React.FC = () => {
       deliveryCharge,
       totalAmount
     };
-  }, [billingItems, apptCounterBooked, labCounterBooked, deliveryType]);
+  }, [billingItems, apptCounterBooked, labCounterBooked, deliveryType, customDiscountPercent]);
 
   // Dispatch bill through API
   const handleGenerateInvoice = async (mode: 'whatsapp' | 'cash') => {
@@ -2201,6 +2203,42 @@ export const CompounderDashboard: React.FC = () => {
                     </select>
                   </div>
 
+                  {/* Price and Payment Selection */}
+                  {dispatchSelectedTestCode && (() => {
+                    const test = MASTER_TEST_CATALOG.find(t => t.loincCode === dispatchSelectedTestCode);
+                    if (test) {
+                      return (
+                        <div className="bg-slate-50 border border-slate-205 p-3.5 rounded-xl space-y-2 text-xs select-none">
+                          <div className="flex justify-between items-center text-slate-600">
+                            <span>Diagnostic Test Name:</span>
+                            <span className="font-bold text-slate-800">{test.name}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-slate-600">
+                            <span>LOINC Reference Code:</span>
+                            <span className="font-mono bg-slate-200 px-1.5 py-0.2 rounded text-[10px] text-slate-700 font-bold">{test.loincCode}</span>
+                          </div>
+                          <div className="flex justify-between items-center border-t border-slate-200/80 pt-2 text-sm font-bold text-slate-800">
+                            <span>Test Fee Payable:</span>
+                            <span className="text-indigo-650">₹{(test.price || 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Payment Mode (Lab Fee Collection)</label>
+                    <select 
+                      id="lab_payment_mode"
+                      className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white transition-colors"
+                    >
+                      <option value="cash">Counter Cash Payment</option>
+                      <option value="upi">UPI Dynamic QR Settle</option>
+                      <option value="card">POS Card Swipe</option>
+                    </select>
+                  </div>
+
                   <button 
                     type="button"
                     disabled={isDispatchOcrParsing || isDispatchingToLab || !dispatchFile || !dispatchPatientName || !dispatchPatientPhone || !dispatchSelectedTestCode}
@@ -2208,6 +2246,9 @@ export const CompounderDashboard: React.FC = () => {
                       if (!dispatchFile) return;
                       setIsDispatchingToLab(true);
                       try {
+                        const testItem = MASTER_TEST_CATALOG.find(t => t.loincCode === dispatchSelectedTestCode);
+                        const testPrice = testItem?.price || 350;
+
                         let patientId = '';
                         const matchedPatient = api.getPatients().find(p => p.name.toLowerCase().trim() === dispatchPatientName.toLowerCase().trim() || p.phone === dispatchPatientPhone);
                         if (matchedPatient) {
@@ -2225,10 +2266,48 @@ export const CompounderDashboard: React.FC = () => {
                           setPatients(api.getPatients());
                         }
 
+                        // Create paid invoice record in system
+                        const invoiceId = `inv-lab-${Date.now()}`;
+                        api.saveInvoice({
+                          id: invoiceId,
+                          appointmentId: `lab-pos-${Date.now()}`,
+                          type: 'lab',
+                          amount: testPrice,
+                          status: 'paid',
+                          createdAt: new Date().toISOString()
+                        });
+
                         const fileUrl = await api.uploadPrescriptionToStorage(dispatchFile);
-                        const testItem = MASTER_TEST_CATALOG.find(t => t.loincCode === dispatchSelectedTestCode);
                         const testName = testItem?.name || 'Lab Test';
+                        
+                        // Push to Lab technician queue
                         api.createLabRequisitionFromPrescription(patientId, dispatchSelectedTestCode, testName, fileUrl);
+
+                         // Dispatch receipt message to patient's WhatsApp
+                        let session = sessions.find(s => s.patientPhone === dispatchPatientPhone);
+                        if (!session) {
+                          session = api.initiateWhatsAppSession(dispatchPatientPhone);
+                        }
+
+                        const receiptMsg = `🧪 *MEDIFLOW PATHOLOGY LAB RECEIPT*\n----------------------------------------\nPatient Name: *${dispatchPatientName}*\nPhone: *+91 ${dispatchPatientPhone}*\nTest ordered: *${testName}* (LOINC: ${dispatchSelectedTestCode})\n\nTotal Paid: *₹${testPrice.toFixed(2)}* (via Counter Payment)\nStatus: *PAID & routed to Pathology Lab*\n----------------------------------------\nThank you! Mediflow Pathology. 🟢`;
+                        
+                        api.updateWhatsAppState(dispatchPatientPhone, 'COMPLETED', {
+                          chatHistory: [
+                            ...(session.sessionData.chatHistory || []),
+                            { sender: 'bot', text: receiptMsg, time: new Date().toISOString() }
+                          ]
+                        });
+
+                        const finalPat = api.getPatients().find(p => p.id === patientId) || { id: patientId, name: dispatchPatientName, phone: dispatchPatientPhone, age: Number(dispatchPatientAge), gender: dispatchPatientGender };
+                        handleInitiateWhatsAppLoop(finalPat as Patient);
+
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            message: `Lab Fee of ₹${testPrice.toFixed(2)} collected. Requisition dispatched & WhatsApp invoice pushed!`,
+                            type: 'success',
+                            title: 'Lab Dispatch Success'
+                          }
+                        }));
 
                         // Reset form
                         setDispatchFile(null);
@@ -2246,18 +2325,20 @@ export const CompounderDashboard: React.FC = () => {
                       }
                     }}
                     className={`w-full py-2.5 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
-                      isDispatchingToLab ? 'bg-indigo-850 opacity-80' : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-md shadow-indigo-600/10'
+                      isDispatchingToLab || isDispatchOcrParsing || !dispatchFile || !dispatchPatientName || !dispatchPatientPhone || !dispatchSelectedTestCode
+                        ? 'bg-slate-400 cursor-not-allowed opacity-50'
+                        : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-md shadow-indigo-600/10'
                     }`}
                   >
                     {isDispatchingToLab ? (
                       <>
                         <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Uploading &amp; Dispatching to Lab...
+                        Settle Payment &amp; Dispatch to Lab...
                       </>
                     ) : (
                       <>
-                        <span className="material-symbols-outlined text-[14px]">biotech</span>
-                        Send to Lab Queue →
+                        <span className="material-symbols-outlined text-[14px]">payments</span>
+                        Settle Fees &amp; Send to Lab Queue →
                       </>
                     )}
                   </button>
@@ -2477,147 +2558,227 @@ export const CompounderDashboard: React.FC = () => {
                   Review and clinically approve completed lab reports, then lock the patient's next revisit consultation timing.
                 </p>
 
+                {/* Tab toggle */}
+                <div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-lg">
+                  <button 
+                    onClick={() => setReportFilterTab('pending')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                      reportFilterTab === 'pending' ? 'bg-white text-slate-850 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Awaiting Approval ({fullLabReports.filter(r => r.status === 'pending').length})
+                  </button>
+                  <button 
+                    onClick={() => setReportFilterTab('approved')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                      reportFilterTab === 'approved' ? 'bg-white text-slate-850 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Approved Reports ({fullLabReports.filter(r => r.status === 'approved').length})
+                  </button>
+                </div>
+
                 <div className="space-y-4">
-                  {fullLabReports.filter(r => r.status === 'pending').length === 0 ? (
-                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
-                      No reports awaiting approval.
-                    </div>
-                  ) : (
-                    fullLabReports.filter(r => r.status === 'pending').map(report => {
-                      const biomarkers = report.biomarkerJson?.biomarkers || {};
-                      const reportId = report.id;
-                      
-                      return (
-                        <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-sm">
-                          <div className="flex items-center justify-between border-b border-slate-150 pb-2">
-                            <div>
-                              <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
-                              <p className="text-[9px] text-slate-400 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
-                            </div>
-                            <span className="text-[9px] bg-amber-100 text-amber-800 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 uppercase">
-                              Pending
-                            </span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
-                                const val = biomarkers[key];
-                                const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
-                                return (
-                                  <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-750 text-[10px] px-2 py-0.5 rounded font-mono font-bold">
-                                    {key}: {val} {unit}
-                                  </span>
-                                );
-                              })}
-                              {Object.keys(biomarkers).length === 0 && (
-                                <span className="text-[10px] text-slate-500 italic">No structured values found</span>
-                              )}
-                            </div>
-                          </div>
-
-                          {report.reportFileUrl && (
-                            <button
-                              type="button"
-                              onClick={() => setViewingDocUrl(report.reportFileUrl || null)}
-                              className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                            >
-                              <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
-                              View Report Document (PDF/Image)
-                            </button>
-                          )}
-
-                          {/* Revisit Scheduler inside report card */}
-                          <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-3">
-                            <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Schedule Revisit Appointment</span>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Date</label>
-                                <input 
-                                  type="date"
-                                  value={reportRevisitDates[reportId] || ''}
-                                  onChange={(e) => setReportRevisitDates(prev => ({ ...prev, [reportId]: e.target.value }))}
-                                  className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
-                                />
+                  {reportFilterTab === 'pending' && (
+                    fullLabReports.filter(r => r.status === 'pending').length === 0 ? (
+                      <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                        No reports awaiting approval.
+                      </div>
+                    ) : (
+                      fullLabReports.filter(r => r.status === 'pending').map(report => {
+                        const biomarkers = report.biomarkerJson?.biomarkers || {};
+                        const reportId = report.id;
+                        
+                        return (
+                          <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-slate-150 pb-2">
+                              <div>
+                                <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
+                                <p className="text-[9px] text-slate-400 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Time</label>
-                                <input 
-                                  type="time"
-                                  value={reportRevisitTimes[reportId] || ''}
-                                  onChange={(e) => setReportRevisitTimes(prev => ({ ...prev, [reportId]: e.target.value }))}
-                                  className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
-                                />
-                              </div>
+                              <span className="text-[9px] bg-amber-100 text-amber-800 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 uppercase">
+                                Pending
+                              </span>
                             </div>
+
                             <div className="space-y-1">
-                              <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Clinical Note / Recommendation</label>
-                              <input 
-                                type="text"
-                                placeholder="e.g. Return for HbA1c review"
-                                value={reportRevisitNotes[reportId] || ''}
-                                onChange={(e) => setReportRevisitNotes(prev => ({ ...prev, [reportId]: e.target.value }))}
-                                className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
-                              />
-                            </div>
-                          </div>
-
-                          {showRejectModalForId === report.id ? (
-                            <div className="mt-3 p-3 bg-rose-50 border border-rose-205 rounded-xl space-y-2">
-                              <label className="text-[9px] text-rose-700 font-bold uppercase tracking-wider font-mono">Rejection Reason</label>
-                              <textarea 
-                                placeholder="Why are you rejecting this report?"
-                                value={rejectionReasons[report.id] || ''}
-                                onChange={(e) => setRejectionReasons(prev => ({ ...prev, [report.id]: e.target.value }))}
-                                className="w-full input-field text-xs py-1.5 px-3 bg-white border-rose-200 text-slate-850 rounded-lg focus:border-rose-400"
-                                rows={2}
-                                required
-                              />
-                              <div className="flex gap-2 justify-end">
-                                <button 
-                                  onClick={() => setShowRejectModalForId(null)}
-                                  className="px-2.5 py-1 text-slate-600 bg-slate-100 hover:bg-slate-200 text-[10px] font-bold rounded-lg cursor-pointer"
-                                >
-                                  Cancel
-                                </button>
-                                <button 
-                                  disabled={!(rejectionReasons[report.id] || '').trim()}
-                                  onClick={async () => {
-                                    await api.rejectLabReport(report.id, rejectionReasons[report.id]);
-                                    setShowRejectModalForId(null);
-                                  }}
-                                  className="px-2.5 py-1 text-white bg-rose-600 hover:bg-rose-500 text-[10px] font-bold rounded-lg cursor-pointer disabled:opacity-50"
-                                >
-                                  Send back to Lab
-                                </button>
+                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
+                                  const val = biomarkers[key];
+                                  const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
+                                  return (
+                                    <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-750 text-[10px] px-2 py-0.5 rounded font-mono font-bold">
+                                      {key}: {val} {unit}
+                                    </span>
+                                  );
+                                })}
+                                {Object.keys(biomarkers).length === 0 && (
+                                  <span className="text-[10px] text-slate-500 italic">No structured values found</span>
+                                )}
                               </div>
                             </div>
-                          ) : (
-                            <div className="flex gap-2 pt-1">
-                              <button 
-                                onClick={async () => {
-                                  const date = reportRevisitDates[reportId] || '';
-                                  const time = reportRevisitTimes[reportId] || '';
-                                  const note = reportRevisitNotes[reportId] || '';
-                                  await api.approveLabReport(reportId, date, time, note);
-                                }}
-                                className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+
+                            {report.reportFileUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingDocUrl(report.reportFileUrl || null)}
+                                className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
                               >
-                                <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                                Approve &amp; Revisit
+                                <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                View Report Document (PDF/Image)
                               </button>
-                              <button 
-                                onClick={() => setShowRejectModalForId(report.id)}
-                                className="py-1.5 px-3 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
-                              >
-                                Reject
-                              </button>
+                            )}
+
+                            {/* Revisit Scheduler inside report card */}
+                            <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-3">
+                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Schedule Revisit Appointment</span>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Date</label>
+                                  <input 
+                                    type="date"
+                                    value={reportRevisitDates[reportId] || ''}
+                                    onChange={(e) => setReportRevisitDates(prev => ({ ...prev, [reportId]: e.target.value }))}
+                                    className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Time</label>
+                                  <input 
+                                    type="time"
+                                    value={reportRevisitTimes[reportId] || ''}
+                                    onChange={(e) => setReportRevisitTimes(prev => ({ ...prev, [reportId]: e.target.value }))}
+                                    className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Clinical Note / Recommendation</label>
+                                <input 
+                                  type="text"
+                                  placeholder="e.g. Return for HbA1c review"
+                                  value={reportRevisitNotes[reportId] || ''}
+                                  onChange={(e) => setReportRevisitNotes(prev => ({ ...prev, [reportId]: e.target.value }))}
+                                  className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
+                                />
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })
+
+                            {showRejectModalForId === report.id ? (
+                              <div className="mt-3 p-3 bg-rose-50 border border-rose-205 rounded-xl space-y-2">
+                                <label className="text-[9px] text-rose-700 font-bold uppercase tracking-wider font-mono">Rejection Reason</label>
+                                <textarea 
+                                  placeholder="Why are you rejecting this report?"
+                                  value={rejectionReasons[report.id] || ''}
+                                  onChange={(e) => setRejectionReasons(prev => ({ ...prev, [report.id]: e.target.value }))}
+                                  className="w-full input-field text-xs py-1.5 px-3 bg-white border-rose-200 text-slate-850 rounded-lg focus:border-rose-400"
+                                  rows={2}
+                                  required
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <button 
+                                    onClick={() => setShowRejectModalForId(null)}
+                                    className="px-2.5 py-1 text-slate-600 bg-slate-100 hover:bg-slate-200 text-[10px] font-bold rounded-lg cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button 
+                                    disabled={!(rejectionReasons[report.id] || '').trim()}
+                                    onClick={async () => {
+                                      await api.rejectLabReport(report.id, rejectionReasons[report.id]);
+                                      setShowRejectModalForId(null);
+                                    }}
+                                    className="px-2.5 py-1 text-white bg-rose-600 hover:bg-rose-500 text-[10px] font-bold rounded-lg cursor-pointer disabled:opacity-50"
+                                  >
+                                    Send back to Lab
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 pt-1">
+                                <button 
+                                  onClick={async () => {
+                                    const date = reportRevisitDates[reportId] || '';
+                                    const time = reportRevisitTimes[reportId] || '';
+                                    const note = reportRevisitNotes[reportId] || '';
+                                    await api.approveLabReport(reportId, date, time, note);
+                                  }}
+                                  className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                                  Approve &amp; Revisit
+                                </button>
+                                <button 
+                                  onClick={() => setShowRejectModalForId(report.id)}
+                                  className="py-1.5 px-3 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )
+                  )}
+
+                  {reportFilterTab === 'approved' && (
+                    fullLabReports.filter(r => r.status === 'approved').length === 0 ? (
+                      <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                        No approved reports found.
+                      </div>
+                    ) : (
+                      fullLabReports.filter(r => r.status === 'approved').map(report => {
+                        const biomarkers = report.biomarkerJson?.biomarkers || {};
+                        return (
+                          <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-slate-150 pb-2">
+                              <div>
+                                <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
+                                <p className="text-[9px] text-slate-400 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
+                              </div>
+                              <span className="text-[9px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
+                                Approved
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
+                                  const val = biomarkers[key];
+                                  const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
+                                  return (
+                                    <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-750 text-[10px] px-2 py-0.5 rounded font-mono font-bold">
+                                      {key}: {val} {unit}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {report.reportFileUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingDocUrl(report.reportFileUrl || null)}
+                                className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                              >
+                                <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                View Approved Report Document
+                              </button>
+                            )}
+
+                            {report.revisitScheduledAt && (
+                              <div className="p-2.5 bg-emerald-50 border border-emerald-150 rounded-lg text-[10px] text-emerald-800">
+                                <strong>Revisit Locked:</strong> {new Date(report.revisitScheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                {report.revisitNote && <p className="mt-1 text-slate-650 font-medium">Note: {report.revisitNote}</p>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )
                   )}
                 </div>
               </div>
@@ -2710,108 +2871,524 @@ export const CompounderDashboard: React.FC = () => {
 
         {/* TAB 5: GATE 3 PHARMACY BILLING */}
         {activeTab === 'gate3' && (
-          <div className="grid grid-cols-1 gap-8">
-            <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-500 opacity-60" />
-              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-500 text-base">medication</span>
-                Gate 3: Pharmacy Billing &amp; Dispensation release
-              </h2>
-              <p className="text-xs text-slate-500 mb-6">
-                Active medicine bills requiring checkout payments before dispensing physical medications.
-              </p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column: AI Prescription Scan & POS Billing Workspace */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-500 opacity-60" />
+                
+                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-500 text-base">receipt_long</span>
+                  📄 AI Prescription Scanner &amp; POS Workspace
+                </h2>
+                <p className="text-xs text-slate-500 mb-4">
+                  Scan prescription, extract patient profile and medicines via AI, sync with inventory prices, apply discounts, and dispatch WhatsApp invoices and dosage slips.
+                </p>
 
-              <div className="space-y-4">
-                {api.getInvoices().filter(i => i.type === 'pharmacy').length === 0 ? (
-                  <div className="p-8 bg-surface-container-lowest/40 border border-slate-200/80 rounded-xl text-center text-sm text-slate-500">
-                    No active pharmacy invoices found.
+                {/* Prescription File Upload Zone */}
+                <div className="space-y-4">
+                  <div className="flex gap-4 items-start">
+                    <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-amber-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
+                      <Upload className="h-5 w-5 text-amber-500" />
+                      <span>{prescriptionImage ? 'Change Prescription File' : 'Upload / Scan Prescription Image/PDF'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf" 
+                        className="hidden" 
+                        onChange={handlePrescriptionImageUpload}
+                      />
+                    </label>
+
+                    {prescriptionImage && (
+                      <div className="w-20 h-20 rounded-xl border border-slate-200 overflow-hidden relative group shrink-0 shadow-sm">
+                        <img src={prescriptionImage} alt="Prescription Thumbnail" className="w-full h-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => setViewingDocUrl(prescriptionImage)}
+                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                        >
+                          View Rx
+                        </button>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  api.getInvoices().filter(i => i.type === 'pharmacy').sort((a, b) => {
-                    const apptA = api.getAppointments().find(x => x.id === a.appointmentId);
-                    const apptB = api.getAppointments().find(x => x.id === b.appointmentId);
-                    const isPatA = apptA?.patientId === activePatient?.id;
-                    const isPatB = apptB?.patientId === activePatient?.id;
-                    if (isPatA && !isPatB) return -1;
-                    if (!isPatA && isPatB) return 1;
-                    return 0;
-                  }).map(invoice => {
-                    const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
-                    const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
-                    const prescription = appt ? api.getPrescriptions().find(p => p.appointmentId === appt.id) : null;
-                    const isActiveInvoice = patient?.id === activePatient?.id;
 
-                    return (
-                      <div 
-                        key={invoice.id} 
-                        className={`p-4 border rounded-xl space-y-4 transition-all duration-350 ${
-                          isActiveInvoice 
-                            ? 'border-amber-500 bg-amber-500/5 shadow-md shadow-amber-500/5' 
-                            : 'border-slate-200/80 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                              {isActiveInvoice && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />}
-                              {patient ? patient.name : 'Unknown Patient'}
-                            </h4>
-                            <p className="text-[9px] text-slate-400 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
-                          </div>
-                          <div className="text-[12px] font-black text-amber-600">₹{invoice.amount}</div>
+                  {/* Run OCR Button */}
+                  {prescriptionImage && (
+                    <button
+                      type="button"
+                      onClick={handleTriggerPrescriptionOcr}
+                      disabled={isPrescriptionScanning}
+                      className="w-full py-2 bg-amber-500 hover:bg-amber-450 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] flex items-center justify-center gap-1.5 transition-all shadow-md"
+                    >
+                      {isPrescriptionScanning ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          AI Extracting Prescription...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[14px]">psychology</span>
+                          Extract Data &amp; Sync Inventory
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* OCR Logging Panel */}
+                  {ocrLogs.length > 0 && (
+                    <div className="bg-slate-900 border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-amber-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
+                      {ocrLogs.map((log, index) => (
+                        <div key={index} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : ''}>
+                          {log}
                         </div>
+                      ))}
+                    </div>
+                  )}
 
-                        {prescription && prescription.extractedMedicines && (
-                          <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-lg space-y-3">
-                            <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
-                            
-                            <InvoiceCard
-                              invoiceId={invoice.id}
-                              patientName={patient?.name ?? 'Unknown Patient'}
-                              amount={invoice.amount}
-                              status={invoice.status}
-                              onPay={invoice.status === 'unpaid' ? () => {
-                                api.markInvoicePaid(invoice.id);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: {
-                                    message: 'Invoice marked as PAID and WhatsApp notification sent.',
-                                    type: 'success',
-                                    title: 'Invoice Paid'
-                                  }
-                                }));
-                              } : undefined}
-                            />
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
-                              {prescription.extractedMedicines.map((m, idx) => (
-                                <div key={idx} className="text-[10px] text-slate-655 font-mono flex items-center justify-between border-b border-slate-100 pb-1">
-                                  <span>💊 {m.name} ({m.dosage})</span>
-                                  <span className="text-[9px] bg-slate-200/50 px-2 py-0.5 rounded text-slate-700 font-semibold">{m.frequency}</span>
-                                </div>
-                              ))}
+                  {/* Patient Profile Form (Editable) */}
+                  <div className="border-t border-slate-100 pt-4 mt-2">
+                    <span className="block text-[9px] font-black text-slate-400 tracking-widest uppercase font-mono mb-2">Patient Profile (Extracted)</span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient Name</label>
+                        <input 
+                          type="text" 
+                          placeholder="Name"
+                          value={billingPatient?.name || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setBillingPatient(prev => prev ? { ...prev, name: val } : { id: `pat-${Date.now()}`, name: val, phone: '', age: 30, gender: 'Male', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
+                          }}
+                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Phone (+91)</label>
+                        <input 
+                          type="text" 
+                          maxLength={10}
+                          placeholder="Phone number"
+                          value={billingPatient?.phone || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setBillingPatient(prev => prev ? { ...prev, phone: val } : { id: `pat-${Date.now()}`, name: '', phone: val, age: 30, gender: 'Male', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
+                          }}
+                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Age</label>
+                        <input 
+                          type="number" 
+                          placeholder="Age"
+                          value={billingPatient?.age || ''}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 30;
+                            setBillingPatient(prev => prev ? { ...prev, age: val } : { id: `pat-${Date.now()}`, name: '', phone: '', age: val, gender: 'Male', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
+                          }}
+                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Gender</label>
+                        <select 
+                          value={billingPatient?.gender || 'Male'}
+                          onChange={(e) => {
+                            const val = e.target.value as any;
+                            setBillingPatient(prev => prev ? { ...prev, gender: val } : { id: `pat-${Date.now()}`, name: '', phone: '', age: 30, gender: val, allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
+                          }}
+                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
+                        >
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Medicines Workspace */}
+                  {billingItems.length > 0 && (
+                    <div className="border-t border-slate-100 pt-4 mt-2">
+                      <span className="block text-[9px] font-black text-slate-400 tracking-widest uppercase font-mono mb-2">Sync'd Medicines from Inventory</span>
+                      <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm mb-3">
+                        {billingItems.map((item, idx) => (
+                          <div key={idx} className="p-3 flex items-center justify-between text-xs gap-4 hover:bg-slate-50/50 transition-colors">
+                            <div className="flex-1">
+                              <h4 className="font-bold text-slate-800">{item.name}</h4>
+                              <p className="text-[9px] text-slate-400 font-mono">MRP: ₹{item.mrp} · Batch: {item.batchNumber}</p>
                             </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleUpdateItemQty(idx, item.quantity - 1)}
+                                  className="px-2 py-0.5 hover:bg-slate-200 text-slate-600 font-bold"
+                                >-</button>
+                                <span className="px-2.5 font-bold text-slate-700">{item.quantity}</span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => handleUpdateItemQty(idx, item.quantity + 1)}
+                                  className="px-2 py-0.5 hover:bg-slate-200 text-slate-600 font-bold"
+                                >+</button>
+                              </div>
+                              <span className="w-16 text-right font-mono font-bold text-slate-800">₹{item.lineTotal.toFixed(2)}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => handleRemoveBillingItem(idx)}
+                                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 p-1 rounded transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                            {/* Split Ledger payout Details */}
-                            <div className="mt-2.5 pt-2.5 border-t border-slate-200/60 space-y-1.5 select-none">
-                              <span className="block text-[8px] font-bold text-indigo-700 tracking-widest uppercase font-mono">Dynamic Multi-Vendor Payout Splits</span>
-                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] text-slate-500 font-mono">
-                                <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
-                                  <span>Platform Fee (3%):</span>
-                                  <span className="font-semibold text-slate-700">₹{(invoice.amount * 0.03).toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
-                                  <span>Ecosystem Net Payout:</span>
-                                  <span className="font-semibold text-emerald-600">₹{(invoice.amount * 0.97).toFixed(2)}</span>
+                  {/* Manual search addition */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Add Medicine Manually</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Search medicines from live Patna inventory..."
+                        value={medSearchQuery}
+                        onChange={(e) => setMedSearchQuery(e.target.value)}
+                        className="w-full input-field text-xs pl-10 py-2 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white"
+                      />
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                      {medSearchQuery && billingSearchMatches.length > 0 && (
+                        <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto border border-slate-200 bg-white rounded-xl shadow-lg z-50 divide-y divide-slate-100">
+                          {billingSearchMatches.map(med => (
+                            <div 
+                              key={med.id}
+                              onClick={() => {
+                                handleSelectMedForBilling(med);
+                                setMedSearchQuery('');
+                              }}
+                              className="p-2.5 hover:bg-indigo-50/60 cursor-pointer flex justify-between items-center text-xs"
+                            >
+                              <div>
+                                <p className="font-bold text-slate-800">{med.name} ({med.dosage})</p>
+                                <p className="text-[9px] text-slate-400 font-mono">Stock: {med.stock} | HSN: {med.hsn}</p>
+                              </div>
+                              <span className="font-mono font-bold text-indigo-650">₹{med.price}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Discount Selectors: 10, 15, 20 */}
+                  {billingItems.length > 0 && (
+                    <div className="space-y-1.5 pt-2 select-none">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Apply Coupon / Special Discount</label>
+                      <div className="flex gap-2">
+                        {[0, 10, 15, 20].map(disc => (
+                          <button
+                            key={disc}
+                            type="button"
+                            onClick={() => setCustomDiscountPercent(disc)}
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                              customDiscountPercent === disc
+                                ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/10'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            {disc === 0 ? 'No Discount' : `${disc}% OFF`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Financial Invoice Breakdown */}
+                  {billingItems.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-2.5 text-xs select-none">
+                      <div className="flex justify-between text-slate-655">
+                        <span>Subtotal (Net):</span>
+                        <span className="font-semibold">₹{billingTotals.subtotal.toFixed(2)}</span>
+                      </div>
+                      {billingTotals.loyaltyDiscountAmount > 0 && (
+                        <div className="flex justify-between text-emerald-600 font-bold">
+                          <span>Special Discount ({billingTotals.loyaltyDiscountPercent}%):</span>
+                          <span>-₹{billingTotals.loyaltyDiscountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-slate-655">
+                        <span>GST Tax Amount:</span>
+                        <span className="font-semibold">₹{billingTotals.gstAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200 pt-2.5 text-sm font-bold text-slate-800">
+                        <span>Total Amount Payable:</span>
+                        <span className="text-indigo-650">₹{billingTotals.totalAmount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Payments Action */}
+                  <button
+                    type="button"
+                    disabled={!billingPatient || !billingPatient.name || !billingPatient.phone || billingItems.length === 0}
+                    onClick={async () => {
+                      if (!billingPatient || billingItems.length === 0) return;
+                      
+                      const billId = `bill-${Date.now()}`;
+                      const bill: MedicineBill = {
+                        id: billId,
+                        patientId: billingPatient.id,
+                        patientName: billingPatient.name,
+                        patientPhone: billingPatient.phone,
+                        items: billingItems,
+                        subtotal: billingTotals.subtotal,
+                        loyaltyDiscountPercent: billingTotals.loyaltyDiscountPercent,
+                        loyaltyDiscountAmount: billingTotals.loyaltyDiscountAmount,
+                        itemDiscountAmount: billingTotals.itemDiscountAmount,
+                        gstAmount: billingTotals.gstAmount,
+                        totalAmount: billingTotals.totalAmount,
+                        paymentMode: 'cash',
+                        upiQrPayload: `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${billingTotals.totalAmount.toFixed(2)}&cu=INR&tn=MF-BILL-${billId.substring(4, 8)}`,
+                        status: 'paid',
+                        source: 'counter',
+                        deliveryType: 'pickup',
+                        createdAt: new Date().toISOString()
+                      };
+
+                      // Register patient if new
+                      const matchedPatient = api.getPatients().find(p => p.phone === billingPatient.phone || p.name.toLowerCase().trim() === billingPatient.name.toLowerCase().trim());
+                      let resolvedPatientId = billingPatient.id;
+                      if (!matchedPatient) {
+                        const reg = api.registerPatient({
+                          name: billingPatient.name,
+                          phone: billingPatient.phone || '9876543210',
+                          age: billingPatient.age || 30,
+                          gender: billingPatient.gender || 'Male',
+                          allergies: [],
+                          chronicConditions: []
+                        });
+                        resolvedPatientId = reg.id;
+                        setPatients(api.getPatients());
+                      } else {
+                        resolvedPatientId = matchedPatient.id;
+                      }
+
+                      api.saveMedicineBill(bill);
+                      api.dispenseMedicineBill(billId);
+
+                      // WhatsApp invoice receipt
+                      let session = sessions.find(s => s.patientPhone === billingPatient.phone);
+                      if (!session) {
+                        session = api.initiateWhatsAppSession(billingPatient.phone);
+                      }
+                      const invoiceText = api.generateMedicineInvoiceMessage(bill);
+
+                      // Vernacular dosage in Hindi/Hinglish
+                      let dosageText = `📋 *दवाई की खुराक की जानकारी (Dosage Slip)*\n\nनमस्ते, यहाँ आपकी दवाइयों की खुराक की जानकारी हिंदी/Hinglish में है:\n\n`;
+                      billingItems.forEach(item => {
+                        let freqMeaning = 'Din me do baar (1-0-1) - Subah aur Shaam';
+                        const nameLower = item.name.toLowerCase();
+                        if (nameLower.includes('metformin')) {
+                          freqMeaning = 'Din me do baar (1-0-1) - Subah aur shaam ko khana khane ke baad';
+                        } else if (nameLower.includes('paracetamol')) {
+                          freqMeaning = 'Bukhar ya dard hone par (SOS) - Din me teen baar tak (1-1-1)';
+                        } else if (nameLower.includes('amoxicillin')) {
+                          freqMeaning = 'Din me do baar (1-0-1) - Khana khane ke baad (5 Days continuous)';
+                        } else if (nameLower.includes('atorvastatin')) {
+                          freqMeaning = 'Raat ko sone se pehle ek baar (0-0-1)';
+                        } else if (nameLower.includes('pantoprazole')) {
+                          freqMeaning = 'Subah khali pet khane se 30 min pehle (1-0-0)';
+                        }
+                        
+                        dosageText += `💊 *${item.name}* (${item.dosage || '1 Tab'})\n`;
+                        dosageText += `👉 *कब लें:* ${freqMeaning}\n\n`;
+                      });
+                      dosageText += `⚠️ *Note:* Dawa hamesha doctor ke nirdeshan anusar hi lein.`;
+
+                      api.updateWhatsAppState(billingPatient.phone, 'COMPLETED', {
+                        chatHistory: [
+                          ...(session.sessionData.chatHistory || []),
+                          { sender: 'bot', text: `✅ *PAYMENT RECEIVED (₹${bill.totalAmount.toFixed(2)})*\n\n${invoiceText}`, time: new Date().toISOString() },
+                          { sender: 'bot', text: dosageText, time: new Date().toISOString() }
+                        ],
+                        draftMedicineBill: bill
+                      });
+
+                      const finalPat = api.getPatients().find(p => p.id === resolvedPatientId) || billingPatient;
+                      handleInitiateWhatsAppLoop(finalPat);
+
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          message: `Direct billing complete! Invoice & Hinglish dosage summary sent to WhatsApp.`,
+                          type: 'success',
+                          title: 'POS Settle Complete'
+                        }
+                      }));
+
+                      // Reset fields
+                      setBillingItems([]);
+                      setBillingPatient(null);
+                      setPrescriptionImage(null);
+                      setOcrLogs([]);
+                      setCustomDiscountPercent(0);
+                      syncData();
+                    }}
+                    className={`w-full py-2.5 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+                      (!billingPatient || !billingPatient.name || !billingPatient.phone || billingItems.length === 0)
+                        ? 'bg-slate-400 cursor-not-allowed opacity-50'
+                        : 'bg-indigo-650 hover:bg-indigo-600 active:scale-95 shadow-md shadow-indigo-600/10'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">send_to_mobile</span>
+                    Settle POS &amp; Send WhatsApp Receipt →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Active Pharmacy Invoices Queue (consultation splits) */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="glass-panel p-6 border-slate-205 shadow-xl relative overflow-hidden bg-white text-slate-800">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+                
+                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-600 text-base">hourglass_empty</span>
+                  ⏳ Chamber Invoices Queue
+                </h2>
+                
+                <div className="space-y-4">
+                  {api.getInvoices().filter(i => i.type === 'pharmacy').length === 0 ? (
+                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                      No active pharmacy invoices found.
+                    </div>
+                  ) : (
+                    api.getInvoices().filter(i => i.type === 'pharmacy').sort((a, b) => {
+                      const apptA = api.getAppointments().find(x => x.id === a.appointmentId);
+                      const apptB = api.getAppointments().find(x => x.id === b.appointmentId);
+                      const isPatA = apptA?.patientId === activePatient?.id;
+                      const isPatB = apptB?.patientId === activePatient?.id;
+                      if (isPatA && !isPatB) return -1;
+                      if (!isPatA && isPatB) return 1;
+                      return 0;
+                    }).map(invoice => {
+                      const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
+                      const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                      const prescription = appt ? api.getPrescriptions().find(p => p.appointmentId === appt.id) : null;
+                      const isActiveInvoice = patient?.id === activePatient?.id;
+
+                      return (
+                        <div 
+                          key={invoice.id} 
+                          className={`p-4 border rounded-xl space-y-4 transition-all duration-350 ${
+                            isActiveInvoice 
+                              ? 'border-amber-500 bg-amber-500/5 shadow-md' 
+                              : 'border-slate-200 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                {isActiveInvoice && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />}
+                                {patient ? patient.name : 'Unknown Patient'}
+                              </h4>
+                              <p className="text-[9px] text-slate-400 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div className="text-[12px] font-black text-amber-600">₹{invoice.amount}</div>
+                          </div>
+
+                          {prescription && prescription.extractedMedicines && (
+                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-3">
+                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
+                              
+                              <InvoiceCard
+                                invoiceId={invoice.id}
+                                patientName={patient?.name ?? 'Unknown Patient'}
+                                amount={invoice.amount}
+                                status={invoice.status}
+                                onPay={invoice.status === 'unpaid' ? () => {
+                                  api.markInvoicePaid(invoice.id);
+                                  
+                                  // Send receipt and dosage to whatsapp
+                                  if (patient) {
+                                    let session = sessions.find(s => s.patientPhone === patient.phone);
+                                    if (!session) {
+                                      session = api.initiateWhatsAppSession(patient.phone);
+                                    }
+                                    api.pushWhatsAppMessageFromBot(patient.phone, `💳 *PAYMENT SUCCESSFUL* \n\nYour pharmacy bill of *₹${invoice.amount}* has been settled via counter.\n\nThank you! Mediflow POS.`);
+                                    
+                                    // Generate Hinglish dosage summary
+                                    const itemsMapped: MedicineBillItem[] = (prescription.extractedMedicines || []).map(m => ({
+                                      inventoryItemId: 'item-1',
+                                      name: m.name,
+                                      genericName: m.name,
+                                      dosage: m.dosage,
+                                      batchNumber: 'MET-MOCK',
+                                      expiryDate: '2028-12-31',
+                                      quantity: 10,
+                                      mrp: 10,
+                                      sellingPrice: 10,
+                                      discountPercent: 0,
+                                      gstPercent: 5,
+                                      lineTotal: 100
+                                    }));
+                                    
+                                    let dosageText = `📋 *दवाई की खुराक की जानकारी (Dosage Slip)*\n\nनमस्ते, यहाँ आपकी दवाइयों की खुराक की जानकारी हिंदी/Hinglish में है:\n\n`;
+                                    itemsMapped.forEach(item => {
+                                      let freqMeaning = 'Din me do baar (1-0-1) - Subah aur Shaam';
+                                      if (item.name.toLowerCase().includes('metformin')) {
+                                        freqMeaning = 'Din me do baar (1-0-1) - Subah aur shaam ko khana khane ke baad';
+                                      }
+                                      dosageText += `💊 *${item.name}* (${item.dosage || '1 Tab'})\n`;
+                                      dosageText += `👉 *कब लें:* ${freqMeaning}\n\n`;
+                                    });
+                                    api.pushWhatsAppMessageFromBot(patient.phone, dosageText);
+                                    
+                                    handleInitiateWhatsAppLoop(patient);
+                                  }
+
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: 'Invoice marked as PAID and WhatsApp notification sent.',
+                                      type: 'success',
+                                      title: 'Invoice Paid'
+                                    }
+                                  }));
+                                } : undefined}
+                              />
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+                                {prescription.extractedMedicines.map((m, idx) => (
+                                  <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1">
+                                    <span>💊 {m.name} ({m.dosage})</span>
+                                    <span className="text-[9px] bg-slate-200/50 px-2 py-0.5 rounded text-slate-700 font-semibold">{m.frequency}</span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Split Ledger payout Details */}
+                              <div className="mt-2.5 pt-2.5 border-t border-slate-200 space-y-1.5 select-none">
+                                <span className="block text-[8px] font-bold text-indigo-750 tracking-widest uppercase font-mono">Dynamic Multi-Vendor Payout Splits</span>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] text-slate-500 font-mono">
+                                  <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
+                                    <span>Platform Fee (3%):</span>
+                                    <span className="font-semibold text-slate-750">₹{(invoice.amount * 0.03).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
+                                    <span>Ecosystem Net Payout:</span>
+                                    <span className="font-semibold text-emerald-600">₹{(invoice.amount * 0.97).toFixed(2)}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           </div>

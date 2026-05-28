@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
+import { supabase } from '../../lib/supabaseClient';
 import type { ReagentStock } from '../../services/api';
 import type { LabRequisition, Patient, Invoice, LabReport } from '../../types';
 
@@ -8,7 +9,7 @@ import type { LabRequisition, Patient, Invoice, LabReport } from '../../types';
    Interconnected clinical node — Doctor › Lab › Pharmacy › WhatsApp
 ───────────────────────────────────────────────────────────────────────────── */
 
-type LabTab = 'queue' | 'walkin' | 'analytics' | 'reagents';
+type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'reagents';
 
 export const LabDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<LabTab>('queue');
@@ -59,6 +60,14 @@ export const LabDashboard: React.FC = () => {
   const [walkinTestCode, setWalkinTestCode] = useState('');
   const [walkinBusy, setWalkinBusy] = useState(false);
   const [walkinSearch, setWalkinSearch] = useState('');
+
+  // Direct Report Upload states
+  const [directPatientId, setDirectPatientId] = useState('');
+  const [directTestCode, setDirectTestCode] = useState('4544-3'); // HbA1c default
+  const [directFile, setDirectFile] = useState<File | null>(null);
+  const [directFilePreviewUrl, setDirectFilePreviewUrl] = useState('');
+  const [directSearch, setDirectSearch] = useState('');
+  const [directBusy, setDirectBusy] = useState(false);
 
   const activeReq = useMemo(
     () => requisitions.find(r => r.id === activeReqId),
@@ -178,6 +187,15 @@ export const LabDashboard: React.FC = () => {
         p.phone.includes(walkinSearch)
       ),
     [patients, walkinSearch]
+  );
+
+  const directFilteredPatients = useMemo(
+    () =>
+      patients.filter(p =>
+        p.name.toLowerCase().includes(directSearch.toLowerCase()) ||
+        p.phone.includes(directSearch)
+      ),
+    [patients, directSearch]
   );
 
   /* ─── Analytics data ─────────────────────────────────────────── */
@@ -347,6 +365,131 @@ export const LabDashboard: React.FC = () => {
     }, 700);
   };
 
+  const handleDirectReportUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directPatientId || !directTestCode) return;
+    setDirectBusy(true);
+
+    try {
+      const selectedPatient = patients.find(p => p.id === directPatientId);
+      const testItem = MASTER_TEST_CATALOG.find(t => t.loincCode === directTestCode);
+      if (!selectedPatient || !testItem) {
+        setDirectBusy(false);
+        return;
+      }
+
+      const reqId = crypto.randomUUID();
+      const barcode = `DIR-${Date.now()}-${directTestCode}`.toUpperCase();
+      
+      let reportFileUrl = '';
+      if (directFile) {
+        reportFileUrl = await api.uploadLabReportToStorage(directFile, reqId);
+      }
+
+      let data: Record<string, any> = {
+        testCode: directTestCode,
+        testName: testItem.name,
+        patientId: directPatientId,
+        timestamp: new Date().toISOString()
+      };
+      
+      switch (directTestCode) {
+        case '4544-3':
+          data.biomarkers = {
+            HbA1c: parseFloat(hba1cVal) || 0, HbA1c_unit: '%',
+            estimatedAverageGlucose: parseFloat(eagVal) || 0, eAG_unit: 'mg/dL'
+          };
+          break;
+        case '2160-0':
+          data.biomarkers = {
+            serumCreatinine: parseFloat(creatinineVal) || 0, creatinine_unit: 'mg/dL',
+            eGFR: parseFloat(egfrVal) || 0, eGFR_unit: 'mL/min/1.73m2',
+            bloodUreaNitrogen: parseFloat(bunVal) || 0, BUN_unit: 'mg/dL'
+          };
+          break;
+        case '3024-7':
+          data.biomarkers = {
+            hemoglobin: parseFloat(hbVal) || 0, hemoglobin_unit: 'g/dL',
+            hematocrit: parseFloat(hctVal) || 0, hematocrit_unit: '%'
+          };
+          break;
+        default:
+          data.biomarkers = { resultValue: genericVal, unit: genericUnit || 'N/A' };
+      }
+
+      const stringifiedPayload = JSON.stringify(data);
+
+      const requisitionDate = new Date().toISOString();
+      const newReq: LabRequisition = {
+        id: reqId,
+        encounterId: 'walkin',
+        patientId: directPatientId,
+        patientName: selectedPatient.name,
+        testCode: directTestCode,
+        testName: testItem.name,
+        status: 'completed',
+        barcode,
+        quantitativeResult: stringifiedPayload,
+        createdAt: requisitionDate,
+        reagentDeductions: []
+      };
+
+      const currentReqs = api.getLabRequisitions();
+      currentReqs.unshift(newReq);
+      api.saveLabRequisitions(currentReqs);
+
+      await supabase.from('lab_requisitions').insert({
+        id: reqId,
+        encounter_id: 'walkin',
+        patient_id: directPatientId,
+        patient_name: selectedPatient.name,
+        test_code: directTestCode,
+        test_name: testItem.name,
+        status: 'completed',
+        barcode,
+        quantitative_result: stringifiedPayload,
+        created_at: requisitionDate,
+        updated_at: requisitionDate
+      });
+
+      const reportUuid = crypto.randomUUID();
+      const newReport: LabReport = {
+        id: reportUuid,
+        requisitionId: reqId,
+        patientId: directPatientId,
+        patientName: selectedPatient.name,
+        reportFileUrl: reportFileUrl || undefined,
+        biomarkerJson: data,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      api.saveFullLabReport(newReport);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          message: `Direct lab report submitted for ${selectedPatient.name}! Synced to Compounder review dashboard.`,
+          type: 'success',
+          title: 'Report Submitted'
+        }
+      }));
+
+      setDirectPatientId('');
+      setDirectFile(null);
+      setDirectFilePreviewUrl('');
+      setDirectSearch('');
+      setGenericVal('');
+      setGenericUnit('');
+      setActiveTab('queue');
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error submitting direct report: ${err.message || err}`);
+    } finally {
+      setDirectBusy(false);
+    }
+  };
+
   /* ─── Sub-components ─────────────────────────────────────────── */
   const renderStepper = (status: 'pending' | 'collected' | 'processed' | 'completed') => {
     const steps = [
@@ -430,6 +573,7 @@ export const LabDashboard: React.FC = () => {
   const tabItems: { id: LabTab; label: string; icon: string; badge?: number }[] = [
     { id: 'queue', label: 'Test Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
     { id: 'walkin', label: 'Walk-in Register', icon: 'person_add', badge: walkinList.length },
+    { id: 'upload_report', label: 'Direct Report Upload', icon: 'upload_file' },
     { id: 'analytics', label: 'Analytics', icon: 'bar_chart' },
     { id: 'reagents', label: 'Reagent Ledger', icon: 'science', badge: lowStockCount > 0 ? lowStockCount : undefined }
   ];
@@ -1197,6 +1341,271 @@ export const LabDashboard: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          TAB: DIRECT REPORT UPLOAD
+      ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'upload_report' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left: Patient, Test & File Selector */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-60" />
+              <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[18px]">upload_file</span>
+                Direct Pathology Report Upload
+              </h2>
+              <p className="text-[11px] text-clinical-400 mb-5 leading-relaxed">
+                Directly submit diagnostic results and attach completed report documents (PDF/Image) to sync directly to Compounder desk.
+              </p>
+
+              <form onSubmit={handleDirectReportUploadSubmit} className="space-y-4">
+                {/* Patient Search */}
+                <div>
+                  <label className="block text-[10px] font-bold text-clinical-200 mb-1.5 uppercase tracking-wider">
+                    Search Patient
+                  </label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-clinical-400 text-[16px]">search</span>
+                    <input
+                      type="text"
+                      placeholder="Search by name or phone..."
+                      value={directSearch}
+                      onChange={e => { setDirectSearch(e.target.value); setDirectPatientId(''); }}
+                      className="w-full input-field text-xs py-2.5 pl-9 focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Patient Suggestions */}
+                {directSearch.length >= 2 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {directFilteredPatients.length === 0 ? (
+                      <div className="text-center py-3 text-xs text-clinical-500">No matching patients found.</div>
+                    ) : directFilteredPatients.map(p => (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => { setDirectPatientId(p.id); setDirectSearch(''); }}
+                        className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+                          directPatientId === p.id
+                            ? 'bg-primary/15 border-primary/40 text-white'
+                            : 'bg-surface-container-lowest/60 border-outline-variant/40 hover:border-outline/50 text-clinical-200'
+                        }`}
+                      >
+                        <div className="font-bold text-xs">{p.name}</div>
+                        <div className="text-[10px] text-clinical-400 font-mono">{p.phone} · {p.age}y {p.gender}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Selected patient badge */}
+                {directPatientId && !directSearch && (
+                  <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/25 rounded-xl">
+                    <span className="material-symbols-outlined text-primary text-[18px]">person_check</span>
+                    <div className="flex-1">
+                      <div className="text-xs font-bold text-white">
+                        {patients.find(p => p.id === directPatientId)?.name || 'Selected Patient'}
+                      </div>
+                      <div className="text-[10px] text-clinical-300 font-mono">
+                        {patients.find(p => p.id === directPatientId)?.phone}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDirectPatientId('')}
+                      className="text-clinical-400 hover:text-white text-[10px] cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Test Selection */}
+                <div>
+                  <label className="block text-[10px] font-bold text-clinical-200 mb-1.5 uppercase tracking-wider">
+                    Select Test Catalog Item
+                  </label>
+                  <div className="space-y-2">
+                    {MASTER_TEST_CATALOG.map(test => (
+                      <label
+                        key={test.loincCode}
+                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                          directTestCode === test.loincCode
+                            ? 'bg-primary/15 border-primary/40'
+                            : 'bg-surface-container-lowest/40 border-outline-variant/40 hover:border-outline/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="directTest"
+                            value={test.loincCode}
+                            checked={directTestCode === test.loincCode}
+                            onChange={e => setDirectTestCode(e.target.value)}
+                            className="accent-primary w-3.5 h-3.5"
+                          />
+                          <div>
+                            <div className="text-xs font-bold text-white">{test.name}</div>
+                            <div className="text-[9px] text-clinical-400 font-mono">
+                              LOINC: {test.loincCode}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-primary">₹{test.price}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Attach File */}
+                <div className="mt-2.5">
+                  <label className="block text-[10px] font-bold text-clinical-200 mb-1.5 uppercase tracking-wider">
+                    Attach Lab Report File (PDF / Image)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-primary rounded-xl p-3 bg-surface-container-lowest/40 text-center cursor-pointer text-xs font-semibold text-clinical-300 hover:text-white transition-colors">
+                      <span className="material-symbols-outlined text-xl text-primary">upload_file</span>
+                      <span>{directFile ? directFile.name : 'Upload Report File (JPG, PNG, PDF)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setDirectFile(file);
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setDirectFilePreviewUrl(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {directFilePreviewUrl && (
+                    <div className="flex items-center justify-between mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                      <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">check_circle</span>
+                        Report File Loaded
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => { setDirectFile(null); setDirectFilePreviewUrl(''); }} 
+                        className="text-[10px] text-rose-500 hover:text-rose-400 cursor-pointer bg-transparent border-0 font-sans"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!directPatientId || !directTestCode || directBusy}
+                  className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all bg-gradient-to-r from-primary to-secondary"
+                >
+                  {directBusy ? (
+                    <span className="material-symbols-outlined text-base animate-spin">sync</span>
+                  ) : (
+                    <span className="material-symbols-outlined text-base">cloud_upload</span>
+                  )}
+                  {directBusy ? 'Submitting to database...' : 'Submit Report to Database'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Right: Biomarker Entry Form */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-60" />
+              <h3 className="font-semibold text-white mb-2 flex items-center gap-2 text-sm">
+                <span className="material-symbols-outlined text-secondary text-[16px]">edit_document</span>
+                Report Biomarker Details
+              </h3>
+              <p className="text-xs text-clinical-400 mb-4">Specify the biomarker metrics corresponding to the uploaded report.</p>
+
+              <div className="space-y-4">
+                {directTestCode === '4544-3' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">HbA1c (%)</label>
+                      <input type="number" required step="0.1" min="3" max="20" value={hba1cVal}
+                        onChange={e => handleHba1cChange(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">eAG (mg/dL)</label>
+                      <input type="number" required value={eagVal}
+                        onChange={e => setEagVal(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                      <span className="text-[8px] text-clinical-400 font-mono mt-1 block">Auto: eAG = 28.7 × HbA1c − 46.7</span>
+                    </div>
+                  </div>
+                ) : directTestCode === '2160-0' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">Serum Creatinine (mg/dL)</label>
+                      <input type="number" required step="0.01" min="0.1" max="15" value={creatinineVal}
+                        onChange={e => setCreatinineVal(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">eGFR (mL/min/1.73m²)</label>
+                      <input type="number" required value={egfrVal}
+                        onChange={e => setEgfrVal(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">BUN (mg/dL)</label>
+                      <input type="number" required value={bunVal}
+                        onChange={e => setBunVal(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                    </div>
+                  </div>
+                ) : directTestCode === '3024-7' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">Hemoglobin (g/dL)</label>
+                      <input type="number" required step="0.1" min="2" max="25" value={hbVal}
+                        onChange={e => handleHbChange(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">Hematocrit (%)</label>
+                      <input type="number" required value={hctVal}
+                        onChange={e => setHctVal(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                      <span className="text-[8px] text-clinical-400 font-mono mt-1 block">Auto: Hct ≈ Hb × 3</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">Result Value</label>
+                      <input type="text" required placeholder="e.g., 98.4" value={genericVal}
+                        onChange={e => setGenericVal(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-clinical-200 mb-1">Unit</label>
+                      <input type="text" placeholder="e.g., mg/dL" value={genericUnit}
+                        onChange={e => setGenericUnit(e.target.value)}
+                        className="w-full input-field text-sm focus:ring-1 focus:ring-secondary" />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

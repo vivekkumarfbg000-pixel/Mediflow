@@ -42,6 +42,7 @@ export const DoctorDashboard: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [medications, setMedications] = useState<Omit<MedicationRequest, 'id'>[]>([]);
   const [selectedTests, setSelectedTests] = useState<DiagnosticTest[]>([]);
+  const [prescriptionNotes, setPrescriptionNotes] = useState('');
   
   const [medName, setMedName] = useState('');
   const [medDosage, setMedDosage] = useState('');
@@ -62,6 +63,7 @@ export const DoctorDashboard: React.FC = () => {
   // New Dashboard Helper States
   const [selectedApprovedReport, setSelectedApprovedReport] = useState<PathologyReport | null>(null);
   const [selectedPathologyReportForTest, setSelectedPathologyReportForTest] = useState<PathologyReport | null>(null);
+  const [analyzingReport, setAnalyzingReport] = useState<any | null>(null);
   const [labTestResults, setLabTestResults] = useState('');
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
   const [financialSearch, setFinancialSearch] = useState('');
@@ -634,12 +636,38 @@ Keep the tone professional, clinical, objective, and precise.`;
   const handleSaveEncounter = () => {
     if (!selectedPatient) return;
 
+    const parsedMeds: Omit<MedicationRequest, 'id'>[] = [];
+    if (prescriptionNotes.trim()) {
+      const lines = prescriptionNotes.split('\n');
+      lines.forEach((line) => {
+        const cleaned = line.trim();
+        if (!cleaned) return;
+        const parts = cleaned.split(/[-—,]/).map(p => p.trim());
+        const medicineName = parts[0] || cleaned;
+        const dosage = parts[1] || 'As written';
+        const frequency = parts[2] || 'As written';
+        const duration = parts[3] || 'As written';
+        parsedMeds.push({ medicineName, dosage, frequency, duration });
+      });
+    }
+
+    const finalMedications = parsedMeds.map((m: Omit<MedicationRequest, 'id'>, idx: number) => ({ ...m, id: `med-${idx}` }));
+    if (prescriptionNotes.trim()) {
+      finalMedications.push({
+        id: `med-handwritten`,
+        medicineName: `Handwritten Rx Summary: ${prescriptionNotes.trim().replace(/\n/g, ' | ')}`,
+        dosage: 'As written',
+        frequency: 'As written',
+        duration: 'As written'
+      });
+    }
+
     api.createEncounter({
       patientId: selectedPatient.id,
       patientName: selectedPatient.name,
       doctorId: 'doc-1',
-      clinicalNotes: notes,
-      medications: medications.map((m: Omit<MedicationRequest, 'id'>, idx: number) => ({ ...m, id: `med-${idx}` })),
+      clinicalNotes: notes + (prescriptionNotes.trim() ? `\n[Handwritten Prescription Note]: ${prescriptionNotes.trim()}` : ''),
+      medications: finalMedications,
       diagnosticTests: selectedTests
     });
 
@@ -653,6 +681,10 @@ Keep the tone professional, clinical, objective, and precise.`;
       // Add Hinglish clinical directions
       whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${notes || "Continue active lifestyle management."}"_\n\n`;
       
+      if (prescriptionNotes.trim()) {
+        whatsAppMsg += `📝 *Handwritten Prescription Notes:*\n_"${prescriptionNotes.trim()}"_\n\n`;
+      }
+      
       if (latestReport) {
         whatsAppMsg += `🧪 *Consolidated Lab Report (Date: ${latestReport.date}):*\n`;
         whatsAppMsg += `- *HbA1c*: ${latestReport.HbA1c}%\n`;
@@ -660,9 +692,9 @@ Keep the tone professional, clinical, objective, and precise.`;
         whatsAppMsg += `- *Total Hemoglobin*: ${latestReport.hemoglobin} g/dL\n\n`;
       }
       
-      if (medications.length > 0) {
+      if (parsedMeds.length > 0) {
         whatsAppMsg += `💊 *Prescribed Medications (Collect at Counter):*\n`;
-        medications.forEach((m, idx) => {
+        parsedMeds.forEach((m, idx) => {
           whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
         });
         whatsAppMsg += `\n`;
@@ -677,6 +709,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
     // Reset Form
     setNotes('');
+    setPrescriptionNotes('');
     setHinglishSummary('');
     setAudioUrl(null);
     setAudioBlob(null);
@@ -746,6 +779,61 @@ Keep the tone professional, clinical, objective, and precise.`;
               })}
             </div>
           </div>
+
+          {/* Laboratory Report History (Past & Present) */}
+          {selectedPatient && (
+            <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white mt-4">
+              <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-lg">folder_zip</span>
+                Biomarker Reports History
+              </h2>
+              <p className="text-[10px] text-slate-400 mb-4">Click a report to open a full-screen clinical AI analysis</p>
+              
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                {(() => {
+                  const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+                  if (history.length === 0) {
+                    return (
+                      <div className="text-center py-6 text-slate-400 text-xs italic">
+                        No historical biomarker reports found.
+                      </div>
+                    );
+                  }
+                  return history.slice().reverse().map((report, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setAnalyzingReport(report)}
+                      className="w-full text-left p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between"
+                    >
+                      <div className="flex justify-between items-center w-full">
+                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs text-indigo-500">labs</span>
+                          Report Dated: {report.date}
+                        </span>
+                        <span className="text-[8px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider font-mono">
+                          Analyze
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/40 text-[10px] text-slate-500">
+                        <div>
+                          <span className="text-slate-400 font-medium block">HbA1c</span>
+                          <span className={`font-mono font-bold ${report.HbA1c > 6.5 ? 'text-rose-500' : 'text-slate-700'}`}>{report.HbA1c}%</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium block">Creatinine</span>
+                          <span className={`font-mono font-bold ${report.creatinine > 1.2 ? 'text-rose-500' : 'text-slate-700'}`}>{report.creatinine} mg/dL</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium block">Hemoglobin</span>
+                          <span className={`font-mono font-bold ${report.hemoglobin < 12.0 ? 'text-amber-500' : 'text-slate-700'}`}>{report.hemoglobin} g/dL</span>
+                        </div>
+                      </div>
+                    </button>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
 
         </div>
 
@@ -1252,105 +1340,37 @@ Keep the tone professional, clinical, objective, and precise.`;
               </div>
             </div>
 
-            {/* Medication e-Prescription (e-Rx) Builder */}
+            {/* Manual Handwritten Prescription Logger */}
             <div className="space-y-4 pt-5 border-t border-slate-100">
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-xs text-primary">pill</span>
-                e-Prescription Builder (FHIR R4 MedicationRequest Output)
+                <span className="material-symbols-outlined text-xs text-primary font-bold">menu_book</span>
+                Manual Handwritten Prescription Logger
               </label>
               
-              {/* Med Single entry row */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <div>
-                  <label className="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Generic / Brand Name</label>
+              <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
+                <label className="flex items-center gap-2.5 cursor-pointer">
                   <input
-                    type="text"
-                    value={medName}
-                    onChange={(e) => setMedName(e.target.value)}
-                    placeholder="Metformin 500mg"
-                    className="w-full input-field py-1.5 text-xs bg-white"
+                    type="checkbox"
+                    className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
+                    defaultChecked={true}
                   />
-                </div>
-                <div>
-                  <label className="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Dosage</label>
-                  <input
-                    type="text"
-                    value={medDosage}
-                    onChange={(e) => setMedDosage(e.target.value)}
-                    placeholder="1 Tab"
-                    className="w-full input-field py-1.5 text-xs bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Frequency</label>
-                  <select
-                    value={medFreq}
-                    onChange={(e) => setMedFreq(e.target.value)}
-                    className="w-full input-field py-1.5 text-xs bg-white"
-                  >
-                    <option value="1-0-1">1-0-1 (Morning & Night)</option>
-                    <option value="1-0-0">1-0-0 (Morning Only)</option>
-                    <option value="0-1-0">0-1-0 (Afternoon Only)</option>
-                    <option value="0-0-1">0-0-1 (Night Only)</option>
-                    <option value="1-1-1">1-1-1 (Thrice Daily)</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="block text-[9px] text-slate-500 mb-1 uppercase font-bold">Duration</label>
-                    <input
-                       type="text"
-                       value={medDur}
-                       onChange={(e) => setMedDur(e.target.value)}
-                       placeholder="10 Days"
-                       className="w-full input-field py-1.5 text-xs bg-white"
-                    />
+                  <span className="text-xs font-bold text-slate-700">I have written a physical paper prescription for this patient</span>
+                </label>
+                
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[10px] text-slate-500 uppercase font-bold">Medicines & Dosages Written (One per line)</label>
+                    <span className="text-[9px] text-slate-400 font-mono">Separate name, dosage, frequency, duration with a dash (-)</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAddMedication}
-                    className="btn-primary p-2 flex items-center justify-center hover:scale-102 text-xs rounded-xl w-10 h-[38px] shrink-0"
-                  >
-                    <span className="material-symbols-outlined text-base font-bold text-white-force">add</span>
-                  </button>
+                  <textarea
+                    value={prescriptionNotes}
+                    onChange={(e) => setPrescriptionNotes(e.target.value)}
+                    placeholder="e.g.&#10;Metformin 500mg - 1 Tab - 1-0-1 - 5 Days&#10;Atorvastatin 10mg - 1 Tab - 0-0-1 - 10 Days"
+                    rows={4}
+                    className="w-full input-field bg-white text-xs leading-relaxed font-mono"
+                  />
                 </div>
               </div>
-
-              {/* Prescribed List */}
-              {medications.length > 0 && (
-                <div className="border border-slate-200/80 rounded-xl overflow-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider text-[9px]">
-                      <tr>
-                        <th className="p-3.5">Medicine Name</th>
-                        <th className="p-3.5">Dosage</th>
-                        <th className="p-3.5">Frequency</th>
-                        <th className="p-3.5">Duration</th>
-                        <th className="p-3.5 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {medications.map((med, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-3.5 text-slate-800 font-semibold">{med.medicineName}</td>
-                          <td className="p-3.5 text-slate-500 font-mono">{med.dosage}</td>
-                          <td className="p-3.5 text-slate-500 font-mono">{med.frequency}</td>
-                          <td className="p-3.5 text-slate-500 font-mono">{med.duration}</td>
-                          <td className="p-3.5 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMedication(idx)}
-                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-all"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
 
             {/* Pod-to-Pod Network Referral */}
@@ -2867,6 +2887,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       case 'pod_view':
         return (
           <PodCommandCenter 
+            hideHeader={true}
             onStartConsultation={(patient) => {
               setSelectedPatient(patient);
               setActiveTab('consultation');
@@ -2893,6 +2914,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       default:
         return (
           <PodCommandCenter 
+            hideHeader={true}
             onStartConsultation={(patient) => {
               setSelectedPatient(patient);
               setActiveTab('consultation');
@@ -2900,6 +2922,218 @@ Keep the tone professional, clinical, objective, and precise.`;
           />
         );
     }
+  };
+
+  // FULL-SCREEN PROFESSIONAL AI CLINICAL REPORT ANALYSIS MODAL
+  const renderReportAnalysisModal = () => {
+    if (!analyzingReport) return null;
+    const report = analyzingReport;
+
+    const isHbA1cHigh = report.HbA1c >= 6.5;
+    const isHbA1cWarning = report.HbA1c >= 5.7 && report.HbA1c < 6.5;
+    const isCreatinineHigh = report.creatinine > 1.2;
+    const isHemoglobinLow = report.hemoglobin < 12.0;
+
+    let riskTier = "Low Risk";
+    let riskReason = "All active biomarkers are within normal reference corridors.";
+    let complications: string[] = [];
+    
+    if (isHbA1cHigh && isCreatinineHigh) {
+      riskTier = "Critical Risk";
+      riskReason = "Synchronous elevation of glycated hemoglobin and serum creatinine signals high probability of active Diabetic Nephropathy and microvascular kidney injury.";
+      complications.push("Chronic Kidney Disease (CKD) Stage 3 Progression");
+      complications.push("Accelerated Diabetic Retinopathy");
+      complications.push("Cardiovascular Event (ASCVD) Risk Elevation");
+    } else if (isHbA1cHigh) {
+      riskTier = "High Risk";
+      riskReason = "Glycemic parameters are in the diabetic range. Risk of long-term microvascular and macrovascular complications.";
+      complications.push("Type-2 Diabetes Mellitus Complications");
+      complications.push("Peripheral Neuropathy Development");
+    } else if (isCreatinineHigh) {
+      riskTier = "High Risk";
+      riskReason = "Reduced glomerular filtration capacity indicated by elevated serum creatinine. High risk of renal function degradation.";
+      complications.push("Renal Perfusion Impairment / Stage 2 CKD");
+    } else if (isHbA1cWarning) {
+      riskTier = "Moderate Warning";
+      riskReason = "HbA1c values match the prediabetic reference category. Progression to diabetes is highly likely within 24 months.";
+      complications.push("Progression to Type-2 Diabetes");
+    }
+
+    if (isHemoglobinLow) {
+      if (isCreatinineHigh) {
+        complications.push("Anemia of Chronic Disease (Renal Erythropoietin Deficit)");
+      } else {
+        complications.push("Iron Deficiency Anemia Risk");
+      }
+    }
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
+        <div className="glass-panel max-w-4xl w-full p-6 md:p-8 border-slate-800 shadow-2xl relative bg-slate-900 text-white rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800/80 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400 text-2xl font-bold">clinical_notes</span>
+                <h2 className="text-lg font-black text-slate-100 uppercase tracking-wider font-sans">Clinical AI Laboratory Analysis Report</h2>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Deep Diagnostics audit for patient: <strong className="text-slate-200 font-bold">{selectedPatient?.name}</strong> ({selectedPatient?.age}y, {selectedPatient?.gender})</p>
+            </div>
+            
+            <div className="flex gap-2">
+              <span className={`text-[10px] font-black font-mono px-3.5 py-1.5 rounded-full uppercase tracking-wider border ${
+                riskTier === 'Critical Risk' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' :
+                riskTier === 'High Risk' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+              }`}>
+                {riskTier}
+              </span>
+              <button
+                onClick={() => setAnalyzingReport(null)}
+                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer border-0 text-white-force"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-6">
+              <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+                1. Reference Range Audit & Diagnostics
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs font-bold text-slate-200">HbA1c (Glycated Hemoglobin)</span>
+                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: 4.0% - 5.6%</span>
+                  </div>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-xl font-black font-mono tracking-tight">{report.HbA1c}%</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
+                      isHbA1cHigh ? 'bg-rose-500/20 text-rose-400' :
+                      isHbA1cWarning ? 'bg-amber-500/20 text-amber-400' :
+                      'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        isHbA1cHigh ? 'bg-rose-500' : isHbA1cWarning ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(100, (report.HbA1c / 12) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs font-bold text-slate-200">Serum Creatinine</span>
+                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: 0.6 - 1.2 mg/dL</span>
+                  </div>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-xl font-black font-mono tracking-tight">{report.creatinine} mg/dL</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
+                      isCreatinineHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                      style={{ width: `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs font-bold text-slate-200">Total Hemoglobin</span>
+                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: 12.0 - 16.0 g/dL</span>
+                  </div>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-xl font-black font-mono tracking-tight">{report.hemoglobin} g/dL</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
+                      isHemoglobinLow ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
+                    }`}>
+                      {isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${isHemoglobinLow ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                      style={{ width: `${Math.min(100, (report.hemoglobin / 18) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+                  2. AI Clinical Correlations
+                </h3>
+                <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-xs space-y-2 leading-relaxed">
+                  <strong className="text-indigo-400 block font-bold">Biomarker Interaction Profile</strong>
+                  <p className="text-slate-300 text-[11px] font-medium leading-relaxed">{riskReason}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+                  3. Future Potential Disease Forecasts
+                </h3>
+                {complications.length === 0 ? (
+                  <div className="p-4 bg-slate-950/20 border border-slate-800 rounded-2xl text-slate-400 text-xs italic">
+                    No future potential risk patterns identified.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {complications.map((c, i) => (
+                      <div key={i} className="p-3 bg-rose-950/20 border border-rose-900/30 rounded-xl flex items-center gap-2.5 text-xs text-rose-200">
+                        <span className="material-symbols-outlined text-rose-400 text-sm shrink-0">warning</span>
+                        <span className="font-bold">{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+                  4. Safe Prescribing Directives
+                </h3>
+                <div className="p-4 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl text-[11px] text-indigo-200 space-y-2">
+                  <div className="flex gap-2">
+                    <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                    <span>{isCreatinineHigh ? "STRICT CONFLICT: Avoid NSAIDs (Ibuprofen, Diclofenac) to protect renal nephron capacity." : "NSAID usage cleared within standard clinical doses."}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                    <span>{isHbA1cHigh ? "Review glycemic therapy. Consider adding SGLT2 inhibitors for cardio-renal protection." : "Glycemic profile does not require immediate pharmacological adjustment."}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end border-t border-slate-800 pt-4 gap-3">
+            <button
+              onClick={() => setAnalyzingReport(null)}
+              className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-xl transition-colors cursor-pointer border-0 text-white-force animate-fade-in"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // ALLERGY BLOCKED CONFLICT OVERRIDE MODAL
@@ -3107,6 +3341,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
       {/* Allergy overrides modal */}
       {allergyAlert && renderAllergyAlertModal()}
+      {analyzingReport && renderReportAnalysisModal()}
     </div>
   );
 };

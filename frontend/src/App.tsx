@@ -292,7 +292,7 @@ function AppContent({
 }
 
 export default function App() {
-  const [currentRole, setCurrentRole] = useState<UserRole>('compounder');
+  const [currentRole, setCurrentRole] = useState<UserRole>('doctor');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [session, setSession] = useState<any>(null);
   const [activeProfile, setActiveProfile] = useState<any>(null);
@@ -405,7 +405,7 @@ export default function App() {
             if (profile) {
               const finalProfile = await checkAndCompleteOnboarding(session, profile);
               setActiveProfile(finalProfile);
-              let defaultRole: UserRole = 'compounder';
+              let defaultRole: UserRole = 'doctor';
               if (finalProfile.role === 'doctor') defaultRole = 'doctor';
               else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
               else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
@@ -432,7 +432,7 @@ export default function App() {
             if (profile) {
               const finalProfile = await checkAndCompleteOnboarding(session, profile);
               setActiveProfile(finalProfile);
-              let defaultRole: UserRole = 'compounder';
+              let defaultRole: UserRole = 'doctor';
               if (finalProfile.role === 'doctor') defaultRole = 'doctor';
               else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
               else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
@@ -477,7 +477,7 @@ export default function App() {
     setSession(session);
     setActiveProfile(finalProfile);
     
-    let defaultRole: UserRole = 'compounder';
+    let defaultRole: UserRole = 'doctor';
     if (finalProfile.role === 'doctor') defaultRole = 'doctor';
     else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
     else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
@@ -498,7 +498,7 @@ export default function App() {
   const handleSignOut = () => {
     setSession(null);
     setActiveProfile(null);
-    setCurrentRole('compounder');
+    setCurrentRole('doctor');
     
     const id = crypto.randomUUID();
     setToasts(prev => [...prev, {

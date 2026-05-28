@@ -10,9 +10,10 @@ import type { Patient, LabRequisition, InventoryHold, FinancialLedgerEntry, What
 
 interface PodCommandCenterProps {
   onStartConsultation?: (patient: Patient) => void;
+  hideHeader?: boolean;
 }
 
-export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsultation }) => {
+export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsultation, hideHeader }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [labReqs, setLabReqs] = useState<LabRequisition[]>([]);
   const [inventoryHolds, setInventoryHolds] = useState<InventoryHold[]>([]);
@@ -138,53 +139,55 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     <div className="space-y-6 animate-fade-in">
 
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
+      {!hideHeader && (
+        <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600/15 border border-indigo-500/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-indigo-400 text-[20px]">hub</span>
-              </div>
-              <div>
-                <h1 className="text-base font-bold text-slate-800 leading-tight">Pod Command Center</h1>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Admin Telemetry — Mediflow Bihar Clinic Pod · Doctor Full Access
-                </p>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/15 border border-indigo-500/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-indigo-400 text-[20px]">hub</span>
+                </div>
+                <div>
+                  <h1 className="text-base font-bold text-slate-800 leading-tight">Pod Command Center</h1>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Admin Telemetry — Mediflow Bihar Clinic Pod · Doctor Full Access
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
-            {/* Health Score Ring */}
-            <div className="text-center">
-              <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center font-bold text-lg font-mono ${
-                healthColor === 'emerald' ? 'border-emerald-400 text-emerald-700 bg-emerald-50' :
-                healthColor === 'amber' ? 'border-amber-400 text-amber-700 bg-amber-50' :
-                'border-rose-400 text-rose-700 bg-rose-50'
-              }`}>
-                {overallHealthScore}
+            <div className="flex items-center gap-4">
+              {/* Health Score Ring */}
+              <div className="text-center">
+                <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center font-bold text-lg font-mono ${
+                  healthColor === 'emerald' ? 'border-emerald-400 text-emerald-700 bg-emerald-50' :
+                  healthColor === 'amber' ? 'border-amber-400 text-amber-700 bg-amber-50' :
+                  'border-rose-400 text-rose-700 bg-rose-50'
+                }`}>
+                  {overallHealthScore}
+                </div>
+                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Pod Health</div>
               </div>
-              <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Pod Health</div>
-            </div>
 
-            {/* Live clock */}
-            <div className="text-right">
-              <div className="text-base font-bold text-slate-800 font-mono">
-                {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </div>
-              <div className="text-[10px] text-slate-400 font-mono">
-                {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-              </div>
-              <div className="flex items-center gap-1 justify-end mt-0.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${pulse ? 'bg-emerald-400' : 'bg-emerald-600'} transition-colors`} />
-                <span className="text-[8px] text-emerald-600 font-mono font-bold uppercase tracking-widest">Realtime</span>
+              {/* Live clock */}
+              <div className="text-right">
+                <div className="text-base font-bold text-slate-800 font-mono">
+                  {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono">
+                  {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
+                </div>
+                <div className="flex items-center gap-1 justify-end mt-0.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${pulse ? 'bg-emerald-400' : 'bg-emerald-600'} transition-colors`} />
+                  <span className="text-[8px] text-emerald-600 font-mono font-bold uppercase tracking-widest">Realtime</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Pod Nodes Grid ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -199,36 +202,55 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             </div>
             <div className={`w-2 h-2 rounded-full ${labMetrics.criticalReagents > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}`} />
           </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between items-center p-2 bg-amber-50 border border-amber-100 rounded-lg">
-              <span className="text-amber-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">pending</span>Pending
-              </span>
-              <span className="font-bold text-amber-800 font-mono">{labMetrics.pending}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-blue-50 border border-blue-100 rounded-lg">
-              <span className="text-blue-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">science</span>Processing
-              </span>
-              <span className="font-bold text-blue-800 font-mono">{labMetrics.processing}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
-              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">verified</span>Done Today
-              </span>
-              <span className="font-bold text-emerald-800 font-mono">{labMetrics.completedToday}</span>
-            </div>
-            {labMetrics.lowReagents > 0 && (
-              <div className="flex justify-between items-center p-2 bg-rose-50 border border-rose-200 rounded-lg animate-pulse">
-                <span className="text-rose-700 font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">warning</span>Low Reagents
-                </span>
-                <span className="font-bold text-rose-700 font-mono">{labMetrics.lowReagents}</span>
+          {(() => {
+            const total = labMetrics.pending + labMetrics.processing + labMetrics.completedToday;
+            return (
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 shrink-0">
+                  <svg className="w-full h-full transform -rotate-90 animate-fade-in" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+                    {total > 0 ? (
+                      <>
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3" 
+                          strokeDasharray={`${(labMetrics.completedToday / total) * 100} ${100 - (labMetrics.completedToday / total) * 100}`}
+                          strokeDashoffset="0"
+                        />
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#3b82f6" strokeWidth="3" 
+                          strokeDasharray={`${(labMetrics.processing / total) * 100} ${100 - (labMetrics.processing / total) * 100}`}
+                          strokeDashoffset={`-${(labMetrics.completedToday / total) * 100}`}
+                        />
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" strokeWidth="3" 
+                          strokeDasharray={`${(labMetrics.pending / total) * 100} ${100 - (labMetrics.pending / total) * 100}`}
+                          strokeDashoffset={`-${((labMetrics.completedToday + labMetrics.processing) / total) * 100}`}
+                        />
+                      </>
+                    ) : (
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="100 0" />
+                    )}
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center font-black text-slate-800 text-xs font-mono">
+                    {total}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-1.5 text-[10px]">
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Done Today</span>
+                    <span className="font-mono">{labMetrics.completedToday}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"/>Processing</span>
+                    <span className="font-mono">{labMetrics.processing}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Pending</span>
+                    <span className="font-mono">{labMetrics.pending}</span>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
           {labMetrics.walkins > 0 && (
-            <div className="mt-2 text-[9px] text-blue-500 bg-blue-50 border border-blue-100 px-2 py-1 rounded-lg font-mono font-bold">
+            <div className="mt-3 text-[9px] text-blue-500 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg font-mono font-bold text-center">
               {labMetrics.walkins} walk-in test(s) active
             </div>
           )}
@@ -244,28 +266,53 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             </div>
             <div className={`w-2 h-2 rounded-full ${pharmacyMetrics.criticalStockItems > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}`} />
           </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between items-center p-2 bg-indigo-50 border border-indigo-100 rounded-lg">
-              <span className="text-indigo-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">inventory_2</span>Active Holds
-              </span>
-              <span className="font-bold text-indigo-800 font-mono">{pharmacyMetrics.pendingHolds}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
-              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">local_shipping</span>Dispensed
-              </span>
-              <span className="font-bold text-emerald-800 font-mono">{pharmacyMetrics.dispensedToday}</span>
-            </div>
-            {pharmacyMetrics.lowStockItems > 0 && (
-              <div className="flex justify-between items-center p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                <span className="text-amber-700 font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">warning</span>Low Stock SKUs
-                </span>
-                <span className="font-bold text-amber-800 font-mono">{pharmacyMetrics.lowStockItems}</span>
+          {(() => {
+            const totalPharma = pharmacyMetrics.dispensedToday + pharmacyMetrics.pendingHolds + pharmacyMetrics.lowStockItems;
+            return (
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 shrink-0">
+                  <svg className="w-full h-full transform -rotate-90 animate-fade-in" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+                    {totalPharma > 0 ? (
+                      <>
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3" 
+                          strokeDasharray={`${(pharmacyMetrics.dispensedToday / totalPharma) * 100} ${100 - (pharmacyMetrics.dispensedToday / totalPharma) * 100}`}
+                          strokeDashoffset="0"
+                        />
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#6366f1" strokeWidth="3" 
+                          strokeDasharray={`${(pharmacyMetrics.pendingHolds / totalPharma) * 100} ${100 - (pharmacyMetrics.pendingHolds / totalPharma) * 100}`}
+                          strokeDashoffset={`-${(pharmacyMetrics.dispensedToday / totalPharma) * 100}`}
+                        />
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" strokeWidth="3" 
+                          strokeDasharray={`${(pharmacyMetrics.lowStockItems / totalPharma) * 100} ${100 - (pharmacyMetrics.lowStockItems / totalPharma) * 100}`}
+                          strokeDashoffset={`-${((pharmacyMetrics.dispensedToday + pharmacyMetrics.pendingHolds) / totalPharma) * 100}`}
+                        />
+                      </>
+                    ) : (
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="100 0" />
+                    )}
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center font-black text-slate-800 text-xs font-mono">
+                    {pharmacyMetrics.dispensedToday}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-1.5 text-[10px]">
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Dispensed</span>
+                    <span className="font-mono">{pharmacyMetrics.dispensedToday}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500"/>Active Holds</span>
+                    <span className="font-mono">{pharmacyMetrics.pendingHolds}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Low Stock SKU</span>
+                    <span className="font-mono">{pharmacyMetrics.lowStockItems}</span>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
         {/* WhatsApp Node */}
@@ -278,34 +325,53 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             </div>
             <div className={`w-2 h-2 rounded-full ${whatsappMetrics.failed > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}`} />
           </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between items-center p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
-              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">forum</span>Active Sessions
-              </span>
-              <span className="font-bold text-emerald-800 font-mono">{whatsappMetrics.active}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-amber-50 border border-amber-100 rounded-lg">
-              <span className="text-amber-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">payments</span>Awaiting Pay
-              </span>
-              <span className="font-bold text-amber-800 font-mono">{whatsappMetrics.awaitingPayment}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-slate-50 border border-slate-100 rounded-lg">
-              <span className="text-slate-600 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">check_circle</span>Completed
-              </span>
-              <span className="font-bold text-slate-700 font-mono">{whatsappMetrics.completed}</span>
-            </div>
-            {whatsappMetrics.failed > 0 && (
-              <div className="flex justify-between items-center p-2 bg-rose-50 border border-rose-200 rounded-lg animate-pulse">
-                <span className="text-rose-700 font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">error</span>Failed Delivery
-                </span>
-                <span className="font-bold text-rose-700 font-mono">{whatsappMetrics.failed}</span>
+          {(() => {
+            const totalWA = whatsappMetrics.active + whatsappMetrics.awaitingPayment + whatsappMetrics.completed;
+            return (
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 shrink-0">
+                  <svg className="w-full h-full transform -rotate-90 animate-fade-in" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+                    {totalWA > 0 ? (
+                      <>
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3" 
+                          strokeDasharray={`${(whatsappMetrics.completed / totalWA) * 100} ${100 - (whatsappMetrics.completed / totalWA) * 100}`}
+                          strokeDashoffset="0"
+                        />
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0d9488" strokeWidth="3" 
+                          strokeDasharray={`${(whatsappMetrics.active / totalWA) * 100} ${100 - (whatsappMetrics.active / totalWA) * 100}`}
+                          strokeDashoffset={`-${(whatsappMetrics.completed / totalWA) * 100}`}
+                        />
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" strokeWidth="3" 
+                          strokeDasharray={`${(whatsappMetrics.awaitingPayment / totalWA) * 100} ${100 - (whatsappMetrics.awaitingPayment / totalWA) * 100}`}
+                          strokeDashoffset={`-${((whatsappMetrics.completed + whatsappMetrics.active) / totalWA) * 100}`}
+                        />
+                      </>
+                    ) : (
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="100 0" />
+                    )}
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center font-black text-slate-800 text-xs font-mono">
+                    {whatsappMetrics.active}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-1.5 text-[10px]">
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Completed</span>
+                    <span className="font-mono">{whatsappMetrics.completed}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-500"/>Active Sessions</span>
+                    <span className="font-mono">{whatsappMetrics.active}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-600">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Awaiting Pay</span>
+                    <span className="font-mono">{whatsappMetrics.awaitingPayment}</span>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
         {/* Billing Node */}
@@ -318,26 +384,39 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             </div>
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
           </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between items-center p-2 bg-amber-50 border border-amber-100 rounded-lg">
-              <span className="text-amber-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">currency_rupee</span>Gross Rev
-              </span>
-              <span className="font-bold text-amber-800 font-mono">₹{financialMetrics.grossRev.toLocaleString('en-IN')}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
-              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">check_circle</span>Cleared
-              </span>
-              <span className="font-bold text-emerald-800 font-mono">₹{financialMetrics.cleared.toLocaleString('en-IN')}</span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-orange-50 border border-orange-100 rounded-lg">
-              <span className="text-orange-700 font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[13px]">hourglass_top</span>Pending
-              </span>
-              <span className="font-bold text-orange-800 font-mono">₹{financialMetrics.pending.toLocaleString('en-IN')}</span>
-            </div>
-          </div>
+          {(() => {
+            return (
+              <div className="space-y-3">
+                <div className="h-10 flex items-end justify-around gap-2 px-2 bg-slate-50 border border-slate-100 rounded-lg py-1">
+                  {[
+                    { label: 'Gross', amount: financialMetrics.grossRev, color: 'bg-amber-400' },
+                    { label: 'Cleared', amount: financialMetrics.cleared, color: 'bg-emerald-500' },
+                    { label: 'Pending', amount: financialMetrics.pending, color: 'bg-orange-500' }
+                  ].map((bar, i) => {
+                    const maxVal = Math.max(1, financialMetrics.grossRev, financialMetrics.cleared, financialMetrics.pending);
+                    const heightPct = (bar.amount / maxVal) * 100;
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group relative">
+                        <div className={`${bar.color} w-full rounded-t-xs transition-all duration-500`} style={{ height: `${Math.max(10, heightPct)}%` }} />
+                        <span className="text-[7px] text-slate-400 mt-1 uppercase font-bold tracking-wider">{bar.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="space-y-1 text-[9px] font-bold">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Gross:</span>
+                    <span className="font-mono">₹{financialMetrics.grossRev.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Cleared:</span>
+                    <span className="font-mono">₹{financialMetrics.cleared.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
