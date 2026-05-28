@@ -1118,7 +1118,7 @@ export const LabDashboard: React.FC = () => {
                       <button 
                         type="button" 
                         onClick={() => setWalkinFileUrl(null)} 
-                        className="text-[10px] text-rose-450 hover:text-rose-350 cursor-pointer bg-transparent border-0"
+                        className="text-[10px] text-rose-500 hover:text-rose-400 cursor-pointer bg-transparent border-0"
                       >
                         Remove
                       </button>

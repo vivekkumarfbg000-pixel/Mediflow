@@ -1391,7 +1391,7 @@ export const CompounderDashboard: React.FC = () => {
 
                   <div className="space-y-4">
                     <div className="flex gap-4 items-start">
-                      <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
+                      <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
                         <span className="material-symbols-outlined text-xl text-indigo-600">upload</span>
                         <span>Upload Previous Report</span>
                         <input 
@@ -2020,7 +2020,7 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="space-y-4">
                   {/* File Upload Area */}
                   <div className="flex gap-4 items-start">
-                    <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
+                    <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
                       <Upload className="h-5 w-5 text-indigo-600" />
                       <span>{dispatchFile ? 'Change Prescription File' : 'Upload / Drag Rx Image/PDF'}</span>
                       <input 
@@ -2317,7 +2317,7 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="space-y-3">
                               <p className="text-[10px] text-slate-500">Upload or scan the doctor's handwritten/printed prescription to run AI OCR and auto-generate invoices.</p>
                               <div className="flex items-center gap-3">
-                                <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
+                                <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
                                   <Upload className="h-5 w-5 text-indigo-600" />
                                   <span>Upload / Scan Prescription</span>
                                   <span className="text-[9px] text-slate-400 font-medium">Supports JPEG, PNG, and PDF</span>

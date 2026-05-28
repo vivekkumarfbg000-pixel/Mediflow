@@ -1242,7 +1242,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                         </span>
                       </div>
                       <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
-                        isChecked ? 'bg-primary border-primary text-white' : 'border-slate-350 bg-white'
+                        isChecked ? 'bg-primary border-primary text-white' : 'border-slate-300 bg-white'
                       }`}>
                         {isChecked && <span className="material-symbols-outlined text-xs font-bold text-white-force">check</span>}
                       </div>
