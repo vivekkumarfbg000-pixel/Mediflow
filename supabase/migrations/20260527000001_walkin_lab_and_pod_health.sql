@@ -62,9 +62,10 @@ ALTER TABLE public.pod_health_snapshots ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "pod_health_doctor_read"
   ON public.pod_health_snapshots FOR SELECT
   USING (
-    EXISTS (
+    pod_id = public.get_user_pod()
+    OR EXISTS (
       SELECT 1 FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.role IN ('doctor', 'admin', 'platform_admin')
+      WHERE p.id = auth.uid() AND p.role = 'platform_admin'
     )
   );
 
@@ -80,9 +81,10 @@ BEGIN
     CREATE POLICY "doctor_read_all_lab_reqs"
       ON public.lab_requisitions FOR SELECT
       USING (
-        EXISTS (
+        pod_id = public.get_user_pod()
+        OR EXISTS (
           SELECT 1 FROM public.profiles p
-          WHERE p.id = auth.uid() AND p.role IN ('doctor', 'admin', 'platform_admin')
+          WHERE p.id = auth.uid() AND p.role = 'platform_admin'
         )
       );
   END IF;
