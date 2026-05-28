@@ -158,7 +158,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         options: {
           data: {
             display_name: displayName,
-            role: 'doctor'
+            role: 'doctor',
+            clinic_name: clinicName.trim(),
+            clinic_phone: phone.trim(),
+            clinic_address: address.trim(),
+            specialization: specialization,
+            pending_registration: true
           }
         }
       });
@@ -184,6 +189,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       });
 
       if (rpcError) throw rpcError;
+
+      // Clear the pending registration flag since we successfully onboarding synchronously
+      await supabase.auth.updateUser({
+        data: { pending_registration: false }
+      });
 
       // 4. Show registration success screen with generated clinic code!
       setRegisteredClinicCode(rpcData.clinic_code);
@@ -233,7 +243,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         options: {
           data: {
             display_name: displayName,
-            role: userRole
+            role: userRole,
+            clinic_code: clinicCode.trim().toUpperCase(),
+            partner_type: partnerType,
+            partner_phone: phone.trim(),
+            partner_address: address.trim(),
+            pending_registration: true
           }
         }
       });
@@ -260,6 +275,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       });
 
       if (rpcError) throw rpcError;
+
+      // Clear the pending registration flag since we successfully onboarding synchronously
+      await supabase.auth.updateUser({
+        data: { pending_registration: false }
+      });
 
       // 4. Fetch profile to pass to Auth success
       const { data: profile, error: profileErr } = await supabase

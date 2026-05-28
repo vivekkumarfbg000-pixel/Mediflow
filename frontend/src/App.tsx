@@ -12,7 +12,7 @@ const BillingDashboard = lazy(() => import('./components/billing/BillingDashboar
 
 import { AuthGateway } from './components/shared/AuthGateway';
 import { supabase } from './lib/supabaseClient';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { ClinicProvider, useClinic } from './context/ClinicContext';
@@ -297,6 +297,7 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [activeProfile, setActiveProfile] = useState<any>(null);
   const [isBypassMode, setIsBypassMode] = useState<boolean>(true); // Dev bypass default for smooth testing
+  const [isOnboarding, setIsOnboarding] = useState(false);
 
   useEffect(() => {
     PwaSyncManager.registerServiceWorker();
@@ -312,6 +313,84 @@ export default function App() {
     api.setSimulatedRole(apiRole);
   }, [currentRole]);
 
+  // Deferred, self-healing onboarding router for email confirmation flows
+  const checkAndCompleteOnboarding = async (currentSession: any, currentProfile: any): Promise<any> => {
+    if (!currentSession?.user || !currentProfile) return currentProfile;
+    
+    const metadata = currentSession.user.user_metadata;
+    if (!currentProfile.entity_id && metadata?.pending_registration) {
+      setIsOnboarding(true);
+      
+      try {
+        console.log('[Mediflow Onboarding] Detected pending registration in session metadata. Running RPC onboarding...');
+        
+        if (currentProfile.role === 'doctor') {
+          // Call register_clinic_network
+          const { data: rpcData, error: rpcError } = await supabase.rpc('register_clinic_network', {
+            p_clinic_name: metadata.clinic_name || 'My Clinic',
+            p_clinic_phone: metadata.clinic_phone || '',
+            p_clinic_address: metadata.clinic_address || '',
+            p_specialization: metadata.specialization || 'General Medicine'
+          });
+          
+          if (rpcError) throw rpcError;
+          console.log('[Mediflow Onboarding] Clinic registered successfully. Code:', rpcData?.clinic_code);
+        } else {
+          // Partner (pharmacist, lab_technician, compounder)
+          const { error: rpcError } = await supabase.rpc('join_clinic_network', {
+            p_clinic_code: metadata.clinic_code || '',
+            p_partner_type: metadata.partner_type || (currentProfile.role === 'pharmacist' ? 'pharmacy' : currentProfile.role === 'lab_technician' ? 'lab' : 'compounder'),
+            p_partner_name: metadata.display_name || currentProfile.display_name || '',
+            p_partner_phone: metadata.partner_phone || '',
+            p_partner_address: metadata.partner_address || ''
+          });
+          
+          if (rpcError) throw rpcError;
+          console.log('[Mediflow Onboarding] Partner join request submitted successfully.');
+        }
+        
+        // Clear pending registration metadata
+        await supabase.auth.updateUser({
+          data: { pending_registration: false }
+        });
+        
+        // Fetch updated profile
+        const { data: updatedProfile, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .single();
+          
+        if (profileErr) throw profileErr;
+        
+        console.log('[Mediflow Onboarding] Onboarding complete. Profile updated.');
+        
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Onboarding Completed! 🎉',
+            message: 'Your account has been successfully configured.',
+            type: 'success'
+          }
+        }));
+        
+        return updatedProfile;
+      } catch (err: any) {
+        console.error('[Mediflow Onboarding] Onboarding process failed:', err);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Onboarding Failed ⚠️',
+            message: err.message || 'Onboarding process failed.',
+            type: 'error'
+          }
+        }));
+      } finally {
+        setIsOnboarding(false);
+      }
+    }
+    
+    return currentProfile;
+  };
+
   useEffect(() => {
     // 1. Check existing Supabase session and load active profile
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -322,15 +401,16 @@ export default function App() {
           .select('*')
           .eq('id', session.user.id)
           .single()
-          .then(({ data: profile }) => {
+          .then(async ({ data: profile }) => {
             if (profile) {
-              setActiveProfile(profile);
+              const finalProfile = await checkAndCompleteOnboarding(session, profile);
+              setActiveProfile(finalProfile);
               let defaultRole: UserRole = 'compounder';
-              if (profile.role === 'doctor') defaultRole = 'doctor';
-              else if (profile.role === 'lab_technician') defaultRole = 'lab';
-              else if (profile.role === 'pharmacist') defaultRole = 'pharmacy';
-              else if (profile.role === 'patient') defaultRole = 'patient';
-              else if (profile.role === 'admin' || profile.role === 'platform_admin') defaultRole = 'billing';
+              if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+              else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
+              else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
+              else if (finalProfile.role === 'patient') defaultRole = 'patient';
+              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
               setCurrentRole(defaultRole);
             }
           });
@@ -342,6 +422,25 @@ export default function App() {
       setSession(session);
       if (!session) {
         setActiveProfile(null);
+      } else {
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(async ({ data: profile }) => {
+            if (profile) {
+              const finalProfile = await checkAndCompleteOnboarding(session, profile);
+              setActiveProfile(finalProfile);
+              let defaultRole: UserRole = 'compounder';
+              if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+              else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
+              else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
+              else if (finalProfile.role === 'patient') defaultRole = 'patient';
+              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
+              setCurrentRole(defaultRole);
+            }
+          });
       }
     });
 
@@ -373,16 +472,17 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  const handleAuthSuccess = (session: any, profile: any) => {
+  const handleAuthSuccess = async (session: any, profile: any) => {
+    const finalProfile = await checkAndCompleteOnboarding(session, profile);
     setSession(session);
-    setActiveProfile(profile);
+    setActiveProfile(finalProfile);
     
     let defaultRole: UserRole = 'compounder';
-    if (profile.role === 'doctor') defaultRole = 'doctor';
-    else if (profile.role === 'lab_technician') defaultRole = 'lab';
-    else if (profile.role === 'pharmacist') defaultRole = 'pharmacy';
-    else if (profile.role === 'patient') defaultRole = 'patient';
-    else if (profile.role === 'admin' || profile.role === 'platform_admin') defaultRole = 'billing';
+    if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+    else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
+    else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
+    else if (finalProfile.role === 'patient') defaultRole = 'patient';
+    else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
     
     setCurrentRole(defaultRole);
 
@@ -390,7 +490,7 @@ export default function App() {
     setToasts(prev => [...prev, {
       id,
       title: 'Professional Portal Initialized',
-      message: `Successfully authenticated as ${profile.display_name}. Role: ${profile.role.toUpperCase()}`,
+      message: `Successfully authenticated as ${finalProfile.display_name}. Role: ${finalProfile.role.toUpperCase()}`,
       type: 'success'
     }]);
   };
@@ -458,6 +558,26 @@ export default function App() {
     }
     setCurrentRole(role);
   };
+
+  if (isOnboarding) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background Neon Glow Orbs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
+
+        <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-md border border-white/10 p-8 rounded-2xl shadow-xl flex flex-col items-center space-y-6 text-center z-10 animate-fade-in">
+          <Loader2 className="h-12 w-12 text-cyan-400 animate-spin" />
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-white">Configuring Your Workspace</h3>
+            <p className="text-xs text-slate-300">
+              Please wait while we initialize your clinical care network and apply secure tenant isolation keys...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ClinicProvider activeProfile={activeProfile}>
