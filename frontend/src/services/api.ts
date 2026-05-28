@@ -2648,9 +2648,9 @@ Thank you for choosing Mediflow! 🟢`;
       
       const testPrice = activeSop?.extractedConfig?.test_prices?.[reports[idx].loincCode] ?? testCatalogItem?.price ?? 350;
       
-      const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
-      const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 3;
-      const splitLab = activeSop?.extractedConfig?.splits?.lab ?? 57;
+      const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 15; // Dynamic Doctor referral commission from SOP, default 15%
+      const splitPlat = 5; // Strict 5% SaaS platform fee for laboratory and pharmacy checkouts
+      const splitLab = 100 - splitDoc - splitPlat; // Remaining portion goes directly to the laboratory partner
 
       const platformAmt = parseFloat((testPrice * (splitPlat / 100)).toFixed(2));
       const docAmt = parseFloat((testPrice * (splitDoc / 100)).toFixed(2));
@@ -3734,6 +3734,36 @@ Dhyan rakhein aur time par medicine lein!`;
     } finally {
       this.isLabTrending = false;
       this.notify();
+    }
+  }
+
+  /**
+   * Virtual Consultation Video Room Router: Generates a secure, zero-install Jitsi Meet consultation room.
+   */
+  async generateConsultRoom(appointmentId: string, patientPhone: string, doctorName = 'Dr. Sharma'): Promise<{ roomUrl: string }> {
+    try {
+      const res = await fetch(`${MediflowApiService.AI_BASE}/api/generate-consult-room`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          patient_phone: patientPhone,
+          doctor_name: doctorName
+        })
+      });
+      if (!res.ok) throw new Error(`generate-consult-room HTTP status ${res.status}`);
+      const data = await res.json();
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Video Room Generated 🎥',
+          message: 'Zero-install consultation link dispatched to WhatsApp.',
+          type: 'success'
+        }
+      }));
+      return { roomUrl: data.room_url };
+    } catch (err: any) {
+      console.warn('[Mediflow AI] Video room generator error, executing fallback:', err);
+      return { roomUrl: `https://meet.jit.si/mediflow-consult-${appointmentId}` };
     }
   }
 
