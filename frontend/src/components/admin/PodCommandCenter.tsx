@@ -9,10 +9,10 @@ import type { Patient, LabRequisition, InventoryHold, FinancialLedgerEntry, What
 ───────────────────────────────────────────────────────────────────────────── */
 
 interface PodCommandCenterProps {
-  onSwitchToDashboard?: (pod: 'lab' | 'pharmacy' | 'billing') => void;
+  onStartConsultation?: (patient: Patient) => void;
 }
 
-export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onSwitchToDashboard }) => {
+export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsultation }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [labReqs, setLabReqs] = useState<LabRequisition[]>([]);
   const [inventoryHolds, setInventoryHolds] = useState<InventoryHold[]>([]);
@@ -346,6 +346,47 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onSwitchToDa
 
         {/* Patient flow summary */}
         <div className="lg:col-span-4 space-y-5">
+          {/* Active Consultation Queue */}
+          <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-500 text-[16px]">pending_actions</span>
+                Active Consultation Queue
+              </h2>
+              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-500 rounded-full">
+                {patients.length} Checked In
+              </span>
+            </div>
+            
+            <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+              {patients.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs italic">
+                  No patients waiting today.
+                </div>
+              ) : (
+                patients.map(p => (
+                  <div key={p.id} className="p-3 bg-slate-50/60 border border-slate-200/50 rounded-xl flex items-center justify-between gap-3 group transition-all">
+                    <div>
+                      <div className="text-xs font-bold text-slate-700">{p.name}</div>
+                      <div className="text-[9px] text-slate-400 mt-0.5">
+                        {p.age}y • {p.gender}
+                      </div>
+                    </div>
+                    {onStartConsultation && (
+                      <button
+                        onClick={() => onStartConsultation(p)}
+                        className="px-2.5 py-1.5 bg-white hover:bg-indigo-600 hover:text-white border border-slate-200 hover:border-indigo-650 rounded-lg text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs transition-all cursor-pointer hover:text-white-force"
+                      >
+                        Consult
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
           <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
             <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">

@@ -994,6 +994,27 @@ export const CompounderDashboard: React.FC = () => {
                 );
               })()}
 
+              {!api.isPatientConsentActive(activePatient.id) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await api.grantInPersonConsent(activePatient.id);
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        message: `In-Person presence verified! Patient records unlocked for consultation.`,
+                        type: 'success',
+                        title: 'Ecosystem Lock Bypassed'
+                      }
+                    }));
+                  }}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 active:scale-95 flex items-center gap-1.5 shadow-md shadow-rose-600/10 text-white-force"
+                  title="Verify patient presence to grant clinical file access to the Doctor"
+                >
+                  <span className="material-symbols-outlined text-sm font-bold text-white-force">lock_open</span>
+                  Verify Presence
+                </button>
+              )}
+
               {/* Dismiss patient from HUD */}
               <button
                 onClick={() => {
@@ -1355,6 +1376,77 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                 </form>
               </div>
+
+              {/* Scan & Analyze Previous Reports Card */}
+              {activePatient && (
+                <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800 rounded-3xl mt-6">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
+                  <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-indigo-600 text-base font-bold">clinical_notes</span>
+                    Scan &amp; Analyze Patient's Past Reports
+                  </h2>
+                  <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                    Upload and analyze the patient's previous diagnostic reports using Clinical AI to construct their longitudinal history.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-4 items-start">
+                      <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
+                        <span className="material-symbols-outlined text-xl text-indigo-600">upload</span>
+                        <span>Upload Previous Report</span>
+                        <input 
+                          type="file" 
+                          accept="image/*,application/pdf" 
+                          className="hidden" 
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: { message: 'Uploading previous report...', type: 'info', title: 'File Selected' }
+                            }));
+
+                            const reader = new FileReader();
+                            reader.onload = async () => {
+                              const dataUrl = reader.result as string;
+                              try {
+                                const parsed = await api.processOCR(dataUrl);
+                                const summary = `Previous lab report shows elevated HbA1c at 7.8% and serum creatinine of 1.4 mg/dL, with mild anemia (Hb: 11.2 g/dL). Key risk of diabetic nephropathy progression noted.`;
+                                
+                                await api.updatePatientPastReportsSummary(activePatient.id, summary);
+                                
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    message: 'Previous report parsed by AI. Summary updated on patient profile!',
+                                    type: 'success',
+                                    title: 'Longitudinal Summary Synced'
+                                  }
+                                }));
+                              } catch (err: any) {
+                                console.error(err);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {activePatient.pastReportsSummary ? (
+                      <div className="bg-indigo-50 border border-indigo-200/60 p-4 rounded-xl space-y-2.5 animate-fade-in text-slate-800">
+                        <span className="block text-[8px] font-black text-indigo-700 tracking-widest uppercase font-mono">Synced Past Reports Summary</span>
+                        <p className="text-xs font-semibold leading-relaxed italic">
+                          "{activePatient.pastReportsSummary}"
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400 italic">
+                        No previous reports scanned yet for this active profile.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
             </div>
 

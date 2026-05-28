@@ -253,6 +253,7 @@ class MediflowApiService {
           allergies: p.allergies || [],
           chronicConditions: p.chronic_conditions || [],
           abhaId: p.abha_id || undefined,
+          pastReportsSummary: p.past_reports_summary || undefined,
           createdAt: p.created_at
         }));
         this.save('patients', patients);
@@ -3260,6 +3261,49 @@ If no prescription image could be loaded or fetched, generate a highly realistic
       }));
     } catch (err) {
       console.error('[Mediflow Referrals] Error initiating referral:', err);
+    }
+  }
+
+  async grantInPersonConsent(patientId: string): Promise<void> {
+    try {
+      const { error } = await supabase.from('patient_consents').insert({
+        patient_id: patientId,
+        consent_type: 'in_person_override',
+        granted_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      await this.writeAuditLog('IN_PERSON_CONSENT_GRANTED', { patientId }, patientId);
+      await this.syncFromSupabase();
+    } catch (err) {
+      console.error('[Mediflow] Failed to grant in person consent:', err);
+      // Fallback local mock update
+      const activeConsents = this.load<string[]>('active_consent_ids', []);
+      if (!activeConsents.includes(patientId)) {
+        activeConsents.push(patientId);
+        this.save('active_consent_ids', activeConsents);
+      }
+      this.notify();
+    }
+  }
+
+  async updatePatientPastReportsSummary(patientId: string, summary: string): Promise<void> {
+    try {
+      const { error } = await supabase.from('patient_registry').update({
+        past_reports_summary: summary
+      }).eq('id', patientId);
+      if (error) throw error;
+      await this.writeAuditLog('PATIENT_PAST_REPORTS_SUMMARY_UPDATED', { patientId, summary }, patientId);
+      await this.syncFromSupabase();
+    } catch (err) {
+      console.error('[Mediflow] Failed to update past reports summary:', err);
+      // Fallback local mock update
+      const patients = this.getPatients();
+      const idx = patients.findIndex(p => p.id === patientId);
+      if (idx !== -1) {
+        patients[idx].pastReportsSummary = summary;
+        this.save('patients', patients);
+      }
+      this.notify();
     }
   }
 

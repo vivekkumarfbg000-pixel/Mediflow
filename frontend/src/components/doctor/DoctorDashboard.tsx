@@ -19,7 +19,7 @@ import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
 import { PodCommandCenter } from '../admin/PodCommandCenter';
 
 export const DoctorDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
+  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
   
   // SOP States
   const [sopFile, setSopFile] = useState<File | null>(null);
@@ -235,9 +235,8 @@ export const DoctorDashboard: React.FC = () => {
 
     // Must be horizontal swipe: deltaX magnitude must be much larger than deltaY to prevent vertical scroll conflicts
     if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
-      const tabs: Array<'overview' | 'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
+      const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
         'pod_view',
-        'overview', 
         'consultation', 
         'financials', 
         'patients',
@@ -698,496 +697,6 @@ Keep the tone professional, clinical, objective, and precise.`;
   const compReport = activeHistory?.find(h => h.date === comparisonDate) ?? (activeHistory ? activeHistory[activeHistory.length - 1] : null);
   const isConsentActive = selectedPatient ? api.isPatientConsentActive(selectedPatient.id) : true;
 
-  // TAB 1 RENDER: Overview Command Center
-  // TAB 1 RENDER: Overview Command Center
-  const renderOverviewTab = () => {
-    const pendingLabCount = pathologyReports.filter(r => r.status === 'pending').length;
-    const grossRev = financialLedgers.reduce((acc, entry) => acc + entry.grossAmount, 0);
-    const netPayout = financialLedgers.reduce((acc, entry) => acc + entry.netPayout, 0);
-
-    // Calculate split revenues
-    const clinicCut = financialLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0) * 0.485;
-    const pharmacyComm = financialLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
-    const labComm = financialLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
-    const platformCut = grossRev * 0.03;
-
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in text-slate-800 font-sans">
-        {/* Left Column: Quick Metrics & CDSS AI Feed */}
-        <div className="lg:col-span-2 space-y-6">
-
-
-          {/* Biomarker SVG Chart Trend Line */}
-          {(selectedPatient?.id || patients[0]?.id) && (
-            <BiomarkerChart patientId={selectedPatient?.id || patients[0]?.id} />
-          )}
-
-          {/* Quick Metrics Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Today's Queue", val: patients.length, unit: "patients", icon: "group", color: "border-blue-100 text-blue-600 bg-blue-50/20", glow: "bg-blue-400" },
-              { label: "Gross Revenue", val: `₹${grossRev.toLocaleString()}`, unit: "total sales", icon: "payments", color: "border-emerald-100 text-emerald-600 bg-emerald-50/20", glow: "bg-emerald-400" },
-              { label: "Net Payout", val: `₹${netPayout.toLocaleString()}`, unit: "net splits", icon: "account_balance", color: "border-indigo-100 text-indigo-600 bg-indigo-50/20", glow: "bg-indigo-400" },
-              { label: "Lab Approvals", val: pendingLabCount, unit: "pending test", icon: "science", color: "border-amber-100 text-amber-600 bg-amber-50/20", glow: "bg-amber-400" }
-            ].map((card, i) => (
-              <div key={i} className={`p-4.5 rounded-2xl border bg-white shadow-sm flex flex-col justify-between hover:scale-[1.03] active:scale-[0.98] transition-all duration-300 relative overflow-hidden group cursor-pointer ${card.color}`}>
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-current to-transparent opacity-15" />
-                <div className="flex justify-between items-start">
-                  <span className="material-symbols-outlined text-2xl group-hover:rotate-12 transition-transform duration-300">{card.icon}</span>
-                  <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest bg-white/80 border border-slate-200/50 px-2 py-0.5 rounded-full shadow-xs">
-                    <span className={`w-1.5 h-1.5 rounded-full ${card.glow} animate-pulse`} />
-                    Sync
-                  </span>
-                </div>
-                <div className="mt-4">
-                  <div className="text-xl font-bold tracking-tight text-slate-800 font-mono">{card.val}</div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{card.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Ecosystem Partner Node Status Cockpit */}
-          <div className="glass-panel p-6 bg-white border-slate-200/85 shadow-sm rounded-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-650 text-xl font-bold animate-pulse-subtle">hub</span>
-                Ecosystem Partner Node Status Cockpit
-              </h3>
-              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full">
-                Live Node Sync
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Pharmacy POS Node */}
-              <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-2 hover:border-slate-350 transition-colors">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-indigo-600 font-mono tracking-wider uppercase flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                    Pharmacy POS Desk
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-medium">Patna Central Shop</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 pt-1.5">
-                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
-                    <div className="text-[8px] text-slate-405 font-bold uppercase tracking-wider">Pending</div>
-                    <div className="text-xs font-bold text-slate-700 mt-0.5">
-                      {whatsAppOrders.filter(o => o.deliveryStatus === 'pending').length} Holds
-                    </div>
-                  </div>
-                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
-                    <div className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">En Route</div>
-                    <div className="text-xs font-bold text-slate-700 mt-0.5">
-                      {whatsAppOrders.filter(o => o.deliveryStatus !== 'pending' && o.deliveryStatus !== 'delivered').length} Orders
-                    </div>
-                  </div>
-                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
-                    <div className="text-[8px] text-slate-405 font-bold uppercase tracking-wider">Low Stock</div>
-                    <div className="text-xs font-bold text-rose-650 mt-0.5">
-                      {pharmacyInventory.filter(i => i.stock <= 20).length} Drugs
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pathology Lab Node */}
-              <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-xl space-y-2 hover:border-slate-350 transition-colors">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-emerald-650 font-mono tracking-wider uppercase flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    Pathology Lab
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-medium">Patna Diagnostics</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 pt-1.5">
-                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
-                    <div className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">Requisitions</div>
-                    <div className="text-xs font-bold text-slate-700 mt-0.5">
-                      {pathologyReports.filter(r => r.status === 'pending').length} Draws
-                    </div>
-                  </div>
-                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
-                    <div className="text-[8px] text-slate-405 font-bold uppercase tracking-wider">Completed</div>
-                    <div className="text-xs font-bold text-emerald-605 mt-0.5">
-                      {pathologyReports.filter(r => (r.status as string) === 'completed' || r.status === 'approved').length} Reports
-                    </div>
-                  </div>
-                  <div className="bg-white border border-slate-200 p-2 rounded-lg text-center">
-                    <div className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">Split</div>
-                    <div className="text-xs font-bold text-slate-700 mt-0.5">
-                      15% Net
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Widget 1: Active Consultation Queue Worklist */}
-          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-4">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-40" />
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-500 text-xl font-bold animate-pulse">pending_actions</span>
-                <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Active Patient Consultation Queue</h2>
-              </div>
-              <span className="text-[9px] font-bold font-mono px-2.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-500 rounded-full">
-                {patients.length} Registered
-              </span>
-            </div>
-            
-            <div className="space-y-3">
-              {patients.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-xs italic">
-                  No patients checked in today.
-                </div>
-              ) : (
-                patients.map(p => (
-                  <div key={p.id} className="p-4 bg-slate-50/50 border border-slate-200/50 hover:border-blue-200 hover:bg-slate-50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 group">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2.5">
-                        <strong className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{p.name}</strong>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-200/60 text-slate-500 rounded">
-                          {p.age}y • {p.gender}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="font-mono bg-white border px-1.5 py-0.5 rounded-sm">{p.abhaId || 'ABHA-PENDING'}</span>
-                        {p.chronicConditions.map((c, i) => (
-                          <span key={i} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md font-medium text-[8px] uppercase tracking-wider">
-                            {c}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedPatient(p);
-                        setActiveTab('consultation');
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: 'Consultation Initialized! 🩺',
-                            message: `Directly navigated to Consultation worksheet for ${p.name}.`,
-                            type: 'success'
-                          }
-                        }));
-                      }}
-                      className="px-3.5 py-2 bg-white hover:bg-blue-600 hover:text-white border border-slate-200/80 hover:border-blue-500 rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-600 shadow-xs hover:scale-102 transition-all flex items-center justify-center gap-1.5 cursor-pointer self-start sm:self-auto hover:text-white-force"
-                    >
-                      <span className="material-symbols-outlined text-xs">clinical_notes</span>
-                      Begin Consultation
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Widget 2: Epidemiological Sewage Pathogen Density Surveillance */}
-          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-5">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-emerald-500 opacity-40" />
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-teal-500 text-xl font-bold">water_ec</span>
-                <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Epidemiological Sewage Pathogen Density</h2>
-              </div>
-              <span className="text-[9px] font-mono font-bold tracking-widest text-teal-500 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-md uppercase">
-                Active pre-monsoon
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
-              <div className="md:col-span-4 space-y-1">
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pathogen Density Index</div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold font-mono tracking-tight text-slate-800">86%</span>
-                  <span className="text-[10px] text-rose-500 font-bold tracking-wide flex items-center font-mono">▲ Critical</span>
-                </div>
-                <div className="text-[9px] text-slate-400 leading-relaxed">
-                  Surveillance node: Patna Central Drainage Section-IV
-                </div>
-              </div>
-
-              {/* Restock safety threshold slider */}
-              <div className="md:col-span-8 p-4 bg-slate-50 border border-slate-200/40 rounded-2xl space-y-3">
-                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                  <span>B2B Restock Safety Threshold</span>
-                  <span className="text-teal-600 font-mono text-xs">{restockThreshold}% Safety</span>
-                </div>
-                <input
-                  type="range"
-                  min="50"
-                  max="95"
-                  value={restockThreshold}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setRestockThreshold(val);
-                    if (val < 86) {
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'B2B Restock Dispatched! 📦',
-                          message: `Pathogen level (86%) exceeded safety threshold (${val}%). Automated restocks sent to Pharmacy!`,
-                          type: 'success'
-                        }
-                      }));
-                    }
-                  }}
-                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-500 focus:outline-none"
-                />
-                <div className="text-[8px] text-slate-400 leading-relaxed flex justify-between">
-                  <span>50% (High Margin)</span>
-                  <span>Safety Slider Control</span>
-                  <span>95% (Sensitive Trigger)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex gap-3 text-xs text-slate-600 items-start">
-              <span className="material-symbols-outlined text-emerald-500 text-sm font-bold mt-0.5">local_shipping</span>
-              <p className="text-[10px] leading-relaxed">
-                <strong className="text-slate-800 font-bold">B2B Restocking Automation Active: </strong>
-                When pathogen density exceeds the safety margin, the system dispatches bulk restock orders for critical medications (Amoxicillin, Reagents) at adjacent partner counters.
-              </p>
-            </div>
-          </div>
-
-          {/* AI Passive CDSS Feed */}
-          <div className="glass-panel p-6 bg-gradient-to-br from-white/95 via-slate-50/40 to-white/95 border border-slate-200/80 shadow-md shadow-slate-100/50 rounded-3xl relative overflow-hidden space-y-5 transition-all duration-300 hover:border-slate-300 hover:shadow-lg">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-rose-500 via-amber-500 to-blue-500" />
-            
-            <div className="flex justify-between items-center pb-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8.5 h-8.5 rounded-2xl bg-rose-500/10 border border-rose-500/15 flex items-center justify-center text-rose-500 animate-pulse shadow-2xs">
-                  <ShieldAlert className="h-4.5 w-4.5" />
-                </div>
-                <div>
-                  <h2 className="text-xs font-black uppercase tracking-wider text-slate-800 font-sans">
-                    CDSS & RAG Clinical Advisories
-                  </h2>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 font-mono">Real-time Patient Safety Scan</p>
-                </div>
-              </div>
-              
-              <span className="flex items-center gap-1.5 text-[8px] font-extrabold font-mono uppercase tracking-widest bg-emerald-50 border border-emerald-100/70 text-emerald-600 px-3 py-1 rounded-full shadow-2xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
-                Agent Active
-              </span>
-            </div>
-
-            <div className="space-y-4 pt-1">
-              {/* Allergy Interception Card */}
-              <div className="p-4 bg-gradient-to-r from-rose-50/40 via-white to-white border border-slate-200/40 border-l-4 border-l-rose-500 hover:border-rose-350 hover:shadow-xs rounded-2xl flex gap-3.5 text-xs text-slate-600 transition-all duration-300 hover:-translate-y-[1px] group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/[0.015] rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform duration-300" />
-                <div className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
-                  <AlertTriangle className="h-4.5 w-4.5" />
-                </div>
-                <div className="space-y-1 relative z-10 flex-1">
-                  <div className="flex justify-between items-center">
-                    <strong className="font-extrabold text-[11px] text-rose-700 uppercase tracking-wide">Active Allergy Interception</strong>
-                    <span className="text-[8px] font-bold font-mono px-2 py-0.5 bg-rose-100/60 text-rose-800 rounded-md uppercase tracking-wider font-sans">Aarav Sharma</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 font-sans leading-relaxed pt-0.5">
-                    Documented Penicillin allergy. Automated prescription scanner blocks beta-lactam class medications (<span className="text-slate-700 font-bold">Amoxicillin</span>, <span className="text-slate-700 font-bold">Ampicillin</span>) in current active pod session.
-                  </p>
-                </div>
-              </div>
-
-              {/* Renal Shift Card */}
-              <div className="p-4 bg-gradient-to-r from-amber-50/40 via-white to-white border border-slate-200/40 border-l-4 border-l-amber-500 hover:border-amber-350 hover:shadow-xs rounded-2xl flex gap-3.5 text-xs text-slate-600 transition-all duration-300 hover:-translate-y-[1px] group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/[0.015] rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform duration-300" />
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
-                  <HeartPulse className="h-4.5 w-4.5" />
-                </div>
-                <div className="space-y-1 relative z-10 flex-1">
-                  <div className="flex justify-between items-center">
-                    <strong className="font-extrabold text-[11px] text-amber-700 uppercase tracking-wide">Renal Filtration Clearance Shift</strong>
-                    <span className="text-[8px] font-bold font-mono px-2 py-0.5 bg-amber-100/60 text-amber-800 rounded-md uppercase tracking-wider font-sans">Priyanka Verma</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 font-sans leading-relaxed pt-0.5">
-                    Serum Creatinine cleared at <span className="text-slate-750 font-bold font-mono">1.4 mg/dL</span>. Passive CDSS triggers glomerular filtration restriction alert. Suggest withholding high-dose active NSAID therapies.
-                  </p>
-                </div>
-              </div>
-
-              {/* Missing Diagnostic Markers Card */}
-              <div className="p-4 bg-gradient-to-r from-blue-50/40 via-white to-white border border-slate-200/40 border-l-4 border-l-blue-500 hover:border-blue-350 hover:shadow-xs rounded-2xl flex gap-3.5 text-xs text-slate-600 transition-all duration-300 hover:-translate-y-[1px] group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/[0.015] rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform duration-300" />
-                <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shrink-0 mt-0.5 shadow-2xs group-hover:scale-105 transition-transform">
-                  <Activity className="h-4.5 w-4.5" />
-                </div>
-                <div className="space-y-1 relative z-10 flex-1">
-                  <div className="flex justify-between items-center">
-                    <strong className="font-extrabold text-[11px] text-blue-700 uppercase tracking-wide">Missing Diagnostic Markers</strong>
-                    <span className="text-[8px] font-bold font-mono px-2 py-0.5 bg-blue-100/60 text-blue-800 rounded-md uppercase tracking-wider font-sans">Diabetic Profile</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 font-sans leading-relaxed pt-0.5">
-                    Diabetes-linked profiles lack active 90-day HbA1c tests. Recommend requisiting <span className="text-slate-750 font-bold font-mono">LOINC: 4544-3</span> on the next consultation.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Approved Lab Reports Tracker */}
-        <div className="space-y-6">
-          {/* Widget 3: Unified Financial Splits Ledger */}
-          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl relative overflow-hidden space-y-4">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-indigo-500 opacity-40" />
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-emerald-500 text-xl font-bold">account_balance_wallet</span>
-              <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Financial Splits Ledger</h2>
-            </div>
-            
-            <div className="space-y-3.5 text-xs text-slate-600">
-              {[
-                { label: "Clinic Admin Fee", val: `₹${clinicCut.toFixed(0)}`, percent: 48.5, color: "bg-emerald-500" },
-                { label: "Pharmacy Splits Ledger", val: `₹${pharmacyComm.toFixed(0)}`, percent: 28.5, color: "bg-blue-500" },
-                { label: "Laboratory Partner Node", val: `₹${labComm.toFixed(0)}`, percent: 20, color: "bg-indigo-500" },
-                { label: "Mediflow Platform Fee (3%)", val: `₹${platformCut.toFixed(0)}`, percent: 3, color: "bg-slate-400" }
-              ].map((split, i) => (
-                <div key={i} className="space-y-1.5">
-                  <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
-                    <span>{split.label}</span>
-                    <span className="font-mono text-slate-700">{split.val} ({split.percent}%)</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${split.color}`} style={{ width: `${split.percent}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Widget 4: Approved Pathology Barcode Reports Tracker */}
-          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-sm rounded-3xl h-full flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500 to-pink-500 opacity-40" />
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-purple-500 text-xl font-bold">done_all</span>
-                <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Approved pathology reports</h2>
-              </div>
-              <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
-                {pathologyReports.filter(r => r.status === 'approved').map(report => (
-                  <div key={report.id} className="p-3 bg-slate-50 border border-slate-200/50 rounded-2xl space-y-2 hover:bg-slate-100/50 hover:border-slate-300/60 transition-all group">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-xs font-bold text-slate-700">{report.patientName}</div>
-                        <div className="text-[9px] text-slate-400 mt-0.5">{report.testName}</div>
-                      </div>
-                      <span className="text-[8px] font-mono bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Approved</span>
-                    </div>
-
-                    {/* Holographic Barcode */}
-                    <div className="bg-white border border-slate-200 p-2 rounded-xl flex flex-col items-center gap-1 shadow-xs group-hover:scale-102 transition-transform">
-                      <div className="h-8 w-full flex items-center justify-between px-1.5 opacity-60">
-                        {Array.from({ length: 28 }).map((_, idx) => (
-                          <div
-                            key={idx}
-                            className="h-full bg-slate-900"
-                            style={{ width: `${idx % 3 === 0 ? 3 : (idx % 2 === 0 ? 1 : 2)}px` }}
-                          />
-                        ))}
-                      </div>
-                      <div className="text-[8px] font-mono text-slate-400 font-bold select-all">{"MED-" + report.loincCode + "-" + report.id.toUpperCase()}</div>
-                    </div>
-
-                    <button
-                      onClick={() => setSelectedApprovedReport(report)}
-                      className="w-full text-center text-[9px] text-primary hover:text-primary-700 font-bold tracking-wider uppercase border border-primary/20 hover:border-primary/40 bg-white py-2 rounded-xl transition-all cursor-pointer hover:scale-102 active:scale-98"
-                    >
-                      Review RAG Diagnostic Summary
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-slate-100 text-[9px] text-slate-400 italic">
-              * Pathology data is synced instantly via the local pod laboratory partner node.
-            </div>
-          </div>
-        </div>
-
-        {/* Side slide-out Drawer / modal for Approved Report RAG Summary */}
-        {selectedApprovedReport && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-end bg-black/50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white w-full max-w-lg h-full shadow-2xl p-6 border-l border-slate-200 flex flex-col justify-between animate-slide-in">
-              <div className="space-y-6 overflow-y-auto pr-1">
-                <div className="flex justify-between items-start border-b border-slate-100 pb-4">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-800 font-sans">Approved Pathology Summary</h3>
-                    <p className="text-xs text-slate-400 mt-1 font-sans">{selectedApprovedReport.patientName} • {selectedApprovedReport.testName}</p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedApprovedReport(null)}
-                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-lg">close</span>
-                  </button>
-                </div>
-
-                <div className="space-y-4 text-xs text-slate-600">
-                  <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl font-mono text-[10px] uppercase font-bold tracking-wider">
-                    LOINC Coded Test: {selectedApprovedReport.loincCode}
-                  </div>
-                  <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-3 leading-relaxed">
-                    <strong className="block text-slate-800 font-semibold">Laboratory Findings:</strong>
-                    <p className="whitespace-pre-line text-slate-600 font-sans">{selectedApprovedReport.results || 'Pending laboratory diagnostic findings entry...'}</p>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl space-y-3">
-                    <div className="flex items-center gap-1.5 text-primary text-xs font-bold font-mono uppercase tracking-wider">
-                      <span className="material-symbols-outlined text-sm">psychology</span>
-                      AI RAG Longitudinal Analysis
-                    </div>
-                    <p className="text-slate-600 leading-relaxed font-sans">
-                      Based on comparative historical indicators, the patient displays glycemic index fluctuation (HbA1c level active at 7.2%). Adjusted prescribing support recommended.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-4 flex gap-3">
-                <button
-                  onClick={() => setSelectedApprovedReport(null)}
-                  className="flex-1 btn-secondary py-2.5 rounded-xl text-center text-xs"
-                >
-                  Close Summary
-                </button>
-                <button
-                  onClick={() => {
-                    const pat = api.getPatients().find(p => p.id === selectedApprovedReport.patientId);
-                    const patPhone = pat ? pat.phone : '9876543210';
-                    api.pushWhatsAppMessageFromBot(
-                      patPhone, 
-                      `*AI Pathology RAG Advisory (Patna Pod)*: Coded Test [${selectedApprovedReport.testName}] findings resolved:\n"${selectedApprovedReport.results}"\n\n*CDSS RAG Recommendation*: glycemic index fluctuation (HbA1c level active at 7.2%). Avoid NSAIDs due to renal limits.`
-                    );
-
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Summary Dispatched! 💬',
-                        message: `Lab RAG summary successfully routed to patient WhatsApp session.`,
-                        type: 'success'
-                      }
-                    }));
-                    setSelectedApprovedReport(null);
-                  }}
-                  className="flex-1 btn-primary py-2.5 rounded-xl text-center text-xs flex justify-center items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-xs">send</span>
-                  Push to Patient WhatsApp
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // TAB 2 RENDER: Consultation Workflow
   const renderConsultationTab = () => {
     return (
@@ -1238,293 +747,6 @@ Keep the tone professional, clinical, objective, and precise.`;
             </div>
           </div>
 
-          {/* Clinical Decision Support System (CDSS) */}
-          {selectedPatient && (
-            <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white">
-              {!isConsentActive && (
-                <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-white/95 border border-rose-500/20 p-6 text-center animate-fade-in">
-                  <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-3 text-rose-500 animate-pulse">
-                    <span className="material-symbols-outlined text-xl">lock</span>
-                  </div>
-                  <h3 className="text-slate-800 font-bold text-xs mb-1.5">Compliance Lock Active</h3>
-                  <p className="text-[10px] text-slate-500 max-w-[200px] leading-relaxed">
-                    Active Patient Consent Missing. Clinical history is locked until patient authorizes via WhatsApp.
-                  </p>
-                </div>
-              )}
-              <h2 className="text-base font-bold text-slate-800 mb-1.5 flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary text-xl">insights</span>
-                CDSS Lab Analyzer
-              </h2>
-              <p className="text-[10px] text-slate-400 mb-4 leading-relaxed">
-                AI comparative biomarker metrics tracking and warning engine.
-              </p>
-
-              {/* Historical Comparative Selector */}
-              {activeHistory && activeHistory.length >= 2 && (
-                <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                  <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[12px] text-secondary">compare_arrows</span>
-                    Historical Report Comparator
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[8px] text-slate-400 uppercase tracking-wider mb-1 font-bold">Baseline</label>
-                      <select
-                        value={baselineDate ?? ''}
-                        onChange={(e) => setBaselineDate(e.target.value || null)}
-                        className="w-full input-field py-1 text-[11px] bg-white"
-                      >
-                        <option value="">— Date —</option>
-                        {activeHistory.filter(h => h.date !== comparisonDate).map(h => (
-                          <option key={h.date} value={h.date}>{h.date}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[8px] text-slate-400 uppercase tracking-wider mb-1 font-bold">Comparison</label>
-                      <select
-                        value={comparisonDate ?? ''}
-                        onChange={(e) => setComparisonDate(e.target.value || null)}
-                        className="w-full input-field py-1 text-[11px] bg-white"
-                      >
-                        <option value="">— Date —</option>
-                        {activeHistory.filter(h => h.date !== baselineDate).map(h => (
-                          <option key={h.date} value={h.date}>{h.date}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeHistory && activeHistory.length > 0 ? (
-                <div className="space-y-6 animate-fade-in text-slate-700">
-                  {/* RAG Insights */}
-                  {isAiLoading && (
-                    <div className="p-4 border border-slate-100 bg-slate-50 rounded-xl space-y-3 animate-pulse">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm text-secondary animate-spin">sync</span>
-                        <div className="h-3 w-1/3 bg-slate-200 rounded" />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-2 w-full bg-slate-200 rounded" />
-                        <div className="h-2 w-11/12 bg-slate-200 rounded" />
-                      </div>
-                    </div>
-                  )}
-
-                  {aiError && !isAiLoading && (
-                    <div className="p-4 bg-amber-50 border border-amber-100 text-amber-700 text-xs rounded-xl flex gap-3 leading-relaxed">
-                      <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold">CDSS RAG Engine Offline</div>
-                        <p className="mt-0.5">Falling back to local clinical biomarkers. RAG engine: <span className="font-mono">{aiError}</span></p>
-                      </div>
-                    </div>
-                  )}
-
-                  {aiInsight && !isAiLoading && (
-                    <div className="p-4 border border-emerald-100 bg-emerald-50/50 rounded-xl space-y-2 text-xs text-slate-700">
-                      <div className="flex items-center gap-1.5 text-emerald-700 font-bold tracking-wide uppercase text-[9px] font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        RAG Clinical Advisory Active
-                      </div>
-                      <div className="space-y-2 whitespace-pre-line leading-relaxed font-sans">
-                        {aiInsight.replace('### Clinical Advisory (RAG-Generated)\n\n', '')}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Present vs. Past Lab Comparative Analysis Banner */}
-                  <div className="p-4 border border-slate-200/80 bg-slate-50/50 rounded-xl space-y-3">
-                    <h4 className="font-bold text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1.5 font-mono">
-                      <span className="material-symbols-outlined text-xs text-secondary">analytics</span>
-                      Comparative Biomarker Indicators
-                    </h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-[10px] text-left text-slate-600">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider font-mono text-[8px]">
-                            <th className="pb-2">Biomarker</th>
-                            <th className="pb-2">{baseReport ? baseReport.date : 'Base'}</th>
-                            <th className="pb-2">{compReport ? compReport.date : 'Comp'}</th>
-                            <th className="pb-2 text-right">Risk</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200/50">
-                          {compReport && baseReport ? (() => {
-                            const hDiff = (compReport.HbA1c - baseReport.HbA1c).toFixed(1);
-                            const hDiffNum = parseFloat(hDiff);
-
-                            return (
-                              <>
-                                <tr className="hover:bg-slate-100/30 transition-colors">
-                                  <td className="py-2 font-semibold text-slate-700">HbA1c (%)</td>
-                                  <td className="py-2 font-mono">{baseReport.HbA1c}%</td>
-                                  <td className="py-2 font-mono font-bold text-slate-800">{compReport.HbA1c}%</td>
-                                  <td className="py-2 text-right">
-                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
-                                      hDiffNum < 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700 animate-pulse'
-                                    }`}>{hDiffNum < 0 ? 'Improving' : 'Elevated'}</span>
-                                  </td>
-                                </tr>
-                                <tr className="hover:bg-slate-100/30 transition-colors">
-                                  <td className="py-2 font-semibold text-slate-700">Creatinine (mg/dL)</td>
-                                  <td className="py-2 font-mono">{baseReport.creatinine}</td>
-                                  <td className="py-2 font-mono font-bold text-slate-800">{compReport.creatinine}</td>
-                                  <td className="py-2 text-right">
-                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
-                                      compReport.creatinine > 1.2 ? 'bg-rose-100 text-rose-700 animate-pulse' : 'bg-emerald-100 text-emerald-700'
-                                    }`}>{compReport.creatinine > 1.2 ? 'CKD Risk' : 'Normal'}</span>
-                                  </td>
-                                </tr>
-                              </>
-                            );
-                          })() : (
-                            <tr><td colSpan={4} className="py-3 text-center text-slate-400 text-xs italic">Select a baseline to enable comparison.</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* SVG Graph representation */}
-                  <div className="p-4 border border-slate-200/80 bg-slate-50/50 rounded-xl space-y-4">
-                    <h4 className="font-bold text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-xs text-primary">show_chart</span>
-                      Biomarker Trajectory (HbA1c)
-                    </h4>
-                    <div className="h-16 relative border-l border-b border-slate-200 p-1">
-                      {(() => {
-                        const points = activeHistory.map((h, i) => {
-                          const x = activeHistory.length === 1 ? 50 : 10 + i * (80 / (activeHistory.length - 1));
-                          const clampedVal = Math.max(4.0, Math.min(10.0, h.HbA1c));
-                          const y = 32 - ((clampedVal - 4.0) / 6.0) * 26;
-                          return { x, y, val: h.HbA1c, date: h.date };
-                        });
-                        let pathD = "";
-                        if (points.length === 1) {
-                          pathD = `M 10,${points[0].y} H 90`;
-                        } else {
-                          pathD = `M ${points[0].x},${points[0].y} ` + points.slice(1).map(p => `L ${p.x},${p.y}`).join(" ");
-                        }
-                        const fillPathD = pathD + ` L ${points[points.length - 1].x},38 L ${points[0].x},38 Z`;
-
-                        return (
-                          <>
-                            <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none">
-                              <path d={fillPathD} fill="#edf5ff" />
-                              <path d={pathD} fill="none" stroke="#0f62fe" strokeWidth="1.5" />
-                              {points.map((p, idx) => (
-                                <circle
-                                  key={idx}
-                                  cx={p.x}
-                                  cy={p.y}
-                                  r={idx === points.length - 1 ? 3 : 2}
-                                  fill={idx === points.length - 1 ? "#0f62fe" : "#60a5fa"}
-                                  stroke="#ffffff"
-                                  strokeWidth="1"
-                                  className="cursor-pointer"
-                                  onMouseEnter={() => setHoveredHbA1c(p)}
-                                  onMouseLeave={() => setHoveredHbA1c(null)}
-                                />
-                              ))}
-                            </svg>
-                            {hoveredHbA1c && (
-                              <div className="absolute top-1 right-2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-[8px] text-white font-mono z-50 shadow-sm">
-                                {hoveredHbA1c.date}: <strong className="text-secondary">{hoveredHbA1c.val}%</strong>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* CDSS Alerts warning */}
-                  <div className="space-y-2">
-                    {cdssAnomalies.map((anomaly, idx) => (
-                      <div key={idx} className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-xs rounded-xl flex gap-3 leading-relaxed">
-                        <AlertTriangle className="h-4 w-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                        <span>{anomaly}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="text-[9px] text-slate-400 italic leading-relaxed">
-                    * CDSS guidelines are passive recommendations. Clinical final discretion lies with Dr. Sharma.
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-slate-400 text-xs italic">
-                  No historical diagnostic biomarkers available for this profile.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Longitudinal RAG AI Diagnostic Summary Engine */}
-          {selectedPatient && isConsentActive && (
-            <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white mt-6 space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <span className="material-symbols-outlined text-indigo-500 text-xl font-bold animate-pulse-subtle">psychology</span>
-                <h2 className="text-sm font-extrabold text-slate-850 uppercase tracking-wider">
-                  Longitudinal AI RAG Summary
-                </h2>
-              </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed font-sans mt-1">
-                Runs pgvector vector-embedding search over historical biomarkers, encounters, allergies, and diagnostic history to compile clinical trajectories.
-              </p>
-
-              <div className="space-y-3">
-                {longitudinalRAGText ? (
-                  <div className="space-y-3 animate-fade-in">
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl max-h-[220px] overflow-y-auto font-mono text-[10px] leading-relaxed text-slate-700 whitespace-pre-wrap select-text">
-                      {longitudinalRAGText}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const patPhone = selectedPatient ? selectedPatient.phone : '9876543210';
-                          api.pushWhatsAppMessageFromBot(patPhone, `*AI Longitudinal RAG Diagnostic Summary (Patna Zone 1)*:\n${longitudinalRAGText}`);
-
-                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                            detail: {
-                              title: 'Summary Pushed! 💬',
-                              message: 'Diagnostic summary has been sent via Twilio WhatsApp Gateway.',
-                              type: 'success'
-                            }
-                          }));
-                          setLongitudinalRAGText('');
-                        }}
-                        className="flex-1 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-xs">chat</span> Push to WhatsApp
-                      </button>
-                      <button
-                        onClick={() => setLongitudinalRAGText('')}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-bold px-3 py-2 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      const summary = api.generateAISummaryReport(selectedPatient.id);
-                      setLongitudinalRAGText(summary);
-                    }}
-                    className="w-full bg-secondary hover:opacity-95 active:scale-95 transition-all text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-white-force"
-                  >
-                    <span className="material-symbols-outlined text-sm text-white-force">cognition</span>
-                    Generate AI RAG summary
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* RIGHT COLUMN: Consultation Sheet, e-Rx Form */}
@@ -1619,7 +841,11 @@ Keep the tone professional, clinical, objective, and precise.`;
               }
 
               // Generate brief professional summary
-              let summaryText = `Patient displays a clinical biomarker pattern requiring close monitoring. `;
+              let summaryText = "";
+              if (selectedPatient.pastReportsSummary) {
+                summaryText += `[Past Report Scan Analysis: ${selectedPatient.pastReportsSummary}] `;
+              }
+              summaryText += `Patient displays a clinical biomarker pattern requiring close monitoring. `;
               if (baseline) {
                 summaryText += `Comparing current report (${recent.date}) to baseline (${baseline.date}), the primary shift is `;
                 const shifts: string[] = [];
@@ -1761,7 +987,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
                       Professional AI Consultation Summary
                     </span>
-                    <p className="text-xs text-slate-350 leading-relaxed font-sans font-medium italic pt-1">
+                    <p className="text-xs text-slate-200 leading-relaxed font-sans font-medium italic pt-1">
                       "{summaryText}"
                     </p>
                   </div>
@@ -3639,9 +2865,21 @@ Keep the tone professional, clinical, objective, and precise.`;
   const renderTabContent = () => {
     switch (activeTab) {
       case 'pod_view':
-        return <PodCommandCenter onSwitchToDashboard={(pod) => setActiveTab(pod as any)} />;
-      case 'overview':
-        return renderOverviewTab();
+        return (
+          <PodCommandCenter 
+            onStartConsultation={(patient) => {
+              setSelectedPatient(patient);
+              setActiveTab('consultation');
+              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                detail: {
+                  title: 'Consultation Initialized! 🩺',
+                  message: `Directly navigated to Consultation worksheet for ${patient.name}.`,
+                  type: 'success'
+                }
+              }));
+            }}
+          />
+        );
       case 'consultation':
         return renderConsultationTab();
       case 'financials':
@@ -3653,7 +2891,14 @@ Keep the tone professional, clinical, objective, and precise.`;
       case 'sop':
         return renderSopTab();
       default:
-        return renderOverviewTab();
+        return (
+          <PodCommandCenter 
+            onStartConsultation={(patient) => {
+              setSelectedPatient(patient);
+              setActiveTab('consultation');
+            }}
+          />
+        );
     }
   };
 
@@ -3771,7 +3016,6 @@ Keep the tone professional, clinical, objective, and precise.`;
         <div className="hidden lg:flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px">
           {[
             { id: 'pod_view',      label: 'Pod Command Center',  icon: 'hub' },
-            { id: 'overview',      label: 'Clinic Overview',     icon: 'dashboard' },
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
             { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
             { id: 'patients',      label: 'Patient Directory',   icon: 'group' },
@@ -3808,7 +3052,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       <div className="lg:hidden fixed bottom-20 right-6 z-[80] transition-all duration-300">
 
         
-        {activeTab === 'overview' && (
+        {activeTab === 'pod_view' && (
           <button
             onClick={() => {
               window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -3831,7 +3075,6 @@ Keep the tone professional, clinical, objective, and precise.`;
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex justify-around items-center z-50 h-14 px-1">
         {[
           { id: 'pod_view',     label: 'Pod HUD',  icon: 'hub' },
-          { id: 'overview',     label: 'Clinic',   icon: 'dashboard' },
           { id: 'consultation', label: 'Consult',  icon: 'clinical_notes' },
           { id: 'financials',   label: 'Finance',  icon: 'account_balance_wallet' },
           { id: 'patients',     label: 'Patients', icon: 'group' },

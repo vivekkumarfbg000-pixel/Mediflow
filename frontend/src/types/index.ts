@@ -19,6 +19,7 @@ export interface Patient {
   vitals?: PatientVitals;
   tokenNumber?: string;
   queueStatus?: 'awaiting_vitals' | 'awaiting_consultation' | 'completed';
+  pastReportsSummary?: string;
   createdAt: string;
 }
 
