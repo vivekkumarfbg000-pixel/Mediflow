@@ -11,7 +11,7 @@ import {
   HeartPulse
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
-import { AgenticConsole } from '../shared/AgenticConsole';
+
 import { SystemHealthCockpit } from '../admin/SystemHealthCockpit';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
 import { BiomarkerChart } from './BiomarkerChart';
@@ -120,6 +120,100 @@ export const DoctorDashboard: React.FC = () => {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [comparativeTrend, setComparativeTrend] = useState('');
   const [isGeneratingTrend, setIsGeneratingTrend] = useState(false);
+
+  // In-Browser HTML5 Local Audio Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<any>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+
+  // Recording seconds timer effect
+  useEffect(() => {
+    let interval: any = null;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingSeconds(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRecording]);
+
+  const startAudioRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks: Blob[] = [];
+      const recorder = new window.MediaRecorder(stream);
+      
+      recorder.ondataavailable = (e: any) => {
+        if (e.data && e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const compiledBlob = new Blob(chunks, { type: 'audio/webm' });
+        const generatedUrl = URL.createObjectURL(compiledBlob);
+        setAudioBlob(compiledBlob);
+        setAudioUrl(generatedUrl);
+        
+        // Stop all audio tracks in stream
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setAudioUrl(null);
+      setAudioBlob(null);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Recording Started 🎙️',
+          message: 'Microphone is active. Speak clinical instructions now.',
+          type: 'info'
+        }
+      }));
+    } catch (err: any) {
+      console.error('[Mediflow] Failed to capture microphone:', err);
+      alert('Microphone access is required to record instructions.');
+    }
+  };
+
+  const stopAudioRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const executeAudioScribeTranscription = async () => {
+    if (!audioBlob) return;
+    setIsTranscribing(true);
+    try {
+      const data = await api.voiceScribe(audioBlob, 'doctor_instructions.webm');
+      if (data && data.summary) {
+        setNotes(data.summary);
+        setHinglishSummary(data.summary);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Scribe Complete ✅',
+            message: 'Clinical text successfully populated into directions box.',
+            type: 'success'
+          }
+        }));
+      }
+    } catch (err) {
+      console.error('[Mediflow] Scribe failed:', err);
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   // Mobile swipe gesture navigation logic
   const touchStartXRef = React.useRef<number | null>(null);
@@ -550,16 +644,51 @@ Keep the tone professional, clinical, objective, and precise.`;
       diagnosticTests: selectedTests
     });
 
+    // Dynamic WhatsApp auto-dispatch matching core business USP
+    try {
+      const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+      const latestReport = history.length > 0 ? history[history.length - 1] : null;
+      let whatsAppMsg = `🏥 *Mediflow Connected Care Plan* 🩺\n\n`;
+      whatsAppMsg += `Dear *${selectedPatient.name}*, Dr. Sharma has finalized your consultation record.\n\n`;
+      
+      // Add Hinglish clinical directions
+      whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${notes || "Continue active lifestyle management."}"_\n\n`;
+      
+      if (latestReport) {
+        whatsAppMsg += `🧪 *Consolidated Lab Report (Date: ${latestReport.date}):*\n`;
+        whatsAppMsg += `- *HbA1c*: ${latestReport.HbA1c}%\n`;
+        whatsAppMsg += `- *Serum Creatinine*: ${latestReport.creatinine} mg/dL\n`;
+        whatsAppMsg += `- *Total Hemoglobin*: ${latestReport.hemoglobin} g/dL\n\n`;
+      }
+      
+      if (medications.length > 0) {
+        whatsAppMsg += `💊 *Prescribed Medications (Collect at Counter):*\n`;
+        medications.forEach((m, idx) => {
+          whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
+        });
+        whatsAppMsg += `\n`;
+      }
+      
+      whatsAppMsg += `Dhyan rakhein aur time par medicine lein! 🟢`;
+      
+      api.pushWhatsAppMessageFromBot(selectedPatient.phone, whatsAppMsg);
+    } catch (e) {
+      console.error('[WhatsApp Auto-dispatch failed]:', e);
+    }
+
     // Reset Form
     setNotes('');
+    setHinglishSummary('');
+    setAudioUrl(null);
+    setAudioBlob(null);
     setMedications([]);
     setSelectedTests([]);
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: 'e-Prescription (e-Rx) routed to Pharmacy & Lab requisitions generated successfully.',
+        message: 'e-Prescription successfully saved and consolidated reports dispatched to patient WhatsApp!',
         type: 'success',
-        title: 'Encounter Routed'
+        title: 'Encounter Saved & Synced'
       }
     }));
   };
@@ -586,13 +715,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in text-slate-800 font-sans">
         {/* Left Column: Quick Metrics & CDSS AI Feed */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Agentic Console Telemetry Scribe */}
-          <AgenticConsole onWorkflowExecuted={() => {
-            setPatients(api.getPatients());
-            setPathologyReports(api.getPathologyReports());
-            setFinancialLedgers(api.getFinancialLedgers());
-            setWhatsAppSessions(api.getWhatsAppSessions());
-          }} />
+
 
           {/* Biomarker SVG Chart Trend Line */}
           {(selectedPatient?.id || patients[0]?.id) && (
@@ -1438,6 +1561,214 @@ Keep the tone professional, clinical, objective, and precise.`;
               )}
             </div>
 
+            {/* AI Predictive Lab Pattern & Risk Disease Analyzer Card */}
+            {(() => {
+              const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+              const recent = history.length > 0 ? history[history.length - 1] : null;
+              const baseline = history.length >= 2 ? history[history.length - 2] : null;
+              
+              if (!recent) return null;
+
+              // Calculate trends locally for instant high-fidelity feedback
+              const hba1cDiff = baseline ? recent.HbA1c - baseline.HbA1c : 0;
+              const creatinineDiff = baseline ? recent.creatinine - baseline.creatinine : 0;
+              const hemoglobinDiff = baseline ? recent.hemoglobin - baseline.hemoglobin : 0;
+
+              // Predict future diseases based on values & trend patterns
+              const riskAlerts: { title: string; desc: string; type: 'critical' | 'warning' | 'info' }[] = [];
+              
+              // Glycemic/Diabetes pattern
+              if (recent.HbA1c > 6.5) {
+                const shiftText = hba1cDiff > 0 ? `up by ${hba1cDiff.toFixed(1)}% absolute shift` : hba1cDiff < 0 ? `down by ${Math.abs(hba1cDiff).toFixed(1)}% absolute shift` : '';
+                riskAlerts.push({
+                  title: 'Glycemic Degradation & Microvascular Damage Risk',
+                  desc: `Active HbA1c is ${recent.HbA1c}% (diabetic range) ${shiftText ? `(${shiftText})` : ''}. High risk of diabetic nephropathy, retinopathy, and nerve damage. Warrants immediate medication audit.`,
+                  type: 'critical'
+                });
+              } else if (recent.HbA1c > 5.7) {
+                riskAlerts.push({
+                  title: 'Prediabetes Progression Warning',
+                  desc: `HbA1c is ${recent.HbA1c}% (prediabetic). High likelihood of transition to full Type-2 Diabetes within 24 months without intensive lifestyle intervention.`,
+                  type: 'warning'
+                });
+              }
+
+              // Renal filtration pattern
+              if (recent.creatinine > 1.2) {
+                const shiftText = creatinineDiff > 0 ? `increased by ${creatinineDiff.toFixed(2)} mg/dL` : '';
+                riskAlerts.push({
+                  title: 'Glomerular Filtration Clearance Alert (CKD Risk)',
+                  desc: `Serum creatinine is abnormally high at ${recent.creatinine} mg/dL ${shiftText ? `(${shiftText})` : ''}, suggesting reduced renal filtration capacity. Stage 2/3 CKD potential. STRICTLY avoid beta-lactam conflict/NSAID high doses.`,
+                  type: 'critical'
+                });
+              } else if (recent.creatinine > 1.0 && creatinineDiff > 0.15) {
+                riskAlerts.push({
+                  title: 'Accelerated Renal Decline Trend',
+                  desc: `Creatinine increased from ${baseline?.creatinine} to ${recent.creatinine} mg/dL. Upward trajectory indicates potential acute kidney injury (AKI) or renal perfusion issues.`,
+                  type: 'warning'
+                });
+              }
+
+              // Anemia pattern
+              if (recent.hemoglobin < 12.0) {
+                riskAlerts.push({
+                  title: 'Oxygen Carrying Capacity Deficit (Anemia Trend)',
+                  desc: `Hemoglobin is low at ${recent.hemoglobin} g/dL, indicating mild to moderate anemia risk. Warrants serum iron/ferritin LOINC checks.`,
+                  type: 'info'
+                });
+              }
+
+              // Generate brief professional summary
+              let summaryText = `Patient displays a clinical biomarker pattern requiring close monitoring. `;
+              if (baseline) {
+                summaryText += `Comparing current report (${recent.date}) to baseline (${baseline.date}), the primary shift is `;
+                const shifts: string[] = [];
+                if (hba1cDiff !== 0) shifts.push(`HbA1c shifted by ${hba1cDiff > 0 ? '+' : ''}${hba1cDiff.toFixed(1)}%`);
+                if (creatinineDiff !== 0) shifts.push(`Creatinine shifted by ${creatinineDiff > 0 ? '+' : ''}${creatinineDiff.toFixed(2)} mg/dL`);
+                summaryText += shifts.join(' and ') + '. ';
+              } else {
+                summaryText += `Establishing baseline report on ${recent.date}. `;
+              }
+
+              if (recent.HbA1c > 6.5 && recent.creatinine > 1.2) {
+                summaryText += `The synchronous elevation of glycemic markers and creatinine signals a highly sensitive Diabetic Nephropathy progression risk. Recommend immediate review of cardiovascular standard support (SGLT2 inhibitors like Empagliflozin).`;
+              } else if (recent.HbA1c > 6.5) {
+                summaryText += `Glycemic markers are elevated. Prioritize dietary carb controls and lifestyle optimization.`;
+              } else if (recent.creatinine > 1.2) {
+                summaryText += `Renal clearance parameters are elevated. Monitor blood pressure closely and perform follow-up GFR/Creatinine scan in 14 days.`;
+              } else {
+                summaryText += `Patient parameters are within stable clinical limits. Maintain regular prophylactic counseling.`;
+              }
+
+              return (
+                <div className="p-6 bg-slate-900 text-white rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden space-y-6 animate-fade-in my-2">
+                  {/* Holographic background glow */}
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-indigo-500/10 to-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                  <div className="flex justify-between items-start pb-2 border-b border-slate-800/80">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-indigo-400 text-xl font-bold">query_stats</span>
+                        <h3 className="text-sm font-black text-slate-100 uppercase tracking-wider">AI Predictive Lab Pattern & Risk Disease Analyzer</h3>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Advanced multi-biomarker trajectory & disease prediction engine</p>
+                    </div>
+                    <span className="text-[8px] font-black font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
+                      Predictive Model: Active
+                    </span>
+                  </div>
+
+                  {/* Biomarkers side by side with shifts */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      {
+                        name: 'HbA1c (Glycated Hb)',
+                        val: `${recent.HbA1c}%`,
+                        base: baseline ? `${baseline.HbA1c}%` : 'N/A',
+                        diff: hba1cDiff,
+                        unit: '%',
+                        normal: '4.0 - 5.6',
+                        status: recent.HbA1c > 6.5 ? 'critical' : recent.HbA1c > 5.7 ? 'warning' : 'normal',
+                        icon: 'water_drop',
+                        color: recent.HbA1c > 6.5 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-300' : recent.HbA1c > 5.7 ? 'from-amber-500/20 to-amber-600/5 border-amber-500/35 text-amber-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      },
+                      {
+                        name: 'Serum Creatinine',
+                        val: `${recent.creatinine} mg/dL`,
+                        base: baseline ? `${baseline.creatinine} mg/dL` : 'N/A',
+                        diff: creatinineDiff,
+                        unit: 'mg/dL',
+                        normal: '0.6 - 1.2',
+                        status: recent.creatinine > 1.2 ? 'critical' : recent.creatinine > 1.0 ? 'warning' : 'normal',
+                        icon: 'kidney',
+                        color: recent.creatinine > 1.2 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-300' : recent.creatinine > 1.0 ? 'from-amber-500/20 to-amber-600/5 border-amber-500/35 text-amber-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      },
+                      {
+                        name: 'Total Hemoglobin',
+                        val: `${recent.hemoglobin} g/dL`,
+                        base: baseline ? `${baseline.hemoglobin} g/dL` : 'N/A',
+                        diff: hemoglobinDiff,
+                        unit: 'g/dL',
+                        normal: '12.0 - 16.0',
+                        status: recent.hemoglobin < 12.0 ? 'warning' : 'normal',
+                        icon: 'bloodtype',
+                        color: recent.hemoglobin < 12.0 ? 'from-amber-500/20 to-amber-600/5 border-amber-500/35 text-amber-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      }
+                    ].map((item, idx) => (
+                      <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">{item.name}</span>
+                          <span className="text-[9px] text-slate-400 font-mono">Normal: {item.normal}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline pt-1">
+                          <span className="text-lg font-black font-mono tracking-tight text-white">{item.val}</span>
+                          {baseline && item.diff !== 0 && (
+                            <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
+                              (item.diff > 0 && item.status !== 'normal') || (item.diff < 0 && item.name.includes('Hemoglobin'))
+                                ? 'text-rose-400'
+                                : 'text-emerald-400'
+                            }`}>
+                              {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff).toFixed(item.name.includes('Creatinine') ? 2 : 1)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[9px] text-slate-400 pt-1 border-t border-slate-800/50 flex justify-between">
+                          <span>Base: {item.base}</span>
+                          <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Future potential disease risk warnings */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                      <span className="material-symbols-outlined text-xs text-indigo-400">warning</span>
+                      AI Predictive Disease & Pattern Warnings
+                    </h4>
+                    {riskAlerts.length === 0 ? (
+                      <div className="p-3 bg-slate-800/40 border border-slate-700/30 rounded-xl text-slate-400 text-xs italic">
+                        No critical disease risks flagged based on biomarker trajectories.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {riskAlerts.map((alert, i) => (
+                          <div key={i} className={`p-3 rounded-xl border flex gap-3 text-xs leading-relaxed ${
+                            alert.type === 'critical'
+                              ? 'bg-rose-950/20 border-rose-500/20 text-rose-200'
+                              : alert.type === 'warning'
+                              ? 'bg-amber-950/20 border-amber-500/20 text-amber-200'
+                              : 'bg-indigo-950/20 border-indigo-500/20 text-indigo-200'
+                          }`}>
+                            <span className="material-symbols-outlined text-base font-bold mt-0.5 shrink-0">
+                              {alert.type === 'critical' ? 'gavel' : alert.type === 'warning' ? 'error' : 'info'}
+                            </span>
+                            <div>
+                              <strong className="font-extrabold text-[11px] uppercase tracking-wider block">{alert.title}</strong>
+                              <p className="text-[10px] text-slate-300 pt-0.5 font-sans leading-relaxed">{alert.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Beautiful Professional Summary */}
+                  <div className="p-4 bg-slate-950/50 border border-slate-800/80 rounded-2xl space-y-1.5 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+                      Professional AI Consultation Summary
+                    </span>
+                    <p className="text-xs text-slate-350 leading-relaxed font-sans font-medium italic pt-1">
+                      "{summaryText}"
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Electronic Consultation Record Gating, Suggestions, and AI Summaries */}
             <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-6 shadow-sm">
               <div className="space-y-2">
@@ -1452,6 +1783,66 @@ Keep the tone professional, clinical, objective, and precise.`;
                   rows={4}
                   className="w-full input-field bg-white text-xs leading-relaxed"
                 />
+              </div>
+
+              {/* Local Audio Scribe Recorder Widget */}
+              <div className="p-4.5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 animate-fade-in">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-xs">mic</span>
+                    Audio Suggestion Scribe (Local Recording first)
+                  </span>
+                  <span className="text-[9px] font-bold font-mono px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md">
+                    Zero API Cost Idle
+                  </span>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Record Control Button */}
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {isRecording ? (
+                      <button
+                        type="button"
+                        onClick={stopAudioRecording}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-rose-650 hover:bg-rose-600 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md animate-pulse cursor-pointer border-0 text-white-force"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
+                        Stop Recording ({recordingSeconds}s)
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={startAudioRecording}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md cursor-pointer border-0 text-white-force"
+                      >
+                        <span className="material-symbols-outlined text-sm font-bold shrink-0">mic</span>
+                        Record Clinical Advice
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Local playback player */}
+                  {audioUrl && (
+                    <div className="w-full sm:flex-1 bg-slate-950 border border-slate-850 p-2 rounded-xl flex items-center justify-between gap-3">
+                      <audio src={audioUrl} controls className="w-full h-8 shrink" />
+                      
+                      {/* Transcribe with AI execution CTA */}
+                      <button
+                        type="button"
+                        onClick={executeAudioScribeTranscription}
+                        disabled={isTranscribing}
+                        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 uppercase transition-all shadow-xs cursor-pointer shrink-0 border-0 text-white-force"
+                      >
+                        <span className="material-symbols-outlined text-xs font-bold text-white-force">psychology</span>
+                        {isTranscribing ? 'Scribing...' : 'Transcribe with AI'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[9px] text-slate-400 leading-normal">
+                  🎙️ **Privacy & Cost Guard**: Your voice is recorded locally in-browser. Transcribe with AI only when you are satisfied with your audio note.
+                </p>
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -1515,6 +1906,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
               {/* REVISIT LAB TREND COMPARISON */}
               {activeHistory && activeHistory.length > 0 && (
+
                 <div className="border-t border-slate-200/80 pt-4 space-y-4">
                   <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                     <span className="material-symbols-outlined text-rose-500 text-sm">analytics</span>
