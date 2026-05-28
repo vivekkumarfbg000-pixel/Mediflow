@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import type { ReagentStock } from '../../services/api';
-import type { LabRequisition, Patient, Invoice } from '../../types';
+import type { LabRequisition, Patient, Invoice, LabReport } from '../../types';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mediflow Pathology Lab Dashboard  V2.0
@@ -37,6 +37,10 @@ export const LabDashboard: React.FC = () => {
   const [printLabelReq, setPrintLabelReq] = useState<LabRequisition | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeReqId, setActiveReqId] = useState<string | null>(null);
+
+  // File Upload states for lab report PDF/Image
+  const [reportFile, setReportFile] = useState<File | null>(null);
+  const [reportFilePreviewUrl, setReportFilePreviewUrl] = useState<string>('');
 
   // Biomarker form states
   const [hba1cVal, setHba1cVal] = useState('6.5');
@@ -252,23 +256,60 @@ export const LabDashboard: React.FC = () => {
 
   const handlePublishReport = React.useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeReqId) return;
+    if (!activeReqId || !activeReq) return;
     setIsProcessing(true);
-    setTimeout(() => {
-      api.submitLabResult(activeReqId, jsonPayload);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          message: `Report verified & published. LOINC: ${activeReq?.testCode || 'N/A'}`,
-          type: 'success',
-          title: 'Report Published'
+
+    (async () => {
+      try {
+        let reportFileUrl = '';
+        if (reportFile) {
+          reportFileUrl = await api.uploadLabReportToStorage(reportFile, activeReqId);
         }
-      }));
-      setIsProcessing(false);
-      setActiveReqId(null);
-      setGenericVal('');
-      setGenericUnit('');
-    }, 2000);
-  }, [activeReqId, jsonPayload, activeReq]);
+
+        // Submit the standard lab result (updates local state and pushes to DB requisitions)
+        await api.submitLabResult(activeReqId, jsonPayload);
+
+        // Parse payload
+        const parsedPayload = JSON.parse(jsonPayload);
+        
+        // Save the full structured report (so the compounder can see it in Gate 2)
+        const reportUuid = crypto.randomUUID();
+        const newReport: LabReport = {
+          id: reportUuid,
+          requisitionId: activeReqId,
+          patientId: activeReq.patientId,
+          patientName: activeReq.patientName,
+          reportFileUrl: reportFileUrl || undefined,
+          biomarkerJson: parsedPayload,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        api.saveFullLabReport(newReport);
+
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            message: `Report verified, uploaded & published successfully for ${activeReq.patientName}!`,
+            type: 'success',
+            title: 'Report Published'
+          }
+        }));
+
+        // Reset states
+        setActiveReqId(null);
+        setReportFile(null);
+        setReportFilePreviewUrl('');
+        setGenericVal('');
+        setGenericUnit('');
+      } catch (err: any) {
+        console.error(err);
+        alert(`Error publishing report: ${err.message || err}`);
+      } finally {
+        setIsProcessing(false);
+      }
+    })();
+  }, [activeReqId, jsonPayload, activeReq, reportFile]);
 
   const handleHba1cChange = React.useCallback((val: string) => {
     setHba1cVal(val);
@@ -667,6 +708,7 @@ export const LabDashboard: React.FC = () => {
                         <th className="p-3.5">Test</th>
                         <th className="p-3.5">Result</th>
                         <th className="p-3.5 text-right">Reagent Used</th>
+                        <th className="p-3.5 text-right">Report File</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant bg-surface-container-lowest/30">
@@ -692,6 +734,22 @@ export const LabDashboard: React.FC = () => {
                                 -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
                               </div>
                             ))}
+                          </td>
+                          <td className="p-3.5 text-right">
+                            {(() => {
+                              const rep = api.getFullLabReports().find(r => r.requisitionId === req.id);
+                              return rep?.reportFileUrl ? (
+                                <button 
+                                  onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
+                                  className="ml-auto px-2.5 py-1 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white rounded text-[10px] flex items-center gap-1 font-bold cursor-pointer active:scale-95 transition-transform"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                  View Doc
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-clinical-500 italic">No File</span>
+                              );
+                            })()}
                           </td>
                         </tr>
                       ))}
@@ -803,6 +861,45 @@ export const LabDashboard: React.FC = () => {
                         <><span>{'< 12.0 g/dL'}</span><span className="text-secondary font-bold">12.0–16.0 g/dL</span><span>{'> 16.0 g/dL'}</span></>
                       ) : (
                         <><span>Low</span><span className="text-secondary font-bold">Normal Range</span><span>High</span></>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Attach Lab Report PDF/Image Document */}
+                  <div className="bg-surface-container/60 p-3.5 border border-outline-variant/80 rounded-lg space-y-2">
+                    <span className="text-[10px] text-clinical-200 font-bold uppercase tracking-wider font-mono block text-white">Attach Lab Report File (PDF / Image)</span>
+                    <div className="flex gap-4 items-center">
+                      <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-secondary rounded-xl p-3 bg-[#0c101d] text-center cursor-pointer text-[11px] font-semibold text-clinical-300 hover:text-white transition-colors">
+                        <span className="material-symbols-outlined text-secondary text-base">upload_file</span>
+                        <span>{reportFile ? reportFile.name : 'Upload Report Document'}</span>
+                        <input 
+                          type="file" 
+                          accept="image/*,application/pdf" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setReportFile(file);
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setReportFilePreviewUrl(reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      {reportFilePreviewUrl && (
+                        <div className="w-12 h-12 rounded-lg border border-outline-variant overflow-hidden shrink-0 relative group">
+                          <img src={reportFilePreviewUrl} alt="Report Thumbnail" className="w-full h-full object-cover" />
+                          <button 
+                            type="button" 
+                            onClick={() => setViewingDocUrl(reportFilePreviewUrl)}
+                            className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                          >
+                            Zoom
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

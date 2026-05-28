@@ -147,7 +147,9 @@ export interface LabRequisition {
   status: 'pending' | 'collected' | 'processed' | 'completed';
   quantitativeResult?: string;
   reagentDeductions: ReagentDeduction[];
-  prescriptionFileUrl?: string;
+  prescriptionFileUrl?: string;   // Supabase Storage URL for scanned Rx
+  revisitScheduledAt?: string;    // ISO datetime compounder scheduled revisit
+  revisitNote?: string;           // Compounder's revisit instruction note
   createdAt: string;
 }
 
@@ -383,12 +385,19 @@ export interface Invoice {
 
 export interface LabReport {
   id: string;
+  requisitionId: string;           // FK → LabRequisition
   patientId: string;
-  appointmentId: string;
-  fileUrl?: string;
-  resultData?: any;
-  aiSummary?: string;
+  patientName: string;
+  reportFileUrl?: string;          // Supabase Storage URL for uploaded PDF/image
+  biomarkerJson?: any;             // Numeric result payload (JSON)
+  status: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;             // User ID of compounder who approved
+  approvedAt?: string;
+  rejectionReason?: string;
+  revisitScheduledAt?: string;     // Set by compounder on approval
+  revisitNote?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Prescription {

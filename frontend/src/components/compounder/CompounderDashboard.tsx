@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { api } from '../../services/api';
+import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import type {
   PharmacyInventoryItem,
   MedicineBill,
@@ -11,7 +11,9 @@ import type {
   WhatsAppSession,
   ClinicStaff,
   PathologyReport,
-  CounterTransaction
+  CounterTransaction,
+  LabReport,
+  LabRequisition
 } from '../../types';
 import InvoiceGenerator from './InvoiceGenerator';
 import { InvoiceCard } from '../InvoiceCard';
@@ -113,6 +115,28 @@ export const CompounderDashboard: React.FC = () => {
   const [reports, setReports] = useState<PathologyReport[]>([]);
   const [isInvoiceGeneratorOpen, setIsInvoiceGeneratorOpen] = useState(false);
 
+  // Lab reports state
+  const [fullLabReports, setFullLabReports] = useState<LabReport[]>([]);
+
+  // Prescription Dispatch states
+  const [dispatchFile, setDispatchFile] = useState<File | null>(null);
+  const [dispatchPreviewUrl, setDispatchPreviewUrl] = useState<string>('');
+  const [isDispatchOcrParsing, setIsDispatchOcrParsing] = useState(false);
+  const [dispatchPatientName, setDispatchPatientName] = useState('');
+  const [dispatchPatientAge, setDispatchPatientAge] = useState('');
+  const [dispatchPatientGender, setDispatchPatientGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [dispatchPatientPhone, setDispatchPatientPhone] = useState('');
+  const [dispatchSelectedTestCode, setDispatchSelectedTestCode] = useState('');
+  const [isDispatchingToLab, setIsDispatchingToLab] = useState(false);
+  const [dispatchOcrLogs, setDispatchOcrLogs] = useState<string[]>([]);
+
+  // Report approval states
+  const [reportRevisitDates, setReportRevisitDates] = useState<Record<string, string>>({});
+  const [reportRevisitTimes, setReportRevisitTimes] = useState<Record<string, string>>({});
+  const [reportRevisitNotes, setReportRevisitNotes] = useState<Record<string, string>>({});
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  const [showRejectModalForId, setShowRejectModalForId] = useState<string | null>(null);
+
   // ─── PHARMACY BILLING STATES ──────────────────────────────────────────────
   const [activeInventory, setActiveInventory] = useState<PharmacyInventoryItem[]>([]);
   const [billingPatient, setBillingPatient] = useState<Patient | null>(null);
@@ -154,6 +178,7 @@ export const CompounderDashboard: React.FC = () => {
     setActiveStaffId(api.getActiveStaffId());
     setReports(api.getPathologyReports());
     setActiveInventory(api.getPharmacyInventory());
+    setFullLabReports(api.getFullLabReports());
 
     const activePat = api.getActivePatient();
     setActivePatientState(activePat);
@@ -1888,17 +1913,277 @@ export const CompounderDashboard: React.FC = () => {
         {activeTab === 'gate2' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-7 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              {/* Prescription Dispatch Panel */}
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 
-                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-400 text-base">biotech</span>
-                  Gate 2: Prescription OCR &amp; Lab Invoicing
+                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-600 text-base">upload_file</span>
+                  📄 Prescription Dispatch Panel (Upload &amp; Scan)
+                </h2>
+                <p className="text-xs text-slate-500 mb-4">
+                  Upload or scan a doctor's prescription. Clinical AI OCR will automatically extract patient credentials, match or register them, and send a requisition to the lab queue.
+                </p>
+
+                <div className="space-y-4">
+                  {/* File Upload Area */}
+                  <div className="flex gap-4 items-start">
+                    <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
+                      <Upload className="h-5 w-5 text-indigo-600" />
+                      <span>{dispatchFile ? 'Change Prescription File' : 'Upload / Drag Rx Image/PDF'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf" 
+                        className="hidden" 
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setDispatchFile(file);
+                          
+                          // Run OCR
+                          const reader = new FileReader();
+                          reader.onload = async () => {
+                            const dataUrl = reader.result as string;
+                            setDispatchPreviewUrl(dataUrl);
+                            setIsDispatchOcrParsing(true);
+                            setDispatchOcrLogs([
+                              `[${new Date().toLocaleTimeString()}] Visualizing prescription bounds...`,
+                              `[${new Date().toLocaleTimeString()}] Querying Clinical AI LLM-OCR...`
+                            ]);
+                            
+                            try {
+                              const parsed = await api.parsePrescriptionOCR(dataUrl);
+                              setDispatchOcrLogs(prev => [
+                                ...prev,
+                                `[${new Date().toLocaleTimeString()}] Extracted Name: "${parsed.patientName}"`,
+                                `[${new Date().toLocaleTimeString()}] Extracted Age: ${parsed.patientAge || 'Unknown'}, Gender: ${parsed.patientGender || 'Unknown'}`,
+                                `[${new Date().toLocaleTimeString()}] Found ${parsed.diagnosticTests?.length || 0} diagnostic test order(s)`
+                              ]);
+                              
+                              if (parsed.patientName) setDispatchPatientName(parsed.patientName);
+                              if (parsed.patientAge) setDispatchPatientAge(parsed.patientAge.toString());
+                              if (parsed.patientGender) setDispatchPatientGender(parsed.patientGender as any);
+                              
+                              // Check if matches existing patient
+                              const matched = api.getPatients().find(p => p.name.toLowerCase().trim() === parsed.patientName.toLowerCase().trim());
+                              if (matched) {
+                                setDispatchPatientPhone(matched.phone);
+                                setDispatchPatientAge(matched.age.toString());
+                                setDispatchPatientGender(matched.gender);
+                                setDispatchOcrLogs(prev => [
+                                  ...prev,
+                                  `[${new Date().toLocaleTimeString()}] MATCH FOUND: Linked to patient ${matched.name} (+91 ${matched.phone})`
+                                ]);
+                              } else {
+                                setDispatchPatientPhone('');
+                                setDispatchOcrLogs(prev => [
+                                  ...prev,
+                                  `[${new Date().toLocaleTimeString()}] NO MATCH: New profile will be automatically synced.`
+                                ]);
+                              }
+
+                              // Pre-fill test ordered
+                              if (parsed.diagnosticTests && parsed.diagnosticTests.length > 0) {
+                                const matchedTest = MASTER_TEST_CATALOG.find(t => 
+                                  t.name.toLowerCase().includes(parsed.diagnosticTests[0].name.toLowerCase()) ||
+                                  t.loincCode === parsed.diagnosticTests[0].loincCode
+                                );
+                                if (matchedTest) {
+                                  setDispatchSelectedTestCode(matchedTest.loincCode);
+                                  setDispatchOcrLogs(prev => [
+                                    ...prev,
+                                    `[${new Date().toLocaleTimeString()}] Test order matched: ${matchedTest.name}`
+                                  ]);
+                                } else {
+                                  setDispatchSelectedTestCode(MASTER_TEST_CATALOG[0].loincCode);
+                                }
+                              } else {
+                                setDispatchSelectedTestCode(MASTER_TEST_CATALOG[0].loincCode);
+                              }
+                              
+                              setDispatchOcrLogs(prev => [
+                                ...prev,
+                                `[${new Date().toLocaleTimeString()}] [SUCCESS] AI extraction complete. Ready to dispatch.`
+                              ]);
+                            } catch (err: any) {
+                              setDispatchOcrLogs(prev => [
+                                ...prev,
+                                `[ERROR] Extraction failed: ${err?.message || err}`
+                              ]);
+                            } finally {
+                              setIsDispatchOcrParsing(false);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+
+                    {dispatchPreviewUrl && (
+                      <div className="w-20 h-20 rounded-xl border border-slate-200 overflow-hidden relative group shrink-0 shadow-sm">
+                        <img src={dispatchPreviewUrl} alt="Prescription Thumbnail" className="w-full h-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => setViewingDocUrl(dispatchPreviewUrl)}
+                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                        >
+                          View Rx
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* OCR Logging Panel */}
+                  {dispatchOcrLogs.length > 0 && (
+                    <div className="bg-slate-900 border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-indigo-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
+                      {dispatchOcrLogs.map((log, index) => (
+                        <div key={index} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('[SUCCESS]') ? 'text-emerald-400 font-bold' : ''}>
+                          {log}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Form fields */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="Enter patient name"
+                        value={dispatchPatientName}
+                        onChange={(e) => setDispatchPatientName(e.target.value)}
+                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Phone (+91)</label>
+                      <input 
+                        type="text" 
+                        maxLength={10}
+                        placeholder="10-digit number"
+                        value={dispatchPatientPhone}
+                        onChange={(e) => setDispatchPatientPhone(e.target.value.replace(/\D/g, ''))}
+                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Age</label>
+                      <input 
+                        type="number" 
+                        placeholder="Age"
+                        value={dispatchPatientAge}
+                        onChange={(e) => setDispatchPatientAge(e.target.value)}
+                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Gender</label>
+                      <select 
+                        value={dispatchPatientGender}
+                        onChange={(e) => setDispatchPatientGender(e.target.value as any)}
+                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white transition-colors"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Lab Test Ordered</label>
+                    <select 
+                      value={dispatchSelectedTestCode}
+                      onChange={(e) => setDispatchSelectedTestCode(e.target.value)}
+                      className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white transition-colors"
+                      required
+                    >
+                      <option value="" disabled>-- Select Lab Test --</option>
+                      {MASTER_TEST_CATALOG.map(t => (
+                        <option key={t.loincCode} value={t.loincCode}>{t.name} (₹{t.price})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button 
+                    type="button"
+                    disabled={isDispatchOcrParsing || isDispatchingToLab || !dispatchFile || !dispatchPatientName || !dispatchPatientPhone || !dispatchSelectedTestCode}
+                    onClick={async () => {
+                      if (!dispatchFile) return;
+                      setIsDispatchingToLab(true);
+                      try {
+                        let patientId = '';
+                        const matchedPatient = api.getPatients().find(p => p.name.toLowerCase().trim() === dispatchPatientName.toLowerCase().trim() || p.phone === dispatchPatientPhone);
+                        if (matchedPatient) {
+                          patientId = matchedPatient.id;
+                        } else {
+                          const reg = api.registerPatient({
+                            name: dispatchPatientName,
+                            phone: dispatchPatientPhone || '9876543210',
+                            age: Number(dispatchPatientAge) || 30,
+                            gender: dispatchPatientGender,
+                            allergies: [],
+                            chronicConditions: []
+                          });
+                          patientId = reg.id;
+                          setPatients(api.getPatients());
+                        }
+
+                        const fileUrl = await api.uploadPrescriptionToStorage(dispatchFile);
+                        const testItem = MASTER_TEST_CATALOG.find(t => t.loincCode === dispatchSelectedTestCode);
+                        const testName = testItem?.name || 'Lab Test';
+                        api.createLabRequisitionFromPrescription(patientId, dispatchSelectedTestCode, testName, fileUrl);
+
+                        // Reset form
+                        setDispatchFile(null);
+                        setDispatchPreviewUrl('');
+                        setDispatchPatientName('');
+                        setDispatchPatientAge('');
+                        setDispatchPatientGender('Male');
+                        setDispatchPatientPhone('');
+                        setDispatchSelectedTestCode('');
+                        setDispatchOcrLogs([]);
+                      } catch (err: any) {
+                        alert(`Error dispatching to lab: ${err.message || err}`);
+                      } finally {
+                        setIsDispatchingToLab(false);
+                      }
+                    }}
+                    className={`w-full py-2.5 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+                      isDispatchingToLab ? 'bg-indigo-850 opacity-80' : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-md shadow-indigo-600/10'
+                    }`}
+                  >
+                    {isDispatchingToLab ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Uploading &amp; Dispatching to Lab...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[14px]">biotech</span>
+                        Send to Lab Queue →
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Existing Invoicing Chambers queue */}
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+                
+                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-600 text-base">receipt_long</span>
+                  Gate 2: Active Chamber Billing &amp; Invoicing
                 </h2>
                 
                 <div className="space-y-6">
                   {api.getAppointments().filter(a => a.status === 'ready_for_consult' || a.status === 'completed').length === 0 ? (
-                    <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
                       No active consultation chambers matching Gate 2 bounds.
                     </div>
                   ) : (
@@ -1920,16 +2205,16 @@ export const CompounderDashboard: React.FC = () => {
                           className={`p-4 border rounded-xl space-y-4 transition-all duration-350 ${
                             isActiveAppt 
                               ? 'border-indigo-500 bg-indigo-500/5 shadow-md shadow-indigo-500/5' 
-                              : 'border-outline-variant bg-white'
+                              : 'border-slate-200 bg-white'
                           }`}
                         >
-                          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                             <div>
                               <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                                 {isActiveAppt && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping shrink-0" />}
                                 {patient ? patient.name : 'Unknown Patient'}
                               </h4>
-                              <p className="text-[9px] text-clinical-400 font-mono">Appt ID: {appt.id.substring(0, 8)}... | Status: {appt.status}</p>
+                              <p className="text-[9px] text-slate-405 font-mono">Appt ID: {appt.id.substring(0, 8)}... | Status: {appt.status}</p>
                             </div>
                             <span className="text-[9px] bg-indigo-100 text-indigo-750 font-mono font-bold px-2 py-0.5 rounded border border-indigo-200">
                               CHAMBER OUT
@@ -1940,10 +2225,10 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="space-y-3">
                               <p className="text-[10px] text-slate-500">Upload or scan the doctor's handwritten/printed prescription to run AI OCR and auto-generate invoices.</p>
                               <div className="flex items-center gap-3">
-                                <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
+                                <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
                                   <Upload className="h-5 w-5 text-indigo-600" />
                                   <span>Upload / Scan Prescription</span>
-                                  <span className="text-[10px] text-slate-400 font-medium">Supports JPEG, PNG, and PDF</span>
+                                  <span className="text-[9px] text-slate-400 font-medium">Supports JPEG, PNG, and PDF</span>
                                   <input 
                                     type="file" 
                                     accept="image/*,application/pdf" 
@@ -1975,7 +2260,7 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <div className="space-y-3">
-                              <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-lg space-y-2">
+                              <div className="bg-slate-50 border border-slate-150 p-3 rounded-lg space-y-2">
                                 <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Extracted Lab Tests (AI OCR)</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {prescription.extractedTests?.map((t, idx) => (
@@ -1986,7 +2271,7 @@ export const CompounderDashboard: React.FC = () => {
                                 </div>
                               </div>
 
-                              <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-lg flex flex-col gap-2">
+                              <div className="bg-slate-50 border border-slate-150 p-3 rounded-lg flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Prescription Document</span>
                                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider ${
@@ -2003,7 +2288,7 @@ export const CompounderDashboard: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => setViewingDocUrl(prescription.prescriptionFileUrl || null)}
-                                      className="flex-1 py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-250 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+                                      className="flex-1 py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1 shadow-sm"
                                     >
                                       View Original Rx
                                     </button>
@@ -2043,7 +2328,7 @@ export const CompounderDashboard: React.FC = () => {
                               {labInvoice && (
                                 <div className="flex items-center justify-between pt-1">
                                   <div>
-                                    <span className="text-[9px] text-clinical-400 block font-mono">Lab Invoice: {labInvoice.id.substring(0, 8)}...</span>
+                                    <span className="text-[9px] text-slate-400 block font-mono">Lab Invoice: {labInvoice.id.substring(0, 8)}...</span>
                                     <span className="text-[12px] font-black text-slate-800">Lab Total: ₹{labInvoice.amount}</span>
                                   </div>
                                   <div>
@@ -2089,14 +2374,171 @@ export const CompounderDashboard: React.FC = () => {
             </div>
 
             <div className="lg:col-span-5 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
-                <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-400 text-base">calendar_month</span>
-                  Revisit Scheduler Desk
+              {/* Completed Lab Reports Approval Panel */}
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-60" />
+                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-base">verified_user</span>
+                  ✅ Completed Lab Reports
                 </h2>
-                <p className="text-xs text-clinical-400 mb-4">
-                  Schedule revisit appointments for patients who have finalized their consultations or lab results.
+                <p className="text-xs text-slate-500 mb-4">
+                  Review and clinically approve completed lab reports, then lock the patient's next revisit consultation timing.
+                </p>
+
+                <div className="space-y-4">
+                  {fullLabReports.filter(r => r.status === 'pending').length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                      No reports awaiting approval.
+                    </div>
+                  ) : (
+                    fullLabReports.filter(r => r.status === 'pending').map(report => {
+                      const biomarkers = report.biomarkerJson?.biomarkers || {};
+                      const reportId = report.id;
+                      
+                      return (
+                        <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-sm">
+                          <div className="flex items-center justify-between border-b border-slate-150 pb-2">
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
+                              <p className="text-[9px] text-slate-400 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
+                            </div>
+                            <span className="text-[9px] bg-amber-100 text-amber-800 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 uppercase">
+                              Pending
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
+                                const val = biomarkers[key];
+                                const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
+                                return (
+                                  <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-750 text-[10px] px-2 py-0.5 rounded font-mono font-bold">
+                                    {key}: {val} {unit}
+                                  </span>
+                                );
+                              })}
+                              {Object.keys(biomarkers).length === 0 && (
+                                <span className="text-[10px] text-slate-500 italic">No structured values found</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {report.reportFileUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setViewingDocUrl(report.reportFileUrl || null)}
+                              className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                              View Report Document (PDF/Image)
+                            </button>
+                          )}
+
+                          {/* Revisit Scheduler inside report card */}
+                          <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-3">
+                            <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Schedule Revisit Appointment</span>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Date</label>
+                                <input 
+                                  type="date"
+                                  value={reportRevisitDates[reportId] || ''}
+                                  onChange={(e) => setReportRevisitDates(prev => ({ ...prev, [reportId]: e.target.value }))}
+                                  className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Time</label>
+                                <input 
+                                  type="time"
+                                  value={reportRevisitTimes[reportId] || ''}
+                                  onChange={(e) => setReportRevisitTimes(prev => ({ ...prev, [reportId]: e.target.value }))}
+                                  className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Clinical Note / Recommendation</label>
+                              <input 
+                                type="text"
+                                placeholder="e.g. Return for HbA1c review"
+                                value={reportRevisitNotes[reportId] || ''}
+                                onChange={(e) => setReportRevisitNotes(prev => ({ ...prev, [reportId]: e.target.value }))}
+                                className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          {showRejectModalForId === report.id ? (
+                            <div className="mt-3 p-3 bg-rose-50 border border-rose-205 rounded-xl space-y-2">
+                              <label className="text-[9px] text-rose-700 font-bold uppercase tracking-wider font-mono">Rejection Reason</label>
+                              <textarea 
+                                placeholder="Why are you rejecting this report?"
+                                value={rejectionReasons[report.id] || ''}
+                                onChange={(e) => setRejectionReasons(prev => ({ ...prev, [report.id]: e.target.value }))}
+                                className="w-full input-field text-xs py-1.5 px-3 bg-white border-rose-200 text-slate-850 rounded-lg focus:border-rose-400"
+                                rows={2}
+                                required
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <button 
+                                  onClick={() => setShowRejectModalForId(null)}
+                                  className="px-2.5 py-1 text-slate-600 bg-slate-100 hover:bg-slate-200 text-[10px] font-bold rounded-lg cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                                <button 
+                                  disabled={!(rejectionReasons[report.id] || '').trim()}
+                                  onClick={async () => {
+                                    await api.rejectLabReport(report.id, rejectionReasons[report.id]);
+                                    setShowRejectModalForId(null);
+                                  }}
+                                  className="px-2.5 py-1 text-white bg-rose-600 hover:bg-rose-500 text-[10px] font-bold rounded-lg cursor-pointer disabled:opacity-50"
+                                >
+                                  Send back to Lab
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2 pt-1">
+                              <button 
+                                onClick={async () => {
+                                  const date = reportRevisitDates[reportId] || '';
+                                  const time = reportRevisitTimes[reportId] || '';
+                                  const note = reportRevisitNotes[reportId] || '';
+                                  await api.approveLabReport(reportId, date, time, note);
+                                }}
+                                className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                                Approve &amp; Revisit
+                              </button>
+                              <button 
+                                onClick={() => setShowRejectModalForId(report.id)}
+                                className="py-1.5 px-3 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Revisit Scheduler Desk (Manual fallback) */}
+              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
+                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-rose-600 text-base">calendar_month</span>
+                  Revisit Scheduler Desk (Manual Book)
+                </h2>
+                <p className="text-xs text-slate-500 mb-4">
+                  Manually schedule revisit appointments for patients without any linked lab reports.
                 </p>
 
                 <form 
@@ -2124,11 +2566,11 @@ export const CompounderDashboard: React.FC = () => {
                   className="space-y-4"
                 >
                   <div className="space-y-1">
-                    <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Patient</label>
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient</label>
                     <select
                       value={revisitPatientId}
                       onChange={(e) => setRevisitPatientId(e.target.value)}
-                      className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                      className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-205 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
                       required
                     >
                       <option value="" disabled>-- Select Patient --</option>
@@ -2140,23 +2582,23 @@ export const CompounderDashboard: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Date</label>
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Date</label>
                       <input 
                         type="date"
                         value={revisitDate}
                         onChange={(e) => setRevisitDate(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-205 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
                         required
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Time</label>
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Time</label>
                       <input 
                         type="time"
                         value={revisitTime}
                         onChange={(e) => setRevisitTime(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-205 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
                         required
                       />
                     </div>

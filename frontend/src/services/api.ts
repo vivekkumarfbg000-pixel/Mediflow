@@ -3683,6 +3683,278 @@ Dhyan rakhein aur time par medicine lein!`;
     return { extractedMedicines: [], extractedTests: [] };
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PRESCRIPTION → LAB DISPATCH WORKFLOW
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Uploads a prescription file (image/PDF) to Supabase Storage 'prescriptions' bucket.
+   * Returns the public storage path URL for linking to lab requisitions.
+   */
+  async uploadPrescriptionToStorage(file: File): Promise<string> {
+    const fileName = `rx_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { data, error } = await supabase.storage
+      .from('prescriptions')
+      .upload(fileName, file, { upsert: false, contentType: file.type });
+
+    if (error) {
+      console.warn('[Mediflow Storage] Prescription upload failed, using data URL fallback:', error.message);
+      // Fallback: return a base64 data URL read from the file
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Get a signed URL (valid 1 year) for private bucket access
+    const { data: signedData } = await supabase.storage
+      .from('prescriptions')
+      .createSignedUrl(data.path, 365 * 24 * 3600);
+
+    return signedData?.signedUrl || data.path;
+  }
+
+  /**
+   * Creates a proper LabRequisition linked to a prescription file and patient.
+   * This is the "Compounder Sends Prescription to Lab" action.
+   */
+  createLabRequisitionFromPrescription(
+    patientId: string,
+    testCode: string,
+    testName: string,
+    prescriptionFileUrl: string
+  ): LabRequisition {
+    const patients = this.getPatients();
+    const patient = patients.find(p => p.id === patientId);
+    const barcode = `RX-${Date.now()}-${testCode}`.toUpperCase();
+    const reqId = crypto.randomUUID();
+
+    const newReq: LabRequisition = {
+      id: reqId,
+      encounterId: `rx-dispatch-${reqId.substring(0, 8)}`,
+      patientId,
+      patientName: patient?.name || 'Unknown Patient',
+      testCode,
+      testName,
+      barcode,
+      status: 'pending',
+      reagentDeductions: [],
+      prescriptionFileUrl,
+      createdAt: new Date().toISOString()
+    };
+
+    const existing = this.getLabRequisitions();
+    existing.unshift(newReq);
+    this.save('lab_requisitions', existing);
+    this.notify();
+
+    // Async push to Supabase
+    supabase.from('lab_requisitions').insert({
+      id: newReq.id,
+      encounter_id: null,
+      patient_id: patientId,
+      loinc_code: testCode,
+      test_name: testName,
+      barcode,
+      status: 'pending',
+      prescription_file_url: prescriptionFileUrl,
+      assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102', // Lalit Prasad
+      created_at: newReq.createdAt
+    }).then(({ error }) => {
+      if (error) console.error('[Mediflow Lab] Prescription dispatch to lab failed:', error);
+      else this.writeAuditLog('prescription_dispatched_to_lab', { patientId, testCode, testName, barcode, prescriptionFileUrl }, patientId);
+    });
+
+    return newReq;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // LAB REPORT FILE UPLOAD & STRUCTURED REPORT STORAGE
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Uploads a lab report PDF/image to Supabase Storage 'lab-reports' bucket.
+   * Returns the signed URL for the uploaded report.
+   */
+  async uploadLabReportToStorage(file: File, requisitionId: string): Promise<string> {
+    const ext = file.name.split('.').pop() || 'pdf';
+    const fileName = `report_${requisitionId}_${Date.now()}.${ext}`;
+
+    const { data, error } = await supabase.storage
+      .from('lab-reports')
+      .upload(fileName, file, { upsert: false, contentType: file.type });
+
+    if (error) {
+      console.warn('[Mediflow Storage] Lab report upload failed, using data URL fallback:', error.message);
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const { data: signedData } = await supabase.storage
+      .from('lab-reports')
+      .createSignedUrl(data.path, 365 * 24 * 3600);
+
+    return signedData?.signedUrl || data.path;
+  }
+
+  /**
+   * Returns all structured lab reports (pending approval + approved).
+   * Used by Compounder in Gate 2 to show reports awaiting sign-off.
+   */
+  getFullLabReports(): LabReport[] {
+    return this.load<LabReport[]>('full_lab_reports', []);
+  }
+
+  /**
+   * Saves or updates a full LabReport (with file URL + biomarker JSON).
+   * Called by Lab Technician when publishing results.
+   */
+  saveFullLabReport(report: LabReport): void {
+    const reports = this.getFullLabReports();
+    const idx = reports.findIndex(r => r.id === report.id);
+    if (idx >= 0) reports[idx] = report;
+    else reports.unshift(report);
+    this.save('full_lab_reports', reports);
+    this.notify();
+
+    // Async write to Supabase
+    supabase.from('lab_reports').upsert({
+      id: report.id,
+      requisition_id: report.requisitionId,
+      patient_id: report.patientId,
+      patient_name: report.patientName,
+      report_file_url: report.reportFileUrl || null,
+      biomarker_json: report.biomarkerJson || null,
+      status: report.status,
+      approved_by: report.approvedBy || null,
+      approved_at: report.approvedAt || null,
+      rejection_reason: report.rejectionReason || null,
+      revisit_scheduled_at: report.revisitScheduledAt || null,
+      revisit_note: report.revisitNote || null
+    }, { onConflict: 'id' }).then(({ error }) => {
+      if (error) console.error('[Mediflow Lab] Failed to sync lab report to Supabase:', error);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // COMPOUNDER: APPROVE LAB REPORT + SCHEDULE REVISIT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Compounder approves a lab report, sets revisit date, and fires a WhatsApp notification.
+   */
+  async approveLabReport(
+    reportId: string,
+    revisitDate: string,
+    revisitTime: string,
+    revisitNote: string
+  ): Promise<void> {
+    const reports = this.getFullLabReports();
+    const idx = reports.findIndex(r => r.id === reportId);
+    if (idx < 0) return;
+
+    const revisitAt = revisitDate && revisitTime
+      ? new Date(`${revisitDate}T${revisitTime}:00`).toISOString()
+      : undefined;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    reports[idx].status = 'approved';
+    reports[idx].approvedBy = user?.id || 'compounder';
+    reports[idx].approvedAt = new Date().toISOString();
+    reports[idx].revisitScheduledAt = revisitAt;
+    reports[idx].revisitNote = revisitNote || undefined;
+    reports[idx].updatedAt = new Date().toISOString();
+
+    this.save('full_lab_reports', reports);
+    this.notify();
+
+    // Async update in Supabase
+    await supabase.from('lab_reports').update({
+      status: 'approved',
+      approved_by: user?.id || null,
+      approved_at: reports[idx].approvedAt,
+      revisit_scheduled_at: revisitAt || null,
+      revisit_note: revisitNote || null
+    }).eq('id', reportId);
+
+    // Update the lab_requisition with revisit info
+    const report = reports[idx];
+    const requisitions = this.getLabRequisitions();
+    const reqIdx = requisitions.findIndex(r => r.id === report.requisitionId);
+    if (reqIdx >= 0) {
+      requisitions[reqIdx].revisitScheduledAt = revisitAt;
+      requisitions[reqIdx].revisitNote = revisitNote;
+      this.save('lab_requisitions', requisitions);
+
+      await supabase.from('lab_requisitions').update({
+        revisit_scheduled_at: revisitAt || null,
+        revisit_note: revisitNote || null
+      }).eq('id', report.requisitionId);
+    }
+
+    // Fire WhatsApp notification to patient
+    const patient = this.getPatients().find(p => p.id === report.patientId);
+    if (patient) {
+      const revisitMsg = revisitAt
+        ? `📅 Your next clinic visit has been scheduled for *${new Date(revisitAt).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} at ${revisitTime}*.`
+        : '';
+      const noteMsg = revisitNote ? `\n📌 Note from compounder: "${revisitNote}"` : '';
+      const message = `✅ *Your Lab Report is Ready!*\n\nDear ${patient.name}, your *${report.biomarkerJson?.testName || 'lab test'}* report has been reviewed and approved by our clinical staff.${revisitMsg ? '\n\n' + revisitMsg : ''}${noteMsg}\n\nPlease carry this WhatsApp message as your appointment reference. 🏥`;
+      this.pushWhatsAppMessageFromBot(patient.phone, message);
+    }
+
+    await this.writeAuditLog('LAB_REPORT_APPROVED', {
+      reportId,
+      patientId: report.patientId,
+      revisitAt,
+      revisitNote
+    }, report.patientId);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Lab Report Approved ✅',
+        message: revisitAt
+          ? `Report approved. Revisit scheduled for ${new Date(revisitAt).toLocaleDateString('en-IN')}. WhatsApp sent!`
+          : 'Report approved. WhatsApp notification sent to patient.',
+        type: 'success'
+      }
+    }));
+  }
+
+  /**
+   * Rejects a lab report with a reason (sends it back to lab tech for re-analysis).
+   */
+  async rejectLabReport(reportId: string, reason: string): Promise<void> {
+    const reports = this.getFullLabReports();
+    const idx = reports.findIndex(r => r.id === reportId);
+    if (idx < 0) return;
+
+    reports[idx].status = 'rejected';
+    reports[idx].rejectionReason = reason;
+    reports[idx].updatedAt = new Date().toISOString();
+    this.save('full_lab_reports', reports);
+    this.notify();
+
+    await supabase.from('lab_reports').update({
+      status: 'rejected',
+      rejection_reason: reason
+    }).eq('id', reportId);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Report Rejected',
+        message: `Lab report returned to technician for re-analysis. Reason: "${reason}"`,
+        type: 'warning'
+      }
+    }));
+  }
+
 }
 
 export const api = new MediflowApiService();
