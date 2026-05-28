@@ -147,6 +147,7 @@ export interface LabRequisition {
   status: 'pending' | 'collected' | 'processed' | 'completed';
   quantitativeResult?: string;
   reagentDeductions: ReagentDeduction[];
+  prescriptionFileUrl?: string;
   createdAt: string;
 }
 
@@ -399,5 +400,6 @@ export interface Prescription {
     frequency: string;
   }>;
   extractedTests?: string[];
+  prescriptionFileUrl?: string;
   createdAt: string;
 }

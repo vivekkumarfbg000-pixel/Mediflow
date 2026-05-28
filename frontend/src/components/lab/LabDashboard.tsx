@@ -17,6 +17,8 @@ export const LabDashboard: React.FC = () => {
   const [reagents, setReagents] = useState<ReagentStock[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
+  const [walkinFileUrl, setWalkinFileUrl] = useState<string | null>(null);
 
   // Autopilot states
   const [autopilotEnabled, setAutopilotEnabled] = useState(
@@ -286,12 +288,13 @@ export const LabDashboard: React.FC = () => {
     setWalkinBusy(true);
     const test = MASTER_TEST_CATALOG.find(t => t.loincCode === walkinTestCode);
     if (!test) { setWalkinBusy(false); return; }
-    api.registerWalkinLabTest(walkinPatientId, walkinTestCode, test.name);
+    api.registerWalkinLabTest(walkinPatientId, walkinTestCode, test.name, walkinFileUrl || undefined);
     setTimeout(() => {
       setWalkinBusy(false);
       setWalkinPatientId('');
       setWalkinTestCode('');
       setWalkinSearch('');
+      setWalkinFileUrl(null);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           message: `Walk-in test "${test.name}" registered. Requisition pushed to Queue.`,
@@ -395,6 +398,17 @@ export const LabDashboard: React.FC = () => {
   ══════════════════════════════════════════════════════════════ */
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6 animate-fade-in">
+      {viewingDocUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-surface-container rounded-2xl w-full max-w-2xl p-6 border border-outline-variant shadow-2xl relative">
+            <button onClick={() => setViewingDocUrl(null)} className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-clinical-400">
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <h3 className="text-white font-bold mb-4">Document Preview</h3>
+            <iframe src={viewingDocUrl} className="w-full h-[60vh] rounded-lg border border-outline-variant" title="Document Viewer" />
+          </div>
+        </div>
+      )}
 
       {/* ── STATS HEADER ──────────────────────────────────────── */}
       <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
@@ -545,12 +559,21 @@ export const LabDashboard: React.FC = () => {
                             <p className="text-[9px] text-center text-clinical-300 font-mono tracking-wider font-bold">*{req.barcode}*</p>
                           </div>
                         </div>
+                        {req.prescriptionFileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setViewingDocUrl(req.prescriptionFileUrl || null)}
+                            className="mb-2 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1 w-full font-sans"
+                          >
+                            View Scanned Requisition / Rx
+                          </button>
+                        )}
                         <button
                           onClick={() => handleCollectSample(req)}
                           className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold"
                         >
                           <span className="material-symbols-outlined text-sm font-bold">print</span>
-                          Print Barcode & Collect Sample
+                          Print Barcode &amp; Collect Sample
                         </button>
                       </div>
                     );
@@ -603,6 +626,15 @@ export const LabDashboard: React.FC = () => {
                             </div>
                           </div>
                         </div>
+                        {req.prescriptionFileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setViewingDocUrl(req.prescriptionFileUrl || null)}
+                            className="mb-2 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1 w-full"
+                          >
+                            View Scanned Requisition / Rx
+                          </button>
+                        )}
                         <button
                           onClick={() => handleOpenSubmit(req)}
                           className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold bg-gradient-to-r from-primary to-secondary"
@@ -952,6 +984,49 @@ export const LabDashboard: React.FC = () => {
                       </label>
                     ))}
                   </div>
+                </div>
+
+                {/* Upload Request Slip / Prescription */}
+                <div className="mt-2.5">
+                  <label className="block text-[10px] font-bold text-clinical-200 mb-1.5 uppercase tracking-wider">
+                    Upload Request Slip / Prescription (Optional)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-blue-400 rounded-xl p-3 bg-surface-container-lowest/40 text-center cursor-pointer text-xs font-semibold text-clinical-300 hover:text-white transition-colors">
+                      <span className="material-symbols-outlined text-xl text-blue-400">upload_file</span>
+                      <span>{walkinFileUrl ? 'Re-upload / Change Slip' : 'Upload File (JPG, PNG, PDF)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setWalkinFileUrl(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {walkinFileUrl && (
+                    <div className="flex items-center justify-between mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                      <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">check_circle</span>
+                        Slip Attached
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => setWalkinFileUrl(null)} 
+                        className="text-[10px] text-rose-450 hover:text-rose-350 cursor-pointer bg-transparent border-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -1497,6 +1572,43 @@ export const LabDashboard: React.FC = () => {
               <div>&gt; Injecting chemical reagent...</div>
               <div>&gt; Reading optical absorption values...</div>
               <div className="animate-pulse">&gt; Compiling biomarker quantitative report...</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingDocUrl && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden font-sans">
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-secondary" />
+            <div className="flex justify-between items-center pb-2 border-b border-white/5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-base">receipt_long</span>
+                Prescription / Request Slip Viewer
+              </h3>
+              <button
+                onClick={() => setViewingDocUrl(null)}
+                className="p-1.5 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border-0 rounded-lg cursor-pointer transition active:scale-95 flex items-center"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">close</span>
+              </button>
+            </div>
+            
+            <div className="bg-black/40 rounded-xl border border-white/5 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh] p-2">
+              {viewingDocUrl.startsWith('data:application/pdf') ? (
+                <iframe src={viewingDocUrl} className="w-full h-[500px] border-0 rounded-lg" title="PDF Document Viewer" />
+              ) : (
+                <img src={viewingDocUrl} className="max-w-full max-h-[500px] object-contain rounded-lg shadow-md" alt="Request Slip Preview" />
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setViewingDocUrl(null)}
+                className="px-4 py-2 bg-primary hover:bg-primary/85 text-white font-bold rounded-xl text-xs cursor-pointer border-0 active:scale-95 transition"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

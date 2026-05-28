@@ -351,6 +351,8 @@ class MediflowApiService {
             }
           };
 
+          const rx = this.getPrescriptions().find(p => p.appointmentId === r.encounter_id || p.appointmentId === r.id);
+
           return {
             id: r.id,
             encounterId: r.encounter_id,
@@ -362,6 +364,7 @@ class MediflowApiService {
             status: r.status === 'processing' ? 'collected' : (r.status === 'completed' ? 'completed' : r.status),
             quantitativeResult: r.lab_reports?.[0]?.result_value || undefined,
             reagentDeductions: r.status === 'completed' ? getReagents(r.loinc_code) : [],
+            prescriptionFileUrl: rx?.prescriptionFileUrl || undefined,
             createdAt: r.created_at
           };
         });
@@ -1624,12 +1627,24 @@ class MediflowApiService {
     }
   }
 
-  registerWalkinLabTest(patientId: string, testCode: string, testName: string): LabRequisition {
+  registerWalkinLabTest(patientId: string, testCode: string, testName: string, prescriptionFileUrl?: string): LabRequisition {
     const patients = this.getPatients();
     const patient = patients.find(p => p.id === patientId);
     const barcode = `WALK-${Date.now()}-${testCode}`.toUpperCase();
+    const reqId = crypto.randomUUID();
+
+    // If walk-in prescription file uploaded, store mock prescription
+    if (prescriptionFileUrl) {
+      this.savePrescription({
+        id: crypto.randomUUID(),
+        appointmentId: reqId,
+        prescriptionFileUrl,
+        createdAt: new Date().toISOString()
+      });
+    }
+
     const newReq: LabRequisition = {
-      id: crypto.randomUUID(),
+      id: reqId,
       encounterId: 'walkin',
       patientId,
       patientName: patient?.name || 'Walk-in Patient',
@@ -1638,6 +1653,7 @@ class MediflowApiService {
       barcode,
       status: 'pending',
       reagentDeductions: [],
+      prescriptionFileUrl,
       createdAt: new Date().toISOString()
     };
     const existing = this.getLabRequisitions();
@@ -3364,6 +3380,7 @@ If no prescription image could be loaded or fetched, generate a highly realistic
               testName: testName,
               barcode: `BAR-${appt.id.substring(0, 8).toUpperCase()}-${loinc}`,
               status: 'pending',
+              prescriptionFileUrl: rx?.prescriptionFileUrl,
               createdAt: new Date().toISOString()
             });
             this.save('lab_requisitions', requisitions);
@@ -3408,6 +3425,8 @@ If no prescription image could be loaded or fetched, generate a highly realistic
   async runSaaSPrescriptionOCR(appointmentId: string, file: File | string): Promise<Prescription> {
     await new Promise(resolve => setTimeout(resolve, 1500));
     
+    const fileUrl = typeof file === 'string' ? file : undefined;
+
     const rx: Prescription = {
       id: crypto.randomUUID(),
       appointmentId,
@@ -3416,6 +3435,7 @@ If no prescription image could be loaded or fetched, generate a highly realistic
         { name: 'Metformin 500mg', dosage: '1 tab', frequency: '1-0-0' }
       ],
       extractedTests: ['HbA1c (Glycated Hemoglobin)', 'Serum Creatinine'],
+      prescriptionFileUrl: fileUrl,
       createdAt: new Date().toISOString()
     };
     this.savePrescription(rx);

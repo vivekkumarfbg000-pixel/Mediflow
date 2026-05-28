@@ -38,6 +38,7 @@ export const CompounderDashboard: React.FC = () => {
   // Active patient in care loop
   const [activePatient, setActivePatientState] = useState<Patient | null>(null);
   const [activePatientStage, setActivePatientStage] = useState<'registered' | 'diagnosing' | 'lab' | 'pharmacy' | 'settled'>('registered');
+  const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
 
   // SaaS Gate States
   const [ocrScanningApptId, setOcrScanningApptId] = useState<string | null>(null);
@@ -1951,16 +1952,21 @@ export const CompounderDashboard: React.FC = () => {
                                       const file = e.target.files?.[0];
                                       if (file) {
                                         setOcrScanningApptId(appt.id);
-                                        api.runSaaSPrescriptionOCR(appt.id, file).then(() => {
-                                          setOcrScanningApptId(null);
-                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                            detail: {
-                                              message: 'AI OCR parsed prescription: Loaded tests and medicine invoices!',
-                                              type: 'success',
-                                              title: 'Prescription Parsed'
-                                            }
-                                          }));
-                                        });
+                                        const reader = new FileReader();
+                                        reader.onload = () => {
+                                          const base64Url = reader.result as string;
+                                          api.runSaaSPrescriptionOCR(appt.id, base64Url).then(() => {
+                                            setOcrScanningApptId(null);
+                                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                              detail: {
+                                                message: 'AI OCR parsed prescription: Loaded tests and medicine invoices!',
+                                                type: 'success',
+                                                title: 'Prescription Parsed'
+                                              }
+                                            }));
+                                          });
+                                        };
+                                        reader.readAsDataURL(file);
                                       }
                                     }}
                                   />
@@ -1977,6 +1983,60 @@ export const CompounderDashboard: React.FC = () => {
                                       {t}
                                     </span>
                                   ))}
+                                </div>
+                              </div>
+
+                              <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-lg flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Prescription Document</span>
+                                  <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider ${
+                                    prescription.prescriptionFileUrl 
+                                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' 
+                                      : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                                  }`}>
+                                    {prescription.prescriptionFileUrl ? 'Attached & Sent to Lab' : 'No Document Attached'}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {prescription.prescriptionFileUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingDocUrl(prescription.prescriptionFileUrl || null)}
+                                      className="flex-1 py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-250 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+                                    >
+                                      View Original Rx
+                                    </button>
+                                  )}
+                                  <label className="flex-1 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg border border-indigo-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1 text-center font-sans">
+                                    {prescription.prescriptionFileUrl ? 'Re-upload / Change' : 'Upload Rx Doc'}
+                                    <input 
+                                      type="file" 
+                                      accept="image/*,application/pdf" 
+                                      className="hidden" 
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          setOcrScanningApptId(appt.id);
+                                          const reader = new FileReader();
+                                          reader.onload = () => {
+                                            const base64Url = reader.result as string;
+                                            api.runSaaSPrescriptionOCR(appt.id, base64Url).then(() => {
+                                              setOcrScanningApptId(null);
+                                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                detail: {
+                                                  message: 'Prescription document updated successfully!',
+                                                  type: 'success',
+                                                  title: 'Prescription Updated'
+                                                }
+                                              }));
+                                            });
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      }}
+                                    />
+                                  </label>
                                 </div>
                               </div>
 
@@ -2339,6 +2399,43 @@ export const CompounderDashboard: React.FC = () => {
           </div>
 
       </div>
+
+      {viewingDocUrl && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 to-teal-500" />
+            <div className="flex justify-between items-center pb-2 border-b border-white/5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400 text-base">receipt_long</span>
+                Prescription Document Viewer
+              </h3>
+              <button
+                onClick={() => setViewingDocUrl(null)}
+                className="p-1.5 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border-0 rounded-lg cursor-pointer transition active:scale-95 flex items-center"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">close</span>
+              </button>
+            </div>
+            
+            <div className="bg-black/40 rounded-xl border border-white/5 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh] p-2">
+              {viewingDocUrl.startsWith('data:application/pdf') ? (
+                <iframe src={viewingDocUrl} className="w-full h-[500px] border-0 rounded-lg" title="PDF Document Viewer" />
+              ) : (
+                <img src={viewingDocUrl} className="max-w-full max-h-[500px] object-contain rounded-lg shadow-md" alt="Prescription Document Preview" />
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setViewingDocUrl(null)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs cursor-pointer border-0 active:scale-95 transition"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
