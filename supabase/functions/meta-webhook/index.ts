@@ -32,7 +32,55 @@ serve(async (req) => {
   // 2. Meta Message Event Ingestion (POST request)
   if (req.method === "POST") {
     try {
-      const payload = await req.json();
+      const appSecret = Deno.env.get("META_APP_SECRET");
+      const signature256 = req.headers.get("x-hub-signature-256");
+
+      let rawBody = "";
+      let payload;
+
+      if (appSecret) {
+        if (!signature256) {
+          console.error("[Meta Webhook] Missing x-hub-signature-256 header when secret is configured");
+          return new Response("Missing signature", { status: 401 });
+        }
+
+        if (!signature256.startsWith("sha256=")) {
+          console.error("[Meta Webhook] Invalid signature format, must start with sha256=");
+          return new Response("Invalid signature format", { status: 401 });
+        }
+
+        const signatureHex = signature256.substring(7); // Remove "sha256="
+        rawBody = await req.text();
+
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(appSecret);
+        const messageData = encoder.encode(rawBody);
+
+        const key = await crypto.subtle.importKey(
+          "raw",
+          keyData,
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+
+        const signatureBuffer = await crypto.subtle.sign("HMAC", key, messageData);
+        const computedHexSignature = Array.from(new Uint8Array(signatureBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        if (signatureHex !== computedHexSignature) {
+          console.error("[Meta Webhook] Webhook signature verification failed! Signature mismatch.");
+          return new Response("Signature mismatch", { status: 401 });
+        }
+
+        console.log("[Meta Webhook] Webhook signature verified successfully ✅");
+        payload = JSON.parse(rawBody);
+      } else {
+        console.warn("[Meta Webhook] Warning: META_APP_SECRET is not configured in environment. Skipping signature verification.");
+        payload = await req.json();
+      }
+
       console.log("[Meta Webhook] Ingested message event payload:", JSON.stringify(payload));
 
       const entry = payload.entry?.[0];

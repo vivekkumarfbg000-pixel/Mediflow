@@ -4,16 +4,19 @@ import { useSpecialization } from '../../context/SpecializationContext';
 import { supabase } from '../../lib/supabaseClient';
 import type { ReagentStock } from '../../services/api';
 import type { LabRequisition, Patient, Invoice, LabReport } from '../../types';
+import { useClinic } from '../../context/ClinicContext';
+import { SettlementWidget } from '../shared/SettlementWidget';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mediflow Pathology Lab Dashboard  V2.0
    Interconnected clinical node — Doctor › Lab › Pharmacy › WhatsApp
-───────────────────────────────────────────────────────────────────────────── */
+ ───────────────────────────────────────────────────────────────────────────── */
 
-type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'reagents';
+type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'reagents' | 'settlements' | 'pod_network';
 
 export const LabDashboard: React.FC = () => {
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
+  const { activePod, activeEntity, podEntities } = useClinic();
   const [activeTab, setActiveTab] = useState<LabTab>('queue');
   const [requisitions, setRequisitions] = useState<LabRequisition[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -577,7 +580,9 @@ export const LabDashboard: React.FC = () => {
     { id: 'walkin', label: 'Walk-in Register', icon: 'person_add', badge: walkinList.length },
     { id: 'upload_report', label: 'Direct Report Upload', icon: 'upload_file' },
     { id: 'analytics', label: 'Analytics', icon: 'bar_chart' },
-    { id: 'reagents', label: 'Reagent Ledger', icon: 'science', badge: lowStockCount > 0 ? lowStockCount : undefined }
+    { id: 'reagents', label: 'Reagent Ledger', icon: 'science', badge: lowStockCount > 0 ? lowStockCount : undefined },
+    { id: 'settlements', label: 'Settlements', icon: 'account_balance' },
+    { id: 'pod_network', label: 'Pod Network', icon: 'hub' }
   ];
 
   /* ══════════════════════════════════════════════════════════════
@@ -1972,6 +1977,117 @@ export const LabDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: SETTLEMENTS */}
+      {activeTab === 'settlements' && (
+        <div className="space-y-6">
+          <SettlementWidget 
+            entityId={activeEntity?.id || ''}
+            podId={activeEntity?.podId || ''}
+            entityType="lab"
+            displayName="Pathology Lab Settlements"
+            theme="dark"
+          />
+          
+          {/* Split rules display */}
+          <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-base">policy</span>
+              Active SOP Split Configuration
+            </h3>
+            <p className="text-xs text-clinical-400">
+              These percentages represent your shared payouts calculated dynamically on invoice clearance.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
+                <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Your Split</p>
+                <p className="text-xl font-extrabold text-white mt-1">Lab Split</p>
+                <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Calculated per test catalog price</p>
+              </div>
+              <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
+                <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Doctor Split</p>
+                <p className="text-xl font-extrabold text-white mt-1">Managed by SOP</p>
+                <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Based on active agreements</p>
+              </div>
+              <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
+                <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Platform Fee</p>
+                <p className="text-xl font-extrabold text-white mt-1">3%</p>
+                <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Platform service charge</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: POD NETWORK */}
+      {activeTab === 'pod_network' && (
+        <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
+          <div className="flex justify-between items-center border-b border-white/10 pb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400 text-base">hub</span>
+                Pod Network HUB
+              </h2>
+              <p className="text-xs text-clinical-400 mt-1">
+                Connected clinical clinic node and ecosystem partner network details.
+              </p>
+            </div>
+            <span className={`text-[10px] font-mono font-bold px-3 py-1 rounded-full uppercase tracking-wider border ${
+              activeEntity?.status === 'approved' 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+            }`}>
+              {activeEntity?.status || 'Pending Connection'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-clinical-300 uppercase tracking-widest font-mono">
+                🏥 Primary Clinic Connection
+              </h3>
+              <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
+                <p className="text-xs font-bold text-white">{activePod?.name || 'Patna Connected Clinic'}</p>
+                <div className="text-[10px] text-clinical-400 space-y-1">
+                  <div>Clinic Code: <span className="font-mono font-bold text-white bg-black/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
+                  <div>Location: {activePod?.location || 'Patna, Bihar'}</div>
+                  <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-xs font-black text-clinical-300 uppercase tracking-widest font-mono">
+                👥 Node Partner Network
+              </h3>
+              <div className="space-y-2">
+                {podEntities.length === 0 ? (
+                  <p className="text-xs text-clinical-500 italic">No partners found in this Pod.</p>
+                ) : (
+                  podEntities.map(pe => (
+                    <div key={pe.id} className="p-3 bg-surface-container border border-outline-variant rounded-xl flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${pe.entityType === 'clinic' ? 'bg-indigo-400' : pe.entityType === 'lab' ? 'bg-teal-400' : 'bg-amber-400'}`} />
+                        <div>
+                          <p className="font-bold text-white">{pe.name}</p>
+                          <p className="text-[9px] text-clinical-400 uppercase tracking-wider">{pe.entityType}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded border ${
+                        pe.status === 'approved' 
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                      }`}>
+                        {pe.status}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

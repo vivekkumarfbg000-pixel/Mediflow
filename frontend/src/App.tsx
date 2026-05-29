@@ -297,7 +297,7 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [session, setSession] = useState<any>(null);
   const [activeProfile, setActiveProfile] = useState<any>(null);
-  const [isBypassMode, setIsBypassMode] = useState<boolean>(true); // Dev bypass default for smooth testing
+  const [isBypassMode, setIsBypassMode] = useState<boolean>(false); // Production default (bypass mode disabled)
   const [isOnboarding, setIsOnboarding] = useState(false);
 
   useEffect(() => {

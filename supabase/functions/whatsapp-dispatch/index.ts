@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { isRateLimited } from "../_shared/rate-limit.ts";
 
 // =============================================================================
 // Mediflow — whatsapp-dispatch Edge Function
@@ -9,12 +12,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // Fallback simulator logs messages to whatsapp_sessions for beautiful UI updates.
 // =============================================================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -25,14 +25,31 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { patientId, templateName, templateParams, podId } = await req.json();
+    // Rate Limiter Check (30 requests/min per client IP for messaging dispatcher)
+    if (await isRateLimited(req, supabase, 30, 60)) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!patientId || !templateName || !podId) {
-      return new Response(JSON.stringify({ error: "Missing required fields (patientId, templateName, podId)" }), {
+    const bodyJson = await req.json().catch(() => ({}));
+    const validationResult = z.object({
+      patientId: z.string().uuid("Invalid patientId UUID format"),
+      templateName: z.string().min(1, "Template name is required"),
+      templateParams: z.record(z.any()).optional(),
+      podId: z.string().uuid("Invalid podId UUID format"),
+    }).safeParse(bodyJson);
+
+    if (!validationResult.success) {
+      const errorMsg = validationResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
+      return new Response(JSON.stringify({ error: `Validation failed: ${errorMsg}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { patientId, templateName, templateParams, podId } = validationResult.data;
 
     // 1. Consent Validation Gate (High-Priority Opt-out Check)
     const { data: consents, error: consentErr } = await supabase

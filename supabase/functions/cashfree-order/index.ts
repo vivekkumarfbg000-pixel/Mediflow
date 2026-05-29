@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { isRateLimited } from "../_shared/rate-limit.ts";
 
 // =============================================================================
 // Mediflow — cashfree-order Edge Function
@@ -12,12 +15,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 //   CASHFREE_ENV          — "sandbox" or "production"
 // =============================================================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -28,14 +28,29 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { invoiceId, returnUrl } = await req.json();
+    // Rate Limiter Check (15 requests/min per client IP)
+    if (await isRateLimited(req, supabase, 15, 60)) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!invoiceId) {
-      return new Response(JSON.stringify({ error: "Missing invoiceId" }), {
+    const bodyJson = await req.json().catch(() => ({}));
+    const validationResult = z.object({
+      invoiceId: z.string().uuid("Invalid invoiceId UUID format"),
+      returnUrl: z.string().url("Invalid returnUrl format").optional(),
+    }).safeParse(bodyJson);
+
+    if (!validationResult.success) {
+      const errorMsg = validationResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
+      return new Response(JSON.stringify({ error: `Validation failed: ${errorMsg}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { invoiceId, returnUrl } = validationResult.data;
 
     // Retrieve invoice + patient details
     const { data: invoice, error: invError } = await supabase

@@ -19,10 +19,13 @@ import {
   Download,
   AlertCircle
 } from 'lucide-react';
+import { useClinic } from '../../context/ClinicContext';
+import { SettlementWidget } from '../shared/SettlementWidget';
 
 export const PharmacyDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
-  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand'>('prescription_queue');
+  const { activePod, activeEntity, podEntities } = useClinic();
+  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand' | 'settlements' | 'pod_connect'>('prescription_queue');
   const [inventory, setInventory] = useState<PharmacyInventoryItem[]>([]);
   const [holds, setHolds] = useState<InventoryHold[]>([]);
   const [forecasts, setForecasts] = useState<SeasonalForecast[]>([]);
@@ -648,6 +651,30 @@ export const PharmacyDashboard: React.FC = () => {
         >
           <span className="material-symbols-outlined text-sm">psychology</span>
           Gemini Demand AI
+        </button>
+
+        <button
+          onClick={() => setActiveTab('settlements')}
+          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
+            activeTab === 'settlements'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <span className="material-symbols-outlined text-sm">account_balance</span>
+          Settlements
+        </button>
+
+        <button
+          onClick={() => setActiveTab('pod_connect')}
+          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
+            activeTab === 'pod_connect'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <span className="material-symbols-outlined text-sm">hub</span>
+          Pod Interconnect
         </button>
       </div>
 
@@ -1367,6 +1394,117 @@ export const PharmacyDashboard: React.FC = () => {
                 </p>
                 <div className="text-[9px] text-clinical-500 font-semibold font-mono border-t border-white/5 pt-3 leading-relaxed">
                   Surveillance alerts monitor heavy rainwater waterlogging vectors linked with Cholera, Dengue and Typhoid spikes to prevent stocking shocks.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: SETTLEMENTS */}
+        {activeTab === 'settlements' && (
+          <div className="space-y-6">
+            <SettlementWidget 
+              entityId={activeEntity?.id || ''}
+              podId={activeEntity?.podId || ''}
+              entityType="pharmacy"
+              displayName="Pharmacy Settlements"
+              theme="dark"
+            />
+            
+            {/* Split rules display */}
+            <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-base">policy</span>
+                Active SOP Split Configuration
+              </h3>
+              <p className="text-xs text-clinical-400">
+                These percentages represent your shared payouts calculated dynamically on invoice clearance.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
+                  <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Your Split</p>
+                  <p className="text-xl font-extrabold text-white mt-1">Pharmacy Split</p>
+                  <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Calculated per product margin</p>
+                </div>
+                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
+                  <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Doctor Split</p>
+                  <p className="text-xl font-extrabold text-white mt-1">Managed by SOP</p>
+                  <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Based on active agreements</p>
+                </div>
+                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
+                  <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Platform Fee</p>
+                  <p className="text-xl font-extrabold text-white mt-1">3%</p>
+                  <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Platform service charge</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 7: POD INTERCONNECT */}
+        {activeTab === 'pod_connect' && (
+          <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
+            <div className="flex justify-between items-center border-b border-white/10 pb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-400 text-base">hub</span>
+                  Pod Connection HUD
+                </h2>
+                <p className="text-xs text-clinical-400 mt-1">
+                  Connected clinical clinic node and ecosystem partner network details.
+                </p>
+              </div>
+              <span className={`text-[10px] font-mono font-bold px-3 py-1 rounded-full uppercase tracking-wider border ${
+                activeEntity?.status === 'approved' 
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                  : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+              }`}>
+                {activeEntity?.status || 'Pending Connection'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-clinical-300 uppercase tracking-widest font-mono">
+                  🏥 Primary Clinic Connection
+                </h3>
+                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
+                  <p className="text-xs font-bold text-white">{activePod?.name || 'Patna Connected Clinic'}</p>
+                  <div className="text-[10px] text-clinical-400 space-y-1">
+                    <div>Clinic Code: <span className="font-mono font-bold text-white bg-black/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
+                    <div>Location: {activePod?.location || 'Patna, Bihar'}</div>
+                    <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-clinical-300 uppercase tracking-widest font-mono">
+                  👥 Node Partner Network
+                </h3>
+                <div className="space-y-2">
+                  {podEntities.length === 0 ? (
+                    <p className="text-xs text-clinical-500 italic">No partners found in this Pod.</p>
+                  ) : (
+                    podEntities.map(pe => (
+                      <div key={pe.id} className="p-3 bg-surface-container border border-outline-variant rounded-xl flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${pe.entityType === 'clinic' ? 'bg-indigo-400' : pe.entityType === 'lab' ? 'bg-teal-400' : 'bg-amber-400'}`} />
+                          <div>
+                            <p className="font-bold text-white">{pe.name}</p>
+                            <p className="text-[9px] text-clinical-400 uppercase tracking-wider">{pe.entityType}</p>
+                          </div>
+                        </div>
+                        <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded border ${
+                          pe.status === 'approved' 
+                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                            : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                        }`}>
+                          {pe.status}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

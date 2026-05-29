@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { isRateLimited } from "../_shared/rate-limit.ts";
 
 // =============================================================================
 // Mediflow — cashfree-vendor-sync Edge Function
@@ -7,12 +10,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // Registers bank account details and verifies sub-account vendor status.
 // =============================================================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -23,14 +23,34 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { holderName, accountNumber, ifsc, email, phone, entityId, podId } = await req.json();
+    // Rate Limiter Check (10 requests/min per client IP for vendor onboarding)
+    if (await isRateLimited(req, supabase, 10, 60)) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!holderName || !accountNumber || !ifsc || !entityId || !podId) {
-      return new Response(JSON.stringify({ error: "Missing required onboarding credentials." }), {
+    const bodyJson = await req.json().catch(() => ({}));
+    const validationResult = z.object({
+      holderName: z.string().min(2, "Holder name must be at least 2 characters"),
+      accountNumber: z.string().min(9, "Account number must be at least 9 digits").max(18, "Account number cannot exceed 18 digits"),
+      ifsc: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid Indian Financial System Code (IFSC) format"),
+      email: z.string().email("Invalid email address format").optional(),
+      phone: z.string().regex(/^[0-9]{10}$/, "Phone number must be exactly 10 digits").optional(),
+      entityId: z.string().uuid("Invalid entityId UUID format"),
+      podId: z.string().uuid("Invalid podId UUID format"),
+    }).safeParse(bodyJson);
+
+    if (!validationResult.success) {
+      const errorMsg = validationResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
+      return new Response(JSON.stringify({ error: `Validation failed: ${errorMsg}` }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { holderName, accountNumber, ifsc, email, phone, entityId, podId } = validationResult.data;
 
     const appId     = Deno.env.get("CASHFREE_APP_ID") ?? "";
     const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";

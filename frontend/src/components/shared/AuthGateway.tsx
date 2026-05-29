@@ -936,7 +936,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
           )}
 
           {/* Quick-Switch Enterprise Profile Console (Bypass for E2E Dev Testing) */}
-          {activeTab === 'signin' && (
+          {activeTab === 'signin' && import.meta.env.VITE_USE_MOCK === 'true' && (
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between border-t border-clinical-800/80 pt-4">
                 <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">
