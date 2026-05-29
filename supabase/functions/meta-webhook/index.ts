@@ -223,6 +223,57 @@ async function triggerBotReplyPipeline(ctx: {
     }
   }
 
+  // devsecops consent check: check patient_consents for explicit revocation
+  if (patient?.id) {
+    const { data: consents } = await supabase
+      .from("patient_consents")
+      .select("*")
+      .eq("patient_id", patient.id);
+
+    const hasRevoked = consents?.some((c: any) => c.revoked_at !== null);
+    
+    // If they have explicitly revoked consent and are NOT replying with an opt-in code
+    if (hasRevoked && !["1", "grant access", "yes", "approve", "grant"].includes(cleaned)) {
+      console.warn(`[Meta Webhook] Consent Block: Patient ${patient.id} has revoked consent. Restricting RAG bot replies.`);
+      
+      replyText = "Namaste! Aapne Mediflow digital data processing consent ko revoke kiya hua hai. AI assistant replies aur clinical logs sync disabled hain. Wapas active karne ke liye, please *1* reply kijiye. 🟢";
+      nextState = "AWAITING_WELCOME";
+
+      const currentTime = new Date().toISOString();
+      chatHistory.push({ sender: "bot", text: replyText, timestamp: currentTime });
+
+      await supabase
+        .from("whatsapp_sessions")
+        .update({
+          current_state: nextState,
+          session_data: { ...sessionData, chatHistory, consentGranted: false },
+          last_interaction: currentTime
+        })
+        .eq("id", session.id);
+
+      try {
+        const metaUrl = `https://graph.facebook.com/v21.0/${phoneId}/messages`;
+        await fetch(metaUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${decryptedToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: patientPhone,
+            type: "text",
+            text: { body: replyText }
+          })
+        });
+      } catch (err) {
+        console.error("[Meta Outbound] Failed to dispatch revoked consent notice:", err);
+      }
+      return;
+    }
+  }
+
   // Conversational state machine router logic
   switch (state) {
     case "AWAITING_WELCOME":
