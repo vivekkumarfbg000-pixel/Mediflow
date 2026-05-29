@@ -66,10 +66,10 @@ jobs:
           git config user.name "mediflow-bot"
           git config user.email "mediflow-bot@users.noreply.github.com"
           
-          HF_USERNAME="${CLEAN_REPO%%/*}"
-          git remote add origin "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}"
           git add .
           git commit -m "Deploy Mediflow backend to Hugging Face Space"
-          git branch -M main
-          git push --force origin main
+          
+          # Pushes directly to Hugging Face with user and clean write token
+          git push --force "https://user:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main
+
 
