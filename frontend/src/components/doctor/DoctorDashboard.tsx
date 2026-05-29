@@ -95,6 +95,15 @@ export const DoctorDashboard: React.FC = () => {
   const [selectedChatSession, setSelectedChatSession] = useState<any | null>(null);
   const [manualChatMsg, setManualChatMsg] = useState('');
 
+  // Cashfree Dynamic Splits & Bank Onboarding States
+  const [activeVendor, setActiveVendor] = useState<any | null>(null);
+  const [vendorFormOpen, setVendorFormOpen] = useState(false);
+  const [vendorHolderName, setVendorHolderName] = useState('');
+  const [vendorAccountNumber, setVendorAccountNumber] = useState('');
+  const [vendorIfsc, setVendorIfsc] = useState('');
+  const [vendorEmail, setVendorEmail] = useState('');
+  const [vendorPhone, setVendorPhone] = useState('');
+
   const [telemetryLogs, setTelemetryLogs] = useState<string[]>([
     `[${new Date().toLocaleTimeString()}] Meta Cloud API webhook gateway active 🟢`,
     `[${new Date().toLocaleTimeString()}] Secure Definer symmetric RPC key decryption: SUCCESS`
@@ -289,6 +298,17 @@ export const DoctorDashboard: React.FC = () => {
             } else {
               setActiveWabaConnection(null);
             }
+          });
+
+        // Fetch Cashfree vendor connection for the clinic entity
+        supabase
+          .from('cashfree_vendors')
+          .select('*')
+          .eq('pod_id', activePod.id)
+          .eq('entity_id', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') // Default Bihar Clinic Entity ID
+          .maybeSingle()
+          .then(({ data }) => {
+            setActiveVendor(data || null);
           });
       }
       
@@ -1851,6 +1871,246 @@ Keep the tone professional, clinical, objective, and precise.`;
             </table>
           </div>
         </div>
+
+        {/* SaaS Settlement Configuration Panel */}
+        <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4 text-left">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-primary text-base font-bold">account_balance</span>
+                SaaS Settlements Configuration (Cashfree Splits)
+              </h2>
+              <p className="text-[10px] text-slate-400 mt-0.5">Onboard sub-account bank details to receive dynamic payment settlements automatically.</p>
+            </div>
+            
+            {!activeVendor && (
+              <button
+                onClick={() => {
+                  setVendorHolderName(activePod?.name || '');
+                  setVendorFormOpen(true);
+                }}
+                className="px-4 py-2 bg-primary hover:bg-primary-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer text-white-force bg-primary-force"
+              >
+                Configure Bank Account
+              </button>
+            )}
+          </div>
+
+          {activeVendor ? (
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100/60 flex items-center justify-center text-emerald-600 font-extrabold shadow-sm animate-pulse">
+                  <span className="material-symbols-outlined text-xl">verified</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-slate-800">Verified Settlement Account</h3>
+                    <span className="text-[8px] font-bold font-mono px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full uppercase tracking-wider">Active</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-mono mt-1 space-y-0.5">
+                    <div>Holder Name: <strong className="text-slate-700 font-sans">{activeVendor.holder_name}</strong></div>
+                    <div>Vendor ID: <strong className="text-slate-600">{activeVendor.vendor_id}</strong> • Bank Account: <strong className="text-slate-600">XXXX-XXXX-XXXX-{activeVendor.bank_account_last4}</strong></div>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to disconnect this settlement bank account? Split settlements will revert to central system billing.")) {
+                    const { error } = await supabase
+                      .from('cashfree_vendors')
+                      .delete()
+                      .eq('id', activeVendor.id);
+
+                    if (error) {
+                      alert("Error disconnecting account: " + error.message);
+                    } else {
+                      setActiveVendor(null);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Account Disconnected! 🔴',
+                          message: 'Cashfree sub-account settlement channel detached successfully.',
+                          type: 'info'
+                        }
+                      }));
+                    }
+                  }
+                }}
+                className="px-3.5 py-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Disconnect Account
+              </button>
+            </div>
+          ) : (
+            <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center space-y-2">
+              <span className="material-symbols-outlined text-slate-300 text-4xl">account_balance_wallet</span>
+              <div>
+                <h4 className="text-xs font-bold text-slate-700">No Settlement Account Configured</h4>
+                <p className="text-[10px] text-slate-400 mt-1 max-w-sm mx-auto">
+                  Provide your official clinic bank account credentials to activate split payout settlement processes. Direct consultation earnings will bypass central platform balance reserves.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Vendor Onboarding Modal */}
+        {vendorFormOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
+            <div className="glass-panel max-w-md w-full p-6 border-slate-200 shadow-2xl relative overflow-hidden space-y-4 bg-white rounded-3xl">
+              <div className="absolute top-0 left-0 w-full h-[3px] bg-primary" />
+              
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary font-bold">account_balance</span>
+                    Bank Settlements Setup
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1">Configure Cashfree Marketplace vendor sub-account bank details.</p>
+                </div>
+                <button
+                  onClick={() => setVendorFormOpen(false)}
+                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">close</span>
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!vendorHolderName || !vendorAccountNumber || !vendorIfsc) {
+                    alert("Please fill in all banking details.");
+                    return;
+                  }
+
+                  if (!activePod?.id) {
+                    alert("No active clinic pod session found.");
+                    return;
+                  }
+
+                  try {
+                    // Trigger the Edge Function cashfree-vendor-sync using Supabase invoke
+                    const { data: resData, error: invokeErr } = await supabase.functions.invoke('cashfree-vendor-sync', {
+                      body: {
+                        holderName: vendorHolderName.trim(),
+                        accountNumber: vendorAccountNumber.trim(),
+                        ifsc: vendorIfsc.trim().toUpperCase(),
+                        email: vendorEmail.trim() || undefined,
+                        phone: vendorPhone.trim() || undefined,
+                        entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Default Bihar Clinic Entity ID
+                        podId: activePod.id
+                      }
+                    });
+
+                    if (invokeErr || !resData || resData.error) {
+                      throw new Error(invokeErr?.message ?? resData?.error ?? "Registration API failed.");
+                    }
+
+                    setActiveVendor(resData.record);
+                    setVendorFormOpen(false);
+
+                    // Clear fields
+                    setVendorAccountNumber('');
+                    setVendorIfsc('');
+                    setVendorEmail('');
+                    setVendorPhone('');
+
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'Bank Settlements Configured! 💳',
+                        message: 'Cashfree sub-account splits are now active for your clinic pod.',
+                        type: 'success'
+                      }
+                    }));
+                  } catch (err: any) {
+                    alert("Bank onboarding registration failed: " + (err.message || err));
+                  }
+                }}
+                className="space-y-3.5 text-xs font-sans text-left"
+              >
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Account Holder Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Dr. Vivek Kumar / Clinic Legal Name"
+                    value={vendorHolderName}
+                    onChange={(e) => setVendorHolderName(e.target.value)}
+                    className="w-full input-field py-2 px-3 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank Account Number</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 9120100XXXXXX"
+                      value={vendorAccountNumber}
+                      onChange={(e) => setVendorAccountNumber(e.target.value)}
+                      className="w-full input-field py-2 px-3 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank IFSC Code</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. UTIB0000213"
+                      value={vendorIfsc}
+                      onChange={(e) => setVendorIfsc(e.target.value)}
+                      className="w-full input-field py-2 px-3 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Business Email (Optional)</label>
+                    <input
+                      type="email"
+                      placeholder="clinic@mediflow.in"
+                      value={vendorEmail}
+                      onChange={(e) => setVendorEmail(e.target.value)}
+                      className="w-full input-field py-2 px-3 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Contact Phone (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="9999999999"
+                      value={vendorPhone}
+                      onChange={(e) => setVendorPhone(e.target.value)}
+                      className="w-full input-field py-2 px-3 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-blue-50/50 border border-blue-100/50 rounded-xl text-[10px] text-slate-500 leading-normal">
+                  * By saving these bank account details, you agree to register this entity as a sub-account merchant vendor under the Mediflow central payment collection system. Settlements are run daily.
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setVendorFormOpen(false)}
+                    className="flex-1 btn-secondary py-2.5 rounded-xl text-center text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 btn-primary py-2.5 rounded-xl text-center text-xs text-white-force bg-primary hover:bg-primary-500 font-bold"
+                  >
+                    Verify & Onboard
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

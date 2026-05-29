@@ -61,6 +61,51 @@ serve(async (req) => {
     const patient = invoice.patient_registry;
     const amount = Number(invoice.total_amount);
 
+    // 1. Fetch registered sub-account vendors in this pod to configure payment splits
+    const { data: dbVendors, error: vendorErr } = await supabase
+      .from("cashfree_vendors")
+      .select(`
+        vendor_id,
+        entity_id,
+        entities:entity_id (
+          entity_type
+        )
+      `)
+      .eq("pod_id", invoice.pod_id);
+
+    if (vendorErr) {
+      console.warn("[cashfree-order] Failed to fetch pod vendors, fallback to single account.", vendorErr);
+    }
+
+    // Map vendors by type
+    const doctorVendor   = dbVendors?.find((v: any) => v.entities?.entity_type === 'clinic' || v.entities?.entity_type === 'doctor')?.vendor_id;
+    const pharmacyVendor = dbVendors?.find((v: any) => v.entities?.entity_type === 'pharmacy')?.vendor_id;
+    const labVendor      = dbVendors?.find((v: any) => v.entities?.entity_type === 'lab')?.vendor_id;
+
+    // 2. Build the order_splits array (remaining balance settles directly to SaaS platform master)
+    const orderSplits = [];
+    
+    if (doctorVendor && Number(invoice.doctor_fee) > 0) {
+      orderSplits.push({
+        vendor_id: doctorVendor,
+        amount: Number(invoice.doctor_fee)
+      });
+    }
+
+    if (pharmacyVendor && Number(invoice.pharmacy_fee) > 0) {
+      orderSplits.push({
+        vendor_id: pharmacyVendor,
+        amount: Number(invoice.pharmacy_fee)
+      });
+    }
+
+    if (labVendor && Number(invoice.lab_fee) > 0) {
+      orderSplits.push({
+        vendor_id: labVendor,
+        amount: Number(invoice.lab_fee)
+      });
+    }
+
     const appId     = Deno.env.get("CASHFREE_APP_ID") ?? "";
     const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
     const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? "sandbox";
@@ -79,7 +124,7 @@ serve(async (req) => {
 
     const orderId = `MEDIF-${invoiceId.substring(0, 8).toUpperCase()}-${Date.now().toString().slice(-5)}`;
 
-    const body = {
+    const body: Record<string, any> = {
       order_amount:   amount,
       order_currency: "INR",
       order_id:       orderId,
@@ -98,6 +143,10 @@ serve(async (req) => {
         pod_id:     invoice.pod_id ?? "",
       },
     };
+
+    if (orderSplits.length > 0) {
+      body.order_splits = orderSplits;
+    }
 
     const cfRes = await fetch(apiBase, {
       method: "POST",
@@ -120,10 +169,14 @@ serve(async (req) => {
       });
     }
 
-    // Persist the Cashfree order_id against the invoice for webhook reconciliation
+    // Persist the Cashfree order_id and splits metadata against the invoice
     await supabase
       .from("unified_invoices")
-      .update({ cashfree_order_id: orderId })
+      .update({ 
+        cashfree_order_id: orderId,
+        split_payload: orderSplits,
+        split_settlement_status: orderSplits.length > 0 ? "split_queued" : "unprocessed"
+      })
       .eq("id", invoiceId);
 
     console.log(`[cashfree-order] Order created ✅ order_id=${orderId}`);

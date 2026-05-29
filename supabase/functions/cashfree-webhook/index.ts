@@ -82,7 +82,10 @@ serve(async (req) => {
       // 1. Reconcile and update unified_invoices
       const { data: invoice, error: updateErr } = await supabase
         .from("unified_invoices")
-        .update({ payment_status: "paid" })
+        .update({ 
+          payment_status: "paid",
+          split_settlement_status: "settled"
+        })
         .eq("cashfree_order_id", orderId)
         .select("*, patient_registry(id, name, phone)")
         .single();
