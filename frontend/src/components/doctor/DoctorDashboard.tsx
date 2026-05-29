@@ -13,30 +13,14 @@ import {
 import { useClinic } from '../../context/ClinicContext';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { OphthalmicRefractionGrid } from './OphthalmicRefractionGrid';
-import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, type RefractionRx } from '../../types/ophthalmic';
+import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, getAcuityRank, OPHTHALMIC_EYE_CARE_COPY, type RefractionRx } from '../../types/ophthalmic';
 
 import { SystemHealthCockpit } from '../admin/SystemHealthCockpit';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
 import { BiomarkerChart } from './BiomarkerChart';
 import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
 import { PodCommandCenter } from '../admin/PodCommandCenter';
-
-const getAcuityRank = (val: string) => {
-  if (!val) return 0;
-  const clean = val.toUpperCase().trim();
-  if (clean.includes('6/60')) return 7;
-  if (clean.includes('6/36')) return 6;
-  if (clean.includes('6/24')) return 5;
-  if (clean.includes('6/18')) return 4;
-  if (clean.includes('6/12')) return 3;
-  if (clean.includes('6/9')) return 2;
-  if (clean.includes('6/6')) return 1;
-  if (clean.includes('CF') || clean.includes('COUNTING')) return 8;
-  if (clean.includes('HM') || clean.includes('HAND')) return 9;
-  if (clean.includes('PL')) return 10;
-  if (clean.includes('NPL')) return 11;
-  return 0;
-};
+import { OphthalmologyPatientAnalysisPanel } from './OphthalmologyPatientAnalysisPanel';
 
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
@@ -350,24 +334,6 @@ export const DoctorDashboard: React.FC = () => {
     const baseReport = history.find(h => h.date === baselineDate) ?? null;
     const compReport = history.find(h => h.date === comparisonDate) ?? history[history.length - 1];
 
-    // Helper to evaluate acuity severity index
-    const getAcuityRank = (val: string) => {
-      if (!val) return 0;
-      const clean = val.toUpperCase().trim();
-      if (clean.includes('6/60')) return 7;
-      if (clean.includes('6/36')) return 6;
-      if (clean.includes('6/24')) return 5;
-      if (clean.includes('6/18')) return 4;
-      if (clean.includes('6/12')) return 3;
-      if (clean.includes('6/9')) return 2;
-      if (clean.includes('6/6')) return 1;
-      if (clean.includes('CF') || clean.includes('COUNTING')) return 8;
-      if (clean.includes('HM') || clean.includes('HAND')) return 9;
-      if (clean.includes('PL')) return 10;
-      if (clean.includes('NPL')) return 11;
-      return 0;
-    };
-
     // Evaluate clinical risks for CDSS anomalies
     const anomalies: string[] = [];
     if (isOphthalmology) {
@@ -376,10 +342,10 @@ export const DoctorDashboard: React.FC = () => {
         anomalies.push(`Glaucoma Progression Risk: Intraocular Pressure is elevated at ${iop} mmHg. Avoid dilating drops.`);
       }
       
-      const baseOD = baseReport?.temperature ?? '6/6';
-      const compOD = compReport.temperature ?? '6/6';
-      const baseOS = baseReport?.bloodPressure ?? '6/6';
-      const compOS = compReport.bloodPressure ?? '6/9';
+      const baseOD = baseReport?.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
+      const compOD = compReport.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
+      const baseOS = baseReport?.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
+      const compOS = compReport.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
       
       const baseODRank = getAcuityRank(baseOD);
       const compODRank = getAcuityRank(compOD);
@@ -451,14 +417,14 @@ export const DoctorDashboard: React.FC = () => {
         if (isOphthalmology) {
           if (baseReport && compReport) {
             defaultInsight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
-            defaultInsight += `- **Visual Acuity (OD)**: **${baseReport.temperature || '6/6'}** → **${compReport.temperature || '6/6'}**.\n`;
-            defaultInsight += `- **Intraocular Pressure (IOP)**: **${baseReport.pulseRate || 16} mmHg** → **${compReport.pulseRate || 16} mmHg** (${
+            defaultInsight += `- **${OPHTHALMIC_EYE_CARE_COPY.odLabel}**: **${baseReport.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}** → **${compReport.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}**.\n`;
+            defaultInsight += `- **${OPHTHALMIC_EYE_CARE_COPY.iopLabel}**: **${baseReport.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg** → **${compReport.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg** (${
               (compReport.pulseRate || 16) > 21 ? '↑ Elevated Glaucoma Risk' : '↓ Stable'
             }).\n`;
-            defaultInsight += `- **Visual Acuity (OS)**: **${baseReport.bloodPressure || '6/6'}** → **${compReport.bloodPressure || '6/9'}**.\n\n`;
+            defaultInsight += `- **${OPHTHALMIC_EYE_CARE_COPY.osLabel}**: **${baseReport.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}** → **${compReport.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}**.\n\n`;
           } else if (compReport) {
             defaultInsight += `**Biomarker Summary (${compReport.date}):**\n`;
-            defaultInsight += `- VA (OD): **${compReport.temperature || '6/6'}**, IOP: **${compReport.pulseRate || 16} mmHg**, VA (OS): **${compReport.bloodPressure || '6/9'}**\n\n`;
+            defaultInsight += `- ${OPHTHALMIC_EYE_CARE_COPY.odLabel}: **${compReport.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}**, ${OPHTHALMIC_EYE_CARE_COPY.iopLabel}: **${compReport.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg**, ${OPHTHALMIC_EYE_CARE_COPY.osLabel}: **${compReport.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}**\n\n`;
           }
         } else {
           if (baseReport && compReport) {
@@ -523,12 +489,12 @@ Allergies: ${selectedPatient.allergies.join(', ') || 'NKDA'}
 Biomarkers:
 ${isOphthalmology ? (
   baseReport && compReport ? `Comparative trend:
-- VA (OD): ${baseReport.temperature || '6/6'} in ${baseReport.date} -> ${compReport.temperature || '6/6'} in ${compReport.date}
-- IOP: ${baseReport.pulseRate || 16} mmHg in ${baseReport.date} -> ${compReport.pulseRate || 16} mmHg in ${compReport.date}
-- VA (OS): ${baseReport.bloodPressure || '6/6'} in ${baseReport.date} -> ${compReport.bloodPressure || '6/9'} in ${compReport.date}` : `Current levels:
-- VA (OD): ${compReport?.temperature || '6/6'}
-- IOP: ${compReport?.pulseRate || 16} mmHg
-- VA (OS): ${compReport?.bloodPressure || '6/9'}`
+- ${OPHTHALMIC_EYE_CARE_COPY.odLabel}: ${baseReport.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback} in ${baseReport.date} -> ${compReport.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback} in ${compReport.date}
+- ${OPHTHALMIC_EYE_CARE_COPY.iopLabel}: ${baseReport.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg in ${baseReport.date} -> ${compReport.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg in ${compReport.date}
+- ${OPHTHALMIC_EYE_CARE_COPY.osLabel}: ${baseReport.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback} in ${baseReport.date} -> ${compReport.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback} in ${compReport.date}` : `Current levels:
+- ${OPHTHALMIC_EYE_CARE_COPY.odLabel}: ${compReport?.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}
+- ${OPHTHALMIC_EYE_CARE_COPY.iopLabel}: ${compReport?.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg
+- ${OPHTHALMIC_EYE_CARE_COPY.osLabel}: ${compReport?.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}`
 ) : (
   baseReport && compReport ? `Comparative trend:
 - HbA1c: ${baseReport.HbA1c}% in ${baseReport.date} -> ${compReport.HbA1c}% in ${compReport.date}
@@ -908,7 +874,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           </div>
 
           {/* Laboratory Report History (Past & Present) */}
-          {selectedPatient && (
+          {selectedPatient && !isOphthalmology && (
             <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white mt-4">
               <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">folder_zip</span>
@@ -960,6 +926,18 @@ Keep the tone professional, clinical, objective, and precise.`;
                 })()}
               </div>
             </div>
+          )}
+
+          {isOphthalmology && (
+            <OphthalmologyPatientAnalysisPanel
+              selectedPatient={selectedPatient}
+              history={activeHistory}
+              analyzingReport={analyzingReport}
+              baselineDate={baselineDate}
+              comparisonDate={comparisonDate}
+              onAnalyzeReport={setAnalyzingReport}
+              onCloseAnalysis={() => setAnalyzingReport(null)}
+            />
           )}
 
         </div>
@@ -1016,11 +994,11 @@ Keep the tone professional, clinical, objective, and precise.`;
               
               if (isOphthalmology) {
                 const iop = recent.pulseRate ?? 16;
-                const vaOD = recent.temperature ?? '6/6';
-                const vaOS = recent.bloodPressure ?? '6/9';
+                const vaOD = recent.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
+                const vaOS = recent.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
                 
-                const baseOD = baseline?.temperature ?? '6/6';
-                const baseOS = baseline?.bloodPressure ?? '6/6';
+                const baseOD = baseline?.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
+                const baseOS = baseline?.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
                 
                 const baseODRank = getAcuityRank(baseOD);
                 const compODRank = getAcuityRank(vaOD);
@@ -1098,7 +1076,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               
               if (isOphthalmology) {
                 if (baseline) {
-                  summaryText += `Comparing current exam (${recent.date}) to baseline (${baseline.date}), visual acuity is ${recent.temperature || '6/6'} (OD) / ${recent.bloodPressure || '6/9'} (OS) and intraocular pressure shifted by ${recent.pulseRate !== undefined && baseline.pulseRate !== undefined ? `${(recent.pulseRate - baseline.pulseRate) > 0 ? '+' : ''}${recent.pulseRate - baseline.pulseRate} mmHg` : '0 mmHg'}. `;
+                  summaryText += `Comparing current exam (${recent.date}) to baseline (${baseline.date}), ${OPHTHALMIC_EYE_CARE_COPY.odLabel} is ${recent.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback} / ${OPHTHALMIC_EYE_CARE_COPY.osLabel} is ${recent.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback} and ${OPHTHALMIC_EYE_CARE_COPY.iopLabel.toLowerCase()} shifted by ${recent.pulseRate !== undefined && baseline.pulseRate !== undefined ? `${(recent.pulseRate - baseline.pulseRate) > 0 ? '+' : ''}${recent.pulseRate - baseline.pulseRate} mmHg` : '0 mmHg'}. `;
                 } else {
                   summaryText += `Establishing baseline eye examination on ${recent.date}. `;
                 }
@@ -1154,11 +1132,11 @@ Keep the tone professional, clinical, objective, and precise.`;
                     {isOphthalmology ? [
                       {
                         name: 'Visual Acuity (OD)',
-                        val: recent.temperature || '6/6',
-                        base: baseline ? (baseline.temperature || '6/6') : 'N/A',
+                        val: recent.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback,
+                        base: baseline ? (baseline.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) : 'N/A',
                         diff: 0,
                         unit: '',
-                        normal: '6/6',
+                        normal: OPHTHALMIC_EYE_CARE_COPY.odFallback,
                         status: getAcuityRank(recent.temperature || '6/6') > 2 ? 'abnormal' : 'normal',
                         icon: 'visibility',
                         color: getAcuityRank(recent.temperature || '6/6') > 2 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
@@ -1176,11 +1154,11 @@ Keep the tone professional, clinical, objective, and precise.`;
                       },
                       {
                         name: 'Visual Acuity (OS)',
-                        val: recent.bloodPressure || '6/9',
-                        base: baseline ? (baseline.bloodPressure || '6/6') : 'N/A',
+                        val: recent.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback,
+                        base: baseline ? (baseline.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) : 'N/A',
                         diff: 0,
                         unit: '',
-                        normal: '6/6',
+                        normal: OPHTHALMIC_EYE_CARE_COPY.osFallback,
                         status: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'abnormal' : 'borderline',
                         icon: 'visibility',
                         color: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
@@ -3189,15 +3167,15 @@ Keep the tone professional, clinical, objective, and precise.`;
 
     if (isOphthalmology) {
       const iop = report.pulseRate ?? 16;
-      const vaOD = report.temperature ?? '6/6';
-      const vaOS = report.bloodPressure ?? '6/9';
+      const vaOD = report.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
+      const vaOS = report.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
 
       const isIopHigh = iop > 21;
       
       const activeHistory = selectedPatient ? api.getPatientHistoricalBiomarkers(selectedPatient.id) : null;
       const baseReport = activeHistory?.find(h => h.date === baselineDate) ?? null;
-      const baseOD = baseReport?.temperature ?? '6/6';
-      const baseOS = baseReport?.bloodPressure ?? '6/6';
+      const baseOD = baseReport?.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
+      const baseOS = baseReport?.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
       
       const baseODRank = getAcuityRank(baseOD);
       const compODRank = getAcuityRank(vaOD);
@@ -3298,32 +3276,32 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-slate-200">
-                      {isOphthalmology ? "Visual Acuity (OD)" : "HbA1c (Glycated Hemoglobin)"}
+                      {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.odLabel : "HbA1c (Glycated Hemoglobin)"}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
-                      {isOphthalmology ? "Ref Range: 6/6 (Unaided)" : "Ref Range: 4.0% - 5.6%"}
+                      {isOphthalmology ? `Ref Range: ${OPHTHALMIC_EYE_CARE_COPY.odRefRange}` : "Ref Range: 4.0% - 5.6%"}
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">
-                      {isOphthalmology ? (report.temperature || "6/6") : `${report.HbA1c}%`}
+                      {isOphthalmology ? (report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) : `${report.HbA1c}%`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
+                      isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
                       isHbA1cHigh ? 'bg-rose-500/20 text-rose-400' :
                       isHbA1cWarning ? 'bg-amber-500/20 text-amber-400' :
                       'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? 'Abnormal (Low)' : 'Normal') : isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
+                      {isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'Abnormal (Low)' : 'Normal') : isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
                        className={`h-full rounded-full ${
-                        isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? 'bg-rose-500' : 'bg-emerald-500') :
+                        isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'bg-rose-500' : 'bg-emerald-500') :
                         isHbA1cHigh ? 'bg-rose-500' : isHbA1cWarning ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
-                      style={{ width: isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? '50%' : '100%') : `${Math.min(100, (report.HbA1c / 12) * 100)}%` }}
+                      style={{ width: isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? '50%' : '100%') : `${Math.min(100, (report.HbA1c / 12) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -3331,27 +3309,27 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-slate-200">
-                      {isOphthalmology ? "Intraocular Pressure (IOP)" : "Serum Creatinine"}
+                      {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.iopLabel : "Serum Creatinine"}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
-                      {isOphthalmology ? "Ref Range: 10 - 21 mmHg" : "Ref Range: 0.6 - 1.2 mg/dL"}
+                      {isOphthalmology ? `Ref Range: ${OPHTHALMIC_EYE_CARE_COPY.iopRefRange}` : "Ref Range: 0.6 - 1.2 mg/dL"}
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">
-                      {isOphthalmology ? `${report.pulseRate || 16} mmHg` : `${report.creatinine} mg/dL`}
+                      {isOphthalmology ? `${report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg` : `${report.creatinine} mg/dL`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? ((report.pulseRate || 16) > 21 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
+                      isOphthalmology ? ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
                       isCreatinineHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isOphthalmology ? ((report.pulseRate || 16) > 21 ? 'Glaucoma Risk (High)' : 'Normal') : isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
+                      {isOphthalmology ? ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? 'Glaucoma Risk (High)' : 'Normal') : isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${isOphthalmology ? ((report.pulseRate || 16) > 21 ? 'bg-rose-500' : 'bg-emerald-500') : isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                      style={{ width: isOphthalmology ? `${Math.min(100, ((report.pulseRate || 16) / 30) * 100)}%` : `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
+                      className={`h-full rounded-full ${isOphthalmology ? ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? 'bg-rose-500' : 'bg-emerald-500') : isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                      style={{ width: isOphthalmology ? `${Math.min(100, ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) / 30) * 100)}%` : `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -3359,27 +3337,27 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-slate-200">
-                      {isOphthalmology ? "Visual Acuity (OS)" : "Total Hemoglobin"}
+                      {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.osLabel : "Total Hemoglobin"}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
-                      {isOphthalmology ? "Ref Range: 6/6 (Unaided)" : "Ref Range: 12.0 - 16.0 g/dL"}
+                      {isOphthalmology ? `Ref Range: ${OPHTHALMIC_EYE_CARE_COPY.osRefRange}` : "Ref Range: 12.0 - 16.0 g/dL"}
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">
-                      {isOphthalmology ? (report.bloodPressure || "6/9") : `${report.hemoglobin} g/dL`}
+                      {isOphthalmology ? (report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) : `${report.hemoglobin} g/dL`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400') :
+                      isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400') :
                       isHemoglobinLow ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? 'Abnormal (Low)' : 'Borderline') : isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
+                      {isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'Abnormal (Low)' : 'Borderline') : isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? 'bg-rose-500' : 'bg-amber-500') : isHemoglobinLow ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                      style={{ width: isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? '50%' : '80%') : `${Math.min(100, (report.hemoglobin / 18) * 100)}%` }}
+                      className={`h-full rounded-full ${isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'bg-rose-500' : 'bg-amber-500') : isHemoglobinLow ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                      style={{ width: isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? '50%' : '80%') : `${Math.min(100, (report.hemoglobin / 18) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -3426,11 +3404,11 @@ Keep the tone professional, clinical, objective, and precise.`;
                     <>
                       <div className="flex gap-2 animate-fade-in">
                         <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
-                        <span>{(report.pulseRate || 16) > 21 ? "STRICT CONFLICT: Avoid dilating drops (Atropine/Tropicamide) to prevent acute angle closure." : "Dilating drops cleared within safe intraocular pressure thresholds."}</span>
+                        <span>{(report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? "STRICT CONFLICT: Avoid dilating drops (Atropine/Tropicamide) to prevent acute angle closure." : "Dilating drops cleared within safe intraocular pressure thresholds."}</span>
                       </div>
                       <div className="flex gap-2 animate-fade-in">
                         <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
-                        <span>{getAcuityRank(report.temperature || '6/6') > 2 || getAcuityRank(report.bloodPressure || '6/9') > 3 ? "Review spectacle prescription. Reroute to Optical Shop for lens grinding." : "Visual acuity cleared within functional limits."}</span>
+                        <span>{getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 || getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? "Review spectacle prescription. Reroute to Optical Shop for lens grinding." : "Visual acuity cleared within functional limits."}</span>
                       </div>
                     </>
                   ) : (
@@ -3668,7 +3646,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
       {/* Allergy overrides modal */}
       {allergyAlert && renderAllergyAlertModal()}
-      {analyzingReport && renderReportAnalysisModal()}
+      {!isOphthalmology && analyzingReport && renderReportAnalysisModal()}
     </div>
   );
 };

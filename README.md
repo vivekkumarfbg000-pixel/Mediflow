@@ -63,6 +63,22 @@ docker run -p 8000:8000 -e ALLOWED_ORIGINS="http://localhost:5173,http://localho
 - `ALLOWED_ORIGINS`
   - Comma-separated list of allowed CORS origins for the FastAPI backend.
   - Example: `http://localhost:5173,http://localhost:3000`
+- `SUPABASE_URL`
+  - Your Supabase project URL.
+- `SUPABASE_SERVICE_ROLE_KEY`
+  - Supabase service role key used by the backend.
+- `SUPABASE_KEY`
+  - Optional fallback name for the same Supabase key.
+- `PHARMACY_ENTITY_ID`
+  - Optional pharmacy entity UUID used by the scheduler fallback.
+- `POD_ID`
+  - Optional pod UUID used by the scheduler fallback.
+- `CURRENT_MONTH`
+  - Optional month label used by seasonal forecast generation.
+- `REGIONAL_WEATHER`
+  - Optional weather context string used by seasonal forecast generation.
+- `MEDIFLOW_API_URL`
+  - Optional backend URL for scheduler callbacks when not running locally.
 
 ### Frontend
 
@@ -70,6 +86,41 @@ docker run -p 8000:8000 -e ALLOWED_ORIGINS="http://localhost:5173,http://localho
   - Your Supabase project URL.
 - `VITE_SUPABASE_ANON_KEY`
   - Your Supabase anonymous API key.
+
+## Hugging Face Docker Space Deployment
+
+The backend is configured to run as a Docker Space on port `8000`.
+
+### GitHub Secrets
+
+Add these secrets to your GitHub repository:
+
+- `HF_TOKEN`
+  - Hugging Face write access token used by the deploy workflow.
+- `HF_SPACE_REPO`
+  - Your Space repo id, for example `your-username/your-space-name`.
+
+### Hugging Face Space Secrets
+
+Add these runtime secrets in the Space Settings tab:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOWED_ORIGINS`
+  - Set this to your frontend URL(s), for example your local dev URL plus the deployed frontend domain.
+- `PHARMACY_ENTITY_ID` if you want the seasonal forecast job to use a specific pharmacy record.
+- `POD_ID` if you want the seasonal forecast job to use a specific pod record.
+- `CURRENT_MONTH` if you want to override the default month used by the forecast endpoint.
+- `REGIONAL_WEATHER` if you want to override the default weather description used by the forecast endpoint.
+
+### First Deploy Check
+
+1. Confirm the GitHub Actions workflow `.github/workflows/deploy-backend-to-hf-space.yml` is enabled.
+2. Confirm `HF_TOKEN` and `HF_SPACE_REPO` are set in GitHub repository secrets.
+3. Trigger the workflow with a push to `main` or from the manual dispatch button.
+4. Open the Hugging Face Space logs and confirm the app starts on port `8000`.
+5. Visit the Space `health` endpoint at `/health` and confirm it returns `{"status":"ok"}`.
+6. If the app fails, check the Space build logs first for missing secrets or Dockerfile errors.
 
 ## CI/CD
 

@@ -93,3 +93,35 @@ export const OPHTHALMIC_FREQUENCIES = [
   'Apply ointment twice daily',
   'As directed'
 ];
+
+export const OPHTHALMIC_EYE_CARE_COPY = {
+  analysisTitle: 'Ophthalmology Clinical Analysis',
+  timelineTitle: 'Ophthalmology Patient Timeline',
+  timelineSubtitle: 'Click a report to open a dedicated eye-care analysis',
+  odLabel: 'Visual Acuity (OD)',
+  osLabel: 'Visual Acuity (OS)',
+  iopLabel: 'Intraocular Pressure (IOP)',
+  odRefRange: '6/6 (Unaided)',
+  osRefRange: '6/6 (Unaided)',
+  iopRefRange: '10 - 21 mmHg',
+  odFallback: '6/6',
+  osFallback: '6/9',
+  iopFallback: 16,
+} as const;
+
+export function getAcuityRank(val: string) {
+  if (!val) return 0;
+  const clean = val.toUpperCase().trim();
+  if (clean.includes('6/60')) return 7;
+  if (clean.includes('6/36')) return 6;
+  if (clean.includes('6/24')) return 5;
+  if (clean.includes('6/18')) return 4;
+  if (clean.includes('6/12')) return 3;
+  if (clean.includes('6/9')) return 2;
+  if (clean.includes('6/6')) return 1;
+  if (clean.includes('CF') || clean.includes('COUNTING')) return 8;
+  if (clean.includes('HM') || clean.includes('HAND')) return 9;
+  if (clean.includes('PL')) return 10;
+  if (clean.includes('NPL')) return 11;
+  return 0;
+}
