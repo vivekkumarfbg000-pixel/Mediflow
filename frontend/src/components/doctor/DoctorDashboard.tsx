@@ -21,6 +21,23 @@ import { BiomarkerChart } from './BiomarkerChart';
 import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
 import { PodCommandCenter } from '../admin/PodCommandCenter';
 
+const getAcuityRank = (val: string) => {
+  if (!val) return 0;
+  const clean = val.toUpperCase().trim();
+  if (clean.includes('6/60')) return 7;
+  if (clean.includes('6/36')) return 6;
+  if (clean.includes('6/24')) return 5;
+  if (clean.includes('6/18')) return 4;
+  if (clean.includes('6/12')) return 3;
+  if (clean.includes('6/9')) return 2;
+  if (clean.includes('6/6')) return 1;
+  if (clean.includes('CF') || clean.includes('COUNTING')) return 8;
+  if (clean.includes('HM') || clean.includes('HAND')) return 9;
+  if (clean.includes('PL')) return 10;
+  if (clean.includes('NPL')) return 11;
+  return 0;
+};
+
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
   
@@ -333,17 +350,59 @@ export const DoctorDashboard: React.FC = () => {
     const baseReport = history.find(h => h.date === baselineDate) ?? null;
     const compReport = history.find(h => h.date === comparisonDate) ?? history[history.length - 1];
 
+    // Helper to evaluate acuity severity index
+    const getAcuityRank = (val: string) => {
+      if (!val) return 0;
+      const clean = val.toUpperCase().trim();
+      if (clean.includes('6/60')) return 7;
+      if (clean.includes('6/36')) return 6;
+      if (clean.includes('6/24')) return 5;
+      if (clean.includes('6/18')) return 4;
+      if (clean.includes('6/12')) return 3;
+      if (clean.includes('6/9')) return 2;
+      if (clean.includes('6/6')) return 1;
+      if (clean.includes('CF') || clean.includes('COUNTING')) return 8;
+      if (clean.includes('HM') || clean.includes('HAND')) return 9;
+      if (clean.includes('PL')) return 10;
+      if (clean.includes('NPL')) return 11;
+      return 0;
+    };
+
     // Evaluate clinical risks for CDSS anomalies
     const anomalies: string[] = [];
-    if (compReport.creatinine > 1.2) {
-      anomalies.push(`Warning: Serum Creatinine is ${compReport.creatinine} mg/dL (Abnormal > 1.2).${
-        baseReport ? ` Up from ${baseReport.creatinine} mg/dL in ${baseReport.date}.` : ''
-      }`);
-    }
-    if (compReport.HbA1c > 6.5) {
-      anomalies.push(`Alert: HbA1c is ${compReport.HbA1c}% (Diabetic threshold > 6.5%).${
-        baseReport ? ` Changed from ${baseReport.HbA1c}% in ${baseReport.date}.` : ''
-      }`);
+    if (isOphthalmology) {
+      const iop = compReport.pulseRate ?? 16;
+      if (iop > 21) {
+        anomalies.push(`Glaucoma Progression Risk: Intraocular Pressure is elevated at ${iop} mmHg. Avoid dilating drops.`);
+      }
+      
+      const baseOD = baseReport?.temperature ?? '6/6';
+      const compOD = compReport.temperature ?? '6/6';
+      const baseOS = baseReport?.bloodPressure ?? '6/6';
+      const compOS = compReport.bloodPressure ?? '6/9';
+      
+      const baseODRank = getAcuityRank(baseOD);
+      const compODRank = getAcuityRank(compOD);
+      const baseOSRank = getAcuityRank(baseOS);
+      const compOSRank = getAcuityRank(compOS);
+      
+      if (baseODRank > 0 && compODRank > baseODRank) {
+        anomalies.push(`Warning: Visual Acuity OD degraded from ${baseOD} to ${compOD}.`);
+      }
+      if (baseOSRank > 0 && compOSRank > baseOSRank) {
+        anomalies.push(`Warning: Visual Acuity OS degraded from ${baseOS} to ${compOS}.`);
+      }
+    } else {
+      if (compReport.creatinine > 1.2) {
+        anomalies.push(`Warning: Serum Creatinine is ${compReport.creatinine} mg/dL (Abnormal > 1.2).${
+          baseReport ? ` Up from ${baseReport.creatinine} mg/dL in ${baseReport.date}.` : ''
+        }`);
+      }
+      if (compReport.HbA1c > 6.5) {
+        anomalies.push(`Alert: HbA1c is ${compReport.HbA1c}% (Diabetic threshold > 6.5%).${
+          baseReport ? ` Changed from ${baseReport.HbA1c}% in ${baseReport.date}.` : ''
+        }`);
+      }
     }
     setCdssAnomalies(anomalies);
 
@@ -389,18 +448,32 @@ export const DoctorDashboard: React.FC = () => {
           ? `chronic history of **${selectedPatient.chronicConditions.join(' & ')}**.\n\n`
           : `no reported chronic conditions.\n\n`;
 
-        if (baseReport && compReport) {
-          defaultInsight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
-          defaultInsight += `- **HbA1c**: **${baseReport.HbA1c}%** → **${compReport.HbA1c}%** (${
-            compReport.HbA1c < baseReport.HbA1c ? '↓ Improving' : '↑ Worsening'
-          }).\n`;
-          defaultInsight += `- **Creatinine**: **${baseReport.creatinine}** → **${compReport.creatinine} mg/dL** (${
-            compReport.creatinine > baseReport.creatinine ? '↑ Elevated — monitor renal function' : '↓ Improving'
-          }).\n`;
-          defaultInsight += `- **Hemoglobin**: **${baseReport.hemoglobin}** → **${compReport.hemoglobin} g/dL**.\n\n`;
-        } else if (compReport) {
-          defaultInsight += `**Biomarker Summary (${compReport.date}):**\n`;
-          defaultInsight += `- HbA1c: **${compReport.HbA1c}%**, Creatinine: **${compReport.creatinine} mg/dL**, Hemoglobin: **${compReport.hemoglobin} g/dL**\n\n`;
+        if (isOphthalmology) {
+          if (baseReport && compReport) {
+            defaultInsight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
+            defaultInsight += `- **Visual Acuity (OD)**: **${baseReport.temperature || '6/6'}** → **${compReport.temperature || '6/6'}**.\n`;
+            defaultInsight += `- **Intraocular Pressure (IOP)**: **${baseReport.pulseRate || 16} mmHg** → **${compReport.pulseRate || 16} mmHg** (${
+              (compReport.pulseRate || 16) > 21 ? '↑ Elevated Glaucoma Risk' : '↓ Stable'
+            }).\n`;
+            defaultInsight += `- **Visual Acuity (OS)**: **${baseReport.bloodPressure || '6/6'}** → **${compReport.bloodPressure || '6/9'}**.\n\n`;
+          } else if (compReport) {
+            defaultInsight += `**Biomarker Summary (${compReport.date}):**\n`;
+            defaultInsight += `- VA (OD): **${compReport.temperature || '6/6'}**, IOP: **${compReport.pulseRate || 16} mmHg**, VA (OS): **${compReport.bloodPressure || '6/9'}**\n\n`;
+          }
+        } else {
+          if (baseReport && compReport) {
+            defaultInsight += `**Comparative Analysis** (${baseReport.date} → ${compReport.date}):\n`;
+            defaultInsight += `- **HbA1c**: **${baseReport.HbA1c}%** → **${compReport.HbA1c}%** (${
+              compReport.HbA1c < baseReport.HbA1c ? '↓ Improving' : '↑ Worsening'
+            }).\n`;
+            defaultInsight += `- **Creatinine**: **${baseReport.creatinine}** → **${compReport.creatinine} mg/dL** (${
+              compReport.creatinine > baseReport.creatinine ? '↑ Elevated — monitor renal function' : '↓ Improving'
+            }).\n`;
+            defaultInsight += `- **Hemoglobin**: **${baseReport.hemoglobin}** → **${compReport.hemoglobin} g/dL**.\n\n`;
+          } else if (compReport) {
+            defaultInsight += `**Biomarker Summary (${compReport.date}):**\n`;
+            defaultInsight += `- HbA1c: **${compReport.HbA1c}%**, Creatinine: **${compReport.creatinine} mg/dL**, Hemoglobin: **${compReport.hemoglobin} g/dL**\n\n`;
+          }
         }
 
         if (selectedPatient.allergies.includes('Penicillin')) {
@@ -417,9 +490,15 @@ export const DoctorDashboard: React.FC = () => {
           defaultInsight += `**Vector Guidelines Retrieved**: None matched Patient Chronic profile in RAG index.\n\n`;
         }
 
-        defaultInsight += `**Intervention Recommendations:**\n`;
-        defaultInsight += `1. Consider cardioprotective **SGLT2 inhibitors** (e.g. Empagliflozin) for cardiovascular standard support.\n`;
-        defaultInsight += `2. Schedule a follow-up repeat **Serum Creatinine & GFR** in 14 days.\n`;
+        if (isOphthalmology) {
+          defaultInsight += `**Intervention Recommendations:**\n`;
+          defaultInsight += `1. Review refractive prescription matrix for lens/spectacle grinding.\n`;
+          defaultInsight += `2. Schedule a dilated fundus exam or optical coherence tomography (OCT) in 30 days if IOP > 21 mmHg.\n`;
+        } else {
+          defaultInsight += `**Intervention Recommendations:**\n`;
+          defaultInsight += `1. Consider cardioprotective **SGLT2 inhibitors** (e.g. Empagliflozin) for cardiovascular standard support.\n`;
+          defaultInsight += `2. Schedule a follow-up repeat **Serum Creatinine & GFR** in 14 days.\n`;
+        }
 
         // If Mistral API key is configured, perform live synthesis
         const mistralApiKey = import.meta.env.VITE_MISTRAL_API_KEY;
@@ -442,13 +521,23 @@ Chronic Conditions: ${selectedPatient.chronicConditions.join(', ') || 'None'}
 Allergies: ${selectedPatient.allergies.join(', ') || 'NKDA'}
 
 Biomarkers:
-${baseReport && compReport ? `Comparative trend:
+${isOphthalmology ? (
+  baseReport && compReport ? `Comparative trend:
+- VA (OD): ${baseReport.temperature || '6/6'} in ${baseReport.date} -> ${compReport.temperature || '6/6'} in ${compReport.date}
+- IOP: ${baseReport.pulseRate || 16} mmHg in ${baseReport.date} -> ${compReport.pulseRate || 16} mmHg in ${compReport.date}
+- VA (OS): ${baseReport.bloodPressure || '6/6'} in ${baseReport.date} -> ${compReport.bloodPressure || '6/9'} in ${compReport.date}` : `Current levels:
+- VA (OD): ${compReport?.temperature || '6/6'}
+- IOP: ${compReport?.pulseRate || 16} mmHg
+- VA (OS): ${compReport?.bloodPressure || '6/9'}`
+) : (
+  baseReport && compReport ? `Comparative trend:
 - HbA1c: ${baseReport.HbA1c}% in ${baseReport.date} -> ${compReport.HbA1c}% in ${compReport.date}
 - Creatinine: ${baseReport.creatinine} mg/dL in ${baseReport.date} -> ${compReport.creatinine} mg/dL in ${compReport.date}
 - Hemoglobin: ${baseReport.hemoglobin} g/dL in ${baseReport.date} -> ${compReport.hemoglobin} g/dL in ${compReport.date}` : `Current levels:
 - HbA1c: ${compReport?.HbA1c}%
 - Creatinine: ${compReport?.creatinine} mg/dL
-- Hemoglobin: ${compReport?.hemoglobin} g/dL`}
+- Hemoglobin: ${compReport?.hemoglobin} g/dL`
+)}
 
 Retrieved Clinical Guidelines:
 ${guidelinesFound.map((g: any) => `* [${g.guideline_source}] ${g.clinical_topic}: ${g.content}`).join('\n') || 'No specific matching guidelines retrieved.'}
@@ -925,45 +1014,79 @@ Keep the tone professional, clinical, objective, and precise.`;
               // Predict future diseases based on values & trend patterns
               const riskAlerts: { title: string; desc: string; type: 'critical' | 'warning' | 'info' }[] = [];
               
-              // Glycemic/Diabetes pattern
-              if (recent.HbA1c > 6.5) {
-                const shiftText = hba1cDiff > 0 ? `up by ${hba1cDiff.toFixed(1)}% absolute shift` : hba1cDiff < 0 ? `down by ${Math.abs(hba1cDiff).toFixed(1)}% absolute shift` : '';
-                riskAlerts.push({
-                  title: 'Glycemic Degradation & Microvascular Damage Risk',
-                  desc: `Active HbA1c is ${recent.HbA1c}% (diabetic range) ${shiftText ? `(${shiftText})` : ''}. High risk of diabetic nephropathy, retinopathy, and nerve damage. Warrants immediate medication audit.`,
-                  type: 'critical'
-                });
-              } else if (recent.HbA1c > 5.7) {
-                riskAlerts.push({
-                  title: 'Prediabetes Progression Warning',
-                  desc: `HbA1c is ${recent.HbA1c}% (prediabetic). High likelihood of transition to full Type-2 Diabetes within 24 months without intensive lifestyle intervention.`,
-                  type: 'warning'
-                });
-              }
+              if (isOphthalmology) {
+                const iop = recent.pulseRate ?? 16;
+                const vaOD = recent.temperature ?? '6/6';
+                const vaOS = recent.bloodPressure ?? '6/9';
+                
+                const baseOD = baseline?.temperature ?? '6/6';
+                const baseOS = baseline?.bloodPressure ?? '6/6';
+                
+                const baseODRank = getAcuityRank(baseOD);
+                const compODRank = getAcuityRank(vaOD);
+                const baseOSRank = getAcuityRank(baseOS);
+                const compOSRank = getAcuityRank(vaOS);
+                
+                const odDropped = baseODRank > 0 && compODRank > baseODRank;
+                const osDropped = baseOSRank > 0 && compOSRank > baseOSRank;
+                const isAcuityDropped = odDropped || osDropped;
 
-              // Renal filtration pattern
-              if (recent.creatinine > 1.2) {
-                const shiftText = creatinineDiff > 0 ? `increased by ${creatinineDiff.toFixed(2)} mg/dL` : '';
-                riskAlerts.push({
-                  title: 'Glomerular Filtration Clearance Alert (CKD Risk)',
-                  desc: `Serum creatinine is abnormally high at ${recent.creatinine} mg/dL ${shiftText ? `(${shiftText})` : ''}, suggesting reduced renal filtration capacity. Stage 2/3 CKD potential. STRICTLY avoid beta-lactam conflict/NSAID high doses.`,
-                  type: 'critical'
-                });
-              } else if (recent.creatinine > 1.0 && creatinineDiff > 0.15) {
-                riskAlerts.push({
-                  title: 'Accelerated Renal Decline Trend',
-                  desc: `Creatinine increased from ${baseline?.creatinine} to ${recent.creatinine} mg/dL. Upward trajectory indicates potential acute kidney injury (AKI) or renal perfusion issues.`,
-                  type: 'warning'
-                });
-              }
+                if (iop > 21) {
+                  riskAlerts.push({
+                    title: 'Glaucoma Progression Risk (High IOP)',
+                    desc: `Active Intraocular Pressure is elevated at ${iop} mmHg (normal reference range: 10 - 21 mmHg). Strict contraindication: Avoid dilating drops. High risk of optic nerve damage.`,
+                    type: 'critical'
+                  });
+                }
+                
+                if (isAcuityDropped) {
+                  riskAlerts.push({
+                    title: 'Visual Acuity Trajectory Decline',
+                    desc: `Trajectory Decline detected: Vision dropped from ${baseOD} (OD) / ${baseOS} (OS) to ${vaOD} (OD) / ${vaOS} (OS). Warrants immediate lens refraction.`,
+                    type: 'warning'
+                  });
+                }
+              } else {
+                // Glycemic/Diabetes pattern
+                if (recent.HbA1c > 6.5) {
+                  const shiftText = hba1cDiff > 0 ? `up by ${hba1cDiff.toFixed(1)}% absolute shift` : hba1cDiff < 0 ? `down by ${Math.abs(hba1cDiff).toFixed(1)}% absolute shift` : '';
+                  riskAlerts.push({
+                    title: 'Glycemic Degradation & Microvascular Damage Risk',
+                    desc: `Active HbA1c is ${recent.HbA1c}% (diabetic range) ${shiftText ? `(${shiftText})` : ''}. High risk of diabetic nephropathy, retinopathy, and nerve damage. Warrants immediate medication audit.`,
+                    type: 'critical'
+                  });
+                } else if (recent.HbA1c > 5.7) {
+                  riskAlerts.push({
+                    title: 'Prediabetes Progression Warning',
+                    desc: `HbA1c is ${recent.HbA1c}% (prediabetic). High likelihood of transition to full Type-2 Diabetes within 24 months without intensive lifestyle intervention.`,
+                    type: 'warning'
+                  });
+                }
 
-              // Anemia pattern
-              if (recent.hemoglobin < 12.0) {
-                riskAlerts.push({
-                  title: 'Oxygen Carrying Capacity Deficit (Anemia Trend)',
-                  desc: `Hemoglobin is low at ${recent.hemoglobin} g/dL, indicating mild to moderate anemia risk. Warrants serum iron/ferritin LOINC checks.`,
-                  type: 'info'
-                });
+                // Renal filtration pattern
+                if (recent.creatinine > 1.2) {
+                  const shiftText = creatinineDiff > 0 ? `increased by ${creatinineDiff.toFixed(2)} mg/dL` : '';
+                  riskAlerts.push({
+                    title: 'Glomerular Filtration Clearance Alert (CKD Risk)',
+                    desc: `Serum creatinine is abnormally high at ${recent.creatinine} mg/dL ${shiftText ? `(${shiftText})` : ''}, suggesting reduced renal filtration capacity. Stage 2/3 CKD potential. STRICTLY avoid beta-lactam conflict/NSAID high doses.`,
+                    type: 'critical'
+                  });
+                } else if (recent.creatinine > 1.0 && creatinineDiff > 0.15) {
+                  riskAlerts.push({
+                    title: 'Accelerated Renal Decline Trend',
+                    desc: `Creatinine increased from ${baseline?.creatinine} to ${recent.creatinine} mg/dL. Upward trajectory indicates potential acute kidney injury (AKI) or renal perfusion issues.`,
+                    type: 'warning'
+                  });
+                }
+
+                // Anemia pattern
+                if (recent.hemoglobin < 12.0) {
+                  riskAlerts.push({
+                    title: 'Oxygen Carrying Capacity Deficit (Anemia Trend)',
+                    desc: `Hemoglobin is low at ${recent.hemoglobin} g/dL, indicating mild to moderate anemia risk. Warrants serum iron/ferritin LOINC checks.`,
+                    type: 'info'
+                  });
+                }
               }
 
               // Generate brief professional summary
@@ -972,24 +1095,39 @@ Keep the tone professional, clinical, objective, and precise.`;
                 summaryText += `[Past Report Scan Analysis: ${selectedPatient.pastReportsSummary}] `;
               }
               summaryText += `Patient displays a clinical biomarker pattern requiring close monitoring. `;
-              if (baseline) {
-                summaryText += `Comparing current report (${recent.date}) to baseline (${baseline.date}), the primary shift is `;
-                const shifts: string[] = [];
-                if (hba1cDiff !== 0) shifts.push(`HbA1c shifted by ${hba1cDiff > 0 ? '+' : ''}${hba1cDiff.toFixed(1)}%`);
-                if (creatinineDiff !== 0) shifts.push(`Creatinine shifted by ${creatinineDiff > 0 ? '+' : ''}${creatinineDiff.toFixed(2)} mg/dL`);
-                summaryText += shifts.join(' and ') + '. ';
+              
+              if (isOphthalmology) {
+                if (baseline) {
+                  summaryText += `Comparing current exam (${recent.date}) to baseline (${baseline.date}), visual acuity is ${recent.temperature || '6/6'} (OD) / ${recent.bloodPressure || '6/9'} (OS) and intraocular pressure shifted by ${recent.pulseRate !== undefined && baseline.pulseRate !== undefined ? `${(recent.pulseRate - baseline.pulseRate) > 0 ? '+' : ''}${recent.pulseRate - baseline.pulseRate} mmHg` : '0 mmHg'}. `;
+                } else {
+                  summaryText += `Establishing baseline eye examination on ${recent.date}. `;
+                }
+                
+                if ((recent.pulseRate || 16) > 21) {
+                  summaryText += `Intraocular pressure is abnormally elevated, indicating elevated Glaucoma Progression risk. Strict contraindication: Avoid dilating drops (Atropine/Tropicamide).`;
+                } else {
+                  summaryText += `Ophthalmic pressures are within safe standard thresholds. Spectacle prescription grinding is clear.`;
+                }
               } else {
-                summaryText += `Establishing baseline report on ${recent.date}. `;
-              }
+                if (baseline) {
+                  summaryText += `Comparing current report (${recent.date}) to baseline (${baseline.date}), the primary shift is `;
+                  const shifts: string[] = [];
+                  if (hba1cDiff !== 0) shifts.push(`HbA1c shifted by ${hba1cDiff > 0 ? '+' : ''}${hba1cDiff.toFixed(1)}%`);
+                  if (creatinineDiff !== 0) shifts.push(`Creatinine shifted by ${creatinineDiff > 0 ? '+' : ''}${creatinineDiff.toFixed(2)} mg/dL`);
+                  summaryText += shifts.join(' and ') + '. ';
+                } else {
+                  summaryText += `Establishing baseline report on ${recent.date}. `;
+                }
 
-              if (recent.HbA1c > 6.5 && recent.creatinine > 1.2) {
-                summaryText += `The synchronous elevation of glycemic markers and creatinine signals a highly sensitive Diabetic Nephropathy progression risk. Recommend immediate review of cardiovascular standard support (SGLT2 inhibitors like Empagliflozin).`;
-              } else if (recent.HbA1c > 6.5) {
-                summaryText += `Glycemic markers are elevated. Prioritize dietary carb controls and lifestyle optimization.`;
-              } else if (recent.creatinine > 1.2) {
-                summaryText += `Renal clearance parameters are elevated. Monitor blood pressure closely and perform follow-up GFR/Creatinine scan in 14 days.`;
-              } else {
-                summaryText += `Patient parameters are within stable clinical limits. Maintain regular prophylactic counseling.`;
+                if (recent.HbA1c > 6.5 && recent.creatinine > 1.2) {
+                  summaryText += `The synchronous elevation of glycemic markers and creatinine signals a highly sensitive Diabetic Nephropathy progression risk. Recommend immediate review of cardiovascular standard support (SGLT2 inhibitors like Empagliflozin).`;
+                } else if (recent.HbA1c > 6.5) {
+                  summaryText += `Glycemic markers are elevated. Prioritize dietary carb controls and lifestyle optimization.`;
+                } else if (recent.creatinine > 1.2) {
+                  summaryText += `Renal clearance parameters are elevated. Monitor blood pressure closely and perform follow-up GFR/Creatinine scan in 14 days.`;
+                } else {
+                  summaryText += `Patient parameters are within stable clinical limits. Maintain regular prophylactic counseling.`;
+                }
               }
 
               return (
@@ -1013,7 +1151,64 @@ Keep the tone professional, clinical, objective, and precise.`;
 
                   {/* Biomarkers side by side with shifts */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[
+                    {isOphthalmology ? [
+                      {
+                        name: 'Visual Acuity (OD)',
+                        val: recent.temperature || '6/6',
+                        base: baseline ? (baseline.temperature || '6/6') : 'N/A',
+                        diff: 0,
+                        unit: '',
+                        normal: '6/6',
+                        status: getAcuityRank(recent.temperature || '6/6') > 2 ? 'abnormal' : 'normal',
+                        icon: 'visibility',
+                        color: getAcuityRank(recent.temperature || '6/6') > 2 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      },
+                      {
+                        name: 'Intraocular Pressure',
+                        val: `${recent.pulseRate || 16} mmHg`,
+                        base: baseline ? `${baseline.pulseRate || 16} mmHg` : 'N/A',
+                        diff: baseline ? (recent.pulseRate || 16) - (baseline.pulseRate || 16) : 0,
+                        unit: 'mmHg',
+                        normal: '10 - 21',
+                        status: (recent.pulseRate || 16) > 21 ? 'critical' : 'normal',
+                        icon: 'eye_tracking',
+                        color: (recent.pulseRate || 16) > 21 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      },
+                      {
+                        name: 'Visual Acuity (OS)',
+                        val: recent.bloodPressure || '6/9',
+                        base: baseline ? (baseline.bloodPressure || '6/6') : 'N/A',
+                        diff: 0,
+                        unit: '',
+                        normal: '6/6',
+                        status: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'abnormal' : 'borderline',
+                        icon: 'visibility',
+                        color: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      }
+                    ].map((item, idx) => (
+                      <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">{item.name}</span>
+                          <span className="text-[9px] text-slate-400 font-mono">Normal: {item.normal}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline pt-1">
+                          <span className="text-lg font-black font-mono tracking-tight text-white">{item.val}</span>
+                          {baseline && item.diff !== 0 && (
+                            <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
+                              (item.diff > 0 && item.status !== 'normal')
+                                ? 'text-rose-400'
+                                : 'text-emerald-400'
+                            }`}>
+                              {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff).toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[9px] text-slate-400 pt-1 border-t border-slate-800/50 flex justify-between">
+                          <span>Base: {item.base}</span>
+                          <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
+                        </div>
+                      </div>
+                    )) : [
                       {
                         name: 'HbA1c (Glycated Hb)',
                         val: `${recent.HbA1c}%`,
@@ -2940,7 +3135,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         return (
           <PodCommandCenter 
             hideHeader={true}
-            onStartConsultation={(patient) => {
+            onStartConsultation={(patient: Patient) => {
               setSelectedPatient(patient);
               setActiveTab('consultation');
               window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -2967,7 +3162,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         return (
           <PodCommandCenter 
             hideHeader={true}
-            onStartConsultation={(patient) => {
+            onStartConsultation={(patient: Patient) => {
               setSelectedPatient(patient);
               setActiveTab('consultation');
             }}
@@ -2989,33 +3184,76 @@ Keep the tone professional, clinical, objective, and precise.`;
     let riskTier = "Low Risk";
     let riskReason = "All active biomarkers are within normal reference corridors.";
     let complications: string[] = [];
-    
-    if (isHbA1cHigh && isCreatinineHigh) {
-      riskTier = "Critical Risk";
-      riskReason = "Synchronous elevation of glycated hemoglobin and serum creatinine signals high probability of active Diabetic Nephropathy and microvascular kidney injury.";
-      complications.push("Chronic Kidney Disease (CKD) Stage 3 Progression");
-      complications.push("Accelerated Diabetic Retinopathy");
-      complications.push("Cardiovascular Event (ASCVD) Risk Elevation");
-    } else if (isHbA1cHigh) {
-      riskTier = "High Risk";
-      riskReason = "Glycemic parameters are in the diabetic range. Risk of long-term microvascular and macrovascular complications.";
-      complications.push("Type-2 Diabetes Mellitus Complications");
-      complications.push("Peripheral Neuropathy Development");
-    } else if (isCreatinineHigh) {
-      riskTier = "High Risk";
-      riskReason = "Reduced glomerular filtration capacity indicated by elevated serum creatinine. High risk of renal function degradation.";
-      complications.push("Renal Perfusion Impairment / Stage 2 CKD");
-    } else if (isHbA1cWarning) {
-      riskTier = "Moderate Warning";
-      riskReason = "HbA1c values match the prediabetic reference category. Progression to diabetes is highly likely within 24 months.";
-      complications.push("Progression to Type-2 Diabetes");
-    }
 
-    if (isHemoglobinLow) {
-      if (isCreatinineHigh) {
-        complications.push("Anemia of Chronic Disease (Renal Erythropoietin Deficit)");
+
+
+    if (isOphthalmology) {
+      const iop = report.pulseRate ?? 16;
+      const vaOD = report.temperature ?? '6/6';
+      const vaOS = report.bloodPressure ?? '6/9';
+
+      const isIopHigh = iop > 21;
+      
+      const activeHistory = selectedPatient ? api.getPatientHistoricalBiomarkers(selectedPatient.id) : null;
+      const baseReport = activeHistory?.find(h => h.date === baselineDate) ?? null;
+      const baseOD = baseReport?.temperature ?? '6/6';
+      const baseOS = baseReport?.bloodPressure ?? '6/6';
+      
+      const baseODRank = getAcuityRank(baseOD);
+      const compODRank = getAcuityRank(vaOD);
+      const baseOSRank = getAcuityRank(baseOS);
+      const compOSRank = getAcuityRank(vaOS);
+      
+      const odDropped = baseODRank > 0 && compODRank > baseODRank;
+      const osDropped = baseOSRank > 0 && compOSRank > baseOSRank;
+      const isAcuityDropped = odDropped || osDropped;
+
+      if (isIopHigh && isAcuityDropped) {
+        riskTier = "Critical Risk";
+        riskReason = `Glaucoma Progression Risk: Intraocular Pressure is elevated at ${iop} mmHg. Avoid dilating drops. Trajectory Decline detected: Visual Acuity decreased from ${baseOD} (OD) / ${baseOS} (OS) to ${vaOD} (OD) / ${vaOS} (OS).`;
+        complications.push("Severe Glaucoma Progression & Visual Field Loss");
+        complications.push("Optic Nerve Cupping & Retinal Ganglion Cell Damage");
+      } else if (isIopHigh) {
+        riskTier = "Critical Risk";
+        riskReason = `Glaucoma Progression Risk: Intraocular Pressure is elevated at ${iop} mmHg. Avoid dilating drops. Close tracking and visual field scans required.`;
+        complications.push("Ocular Hypertension / Suspicious Glaucoma");
+      } else if (isAcuityDropped) {
+        riskTier = "High Risk";
+        riskReason = `Visual Acuity Trajectory Decline: Vision dropped from ${baseOD} (OD) / ${baseOS} (OS) to ${vaOD} (OD) / ${vaOS} (OS). Reroute for immediate refraction mapping or dilated retinal exam.`;
+        complications.push("Progressive Myopia / Refractive Error Shifts");
+        complications.push("Retinal Pathology / Cataract Development");
       } else {
-        complications.push("Iron Deficiency Anemia Risk");
+        riskTier = "Low Risk";
+        riskReason = "Intraocular pressures and visual acuity parameters are stable within normal physiological boundaries.";
+      }
+    } else {
+      if (isHbA1cHigh && isCreatinineHigh) {
+        riskTier = "Critical Risk";
+        riskReason = "Synchronous elevation of glycated hemoglobin and serum creatinine signals high probability of active Diabetic Nephropathy and microvascular kidney injury.";
+        complications.push("Chronic Kidney Disease (CKD) Stage 3 Progression");
+        complications.push("Accelerated Diabetic Retinopathy");
+        complications.push("Cardiovascular Event (ASCVD) Risk Elevation");
+      } else if (isHbA1cHigh) {
+        riskTier = "High Risk";
+        riskReason = "Glycemic parameters are in the diabetic range. Risk of long-term microvascular and macrovascular complications.";
+        complications.push("Type-2 Diabetes Mellitus Complications");
+        complications.push("Peripheral Neuropathy Development");
+      } else if (isCreatinineHigh) {
+        riskTier = "High Risk";
+        riskReason = "Reduced glomerular filtration capacity indicated by elevated serum creatinine. High risk of renal function degradation.";
+        complications.push("Renal Perfusion Impairment / Stage 2 CKD");
+      } else if (isHbA1cWarning) {
+        riskTier = "Moderate Warning";
+        riskReason = "HbA1c values match the prediabetic reference category. Progression to diabetes is highly likely within 24 months.";
+        complications.push("Progression to Type-2 Diabetes");
+      }
+
+      if (isHemoglobinLow) {
+        if (isCreatinineHigh) {
+          complications.push("Anemia of Chronic Disease (Renal Erythropoietin Deficit)");
+        } else {
+          complications.push("Iron Deficiency Anemia Risk");
+        }
       }
     }
 
@@ -3068,24 +3306,24 @@ Keep the tone professional, clinical, objective, and precise.`;
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">
-                      {isOphthalmology ? "6/6" : `${report.HbA1c}%`}
+                      {isOphthalmology ? (report.temperature || "6/6") : `${report.HbA1c}%`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? 'bg-emerald-500/20 text-emerald-400' :
+                      isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
                       isHbA1cHigh ? 'bg-rose-500/20 text-rose-400' :
                       isHbA1cWarning ? 'bg-amber-500/20 text-amber-400' :
                       'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isOphthalmology ? 'Normal' : isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
+                      {isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? 'Abnormal (Low)' : 'Normal') : isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${
-                        isOphthalmology ? 'bg-emerald-500' :
+                       className={`h-full rounded-full ${
+                        isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? 'bg-rose-500' : 'bg-emerald-500') :
                         isHbA1cHigh ? 'bg-rose-500' : isHbA1cWarning ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
-                      style={{ width: isOphthalmology ? '100%' : `${Math.min(100, (report.HbA1c / 12) * 100)}%` }}
+                      style={{ width: isOphthalmology ? (getAcuityRank(report.temperature || '6/6') > 2 ? '50%' : '100%') : `${Math.min(100, (report.HbA1c / 12) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -3101,19 +3339,19 @@ Keep the tone professional, clinical, objective, and precise.`;
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">
-                      {isOphthalmology ? "16 mmHg" : `${report.creatinine} mg/dL`}
+                      {isOphthalmology ? `${report.pulseRate || 16} mmHg` : `${report.creatinine} mg/dL`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? 'bg-emerald-500/20 text-emerald-400' :
+                      isOphthalmology ? ((report.pulseRate || 16) > 21 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
                       isCreatinineHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isOphthalmology ? 'Normal' : isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
+                      {isOphthalmology ? ((report.pulseRate || 16) > 21 ? 'Glaucoma Risk (High)' : 'Normal') : isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${isOphthalmology ? 'bg-emerald-500' : isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                      style={{ width: isOphthalmology ? '76%' : `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
+                      className={`h-full rounded-full ${isOphthalmology ? ((report.pulseRate || 16) > 21 ? 'bg-rose-500' : 'bg-emerald-500') : isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                      style={{ width: isOphthalmology ? `${Math.min(100, ((report.pulseRate || 16) / 30) * 100)}%` : `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -3129,19 +3367,19 @@ Keep the tone professional, clinical, objective, and precise.`;
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">
-                      {isOphthalmology ? "6/9" : `${report.hemoglobin} g/dL`}
+                      {isOphthalmology ? (report.bloodPressure || "6/9") : `${report.hemoglobin} g/dL`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? 'bg-amber-500/20 text-amber-400' :
+                      isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400') :
                       isHemoglobinLow ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isOphthalmology ? 'Borderline' : isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
+                      {isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? 'Abnormal (Low)' : 'Borderline') : isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${isHemoglobinLow ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                      style={{ width: `${Math.min(100, (report.hemoglobin / 18) * 100)}%` }}
+                      className={`h-full rounded-full ${isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? 'bg-rose-500' : 'bg-amber-500') : isHemoglobinLow ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                      style={{ width: isOphthalmology ? (getAcuityRank(report.bloodPressure || '6/9') > 3 ? '50%' : '80%') : `${Math.min(100, (report.hemoglobin / 18) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -3184,14 +3422,29 @@ Keep the tone professional, clinical, objective, and precise.`;
                   4. Safe Prescribing Directives
                 </h3>
                 <div className="p-4 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl text-[11px] text-indigo-200 space-y-2">
-                  <div className="flex gap-2">
-                    <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
-                    <span>{isCreatinineHigh ? "STRICT CONFLICT: Avoid NSAIDs (Ibuprofen, Diclofenac) to protect renal nephron capacity." : "NSAID usage cleared within standard clinical doses."}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
-                    <span>{isHbA1cHigh ? "Review glycemic therapy. Consider adding SGLT2 inhibitors for cardio-renal protection." : "Glycemic profile does not require immediate pharmacological adjustment."}</span>
-                  </div>
+                  {isOphthalmology ? (
+                    <>
+                      <div className="flex gap-2 animate-fade-in">
+                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span>{(report.pulseRate || 16) > 21 ? "STRICT CONFLICT: Avoid dilating drops (Atropine/Tropicamide) to prevent acute angle closure." : "Dilating drops cleared within safe intraocular pressure thresholds."}</span>
+                      </div>
+                      <div className="flex gap-2 animate-fade-in">
+                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span>{getAcuityRank(report.temperature || '6/6') > 2 || getAcuityRank(report.bloodPressure || '6/9') > 3 ? "Review spectacle prescription. Reroute to Optical Shop for lens grinding." : "Visual acuity cleared within functional limits."}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span>{isCreatinineHigh ? "STRICT CONFLICT: Avoid NSAIDs (Ibuprofen, Diclofenac) to protect renal nephron capacity." : "NSAID usage cleared within standard clinical doses."}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span>{isHbA1cHigh ? "Review glycemic therapy. Consider adding SGLT2 inhibitors for cardio-renal protection." : "Glycemic profile does not require immediate pharmacological adjustment."}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

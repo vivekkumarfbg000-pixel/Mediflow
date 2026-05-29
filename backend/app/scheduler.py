@@ -94,12 +94,27 @@ def trigger_chronic_refills():
                     medicine = hold.get("medicine_name", "Metformin 500mg")
                     qty = hold.get("quantity", 60)
                     
+                    # Adapt text for eye drops / ointments
+                    med_lower = medicine.lower()
+                    if "drop" in med_lower:
+                        med_type = "clinical eye drops"
+                        qty_unit = "refill bottle"
+                        icon = "👁️"
+                    elif "ointment" in med_lower:
+                        med_type = "ointment"
+                        qty_unit = "refill tube"
+                        icon = "👁️"
+                    else:
+                        med_type = "chronic tablet"
+                        qty_unit = f"{qty} tablets"
+                        icon = "💊"
+                    
                     payload = {
                         "phone": phone,
                         "message": (
-                            f"🔔 *Mediflow Refill Alert* 💊\n\n"
-                            f"Namaste. Aapki chronic tablet *{medicine}* agle 3 dino me khatam hone wali hai.\n\n"
-                            f"Kya aap next month ka batch (*{qty} tablets*) order karna chahte hain? "
+                            f"🔔 *Mediflow Refill Alert* {icon}\n\n"
+                            f"Namaste. Aapki {med_type} *{medicine}* agle 3 dino me khatam hone wali hai.\n\n"
+                            f"Kya aap next month ka batch (*{qty_unit}*) order karna chahte hain? "
                             f"Clinic Pharmacy counter par dynamic 10% discount secure karne ke liye please replies me *REORDER* likhein. "
                             f"Aapki direct split receipt register ho jayegi! 🟢"
                         )

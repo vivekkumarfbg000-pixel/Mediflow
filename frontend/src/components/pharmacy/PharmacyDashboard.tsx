@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
 import { useSpecialization } from '../../context/SpecializationContext';
+import { generateSpectaclePdfCard } from '../../utils/pdfGenerator';
 import type { InventoryHold, SeasonalForecast, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
   Calendar, 
@@ -820,14 +821,53 @@ export const PharmacyDashboard: React.FC = () => {
                                           <div className="flex justify-between items-center pt-2 border-t border-white/5 text-[9px]">
                                             <span className="text-clinical-400 italic">Freq: {m.frequency}</span>
                                             <button
-                                              onClick={() => {
-                                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                                  detail: {
-                                                    message: `Spectacle Refraction Rx Card printed for ${patient?.name || 'patient'} lens grinding! 👓`,
-                                                    type: 'success',
-                                                    title: 'Rx Card Printed'
+                                              onClick={async () => {
+                                                try {
+                                                  const refractionData = {
+                                                    od: {
+                                                      sph: od.sph === 'Plano' ? '' : od.sph,
+                                                      cyl: od.cyl === '—' ? '' : od.cyl,
+                                                      axis: od.axis === '—' ? '' : od.axis,
+                                                      add: od.add === '—' ? '' : od.add,
+                                                    },
+                                                    os: {
+                                                      sph: os.sph === 'Plano' ? '' : os.sph,
+                                                      cyl: os.cyl === '—' ? '' : os.cyl,
+                                                      axis: os.axis === '—' ? '' : os.axis,
+                                                      add: os.add === '—' ? '' : os.add,
+                                                    },
+                                                    pd: '', // optional or empty
+                                                    lensType: lensType as any,
+                                                    notes: 'Printed from Patna Optical POS'
+                                                  };
+
+                                                  const pdfBytes = await generateSpectaclePdfCard({
+                                                    invoiceId: invoice.id,
+                                                    patientName: patient ? patient.name : 'Unknown Patient',
+                                                    refractionRx: refractionData,
+                                                    date: new Date(invoice.createdAt).toLocaleDateString()
+                                                  });
+
+                                                  const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+                                                  const url = URL.createObjectURL(blob);
+                                                  
+                                                  // Open in new tab for direct browser print
+                                                  const newWindow = window.open(url, '_blank');
+                                                  if (newWindow) {
+                                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                      detail: {
+                                                        message: `Spectacle Refraction Rx Card PDF compiled and opened for ${patient?.name || 'patient'}! 👓`,
+                                                        type: 'success',
+                                                        title: 'Rx Card PDF Generated'
+                                                      }
+                                                    }));
+                                                  } else {
+                                                    alert('Please allow popups to view the Spectacle Rx Card PDF');
                                                   }
-                                                }));
+                                                } catch (err) {
+                                                  console.error('[Optical POS] Failed to generate PDF:', err);
+                                                  alert('Error compiling Spectacle Rx Card PDF.');
+                                                }
                                               }}
                                               className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[8px] uppercase tracking-wider flex items-center gap-1 border-0 cursor-pointer transition-colors active:scale-95 font-mono"
                                             >

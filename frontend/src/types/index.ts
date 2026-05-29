@@ -38,6 +38,9 @@ export interface HistoricalBiomarker {
   HbA1c: number;
   creatinine: number;
   hemoglobin: number;
+  temperature?: string;
+  bloodPressure?: string;
+  pulseRate?: number;
 }
 
 export interface ChatMessage {

@@ -1431,13 +1431,13 @@ class MediflowApiService {
 
     // Baseline details seeded for clinical-standard testing
     const baseline = [
-      { date: '2026-03-10', HbA1c: 7.8, creatinine: 0.9, hemoglobin: 13.5 },
-      { date: '2026-04-15', HbA1c: 7.4, creatinine: 1.1, hemoglobin: 13.1 }
+      { date: '2026-03-10', HbA1c: 7.8, creatinine: 0.9, hemoglobin: 13.5, temperature: '6/6', bloodPressure: '6/6', pulseRate: 15 },
+      { date: '2026-04-15', HbA1c: 7.4, creatinine: 1.1, hemoglobin: 13.1, temperature: '6/6', bloodPressure: '6/9', pulseRate: 18 }
     ];
 
     const historyList: HistoricalBiomarker[] = [];
     if (patientId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401' || patientId === 'p-1') {
-      historyList.push(...baseline);
+      historyList.push(...baseline.map(b => ({ ...b })));
     }
 
     requisitions.forEach(r => {
@@ -1479,6 +1479,28 @@ class MediflowApiService {
         });
       }
     });
+
+    // Merge patient's active vitals into the history trajectory
+    const patientObj = this.getPatients().find(p => p.id === patientId);
+    if (patientObj && patientObj.vitals) {
+      const vDate = patientObj.vitals.recordedAt.split('T')[0];
+      const existing = historyList.find(h => h.date === vDate);
+      if (existing) {
+        existing.temperature = patientObj.vitals.temperature;
+        existing.bloodPressure = patientObj.vitals.bloodPressure;
+        existing.pulseRate = Number(patientObj.vitals.pulseRate);
+      } else {
+        historyList.push({
+          date: vDate,
+          HbA1c: 6.0,
+          creatinine: 1.0,
+          hemoglobin: 14.0,
+          temperature: patientObj.vitals.temperature,
+          bloodPressure: patientObj.vitals.bloodPressure,
+          pulseRate: Number(patientObj.vitals.pulseRate)
+        });
+      }
+    }
 
     return historyList.sort((a, b) => a.date.localeCompare(b.date));
   }
