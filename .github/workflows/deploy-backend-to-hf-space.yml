@@ -57,13 +57,19 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Robustly trim any pasted spaces, carriage returns, or newlines from secrets
+          CLEAN_TOKEN=$(echo -n "$HF_TOKEN" | tr -d '\r\n[:space:]')
+          CLEAN_REPO=$(echo -n "$HF_SPACE_REPO" | tr -d '\r\n[:space:]')
+
           cd /tmp/hf-space
           git init
           git config user.name "mediflow-bot"
           git config user.email "mediflow-bot@users.noreply.github.com"
-          HF_USERNAME="${HF_SPACE_REPO%%/*}"
-          git remote add origin "https://${HF_USERNAME}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_REPO}"
+          
+          HF_USERNAME="${CLEAN_REPO%%/*}"
+          git remote add origin "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}"
           git add .
           git commit -m "Deploy Mediflow backend to Hugging Face Space"
           git branch -M main
           git push --force origin main
+
