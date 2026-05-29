@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
+import { useSpecialization } from '../../context/SpecializationContext';
 import { supabase } from '../../lib/supabaseClient';
 import { 
   UserPlus, 
@@ -43,6 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isSidebarCollapsed = false,
   onToggleSidebarCollapse
 }) => {
+  const { isOphthalmology, nomenclature } = useSpecialization();
   const { activePod, activeEntity } = useClinic();
   const [isSyncing, setIsSyncing] = useState(api.isSyncing);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -291,8 +293,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const roles = [
     { id: 'compounder', name: 'Compounder', icon: UserPlus, color: 'text-accent-500 bg-accent-500/10' },
     { id: 'doctor', name: 'Doctor Dashboard', icon: Stethoscope, color: 'text-primary-500 bg-primary-500/10' },
-    { id: 'lab', name: 'Pathology Lab', icon: Beaker, color: 'text-blue-500 bg-blue-500/10' },
-    { id: 'pharmacy', name: 'Pharmacy POS', icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-500/10' },
+    { id: 'lab', name: nomenclature.labTitle, icon: Beaker, color: 'text-blue-500 bg-blue-500/10' },
+    { id: 'pharmacy', name: nomenclature.pharmacyTitle, icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-500/10' },
     { id: 'billing', name: 'UPI Ledger', icon: QrCode, color: 'text-rose-500 bg-rose-500/10' },
   ];
 
@@ -437,8 +439,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {[
                     { id: 'registered', label: 'Registered' },
                     { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
-                    { id: 'lab', label: 'Lab Processing' },
-                    { id: 'pharmacy', label: 'Pharmacy Verif.' },
+                    { id: 'lab', label: nomenclature.careLoopLabStep },
+                    { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
                     { id: 'settled', label: 'Ledger Settled' }
                   ].map((step, idx, arr) => {
                     const stages = arr.map(s => s.id);
@@ -692,8 +694,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {[
                   { id: 'registered', label: 'Registered' },
                   { id: 'diagnosing', label: 'Diagnosing' },
-                  { id: 'lab', label: 'Lab' },
-                  { id: 'pharmacy', label: 'Pharmacy' },
+                  { id: 'lab', label: isOphthalmology ? 'Scan' : 'Lab' },
+                  { id: 'pharmacy', label: isOphthalmology ? 'Optical' : 'Pharmacy' },
                   { id: 'settled', label: 'Settled' }
                 ].map((step, idx, arr) => {
                   const stages = arr.map(s => s.id);
@@ -799,8 +801,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {[
                       { id: 'registered', label: 'Registered' },
                       { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
-                      { id: 'lab', label: 'Lab Processing' },
-                      { id: 'pharmacy', label: 'Pharmacy Verif.' },
+                      { id: 'lab', label: nomenclature.careLoopLabStep },
+                      { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
                       { id: 'settled', label: 'Ledger Settled' }
                     ].map((step, idx, arr) => {
                       const stages = arr.map(s => s.id);
@@ -997,8 +999,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               let label = r.name;
               if (r.id === 'compounder') label = 'Comp.';
               else if (r.id === 'doctor') label = 'Doctor';
-              else if (r.id === 'lab') label = 'Lab';
-              else if (r.id === 'pharmacy') label = 'Pharmacy';
+              else if (r.id === 'lab') label = isOphthalmology ? 'Diag.' : 'Lab';
+              else if (r.id === 'pharmacy') label = isOphthalmology ? 'Optical' : 'Pharmacy';
               else if (r.id === 'billing') label = 'Ledger';
               else if (r.id === 'patient') label = 'Patient';
 

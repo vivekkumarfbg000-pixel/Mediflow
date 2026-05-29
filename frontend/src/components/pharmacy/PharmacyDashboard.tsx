@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
+import { useSpecialization } from '../../context/SpecializationContext';
 import type { InventoryHold, SeasonalForecast, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
   Calendar, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export const PharmacyDashboard: React.FC = () => {
+  const { isOphthalmology, nomenclature } = useSpecialization();
   const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand'>('prescription_queue');
   const [inventory, setInventory] = useState<PharmacyInventoryItem[]>([]);
   const [holds, setHolds] = useState<InventoryHold[]>([]);
@@ -64,7 +66,7 @@ export const PharmacyDashboard: React.FC = () => {
   const [addForm, setAddForm] = useState({
     name: '',
     genericName: '',
-    category: 'Antidiabetic',
+    category: isOphthalmology ? 'Eye Drops' : 'Antidiabetic',
     manufacturer: '',
     batchNumber: '',
     expiryDate: '',
@@ -91,7 +93,9 @@ export const PharmacyDashboard: React.FC = () => {
   const [ocrResults, setOcrResults] = useState<MedicineImportRow[]>([]);
 
   // Categories list
-  const categories = [
+  const categories = isOphthalmology ? [
+    'Eye Drops', 'Ointments', 'Frames', 'Lens Blanks', 'Contact Lenses', 'General'
+  ] : [
     'Antidiabetic', 'Antibiotic', 'Analgesic', 'Cardiovascular', 
     'Gastrointestinal', 'Respiratory', 'Neurological', 'General'
   ];
@@ -281,7 +285,7 @@ export const PharmacyDashboard: React.FC = () => {
     setAddForm({
       name: '',
       genericName: '',
-      category: 'Antidiabetic',
+      category: isOphthalmology ? 'Eye Drops' : 'Antidiabetic',
       manufacturer: '',
       batchNumber: '',
       expiryDate: '',
@@ -533,7 +537,7 @@ export const PharmacyDashboard: React.FC = () => {
         <div>
           <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
             <span className="material-symbols-outlined text-indigo-600 text-[20px]">medication</span>
-            Patna Smart Pharmacy Workdesk
+            {nomenclature.pharmacyTitle}
             <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest ${
               isOnline 
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-600 animate-pulse' 
@@ -729,12 +733,119 @@ export const PharmacyDashboard: React.FC = () => {
                                   Approved Medicines to Dispense
                                 </span>
                                 <div className="space-y-1.5">
-                                  {prescription.extractedMedicines.map((m, idx) => (
-                                    <div key={idx} className="text-[10px] text-clinical-300 font-mono flex items-center justify-between border-b border-white/5 pb-1 last:border-0 last:pb-0">
-                                      <span>💊 {m.name} ({m.dosage})</span>
-                                      <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
-                                    </div>
-                                  ))}
+                                  {prescription.extractedMedicines.map((m, idx) => {
+                                    const isSpectacles = m.name.startsWith('Spectacles (');
+                                    if (isSpectacles) {
+                                      // Parse refraction from dosage field!
+                                      const odPart = m.dosage.split('|')[0] || '';
+                                      const osPart = m.dosage.split('|')[1] || '';
+                                      
+                                      const parseEye = (part: string) => {
+                                        const sphMatch = part.match(/SPH\s+([^\s]+)/);
+                                        const cylMatch = part.match(/CYL\s+([^\s]+)/);
+                                        const axisMatch = part.match(/Axis\s+([^\s|]+)/);
+                                        const addMatch = part.match(/ADD\s+([^\s|]+)/);
+                                        return {
+                                          sph: sphMatch ? sphMatch[1] : 'Plano',
+                                          cyl: cylMatch ? cylMatch[1] : '—',
+                                          axis: axisMatch ? axisMatch[1] : '—',
+                                          add: addMatch ? addMatch[1] : '—'
+                                        };
+                                      };
+                                      
+                                      const od = parseEye(odPart);
+                                      const os = parseEye(osPart);
+                                      const lensType = m.name.replace('Spectacles (', '').replace(')', '');
+                                      
+                                      return (
+                                        <div key={idx} className="bg-slate-900/80 border border-indigo-500/30 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-white w-full">
+                                          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="material-symbols-outlined text-indigo-400 text-sm">visibility</span>
+                                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-350">Refraction Rx / Spectacles</span>
+                                            </div>
+                                            <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded font-black font-mono">
+                                              {lensType}
+                                            </span>
+                                          </div>
+                                          
+                                          <div className="grid grid-cols-2 gap-3">
+                                            {/* OD */}
+                                            <div className="space-y-1 p-2 bg-white/5 rounded border border-white/5">
+                                              <div className="text-[8px] font-bold uppercase text-indigo-400 font-mono">Right Eye (OD)</div>
+                                              <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">SPH</span>
+                                                  <span className="font-bold text-white">{od.sph}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">CYL</span>
+                                                  <span className="font-bold text-white">{od.cyl}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">AXIS</span>
+                                                  <span className="font-bold text-white">{od.axis}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">ADD</span>
+                                                  <span className="font-bold text-white">{od.add}</span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            
+                                            {/* OS */}
+                                            <div className="space-y-1 p-2 bg-white/5 rounded border border-white/5">
+                                              <div className="text-[8px] font-bold uppercase text-indigo-400 font-mono">Left Eye (OS)</div>
+                                              <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">SPH</span>
+                                                  <span className="font-bold text-white">{os.sph}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">CYL</span>
+                                                  <span className="font-bold text-white">{os.cyl}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">AXIS</span>
+                                                  <span className="font-bold text-white">{os.axis}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="block text-[7px] text-clinical-500">ADD</span>
+                                                  <span className="font-bold text-white">{os.add}</span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="flex justify-between items-center pt-2 border-t border-white/5 text-[9px]">
+                                            <span className="text-clinical-400 italic">Freq: {m.frequency}</span>
+                                            <button
+                                              onClick={() => {
+                                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                  detail: {
+                                                    message: `Spectacle Refraction Rx Card printed for ${patient?.name || 'patient'} lens grinding! 👓`,
+                                                    type: 'success',
+                                                    title: 'Rx Card Printed'
+                                                  }
+                                                }));
+                                              }}
+                                              className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[8px] uppercase tracking-wider flex items-center gap-1 border-0 cursor-pointer transition-colors active:scale-95 font-mono"
+                                            >
+                                              <span className="material-symbols-outlined text-[9px]">print</span>
+                                              Print Rx Card
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    return (
+                                      <div key={idx} className="text-[10px] text-clinical-300 font-mono flex items-center justify-between border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                                        <span>💊 {m.name} ({m.dosage})</span>
+                                        <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}

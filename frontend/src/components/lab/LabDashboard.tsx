@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
+import { useSpecialization } from '../../context/SpecializationContext';
 import { supabase } from '../../lib/supabaseClient';
 import type { ReagentStock } from '../../services/api';
 import type { LabRequisition, Patient, Invoice, LabReport } from '../../types';
@@ -12,6 +13,7 @@ import type { LabRequisition, Patient, Invoice, LabReport } from '../../types';
 type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'reagents';
 
 export const LabDashboard: React.FC = () => {
+  const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
   const [activeTab, setActiveTab] = useState<LabTab>('queue');
   const [requisitions, setRequisitions] = useState<LabRequisition[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -206,10 +208,10 @@ export const LabDashboard: React.FC = () => {
   );
   const todayRevenue = useMemo(() => {
     return todayCompleted.reduce((sum, r) => {
-      const test = MASTER_TEST_CATALOG.find(t => t.loincCode === r.testCode);
+      const test = testCatalog.find(t => t.loincCode === r.testCode);
       return sum + (test?.price || 0);
     }, 0);
-  }, [todayCompleted]);
+  }, [todayCompleted, testCatalog]);
   const lowStockCount = useMemo(() => reagents.filter(r => r.stockVolume < 200).length, [reagents]);
   const totalTests = useMemo(() => completedList.length, [completedList]);
   const testBreakdown = useMemo(() => {
@@ -345,7 +347,7 @@ export const LabDashboard: React.FC = () => {
     e.preventDefault();
     if (!walkinPatientId || !walkinTestCode) return;
     setWalkinBusy(true);
-    const test = MASTER_TEST_CATALOG.find(t => t.loincCode === walkinTestCode);
+    const test = testCatalog.find(t => t.loincCode === walkinTestCode);
     if (!test) { setWalkinBusy(false); return; }
     api.registerWalkinLabTest(walkinPatientId, walkinTestCode, test.name, walkinFileUrl || undefined);
     setTimeout(() => {
@@ -372,7 +374,7 @@ export const LabDashboard: React.FC = () => {
 
     try {
       const selectedPatient = patients.find(p => p.id === directPatientId);
-      const testItem = MASTER_TEST_CATALOG.find(t => t.loincCode === directTestCode);
+      const testItem = testCatalog.find(t => t.loincCode === directTestCode);
       if (!selectedPatient || !testItem) {
         setDirectBusy(false);
         return;
@@ -604,7 +606,7 @@ export const LabDashboard: React.FC = () => {
           <div>
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[20px]">biotech</span>
-              Pathology Diagnostics Lab
+              {nomenclature.labTitle}
               <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono ml-1">LIVE</span>
             </h1>
             <p className="text-[11px] text-clinical-400 mt-0.5 font-mono">
@@ -851,7 +853,7 @@ export const LabDashboard: React.FC = () => {
                         <th className="p-3.5">Patient</th>
                         <th className="p-3.5">Test</th>
                         <th className="p-3.5">Result</th>
-                        <th className="p-3.5 text-right">Reagent Used</th>
+                        {!isOphthalmology && <th className="p-3.5 text-right">Reagent Used</th>}
                         <th className="p-3.5 text-right">Report File</th>
                       </tr>
                     </thead>
@@ -871,14 +873,16 @@ export const LabDashboard: React.FC = () => {
                             </div>
                           </td>
                           <td className="p-3.5">{renderResultValue(req.quantitativeResult)}</td>
-                          <td className="p-3.5 text-right">
-                            {(req.reagentDeductions || []).map((ded, idx) => (
-                              <div key={idx} className="text-right text-[10px] text-rose-400 flex items-center justify-end gap-1.5 font-bold font-mono">
-                                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                                -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
-                              </div>
-                            ))}
-                          </td>
+                          {!isOphthalmology && (
+                            <td className="p-3.5 text-right">
+                              {(req.reagentDeductions || []).map((ded, idx) => (
+                                <div key={idx} className="text-right text-[10px] text-rose-400 flex items-center justify-end gap-1.5 font-bold font-mono">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                  -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
+                                </div>
+                              ))}
+                            </td>
+                          )}
                           <td className="p-3.5 text-right">
                             {(() => {
                               const rep = api.getFullLabReports().find(r => r.requisitionId === req.id);
@@ -1193,7 +1197,7 @@ export const LabDashboard: React.FC = () => {
                     Select Diagnostic Test
                   </label>
                   <div className="space-y-2">
-                    {MASTER_TEST_CATALOG.map(test => (
+                    {testCatalog.map(test => (
                       <label
                         key={test.loincCode}
                         className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
@@ -1432,7 +1436,7 @@ export const LabDashboard: React.FC = () => {
                     Select Test Catalog Item
                   </label>
                   <div className="space-y-2">
-                    {MASTER_TEST_CATALOG.map(test => (
+                    {testCatalog.map(test => (
                       <label
                         key={test.loincCode}
                         className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
@@ -1682,7 +1686,7 @@ export const LabDashboard: React.FC = () => {
                 LOINC Test Catalog & Pricing
               </h2>
               <div className="space-y-2">
-                {MASTER_TEST_CATALOG.map(test => (
+                {testCatalog.map(test => (
                   <div key={test.loincCode} className="flex items-center justify-between p-3 bg-surface-container-lowest/60 border border-outline-variant/40 rounded-xl">
                     <div>
                       <div className="text-xs font-bold text-white">{test.name}</div>

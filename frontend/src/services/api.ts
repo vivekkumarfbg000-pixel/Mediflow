@@ -91,6 +91,15 @@ export const MASTER_TEST_CATALOG: DiagnosticTest[] = [
   { loincCode: '1975-2', name: 'Total Bilirubin', category: 'Liver Function', normalRange: '0.2 - 1.2', unit: 'mg/dL', price: 300 }
 ];
 
+// Ophthalmic diagnostic test catalog for eye care clinics
+export const OPHTHALMIC_TEST_CATALOG: DiagnosticTest[] = [
+  { loincCode: '79892-0', name: 'OCT Macular Scan', category: 'Retinal Imaging', normalRange: 'N/A', unit: 'μm', price: 1500 },
+  { loincCode: '79893-8', name: 'Visual Fields / Perimetry', category: 'Glaucoma Screening', normalRange: 'N/A', unit: 'dB', price: 1200 },
+  { loincCode: '79894-6', name: 'Fundus Photography', category: 'Retinal Imaging', normalRange: 'N/A', unit: 'image', price: 800 },
+  { loincCode: '79895-3', name: 'Corneal Topography', category: 'Refractive Surgery', normalRange: 'N/A', unit: 'D', price: 1500 },
+  { loincCode: '79896-1', name: 'A-Scan Biometry (IOL)', category: 'Cataract Pre-op', normalRange: 'N/A', unit: 'mm', price: 1000 },
+];
+
 export interface ReagentStock {
   reagentName: string;
   stockVolume: number;

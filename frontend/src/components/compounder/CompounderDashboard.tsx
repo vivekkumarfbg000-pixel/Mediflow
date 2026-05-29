@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
+import { useSpecialization } from '../../context/SpecializationContext';
+import { VISUAL_ACUITY_OPTIONS } from '../../types/ophthalmic';
 import type {
   PharmacyInventoryItem,
   MedicineBill,
@@ -35,6 +37,7 @@ import {
 } from 'lucide-react';
 
 export const CompounderDashboard: React.FC = () => {
+  const { isOphthalmology } = useSpecialization();
   const [activeTab, setActiveTab] = useState<'registry' | 'vitals' | 'gate1' | 'gate2' | 'gate3'>('registry');
 
   // Active patient in care loop
@@ -317,12 +320,18 @@ export const CompounderDashboard: React.FC = () => {
 
     const recordedToken = customToken.trim() || api.generateNextTokenNumber();
 
+    const finalTempVal = isOphthalmology ? (tempVal === '98.6' ? '6/6' : tempVal) : tempVal;
+    const finalBpVal = isOphthalmology ? (bpVal === '120/80' ? '6/6' : bpVal) : bpVal;
+    const finalPulseVal = isOphthalmology ? (pulseVal === '72' ? '16' : pulseVal) : pulseVal;
+    const finalWeightVal = isOphthalmology ? '0' : weightVal;
+    const finalSugarVal = isOphthalmology ? undefined : sugarVal || undefined;
+
     api.updatePatientVitalsAndToken(vitalsPatient.id, {
-      temperature: tempVal,
-      bloodPressure: bpVal,
-      pulseRate: pulseVal,
-      weight: weightVal,
-      bloodSugar: sugarVal || undefined,
+      temperature: finalTempVal,
+      bloodPressure: finalBpVal,
+      pulseRate: finalPulseVal,
+      weight: finalWeightVal,
+      bloodSugar: finalSugarVal,
       recordedAt: new Date().toISOString()
     }, recordedToken);
 
@@ -861,9 +870,19 @@ export const CompounderDashboard: React.FC = () => {
                 </p>
                 {activePatient.vitals && (
                   <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-semibold font-mono">
-                    <span className="bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 rounded">🌡️ {activePatient.vitals.temperature}°F</span>
-                    <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-1.5 py-0.2 rounded">🩺 {activePatient.vitals.bloodPressure}</span>
-                    <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.2 rounded">💓 {activePatient.vitals.pulseRate} bpm</span>
+                    {isOphthalmology ? (
+                      <>
+                        <span className="bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 rounded">👁️ OD: {activePatient.vitals.temperature}</span>
+                        <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-1.5 py-0.2 rounded">👁️ OS: {activePatient.vitals.bloodPressure}</span>
+                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.2 rounded">🩺 IOP: {activePatient.vitals.pulseRate} mmHg</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 rounded">🌡️ {activePatient.vitals.temperature}°F</span>
+                        <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-1.5 py-0.2 rounded">🩺 {activePatient.vitals.bloodPressure}</span>
+                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.2 rounded">💓 {activePatient.vitals.pulseRate} bpm</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1595,11 +1614,21 @@ export const CompounderDashboard: React.FC = () => {
                             {/* Quick Vitals Info Bar */}
                             {hasVitals && p.vitals && (
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5 pt-2.5 border-t border-white/5 text-[9px] font-mono text-clinical-300">
-                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🌡️ Temp: {p.vitals.temperature}°F</span>
-                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🩺 BP: {p.vitals.bloodPressure}</span>
-                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">💓 Pulse: {p.vitals.pulseRate} bpm</span>
-                                <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">⚖️ Wt: {p.vitals.weight} kg</span>
-                                {p.vitals.bloodSugar && <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5 text-amber-300">🩸 Sugar: {p.vitals.bloodSugar} mg/dL</span>}
+                                {isOphthalmology ? (
+                                  <>
+                                    <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">👁️ VA (OD): {p.vitals.temperature}</span>
+                                    <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">👁️ VA (OS): {p.vitals.bloodPressure}</span>
+                                    <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🩺 IOP: {p.vitals.pulseRate} mmHg</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🌡️ Temp: {p.vitals.temperature}°F</span>
+                                    <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🩺 BP: {p.vitals.bloodPressure}</span>
+                                    <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">💓 Pulse: {p.vitals.pulseRate} bpm</span>
+                                    <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">⚖️ Wt: {p.vitals.weight} kg</span>
+                                    {p.vitals.bloodSugar && <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5 text-amber-300">🩸 Sugar: {p.vitals.bloodSugar} mg/dL</span>}
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1665,86 +1694,139 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
 
                   <form onSubmit={handleRecordVitalsSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Token Number</label>
-                        <input
-                          type="text"
-                          required
-                          value={customToken}
-                          onChange={(e) => setCustomToken(e.target.value)}
-                          className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono font-bold"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Temperature (°F)</label>
-                        <div className="relative">
+                    {isOphthalmology ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Token Number</label>
+                            <input
+                              type="text"
+                              required
+                              value={customToken}
+                              onChange={(e) => setCustomToken(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono font-bold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Intraocular Pressure (IOP - mmHg)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. 16"
+                              value={pulseVal === '72' ? '16' : pulseVal}
+                              onChange={(e) => setPulseVal(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Visual Acuity - Right Eye (OD)</label>
+                            <select
+                              value={tempVal === '98.6' ? '6/6' : tempVal}
+                              onChange={(e) => setTempVal(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                            >
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Visual Acuity - Left Eye (OS)</label>
+                            <select
+                              value={bpVal === '120/80' ? '6/6' : bpVal}
+                              onChange={(e) => setBpVal(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                            >
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Token Number</label>
+                            <input
+                              type="text"
+                              required
+                              value={customToken}
+                              onChange={(e) => setCustomToken(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono font-bold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Temperature (°F)</label>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. 98.6"
+                                value={tempVal}
+                                onChange={(e) => setTempVal(e.target.value)}
+                                className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              />
+                              {parseFloat(tempVal) > 100 && (
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="Fever Alert!" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">BP (mmHg)</label>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. 120/80"
+                                value={bpVal}
+                                onChange={(e) => setBpVal(e.target.value)}
+                                className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              />
+                              {bpVal.includes('/') && parseInt(bpVal.split('/')[0]) > 140 && (
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" title="High BP Alert!" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Pulse (bpm)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. 72"
+                              value={pulseVal}
+                              onChange={(e) => setPulseVal(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Weight (kg)</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. 65"
+                              value={weightVal}
+                              onChange={(e) => setWeightVal(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Blood Sugar (mg/dL) - Optional</label>
                           <input
                             type="text"
-                            required
-                            placeholder="e.g. 98.6"
-                            value={tempVal}
-                            onChange={(e) => setTempVal(e.target.value)}
+                            placeholder="e.g. 110"
+                            value={sugarVal}
+                            onChange={(e) => setSugarVal(e.target.value)}
                             className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
                           />
-                          {parseFloat(tempVal) > 100 && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="Fever Alert!" />
-                          )}
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">BP (mmHg)</label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            required
-                            placeholder="e.g. 120/80"
-                            value={bpVal}
-                            onChange={(e) => setBpVal(e.target.value)}
-                            className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
-                          />
-                          {bpVal.includes('/') && parseInt(bpVal.split('/')[0]) > 140 && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" title="High BP Alert!" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Pulse (bpm)</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. 72"
-                          value={pulseVal}
-                          onChange={(e) => setPulseVal(e.target.value)}
-                          className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Weight (kg)</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. 65"
-                          value={weightVal}
-                          onChange={(e) => setWeightVal(e.target.value)}
-                          className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Blood Sugar (mg/dL) - Optional</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 110"
-                        value={sugarVal}
-                        onChange={(e) => setSugarVal(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
-                      />
-                    </div>
+                      </>
+                    )}
 
                     <button
                       type="submit"

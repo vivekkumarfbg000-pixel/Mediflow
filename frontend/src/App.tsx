@@ -16,6 +16,7 @@ import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from 'luci
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { ClinicProvider, useClinic } from './context/ClinicContext';
+import { SpecializationProvider } from './context/SpecializationContext';
 import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
 import { PatientWhatsAppSimulator } from './components/shared/PatientWhatsAppSimulator';
 import { PatientMobileDashboard } from './components/shared/PatientMobileDashboard';
@@ -581,21 +582,23 @@ export default function App() {
 
   return (
     <ClinicProvider activeProfile={activeProfile}>
-      <AppContent
-        session={session}
-        activeProfile={activeProfile}
-        currentRole={currentRole}
-        setCurrentRole={setCurrentRole}
-        toasts={toasts}
-        setToasts={setToasts}
-        isBypassMode={isBypassMode}
-        setIsBypassMode={setIsBypassMode}
-        handleAuthSuccess={handleAuthSuccess}
-        handleSignOut={handleSignOut}
-        handleToggleBypass={handleToggleBypass}
-        handleRoleChange={handleRoleChange}
-        removeToast={removeToast}
-      />
+      <SpecializationProvider activeProfile={activeProfile}>
+        <AppContent
+          session={session}
+          activeProfile={activeProfile}
+          currentRole={currentRole}
+          setCurrentRole={setCurrentRole}
+          toasts={toasts}
+          setToasts={setToasts}
+          isBypassMode={isBypassMode}
+          setIsBypassMode={setIsBypassMode}
+          handleAuthSuccess={handleAuthSuccess}
+          handleSignOut={handleSignOut}
+          handleToggleBypass={handleToggleBypass}
+          handleRoleChange={handleRoleChange}
+          removeToast={removeToast}
+        />
+      </SpecializationProvider>
     </ClinicProvider>
   );
 }

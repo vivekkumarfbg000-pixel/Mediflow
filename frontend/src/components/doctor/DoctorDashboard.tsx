@@ -11,6 +11,9 @@ import {
   HeartPulse
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
+import { useSpecialization } from '../../context/SpecializationContext';
+import { OphthalmicRefractionGrid } from './OphthalmicRefractionGrid';
+import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, type RefractionRx } from '../../types/ophthalmic';
 
 import { SystemHealthCockpit } from '../admin/SystemHealthCockpit';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
@@ -38,6 +41,8 @@ export const DoctorDashboard: React.FC = () => {
   const [financialLedgers, setFinancialLedgers] = useState<FinancialLedgerEntry[]>([]);
 
   // Existing states
+  const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
+  const [refractionRx, setRefractionRx] = useState<RefractionRx>(EMPTY_REFRACTION_RX);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [notes, setNotes] = useState('');
   const [medications, setMedications] = useState<Omit<MedicationRequest, 'id'>[]>([]);
@@ -304,6 +309,7 @@ export const DoctorDashboard: React.FC = () => {
     setCdssAnomalies([]);
     setAiInsight('');
     setAiError(null);
+    setRefractionRx(EMPTY_REFRACTION_RX);
   }, [selectedPatient?.id]);
 
 
@@ -662,11 +668,27 @@ Keep the tone professional, clinical, objective, and precise.`;
       });
     }
 
+    // Ophthalmology spectacle support
+    if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
+      finalMedications.push({
+        id: `med-spectacles`,
+        medicineName: `Spectacles (${refractionRx.lensType})`,
+        dosage: `OD: SPH ${refractionRx.od.sph || 'Plano'} CYL ${refractionRx.od.cyl || '—'} Axis ${refractionRx.od.axis ? refractionRx.od.axis + '°' : '—'}${refractionRx.od.add ? ' ADD ' + refractionRx.od.add : ''} | OS: SPH ${refractionRx.os.sph || 'Plano'} CYL ${refractionRx.os.cyl || '—'} Axis ${refractionRx.os.axis ? refractionRx.os.axis + '°' : '—'}${refractionRx.os.add ? ' ADD ' + refractionRx.os.add : ''}`,
+        frequency: 'Wear constantly',
+        duration: '1 Year'
+      });
+    }
+
+    let finalNotes = notes + (prescriptionNotes.trim() ? `\n[Handwritten Prescription Note]: ${prescriptionNotes.trim()}` : '');
+    if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
+      finalNotes += serializeRefractionRx(refractionRx);
+    }
+
     api.createEncounter({
       patientId: selectedPatient.id,
       patientName: selectedPatient.name,
       doctorId: 'doc-1',
-      clinicalNotes: notes + (prescriptionNotes.trim() ? `\n[Handwritten Prescription Note]: ${prescriptionNotes.trim()}` : ''),
+      clinicalNotes: finalNotes,
       medications: finalMedications,
       diagnosticTests: selectedTests
     });
@@ -675,32 +697,47 @@ Keep the tone professional, clinical, objective, and precise.`;
     try {
       const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
       const latestReport = history.length > 0 ? history[history.length - 1] : null;
-      let whatsAppMsg = `🏥 *Mediflow Connected Care Plan* 🩺\n\n`;
-      whatsAppMsg += `Dear *${selectedPatient.name}*, Dr. Sharma has finalized your consultation record.\n\n`;
       
-      // Add Hinglish clinical directions
-      whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${notes || "Continue active lifestyle management."}"_\n\n`;
-      
-      if (prescriptionNotes.trim()) {
-        whatsAppMsg += `📝 *Handwritten Prescription Notes:*\n_"${prescriptionNotes.trim()}"_\n\n`;
+      let whatsAppMsg = '';
+      if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
+        whatsAppMsg = formatSpectacleCard(refractionRx, selectedPatient.name);
+        if (notes) {
+          whatsAppMsg += `\n\n👉 *Doctor's Advice (Hinglish):*\n_"${notes}"_`;
+        }
+        if (parsedMeds.length > 0) {
+          whatsAppMsg += `\n\n💊 *Prescribed Medications:*\n`;
+          parsedMeds.forEach((m, idx) => {
+            whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
+          });
+        }
+      } else {
+        whatsAppMsg = `🏥 *Mediflow Connected Care Plan* 🩺\n\n`;
+        whatsAppMsg += `Dear *${selectedPatient.name}*, Dr. Sharma has finalized your consultation record.\n\n`;
+        
+        // Add Hinglish clinical directions
+        whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${notes || "Continue active lifestyle management."}"_\n\n`;
+        
+        if (prescriptionNotes.trim()) {
+          whatsAppMsg += `📝 *Handwritten Prescription Notes:*\n_"${prescriptionNotes.trim()}"_\n\n`;
+        }
+        
+        if (latestReport) {
+          whatsAppMsg += `🧪 *Consolidated Lab Report (Date: ${latestReport.date}):*\n`;
+          whatsAppMsg += `- *HbA1c*: ${latestReport.HbA1c}%\n`;
+          whatsAppMsg += `- *Serum Creatinine*: ${latestReport.creatinine} mg/dL\n`;
+          whatsAppMsg += `- *Total Hemoglobin*: ${latestReport.hemoglobin} g/dL\n\n`;
+        }
+        
+        if (parsedMeds.length > 0) {
+          whatsAppMsg += `💊 *Prescribed Medications (Collect at Counter):*\n`;
+          parsedMeds.forEach((m, idx) => {
+            whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
+          });
+          whatsAppMsg += `\n`;
+        }
+        
+        whatsAppMsg += `Dhyan rakhein aur time par medicine lein! 🟢`;
       }
-      
-      if (latestReport) {
-        whatsAppMsg += `🧪 *Consolidated Lab Report (Date: ${latestReport.date}):*\n`;
-        whatsAppMsg += `- *HbA1c*: ${latestReport.HbA1c}%\n`;
-        whatsAppMsg += `- *Serum Creatinine*: ${latestReport.creatinine} mg/dL\n`;
-        whatsAppMsg += `- *Total Hemoglobin*: ${latestReport.hemoglobin} g/dL\n\n`;
-      }
-      
-      if (parsedMeds.length > 0) {
-        whatsAppMsg += `💊 *Prescribed Medications (Collect at Counter):*\n`;
-        parsedMeds.forEach((m, idx) => {
-          whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
-        });
-        whatsAppMsg += `\n`;
-      }
-      
-      whatsAppMsg += `Dhyan rakhein aur time par medicine lein! 🟢`;
       
       api.pushWhatsAppMessageFromBot(selectedPatient.phone, whatsAppMsg);
     } catch (e) {
@@ -715,6 +752,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     setAudioBlob(null);
     setMedications([]);
     setSelectedTests([]);
+    setRefractionRx(EMPTY_REFRACTION_RX);
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -816,16 +854,16 @@ Keep the tone professional, clinical, objective, and precise.`;
                       </div>
                       <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/40 text-[10px] text-slate-500">
                         <div>
-                          <span className="text-slate-400 font-medium block">HbA1c</span>
-                          <span className={`font-mono font-bold ${report.HbA1c > 6.5 ? 'text-rose-500' : 'text-slate-700'}`}>{report.HbA1c}%</span>
+                          <span className="text-slate-400 font-medium block">{isOphthalmology ? 'VA (OD)' : 'HbA1c'}</span>
+                          <span className={`font-mono font-bold ${!isOphthalmology && report.HbA1c > 6.5 ? 'text-rose-500' : 'text-slate-700'}`}>{isOphthalmology ? '6/6' : `${report.HbA1c}%`}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 font-medium block">Creatinine</span>
-                          <span className={`font-mono font-bold ${report.creatinine > 1.2 ? 'text-rose-500' : 'text-slate-700'}`}>{report.creatinine} mg/dL</span>
+                          <span className="text-slate-400 font-medium block">{isOphthalmology ? 'IOP' : 'Creatinine'}</span>
+                          <span className={`font-mono font-bold ${!isOphthalmology && report.creatinine > 1.2 ? 'text-rose-500' : 'text-slate-700'}`}>{isOphthalmology ? '16 mmHg' : `${report.creatinine} mg/dL`}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 font-medium block">Hemoglobin</span>
-                          <span className={`font-mono font-bold ${report.hemoglobin < 12.0 ? 'text-amber-500' : 'text-slate-700'}`}>{report.hemoglobin} g/dL</span>
+                          <span className="text-slate-400 font-medium block">{isOphthalmology ? 'VA (OS)' : 'Hemoglobin'}</span>
+                          <span className={`font-mono font-bold ${!isOphthalmology && report.hemoglobin < 12.0 ? 'text-amber-500' : 'text-slate-700'}`}>{isOphthalmology ? '6/9' : `${report.hemoglobin} g/dL`}</span>
                         </div>
                       </div>
                     </button>
@@ -1311,7 +1349,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 Diagnostic Panel Requisition (LOINC-Coded)
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {MASTER_TEST_CATALOG.map((test: DiagnosticTest) => {
+                {testCatalog.map((test: DiagnosticTest) => {
                   const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode);
                   return (
                     <button
@@ -1340,6 +1378,16 @@ Keep the tone professional, clinical, objective, and precise.`;
               </div>
             </div>
 
+            {/* Ophthalmology Refraction Rx Grid */}
+            {isOphthalmology && (
+              <div className="space-y-3 pt-5 border-t border-slate-100 animate-fade-in">
+                <OphthalmicRefractionGrid 
+                  value={refractionRx} 
+                  onChange={setRefractionRx} 
+                />
+              </div>
+            )}
+
             {/* Manual Handwritten Prescription Logger */}
             <div className="space-y-4 pt-5 border-t border-slate-100">
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -1365,7 +1413,11 @@ Keep the tone professional, clinical, objective, and precise.`;
                   <textarea
                     value={prescriptionNotes}
                     onChange={(e) => setPrescriptionNotes(e.target.value)}
-                    placeholder="e.g.&#10;Metformin 500mg - 1 Tab - 1-0-1 - 5 Days&#10;Atorvastatin 10mg - 1 Tab - 0-0-1 - 10 Days"
+                    placeholder={
+                      isOphthalmology
+                        ? "e.g.\nMoxifloxacin 0.5% - 1 Drop - 1 drop 4 times daily - 7 Days\nHomatropine 2% - 1 Drop - Instill 1 drop twice daily - 3 Days"
+                        : "e.g.\nMetformin 500mg - 1 Tab - 1-0-1 - 5 Days\nAtorvastatin 10mg - 1 Tab - 0-0-1 - 10 Days"
+                    }
                     rows={4}
                     className="w-full input-field bg-white text-xs leading-relaxed font-mono"
                   />
@@ -3007,61 +3059,83 @@ Keep the tone professional, clinical, objective, and precise.`;
               <div className="space-y-4">
                 <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">HbA1c (Glycated Hemoglobin)</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: 4.0% - 5.6%</span>
+                    <span className="text-xs font-bold text-slate-200">
+                      {isOphthalmology ? "Visual Acuity (OD)" : "HbA1c (Glycated Hemoglobin)"}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {isOphthalmology ? "Ref Range: 6/6 (Unaided)" : "Ref Range: 4.0% - 5.6%"}
+                    </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">{report.HbA1c}%</span>
+                    <span className="text-xl font-black font-mono tracking-tight">
+                      {isOphthalmology ? "6/6" : `${report.HbA1c}%`}
+                    </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
+                      isOphthalmology ? 'bg-emerald-500/20 text-emerald-400' :
                       isHbA1cHigh ? 'bg-rose-500/20 text-rose-400' :
                       isHbA1cWarning ? 'bg-amber-500/20 text-amber-400' :
                       'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
+                      {isOphthalmology ? 'Normal' : isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
+                        isOphthalmology ? 'bg-emerald-500' :
                         isHbA1cHigh ? 'bg-rose-500' : isHbA1cWarning ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
-                      style={{ width: `${Math.min(100, (report.HbA1c / 12) * 100)}%` }}
+                      style={{ width: isOphthalmology ? '100%' : `${Math.min(100, (report.HbA1c / 12) * 100)}%` }}
                     />
                   </div>
                 </div>
 
                 <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">Serum Creatinine</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: 0.6 - 1.2 mg/dL</span>
+                    <span className="text-xs font-bold text-slate-200">
+                      {isOphthalmology ? "Intraocular Pressure (IOP)" : "Serum Creatinine"}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {isOphthalmology ? "Ref Range: 10 - 21 mmHg" : "Ref Range: 0.6 - 1.2 mg/dL"}
+                    </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">{report.creatinine} mg/dL</span>
+                    <span className="text-xl font-black font-mono tracking-tight">
+                      {isOphthalmology ? "16 mmHg" : `${report.creatinine} mg/dL`}
+                    </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
+                      isOphthalmology ? 'bg-emerald-500/20 text-emerald-400' :
                       isCreatinineHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
+                      {isOphthalmology ? 'Normal' : isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
-                      style={{ width: `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
+                      className={`h-full rounded-full ${isOphthalmology ? 'bg-emerald-500' : isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                      style={{ width: isOphthalmology ? '76%' : `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
                     />
                   </div>
                 </div>
 
                 <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">Total Hemoglobin</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: 12.0 - 16.0 g/dL</span>
+                    <span className="text-xs font-bold text-slate-200">
+                      {isOphthalmology ? "Visual Acuity (OS)" : "Total Hemoglobin"}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {isOphthalmology ? "Ref Range: 6/6 (Unaided)" : "Ref Range: 12.0 - 16.0 g/dL"}
+                    </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">{report.hemoglobin} g/dL</span>
+                    <span className="text-xl font-black font-mono tracking-tight">
+                      {isOphthalmology ? "6/9" : `${report.hemoglobin} g/dL`}
+                    </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
+                      isOphthalmology ? 'bg-amber-500/20 text-amber-400' :
                       isHemoglobinLow ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
                     }`}>
-                      {isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
+                      {isOphthalmology ? 'Borderline' : isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
                     </span>
                   </div>
                   <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
