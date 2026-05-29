@@ -41,7 +41,7 @@ jobs:
           cat > /tmp/hf-space/README.md <<'EOF'
           ---
           title: Mediflow Backend
-          emoji: whale
+          emoji: 🐋
           colorFrom: blue
           colorTo: indigo
           sdk: docker
