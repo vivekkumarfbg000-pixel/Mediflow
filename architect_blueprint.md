@@ -1,25 +1,58 @@
-# ARCHITECTURAL CONTRACT: RESOLUTION OF COMPILE-TIME JSX SYNTAX ERRORS IN COMPOUNDER DASHBOARD
+# ARCHITECTURAL CONTRACT: GLOBAL SYSTEM RELIABILITY, CRASH PREVENTION, AND PRODUCTION READY COMPILATION
 > **CRITICAL NOTICE TO EXECUTING AGENTS:** This document is immutable law. Any code modification that violates the boundaries, data shapes, or security guardrails defined below will cause an immediate system rejection and code revert.
 
 ## 1. COMPONENT & REPOSITORY BOUNDARIES
 *   **TARGET_FILES_TO_EDIT:**
-    *   `src/components/compounder/CompounderDashboard.tsx` -> Correct JSX element nesting mismatch by properly closing the `<div className="glass-panel p-6 border-white/10 shadow-xl space-y-5">` element inside the `billingPatient` conditional check preceding the ternary else block.
+    *   `frontend/src/components/shared/Navbar.tsx` -> Integrated dynamic specialization steppers and role re-labeling.
+    *   `frontend/src/components/compounder/CompounderDashboard.tsx` -> Realigned dashboard header section layout hierarchy and mapped eye vitals.
 *   **FORBIDDEN_FILES (NO-FLY ZONES):**
-    *   `tech-team/` -> Maintained as read-only.
-    *   `src/services/` -> Core backend simulation wrappers are 100% stable.
+    *   `Teach-team-main/` -> Elite automated validation toolkit scripts must remain unaltered and read-only.
+    *   `backend/app/main.py` -> Direct FastAPI endpoint configurations and simulation fallback frameworks are locked and stable.
+    *   `supabase/schema.sql` -> Database constraints, user tables, and RLS policy configurations are immutable.
 
 ## 2. DATA CONTRACT & TYPE INTEGRITY
 *   **INCOMING_DATA_SHAPE (INPUTS):**
-    *   Preserve all active states (`billingPatient`, `billingItems`, `apptCounterBooked`, `labCounterBooked`, `deliveryType`).
+    ```typescript
+    export interface EyeRefraction {
+      sph: string;
+      cyl: string;
+      axis: string;
+      add: string;
+    }
+
+    export interface RefractionRx {
+      od: EyeRefraction;
+      os: EyeRefraction;
+      pd: string;
+      lensType: 'Single Vision' | 'Bifocal' | 'Progressive' | 'Contact Lens';
+      notes: string;
+    }
+
+    export interface EyeVitals {
+      visualAcuityOD: string;
+      visualAcuityOS: string;
+      visualAcuityAidedOD?: string;
+      visualAcuityAidedOS?: string;
+      iop: string;
+      recordedAt: string;
+    }
+    ```
 *   **OUTGOING_DATA_SHAPE (OUTPUTS):**
-    *   Syntactically flawless JSX returning a fully valid compounder React component.
+    ```typescript
+    // Serialized structured JSON block embedded inside standard GP database fields
+    // Boundaries: ---REFRACTION_RX_START--- and ---REFRACTION_RX_END---
+    ```
 
 ## 3. SECURITY & POLICY ENVIRONMENT
-*   **ENVIRONMENT_VARIABLES_REQUIRED:** None.
+*   **ENVIRONMENT_VARIABLES_REQUIRED:**
+    *   `VITE_SUPABASE_URL` -> Supabase server host location.
+    *   `VITE_SUPABASE_ANON_KEY` -> Web socket and real-time CDC communication authentication key.
 *   **ACCESS_CONTROL_CONSTRAINTS:**
-    *   Maintain active patient checking isolation boundaries to prevent unauthorized user routing switches.
+    *   Enforce absolute Row-Level Security (RLS) policies isolating clinical tenants and active patient care-loops by pod.
 
 ## 4. VERIFICATION METRICS (THE DEFENSIVE PASS CRITERIA)
 *   The system is considered functional if and only if:
-    1. **Type Safety & Build Gates**: Code compiles with zero errors using `npm run build` (`tsc -b && vite build`).
-    2. **E2E Smoke Verification**: Standard offline simulated loops and live integrations run error-free (`node e2e_pilot_validation.cjs`).
+    1. **Type Safety & Build Gates**: Frontend bundle compiles with zero errors using `npm run build` (`tsc -b && vite build`) and backend py-compile reports success on `main.py`, `router.py`, and `scheduler.py`.
+    2. **SecOps Security Scans**: Running `node Teach-team-main/scripts/security_taint_check.js` confirms zero hardcoded API secrets, RLS leakage, or injection weaknesses.
+    3. **Database & Sandbox Integrity**: Running `node Teach-team-main/scripts/verify_db_sandbox.js` compiles all 12 schema migrations sequentially with zero parsing issues.
+    4. **GitOps E2E Smoke Verification**: Running `node ../Teach-team-main/scripts/verify_ui_e2e.js` from `frontend` compiles the production static distribution crawler successfully and confirms DOM mounting integrity.
