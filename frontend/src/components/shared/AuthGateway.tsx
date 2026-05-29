@@ -44,21 +44,48 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       name: 'Dr. Vivek Kumar',
       role: 'doctor',
       entity: 'Kankarbagh Connected Clinic',
-      icon: '🏥'
+      icon: '🏥',
+      specialization: 'General Medicine'
     },
     {
       id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
       name: 'Lalit Prasad',
       role: 'lab_technician',
       entity: 'Patna Central Pathology Lab',
-      icon: '🧪'
+      icon: '🧪',
+      specialization: 'General Medicine'
     },
     {
       id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317103',
       name: 'Prakash Yadav',
       role: 'pharmacist',
       entity: 'Kankarbagh Smart Pharmacy',
-      icon: '💊'
+      icon: '💊',
+      specialization: 'General Medicine'
+    },
+    {
+      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      name: 'Dr. Amit Arya',
+      role: 'doctor',
+      entity: 'Patna Eye Care Center',
+      icon: '👁️',
+      specialization: 'Ophthalmology'
+    },
+    {
+      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+      name: 'Karan Johar',
+      role: 'lab_technician',
+      entity: 'Patna Eye Diagnostics',
+      icon: '🔬',
+      specialization: 'Ophthalmology'
+    },
+    {
+      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317103',
+      name: 'Suresh Raina',
+      role: 'pharmacist',
+      entity: 'Patna Optical Shop',
+      icon: '👓',
+      specialization: 'Ophthalmology'
     }
   ];
 
@@ -333,7 +360,25 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       if (profileErr) throw profileErr;
 
-      onAuthSuccess(authData.session, profile);
+      // Inject custom mock details for specialized clinic roles to enable correct nomenclature
+      const modifiedProfile = {
+        ...profile,
+        display_name: user.name,
+        user_metadata: {
+          ...profile?.user_metadata,
+          specialization: user.specialization,
+          clinic_name: user.entity,
+          display_name: user.name
+        },
+        raw_user_meta_data: {
+          ...profile?.raw_user_meta_data,
+          specialization: user.specialization,
+          clinic_name: user.entity,
+          display_name: user.name
+        }
+      };
+
+      onAuthSuccess(authData.session, modifiedProfile);
     } catch (err: any) {
       setErrorMsg(err.message || 'Demo profile loading failed.');
     } finally {
