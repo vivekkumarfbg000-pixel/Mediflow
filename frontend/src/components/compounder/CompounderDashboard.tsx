@@ -841,6 +841,107 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
+      {/* DASHBOARD HEADER — integrated tabs */}
+      <div className="border-b border-slate-200 pb-0">
+        {/* Top row: title + status */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pb-4">
+          <div>
+            <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
+              <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-indigo-600 text-white shadow-sm">
+                <span className="material-symbols-outlined text-[20px]">medical_services</span>
+              </span>
+              Compounder Operations Desk
+              <span className={`text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-widest ${
+                isOnline
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600 animate-pulse'
+                  : 'bg-rose-50 border-rose-200 text-rose-600'
+              }`}>
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 ml-12">
+              Clinical checkup hub — appointments, medicine billing, pathology scans &amp; Shiprocket dispatches.
+            </p>
+          </div>
+          <div className="ml-12 md:ml-0 flex items-center gap-2 shrink-0 flex-wrap">
+            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider font-mono">
+              {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} · Checked-In
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsInvoiceGeneratorOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-700 hover:bg-slate-100 transition"
+            >
+              <Printer className="h-4 w-4" />
+              Invoice Generator
+            </button>
+          </div>
+        </div>
+
+        {/* Integrated Tab Switcher — lives in header */}
+        <div className="flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
+          <button
+            onClick={() => setActiveTab('registry')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'registry'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <UserCheck className="h-4 w-4" />
+            Patient Registry &amp; Shifts
+          </button>
+
+          <button
+            onClick={() => setActiveTab('vitals')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'vitals'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <Activity className="h-4 w-4 text-rose-500" />
+            Swasthya Vitals &amp; Token Desk
+          </button>
+
+          <button
+            onClick={() => setActiveTab('gate1')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'gate1'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <Coins className="h-4 w-4 text-emerald-500" />
+            Gate 1: Consult Billing
+          </button>
+
+          <button
+            onClick={() => setActiveTab('gate2')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'gate2'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <FileText className="h-4 w-4 text-indigo-500" />
+            Gate 2: Lab Billing
+          </button>
+
+          <button
+            onClick={() => setActiveTab('gate3')}
+            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+              activeTab === 'gate3'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <QrCode className="h-4 w-4 text-amber-500" />
+            Gate 3: Pharmacy Billing
+          </button>
+        </div>
+      </div>
+
       {/* ACTIVE PATIENT CARE LOOP HUD */}
       {activePatient ? (
         <div className="glass-panel p-6 border-indigo-500/20 shadow-xl relative overflow-hidden bg-gradient-to-r from-indigo-500/5 to-teal-500/5">
@@ -1070,107 +1171,6 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* DASHBOARD HEADER — integrated tabs */}
-      <div className="border-b border-slate-200 pb-0">
-        {/* Top row: title + status */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pb-4">
-          <div>
-            <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-indigo-600 text-white shadow-sm">
-                <span className="material-symbols-outlined text-[20px]">medical_services</span>
-              </span>
-              Compounder Operations Desk
-              <span className={`text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-widest ${
-                isOnline
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600 animate-pulse'
-                  : 'bg-rose-50 border-rose-200 text-rose-600'
-              }`}>
-                {isOnline ? 'Online' : 'Offline'}
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1 ml-12">
-              Clinical checkup hub — appointments, medicine billing, pathology scans &amp; Shiprocket dispatches.
-            </p>
-          </div>
-          <div className="ml-12 md:ml-0 flex items-center gap-2 shrink-0 flex-wrap">
-            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider font-mono">
-              {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} · Checked-In
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsInvoiceGeneratorOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-700 hover:bg-slate-100 transition"
-            >
-              <Printer className="h-4 w-4" />
-              Invoice Generator
-            </button>
-          </div>
-        </div>
-
-        {/* Integrated Tab Switcher — lives in header */}
-        <div className="flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
-          <button
-            onClick={() => setActiveTab('registry')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
-              activeTab === 'registry'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <UserCheck className="h-4 w-4" />
-            Patient Registry &amp; Shifts
-          </button>
-
-          <button
-            onClick={() => setActiveTab('vitals')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
-              activeTab === 'vitals'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <Activity className="h-4 w-4 text-rose-500" />
-            Swasthya Vitals &amp; Token Desk
-          </button>
-
-          <button
-            onClick={() => setActiveTab('gate1')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
-              activeTab === 'gate1'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <Coins className="h-4 w-4 text-emerald-500" />
-            Gate 1: Consult Billing
-          </button>
-
-          <button
-            onClick={() => setActiveTab('gate2')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
-              activeTab === 'gate2'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <FileText className="h-4 w-4 text-indigo-500" />
-            Gate 2: Lab Billing
-          </button>
-
-          <button
-            onClick={() => setActiveTab('gate3')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
-              activeTab === 'gate3'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <QrCode className="h-4 w-4 text-amber-500" />
-            Gate 3: Pharmacy Billing
-          </button>
-        </div>
-      </div>
 
       {/* TAB CONTENT SPACES */}
       <div className="space-y-6">
