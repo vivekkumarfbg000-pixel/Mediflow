@@ -26,3 +26,9 @@ frontend/dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Deployment scripts with real secrets (never commit these)
+*.secrets.ps1
+*.secrets.sh
+deploy-supabase.local.ps1
+.env.secrets
