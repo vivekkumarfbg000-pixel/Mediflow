@@ -3686,7 +3686,7 @@ Dhyan rakhein aur time par medicine lein!`;
 
   // ─── FastAPI AI Backend Integrations ───────────────────────────────────────
 
-  private static readonly AI_BASE = 'http://localhost:8000';
+  private static readonly AI_BASE = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000';
 
   /**
    * Voice-Scribe: Uploads an audio Blob to FastAPI /api/voice-scribe.
