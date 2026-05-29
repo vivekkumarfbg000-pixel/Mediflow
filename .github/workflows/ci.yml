@@ -51,3 +51,78 @@ jobs:
       run: |
         cd frontend
         node e2e_pilot_validation.cjs
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Phase 3: CI Failure Notification — dispatches to developer webhook channel
+  # ═══════════════════════════════════════════════════════════════════════════
+  notify-failure:
+    name: 🚨 Alert Developer Channel on CI Failure
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: failure()
+
+    steps:
+    - name: Dispatch Build Failure Notification to Discord
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        # Skip if no webhook is configured
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "⚠️ DISCORD_WEBHOOK_URL secret not set — skipping notification."
+          exit 0
+        fi
+
+        PAYLOAD=$(cat <<EOF
+        {
+          "username": "Mediflow CI Sentinel 🛡️",
+          "embeds": [{
+            "title": "🚨 CI BUILD FAILED",
+            "color": 15158332,
+            "fields": [
+              { "name": "📦 Repository",  "value": "\`${{ github.repository }}\`",                     "inline": true  },
+              { "name": "🌿 Branch",       "value": "\`${{ github.ref_name }}\`",                      "inline": true  },
+              { "name": "👤 Actor",        "value": "\`${{ github.actor }}\`",                          "inline": true  },
+              { "name": "🔑 Commit",       "value": "\`${{ github.sha }}\`",                            "inline": false },
+              { "name": "💬 Message",      "value": "${{ github.event.head_commit.message || 'N/A' }}", "inline": false },
+              { "name": "🔗 Run Logs",     "value": "[View Failing Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
+            ],
+            "footer": { "text": "Mediflow CI Pipeline • Fix this before merging!" }
+          }]
+        }
+        EOF
+        )
+
+        curl -s -o /dev/null -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d "$PAYLOAD" \
+          "$DISCORD_WEBHOOK_URL"
+
+        echo "✅ Discord failure notification dispatched."
+
+    - name: Dispatch Build Failure Notification to Slack (optional)
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      if: env.SLACK_WEBHOOK_URL != ''
+      run: |
+        PAYLOAD=$(cat <<EOF
+        {
+          "blocks": [
+            { "type": "header", "text": { "type": "plain_text", "text": "🚨 Mediflow CI Build FAILED", "emoji": true }},
+            { "type": "section", "fields": [
+              { "type": "mrkdwn", "text": "*Repo:*\n\`${{ github.repository }}\`" },
+              { "type": "mrkdwn", "text": "*Branch:*\n\`${{ github.ref_name }}\`" },
+              { "type": "mrkdwn", "text": "*Actor:*\n\`${{ github.actor }}\`" },
+              { "type": "mrkdwn", "text": "*Commit:*\n\`${{ github.sha }}\`" }
+            ]},
+            { "type": "section", "text": { "type": "mrkdwn", "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Failing Run>" }}
+          ]
+        }
+        EOF
+        )
+
+        curl -s -o /dev/null -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d "$PAYLOAD" \
+          "$SLACK_WEBHOOK_URL"
+
+        echo "✅ Slack failure notification dispatched."
