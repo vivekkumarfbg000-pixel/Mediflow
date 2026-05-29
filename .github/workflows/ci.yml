@@ -28,7 +28,8 @@ jobs:
     - name: Install Frontend Dependencies
       run: |
         cd frontend
-        npm ci
+        npm install
+
 
     - name: Build Backend Docker Image
       run: |
