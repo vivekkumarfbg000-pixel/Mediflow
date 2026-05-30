@@ -79,7 +79,6 @@
 
 body {
   @apply bg-clinical-950 text-on-surface font-sans antialiased overflow-x-hidden;
-  background-color: #f8fafc; /* Crisp professional slate background */
 }
 
 /* Custom premium scrollbar for clinical dashboards */
@@ -103,10 +102,10 @@ body {
 
 /* Premium Light-Glassmorphism Panel surface - High-end modern card shadow */
 .glass-panel {
-  background-color: rgba(255, 255, 255, 0.78);
+  background-color: #ffffff;
   backdrop-filter: blur(20px) saturate(190%);
   -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border: 1px solid rgba(241, 245, 249, 0.7);
+  border: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.02), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
   border-radius: 1.25rem;
 }
@@ -305,34 +304,6 @@ body {
   line-height: 1rem;
 }
 
-/* Light Mode Overrides for text contrast */
-.glass-panel .text-white,
-.glass-panel .text-clinical-100,
-.glass-panel span.text-white {
-  color: var(--color-clinical-100) !important;
-}
-
-.glass-panel h1.text-white,
-.glass-panel h2.text-white,
-.glass-panel h3.text-white,
-.glass-panel h4.text-white,
-.glass-panel .font-bold.text-white,
-.glass-panel strong.text-white {
-  color: var(--color-clinical-50) !important;
-}
-
-/* Specific elements that need to remain white */
-.btn-primary, 
-.btn-primary *,
-.bg-gradient-to-tr.from-primary-600.to-accent-600 *,
-.bg-gradient-to-r.from-primary.to-secondary,
-.bg-gradient-to-r.from-primary.to-secondary *,
-.text-white-force,
-.bg-rose-600.text-white,
-.bg-rose-600.text-white * {
-  color: #ffffff !important;
-}
-
 /* Specific background highlights */
 .glass-panel .bg-clinical-950,
 .glass-panel .bg-clinical-900\/20,
@@ -341,6 +312,13 @@ body {
   background-color: rgba(241, 245, 249, 0.8) !important;
   border-color: rgba(226, 232, 240, 0.8) !important;
 }
+.dark .glass-panel .bg-clinical-950,
+.dark .glass-panel .bg-clinical-900\/20,
+.dark .glass-panel .bg-clinical-900\/40,
+.dark .glass-panel .bg-black\/30 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(51, 65, 85, 0.5) !important;
+}
 
 /* Navbar light mode fixes */
 nav.border-b.border-clinical-800\/80 {
@@ -348,10 +326,18 @@ nav.border-b.border-clinical-800\/80 {
   border-color: rgba(226, 232, 240, 0.8) !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
 }
+.dark nav.border-b.border-clinical-800\/80 {
+  background-color: rgba(30, 41, 59, 0.9) !important;
+  border-color: rgba(51, 65, 85, 0.6) !important;
+}
 
 nav.border-b.border-clinical-800\/80 h1.text-white,
 nav.border-b.border-clinical-800\/80 strong.text-white {
   color: var(--color-clinical-50) !important;
+}
+.dark nav.border-b.border-clinical-800\/80 h1.text-white,
+.dark nav.border-b.border-clinical-800\/80 strong.text-white {
+  color: #ffffff !important;
 }
 
 nav button.bg-clinical-800.text-white {
@@ -368,20 +354,37 @@ nav button.bg-clinical-800.text-white {
   border-color: rgba(226, 232, 240, 1) !important;
   box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.05);
 }
+.dark .fixed.bottom-0.bg-clinical-950\/95,
+.dark .fixed.bottom-16.bg-clinical-950\/95 {
+  background-color: rgba(30, 41, 59, 0.98) !important;
+  border-color: rgba(51, 65, 85, 0.6) !important;
+}
 
 .fixed.bottom-0.bg-clinical-950\/95 .text-white,
 .fixed.bottom-16.bg-clinical-950\/95 .text-white {
   color: var(--color-clinical-50) !important;
+}
+.dark .fixed.bottom-0.bg-clinical-950\/95 .text-white,
+.dark .fixed.bottom-16.bg-clinical-950\/95 .text-white {
+  color: #ffffff !important;
 }
 
 .fixed.bottom-0.bg-clinical-950\/95 .text-clinical-100,
 .fixed.bottom-16.bg-clinical-950\/95 .text-clinical-100 {
   color: var(--color-clinical-100) !important;
 }
+.dark .fixed.bottom-0.bg-clinical-950\/95 .text-clinical-100,
+.dark .fixed.bottom-16.bg-clinical-950\/95 .text-clinical-100 {
+  color: #f1f5f9 !important;
+}
 
 .fixed.bottom-0.bg-clinical-950\/95 .bg-clinical-900\/30,
 .fixed.bottom-16.bg-clinical-950\/95 .bg-clinical-900\/30 {
   background-color: rgba(241, 245, 249, 0.5) !important;
+}
+.dark .fixed.bottom-0.bg-clinical-950\/95 .bg-clinical-900\/30,
+.dark .fixed.bottom-16.bg-clinical-950\/95 .bg-clinical-900\/30 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
 }
 
 /* Barcode graphics matching light mode */
@@ -592,7 +595,7 @@ body.dark {
 
 /* Glass panel styling in dark mode */
 .dark .glass-panel {
-  background-color: rgba(30, 41, 59, 0.78) !important;
+  background-color: #1e293b !important;
   border: 1px solid rgba(51, 65, 85, 0.6) !important;
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3) !important;
 }

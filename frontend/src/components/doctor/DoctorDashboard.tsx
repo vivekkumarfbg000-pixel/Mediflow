@@ -30,6 +30,23 @@ const SopConfigTab = React.lazy(() => import('./tabs/SopConfigTab').then(m => ({
 
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
+
+  useEffect(() => {
+    const handleTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail as any);
+      }
+    };
+    window.addEventListener('mediflow-change-tab', handleTabChange);
+    return () => {
+      window.removeEventListener('mediflow-change-tab', handleTabChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: activeTab }));
+  }, [activeTab]);
   
   // SOP States
   const [sopFile, setSopFile] = useState<File | null>(null);
@@ -1414,8 +1431,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
             { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
             { id: 'patients',      label: 'Patient Directory',   icon: 'group' },
-            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' },
-            { id: 'sop',           label: 'Clinic SOP',          icon: 'policy' }
+            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' }
           ].map(tab => {
             const isActive = activeTab === tab.id;
             return (
