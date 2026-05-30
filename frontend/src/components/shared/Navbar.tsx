@@ -77,8 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || 
-             localStorage.getItem('theme') === 'dark';
+      return localStorage.getItem('theme') === 'dark';
     }
     return false;
   });

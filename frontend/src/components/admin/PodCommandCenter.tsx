@@ -193,201 +193,112 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
         {/* Lab Node */}
-        <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-70" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[20px]">biotech</span>
-              <span className="font-bold text-sm text-slate-800">Pathology Lab</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-cyan-50 border border-cyan-100 flex items-center justify-center">
+                <span className="material-symbols-outlined text-cyan-600 text-[18px]">biotech</span>
+              </div>
+              <span className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">Pathology Lab</span>
             </div>
             <div className={`w-2 h-2 rounded-full ${labMetrics.criticalReagents > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}`} />
           </div>
+          
           {(() => {
             const total = labMetrics.pending + labMetrics.processing + labMetrics.completedToday;
             return (
-              <div className="flex items-center gap-4">
-                <div className="relative w-16 h-16 shrink-0">
-                  <svg className="w-full h-full transform -rotate-90 animate-fade-in" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                    {total > 0 ? (
-                      <>
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3" 
-                          strokeDasharray={`${(labMetrics.completedToday / total) * 100} ${100 - (labMetrics.completedToday / total) * 100}`}
-                          strokeDashoffset="0"
-                        />
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#3b82f6" strokeWidth="3" 
-                          strokeDasharray={`${(labMetrics.processing / total) * 100} ${100 - (labMetrics.processing / total) * 100}`}
-                          strokeDashoffset={`-${(labMetrics.completedToday / total) * 100}`}
-                        />
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" strokeWidth="3" 
-                          strokeDasharray={`${(labMetrics.pending / total) * 100} ${100 - (labMetrics.pending / total) * 100}`}
-                          strokeDashoffset={`-${((labMetrics.completedToday + labMetrics.processing) / total) * 100}`}
-                        />
-                      </>
-                    ) : (
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="100 0" />
-                    )}
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center font-black text-slate-800 text-xs font-mono">
-                    {total}
-                  </div>
+              <div className="space-y-4">
+                <div>
+                  <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white font-mono">{total}</div>
+                  <div className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Total Requisitions</div>
                 </div>
-                <div className="flex-1 space-y-1.5 text-[10px]">
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Done Today</span>
-                    <span className="font-mono">{labMetrics.completedToday}</span>
+                
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-[11px] font-medium">
+                  <div className="flex justify-between items-center text-slate-650 dark:text-slate-350">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Done Today</span>
+                    <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.completedToday}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"/>Processing</span>
-                    <span className="font-mono">{labMetrics.processing}</span>
+                  <div className="flex justify-between items-center text-slate-650 dark:text-slate-350">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"/>Processing</span>
+                    <span className="bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.processing}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Pending</span>
-                    <span className="font-mono">{labMetrics.pending}</span>
+                  <div className="flex justify-between items-center text-slate-650 dark:text-slate-350">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Pending Queue</span>
+                    <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.pending}</span>
                   </div>
                 </div>
               </div>
             );
           })()}
           {labMetrics.walkins > 0 && (
-            <div className="mt-3 text-[9px] text-blue-500 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg font-mono font-bold text-center">
+            <div className="mt-3 text-[9px] text-blue-600 bg-blue-50/50 border border-blue-100/50 px-2 py-1 rounded-md font-bold text-center">
               {labMetrics.walkins} walk-in test(s) active
             </div>
           )}
         </div>
 
         {/* Pharmacy Node */}
-        <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-500 to-blue-500 opacity-70" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-indigo-500 text-[20px]">medication</span>
-              <span className="font-bold text-sm text-slate-800">Pharmacy POS</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                <span className="material-symbols-outlined text-indigo-600 text-[18px]">medication</span>
+              </div>
+              <span className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">Pharmacy POS</span>
             </div>
             <div className={`w-2 h-2 rounded-full ${pharmacyMetrics.criticalStockItems > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}`} />
           </div>
-          {(() => {
-            const totalPharma = pharmacyMetrics.dispensedToday + pharmacyMetrics.pendingHolds + pharmacyMetrics.lowStockItems;
-            return (
-              <div className="flex items-center gap-4">
-                <div className="relative w-16 h-16 shrink-0">
-                  <svg className="w-full h-full transform -rotate-90 animate-fade-in" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                    {totalPharma > 0 ? (
-                      <>
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3" 
-                          strokeDasharray={`${(pharmacyMetrics.dispensedToday / totalPharma) * 100} ${100 - (pharmacyMetrics.dispensedToday / totalPharma) * 100}`}
-                          strokeDashoffset="0"
-                        />
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#6366f1" strokeWidth="3" 
-                          strokeDasharray={`${(pharmacyMetrics.pendingHolds / totalPharma) * 100} ${100 - (pharmacyMetrics.pendingHolds / totalPharma) * 100}`}
-                          strokeDashoffset={`-${(pharmacyMetrics.dispensedToday / totalPharma) * 100}`}
-                        />
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" strokeWidth="3" 
-                          strokeDasharray={`${(pharmacyMetrics.lowStockItems / totalPharma) * 100} ${100 - (pharmacyMetrics.lowStockItems / totalPharma) * 100}`}
-                          strokeDashoffset={`-${((pharmacyMetrics.dispensedToday + pharmacyMetrics.pendingHolds) / totalPharma) * 100}`}
-                        />
-                      </>
-                    ) : (
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="100 0" />
-                    )}
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center font-black text-slate-800 text-xs font-mono">
-                    {pharmacyMetrics.dispensedToday}
-                  </div>
-                </div>
-                <div className="flex-1 space-y-1.5 text-[10px]">
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Dispensed</span>
-                    <span className="font-mono">{pharmacyMetrics.dispensedToday}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500"/>Active Holds</span>
-                    <span className="font-mono">{pharmacyMetrics.pendingHolds}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Low Stock SKU</span>
-                    <span className="font-mono">{pharmacyMetrics.lowStockItems}</span>
-                  </div>
-                </div>
+
+          <div className="space-y-4">
+            <div>
+              <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white font-mono">{pharmacyMetrics.dispensedToday}</div>
+              <div className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Dispensed Today</div>
+            </div>
+            
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-[11px] font-medium">
+              <div className="flex justify-between items-center text-slate-655 dark:text-slate-350">
+                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Dispensed</span>
+                <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{pharmacyMetrics.dispensedToday}</span>
               </div>
-            );
-          })()}
+              <div className="flex justify-between items-center text-slate-655 dark:text-slate-350">
+                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500"/>Active Holds</span>
+                <span className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{pharmacyMetrics.pendingHolds}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-655 dark:text-slate-350">
+                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Low Stock SKU</span>
+                <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{pharmacyMetrics.lowStockItems}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* WhatsApp Node */}
-        <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-teal-500 opacity-70" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-emerald-600 text-[20px]">chat</span>
-              <span className="font-bold text-sm text-slate-800">WhatsApp Engine</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                <span className="material-symbols-outlined text-emerald-600 text-[18px]">chat</span>
+              </div>
+              <span className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">WhatsApp Engine</span>
             </div>
             <div className={`w-2 h-2 rounded-full ${whatsappMetrics.failed > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}`} />
           </div>
-          {(() => {
-            const totalWA = whatsappMetrics.active + whatsappMetrics.awaitingPayment + whatsappMetrics.completed;
-            return (
-              <div className="flex items-center gap-4">
-                <div className="relative w-16 h-16 shrink-0">
-                  <svg className="w-full h-full transform -rotate-90 animate-fade-in" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                    {totalWA > 0 ? (
-                      <>
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3" 
-                          strokeDasharray={`${(whatsappMetrics.completed / totalWA) * 100} ${100 - (whatsappMetrics.completed / totalWA) * 100}`}
-                          strokeDashoffset="0"
-                        />
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0d9488" strokeWidth="3" 
-                          strokeDasharray={`${(whatsappMetrics.active / totalWA) * 100} ${100 - (whatsappMetrics.active / totalWA) * 100}`}
-                          strokeDashoffset={`-${(whatsappMetrics.completed / totalWA) * 100}`}
-                        />
-                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f59e0b" strokeWidth="3" 
-                          strokeDasharray={`${(whatsappMetrics.awaitingPayment / totalWA) * 100} ${100 - (whatsappMetrics.awaitingPayment / totalWA) * 100}`}
-                          strokeDashoffset={`-${((whatsappMetrics.completed + whatsappMetrics.active) / totalWA) * 100}`}
-                        />
-                      </>
-                    ) : (
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="100 0" />
-                    )}
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center font-black text-slate-800 text-xs font-mono">
-                    {whatsappMetrics.active}
-                  </div>
-                </div>
-                <div className="flex-1 space-y-1.5 text-[10px]">
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Completed</span>
-                    <span className="font-mono">{whatsappMetrics.completed}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-500"/>Active Sessions</span>
-                    <span className="font-mono">{whatsappMetrics.active}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-slate-600">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Awaiting Pay</span>
-                    <span className="font-mono">{whatsappMetrics.awaitingPayment}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </div>
 
         {/* Billing Node */}
-        <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-amber-500 to-orange-500 opacity-70" />
+        <div className="bg-amber-50/40 border border-amber-100 p-5 shadow-sm rounded-2xl relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-400 opacity-60" />
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-amber-600 text-[20px]">account_balance_wallet</span>
-              <span className="font-bold text-sm text-slate-800">Revenue Ledger</span>
+              <span className="material-symbols-outlined text-amber-650 text-[20px]">account_balance_wallet</span>
+              <span className="font-bold text-sm text-amber-950">Revenue Ledger</span>
             </div>
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
           </div>
           {(() => {
             return (
               <div className="space-y-3">
-                <div className="h-10 flex items-end justify-around gap-2 px-2 bg-slate-50 border border-slate-100 rounded-lg py-1">
+                <div className="h-10 flex items-end justify-around gap-2 px-2 bg-white/80 border border-amber-100/50 rounded-lg py-1">
                   {[
                     { label: 'Gross', amount: financialMetrics.grossRev, color: 'bg-amber-400' },
                     { label: 'Cleared', amount: financialMetrics.cleared, color: 'bg-emerald-500' },
@@ -426,14 +337,14 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         {/* Patient flow summary */}
         <div className="lg:col-span-4 space-y-5">
           {/* Active Consultation Queue */}
-          <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-sky-400 opacity-60" />
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-500 text-[16px]">pending_actions</span>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-sky-600 text-[16px]">pending_actions</span>
                 Active Consultation Queue
               </h2>
-              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-500 rounded-full">
+              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-sky-50 dark:bg-sky-500/10 border border-sky-150/40 dark:border-sky-800/80 text-sky-700 dark:text-sky-400 rounded-full">
                 {patients.length} Checked In
               </span>
             </div>
@@ -466,8 +377,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             </div>
           </div>
 
-          <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
+          <div className="bg-white border border-slate-200 p-5 shadow-sm rounded-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-400 opacity-60" />
             <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-blue-500 text-[16px]">group</span>
               Patient Flow Today
@@ -508,8 +419,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </div>
 
           {/* Reagent quick view */}
-          <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
+          <div className="bg-white border border-slate-200 p-5 shadow-sm rounded-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-400 opacity-60" />
             <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[16px]">science</span>
               Reagent Snapshot
@@ -544,8 +455,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
         {/* Live activity feed */}
         <div className="lg:col-span-8 space-y-5">
-          <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-500 via-primary to-secondary opacity-60" />
+          <div className="bg-white border border-slate-200 p-6 shadow-sm rounded-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-400 opacity-60" />
             <h2 className="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${pulse ? 'bg-emerald-400' : 'bg-emerald-600'} transition-colors`} />
               Live Pod Activity Feed
@@ -603,8 +514,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </div>
 
           {/* Financial Ledger Breakdown */}
-          <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-amber-500 to-orange-500 opacity-50" />
+          <div className="bg-white border border-slate-200 p-6 shadow-sm rounded-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-400 opacity-60" />
             <h2 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-amber-500 text-[16px]">receipt_long</span>
               Split Billing Ledger — Transaction Type Breakdown
