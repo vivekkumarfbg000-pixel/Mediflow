@@ -1,58 +1,56 @@
-# ARCHITECTURAL CONTRACT: GLOBAL SYSTEM RELIABILITY, CRASH PREVENTION, AND PRODUCTION READY COMPILATION
+# ARCHITECTURAL CONTRACT: PREMIUM WHITE DASHBOARD INTEGRITY
 > **CRITICAL NOTICE TO EXECUTING AGENTS:** This document is immutable law. Any code modification that violates the boundaries, data shapes, or security guardrails defined below will cause an immediate system rejection and code revert.
 
+## 👥 MEET YOUR ELITE TECH TEAM
+Active Roles for this Action:
+1. **Elite Systems Architect (Active)**: Defines structural boundaries, type gates, and aesthetic rulesets. (Anti-Hallucination Firewall).
+2. **CTO Debugging Task Force (Pending Ingestion)**: Applies surgical, regression-free micro-patches with safety rollbacks.
+3. **SecOps Sentry (Active)**: Audits migrations, restricts credential exposures, and validates RLS.
+4. **GitOps Guardian (Active)**: Executes pre-flight scans, production builds, and headless E2E verification before pushing.
+
+---
+
 ## 1. COMPONENT & REPOSITORY BOUNDARIES
-*   **TARGET_FILES_TO_EDIT:**
-    *   `frontend/src/components/shared/Navbar.tsx` -> Integrated dynamic specialization steppers and role re-labeling.
-    *   `frontend/src/components/compounder/CompounderDashboard.tsx` -> Realigned dashboard header section layout hierarchy and mapped eye vitals.
-*   **FORBIDDEN_FILES (NO-FLY ZONES):**
-    *   `Teach-team-main/` -> Elite automated validation toolkit scripts must remain unaltered and read-only.
-    *   `backend/app/main.py` -> Direct FastAPI endpoint configurations and simulation fallback frameworks are locked and stable.
-    *   `supabase/schema.sql` -> Database constraints, user tables, and RLS policy configurations are immutable.
+*   **TARGET_FILES_TO_EDIT:** 
+    *   `frontend/tailwind.config.js` -> Locked to `darkMode: 'class'` to completely disable system OS-level dark theme hijacking.
+    *   `frontend/src/App.tsx` -> Standardized main canvas, panels, and onboarding state to light `#F8FAFC` base layers and `#FFFFFF` cards.
+    *   `frontend/src/components/shared/Navbar.tsx` -> Refactored all drawer, header, bottom nav, and side panel states to white.
+    *   `frontend/src/components/admin/PodCommandCenter.tsx` -> Handled modern, light clinical scorecard grids, monospaced tabular metrics, and border outlines instead of circular neon graphs.
+*   **FORBIDDEN_FILES (NO-FLY ZONES):** 
+    *   All database migrations under `supabase/migrations/` (unless explicitly updating telemetry triggers).
+    *   All backend routers, billing webhook handlers, and token resolvers.
 
-## 2. DATA CONTRACT & TYPE INTEGRITY
+---
+
+## 2. CLINICAL PRECISION SYSTEM TOKENS (LIGHT THEME LAW)
+All executing agents must strictly follow the *Clinical Precision* design tokens:
+*   **Base Canvas Background**: `#F8FAFC` (Tailwind `bg-slate-50` or `#f8fafc`).
+*   **Card Surfaces**: `#FFFFFF` (Tailwind `bg-white`).
+*   **Dividers / Borders**: 1px solid `#E2E8F0` (Tailwind `border-slate-200/60`).
+*   **Headlines Typography**: `font-family: Outfit` (Geometric, clean, modern, administrative style).
+*   **Data Density & Labels**: `font-family: Inter` (Clean, sterile body text).
+*   **Monospaced Metrics**: `font-family: JetBrains Mono` or tabular figures inside `font-mono text-slate-800` for numerical precision.
+*   **Semantic Colors**: Green (`emerald-600` / `#16A34A`), Teal (`teal-600` / `#0D9488`), Amber (`amber-600` / `#D97706`), Red (`rose-600` / `#DC2626`). NO neon or radioactive green glow orbs.
+
+---
+
+## 3. DATA CONTRACT & TYPE INTEGRITY
 *   **INCOMING_DATA_SHAPE (INPUTS):**
-    ```typescript
-    export interface EyeRefraction {
-      sph: string;
-      cyl: string;
-      axis: string;
-      add: string;
-    }
-
-    export interface RefractionRx {
-      od: EyeRefraction;
-      os: EyeRefraction;
-      pd: string;
-      lensType: 'Single Vision' | 'Bifocal' | 'Progressive' | 'Contact Lens';
-      notes: string;
-    }
-
-    export interface EyeVitals {
-      visualAcuityOD: string;
-      visualAcuityOS: string;
-      visualAcuityAidedOD?: string;
-      visualAcuityAidedOS?: string;
-      iop: string;
-      recordedAt: string;
-    }
-    ```
+    No new inputs or APIs are introduced. Existing telemetry and metrics remain intact.
 *   **OUTGOING_DATA_SHAPE (OUTPUTS):**
-    ```typescript
-    // Serialized structured JSON block embedded inside standard GP database fields
-    // Boundaries: ---REFRACTION_RX_START--- and ---REFRACTION_RX_END---
-    ```
+    No new endpoints or database schemas are modified.
 
-## 3. SECURITY & POLICY ENVIRONMENT
-*   **ENVIRONMENT_VARIABLES_REQUIRED:**
-    *   `VITE_SUPABASE_URL` -> Supabase server host location.
-    *   `VITE_SUPABASE_ANON_KEY` -> Web socket and real-time CDC communication authentication key.
-*   **ACCESS_CONTROL_CONSTRAINTS:**
-    *   Enforce absolute Row-Level Security (RLS) policies isolating clinical tenants and active patient care-loops by pod.
+---
 
-## 4. VERIFICATION METRICS (THE DEFENSIVE PASS CRITERIA)
-*   The system is considered functional if and only if:
-    1. **Type Safety & Build Gates**: Frontend bundle compiles with zero errors using `npm run build` (`tsc -b && vite build`) and backend py-compile reports success on `main.py`, `router.py`, and `scheduler.py`.
-    2. **SecOps Security Scans**: Running `node Teach-team-main/scripts/security_taint_check.js` confirms zero hardcoded API secrets, RLS leakage, or injection weaknesses.
-    3. **Database & Sandbox Integrity**: Running `node Teach-team-main/scripts/verify_db_sandbox.js` compiles all 12 schema migrations sequentially with zero parsing issues.
-    4. **GitOps E2E Smoke Verification**: Running `node ../Teach-team-main/scripts/verify_ui_e2e.js` from `frontend` compiles the production static distribution crawler successfully and confirms DOM mounting integrity.
+## 4. SECURITY & POLICY ENVIRONMENT
+*   **ENVIRONMENT_VARIABLES_REQUIRED**: Standard Supabase environment variables.
+*   **ACCESS_CONTROL_CONSTRAINTS**: Row-Level Security remains fully enabled. No credentials, tokens, or private keys are allowed in UI configurations.
+
+---
+
+## 5. VERIFICATION METRICS (THE DEFENSIVE PASS CRITERIA)
+The system is considered functional if and only if:
+1. **Type Safety & Build Gates**: Code compiles with zero errors using `npx tsc --noEmit` and passes linting.
+2. **Production Build Compilation**: Running `npm run build` succeeds in under 5 seconds with zero fatal build or chunk limit exceptions.
+3. **E2E Smoke Verification**: Running `node Teach-team-main/scripts/verify_ui_e2e.js` confirms that the entire clinical Care network mounts and runs cleanly in a headless browser with zero exceptions.
+4. **Functional Correctness**: The dashboard renders a beautiful, premium, clean white interface matching Stripe, Linear, or top medical software designs.
