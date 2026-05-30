@@ -1466,38 +1466,44 @@ Keep the tone professional, clinical, objective, and precise.`;
         )}
       </div>
 
-      {/* ── MOBILE BOTTOM NAV (footer) ── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex justify-around items-center z-50 h-14 px-1">
-        {[
-          { id: 'pod_view',     label: 'Pod HUD',  icon: 'hub' },
-          { id: 'consultation', label: 'Consult',  icon: 'clinical_notes' },
-          { id: 'financials',   label: 'Finance',  icon: 'account_balance_wallet' },
-          { id: 'patients',     label: 'Patients', icon: 'group' },
-          { id: 'whatsapp',     label: 'Chat',     icon: 'chat' },
-          { id: 'sop',          label: 'SOP',      icon: 'policy' }
-        ].map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all cursor-pointer ${
-                isActive ? 'text-indigo-600' : 'text-slate-400'
-              }`}
-            >
-              <div className={`flex items-center justify-center w-8 h-6 rounded-lg transition-all ${
-                isActive ? 'bg-indigo-50' : ''
-              }`}>
-                <span className={`material-symbols-outlined block transition-all ${
-                  isActive ? 'text-[18px] font-bold' : 'text-[17px]'
-                }`}>{tab.icon}</span>
-              </div>
-              <span className={`text-[9px] font-semibold leading-none ${
-                isActive ? 'text-indigo-600' : 'text-slate-400'
-              }`}>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* Premium Mobile Bottom Tab Bar Navigation for Doctor Dashboard */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16">
+          {[
+            { id: 'pod_view', label: 'Pod HUD', icon: 'hub' },
+            { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
+            { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
+            { id: 'patients', label: 'Patients', icon: 'group' },
+            { id: 'whatsapp', label: 'Chat', icon: 'chat' }
+          ].map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
+                  isActive 
+                    ? 'text-indigo-600 font-bold' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
+                  isActive 
+                    ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
+                    : 'bg-transparent text-slate-400'
+                }`}>
+                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                </div>
+                <span className="text-[9px] mt-1 tracking-tight">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Allergy overrides modal */}
