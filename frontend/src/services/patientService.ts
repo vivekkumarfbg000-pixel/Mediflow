@@ -36,9 +36,9 @@ export class PatientService {
     
     return rawPatients.map(p => ({
       ...p,
-      vitals: vitalsMap[p.id] || p.vitals,
-      tokenNumber: tokensMap[p.id] || p.tokenNumber,
-      queueStatus: queueStatusMap[p.id] || p.queueStatus || 'awaiting_vitals'
+      vitals: p.vitals || vitalsMap[p.id],
+      tokenNumber: p.tokenNumber || tokensMap[p.id],
+      queueStatus: p.queueStatus || queueStatusMap[p.id] || 'awaiting_vitals'
     }));
   }
 
@@ -54,6 +54,14 @@ export class PatientService {
     save('vitals_map', vitalsMap);
     save('tokens_map', tokensMap);
     save('queue_status_map', queueStatusMap);
+
+    supabase.from('patient_registry').update({
+      vitals: vitals,
+      token_number: token,
+      queue_status: 'awaiting_consultation'
+    }).eq('id', patientId).then(({ error }) => {
+      if (error) console.error('Error syncing vitals to Supabase:', error);
+    });
     
     const pat = this.getPatients().find(p => p.id === patientId);
     writeAuditLog('PATIENT_VITALS_RECORDED', {
@@ -70,6 +78,12 @@ export class PatientService {
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
     queueStatusMap[patientId] = status;
     save('queue_status_map', queueStatusMap);
+
+    supabase.from('patient_registry').update({
+      queue_status: status
+    }).eq('id', patientId).then(({ error }) => {
+      if (error) console.error('Error syncing queue status to Supabase:', error);
+    });
     
     const pat = this.getPatients().find(p => p.id === patientId);
     writeAuditLog('PATIENT_QUEUE_STATUS_UPDATED', {

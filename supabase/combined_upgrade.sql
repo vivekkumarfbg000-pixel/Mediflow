@@ -59,6 +59,9 @@ CREATE TABLE IF NOT EXISTS public.patient_registry (
     age INT,
     gender TEXT CHECK (gender IN ('Male','Female','Other')),
     abha_id TEXT,
+    vitals JSONB,
+    token_number TEXT,
+    queue_status TEXT DEFAULT 'awaiting_vitals',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

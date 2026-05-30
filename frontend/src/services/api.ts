@@ -191,6 +191,9 @@ class MediflowApiService {
           allergies: p.allergies || [],
           chronicConditions: p.chronic_conditions || [],
           abhaId: p.abha_id || undefined,
+          vitals: p.vitals || undefined,
+          tokenNumber: p.token_number || undefined,
+          queueStatus: (p.queue_status as Patient['queueStatus']) || undefined,
           pastReportsSummary: p.past_reports_summary || undefined,
           createdAt: p.created_at
         }));
