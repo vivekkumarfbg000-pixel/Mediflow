@@ -1,0 +1,22 @@
+{
+  "projectName": "Universal-SaaS",
+  "frontend": {
+    "framework": "React-Vite",
+    "srcDirectory": "../frontend/src",
+    "buildDirectory": "../frontend/dist",
+    "singleJsBudgetKB": 250,
+    "singleCssBudgetKB": 200,
+    "totalBudgetKB": 1300
+  },
+  "database": {
+    "provider": "Supabase",
+    "tenantIdColumn": "pod_id",
+    "tenantResolverFunction": "public.get_user_pod()",
+    "migrationsDirectory": "../supabase/migrations"
+  },
+  "verification": {
+    "compileCommand": "npx tsc --noEmit",
+    "lintCommand": "npx eslint . --quiet",
+    "e2eCommand": "node scripts/verify_ui_e2e.js"
+  }
+}

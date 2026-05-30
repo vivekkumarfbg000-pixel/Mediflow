@@ -1,0 +1,9 @@
+node_modules/
+.gemini/
+dist/
+build/
+.system_generated/
+*.log
+.env
+.env.local
+.env.production

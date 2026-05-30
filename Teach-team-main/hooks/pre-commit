@@ -1,0 +1,2 @@
+echo "🚀 Running Git Pre-Commit Stability Guard (Google/Meta Core Standard)..."
+npm run test && node scripts/verify_ui_e2e.js && node scripts/diagnose_telemetry.js && node scripts/security_taint_check.js && node scripts/bundle_performance_budget.js && node scripts/verify_db_sandbox.js

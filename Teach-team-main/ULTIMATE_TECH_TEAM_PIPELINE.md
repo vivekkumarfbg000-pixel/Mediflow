@@ -1,0 +1,93 @@
+# Ultimate Multi-Agent Tech Team Pipeline
+> **METRICS SPECIFICATION (v4.0):** This document defines the formal orchestration standard for all AI agents and engineering tasks in the repository. By dividing concerns into four specialized roles, we eliminate hallucination, guarantee type integrity, secure databases, and prevent regressions.
+
+---
+
+## 🗺️ Multi-Agent Cooperation Flow
+
+```mermaid
+graph TD
+    User([User Error Report]) --> A[1. Elite Systems Architect]
+    A -->|Deterministically isolates boundaries| A1[Analyze Schema & No-Fly Zones]
+    A1 -->|Generates immutable type contract| A2[Write architect_blueprint.md]
+    A2 --> B[2. Elite CTO Task Force]
+    B -->|Snapshots files before edit| B1[Establish REVERT_ANCHOR]
+    B1 -->|Applies surgical micro-patches| B2[Compile & Type-Check: tsc/eslint]
+    B2 -->|Build Fails| B3[HARD REVERT to REVERT_ANCHOR]
+    B3 -->|Formulate new hypothesis| B1
+    B2 -->|Build Passes| D[3. SecOps & DB Sentry]
+    D -->|Audits schemas & triggers| D1[Validate RLS & Invoker permissions]
+    D1 -->|Ensures strict tenant isolation| D2[Approve SQL Migrations]
+    D2 --> C[4. GitOps Guardian]
+    C -->|Credential & Secret Audit| C1[Pre-Flight Security Scan]
+    C1 -->|PWA precaching & routing check| C2[Verify sw.js & Manifest]
+    C2 -->|Locks pipeline with Husky hooks| C3[Execute git commit & push]
+    C3 --> Done([100% Secure Production Sync])
+```
+
+---
+
+## ⚙️ Declarative SaaS Governance Model
+
+The Multi-Agent Tech Team automatically governs codebases using a single, unified configuration file located in the root of the repository: **[tech_team_config.json](file:///tech_team_config.json)**. 
+
+To deploy this tech team on **any new SaaS project**, simply copy the roles and scripts to the new repository and edit the configuration fields:
+*   `frontend`: Declares active directory paths and strict file weight budget limits (JS and CSS compile sizes).
+*   `database`: Configures database providers, tenant boundary columns, secure RPC resolver context functions, and migration timestamps directories.
+*   `verification`: Defines custom type compilers, static linters, and headless browser smoke test runner commands.
+
+---
+
+## 👥 Role Specifications & Protocols
+
+### 🛡️ Role 1: The Lead Systems Architect (The Anti-Hallucination Firewall)
+*   **Location of Rules:** [roles/architect/blueprint_generator.md](file:///roles/architect/blueprint_generator.md)
+*   **Directive:** Act as a firewall against scope-creep. You do **not** write or modify application code. You analyze schemas and isolate file bounds.
+*   **Deliverable:** Generates or updates [architect_blueprint.md](file:///architect_blueprint.md) defining:
+    - **Target Files to Edit:** Absolute boundaries for file modification.
+    - **No-Fly Zones:** Unrelated files that must remain untouched to prevent collateral damage.
+    - **Data shapes:** Strong TypeScript/Data types (no `any`) and database schema parameters.
+    - **Defensive Pass Criteria:** The strict compilation, lint, test, and telemetry gates required for success.
+
+### 🩺 Role 2: Elite CTO & Autonomous Debugging Task Force (The Surgeon)
+*   **Location of Rules:** [roles/cto/cto_protocol.md](file:///roles/cto/cto_protocol.md)
+*   **Directive:** Debug errors surgically, keeping edits minimal and fully rollback-safe.
+*   **Execution Loop:**
+    1.  **Anchor:** Snapshot the initial state of targeted files (`[REVERT_ANCHOR]`).
+    2.  **Investigate:** Cross-reference errors against standard stack specs.
+    3.  **Patch:** Apply minimal edits, keeping modifications local.
+    4.  **Test:** Run `npx tsc --noEmit` or equivalent compiler checks, and run linting/testing.
+    5.  **Gate check:** If build succeeds, transition to deployment. If it fails, trigger a **hard revert** back to `[REVERT_ANCHOR]` immediately. Never try to patch a broken patch.
+
+### 🔑 Role 3: SecOps & Database Reliability Sentry (The Compliance Guard)
+*   **Location of Rules:** [roles/secops/secops-sentry.md](file:///roles/secops/secops-sentry.md)
+*   **Directive:** Secure all database schemas, RLS barriers, and key mappings to prevent access leaks.
+*   **Audits Performed:**
+    - **RLS verification:** Verify Row-Level Security is active on all new/modified tables.
+    - **Tenant Isolation:** Enforce that queries/triggers partition data strictly by the user's authenticated tenant context.
+    - **Function Invoker Privilege:** Audit `SECURITY DEFINER` functions, granting execution permissions exclusively to `authenticated` roles and revoking from `public`.
+
+### 🦅 Role 4: GitOps Guardian (The Sentry)
+*   **Location of Rules:** [roles/gitops/gitops-guardian.md](file:///roles/gitops/gitops-guardian.md)
+*   **Directive:** Secure release boundaries, prevent key leaks, verify precaching, and synchronize safely.
+*   **Audits Performed:**
+    - **Secret Scanning:** Scan files and config properties to ensure zero keys or credentials are committed.
+    - **Build verification:** Compile clean production bundles (e.g., `npm run build` or `npm run build:prod`).
+    - **E2E Smoke Verification:** Verify dynamic page mounting, element mapping, and check for zero runtime JS exceptions using the automated headless browser smoke runner or crawler checks.
+    - **Commit Hook enforcement:** Link pre-commit hooks to enforce pre-commit testing checks.
+    - **Push Gate:** Execute secure commits and synchronize with the remote master repository.
+
+---
+
+## ⚡ Step-By-Step Commands For Activation
+
+Whenever you want the tech team to resolve an issue or write a feature, simply instruct the agent:
+
+> `"Tech Team: Resolve [Error/Feature description]"`
+
+The agent will execute:
+1.  **Step 1:** Act as the **Systems Architect** and create/update [architect_blueprint.md](file:///architect_blueprint.md).
+2.  **Step 2:** Act as the **CTO Task Force**, initialize the anchoring point, and apply the surgical patch.
+3.  **Step 3:** Act as the **SecOps DB Sentry**, audit migrations, enforce RLS policies, and harden function privileges.
+4.  **Step 4:** Act as the **GitOps Guardian**, run secret scanners, execute build E2E test suites, and push.
+
