@@ -480,6 +480,15 @@ DECLARE
     cur_batch RECORD;
     allocated_qty INT;
 BEGIN
+    -- If it's an update, only proceed if the status changed to completed
+    IF TG_OP = 'UPDATE' AND (OLD.status = 'completed' OR NEW.status != 'completed') THEN
+        RETURN NEW;
+    END IF;
+    -- If it's an insert, only proceed if status is completed
+    IF TG_OP = 'INSERT' AND NEW.status != 'completed' THEN
+        RETURN NEW;
+    END IF;
+
     -- Look up doctor's dynamic consultation fee
     SELECT COALESCE(consultation_fee, 400.00) INTO doctor_fee
     FROM public.profiles
@@ -651,7 +660,7 @@ GRANT EXECUTE ON FUNCTION public.on_encounter_submitted() TO authenticated;
 -- Wire the trigger to encounters table (runs AFTER encounters are inserted/submitted)
 DROP TRIGGER IF EXISTS trg_encounter_submitted ON public.encounters;
 CREATE TRIGGER trg_encounter_submitted
-    AFTER INSERT ON public.encounters
+    AFTER INSERT OR UPDATE ON public.encounters
     FOR EACH ROW
     EXECUTE FUNCTION public.on_encounter_submitted();
 
