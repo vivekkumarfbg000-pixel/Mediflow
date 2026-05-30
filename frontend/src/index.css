@@ -485,3 +485,264 @@ svg line, svg path.domain {
   animation: dash 1.5s linear infinite;
 }
 
+/* ─── Loading Skeleton Shimmer ──────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 0%,
+    #e8eef4 40%,
+    #f1f5f9 80%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ─── Toast Slide-in Animation ───────────────────────────────────────────────── */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── Accessibility: Focus-visible rings ─────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* ─── Screen reader only utility ─────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ─── Dark Mode CSS Variables (Manual Toggle via .dark class) ────────────────── */
+.dark {
+  /* Elegant high-contrast dark mode clinical scale overrides */
+  --color-clinical-50: #f8fafc;       /* Lightest slate for text in dark mode */
+  --color-clinical-100: #f1f5f9;
+  --color-clinical-200: #e2e8f0;
+  --color-clinical-300: #cbd5e1;
+  --color-clinical-400: #94a3b8;
+  --color-clinical-500: #334155;      /* Dark border slate */
+  --color-clinical-600: #334155;
+  --color-clinical-700: #1e293b;      /* Darker background border */
+  --color-clinical-800: #1e293b;      /* Card/List backgrounds slate-800 */
+  --color-clinical-850: #0f172a;      /* Hover panel background */
+  --color-clinical-900: #0f172a;      /* Alternative layout surface */
+  --color-clinical-950: #0f172a;      /* Main canvas background */
+
+  /* Override standard tailwind colors for system-wide microscopic outlines */
+  --color-slate-200: #334155;
+  --color-slate-300: #1e293b;
+
+  /* Surface tokens mapped to dark theme values */
+  --color-surface: #1e293b;
+  --color-surface-dim: #0f172a;
+  --color-surface-bright: #1e293b;
+  --color-surface-container-lowest: #0f172a;
+  --color-surface-container-low: #0f172a;
+  --color-surface-container: #1e293b;
+  --color-surface-container-high: #334155;
+  --color-surface-container-highest: #475569;
+  --color-on-surface: #f8fafc;
+  --color-on-surface-variant: #cbd5e1;
+  --color-outline: #94a3b8;
+  --color-outline-variant: #334155;
+
+  /* Body background override when .dark class is active */
+  background-color: #0f172a !important;
+}
+
+body.dark {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* Glass panel styling in dark mode */
+.dark .glass-panel {
+  background-color: rgba(30, 41, 59, 0.78) !important;
+  border: 1px solid rgba(51, 65, 85, 0.6) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark .glass-panel-hover:hover {
+  background-color: rgba(30, 41, 59, 0.96) !important;
+  border-color: rgba(71, 85, 105, 0.8) !important;
+}
+
+/* Inputs styling in dark mode */
+.dark .input-field, 
+.dark .clinical-input {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+  border: 1px solid rgba(51, 65, 85, 0.8) !important;
+  color: #f8fafc !important;
+}
+
+.dark .glass-panel-inner {
+  background: rgba(15, 23, 42, 0.5) !important;
+  border: 1px solid rgba(51, 65, 85, 0.5) !important;
+}
+
+.dark .inner-glow-border {
+  border: 1px solid rgba(51, 65, 85, 0.5) !important;
+}
+
+/* ─── Dark Mode CSS Variables (prefers-color-scheme) ────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-bg: #0f172a;
+    --md-surface: #1e293b;
+    --md-border: rgba(51, 65, 85, 0.6);
+    --md-text-primary: #f1f5f9;
+    --md-text-secondary: #94a3b8;
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      #1e293b 0%,
+      #2d3e50 40%,
+      #1e293b 80%
+    );
+    background-size: 1200px 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+/* ─── Print Stylesheet (for invoice/receipt generation) ─────────────────────── */
+@media print {
+  nav, .mobile-nav, .sidebar, .command-bar,
+  button:not(.print-visible),
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    font-family: 'Outfit', Arial, sans-serif;
+  }
+
+  .glass-panel {
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+  }
+
+  /* Invoice print layout */
+  .invoice-print-header {
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .invoice-print-table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .invoice-print-table th,
+  .invoice-print-table td {
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem 0.75rem;
+    font-size: 11pt;
+  }
+
+  .invoice-print-table th {
+    background-color: #f8fafc;
+    font-weight: 700;
+  }
+
+  @page {
+    margin: 2cm;
+    size: A4;
+  }
+}
+
+/* ─── Additional Micro-animations ────────────────────────────────────────────── */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-count-up {
+  animation: count-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── Gradient text utility ──────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0d9488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Status indicator dots ──────────────────────────────────────────────────── */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot-online  { background-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
+.status-dot-offline { background-color: #64748b; }
+.status-dot-warning { background-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2); }
+.status-dot-error   { background-color: #ef4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+
+.status-dot-online.animate-pulse {
+  animation: status-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+

@@ -78,7 +78,46 @@ serve(async (req) => {
 
     console.log(`[cashfree-webhook] Processing event: ${eventType} for Order: ${orderId}, Status: ${paymentStatus}`);
 
+    if (!secretKey) {
+      console.error("[cashfree-webhook] Server configuration error: CASHFREE_SECRET_KEY is not defined");
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (paymentStatus === "SUCCESS" || eventType === "PAYMENT_SUCCESS_WEBHOOK") {
+      // 0. Fetch the current invoice status first to enforce idempotency
+      const { data: existingInvoice, error: fetchErr } = await supabase
+        .from("unified_invoices")
+        .select("id, payment_status, pod_id, patient_id, total_amount")
+        .eq("cashfree_order_id", orderId)
+        .maybeSingle();
+
+      if (fetchErr) {
+        console.error(`[cashfree-webhook] Failed to query existing invoice for order_id: ${orderId}`, fetchErr);
+        return new Response(JSON.stringify({ error: "Invoice lookup failed" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!existingInvoice) {
+        console.error(`[cashfree-webhook] Invoice not found for order_id: ${orderId}`);
+        return new Response(JSON.stringify({ error: "Invoice not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (existingInvoice.payment_status === "paid") {
+        console.log(`[cashfree-webhook] Idempotency intercepted: Invoice ${existingInvoice.id} is already marked as PAID. Ignoring duplicate webhook event.`);
+        return new Response(JSON.stringify({ success: true, message: "Duplicate event ignored. Invoice already paid." }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // 1. Reconcile and update unified_invoices
       const { data: invoice, error: updateErr } = await supabase
         .from("unified_invoices")

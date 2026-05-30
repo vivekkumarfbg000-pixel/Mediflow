@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 
 export const CompounderDashboard: React.FC = () => {
-  const { isOphthalmology } = useSpecialization();
+  const { isOphthalmology, nomenclature } = useSpecialization();
   const [activeTab, setActiveTab] = useState<'registry' | 'vitals' | 'gate1' | 'gate2' | 'gate3'>('registry');
 
   // Active patient in care loop
@@ -221,6 +221,26 @@ export const CompounderDashboard: React.FC = () => {
     }
   }, [activePatient, vitalsPatient]);
 
+  // Load existing vitals into form fields when vitalsPatient changes
+  useEffect(() => {
+    if (vitalsPatient) {
+      if (vitalsPatient.vitals) {
+        setTempVal(vitalsPatient.vitals.temperature || (isOphthalmology ? '6/6' : '98.6'));
+        setBpVal(vitalsPatient.vitals.bloodPressure || (isOphthalmology ? '6/6' : '120/80'));
+        setPulseVal(vitalsPatient.vitals.pulseRate || (isOphthalmology ? '16' : '72'));
+        setWeightVal(vitalsPatient.vitals.weight || (isOphthalmology ? '' : '65'));
+        setSugarVal(vitalsPatient.vitals.bloodSugar || '');
+      } else {
+        setTempVal(isOphthalmology ? '6/6' : '98.6');
+        setBpVal(isOphthalmology ? '6/6' : '120/80');
+        setPulseVal(isOphthalmology ? '16' : '72');
+        setWeightVal(isOphthalmology ? '' : '65');
+        setSugarVal('');
+      }
+      setCustomToken(vitalsPatient.tokenNumber || '');
+    }
+  }, [vitalsPatient, isOphthalmology]);
+
   // Auto-focus active patient in Revisit Scheduler
   useEffect(() => {
     if (activePatient) {
@@ -323,8 +343,8 @@ export const CompounderDashboard: React.FC = () => {
     const finalTempVal = isOphthalmology ? (tempVal === '98.6' ? '6/6' : tempVal) : tempVal;
     const finalBpVal = isOphthalmology ? (bpVal === '120/80' ? '6/6' : bpVal) : bpVal;
     const finalPulseVal = isOphthalmology ? (pulseVal === '72' ? '16' : pulseVal) : pulseVal;
-    const finalWeightVal = isOphthalmology ? '0' : weightVal;
-    const finalSugarVal = isOphthalmology ? undefined : sugarVal || undefined;
+    const finalWeightVal = isOphthalmology ? (weightVal === '65' ? '' : weightVal) : weightVal;
+    const finalSugarVal = isOphthalmology ? sugarVal || undefined : sugarVal || undefined;
 
     api.updatePatientVitalsAndToken(vitalsPatient.id, {
       temperature: finalTempVal,
@@ -507,7 +527,7 @@ export const CompounderDashboard: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 600));
       
       // Match from inventory
-      const matched = api.matchPrescriptionMedicines(parsedData.medications.map(m => m.medicineName));
+      const matched = api.matchPrescriptionMedicines(parsedData.medications.map((m: any) => m.medicineName));
       
       const newItems: MedicineBillItem[] = matched.map(invItem => {
         const itemTotal = invItem.price * 10;
@@ -975,6 +995,12 @@ export const CompounderDashboard: React.FC = () => {
                       <>
                         <span className="bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 rounded">👁️ OD: {activePatient.vitals.temperature}</span>
                         <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-1.5 py-0.2 rounded">👁️ OS: {activePatient.vitals.bloodPressure}</span>
+                        {activePatient.vitals.weight && activePatient.vitals.weight !== '0' && activePatient.vitals.weight !== '65' && (
+                          <span className="bg-pink-50 border border-pink-200 text-pink-600 px-1.5 py-0.2 rounded">👓 Aided OD: {activePatient.vitals.weight}</span>
+                        )}
+                        {activePatient.vitals.bloodSugar && (
+                          <span className="bg-violet-50 border border-violet-200 text-violet-600 px-1.5 py-0.2 rounded">👓 Aided OS: {activePatient.vitals.bloodSugar}</span>
+                        )}
                         <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.2 rounded">🩺 IOP: {activePatient.vitals.pulseRate} mmHg</span>
                       </>
                     ) : (
@@ -994,10 +1020,10 @@ export const CompounderDashboard: React.FC = () => {
               <div className="flex items-center justify-between gap-1 select-none overflow-x-auto py-1 scrollbar-none">
                 {[
                   { id: 'registered', label: '1. Registry', tab: 'registry' },
-                  { id: 'vitals', label: '2. Vitals Logged', tab: 'vitals' },
+                  { id: 'vitals', label: `2. ${isOphthalmology ? 'Eye Exam' : 'Vitals Logged'}`, tab: 'vitals' },
                   { id: 'diagnosing', label: '3. CDSS Consult', tab: 'gate1' },
-                  { id: 'lab', label: '4. Lab (Gate 2)', tab: 'gate2' },
-                  { id: 'pharmacy', label: '5. Rx POS (Gate 3)', tab: 'gate3' },
+                  { id: 'lab', label: `4. ${isOphthalmology ? 'Scan / Lab' : 'Lab'} (Gate 2)`, tab: 'gate2' },
+                  { id: 'pharmacy', label: `5. ${isOphthalmology ? 'Optical / Rx' : 'Rx POS'} (Gate 3)`, tab: 'gate3' },
                   { id: 'settled', label: '6. Ledger Settled', tab: 'gate3' }
                 ].map((step, idx, arr) => {
                   const stages = ['registered', 'vitals', 'diagnosing', 'lab', 'pharmacy', 'settled'];
@@ -1260,7 +1286,7 @@ export const CompounderDashboard: React.FC = () => {
                                 {/* Care stages indicators */}
                                 {p.vitals ? (
                                   <span className="text-[8px] font-bold px-1.5 py-0.2 bg-rose-50 border border-rose-200 text-rose-600 rounded">
-                                    🌡️ Vitals Logged
+                                    {isOphthalmology ? '👁️' : '🌡️'} Vitals Logged
                                   </span>
                                 ) : (
                                   <span className="text-[8px] font-bold px-1.5 py-0.2 bg-slate-50 border border-slate-200 text-slate-400 rounded">
@@ -1618,6 +1644,12 @@ export const CompounderDashboard: React.FC = () => {
                                   <>
                                     <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">👁️ VA (OD): {p.vitals.temperature}</span>
                                     <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">👁️ VA (OS): {p.vitals.bloodPressure}</span>
+                                    {p.vitals.weight && p.vitals.weight !== '0' && p.vitals.weight !== '65' && (
+                                      <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">👓 Aided OD: {p.vitals.weight}</span>
+                                    )}
+                                    {p.vitals.bloodSugar && (
+                                      <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">👓 Aided OS: {p.vitals.bloodSugar}</span>
+                                    )}
                                     <span className="bg-white/5 px-1.5 py-0.5 rounded border border-white/5">🩺 IOP: {p.vitals.pulseRate} mmHg</span>
                                   </>
                                 ) : (
@@ -1738,6 +1770,31 @@ export const CompounderDashboard: React.FC = () => {
                               onChange={(e) => setBpVal(e.target.value)}
                               className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
                             >
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Visual Acuity (Aided) - Right Eye (OD) - Optional</label>
+                            <select
+                              value={weightVal === '65' ? '' : weightVal}
+                              onChange={(e) => setWeightVal(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                            >
+                              <option value="" className="bg-slate-900 text-white">Select Aided VA (Optional)</option>
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Visual Acuity (Aided) - Left Eye (OS) - Optional</label>
+                            <select
+                              value={sugarVal || ''}
+                              onChange={(e) => setSugarVal(e.target.value)}
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                            >
+                              <option value="" className="bg-slate-900 text-white">Select Aided VA (Optional)</option>
                               {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
                             </select>
                           </div>

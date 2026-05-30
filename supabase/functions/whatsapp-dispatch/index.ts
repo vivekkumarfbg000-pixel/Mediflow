@@ -149,22 +149,59 @@ serve(async (req) => {
           }
         };
 
-        const res = await fetch(metaUrl, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${decryptedToken}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(templatePayload)
-        });
+        let res;
+        let attempt = 0;
+        const maxAttempts = 3;
+        let retryDelay = 1000; // Start with 1s
 
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(`Meta HTTP ${res.status}: ${JSON.stringify(errData)}`);
+        while (attempt < maxAttempts) {
+          try {
+            attempt++;
+            console.log(`[whatsapp-dispatch] Meta API dispatch attempt ${attempt} of ${maxAttempts}...`);
+            
+            res = await fetch(metaUrl, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${decryptedToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(templatePayload)
+            });
+
+            if (res.ok) {
+              console.log(`[whatsapp-dispatch] Successfully dispatched Meta template to patient ${patientPhone} on attempt ${attempt} ✅`);
+              dispatchSuccess = true;
+              break;
+            }
+
+            const errData = await res.json().catch(() => ({}));
+            console.warn(`[whatsapp-dispatch] Meta API attempt ${attempt} returned HTTP ${res.status}:`, errData);
+
+            // Abort immediately on client errors (400 Bad Request, 401 Unauthorized, etc.)
+            if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
+              throw new Error(`Meta HTTP ${res.status}: ${JSON.stringify(errData)}`);
+            }
+
+            if (attempt < maxAttempts) {
+              console.log(`[whatsapp-dispatch] Transient error, retrying in ${retryDelay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              retryDelay *= 2; // Exponential backoff
+            } else {
+              throw new Error(`Meta HTTP ${res.status} after ${maxAttempts} attempts: ${JSON.stringify(errData)}`);
+            }
+          } catch (err: any) {
+            console.error(`[whatsapp-dispatch] Error on attempt ${attempt}:`, err.message || err);
+            
+            // If it's a client error we already threw, or if it is a network failure:
+            if (attempt < maxAttempts && (!res || (res.status !== 400 && res.status !== 401 && res.status !== 403 && res.status !== 404))) {
+              console.log(`[whatsapp-dispatch] Retrying in ${retryDelay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              retryDelay *= 2;
+            } else {
+              throw err;
+            }
+          }
         }
-
-        console.log(`[whatsapp-dispatch] Successfully dispatched Meta template to patient ${patientPhone}`);
-        dispatchSuccess = true;
 
       } catch (err: any) {
         wabaErrorMessage = err.message ?? "Meta API error";

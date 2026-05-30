@@ -19,7 +19,9 @@ import {
   Menu,
   X,
   Settings,
-  FileText
+  FileText,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 
@@ -47,10 +49,40 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleSidebarCollapse
 }) => {
   const { isOphthalmology, nomenclature } = useSpecialization();
+  const displayRole = (role: string) => {
+    const clean = role.replace('_', ' ');
+    if (!isOphthalmology) return clean;
+    if (role === 'lab_technician') return 'Diagnostics Tech';
+    if (role === 'pharmacist') return 'Optician / Pharmacist';
+    return clean;
+  };
   const { activePod, activeEntity } = useClinic();
   const [isSyncing, setIsSyncing] = useState(api.isSyncing);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark') || 
+             localStorage.getItem('theme') === 'dark';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.body?.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body?.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark } }));
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark(prev => !prev);
   
   const activeSop = api.getActiveSop();
 
@@ -413,10 +445,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {[
                   { id: 'registered', label: 'Registered' },
-                  { id: 'diagnosing', label: 'Diagnosing' },
-                  { id: 'lab', label: 'Lab' },
-                  { id: 'pharmacy', label: 'Pharmacy' },
-                  { id: 'settled', label: 'Settled' }
+                  { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                  { id: 'lab', label: nomenclature.careLoopLabStep },
+                  { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
+                  { id: 'settled', label: 'Ledger Settled' }
                 ].map((step, idx, arr) => {
                   const stages = arr.map(s => s.id);
                   const currentIdx = stages.indexOf(activePatientStage);
@@ -426,6 +458,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   return (
                     <div 
                       key={step.id} 
+                      title={step.label}
                       className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-semibold border transition-all duration-300 ${
                         isActive 
                           ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
@@ -541,6 +574,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {activeProfile.display_name.charAt(0)}
                 </div>
 
+                {/* Collapsed Theme Trigger */}
+                <button
+                  onClick={toggleTheme}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-slate-400" />}
+                </button>
+
                 {/* Collapsed Settings Trigger */}
                 <button
                   onClick={handleCollapsedSettingsClick}
@@ -559,7 +601,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                    <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
+                    <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
                   </div>
                 </div>
 
@@ -582,6 +624,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   {isSettingsOpen && (
                     <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
+                      {/* Theme Toggle Trigger */}
+                      <button 
+                        onClick={toggleTheme}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider bg-white border-slate-200/60 text-slate-500 hover:text-slate-700 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                      >
+                        <span className="flex items-center gap-2">
+                          {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-400" />}
+                          Theme Mode
+                        </span>
+                        <span className="text-[8px] font-bold text-slate-400">{isDark ? 'Dark' : 'Light'}</span>
+                      </button>
+
                       {/* Dev Bypass Trigger */}
                       <button 
                         onClick={() => onToggleBypass(!isBypassMode)}
@@ -690,6 +744,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Mobile Actions */}
             <div className="flex items-center gap-1.5">
+              {/* Theme Toggle Trigger */}
+              <button 
+                onClick={toggleTheme}
+                className="p-1 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-md text-slate-500 hover:text-slate-800 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
+                aria-label="Toggle Theme"
+              >
+                {isDark ? <Sun className="h-3 w-3.5 text-amber-500" /> : <Moon className="h-3 w-3.5 text-slate-400" />}
+              </button>
+
               <button 
                 onClick={() => onToggleBypass(!isBypassMode)}
                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
@@ -717,10 +780,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="bg-white border border-slate-200/50 rounded-lg p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center gap-1.5 overflow-x-auto scrollbar-none font-semibold text-[9px]">
                 {[
                   { id: 'registered', label: 'Registered' },
-                  { id: 'diagnosing', label: 'Diagnosing' },
-                  { id: 'lab', label: isOphthalmology ? 'Scan' : 'Lab' },
-                  { id: 'pharmacy', label: isOphthalmology ? 'Optical' : 'Pharmacy' },
-                  { id: 'settled', label: 'Settled' }
+                  { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                  { id: 'lab', label: nomenclature.careLoopLabStep },
+                  { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
+                  { id: 'settled', label: 'Ledger Settled' }
                 ].map((step, idx, arr) => {
                   const stages = arr.map(s => s.id);
                   const currentIdx = stages.indexOf(activePatientStage);
@@ -898,7 +961,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                      <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{activeProfile.role.replace('_', ' ')}</span>
+                      <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
                     </div>
                   </div>
 
@@ -921,6 +984,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     {isSettingsOpen && (
                       <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
+                        {/* Theme Toggle Trigger */}
+                        <button 
+                          onClick={toggleTheme}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider bg-white border-slate-200/60 text-slate-500 hover:text-slate-700 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                        >
+                          <span className="flex items-center gap-2">
+                            {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-400" />}
+                            Theme Mode
+                          </span>
+                          <span className="text-[8px] font-bold text-slate-400">{isDark ? 'Dark' : 'Light'}</span>
+                        </button>
+
                         {/* Dev Bypass Trigger */}
                         <button 
                           onClick={() => {

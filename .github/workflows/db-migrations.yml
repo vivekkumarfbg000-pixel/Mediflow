@@ -1,0 +1,26 @@
+name: Database Migration Validation
+
+on:
+  push:
+    paths:
+      - 'supabase/migrations/**'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+
+jobs:
+  validate-migrations:
+    name: 🗄️ Validate SQL Migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Schema & Syntax Audit Pass
+        run: node Teach-team-main/scripts/verify_db_sandbox.js

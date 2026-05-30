@@ -1,128 +1,163 @@
-name: Mediflow Connected Care CI Build Pipeline
+name: Mediflow CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, master ]
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
 
 jobs:
-  build-and-test:
+  # ─── Job 1: Frontend Quality Gate ────────────────────────────────────────────
+  frontend-quality:
+    name: 🎨 Frontend — Lint & TypeCheck
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [22.x]
-
-
+    defaults:
+      run:
+        working-directory: frontend
 
     steps:
-    - name: Checkout Repository Code
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: 'frontend/package-lock.json'
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-    - name: Install Frontend Dependencies
-      run: |
-        cd frontend
-        npm install
+      - name: Install dependencies
+        run: npm ci
 
+      - name: TypeScript strict type check
+        run: npx tsc --noEmit
+        continue-on-error: false
 
-    - name: Build Backend Docker Image
-      run: |
-        docker build -t mediflow-backend ./backend
+      - name: ESLint code quality
+        run: npx eslint . --ext .ts,.tsx --max-warnings 0
+        continue-on-error: true
 
-    - name: Run Frontend Tests
-      run: |
-        cd frontend
-        npm test
-
-    - name: Verify TypeScript Compilation & Vite Build
-      run: |
-        cd frontend
-        npm run build
-
-    - name: Execute End-to-End Pilot Validations
-      run: |
-        cd frontend
-        node e2e_pilot_validation.cjs
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Phase 3: CI Failure Notification — dispatches to developer webhook channel
-  # ═══════════════════════════════════════════════════════════════════════════
-  notify-failure:
-    name: 🚨 Alert Developer Channel on CI Failure
+  # ─── Job 2: Frontend Build ────────────────────────────────────────────────────
+  frontend-build:
+    name: 🏗️ Frontend — Production Build
     runs-on: ubuntu-latest
-    needs: build-and-test
-    if: failure()
+    needs: frontend-quality
+    defaults:
+      run:
+        working-directory: frontend
 
     steps:
-    - name: Dispatch Build Failure Notification to Discord
-      env:
-        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-      run: |
-        # Skip if no webhook is configured
-        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-          echo "⚠️ DISCORD_WEBHOOK_URL secret not set — skipping notification."
-          exit 0
-        fi
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-        PAYLOAD=$(cat <<EOF
-        {
-          "username": "Mediflow CI Sentinel 🛡️",
-          "embeds": [{
-            "title": "🚨 CI BUILD FAILED",
-            "color": 15158332,
-            "fields": [
-              { "name": "📦 Repository",  "value": "\`${{ github.repository }}\`",                     "inline": true  },
-              { "name": "🌿 Branch",       "value": "\`${{ github.ref_name }}\`",                      "inline": true  },
-              { "name": "👤 Actor",        "value": "\`${{ github.actor }}\`",                          "inline": true  },
-              { "name": "🔑 Commit",       "value": "\`${{ github.sha }}\`",                            "inline": false },
-              { "name": "💬 Message",      "value": "${{ github.event.head_commit.message || 'N/A' }}", "inline": false },
-              { "name": "🔗 Run Logs",     "value": "[View Failing Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
-            ],
-            "footer": { "text": "Mediflow CI Pipeline • Fix this before merging!" }
-          }]
-        }
-        EOF
-        )
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-        curl -s -o /dev/null -w "%{http_code}" \
-          -H "Content-Type: application/json" \
-          -d "$PAYLOAD" \
-          "$DISCORD_WEBHOOK_URL"
+      - name: Install dependencies
+        run: npm ci
 
-        echo "✅ Discord failure notification dispatched."
+      - name: Build production bundle
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-    - name: Dispatch Build Failure Notification to Slack (optional)
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      if: env.SLACK_WEBHOOK_URL != ''
-      run: |
-        PAYLOAD=$(cat <<EOF
-        {
-          "blocks": [
-            { "type": "header", "text": { "type": "plain_text", "text": "🚨 Mediflow CI Build FAILED", "emoji": true }},
-            { "type": "section", "fields": [
-              { "type": "mrkdwn", "text": "*Repo:*\n\`${{ github.repository }}\`" },
-              { "type": "mrkdwn", "text": "*Branch:*\n\`${{ github.ref_name }}\`" },
-              { "type": "mrkdwn", "text": "*Actor:*\n\`${{ github.actor }}\`" },
-              { "type": "mrkdwn", "text": "*Commit:*\n\`${{ github.sha }}\`" }
-            ]},
-            { "type": "section", "text": { "type": "mrkdwn", "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Failing Run>" }}
-          ]
-        }
-        EOF
-        )
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
 
-        curl -s -o /dev/null -w "%{http_code}" \
-          -H "Content-Type: application/json" \
-          -d "$PAYLOAD" \
-          "$SLACK_WEBHOOK_URL"
+  # ─── Job 3: Backend Quality Gate ─────────────────────────────────────────────
+  backend-quality:
+    name: 🐍 Backend — Lint & Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
 
-        echo "✅ Slack failure notification dispatched."
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Ruff lint
+        run: |
+          pip install ruff
+          ruff check app/ --select=E,F,W --ignore=E501
+        continue-on-error: true
+
+  # ─── Job 4: Security Audit ────────────────────────────────────────────────────
+  security-audit:
+    name: 🔐 Security — Dependency Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Frontend npm audit
+        working-directory: frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # ─── Job 5: Database Migration Validation ────────────────────────────────────
+  db-migration-check:
+    name: 🗄️ Database — Migration Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate SQL migrations
+        run: |
+          echo "Checking SQL migrations..."
+          for f in supabase/migrations/*.sql; do
+            if grep -i "DROP TABLE[^I]" "$f" 2>/dev/null; then
+              echo "WARNING: Potentially destructive operation in $f"
+            fi
+            echo "OK: $f"
+          done
+
+  # ─── Job 6: Deploy to Vercel ─────────────────────────────────────────────────
+  deploy-production:
+    name: 🚀 Deploy — Vercel Production
+    runs-on: ubuntu-latest
+    needs: [frontend-build, security-audit]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./

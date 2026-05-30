@@ -441,7 +441,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               </p>
             </div>
           </div>
-          {/* Link Meta Cloud WABA Account Connection Form */}
+        )}
+      </div>
+
+      {/* Link Meta Cloud WABA Account Connection Form */}
       {wabaFormOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in text-slate-808">
           <div className="glass-panel max-w-lg w-full p-6.5 border-slate-200 shadow-2xl relative overflow-hidden space-y-5 bg-white rounded-3xl">
@@ -798,8 +801,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               </form>
             )}
           </div>
-        </div>
-      )}
         </div>
       )}
 

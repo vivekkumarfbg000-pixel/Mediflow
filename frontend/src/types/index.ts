@@ -69,7 +69,9 @@ export interface WhatsAppSession {
     | 'FAILED_DELIVERY'
     | 'MEDICINE_ORDERING'
     | 'MEDICINE_AWAITING_PAYMENT'
-    | 'MEDICINE_READY_FOR_PICKUP';
+    | 'MEDICINE_READY_FOR_PICKUP'
+    | 'AWAITING_CONSENT'
+    | 'AWAITING_WELCOME_ACK';
   lastInteraction: string;
   sessionData: WhatsAppSessionData;
 }
@@ -415,4 +417,10 @@ export interface Prescription {
   extractedTests?: string[];
   prescriptionFileUrl?: string;
   createdAt: string;
+}
+
+export interface ReagentStock {
+  reagentName: string;
+  stockVolume: number;
+  unit: string;
 }

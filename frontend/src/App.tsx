@@ -3,6 +3,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Navbar } from './components/shared/Navbar';
 import type { UserRole } from './components/shared/Navbar';
 import { api } from './services/api';
+import { StateHealingEngine, ProactiveHealthMonitor } from './services/autoHealerAgent';
 
 const CompounderDashboard = lazy(() => import('./components/compounder/CompounderDashboard').then(m => ({ default: m.CompounderDashboard })));
 const DoctorDashboard = lazy(() => import('./components/doctor/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
@@ -22,6 +23,14 @@ import { PatientWhatsAppSimulator } from './components/shared/PatientWhatsAppSim
 import { PatientMobileDashboard } from './components/shared/PatientMobileDashboard';
 import { CommandBar } from './components/shared/CommandBar';
 import { PwaSyncManager } from './pwa';
+import { ToastProvider } from './components/shared/ToastProvider';
+import {
+  DashboardSkeleton,
+  DoctorDashboardSkeleton,
+  LabDashboardSkeleton,
+  PharmacyDashboardSkeleton,
+  FullPageLoader
+} from './components/shared/LoadingSkeleton';
 
 interface Toast {
   id: string;
@@ -73,6 +82,16 @@ function AppContent({
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
+
+  // Role-aware skeleton for contextual loading states
+  const getSkeleton = () => {
+    switch (currentRole) {
+      case 'doctor': return <DoctorDashboardSkeleton />;
+      case 'lab': return <LabDashboardSkeleton />;
+      case 'pharmacy': return <PharmacyDashboardSkeleton />;
+      default: return <DashboardSkeleton />;
+    }
+  };
 
   const renderDashboard = () => {
     switch (currentRole) {
@@ -196,14 +215,7 @@ function AppContent({
       <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300`}>
         <div className="animate-fade-in">
           <ErrorBoundary>
-            <Suspense fallback={
-              <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-500 rounded-full animate-spin"></div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-mono animate-pulse">Initializing Interface...</span>
-                </div>
-              </div>
-            }>
+            <Suspense fallback={getSkeleton()}>
               {renderDashboard()}
             </Suspense>
           </ErrorBoundary>
@@ -293,6 +305,8 @@ export default function App() {
 
   useEffect(() => {
     PwaSyncManager.registerServiceWorker();
+    StateHealingEngine.initGlobalListener();
+    ProactiveHealthMonitor.start();
   }, []);
 
   useEffect(() => {
@@ -575,24 +589,26 @@ export default function App() {
   }
 
   return (
-    <ClinicProvider activeProfile={activeProfile}>
-      <SpecializationProvider activeProfile={activeProfile}>
-        <AppContent
-          session={session}
-          activeProfile={activeProfile}
-          currentRole={currentRole}
-          setCurrentRole={setCurrentRole}
-          toasts={toasts}
-          setToasts={setToasts}
-          isBypassMode={isBypassMode}
-          setIsBypassMode={setIsBypassMode}
-          handleAuthSuccess={handleAuthSuccess}
-          handleSignOut={handleSignOut}
-          handleToggleBypass={handleToggleBypass}
-          handleRoleChange={handleRoleChange}
-          removeToast={removeToast}
-        />
-      </SpecializationProvider>
-    </ClinicProvider>
+    <ToastProvider>
+      <ClinicProvider activeProfile={activeProfile}>
+        <SpecializationProvider activeProfile={activeProfile}>
+          <AppContent
+            session={session}
+            activeProfile={activeProfile}
+            currentRole={currentRole}
+            setCurrentRole={setCurrentRole}
+            toasts={toasts}
+            setToasts={setToasts}
+            isBypassMode={isBypassMode}
+            setIsBypassMode={setIsBypassMode}
+            handleAuthSuccess={handleAuthSuccess}
+            handleSignOut={handleSignOut}
+            handleToggleBypass={handleToggleBypass}
+            handleRoleChange={handleRoleChange}
+            removeToast={removeToast}
+          />
+        </SpecializationProvider>
+      </ClinicProvider>
+    </ToastProvider>
   );
 }

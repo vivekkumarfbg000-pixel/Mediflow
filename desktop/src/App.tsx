@@ -1,38 +1,127 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Printer, 
   QrCode, 
-  Activity, 
   Terminal, 
   Mic, 
   ShieldCheck,
   Zap,
   Cpu
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
+
+// Safe check to determine if running inside Tauri runtime environment
+const isTauri = () => typeof window !== 'undefined' && (window as any).__TAURI_IPC__ !== undefined;
 
 const App: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([
     '[INIT] Mediflow Desktop Service Host started.',
-    '[SYSTEM] Hooked serial laser barcode scanner on keyboard layouts.',
+    '[SYSTEM] Loading serial laser barcode scanner configuration...',
     '[PRINTER] Autodetected EPSON TM-T88VI on USB / COM3 port.',
-    '[SCRIBE] Local Audio Stream initialized at 44.1kHz stereo.',
+    '[SCRIBE] Local Audio Stream ready at 44.1kHz stereo.',
     '[SECURE] Row-Level Isolation activated under active compliance tenant.'
   ]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [lastBarcode, setLastBarcode] = useState<string | null>(null);
 
-  const handleTestPrint = () => {
-    setLogs(prev => [
-      ...prev,
-      `[${new Date().toLocaleTimeString()}] COMMAND: Dispatched direct raw ESC/POS slip binary to COM3.`,
-      `[${new Date().toLocaleTimeString()}] PRINTER: Job completed successfully (No OS Print Dialog popped).`
-    ]);
+  // Hook barcode scanner and listen to scanned events
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    if (isTauri()) {
+      invoke<string>('hook_barcode_scanner')
+        .then((res) => {
+          setLogs(prev => [...prev, `[SYSTEM] ${res}`]);
+        })
+        .catch((err) => {
+          setLogs(prev => [...prev, `[ERROR] Failed to hook barcode scanner: ${err}`]);
+        });
+
+      listen<string>('barcode-scanned', (event) => {
+        const barcode = event.payload;
+        setLastBarcode(barcode);
+        setLogs(prev => [
+          ...prev,
+          `[${new Date().toLocaleTimeString()}] SCANNER: Laser barcode raw input captured: "${barcode}"`,
+          `[${new Date().toLocaleTimeString()}] CDSS: Auto-loaded patient record matching barcode in draw queue.`
+        ]);
+      }).then(fn => {
+        unlisten = fn;
+      });
+    } else {
+      setLogs(prev => [
+        ...prev,
+        '[SYSTEM] Web Preview Mode: Simulated scanner ready (Click buttons below to trigger).'
+      ]);
+    }
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
+
+  const handleTestPrint = async () => {
+    const timestamp = new Date().toLocaleTimeString();
+    const payload = 'MEDIFLOW INVOICE\nDate: 2026-05-30\nTotal: INR 450.00\n----------------\nThank You!';
+    
+    if (isTauri()) {
+      try {
+        const res = await invoke<string>('trigger_raw_print', {
+          billId: 'BILL_9942',
+          payload
+        });
+        setLogs(prev => [
+          ...prev,
+          `[${timestamp}] COMMAND: Dispatched direct raw ESC/POS slip binary to COM3.`,
+          `[${timestamp}] PRINTER: ${res}`
+        ]);
+      } catch (err) {
+        setLogs(prev => [
+          ...prev,
+          `[${timestamp}] COMMAND: Direct raw ESC/POS dispatch failed.`,
+          `[${timestamp}] ERROR: ${err}`
+        ]);
+      }
+    } else {
+      // Mock fallback in standard browser preview
+      setLogs(prev => [
+        ...prev,
+        `[${timestamp}] COMMAND (Simulated): Dispatched direct raw ESC/POS slip binary to COM3.`,
+        `[${timestamp}] PRINTER (Simulated): [MOCK] ESC/POS Print Job for BILL_9942 queued successfully on serial COM3 (Bypassed print dialog)`
+      ]);
+    }
   };
 
   const handleSimulateScan = () => {
+    const timestamp = new Date().toLocaleTimeString();
+    const mockBarcodes = ["LOINC_4544-3", "LOINC_1975-2", "LOINC_24357-1"];
+    const randomBarcode = mockBarcodes[Math.floor(Math.random() * mockBarcodes.length)];
+    
+    setLastBarcode(randomBarcode);
     setLogs(prev => [
       ...prev,
-      `[${new Date().toLocaleTimeString()}] SCANNER: Laser barcode raw input captured: "LOINC_4544-3"`,
-      `[${new Date().toLocaleTimeString()}] CDSS: Auto-loaded patient record "Aarav Sharma" in draw queue.`
+      `[${timestamp}] SCANNER (Manual): Laser barcode raw input captured: "${randomBarcode}"`,
+      `[${timestamp}] CDSS: Auto-loaded patient record matching barcode in draw queue.`
     ]);
+  };
+
+  const handleToggleScribe = () => {
+    const timestamp = new Date().toLocaleTimeString();
+    if (!isRecording) {
+      setIsRecording(true);
+      setLogs(prev => [
+        ...prev,
+        `[${timestamp}] SCRIBE: Local boundary microphone activated. Streaming PCM audio to local Whisper buffer...`
+      ]);
+    } else {
+      setIsRecording(false);
+      setLogs(prev => [
+        ...prev,
+        `[${timestamp}] SCRIBE: Stream stopped. Dispatching segment for clinical transcription.`,
+        `[${timestamp}] TRANSCRIPTION: "Patient presents with dry cough and mild fever. Recommending paracetamol 650mg."`
+      ]);
+    }
   };
 
   return (
@@ -51,9 +140,9 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-          <span className="text-[10px] font-mono font-bold uppercase bg-emerald-50 border border-emerald-200 text-emerald-600 px-3 py-1 rounded-full tracking-widest">
-            Local Svc Host: Running
+          <span className={`h-2 w-2 rounded-full ${isRecording ? 'bg-red-500 animate-ping' : 'bg-emerald-500 animate-ping'}`} />
+          <span className={`text-[10px] font-mono font-bold uppercase border px-3 py-1 rounded-full tracking-widest ${isRecording ? 'bg-red-50 border-red-200 text-red-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
+            {isRecording ? 'Scribe Recording' : 'Local Svc Host: Running'}
           </span>
         </div>
       </div>
@@ -102,7 +191,9 @@ const App: React.FC = () => {
                     <QrCode className="h-4 w-4 text-teal-600" />
                     Specimen Barcode Scan
                   </h3>
-                  <span className="block text-[8px] font-mono text-slate-400 mt-0.5 uppercase tracking-wider">HID Keyboard Hook · READY</span>
+                  <span className="block text-[8px] font-mono text-slate-400 mt-0.5 uppercase tracking-wider">
+                    {lastBarcode ? `Last: ${lastBarcode}` : 'HID Keyboard Hook · READY'}
+                  </span>
                 </div>
                 <button
                   onClick={handleSimulateScan}
@@ -117,15 +208,22 @@ const App: React.FC = () => {
             {/* Audio Scribe */}
             <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50 flex items-center justify-between gap-4 shadow-inner">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
+                <div className={`p-2 rounded-xl transition ${isRecording ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-indigo-100 text-indigo-600'}`}>
                   <Mic className="h-4 w-4" />
                 </div>
                 <div>
                   <h4 className="font-bold text-xs text-slate-800">Local Scribe Audio Capture</h4>
-                  <span className="block text-[8px] font-mono text-slate-400 mt-0.5 uppercase tracking-wider">Boundary Mic · Streaming Whisper endpoint</span>
+                  <span className="block text-[8px] font-mono text-slate-400 mt-0.5 uppercase tracking-wider">
+                    {isRecording ? 'Streaming Whisper endpoint...' : 'Boundary Mic · Idle'}
+                  </span>
                 </div>
               </div>
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <button
+                onClick={handleToggleScribe}
+                className={`px-4 py-2 font-bold rounded-xl text-[10px] uppercase tracking-wider transition cursor-pointer border-0 ${isRecording ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-slate-800 text-white hover:bg-slate-700'}`}
+              >
+                {isRecording ? 'Stop Scribe' : 'Start Scribe'}
+              </button>
             </div>
 
           </div>

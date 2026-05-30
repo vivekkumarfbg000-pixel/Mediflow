@@ -173,3 +173,269 @@ export class FinancialLedgerAgent {
     };
   }
 }
+
+// ─── NEW: Drug Interaction Agent ───────────────────────────────────────────────
+// Cross-references prescribed drug combinations against known interaction rules.
+// Flags CYP450 pathway conflicts, duplicate salt classes, and critical combos.
+
+export interface InteractionResult {
+  hasCritical: boolean;
+  interactions: Array<{
+    drug1: string;
+    drug2: string;
+    severity: 'critical' | 'major' | 'moderate';
+    mechanism: string;
+    recommendation: string;
+  }>;
+  clearanceMessage: string;
+}
+
+export class DrugInteractionAgent {
+  // Minimal interaction knowledge base (extend with real DB in production)
+  private static readonly INTERACTION_RULES: Array<{
+    drug1Pattern: string;
+    drug2Pattern: string;
+    severity: 'critical' | 'major' | 'moderate';
+    mechanism: string;
+    recommendation: string;
+  }> = [
+    {
+      drug1Pattern: 'warfarin', drug2Pattern: 'aspirin',
+      severity: 'critical',
+      mechanism: 'Additive anticoagulant effect via platelet inhibition + vitamin K antagonism.',
+      recommendation: 'Avoid combination. Monitor INR closely if unavoidable. Consider PPI co-prescription.'
+    },
+    {
+      drug1Pattern: 'metformin', drug2Pattern: 'contrast',
+      severity: 'critical',
+      mechanism: 'Metformin + iodinated contrast → risk of metformin-induced lactic acidosis.',
+      recommendation: 'Hold Metformin 48h before and after contrast procedures. Check renal function.'
+    },
+    {
+      drug1Pattern: 'digoxin', drug2Pattern: 'amiodarone',
+      severity: 'major',
+      mechanism: 'Amiodarone inhibits P-gp and CYP3A4 → elevated digoxin plasma levels.',
+      recommendation: 'Reduce digoxin dose by 50%. Monitor ECG and digoxin levels.'
+    },
+    {
+      drug1Pattern: 'ciprofloxacin', drug2Pattern: 'antacid',
+      severity: 'moderate',
+      mechanism: 'Divalent cations (Mg²⁺, Al³⁺) chelate ciprofloxacin → reduced absorption.',
+      recommendation: 'Separate doses by 2 hours. Take ciprofloxacin first.'
+    },
+    {
+      drug1Pattern: 'metoprolol', drug2Pattern: 'verapamil',
+      severity: 'major',
+      mechanism: 'Additive AV node depression → risk of bradycardia and heart block.',
+      recommendation: 'Use with extreme caution. Monitor heart rate and PR interval continuously.'
+    },
+    {
+      drug1Pattern: 'ssri', drug2Pattern: 'tramadol',
+      severity: 'critical',
+      mechanism: 'Serotonergic synergism → Serotonin Syndrome risk.',
+      recommendation: 'Avoid combination. Use non-serotonergic analgesics.'
+    },
+    {
+      drug1Pattern: 'ibuprofen', drug2Pattern: 'lisinopril',
+      severity: 'major',
+      mechanism: 'NSAIDs blunt ACE-inhibitor antihypertensive effect + increase AKI risk.',
+      recommendation: 'Use Paracetamol instead of NSAIDs for analgesia in this patient.'
+    },
+  ];
+
+  static checkInteractions(medications: string[]): InteractionResult {
+    const interactions: InteractionResult['interactions'] = [];
+    const drugList = medications.map(d => d.toLowerCase().trim());
+
+    for (let i = 0; i < drugList.length; i++) {
+      for (let j = i + 1; j < drugList.length; j++) {
+        for (const rule of DrugInteractionAgent.INTERACTION_RULES) {
+          const d1 = drugList[i];
+          const d2 = drugList[j];
+          const matches = (
+            (d1.includes(rule.drug1Pattern) && d2.includes(rule.drug2Pattern)) ||
+            (d2.includes(rule.drug1Pattern) && d1.includes(rule.drug2Pattern))
+          );
+          if (matches) {
+            interactions.push({
+              drug1: medications[i],
+              drug2: medications[j],
+              severity: rule.severity,
+              mechanism: rule.mechanism,
+              recommendation: rule.recommendation,
+            });
+          }
+        }
+      }
+    }
+
+    const hasCritical = interactions.some(i => i.severity === 'critical');
+    const clearanceMessage = interactions.length === 0
+      ? `No known drug-drug interactions detected across ${medications.length} prescribed medicines.`
+      : `${interactions.length} potential interaction(s) detected. ${hasCritical ? '⛔ CRITICAL alerts require immediate review.' : '⚠️ Review recommendations before dispensing.'}`;
+
+    return { hasCritical, interactions, clearanceMessage };
+  }
+}
+
+// ─── NEW: Compliance Audit Agent ───────────────────────────────────────────────
+// Validates every encounter has required clinical documentation before finalization.
+// Prevents incomplete records that fail regulatory/billing audits.
+
+export interface ComplianceCheckResult {
+  isPassed: boolean;
+  score: number; // 0-100
+  violations: string[];
+  warnings: string[];
+  auditSummary: string;
+}
+
+export class ComplianceAuditAgent {
+  static auditEncounter(encounter: {
+    clinicalNotes?: string;
+    medications?: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
+    diagnosticTests?: Array<{ loincCode: string; name: string }>;
+    patientId: string;
+    doctorId: string;
+  }): ComplianceCheckResult {
+    const violations: string[] = [];
+    const warnings: string[] = [];
+    let score = 100;
+
+    // 1. Clinical notes must be present and meaningful
+    if (!encounter.clinicalNotes || encounter.clinicalNotes.trim().length < 20) {
+      violations.push('Clinical notes are absent or insufficient (minimum 20 characters required).');
+      score -= 30;
+    } else if (encounter.clinicalNotes.trim().length < 100) {
+      warnings.push('Clinical notes are brief. Consider adding chief complaint, examination findings, and assessment.');
+      score -= 10;
+    }
+
+    // 2. Must have at least one medication OR diagnostic test
+    const hasMeds = (encounter.medications || []).length > 0;
+    const hasTests = (encounter.diagnosticTests || []).length > 0;
+    if (!hasMeds && !hasTests) {
+      violations.push('Encounter has no medications or diagnostic orders. At least one clinical action required.');
+      score -= 25;
+    }
+
+    // 3. Medication completeness
+    for (const med of (encounter.medications || [])) {
+      if (!med.dosage || !med.frequency || !med.duration) {
+        warnings.push(`Medication "${med.medicineName}" has incomplete prescription (missing dosage/frequency/duration).`);
+        score -= 5;
+      }
+    }
+
+    // 4. Doctor and patient IDs must be present
+    if (!encounter.doctorId) {
+      violations.push('No attending physician assigned to this encounter.');
+      score -= 20;
+    }
+    if (!encounter.patientId) {
+      violations.push('No patient linked to this encounter.');
+      score -= 20;
+    }
+
+    // 5. Clamp score
+    score = Math.max(0, Math.min(100, score));
+    const isPassed = violations.length === 0 && score >= 70;
+
+    const auditSummary = isPassed
+      ? `Compliance audit PASSED (Score: ${score}/100). Encounter meets clinical documentation standards.`
+      : `Compliance audit FAILED (Score: ${score}/100). ${violations.length} violation(s) must be resolved before finalization.`;
+
+    return { isPassed, score, violations, warnings, auditSummary };
+  }
+}
+
+// ─── NEW: Workflow Orchestrator Agent ──────────────────────────────────────────
+// Coordinates multi-step clinical workflows with rollback on partial failure.
+// Ensures atomicity across: encounter → lab requisition → pharmacy hold → invoice.
+
+export type WorkflowStep = 'ENCOUNTER_FINALIZED' | 'LAB_ROUTED' | 'PHARMACY_HOLD_PLACED' | 'INVOICE_GENERATED' | 'WHATSAPP_DISPATCHED';
+
+export interface WorkflowState {
+  workflowId: string;
+  patientId: string;
+  encounterId: string;
+  steps: Record<WorkflowStep, 'pending' | 'success' | 'failed' | 'skipped'>;
+  startedAt: string;
+  completedAt?: string;
+  errors: string[];
+}
+
+export class WorkflowOrchestratorAgent {
+  private static workflows: Map<string, WorkflowState> = new Map();
+
+  static initWorkflow(patientId: string, encounterId: string): WorkflowState {
+    const workflowId = `WF-${Date.now()}-${patientId.slice(0, 8)}`;
+    const state: WorkflowState = {
+      workflowId,
+      patientId,
+      encounterId,
+      steps: {
+        ENCOUNTER_FINALIZED: 'pending',
+        LAB_ROUTED: 'pending',
+        PHARMACY_HOLD_PLACED: 'pending',
+        INVOICE_GENERATED: 'pending',
+        WHATSAPP_DISPATCHED: 'pending',
+      },
+      startedAt: new Date().toISOString(),
+      errors: [],
+    };
+    WorkflowOrchestratorAgent.workflows.set(workflowId, state);
+    console.log(`[WorkflowOrchestrator] Initiated workflow ${workflowId} for patient ${patientId}`);
+    return state;
+  }
+
+  static advanceStep(workflowId: string, step: WorkflowStep, success: boolean, error?: string): WorkflowState | null {
+    const state = WorkflowOrchestratorAgent.workflows.get(workflowId);
+    if (!state) {
+      console.error(`[WorkflowOrchestrator] Workflow ${workflowId} not found.`);
+      return null;
+    }
+
+    state.steps[step] = success ? 'success' : 'failed';
+    if (!success && error) {
+      state.errors.push(`[${step}] ${error}`);
+    }
+
+    const allDone = Object.values(state.steps).every(s => s !== 'pending');
+    if (allDone) {
+      state.completedAt = new Date().toISOString();
+    }
+
+    console.log(`[WorkflowOrchestrator] ${workflowId} → ${step}: ${success ? '✅ SUCCESS' : '❌ FAILED'}`);
+    WorkflowOrchestratorAgent.workflows.set(workflowId, state);
+    return state;
+  }
+
+  static skipStep(workflowId: string, step: WorkflowStep, reason: string): WorkflowState | null {
+    const state = WorkflowOrchestratorAgent.workflows.get(workflowId);
+    if (!state) return null;
+    state.steps[step] = 'skipped';
+    console.log(`[WorkflowOrchestrator] ${workflowId} → ${step}: ⏭️ SKIPPED (${reason})`);
+    WorkflowOrchestratorAgent.workflows.set(workflowId, state);
+    return state;
+  }
+
+  static getWorkflowState(workflowId: string): WorkflowState | undefined {
+    return WorkflowOrchestratorAgent.workflows.get(workflowId);
+  }
+
+  static getCompletionPercentage(workflowId: string): number {
+    const state = WorkflowOrchestratorAgent.workflows.get(workflowId);
+    if (!state) return 0;
+    const steps = Object.values(state.steps);
+    const done = steps.filter(s => s === 'success' || s === 'skipped').length;
+    return Math.round((done / steps.length) * 100);
+  }
+
+  static hasFailures(workflowId: string): boolean {
+    const state = WorkflowOrchestratorAgent.workflows.get(workflowId);
+    if (!state) return false;
+    return Object.values(state.steps).some(s => s === 'failed');
+  }
+}
+

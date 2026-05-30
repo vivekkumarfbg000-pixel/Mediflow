@@ -1,15 +1,91 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import subprocess
 import json
 import os
 import aiofiles
+import time
+from collections import defaultdict
 from supabase import create_client, Client
 
+# Import new production modules
+from app.middleware import setup_logging, RequestContextMiddleware, ApiVersionMiddleware, create_error_response
+from app.ai_engine import (
+    transcribe_audio, summarize_voice_note,
+    ocr_image, structure_ocr_data,
+    analyze_lab_trends, generate_seasonal_forecast
+)
 
-app = FastAPI(title="Mediflow Backend", version="1.0.0")
+# Initialize structured logging
+setup_logging(level=os.getenv("LOG_LEVEL", "INFO"))
+import logging
+logger = logging.getLogger("mediflow.api")
+
+# Define FastAPI application
+app = FastAPI(
+    title="Mediflow Backend",
+    description="Ecosystem API engine for Mediflow Connected Care Platform",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# Register request context logging and version guard middlewares
+app.add_middleware(RequestContextMiddleware)
+app.add_middleware(ApiVersionMiddleware)
+
+# ── Rate Limiting (Token Bucket) ──────────────────────────────────────────────
+class TokenBucket:
+    def __init__(self, rate: float, capacity: float):
+        self.rate = rate          # tokens generated per second
+        self.capacity = capacity  # max tokens bucket can hold
+        self.tokens = capacity
+        self.last_update = time.monotonic()
+
+    def consume(self) -> bool:
+        now = time.monotonic()
+        elapsed = now - self.last_update
+        self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
+        self.last_update = now
+        if self.tokens >= 1.0:
+            self.tokens -= 1.0
+            return True
+        return False
+
+# Limiters dictionary mapping: client_ip -> {"ai": TokenBucket, "crud": TokenBucket}
+# AI limit: 10 req / min = 10 / 60 = 0.1667 tokens/sec
+# CRUD limit: 100 req / min = 100 / 60 = 1.667 tokens/sec
+_LIMITERS = defaultdict(lambda: {
+    "ai": TokenBucket(rate=10.0 / 60.0, capacity=10.0),
+    "crud": TokenBucket(rate=100.0 / 60.0, capacity=100.0)
+})
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    path = request.url.path
+    if path in ("/health", "/docs", "/redoc", "/openapi.json"):
+        return await call_next(request)
+
+    client_ip = request.client.host if request.client else "unknown"
+    is_ai = any(x in path for x in ("voice-scribe", "ocr-scan", "lab-trend", "generate-seasonal-forecast"))
+    limit_type = "ai" if is_ai else "crud"
+
+    bucket = _LIMITERS[client_ip][limit_type]
+    if not bucket.consume():
+        request_id = getattr(request.state, "request_id", None)
+        logger.warning(
+            f"Rate limit exceeded for IP {client_ip} on {path} ({limit_type})",
+            extra={"request_id": request_id, "client_ip": client_ip, "path": path}
+        )
+        return create_error_response(
+            status_code=429,
+            code="TOO_MANY_REQUESTS",
+            message=f"Rate limit exceeded for {limit_type} endpoints. Please try again later.",
+            request_id=request_id
+        )
+
+    return await call_next(request)
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
 # Allow the Vite dev server and any production domains to call this API.
@@ -59,117 +135,27 @@ class WhatsAppSendResponse(BaseModel):
     detail: str = None
 
 # Helper functions (resilient implementations with premium clinical simulation failovers)
-async def transcribe_audio(file_path: str) -> str:
-    # Call local Whisper model (assumed installed as CLI `whisper`)
-    try:
-        result = subprocess.run(["whisper", file_path, "--model", "base.en"], capture_output=True, text=True, check=True)
-        return result.stdout
-    except Exception as e:
-        print(f"[Whisper CLI Warning] Local transcription execution failed: {e}. Executing resilient clinical fallback.")
-        # Medically accurate, highly realistic clinical description
-        return "Patient details sugar test result and cough state. HbA1c is 7.2 percent, serum creatinine is 1.1 mg/dL, and patient has a mild dry cough for three days. No known drug allergy."
+async def transcribe_audio_stub(file_path: str) -> str:
+    """Wrapper — delegates to ai_engine.transcribe_audio."""
+    return await transcribe_audio(file_path)
 
 async def summarize_text(text: str) -> str:
-    # Call local Llama.cpp binary (assumed `llama-cli`)
-    try:
-        proc = subprocess.Popen(["llama-cli", "-m", "mediflow_model.bin", "-p", text], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        out, err = proc.communicate(timeout=30)
-        if proc.returncode != 0:
-            raise Exception(f"llama-cli returncode {proc.returncode}: {err}")
-        return out.strip()
-    except Exception as e:
-        print(f"[Llama CLI Warning] Local LLM summary execution failed: {e}. Executing premium clinical fallback.")
-        # Medically structured Hinglish summary suitable for patient WhatsApp
-        return "Namaste Aarav ji. Aapka HbA1c 7.2% hai jo ki diabetic range me hai. Pichli baar se levels me improvement hai par strict diet aur medicines regular rakhna hai. Cold/cough ke liye Paracetamol 650mg and plenty of water advice kiya gaya hai. Dhyan rakhein!"
+    """Wrapper — delegates to ai_engine.summarize_voice_note."""
+    return await summarize_voice_note(text)
 
-async def ocr_image(file_path: str) -> str:
-    # Placeholder: use Tesseract OCR
-    try:
-        result = subprocess.run(["tesseract", file_path, "stdout"], capture_output=True, text=True, check=True)
-        return result.stdout
-    except Exception as e:
-        print(f"[Tesseract CLI Warning] Local OCR execution failed: {e}. Executing resilient document extraction fallback.")
-        # A mock supplier bill structure or pathology report structure depending on what is scanned
-        return (
-            "Patna Pharma Pvt Ltd\n"
-            "Supplier Invoice ID: INV-9982\n"
-            "Date: 2026-05-28\n"
-            "Brand Name: Metformin 500mg | Batch No: MET26B-02 | Exp: 2026-11-24 | MRP: 15.00 | QTY: 100\n"
-            "Brand Name: Atorvastatin 10mg | Batch No: ATV26F-06 | Exp: 2027-01-23 | MRP: 30.00 | QTY: 50\n"
-            "Brand Name: Paracetamol 650mg | Batch No: PAR26D-07 | Exp: 2027-03-24 | MRP: 5.00 | QTY: 200\n"
-            "Patient Name: Aarav Sharma\n"
-            "HbA1c: 7.2%\n"
-            "Creatinine: 1.1 mg/dL"
-        )
+async def ocr_image_stub(file_path: str) -> str:
+    """Wrapper — delegates to ai_engine.ocr_image."""
+    return await ocr_image(file_path)
 
 async def parse_lab_results(text: str) -> dict:
-    # Highly refined parsing that extracts structured items for bulk importing or form matching
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    data = {}
-    
-    # Check if this contains supplier bill details
-    if "Patna Pharma" in text or "Brand Name" in text:
-        data["Supplier"] = "Patna Pharma Pvt Ltd"
-        data["Invoice ID"] = "INV-9982"
-        data["Date"] = "2026-05-28"
-        # Return serialized lines for bulk import
-        data["Metformin 500mg"] = "Batch: MET26B-02, Exp: 2026-11-24, MRP: 15.00, Qty: 100"
-        data["Atorvastatin 10mg"] = "Batch: ATV26F-06, Exp: 2027-01-23, MRP: 30.00, Qty: 50"
-        data["Paracetamol 650mg"] = "Batch: PAR26D-07, Exp: 2027-03-24, MRP: 5.00, Qty: 200"
-        return data
+    """Wrapper — delegates to ai_engine.structure_ocr_data."""
+    return await structure_ocr_data(text)
 
-    for ln in lines:
-        if ":" in ln:
-            key, val = ln.split(":", 1)
-            data[key.strip()] = val.strip()
-            
-    # Default patient biomarker mapping if not already parsed
-    if "HbA1c" not in data and "Patient Name" in text:
-        data["Patient Name"] = "Aarav Sharma"
-        data["HbA1c"] = "7.2%"
-        data["Creatinine"] = "1.1 mg/dL"
-    
-    # General fallback
-    if not data:
-        data = {
-            "Patient Name": "Aarav Sharma",
-            "HbA1c": "7.2%",
-            "Creatinine": "1.1 mg/dL"
-        }
-        
-    return data
 
-async def analyze_trend(lab_data: dict) -> dict:
-    # Clean and perform structured clinical trend evaluations
-    analysis = "Biomarker trends represent stable diagnostic levels."
-    recommendations = []
-    
-    hba1c_str = lab_data.get("HbA1c", lab_data.get("hba1c", ""))
-    if hba1c_str:
-        try:
-            val = float(hba1c_str.replace("%", "").strip())
-            if val > 6.5:
-                analysis = f"HbA1c is {val}% which is in the diabetic threshold range."
-                recommendations.append("Prioritize low-GI dietary carbs intake control.")
-                recommendations.append("Recheck Glycated Hemoglobin (HbA1c) in 90 days.")
-        except ValueError:
-            pass
+async def _analyze_trend(lab_data: dict) -> dict:
+    """Wrapper — delegates to ai_engine.analyze_lab_trends."""
+    return await analyze_lab_trends(lab_data)
 
-    creat_str = lab_data.get("Creatinine", lab_data.get("creatinine", ""))
-    if creat_str:
-        try:
-            val = float(creat_str.replace("mg/dL", "").strip())
-            if val > 1.2:
-                analysis += f" Serum Creatinine is elevated at {val} mg/dL."
-                recommendations.append("Schedule renal standard clearance check in 14 days.")
-                recommendations.append("Review concurrent nephrotoxic drug usage.")
-        except ValueError:
-            pass
-            
-    if not recommendations:
-        recommendations = ["Continue active clinical management routine", "Review daily vitals log entries"]
-        
-    return {"analysis": analysis, "recommendations": recommendations}
 
 async def call_forecast_llm(prompt: str) -> str:
     # Call local Llama.cpp binary (assumed `llama-cli`)
@@ -190,43 +176,52 @@ async def send_whatsapp_message(phone: str, message: str) -> bool:
     return True
 
 # Endpoints
-@app.post("/api/voice-scribe", response_model=VoiceScribeResponse)
+@app.post("/api/voice-scribe", response_model=VoiceScribeResponse, tags=["AI"])
+@app.post("/api/v1/voice-scribe", response_model=VoiceScribeResponse, tags=["AI"])
 async def voice_scribe(file: UploadFile = File(...)):
-    # Save uploaded file temporarily
+    """Transcribe clinical voice notes and summarize into structured Hinglish WhatsApp message."""
     upload_path = f"./tmp/{file.filename}"
     os.makedirs(os.path.dirname(upload_path), exist_ok=True)
     async with aiofiles.open(upload_path, "wb") as out_file:
         content = await file.read()
         await out_file.write(content)
-    # Transcribe and summarize
     transcript = await transcribe_audio(upload_path)
-    summary = await summarize_text(transcript)
-    # Clean up
+    summary = await summarize_voice_note(transcript)
     try:
         os.remove(upload_path)
     except OSError:
         pass
+    logger.info(f"[voice-scribe] Processed file: {file.filename}, transcript_len={len(transcript)}")
     return VoiceScribeResponse(summary=summary)
 
-@app.post("/api/ocr-scan", response_model=OCRScanResponse)
+
+@app.post("/api/ocr-scan", response_model=OCRScanResponse, tags=["AI"])
+@app.post("/api/v1/ocr-scan", response_model=OCRScanResponse, tags=["AI"])
 async def ocr_scan(file: UploadFile = File(...)):
+    """Extract and structure data from prescription images or supplier invoices via OCR."""
     upload_path = f"./tmp/{file.filename}"
     os.makedirs(os.path.dirname(upload_path), exist_ok=True)
     async with aiofiles.open(upload_path, "wb") as out_file:
         content = await file.read()
         await out_file.write(content)
     extracted = await ocr_image(upload_path)
-    structured = await parse_lab_results(extracted)
+    structured = await structure_ocr_data(extracted)
     try:
         os.remove(upload_path)
     except OSError:
         pass
+    logger.info(f"[ocr-scan] Processed: {file.filename}, doc_type={structured.get('document_type', 'unknown')}")
     return OCRScanResponse(extracted_text=extracted, structured_data=structured)
 
-@app.post("/api/lab-trend", response_model=LabTrendResponse)
+
+@app.post("/api/lab-trend", response_model=LabTrendResponse, tags=["AI"])
+@app.post("/api/v1/lab-trend", response_model=LabTrendResponse, tags=["AI"])
 async def lab_trend(lab_data: dict):
-    analysis = await analyze_trend(lab_data)
-    return LabTrendResponse(analysis=analysis["analysis"], recommendations=analysis["recommendations"])
+    """Analyze biomarker trends with Gemini AI and evidence-based clinical recommendations."""
+    result = await _analyze_trend(lab_data)
+    logger.info(f"[lab-trend] Analyzed {len(lab_data)} biomarkers, trajectory={result.get('trajectory', 'unknown')}")
+    return LabTrendResponse(analysis=result["analysis"], recommendations=result["recommendations"])
+
 
 @app.post("/api/whatsapp-send", response_model=WhatsAppSendResponse)
 async def whatsapp_send(payload: dict):

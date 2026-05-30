@@ -127,7 +127,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       createdAt: new Date().toISOString()
     };
     // Deactivate previous SOPs
-    const existing = api.getClinicSops().map(s => ({ ...s, isActive: false }));
+    const existing = api.getClinicSops().map((s: ClinicSop) => ({ ...s, isActive: false }));
     api.saveClinicSops([newSop, ...existing]);
     setExtractedConfig(null);
     setSopText('');
@@ -482,7 +482,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     Previous SOPs
                   </h4>
                   <div className="space-y-2">
-                    {sops.filter(s => !s.isActive).slice(0, 5).map(s => (
+                    {sops.filter((s: ClinicSop) => !s.isActive).slice(0, 5).map((s: ClinicSop) => (
                       <div key={s.id} className="flex items-center justify-between py-2 px-3 bg-white border border-slate-200 rounded-xl">
                         <div>
                           <p className="text-xs font-semibold text-slate-600">{s.sopFileName}</p>
@@ -490,7 +490,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                         </div>
                         <button
                           onClick={() => {
-                            const updated = api.getClinicSops().map(x => ({ ...x, isActive: x.id === s.id }));
+                            const updated = api.getClinicSops().map((x: ClinicSop) => ({ ...x, isActive: x.id === s.id }));
                             api.saveClinicSops(updated);
                             window.dispatchEvent(new CustomEvent('mediflow-toast', {
                               detail: { title: 'SOP Restored!', message: `"${s.sopFileName}" is now the active SOP.`, type: 'info' }
