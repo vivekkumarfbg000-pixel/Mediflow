@@ -823,7 +823,7 @@ export const PatientMobileDashboard: React.FC = () => {
 
             {/* Google Pay Style mobile sheet modal backdrop */}
             {isUpiModalOpen && activeUpiInvoice && (
-              <div className="absolute inset-0 bg-black/80 z-50 flex flex-col justify-end animate-fade-in">
+              <div className="absolute inset-0 bg-slate-800/80 z-50 flex flex-col justify-end animate-fade-in">
                 <div className="bg-zinc-900 rounded-t-[32px] p-5 space-y-4 border-t border-slate-200/60 animate-slide-up shadow-2xl">
                   
                   {/* Modal Header */}

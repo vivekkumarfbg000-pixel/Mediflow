@@ -193,7 +193,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
         {/* Lab Node */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
+        <div className="bg-white dark:bg-slate-50 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-cyan-50 border border-cyan-100 flex items-center justify-center">
@@ -238,7 +238,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         </div>
 
         {/* Pharmacy Node */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
+        <div className="bg-white dark:bg-slate-50 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">
@@ -273,7 +273,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         </div>
 
         {/* WhatsApp Node */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
+        <div className="bg-white dark:bg-slate-50 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden group hover:shadow-md hover:border-slate-200 transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
@@ -337,7 +337,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         {/* Patient flow summary */}
         <div className="lg:col-span-4 space-y-5">
           {/* Active Consultation Queue */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-50 border border-slate-200/50 dark:border-slate-800 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] rounded-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-sky-400 opacity-60" />
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">

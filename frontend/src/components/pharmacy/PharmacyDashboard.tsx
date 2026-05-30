@@ -1125,7 +1125,7 @@ export const PharmacyDashboard: React.FC = () => {
                       <div className="space-y-2">
                         <div className="flex justify-between items-start gap-2">
                           <h4 className="font-bold text-sm text-white leading-tight">{item.name}</h4>
-                          <span className="text-[8px] font-mono font-bold px-2 py-0.5 rounded border tracking-wider uppercase bg-black/40">
+                          <span className="text-[8px] font-mono font-bold px-2 py-0.5 rounded border tracking-wider uppercase bg-slate-800/40">
                             {tierText}
                           </span>
                         </div>
@@ -1143,7 +1143,7 @@ export const PharmacyDashboard: React.FC = () => {
                         </div>
 
                         {/* Loading bar */}
-                        <div className="w-full bg-black/60 rounded-full h-2 mt-2 border border-white/5">
+                        <div className="w-full bg-slate-800/60 rounded-full h-2 mt-2 border border-white/5">
                           <div 
                             className={`h-full rounded-full ${item.stock === 0 ? 'bg-transparent' : item.stock < item.threshold/2 ? 'bg-rose-500' : 'bg-amber-400'}`} 
                             style={{ width: `${Math.min(100, percentOfSafety)}%` }} 
@@ -1512,7 +1512,7 @@ export const PharmacyDashboard: React.FC = () => {
                 <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
                   <p className="text-xs font-bold text-white">{activePod?.name || 'Patna Connected Clinic'}</p>
                   <div className="text-[10px] text-clinical-400 space-y-1">
-                    <div>Clinic Code: <span className="font-mono font-bold text-white bg-black/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
+                    <div>Clinic Code: <span className="font-mono font-bold text-white bg-slate-800/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
                     <div>Location: {activePod?.location || 'Patna, Bihar'}</div>
                     <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
                   </div>
@@ -1556,7 +1556,7 @@ export const PharmacyDashboard: React.FC = () => {
 
       {/* V2.0 PREMIUM LASER BARCODE SCANNER SIMULATION MODAL */}
       {scanningHold && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
           <div className="glass-panel max-w-md w-full p-6 border-secondary/20 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
@@ -1576,7 +1576,7 @@ export const PharmacyDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="relative h-48 w-full bg-black/80 rounded-lg border border-slate-200/60 flex flex-col items-center justify-center overflow-hidden select-none">
+            <div className="relative h-48 w-full bg-slate-800/80 rounded-lg border border-slate-200/60 flex flex-col items-center justify-center overflow-hidden select-none">
               <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-secondary/80 rounded-tl" />
               <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-secondary/80 rounded-tr" />
               <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-secondary/80 rounded-bl" />
@@ -1618,7 +1618,7 @@ export const PharmacyDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="absolute bottom-4 bg-black/60 px-3 py-1 rounded border border-slate-200/60 text-[9px] font-mono uppercase tracking-widest text-center">
+              <div className="absolute bottom-4 bg-slate-800/60 px-3 py-1 rounded border border-slate-200/60 text-[9px] font-mono uppercase tracking-widest text-center">
                 {scannerStage === 'scanning' ? (
                   <span className="text-secondary flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping" />
@@ -1677,7 +1677,7 @@ export const PharmacyDashboard: React.FC = () => {
 
       {/* MANUAL REGISTER NEW MEDICINE MODAL */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
           <div className="glass-panel max-w-2xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
@@ -1855,7 +1855,7 @@ export const PharmacyDashboard: React.FC = () => {
 
       {/* CSV IMPORT PANEL MODAL */}
       {isCsvImportOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
           <div className="glass-panel max-w-3xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden space-y-4">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
@@ -1885,7 +1885,7 @@ export const PharmacyDashboard: React.FC = () => {
             </div>
 
             {/* Dropzone */}
-            <div className="relative border-2 border-dashed border-outline-variant hover:border-emerald-400/50 rounded-xl p-6 text-center transition-all bg-black/20">
+            <div className="relative border-2 border-dashed border-outline-variant hover:border-emerald-400/50 rounded-xl p-6 text-center transition-all bg-slate-800/20">
               <input
                 type="file"
                 accept=".csv"
@@ -1968,7 +1968,7 @@ export const PharmacyDashboard: React.FC = () => {
 
       {/* OCR BILL SCAN PANEL MODAL */}
       {isBillScanOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
           <div className="glass-panel max-w-3xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden space-y-4">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
@@ -1987,11 +1987,11 @@ export const PharmacyDashboard: React.FC = () => {
               {/* Photo selector dropzone */}
               <div className="space-y-3">
                 <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Upload Supplier Bill Photo / Challan</label>
-                <div className="relative border-2 border-dashed border-outline-variant hover:border-secondary/50 rounded-xl h-44 flex flex-col items-center justify-center overflow-hidden bg-black/20 select-none">
+                <div className="relative border-2 border-dashed border-outline-variant hover:border-secondary/50 rounded-xl h-44 flex flex-col items-center justify-center overflow-hidden bg-slate-800/20 select-none">
                   {billImage ? (
                     <>
                       <img src={billImage} className="w-full h-full object-cover opacity-75" alt="Suppliers bill upload" />
-                      <div className="absolute inset-0 bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors">
+                      <div className="absolute inset-0 bg-slate-800/40 hover:bg-slate-800/60 flex items-center justify-center transition-colors">
                         <span className="text-white text-xs font-bold uppercase tracking-wider">Change photo</span>
                       </div>
                     </>

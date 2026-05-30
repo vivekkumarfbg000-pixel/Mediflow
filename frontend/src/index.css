@@ -308,14 +308,14 @@ body {
 .glass-panel .bg-clinical-950,
 .glass-panel .bg-clinical-900\/20,
 .glass-panel .bg-clinical-900\/40,
-.glass-panel .bg-black\/30 {
+.glass-panel .bg-slate-800\/30 {
   background-color: rgba(241, 245, 249, 0.8) !important;
   border-color: rgba(226, 232, 240, 0.8) !important;
 }
 .dark .glass-panel .bg-clinical-950,
 .dark .glass-panel .bg-clinical-900\/20,
 .dark .glass-panel .bg-clinical-900\/40,
-.dark .glass-panel .bg-black\/30 {
+.dark .glass-panel .bg-slate-800\/30 {
   background-color: rgba(15, 23, 42, 0.6) !important;
   border-color: rgba(51, 65, 85, 0.5) !important;
 }

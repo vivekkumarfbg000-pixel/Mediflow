@@ -2258,7 +2258,7 @@ export const CompounderDashboard: React.FC = () => {
                         <button 
                           type="button"
                           onClick={() => setViewingDocUrl(dispatchPreviewUrl)}
-                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                          className="absolute inset-0 bg-slate-800/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
                         >
                           View Rx
                         </button>
@@ -3044,7 +3044,7 @@ export const CompounderDashboard: React.FC = () => {
                         <button 
                           type="button"
                           onClick={() => setViewingDocUrl(prescriptionImage)}
-                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                          className="absolute inset-0 bg-slate-800/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
                         >
                           View Rx
                         </button>
@@ -3651,7 +3651,7 @@ export const CompounderDashboard: React.FC = () => {
       </div>
 
       {viewingDocUrl && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-slate-800/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white border border-slate-200/60 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 to-teal-500" />
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
@@ -3667,7 +3667,7 @@ export const CompounderDashboard: React.FC = () => {
               </button>
             </div>
             
-            <div className="bg-black/40 rounded-xl border border-white/5 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh] p-2">
+            <div className="bg-slate-800/40 rounded-xl border border-white/5 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh] p-2">
               {viewingDocUrl.startsWith('data:application/pdf') ? (
                 <iframe src={viewingDocUrl} className="w-full h-[500px] border-0 rounded-lg" title="PDF Document Viewer" />
               ) : (

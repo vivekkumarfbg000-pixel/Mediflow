@@ -557,7 +557,7 @@ export const BillingDashboard: React.FC = () => {
                 /* Tab 3: Executive Analytics */
                 <div className="space-y-6 animate-fade-in text-xs select-none">
                   {/* Revenue Splits 3D Cylinder Grouped Bars */}
-                  <div className="glass-panel p-5 border-slate-200/60 shadow-lg relative overflow-hidden bg-black/35 rounded-2xl border border-white/5">
+                  <div className="glass-panel p-5 border-slate-200/60 shadow-lg relative overflow-hidden bg-slate-800/35 rounded-2xl border border-white/5">
                     <h4 className="font-extrabold text-white text-xs uppercase tracking-widest font-mono mb-4 flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-emerald-400 text-sm animate-pulse">analytics</span>
                       Executive Clinic Revenue Splits & SaaS Commission
@@ -589,7 +589,7 @@ export const BillingDashboard: React.FC = () => {
 
                   {/* Expiry and Swapper Savings */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="glass-panel p-4 border-slate-200/60 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                    <div className="glass-panel p-4 border-slate-200/60 bg-slate-800/25 rounded-2xl space-y-3 border border-white/5">
                       <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-amber-400 text-sm">schedule</span>
                         FEFO Expiry Burn Velocity
@@ -606,7 +606,7 @@ export const BillingDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="glass-panel p-4 border-slate-200/60 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                    <div className="glass-panel p-4 border-slate-200/60 bg-slate-800/25 rounded-2xl space-y-3 border border-white/5">
                       <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-rose-400 text-sm">swap_horiz</span>
                         Generic Brand Cost Savings
@@ -624,7 +624,7 @@ export const BillingDashboard: React.FC = () => {
                   </div>
 
                   {/* Reagent Deduction Burn velocity & Speed */}
-                  <div className="glass-panel p-4 border-slate-200/60 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                  <div className="glass-panel p-4 border-slate-200/60 bg-slate-800/25 rounded-2xl space-y-3 border border-white/5">
                     <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono">Reagent & Wait Time Analytics</h5>
                     <div className="grid grid-cols-2 gap-4 text-center">
                       <div className="p-3 bg-clinical-950/60 rounded-xl border border-white/5">
@@ -729,7 +729,7 @@ export const BillingDashboard: React.FC = () => {
                     <p className="text-[10px] text-clinical-400">Interactive live payout map. Click any wallet node to audit.</p>
                   </div>
 
-                  <div className="relative bg-black/40 rounded-2xl border border-white/5 p-4">
+                  <div className="relative bg-slate-800/40 rounded-2xl border border-white/5 p-4">
                     <svg className="w-full max-w-[280px] h-[280px] mx-auto overflow-visible select-none" viewBox="0 0 300 300">
                       {/* Connections with flowing dot animation */}
                       <path d="M 150 150 L 150 45" stroke={selectedNode === 'clinic' ? '#a855f7' : '#ffffff20'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-primary" style={{ animationDuration: '1s' }} />
@@ -874,7 +874,7 @@ export const BillingDashboard: React.FC = () => {
             <h3 className="font-extrabold uppercase text-[10px] tracking-wider">Multi-Vendor Ledger Splits Allocation</h3>
             <table className="w-full text-[11px] border-collapse border border-black/30">
               <thead>
-                <tr className="bg-black/5 text-[10px] font-bold border-b border-black">
+                <tr className="bg-slate-800/5 text-[10px] font-bold border-b border-black">
                   <th className="p-2 border-r border-black/30 text-left">Destination Wallet ID</th>
                   <th className="p-2 border-r border-black/30 text-left">Entity Segment</th>
                   <th className="p-2 border-r border-black/30 text-right">Gross Amount</th>
@@ -911,7 +911,7 @@ export const BillingDashboard: React.FC = () => {
                   <td className="p-2 border-r border-black/30 text-right font-mono">—</td>
                   <td className="p-2 text-right font-mono font-bold">₹{selectedInvoice.platformFee}.00</td>
                 </tr>
-                <tr className="font-extrabold bg-black/5 text-[12px]">
+                <tr className="font-extrabold bg-slate-800/5 text-[12px]">
                   <td colSpan={2} className="p-2 border-r border-black text-left uppercase">Total Settlements</td>
                   <td className="p-2 border-r border-black text-right font-mono">₹{selectedInvoice.totalAmount}.00</td>
                   <td className="p-2 border-r border-black text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).totalTds}.00</td>

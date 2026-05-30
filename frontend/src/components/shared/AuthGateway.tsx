@@ -431,7 +431,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
               Unique Clinic Network Code
             </span>
             <div className="flex items-center justify-center gap-3">
-              <span className="text-4xl font-black tracking-wider text-white font-mono bg-black/40 px-6 py-2.5 rounded-xl border border-clinical-800">
+              <span className="text-4xl font-black tracking-wider text-white font-mono bg-slate-800/40 px-6 py-2.5 rounded-xl border border-clinical-800">
                 {registeredClinicCode}
               </span>
               <button

@@ -591,7 +591,7 @@ export const LabDashboard: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-6 md:p-6 space-y-6 animate-fade-in">
       {viewingDocUrl && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-800/80 backdrop-blur-md">
           <div className="bg-surface-container rounded-2xl w-full max-w-2xl p-6 border border-outline-variant shadow-2xl relative">
             <button onClick={() => setViewingDocUrl(null)} className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-clinical-400">
               <span className="material-symbols-outlined">close</span>
@@ -715,7 +715,7 @@ export const LabDashboard: React.FC = () => {
                     return (
                       <div key={req.id} className="p-5 bg-surface-container rounded-xl border border-outline-variant flex flex-col justify-between gap-4 hover:border-outline/50 transition-all duration-300 relative overflow-hidden">
                         {!isConsentActive && !isWalkin && (
-                          <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm border border-rose-500/20 p-4 text-center animate-fade-in">
+                          <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm border border-rose-500/20 p-4 text-center animate-fade-in">
                             <div className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-2 text-rose-500 animate-pulse">
                               <span className="material-symbols-outlined text-base">lock</span>
                             </div>
@@ -792,7 +792,7 @@ export const LabDashboard: React.FC = () => {
                     return (
                       <div key={req.id} className="p-5 bg-surface-container rounded-xl border border-outline-variant flex flex-col justify-between gap-4 hover:border-outline/50 transition-all duration-300 relative overflow-hidden">
                         {!isConsentActive && (
-                          <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm border border-rose-500/20 p-4 text-center animate-fade-in">
+                          <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm border border-rose-500/20 p-4 text-center animate-fade-in">
                             <div className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-2 text-rose-500 animate-pulse">
                               <span className="material-symbols-outlined text-base">lock</span>
                             </div>
@@ -1048,7 +1048,7 @@ export const LabDashboard: React.FC = () => {
                           <button 
                             type="button" 
                             onClick={() => setViewingDocUrl(reportFilePreviewUrl)}
-                            className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                            className="absolute inset-0 bg-slate-800/60 flex items-center justify-center text-[8px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
                           >
                             Zoom
                           </button>
@@ -1776,7 +1776,7 @@ export const LabDashboard: React.FC = () => {
               </div>
 
               {/* Cylinder gauges */}
-              <div className="grid grid-cols-5 gap-2.5 bg-black/25 p-4 rounded-2xl border border-white/5 relative">
+              <div className="grid grid-cols-5 gap-2.5 bg-slate-800/25 p-4 rounded-2xl border border-white/5 relative">
                 <div className="absolute left-2.5 top-4 bottom-4 flex flex-col justify-between text-[8px] text-clinical-500 font-mono font-bold select-none h-[120px] pointer-events-none">
                   <span>1000ml</span><span>750ml</span><span>500ml</span><span>250ml</span><span>0ml</span>
                 </div>
@@ -2054,7 +2054,7 @@ export const LabDashboard: React.FC = () => {
               <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
                 <p className="text-xs font-bold text-slate-800">{activePod?.name || 'Patna Connected Clinic'}</p>
                 <div className="text-[10px] text-clinical-400 space-y-1">
-                  <div>Clinic Code: <span className="font-mono font-bold text-slate-800 bg-black/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
+                  <div>Clinic Code: <span className="font-mono font-bold text-slate-800 bg-slate-800/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
                   <div>Location: {activePod?.location || 'Patna, Bihar'}</div>
                   <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
                 </div>
@@ -2096,7 +2096,7 @@ export const LabDashboard: React.FC = () => {
 
       {/* ── SPECIMEN LABEL PRINT MODAL ──────────────────────────── */}
       {printLabelReq && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
           <div className="glass-panel max-w-md w-full p-6 border-primary/20 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-primary" />
             <div className="flex items-center justify-between border-b border-outline-variant pb-3">
@@ -2111,7 +2111,7 @@ export const LabDashboard: React.FC = () => {
             <div id="specimen-label-print-area" className="p-4 bg-white text-black rounded-lg border-2 border-dashed border-black/30 font-sans shadow-inner space-y-4">
               <div className="flex justify-between items-center border-b border-black/20 pb-2">
                 <div className="text-[10px] font-extrabold uppercase tracking-wider">Mediflow Clinical Labs</div>
-                <div className="text-[8px] bg-black text-slate-800 px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wide">Specimen Card</div>
+                <div className="text-[8px] bg-slate-800 text-slate-800 px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wide">Specimen Card</div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
                 {[
@@ -2129,7 +2129,7 @@ export const LabDashboard: React.FC = () => {
                 ))}
               </div>
               <div className="border-t border-black/20 pt-3 text-center space-y-1.5">
-                <div className="bg-black p-2 rounded flex justify-center">
+                <div className="bg-slate-800 p-2 rounded flex justify-center">
                   <svg viewBox="0 0 100 30" className="w-full h-10" preserveAspectRatio="none">
                     {[5,9,12,17,21,27,30,34,39,42,48,52,57,60,64,70,73,78,82,88,91].map((x, i) => (
                       <rect key={i} x={x} y="2" width={i % 4 === 0 ? 3 : i % 3 === 0 ? 4 : i % 2 === 0 ? 2 : 1} height="26" fill="#ffffff" />
@@ -2177,7 +2177,7 @@ export const LabDashboard: React.FC = () => {
 
       {/* ── PROCESSING OVERLAY ──────────────────────────────────── */}
       {isProcessing && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
           <div className="glass-panel max-w-sm w-full p-8 border-primary/20 shadow-2xl text-center space-y-6 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-secondary animate-pulse" />
             <div className="relative w-24 h-24 mx-auto">
@@ -2193,7 +2193,7 @@ export const LabDashboard: React.FC = () => {
                 CALIBRATING LOINC-{activeReq?.testCode || 'SPECIMEN'}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-black/40 border border-outline-variant/40 font-mono text-[9px] text-emerald-400 text-left space-y-1 max-h-24 overflow-y-auto">
+            <div className="p-3 rounded-lg bg-slate-800/40 border border-outline-variant/40 font-mono text-[9px] text-emerald-400 text-left space-y-1 max-h-24 overflow-y-auto">
               <div>&gt; Specimen Barcode verified: {activeReq?.barcode}</div>
               <div>&gt; Injecting chemical reagent...</div>
               <div>&gt; Reading optical absorption values...</div>
@@ -2204,7 +2204,7 @@ export const LabDashboard: React.FC = () => {
       )}
 
       {viewingDocUrl && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 bg-slate-800/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white border border-slate-200/60 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden font-sans">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-secondary" />
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
@@ -2220,7 +2220,7 @@ export const LabDashboard: React.FC = () => {
               </button>
             </div>
             
-            <div className="bg-black/40 rounded-xl border border-white/5 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh] p-2">
+            <div className="bg-slate-800/40 rounded-xl border border-white/5 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[70vh] p-2">
               {viewingDocUrl.startsWith('data:application/pdf') ? (
                 <iframe src={viewingDocUrl} className="w-full h-[500px] border-0 rounded-lg" title="PDF Document Viewer" />
               ) : (

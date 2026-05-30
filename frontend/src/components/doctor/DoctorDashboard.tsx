@@ -1318,7 +1318,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   const renderAllergyAlertModal = () => {
     if (!allergyAlert) return null;
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/50 backdrop-blur-sm p-4 animate-fade-in">
         <div className="glass-panel max-w-md w-full p-6 border-rose-500/30 shadow-2xl relative overflow-hidden space-y-4 bg-white text-slate-800">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
           <div className="flex items-center gap-3 text-rose-600 font-bold text-lg font-sans">

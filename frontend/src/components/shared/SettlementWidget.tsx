@@ -213,7 +213,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         </div>
       ) : (
         <div className={`p-8 border border-dashed rounded-2xl text-center space-y-2 ${
-          isDark ? 'border-outline-variant bg-black/20' : 'border-slate-205 bg-slate-50/50'
+          isDark ? 'border-outline-variant bg-slate-800/20' : 'border-slate-205 bg-slate-50/50'
         }`}>
           <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-clinical-500' : 'text-slate-600'}`}>account_balance_wallet</span>
           <div>
@@ -227,7 +227,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
 
       {/* Onboarding Modal */}
       {vendorFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in text-slate-808">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-808">
           <div className={`glass-panel max-w-md w-full p-6 shadow-2xl relative overflow-hidden space-y-4 rounded-3xl ${
             isDark ? 'bg-white border-slate-200/60 text-white' : 'bg-white border-slate-200 text-slate-800'
           }`}>
