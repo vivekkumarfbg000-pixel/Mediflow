@@ -1,0 +1,22 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "Mediflow Connected Care Desktop Node"
+authors = ["Mediflow Ecosystem authors"]
+license = "MIT"
+repository = "https://github.com/vivekkumarfbg000-pixel/Mediflow"
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.6", features = ["api-all"] }
+
+[features]
+# by default tauri runs with all features enabled in our scaffolded environment
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]
