@@ -29,7 +29,7 @@ const WhatsAppTab = React.lazy(() => import('./tabs/WhatsAppTab').then(m => ({ d
 const SopConfigTab = React.lazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
 
 export const DoctorDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
+  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'health'>('pod_view');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -1006,6 +1006,12 @@ Keep the tone professional, clinical, objective, and precise.`;
                   setSopActiveSubTab={setSopActiveSubTab}
                 />
               );
+            case 'health':
+              return (
+                <div className="py-2">
+                  <SystemHealthCockpit />
+                </div>
+              );
             default:
               return (
                 <PodCommandCenter 
@@ -1431,7 +1437,8 @@ Keep the tone professional, clinical, objective, and precise.`;
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
             { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
             { id: 'patients',      label: 'Patient Directory',   icon: 'group' },
-            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' }
+            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' },
+            { id: 'health',        label: 'System Health',       icon: 'shield' }
           ].map(tab => {
             const isActive = activeTab === tab.id;
             return (
@@ -1490,7 +1497,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
             { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
             { id: 'patients', label: 'Patients', icon: 'group' },
-            { id: 'whatsapp', label: 'Chat', icon: 'chat' }
+            { id: 'health', label: 'Health', icon: 'shield' }
           ].map((item) => {
             const isActive = activeTab === item.id;
             return (

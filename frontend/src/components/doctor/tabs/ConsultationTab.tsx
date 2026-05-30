@@ -801,6 +801,95 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             )}
           </div>
 
+          {/* Prescribe Medications */}
+          <div className="space-y-4 text-left border-t border-slate-100 pt-5">
+            <label className="block text-xs font-bold text-slate-650 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-xs text-primary font-bold">medication</span>
+              Prescribe Medications (e-Rx)
+            </label>
+
+            {/* List of current medications */}
+            {medications.length > 0 ? (
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                {medications.map((med, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200/60 rounded-xl text-xs">
+                    <div>
+                      <strong className="text-slate-800 text-xs">{med.medicineName}</strong>
+                      <span className="text-[10px] text-slate-500 block mt-0.5">
+                        Dosage: {med.dosage} | Frequency: {med.frequency} | Duration: {med.duration}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMedication(idx)}
+                      className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-505 italic bg-slate-50/50 p-4 border border-dashed border-slate-200 rounded-xl text-center">
+                No medications prescribed yet. Add a medication below.
+              </p>
+            )}
+
+            {/* Form to add medication */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50/30 p-4 border border-slate-200/50 rounded-xl">
+              <div className="sm:col-span-2 space-y-1">
+                <span className="text-[10px] font-bold text-slate-550 uppercase">Medicine Name</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Paracetamol 650mg"
+                  value={medName}
+                  onChange={(e) => setMedName(e.target.value)}
+                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
+                />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-550 uppercase">Dosage</span>
+                <input
+                  type="text"
+                  placeholder="e.g. 1 tab"
+                  value={medDosage}
+                  onChange={(e) => setMedDosage(e.target.value)}
+                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
+                />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-550 uppercase">Frequency</span>
+                <input
+                  type="text"
+                  placeholder="e.g. 1-0-1"
+                  value={medFreq}
+                  onChange={(e) => setMedFreq(e.target.value)}
+                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
+                />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-550 uppercase">Duration</span>
+                <input
+                  type="text"
+                  placeholder="e.g. 5 Days"
+                  value={medDur}
+                  onChange={(e) => setMedDur(e.target.value)}
+                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
+                />
+              </div>
+              <div className="sm:col-span-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAddMedication}
+                  className="bg-[#075e54] hover:bg-[#0c4e46] text-white font-bold text-xs px-4 py-2 rounded-xl active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-650-force"
+                >
+                  <span className="material-symbols-outlined text-xs font-bold text-white-force">add</span>
+                  Add to Prescription
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Clinical Notes */}
           <div className="space-y-2 text-left">
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">

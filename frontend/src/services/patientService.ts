@@ -290,7 +290,7 @@ export class PatientService {
     try {
       const { error } = await supabase.from('patient_consents').insert({
         patient_id: patientId,
-        consent_type: 'in_person_override',
+        consent_type: 'data_processing',
         granted_at: new Date().toISOString()
       });
       if (error) throw error;

@@ -202,13 +202,16 @@ class MediflowApiService {
 
       const { data: dbSessions } = await supabase.from('whatsapp_sessions').select('*');
       if (dbSessions) {
-        const sessions = dbSessions.map(s => ({
-          id: s.id,
-          patientPhone: s.patient_phone,
-          currentState: s.current_state as WhatsAppSession['currentState'],
-          lastInteraction: s.last_interaction,
-          sessionData: s.session_data || {}
-        }));
+        const sessions = dbSessions.map(s => {
+          const sessionData = s.session_data || {};
+          return {
+            id: s.id,
+            patientPhone: s.patient_phone,
+            currentState: (sessionData.currentState || s.current_state) as WhatsAppSession['currentState'],
+            lastInteraction: s.last_interaction,
+            sessionData
+          };
+        });
         this.save('whatsapp_sessions', sessions);
       }
 

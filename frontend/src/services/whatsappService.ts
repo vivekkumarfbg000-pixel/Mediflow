@@ -82,7 +82,7 @@ export class WhatsAppService {
             if (patient) {
               await supabase.from('patient_consents').insert({
                 patient_id: patient.id,
-                consent_type: 'whatsapp_sync',
+                consent_type: 'data_processing',
                 granted_at: new Date().toISOString()
               });
             }
@@ -435,26 +435,16 @@ export class WhatsAppService {
           break;
       }
 
+      if (replyMessage) {
+        const currentHistory = sessionData.chatHistory || [];
+        currentHistory.push({ sender: 'bot', text: replyMessage, time: new Date().toISOString() });
+        sessionData.chatHistory = currentHistory;
+      }
+
       this.updateWhatsAppState(phone, nextState, sessionData);
 
       if (replyMessage) {
-        setTimeout(async () => {
-          const success = await this.sendWhatsAppMessagePayload(phone, 'mediflow_conversational_reply', { replyText: replyMessage });
-          if (success) {
-            const sesss = this.getWhatsAppSessions();
-            const sIdx = sesss.findIndex(s => s.patientPhone === phone);
-            if (sIdx !== -1) {
-              const currentHistory = sesss[sIdx].sessionData.chatHistory || [];
-              currentHistory.push({ sender: 'bot', text: replyMessage, time: new Date().toISOString() });
-              sesss[sIdx].sessionData.chatHistory = currentHistory;
-              this.saveWhatsAppSessions(sesss);
-              
-              supabase.from('whatsapp_sessions').update({
-                session_data: sesss[sIdx].sessionData
-              }).eq('patient_phone', phone);
-            }
-          }
-        }, 600);
+        this.sendWhatsAppMessagePayload(phone, 'mediflow_conversational_reply', { replyText: replyMessage });
       }
 
     } catch (e: any) {
@@ -546,18 +536,31 @@ export class WhatsAppService {
       if (idx !== -1) {
         sessions[idx].currentState = state;
         sessions[idx].lastInteraction = new Date().toISOString();
-        sessions[idx].sessionData = { ...sessions[idx].sessionData, ...data };
+        sessions[idx].sessionData = { ...sessions[idx].sessionData, ...data, currentState: state };
         this.saveWhatsAppSessions(sessions);
 
         supabase.from('whatsapp_sessions').select('session_data').eq('patient_phone', phone).single().then(({ data: dbSess }) => {
-          const mergedData = { ...(dbSess?.session_data || {}), ...data };
+          const mergedData = { ...(dbSess?.session_data || {}), ...data, currentState: state };
+          
+          const allowed = ['AWAITING_WELCOME', 'AWAITING_CONFIRMATION', 'AWAITING_PAYMENT', 'BOOKING_VIRTUAL', 'COMPLETED', 'INACTIVE'];
+          let dbState: string = state;
+          if (!allowed.includes(state)) {
+            if (state === 'AWAITING_CONSENT') dbState = 'AWAITING_WELCOME';
+            else if (state === 'AWAITING_WELCOME_ACK') dbState = 'AWAITING_CONFIRMATION';
+            else if (state === 'MEDICINE_ORDERING') dbState = 'BOOKING_VIRTUAL';
+            else if (state === 'MEDICINE_AWAITING_PAYMENT') dbState = 'AWAITING_PAYMENT';
+            else if (state === 'MEDICINE_READY_FOR_PICKUP') dbState = 'COMPLETED';
+            else if (state === 'FAILED_DELIVERY') dbState = 'INACTIVE';
+            else dbState = 'AWAITING_WELCOME';
+          }
+
           supabase.from('whatsapp_sessions').update({
-            current_state: state,
+            current_state: dbState,
             last_interaction: new Date().toISOString(),
             session_data: mergedData
           }).eq('patient_phone', phone).then(({ error }) => {
             if (error) console.error('Error updating whatsapp state in Supabase:', error);
-            else writeAuditLog('whatsapp_session_state_updated', { phone, state }, sessions[idx].id);
+            else writeAuditLog('whatsapp_session_state_updated', { phone, state: dbState }, sessions[idx].id);
           });
         });
       }

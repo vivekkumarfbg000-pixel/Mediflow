@@ -164,7 +164,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
             {/* UPGRADE INTERACTIVE SIMULATORS INTERFACES */}
 
             {/* 1. Consent welcomes permissions card */}
-            {activeState === 'AWAITING_WELCOME' && (
+            {(activeState === 'AWAITING_WELCOME' || activeState === 'AWAITING_CONSENT') && (
               <div className="bg-white rounded-2xl p-3 border border-emerald-100 shadow-lg text-slate-800 self-center max-w-[92%] space-y-3 animate-fade-in">
                 <div className="flex gap-2 items-start text-[#075e54] font-bold text-xs">
                   <ShieldAlert className="h-4 w-4 text-emerald-600 flex-shrink-0" />
@@ -175,7 +175,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                 </p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleSendMessage('1')}
+                    onClick={() => handleSendMessage(activeState === 'AWAITING_WELCOME' ? '1' : 'consent')}
                     className="flex-1 bg-[#075e54] hover:bg-[#0c4e46] text-white text-[9px] font-bold py-1.5 rounded-lg uppercase tracking-wider transition-colors cursor-pointer text-white-force"
                   >
                     Grant Access
