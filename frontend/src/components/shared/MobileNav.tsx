@@ -69,7 +69,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
       </header>
 
       {/* 2. Bottom Tab Navigation Bar Component */}
-      <nav className="bg-zinc-950/90 backdrop-blur-xl border-t border-white/10 py-2.5 px-4 flex justify-between items-center shrink-0 z-40">
+      <nav className="bg-zinc-950/90 backdrop-blur-xl border-t border-slate-200/60 py-2.5 px-4 flex justify-between items-center shrink-0 z-40">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

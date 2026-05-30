@@ -60,7 +60,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 onChange={e => setPatientSearchQuery(e.target.value)}
                 className="w-full input-field py-2 pl-9 text-xs"
               />
-              <span className="material-symbols-outlined text-slate-400 absolute left-3 top-2.5 text-sm">search</span>
+              <span className="material-symbols-outlined text-slate-600 absolute left-3 top-2.5 text-sm">search</span>
             </div>
 
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
@@ -160,7 +160,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             <div className="border-b border-slate-100 pb-4 flex justify-between items-start">
               <div>
                 <h2 className="text-base font-bold text-slate-800">{selectedDirectoryPatient.name}</h2>
-                <p className="text-xs text-slate-400 mt-1">{selectedDirectoryPatient.gender}, {selectedDirectoryPatient.age} years • phone: {selectedDirectoryPatient.phone}</p>
+                <p className="text-xs text-slate-600 mt-1">{selectedDirectoryPatient.gender}, {selectedDirectoryPatient.age} years • phone: {selectedDirectoryPatient.phone}</p>
               </div>
               {selectedDirectoryPatient.abhaId && (
                 <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-205 px-2 py-0.5 rounded-full font-bold uppercase font-mono">
@@ -232,7 +232,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
           </div>
         ) : (
           <div className="glass-panel p-12 bg-white border-slate-200/80 shadow-sm rounded-2xl flex flex-col items-center justify-center text-center space-y-4">
-            <span className="material-symbols-outlined text-slate-300 text-5xl">group</span>
+            <span className="material-symbols-outlined text-slate-600 text-5xl">group</span>
             <div>
               <h3 className="text-slate-700 font-bold">No Patient Profile Selected</h3>
               <p className="text-xs text-slate-404 mt-1 max-w-sm">Select an active patient registry profile from the directory on the left to dispatch loyalty rewards or generate chronic summaries.</p>

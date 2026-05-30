@@ -90,7 +90,7 @@ export const SeasonalForecastWidget: React.FC = () => {
                 <Sparkles className="h-2.5 w-2.5 animate-pulse" /> AI CDSS Forecast
               </span>
             </h3>
-            <p className="text-[10px] text-slate-400 font-medium font-sans">
+            <p className="text-[10px] text-slate-600 font-medium font-sans">
               Clinical demand forecasting based on epidemiology & sewage pathogen density surveillance models.
             </p>
           </div>
@@ -126,13 +126,13 @@ export const SeasonalForecastWidget: React.FC = () => {
                 </div>
 
                 {/* Epidemiological Reason */}
-                <p className="text-[10px] text-slate-400 font-sans leading-relaxed">
+                <p className="text-[10px] text-slate-600 font-sans leading-relaxed">
                   {fc.reason}
                 </p>
 
                 {/* Confidence Meter */}
                 <div className="space-y-1 pt-1">
-                  <div className="flex justify-between items-center text-[8px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                  <div className="flex justify-between items-center text-[8px] font-bold text-slate-600 uppercase tracking-wider font-mono">
                     <span>Forecast Confidence</span>
                     <span className={isActed ? 'text-slate-500' : 'text-indigo-600'}>
                       {fc.forecastConfidence}% Accurate
@@ -151,7 +151,7 @@ export const SeasonalForecastWidget: React.FC = () => {
 
               {/* Action Button */}
               <div className="mt-4 pt-3 border-t border-slate-100/50 flex justify-between items-center gap-2">
-                <span className="text-[8px] font-mono font-bold text-slate-400">
+                <span className="text-[8px] font-mono font-bold text-slate-600">
                   Target: {fc.pharmacyId.split('-')[0].toUpperCase()}
                 </span>
                 

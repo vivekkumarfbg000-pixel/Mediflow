@@ -59,7 +59,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-sm font-bold text-slate-800">Ecosystem Revenue Projection (Patna Pod)</h2>
-              <p className="text-[10px] text-slate-400 mt-0.5">Simulated 6-Month Trajectory Trends</p>
+              <p className="text-[10px] text-slate-600 mt-0.5">Simulated 6-Month Trajectory Trends</p>
             </div>
             <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider font-mono">
               <span className="flex items-center gap-1.5 text-blue-600">
@@ -98,7 +98,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         <div className="lg:col-span-5 glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl flex flex-col justify-between space-y-4">
           <div>
             <h2 className="text-sm font-bold text-slate-800 text-left">Interactive UPI Payout Nodes</h2>
-            <p className="text-[10px] text-slate-400 mt-0.5 text-left">Real-Time Split Flows & Referral Cuts</p>
+            <p className="text-[10px] text-slate-600 mt-0.5 text-left">Real-Time Split Flows & Referral Cuts</p>
           </div>
           
           <div className="flex-1 flex items-center justify-center p-1 bg-slate-50/50 rounded-xl border border-slate-100">
@@ -171,7 +171,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
               onChange={e => setFinancialSearch(e.target.value)}
               className="w-full input-field py-1.5 pl-9 text-xs"
             />
-            <span className="material-symbols-outlined text-slate-400 absolute left-3 top-2 text-sm">search</span>
+            <span className="material-symbols-outlined text-slate-600 absolute left-3 top-2 text-sm">search</span>
           </div>
         </div>
 
@@ -192,7 +192,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
               {filteredLedgers.length > 0 ? filteredLedgers.map(entry => (
                 <tr key={entry.id} className="hover:bg-slate-55/50 transition-colors">
                   <td className="p-3.5 font-mono text-slate-600 text-[10px] font-bold">{entry.id}</td>
-                  <td className="p-3.5 font-mono text-slate-400 text-[9px]">{entry.invoiceId}</td>
+                  <td className="p-3.5 font-mono text-slate-600 text-[9px]">{entry.invoiceId}</td>
                   <td className="p-3.5">
                     <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider font-mono ${
                       entry.transactionType === 'appointment_fee'
@@ -205,7 +205,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                     </span>
                   </td>
                   <td className="p-3.5 text-right font-mono text-slate-600">₹{entry.grossAmount.toFixed(2)}</td>
-                  <td className="p-3.5 text-center font-mono text-slate-400">{(entry.commissionRate * 100).toFixed(0)}%</td>
+                  <td className="p-3.5 text-center font-mono text-slate-600">{(entry.commissionRate * 100).toFixed(0)}%</td>
                   <td className="p-3.5 text-right font-mono text-slate-800 font-bold">₹{entry.netPayout.toFixed(2)}</td>
                   <td className="p-3.5 text-center">
                     <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider font-mono">
@@ -215,7 +215,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400 text-xs italic">
+                  <td colSpan={7} className="p-6 text-center text-slate-600 text-xs italic">
                     No matching financial transaction ledgers recorded.
                   </td>
                 </tr>

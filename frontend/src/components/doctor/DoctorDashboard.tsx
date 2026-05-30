@@ -1109,7 +1109,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     }
 
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/40 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
         <div className="glass-panel max-w-4xl w-full p-6 md:p-8 border-slate-200 shadow-2xl relative bg-white text-slate-800 rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
           
@@ -1151,7 +1151,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                     <span className="text-xs font-bold text-slate-700">
                       {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.odLabel : "HbA1c (Glycated Hemoglobin)"}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-slate-600 font-mono">
                       {isOphthalmology ? `Ref Range: ${OPHTHALMIC_EYE_CARE_COPY.odRefRange}` : "Ref Range: 4.0% - 5.6%"}
                     </span>
                   </div>
@@ -1184,7 +1184,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                     <span className="text-xs font-bold text-slate-700">
                       {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.iopLabel : "Serum Creatinine"}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-slate-600 font-mono">
                       {isOphthalmology ? `Ref Range: ${OPHTHALMIC_EYE_CARE_COPY.iopRefRange}` : "Ref Range: 0.6 - 1.2 mg/dL"}
                     </span>
                   </div>
@@ -1212,7 +1212,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                     <span className="text-xs font-bold text-slate-700">
                       {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.osLabel : "Total Hemoglobin"}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-slate-600 font-mono">
                       {isOphthalmology ? `Ref Range: ${OPHTHALMIC_EYE_CARE_COPY.osRefRange}` : "Ref Range: 12.0 - 16.0 g/dL"}
                     </span>
                   </div>
@@ -1304,7 +1304,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           <div className="flex justify-end border-t border-slate-100 pt-4 gap-3">
             <button
               onClick={() => setAnalyzingReport(null)}
-              className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-white rounded-xl transition-all cursor-pointer border-0 active:scale-95"
+              className="px-6 py-2 bg-white hover:bg-slate-800 text-xs font-semibold text-white rounded-xl transition-all cursor-pointer border-0 active:scale-95"
             >
               Dismiss
             </button>
@@ -1331,7 +1331,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           </p>
 
           <div className="space-y-2">
-            <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+            <label className="block text-[10px] text-slate-600 font-bold uppercase tracking-wider">
               Clinical Justification Override Required
             </label>
             <textarea
@@ -1403,9 +1403,9 @@ Keep the tone professional, clinical, objective, and precise.`;
             </span>
             <div>
               <h1 className="text-base font-semibold tracking-tight text-slate-800 font-sans leading-tight">Dr. Sharma's Care Dashboard</h1>
-              <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+              <p className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
                 Mediflow Pod Tenant Host
-                <span className="text-slate-300">·</span>
+                <span className="text-slate-600">·</span>
                 Clinic Code:
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
                   {activePod?.clinicCode || 'MF-PATNA101'}
@@ -1445,7 +1445,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 }`}
               >
                 <span className={`material-symbols-outlined text-[15px] ${
-                  isActive ? 'text-indigo-500' : 'text-slate-400'
+                  isActive ? 'text-indigo-500' : 'text-slate-600'
                 }`}>{tab.icon}</span>
                 {tab.label}
               </button>
@@ -1500,13 +1500,13 @@ Keep the tone professional, clinical, objective, and precise.`;
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
                     ? 'text-indigo-600 font-bold' 
-                    : 'text-slate-400 hover:text-slate-600'
+                    : 'text-slate-600 hover:text-slate-600'
                 }`}
               >
                 <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
                   isActive 
                     ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                    : 'bg-transparent text-slate-400'
+                    : 'bg-transparent text-slate-600'
                 }`}>
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 </div>

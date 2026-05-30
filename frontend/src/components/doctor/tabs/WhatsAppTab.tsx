@@ -90,7 +90,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Meta WhatsApp Cloud API Connected</h3>
                   <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-emerald-100 text-emerald-750 rounded-full uppercase tracking-wider">Active Channel</span>
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono mt-1 space-y-0.5">
+                <div className="text-[10px] text-slate-600 font-mono mt-1 space-y-0.5">
                   <div>WABA Phone Number: <strong className="text-slate-600 font-sans">{activeWabaConnection.phone_number}</strong></div>
                   <div>Phone ID: <strong className="text-slate-600">{activeWabaConnection.phone_number_id}</strong> • Account ID: <strong className="text-slate-600">{activeWabaConnection.waba_id}</strong></div>
                 </div>
@@ -162,7 +162,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
             {/* Search Bar */}
             <div className="relative">
-              <span className="material-symbols-outlined text-slate-400 text-base absolute left-3 top-2.5">search</span>
+              <span className="material-symbols-outlined text-slate-600 text-base absolute left-3 top-2.5">search</span>
               <input
                 type="text"
                 placeholder="Search by name or phone..."
@@ -210,7 +210,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           {s.currentState.replace('_', ' ')}
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-1">{s.patientPhone}</div>
+                      <div className="text-[10px] text-slate-600 font-mono mt-1">{s.patientPhone}</div>
                       <div className="text-[10px] text-slate-500 mt-2 truncate font-sans italic">"{lastMsg}"</div>
                     </button>
                   );
@@ -234,7 +234,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
         </div>
 
         {/* Meta WABA Telemetry Logger */}
-        <div className="mt-4 glass-panel p-5 bg-slate-950 border-slate-800 shadow-sm rounded-3xl text-zinc-300 font-mono space-y-3 relative overflow-hidden">
+        <div className="mt-4 glass-panel p-5 bg-white border-slate-200 shadow-sm rounded-3xl text-zinc-300 font-mono space-y-3 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2.5px] bg-gradient-to-r from-emerald-500 to-green-404" />
           <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
             <div className="flex items-center gap-2">
@@ -339,7 +339,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     <div className={`p-3 text-xs leading-relaxed font-sans shadow-2xs ${bubbleStyle}`}>
                       {msg.text}
                     </div>
-                    <span className={`text-[8px] font-mono text-slate-400 ${isPatient ? 'mr-auto pl-1' : 'ml-auto pr-1'}`}>
+                    <span className={`text-[8px] font-mono text-slate-600 ${isPatient ? 'mr-auto pl-1' : 'ml-auto pr-1'}`}>
                       {msg.sender.toUpperCase()} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00'}
                     </span>
                   </div>
@@ -466,7 +466,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   setOtpRequested(false);
                   setOtpCode('');
                 }}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors border-0 bg-transparent"
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-600 transition-colors border-0 bg-transparent"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
@@ -608,7 +608,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     placeholder="e.g. +919876543210"
                     value={wabaNumber}
                     onChange={(e) => setWabaNumber(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 disabled:bg-slate-100 disabled:text-slate-400"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 disabled:bg-slate-100 disabled:text-slate-600"
                   />
                 </div>
 

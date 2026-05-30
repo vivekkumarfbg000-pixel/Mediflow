@@ -142,7 +142,7 @@ export const SystemHealthCockpit: React.FC = () => {
                 Online 24/7
               </span>
             </h3>
-            <p className="text-[11px] text-slate-400 font-medium">Proactive DevSecOps telemetry monitor & self-healing cockpit.</p>
+            <p className="text-[11px] text-slate-600 font-medium">Proactive DevSecOps telemetry monitor & self-healing cockpit.</p>
           </div>
         </div>
 
@@ -160,7 +160,7 @@ export const SystemHealthCockpit: React.FC = () => {
           <button
             type="button"
             onClick={triggerFaultInjection}
-            className="flex h-9 items-center gap-1.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 text-xs font-bold px-4 border border-slate-800 transition-all shadow-md shadow-slate-950/10 cursor-pointer"
+            className="flex h-9 items-center gap-1.5 rounded-xl bg-white text-white hover:bg-slate-800 text-xs font-bold px-4 border border-slate-200 transition-all shadow-md shadow-slate-950/10 cursor-pointer"
           >
             <Flame className="h-3.5 w-3.5 text-rose-400 fill-current" />
             <span>Simulate Fault Injection</span>
@@ -187,7 +187,7 @@ export const SystemHealthCockpit: React.FC = () => {
                 <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${isWarning ? 'bg-amber-400' : 'bg-emerald-500'}`} />
               </div>
               <div className="mt-3.5">
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{node.label}</div>
+                <div className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{node.label}</div>
                 <div className="text-xs font-bold text-slate-700 mt-0.5 tracking-tight">{isWarning ? 'Warning' : 'Operational'}</div>
               </div>
             </div>
@@ -197,13 +197,13 @@ export const SystemHealthCockpit: React.FC = () => {
 
       {/* Incident logs and Healing executions stream */}
       <div className="space-y-3.5">
-        <div className="flex items-center gap-2 text-slate-400 pl-1 font-bold text-[10px] uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-slate-600 pl-1 font-bold text-[10px] uppercase tracking-wider">
           <Terminal className="h-4 w-4" />
           <span>Self-Healing Action Incident Logs</span>
         </div>
 
         {incidents.length === 0 ? (
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/20 p-8 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/20 p-8 text-center text-slate-600 flex flex-col items-center justify-center gap-2">
             <CheckCircle2 className="h-8 w-8 text-emerald-500/60" />
             <p className="text-xs font-semibold">No operational anomalies logged. Mediflow is running at 100% stable.</p>
           </div>
@@ -221,17 +221,17 @@ export const SystemHealthCockpit: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-extrabold text-xs text-slate-700 tracking-tight">{log.error_code}</h4>
-                          <span className="text-[9px] font-mono text-slate-400">{new Date(log.created_at).toLocaleTimeString()}</span>
+                          <span className="text-[9px] font-mono text-slate-600">{new Date(log.created_at).toLocaleTimeString()}</span>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Subsystem: {log.subsystem} | Severity: {log.severity}</p>
+                        <p className="text-[10px] text-slate-600 font-bold uppercase tracking-wider mt-0.5">Subsystem: {log.subsystem} | Severity: {log.severity}</p>
                       </div>
                     </div>
                     {getStatusBadge(log.status)}
                   </div>
 
                   {healLog && (
-                    <div className="mt-3.5 pt-3 border-t border-slate-200/50 text-[11px] font-mono text-slate-500 leading-relaxed bg-slate-950/5 p-3 rounded-xl border border-slate-200/20 select-none">
-                      <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <div className="mt-3.5 pt-3 border-t border-slate-200/50 text-[11px] font-mono text-slate-500 leading-relaxed bg-white/5 p-3 rounded-xl border border-slate-200/20 select-none">
+                      <div className="text-[9px] font-extrabold text-slate-600 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                         <Sparkles className="h-3 w-3 text-emerald-500 fill-current animate-pulse" /> Healing telemetry logs
                       </div>
                       <div className="whitespace-pre-line text-slate-600 font-sans">{healLog.action_taken}</div>

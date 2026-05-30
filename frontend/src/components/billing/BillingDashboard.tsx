@@ -165,7 +165,7 @@ export const BillingDashboard: React.FC = () => {
       <div className="lg:col-span-4 space-y-6 print-hidden">
         
         {/* Invoice Pipeline */}
-        <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+        <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-primary opacity-50" />
           <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-rose-400 text-[16px]">account_balance_wallet</span>
@@ -265,12 +265,12 @@ export const BillingDashboard: React.FC = () => {
       {/* RIGHT COLUMN: Split breakdown & Simulated UPI QR Code */}
       <div className="lg:col-span-8 print-hidden">
         {selectedInvoice ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-secondary to-rose-500 opacity-50" />
             
             {/* Split breakdown details */}
             <div className="space-y-6">
-              <div className="border-b border-white/10 pb-4">
+              <div className="border-b border-slate-200/60 pb-4">
                 <div className="flex justify-between items-start">
                   <span className={`text-[9px] font-bold px-3 py-1 rounded-full border uppercase tracking-widest font-mono ${
                     selectedInvoice.paymentStatus === 'pending'
@@ -557,7 +557,7 @@ export const BillingDashboard: React.FC = () => {
                 /* Tab 3: Executive Analytics */
                 <div className="space-y-6 animate-fade-in text-xs select-none">
                   {/* Revenue Splits 3D Cylinder Grouped Bars */}
-                  <div className="glass-panel p-5 border-white/10 shadow-lg relative overflow-hidden bg-black/35 rounded-2xl border border-white/5">
+                  <div className="glass-panel p-5 border-slate-200/60 shadow-lg relative overflow-hidden bg-black/35 rounded-2xl border border-white/5">
                     <h4 className="font-extrabold text-white text-xs uppercase tracking-widest font-mono mb-4 flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-emerald-400 text-sm animate-pulse">analytics</span>
                       Executive Clinic Revenue Splits & SaaS Commission
@@ -576,7 +576,7 @@ export const BillingDashboard: React.FC = () => {
                             <span className="font-mono text-white">₹{item.val}.00 ({item.pct}%)</span>
                           </div>
                           {/* 3D horizontal cylinder bar */}
-                          <div className="h-4 w-full bg-slate-950/60 rounded-full border border-white/5 overflow-hidden shadow-inner p-[1px]">
+                          <div className="h-4 w-full bg-white/60 rounded-full border border-white/5 overflow-hidden shadow-inner p-[1px]">
                             <div 
                               className={`h-full rounded-full bg-gradient-to-r ${item.color} transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.05)]`}
                               style={{ width: `${item.pct}%` }}
@@ -589,7 +589,7 @@ export const BillingDashboard: React.FC = () => {
 
                   {/* Expiry and Swapper Savings */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="glass-panel p-4 border-white/10 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                    <div className="glass-panel p-4 border-slate-200/60 bg-black/25 rounded-2xl space-y-3 border border-white/5">
                       <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-amber-400 text-sm">schedule</span>
                         FEFO Expiry Burn Velocity
@@ -606,7 +606,7 @@ export const BillingDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="glass-panel p-4 border-white/10 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                    <div className="glass-panel p-4 border-slate-200/60 bg-black/25 rounded-2xl space-y-3 border border-white/5">
                       <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-rose-400 text-sm">swap_horiz</span>
                         Generic Brand Cost Savings
@@ -624,7 +624,7 @@ export const BillingDashboard: React.FC = () => {
                   </div>
 
                   {/* Reagent Deduction Burn velocity & Speed */}
-                  <div className="glass-panel p-4 border-white/10 bg-black/25 rounded-2xl space-y-3 border border-white/5">
+                  <div className="glass-panel p-4 border-slate-200/60 bg-black/25 rounded-2xl space-y-3 border border-white/5">
                     <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono">Reagent & Wait Time Analytics</h5>
                     <div className="grid grid-cols-2 gap-4 text-center">
                       <div className="p-3 bg-clinical-950/60 rounded-xl border border-white/5">
@@ -642,7 +642,7 @@ export const BillingDashboard: React.FC = () => {
             </div>
 
             {/* UPI Dynamic QR Code / Split Payout Wheel Simulator */}
-            <div className="flex flex-col items-center justify-center p-6 border-t md:border-t-0 md:border-l border-white/10 space-y-6 relative">
+            <div className="flex flex-col items-center justify-center p-6 border-t md:border-t-0 md:border-l border-slate-200/60 space-y-6 relative">
               
               {selectedInvoice.paymentStatus === 'pending' ? (
                 <>
@@ -834,7 +834,7 @@ export const BillingDashboard: React.FC = () => {
 
           </div>
         ) : (
-          <div className="glass-panel p-8 text-center text-clinical-500 text-sm h-64 flex flex-col items-center justify-center border-white/10 shadow-xl print-hidden">
+          <div className="glass-panel p-8 text-center text-clinical-500 text-sm h-64 flex flex-col items-center justify-center border-slate-200/60 shadow-xl print-hidden">
             <AlertCircle className="h-10 w-10 text-clinical-600 mb-2" />
             No active billing invoice generated in ecosystem queue yet.
           </div>

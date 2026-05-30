@@ -47,13 +47,13 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
         <div className="flex items-center gap-2">
           <span className="text-sm">{emoji}</span>
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">{label}</span>
-          <span className="text-[9px] text-slate-400 font-mono">({eye.toUpperCase()})</span>
+          <span className="text-[9px] text-slate-600 font-mono">({eye.toUpperCase()})</span>
         </div>
 
         <div className="grid grid-cols-4 gap-2">
           {/* SPH */}
           <div className="space-y-1">
-            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">SPH</label>
+            <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">SPH</label>
             {readOnly ? (
               <span className="text-xs font-bold text-slate-800 block py-1">{data.sph || 'Plano'}</span>
             ) : (
@@ -70,7 +70,7 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
 
           {/* CYL */}
           <div className="space-y-1">
-            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">CYL</label>
+            <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">CYL</label>
             {readOnly ? (
               <span className="text-xs font-bold text-slate-800 block py-1">{data.cyl || '—'}</span>
             ) : (
@@ -87,7 +87,7 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
 
           {/* AXIS */}
           <div className="space-y-1">
-            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">AXIS°</label>
+            <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">AXIS°</label>
             {readOnly ? (
               <span className="text-xs font-bold text-slate-800 block py-1">{data.axis ? `${data.axis}°` : '—'}</span>
             ) : (
@@ -104,7 +104,7 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
 
           {/* ADD */}
           <div className="space-y-1">
-            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">ADD</label>
+            <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">ADD</label>
             {readOnly ? (
               <span className="text-xs font-bold text-slate-800 block py-1">{data.add || '—'}</span>
             ) : (
@@ -148,7 +148,7 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
       {/* PD, Lens Type, Notes */}
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
-          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">PD (mm)</label>
+          <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">PD (mm)</label>
           {readOnly ? (
             <span className="text-xs font-bold text-slate-800 block py-1">{value.pd || '—'}</span>
           ) : (
@@ -163,7 +163,7 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
         </div>
 
         <div className="space-y-1">
-          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Lens Type</label>
+          <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">Lens Type</label>
           {readOnly ? (
             <span className="text-xs font-bold text-slate-800 block py-1">{value.lensType}</span>
           ) : (
@@ -181,7 +181,7 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
         </div>
 
         <div className="space-y-1">
-          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Notes</label>
+          <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">Notes</label>
           {readOnly ? (
             <span className="text-xs font-bold text-slate-800 block py-1">{value.notes || '—'}</span>
           ) : (

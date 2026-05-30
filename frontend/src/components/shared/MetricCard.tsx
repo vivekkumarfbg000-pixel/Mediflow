@@ -39,7 +39,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         className="p-4 flex items-center justify-between cursor-pointer select-none min-h-[44px]"
       >
         <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 ${iconColorClass}`}>
+          <div className={`w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center border border-slate-200/60 ${iconColorClass}`}>
             <Icon className="h-4.5 w-4.5" />
           </div>
           <div>

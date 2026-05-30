@@ -33,7 +33,7 @@ export const BiomarkerChart: React.FC<BiomarkerChartProps> = ({ patientId }) => 
 
   if (history.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-6 text-center text-slate-500 text-xs italic">
+      <div className="rounded-2xl border border-slate-200 bg-white/40 p-6 text-center text-slate-500 text-xs italic">
         Awaiting completed laboratory quantitative biomarkers to chart longitudinal trend lines.
       </div>
     );
@@ -93,14 +93,14 @@ export const BiomarkerChart: React.FC<BiomarkerChartProps> = ({ patientId }) => 
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-xl transition-all duration-300 hover:border-slate-700/80">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-5 backdrop-blur-xl transition-all duration-300 hover:border-slate-700/80">
       <div className="flex flex-col gap-4">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2.5">
             <Activity className="h-4.5 w-4.5 text-blue-400" />
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">Longitudinal Biomarkers Trend</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Longitudinal Biomarkers Trend</h4>
               <p className="text-[10px] text-slate-500 font-medium">6-Month historical laboratory result telemetry.</p>
             </div>
           </div>
@@ -120,7 +120,7 @@ export const BiomarkerChart: React.FC<BiomarkerChartProps> = ({ patientId }) => 
         </div>
 
         {/* SVG multiline line graph */}
-        <div className="relative border border-slate-950/60 bg-slate-950/40 rounded-xl p-2 select-none overflow-visible">
+        <div className="relative border border-slate-950/60 bg-white/40 rounded-xl p-2 select-none overflow-visible">
           <svg className="w-full overflow-visible" viewBox={`0 0 ${width} ${height}`}>
             {/* Grid coordinates */}
             <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#1e293b" strokeWidth="0.5" strokeDasharray="3 3" />
@@ -216,7 +216,7 @@ export const BiomarkerChart: React.FC<BiomarkerChartProps> = ({ patientId }) => 
           {/* Interactive Floating Tooltip */}
           {hoveredPoint && (
             <div 
-              className="absolute z-20 rounded-lg border border-slate-800 bg-slate-950/95 p-2 font-mono text-[9px] text-slate-300 leading-snug shadow-xl backdrop-blur-md pointer-events-none select-none"
+              className="absolute z-20 rounded-lg border border-slate-200 bg-white/95 p-2 font-mono text-[9px] text-slate-600 leading-snug shadow-xl backdrop-blur-md pointer-events-none select-none"
               style={{
                 left: `${(hoveredPoint.x / width) * 100}%`,
                 top: `${(hoveredPoint.y / height) * 100 - 45}%`,

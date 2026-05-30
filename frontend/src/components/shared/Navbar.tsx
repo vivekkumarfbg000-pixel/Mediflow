@@ -388,7 +388,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             e.stopPropagation();
             onToggleSidebarCollapse?.(!isSidebarCollapsed);
           }}
-          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-white border border-slate-200/80 shadow-sm items-center justify-center text-slate-400 hover:text-slate-700 hover:scale-105 transition-all z-50 cursor-pointer"
+          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-white border border-slate-200/80 shadow-sm items-center justify-center text-slate-600 hover:text-slate-700 hover:scale-105 transition-all z-50 cursor-pointer"
           title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isSidebarCollapsed ? (
@@ -439,7 +439,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             ) : (
               <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
-                <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Workspace</span>
+                <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Workspace</span>
                 <span className="block text-xs font-semibold text-slate-800 truncate">{activeEntity?.name}</span>
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
@@ -477,7 +477,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                           : isCompleted 
                             ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                            : 'bg-slate-50 border-slate-200 text-slate-400'
+                            : 'bg-slate-50 border-slate-200 text-slate-600'
                       }`}
                     >
                       {isCompleted ? '✓' : idx + 1}
@@ -488,7 +488,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <div className="p-2.5 bg-white border border-slate-200/50 rounded-lg space-y-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Patient Loop</span>
+                  <span className="text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Patient Loop</span>
                   <span className="text-[11px] font-semibold text-slate-800 truncate">{activePatient.name}</span>
                 </div>
                 
@@ -512,11 +512,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                             ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                             : isCompleted 
                               ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                              : 'bg-slate-50 border-slate-200 text-slate-400'
+                              : 'bg-slate-50 border-slate-200 text-slate-600'
                         }`}>
                           {isCompleted ? '✓' : idx + 1}
                         </div>
-                        <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-400 font-normal'}`}>
+                        <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-600 font-normal'}`}>
                           {step.label}
                         </span>
                       </div>
@@ -530,7 +530,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Vertical Menu Options */}
           <div className="space-y-0.5 pt-2 w-full">
             {!isSidebarCollapsed && (
-              <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-2 mb-1.5 animate-fade-in">Ecosystem Modules</span>
+              <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-2 mb-1.5 animate-fade-in">Ecosystem Modules</span>
             )}
             {visibleRoles.map((r) => {
               const Icon = r.icon;
@@ -565,7 +565,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <Icon className={`h-4 w-4 shrink-0 transition-colors ${
                     isActive 
                       ? 'text-indigo-600' 
-                      : 'text-slate-400 group-hover:text-slate-600'
+                      : 'text-slate-600 group-hover:text-slate-600'
                   }`} />
                   
                   {!isSidebarCollapsed && (
@@ -599,7 +599,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <FileText className={`h-4 w-4 shrink-0 transition-colors ${
                   activeDoctorTab === 'sop' 
                     ? 'text-indigo-600' 
-                    : 'text-slate-400 group-hover:text-slate-600'
+                    : 'text-slate-600 group-hover:text-slate-600'
                 }`} />
                 
                 {!isSidebarCollapsed && (
@@ -626,16 +626,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* Collapsed Theme Trigger */}
                 <button
                   onClick={toggleTheme}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                   title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 >
-                  {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-slate-400" />}
+                  {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-slate-600" />}
                 </button>
 
                 {/* Collapsed Settings Trigger */}
                 <button
                   onClick={handleCollapsedSettingsClick}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                   title="Open Settings & SOPs"
                 >
                   <Settings className="h-4 w-4" />
@@ -650,7 +650,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                    <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
+                    <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
                   </div>
                 </div>
 
@@ -665,9 +665,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Settings & SOP
                     </span>
                     {isSettingsOpen ? (
-                      <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-600" />
                     ) : (
-                      <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
                     )}
                   </button>
 
@@ -679,10 +679,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider bg-white border-slate-200/60 text-slate-500 hover:text-slate-700 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
                       >
                         <span className="flex items-center gap-2">
-                          {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-400" />}
+                          {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-600" />}
                           Theme Mode
                         </span>
-                        <span className="text-[8px] font-bold text-slate-400">{isDark ? 'Dark' : 'Light'}</span>
+                        <span className="text-[8px] font-bold text-slate-600">{isDark ? 'Dark' : 'Light'}</span>
                       </button>
 
                       {/* Dev Bypass Trigger */}
@@ -701,7 +701,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </>
                         ) : (
                           <>
-                            <ShieldCheck className="h-3 w-3 text-slate-400" />
+                            <ShieldCheck className="h-3 w-3 text-slate-600" />
                             Secure Mode
                           </>
                         )}
@@ -724,10 +724,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <span className="block text-slate-400 italic">No active SOP loaded</span>
+                          <span className="block text-slate-600 italic">No active SOP loaded</span>
                         )}
 
-                        <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wide">
+                        <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-600 uppercase tracking-wide">
                           <span>Pod: Patna Zone 1</span>
                           <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30 w-fit">
                             <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -784,7 +784,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 </h1>
                 {activePod && (
-                  <p className="text-slate-400 text-[8px] font-medium leading-none mt-0.5 truncate">
+                  <p className="text-slate-600 text-[8px] font-medium leading-none mt-0.5 truncate">
                     Connected: <strong className="text-slate-500 font-semibold">{activeEntity?.name}</strong>
                   </p>
                 )}
@@ -799,7 +799,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="p-1 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-md text-slate-500 hover:text-slate-800 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
                 aria-label="Toggle Theme"
               >
-                {isDark ? <Sun className="h-3 w-3.5 text-amber-500" /> : <Moon className="h-3 w-3.5 text-slate-400" />}
+                {isDark ? <Sun className="h-3 w-3.5 text-amber-500" /> : <Moon className="h-3 w-3.5 text-slate-600" />}
               </button>
 
               <button 
@@ -807,7 +807,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                   isBypassMode 
                     ? 'bg-amber-50 border-amber-200 text-amber-600' 
-                    : 'bg-white border-slate-200 text-slate-400'
+                    : 'bg-white border-slate-200 text-slate-600'
                 }`}
               >
                 {isBypassMode ? <ShieldAlert className="h-2.5 w-2.5" /> : <ShieldCheck className="h-2.5 w-2.5" />}
@@ -820,9 +820,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {activePatient && (
             <div className="mt-1 pt-2 border-t border-slate-200/50 flex flex-col gap-2 text-[10px] animate-fade-in">
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-400 font-semibold uppercase tracking-wider text-[8px]">Active Loop:</span>
+                <span className="text-slate-600 font-semibold uppercase tracking-wider text-[8px]">Active Loop:</span>
                 <span className="text-slate-700 font-semibold">{activePatient.name}</span>
-                <span className="text-slate-400 font-mono">({activePatient.id.substring(0, 8)})</span>
+                <span className="text-slate-600 font-mono">({activePatient.id.substring(0, 8)})</span>
               </div>
               
               {/* Stepper Steps inside pure white container card */}
@@ -846,14 +846,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                           ? 'text-indigo-600' 
                           : isCompleted 
                             ? 'text-emerald-600' 
-                            : 'text-slate-300'
+                            : 'text-slate-600'
                       }`}>
                         <div className={`w-4 h-4 rounded-full flex items-center justify-center border text-[8px] font-semibold transition-all duration-500 ${
                           isActive 
                             ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                             : isCompleted 
                               ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                              : 'bg-slate-50 border-slate-100 text-slate-300'
+                              : 'bg-slate-50 border-slate-100 text-slate-600'
                         }`}>
                           {isCompleted ? '✓' : idx + 1}
                         </div>
@@ -881,7 +881,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="md:hidden fixed inset-0 z-[100] flex animate-fade-in">
           {/* Drawer Backdrop Overlay */}
           <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 bg-white/40 backdrop-blur-xs transition-opacity duration-300"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
 
@@ -907,7 +907,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 <button 
                   onClick={() => setIsMobileDrawerOpen(false)}
-                  className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-slate-600 transition-colors cursor-pointer"
                 >
                   <X className="h-4.5 w-4.5" />
                 </button>
@@ -916,7 +916,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Active Workspace */}
               {activePod && (
                 <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Workspace</span>
+                  <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Workspace</span>
                   <span className="block text-xs font-semibold text-slate-800 truncate">{activeEntity?.name}</span>
                   <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
@@ -929,7 +929,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {activePatient && (
                 <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Active Patient Loop</span>
+                    <span className="text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Patient Loop</span>
                     <span className="text-xs font-semibold text-slate-800 truncate">{activePatient.name}</span>
                   </div>
                   
@@ -953,11 +953,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                               ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
                               : isCompleted 
                                 ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                                : 'bg-slate-50 border-slate-200 text-slate-400'
+                                : 'bg-slate-50 border-slate-200 text-slate-600'
                           }`}>
                             {isCompleted ? '✓' : idx + 1}
                           </div>
-                          <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-400 font-normal'}`}>
+                          <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-600 font-normal'}`}>
                             {step.label}
                           </span>
                         </div>
@@ -969,7 +969,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Modules Switcher */}
               <div className="space-y-1.5 pt-2">
-                <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
+                <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
                 {visibleRoles.map((r) => {
                   const Icon = r.icon;
                   const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
@@ -993,7 +993,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
                       )}
                       <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
-                        isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                        isActive ? 'text-indigo-600' : 'text-slate-600 group-hover:text-slate-600'
                       }`} />
                       <span className="flex-1 text-left">{r.name}</span>
                     </button>
@@ -1016,7 +1016,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
                     )}
                     <FileText className={`h-4.5 w-4.5 shrink-0 transition-colors ${
-                      activeDoctorTab === 'sop' ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                      activeDoctorTab === 'sop' ? 'text-indigo-600' : 'text-slate-600 group-hover:text-slate-600'
                     }`} />
                     <span className="flex-1 text-left">Clinic SOP</span>
                   </button>
@@ -1035,7 +1035,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                      <span className="block text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
+                      <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
                     </div>
                   </div>
 
@@ -1050,9 +1050,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                         Settings & SOP
                       </span>
                       {isSettingsOpen ? (
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-600" />
                       ) : (
-                        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                        <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
                       )}
                     </button>
 
@@ -1064,10 +1064,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider bg-white border-slate-200/60 text-slate-500 hover:text-slate-700 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
                         >
                           <span className="flex items-center gap-2">
-                            {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-400" />}
+                            {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-600" />}
                             Theme Mode
                           </span>
-                          <span className="text-[8px] font-bold text-slate-400">{isDark ? 'Dark' : 'Light'}</span>
+                          <span className="text-[8px] font-bold text-slate-600">{isDark ? 'Dark' : 'Light'}</span>
                         </button>
 
                         {/* Dev Bypass Trigger */}
@@ -1089,7 +1089,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </>
                           ) : (
                             <>
-                              <ShieldCheck className="h-3 w-3 text-slate-400" />
+                              <ShieldCheck className="h-3 w-3 text-slate-600" />
                               Secure Mode
                             </>
                           )}
@@ -1112,10 +1112,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                               </div>
                             </div>
                           ) : (
-                            <span className="block text-slate-400 italic">No active SOP loaded</span>
+                            <span className="block text-slate-600 italic">No active SOP loaded</span>
                           )}
 
-                          <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wide">
+                          <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-600 uppercase tracking-wide">
                             <span>Pod: Patna Zone 1</span>
                             <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30 w-fit">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -1171,10 +1171,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           
           <div className="flex items-center gap-4">
-            <span className="text-[9px] font-mono text-slate-400">
+            <span className="text-[9px] font-mono text-slate-600">
               {logs.length} events logged
             </span>
-            <div className="text-slate-400 hover:text-slate-700 transition-colors">
+            <div className="text-slate-600 hover:text-slate-700 transition-colors">
               {isHudExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
             </div>
           </div>
@@ -1184,14 +1184,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {isHudExpanded && (
           <div className="flex-1 p-4 overflow-y-auto font-mono text-[10.5px] leading-relaxed space-y-2 bg-slate-50/50">
             {logs.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-slate-400 text-xs italic">
+              <div className="h-full flex items-center justify-center text-slate-600 text-xs italic">
                 Scanning database pipeline... Listening for Postgres CDC mutations.
               </div>
             ) : (
               logs.map((log) => (
                 <div key={log.id} className="flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-slate-100/30 py-0.5 px-2 rounded transition-colors group">
                   {/* Timestamp */}
-                  <span className="text-slate-400 shrink-0 select-none">[{log.timestamp}]</span>
+                  <span className="text-slate-600 shrink-0 select-none">[{log.timestamp}]</span>
                   
                   {/* Event tag */}
                   <span className={`text-[8.5px] font-bold tracking-widest px-1.5 py-0.5 rounded shrink-0 uppercase ${getLogTagStyle(log.action_type)}`}>
@@ -1200,7 +1200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   
                   {/* Role descriptor */}
                   {log.role && log.role !== 'system' && (
-                    <span className="text-slate-400 font-bold uppercase text-[8px] bg-slate-50 px-1 py-0.2 rounded border border-slate-100">
+                    <span className="text-slate-600 font-bold uppercase text-[8px] bg-slate-50 px-1 py-0.2 rounded border border-slate-100">
                       {log.role}
                     </span>
                   )}
@@ -1238,18 +1238,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative ${
                     isActive 
                       ? 'text-indigo-600' 
-                      : 'text-slate-400 hover:text-slate-600'
+                      : 'text-slate-600 hover:text-slate-600'
                   }`}
                 >
                   <div className={`p-1.5 rounded-lg transition-all duration-200 ${
                     isActive 
                       ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                      : 'bg-transparent text-slate-400'
+                      : 'bg-transparent text-slate-600'
                   }`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <span className={`text-[9px] font-semibold mt-1 tracking-tight transition-colors duration-200 ${
-                    isActive ? 'text-indigo-600 font-bold' : 'text-slate-400'
+                    isActive ? 'text-indigo-600 font-bold' : 'text-slate-600'
                   }`}>
                     {label}
                   </span>

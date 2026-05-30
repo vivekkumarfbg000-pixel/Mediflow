@@ -705,7 +705,7 @@ export const PharmacyDashboard: React.FC = () => {
            {/* TAB 1: PRESCRIPTION QUEUE (SAAS PAYMENTS GATED VERIFICATION HUB) */}
         {activeTab === 'prescription_queue' && (
           <div className="grid grid-cols-1 gap-6">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-600 opacity-60" />
               
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4 mb-6">
@@ -808,7 +808,7 @@ export const PharmacyDashboard: React.FC = () => {
                                       const lensType = m.name.replace('Spectacles (', '').replace(')', '');
                                       
                                       return (
-                                        <div key={idx} className="bg-slate-900/80 border border-indigo-500/30 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-white w-full">
+                                        <div key={idx} className="bg-white/80 border border-indigo-500/30 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-white w-full">
                                           <div className="flex items-center justify-between border-b border-white/5 pb-2">
                                             <div className="flex items-center gap-1.5">
                                               <span className="material-symbols-outlined text-indigo-400 text-sm">visibility</span>
@@ -973,7 +973,7 @@ export const PharmacyDashboard: React.FC = () => {
 
         {/* TAB 2: INVENTORY CATALOG */}
         {activeTab === 'inventory_catalog' && (
-          <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             
             {/* Catalog search/filter headers */}
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -1081,8 +1081,8 @@ export const PharmacyDashboard: React.FC = () => {
 
         {/* TAB 3: STOCK ALERTS */}
         {activeTab === 'stock_alerts' && (
-          <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
               <div>
                 <h2 className="text-sm font-semibold text-white flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-rose-400 animate-pulse" />
@@ -1172,8 +1172,8 @@ export const PharmacyDashboard: React.FC = () => {
 
         {/* TAB 4: EXPIRY TRACKER */}
         {activeTab === 'expiry_tracker' && (
-          <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between border-b border-white/10 pb-4 gap-4">
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-200/60 pb-4 gap-4">
               <div>
                 <h2 className="text-sm font-semibold text-white flex items-center gap-2">
                   <span className="material-symbols-outlined text-rose-400 text-[16px]">event_busy</span>
@@ -1333,7 +1333,7 @@ export const PharmacyDashboard: React.FC = () => {
         {activeTab === 'ai_demand' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl space-y-5">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
                   <div>
                     <h2 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -1408,7 +1408,7 @@ export const PharmacyDashboard: React.FC = () => {
 
             {/* Pathogen density card */}
             <div className="lg:col-span-4 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
                 <h4 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest flex items-center gap-1.5 font-mono">
                   <TrendingUp className="h-4 w-4 text-primary animate-pulse" />
                   Patna Sewage surveillance
@@ -1453,7 +1453,7 @@ export const PharmacyDashboard: React.FC = () => {
             />
             
             {/* Split rules display */}
-            <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-base">policy</span>
                 Active SOP Split Configuration
@@ -1484,8 +1484,8 @@ export const PharmacyDashboard: React.FC = () => {
 
         {/* TAB 7: POD INTERCONNECT */}
         {activeTab === 'pod_connect' && (
-          <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
-            <div className="flex justify-between items-center border-b border-white/10 pb-4">
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
               <div>
                 <h2 className="text-sm font-semibold text-white flex items-center gap-2">
                   <span className="material-symbols-outlined text-indigo-400 text-base">hub</span>
@@ -1560,7 +1560,7 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="glass-panel max-w-md w-full p-6 border-secondary/20 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary animate-pulse">qr_code_scanner</span>
                 FEFO Barcode Scan Verification
@@ -1576,7 +1576,7 @@ export const PharmacyDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="relative h-48 w-full bg-black/80 rounded-lg border border-white/10 flex flex-col items-center justify-center overflow-hidden select-none">
+            <div className="relative h-48 w-full bg-black/80 rounded-lg border border-slate-200/60 flex flex-col items-center justify-center overflow-hidden select-none">
               <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-secondary/80 rounded-tl" />
               <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-secondary/80 rounded-tr" />
               <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-secondary/80 rounded-bl" />
@@ -1618,7 +1618,7 @@ export const PharmacyDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="absolute bottom-4 bg-black/60 px-3 py-1 rounded border border-white/10 text-[9px] font-mono uppercase tracking-widest text-center">
+              <div className="absolute bottom-4 bg-black/60 px-3 py-1 rounded border border-slate-200/60 text-[9px] font-mono uppercase tracking-widest text-center">
                 {scannerStage === 'scanning' ? (
                   <span className="text-secondary flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping" />
@@ -1640,7 +1640,7 @@ export const PharmacyDashboard: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex gap-3 justify-end pt-3 border-t border-white/10">
+            <div className="flex gap-3 justify-end pt-3 border-t border-slate-200/60">
               <button
                 onClick={() => {
                   setScanningHold(null);
@@ -1678,10 +1678,10 @@ export const PharmacyDashboard: React.FC = () => {
       {/* MANUAL REGISTER NEW MEDICINE MODAL */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="glass-panel max-w-2xl w-full p-6 border-white/10 shadow-2xl relative overflow-hidden">
+          <div className="glass-panel max-w-2xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
-            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary">add_circle</span>
                 Manual Register Batch Medicine
@@ -1833,7 +1833,7 @@ export const PharmacyDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex gap-3 justify-end pt-4 border-t border-white/10">
+              <div className="flex gap-3 justify-end pt-4 border-t border-slate-200/60">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
@@ -1856,10 +1856,10 @@ export const PharmacyDashboard: React.FC = () => {
       {/* CSV IMPORT PANEL MODAL */}
       {isCsvImportOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="glass-panel max-w-3xl w-full p-6 border-white/10 shadow-2xl relative overflow-hidden space-y-4">
+          <div className="glass-panel max-w-3xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden space-y-4">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
                 Smart CSV Template Importer
@@ -1936,7 +1936,7 @@ export const PharmacyDashboard: React.FC = () => {
               </div>
             )}
 
-            <div className="flex gap-3 justify-end pt-3 border-t border-white/10">
+            <div className="flex gap-3 justify-end pt-3 border-t border-slate-200/60">
               <button
                 type="button"
                 onClick={() => {
@@ -1969,10 +1969,10 @@ export const PharmacyDashboard: React.FC = () => {
       {/* OCR BILL SCAN PANEL MODAL */}
       {isBillScanOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="glass-panel max-w-3xl w-full p-6 border-white/10 shadow-2xl relative overflow-hidden space-y-4">
+          <div className="glass-panel max-w-3xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden space-y-4">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
                 <Camera className="h-5 w-5 text-secondary" />
                 AI Suppliers Invoice OCR Parser
@@ -2069,7 +2069,7 @@ export const PharmacyDashboard: React.FC = () => {
               </div>
             )}
 
-            <div className="flex gap-3 justify-end pt-3 border-t border-white/10">
+            <div className="flex gap-3 justify-end pt-3 border-t border-slate-200/60">
               <button
                 type="button"
                 onClick={() => {
@@ -2121,13 +2121,13 @@ export const PharmacyDashboard: React.FC = () => {
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
                     ? 'text-indigo-600 font-bold' 
-                    : 'text-slate-400 hover:text-slate-600'
+                    : 'text-slate-600 hover:text-slate-600'
                 }`}
               >
                 <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
                   isActive 
                     ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                    : 'bg-transparent text-slate-400'
+                    : 'bg-transparent text-slate-600'
                 }`}>
                   <Icon className="h-5 w-5" />
                   {item.badge !== undefined && item.badge > 0 && (

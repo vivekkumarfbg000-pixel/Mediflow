@@ -867,7 +867,7 @@ export const CompounderDashboard: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pb-4">
           <div>
             <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-indigo-600 text-white shadow-sm">
+              <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-indigo-600 text-slate-800 shadow-sm">
                 <span className="material-symbols-outlined text-[20px]">medical_services</span>
               </span>
               Compounder Operations Desk
@@ -981,10 +981,10 @@ export const CompounderDashboard: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px] text-slate-400">phone</span>
+                  <span className="material-symbols-outlined text-[12px] text-slate-600">phone</span>
                   +91 {activePatient.phone}
                   {activePatient.abhaId && (
-                    <span className="ml-2 font-mono text-[10px] text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                    <span className="ml-2 font-mono text-[10px] text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
                       ABHA: {activePatient.abhaId}
                     </span>
                   )}
@@ -1060,10 +1060,10 @@ export const CompounderDashboard: React.FC = () => {
                       >
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center border text-[9px] font-bold transition-all duration-300 ${
                           isActive 
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20 scale-105' 
+                            ? 'bg-indigo-600 border-indigo-600 text-slate-800 shadow-md shadow-indigo-600/20 scale-105' 
                             : isCompleted 
-                              ? 'bg-emerald-500 border-emerald-500 text-white' 
-                              : 'bg-white border-slate-200 text-slate-400 group-hover:border-slate-400 group-hover:text-slate-600'
+                              ? 'bg-emerald-500 border-emerald-500 text-slate-800' 
+                              : 'bg-white border-slate-200 text-slate-600 group-hover:border-slate-400 group-hover:text-slate-600'
                         }`}>
                           {isCompleted ? '✓' : idx + 1}
                         </div>
@@ -1072,7 +1072,7 @@ export const CompounderDashboard: React.FC = () => {
                             ? 'text-indigo-600' 
                             : isCompleted 
                               ? 'text-emerald-600' 
-                              : 'text-slate-400 group-hover:text-slate-600'
+                              : 'text-slate-600 group-hover:text-slate-600'
                         }`}>
                           {step.label}
                         </span>
@@ -1097,24 +1097,24 @@ export const CompounderDashboard: React.FC = () => {
               {(() => {
                 let btnText = "";
                 let targetTab: 'registry' | 'vitals' | 'gate1' | 'gate2' | 'gate3' = "registry";
-                let btnColor = "bg-indigo-600 hover:bg-indigo-500 text-white";
+                let btnColor = "bg-indigo-600 hover:bg-indigo-500 text-slate-800";
                 
                 if (!activePatient.vitals) {
                   btnText = "Record Vitals";
                   targetTab = "vitals";
-                  btnColor = "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/15 animate-pulse-wave";
+                  btnColor = "bg-rose-600 hover:bg-rose-500 text-slate-800 shadow-lg shadow-rose-600/15 animate-pulse-wave";
                 } else if (activePatientStage === 'registered') {
                   btnText = "Consultation Active";
                   targetTab = "vitals";
-                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-white";
+                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-slate-800";
                 } else if (activePatientStage === 'diagnosing') {
                   btnText = "Consult Billing (Gate 1)";
                   targetTab = "gate1";
-                  btnColor = "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/15";
+                  btnColor = "bg-emerald-600 hover:bg-emerald-500 text-slate-800 shadow-lg shadow-emerald-600/15";
                 } else if (activePatientStage === 'lab') {
                   btnText = "Pathology Lab (Gate 2)";
                   targetTab = "gate2";
-                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/15";
+                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-slate-800 shadow-lg shadow-indigo-600/15";
                 } else if (activePatientStage === 'pharmacy') {
                   btnText = "Pharmacy POS (Gate 3)";
                   targetTab = "gate3";
@@ -1155,10 +1155,10 @@ export const CompounderDashboard: React.FC = () => {
                       }
                     }));
                   }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 active:scale-95 flex items-center gap-1.5 shadow-md shadow-rose-600/10 text-white-force"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-slate-800 text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 active:scale-95 flex items-center gap-1.5 shadow-md shadow-rose-600/10 text-slate-800-force"
                   title="Verify patient presence to grant clinical file access to the Doctor"
                 >
-                  <span className="material-symbols-outlined text-sm font-bold text-white-force">lock_open</span>
+                  <span className="material-symbols-outlined text-sm font-bold text-slate-800-force">lock_open</span>
                   Verify Presence
                 </button>
               )}
@@ -1172,7 +1172,7 @@ export const CompounderDashboard: React.FC = () => {
                     detail: { message: 'Cleared active patient loop.', type: 'info', title: 'Loop Cleared' }
                   }));
                 }}
-                className="p-2 text-slate-400 hover:text-slate-700 bg-white border border-slate-200/80 hover:bg-slate-50 rounded-xl transition-all cursor-pointer shadow-sm"
+                className="p-2 text-slate-600 hover:text-slate-700 bg-white border border-slate-200/80 hover:bg-slate-50 rounded-xl transition-all cursor-pointer shadow-sm"
                 title="Dismiss Active Patient"
               >
                 <span className="material-symbols-outlined text-[16px] block">close</span>
@@ -1190,7 +1190,7 @@ export const CompounderDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-800">No Patient Session Active</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">
+              <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
                 Search the Patient Registry or register a new patient manually to initiate the dynamic clinic care loop.
               </p>
             </div>
@@ -1201,7 +1201,7 @@ export const CompounderDashboard: React.FC = () => {
       {/* TAB CONTENT SPACES */}
       <div className="space-y-6">
         {isInvoiceGeneratorOpen && (
-          <div className="glass-panel p-6 border-white/10 shadow-xl animate-fade-in relative">
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl animate-fade-in relative">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <p className="text-sm font-semibold text-slate-900">Invoice Generator</p>
@@ -1225,9 +1225,9 @@ export const CompounderDashboard: React.FC = () => {
             <div className="lg:col-span-8 space-y-6">
               
               {/* Search Registry */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[16px]">person_search</span>
                   Patient Registry Lookup
                 </h2>
@@ -1239,13 +1239,13 @@ export const CompounderDashboard: React.FC = () => {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full input-field pl-12 focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-600 text-sm py-2.5 bg-white border-slate-200 text-slate-800 rounded-xl"
                   />
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 h-5 w-5" />
                 </div>
 
                 {searchQuery && (
                   <div className="mt-4 border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white shadow-sm animate-fade-in select-none">
                     {filteredPatients.length === 0 ? (
-                      <div className="p-5 text-slate-400 text-xs flex items-center gap-2">
+                      <div className="p-5 text-slate-600 text-xs flex items-center gap-2">
                         <span className="material-symbols-outlined text-rose-500 text-base">warning</span>
                         No matching patient found in ecosystem registry.
                       </div>
@@ -1266,19 +1266,19 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="space-y-1">
                               <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                                 {p.name}
-                                <span className="text-[10px] text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-semibold">
+                                <span className="text-[10px] text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-semibold">
                                   {p.age}y · {p.gender}
                                 </span>
                               </h4>
                               
                               <div className="flex flex-wrap items-center gap-2 mt-1">
                                 <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-[12px] text-slate-400">phone</span>
+                                  <span className="material-symbols-outlined text-[12px] text-slate-600">phone</span>
                                   {p.phone}
                                 </span>
                                 
                                 {p.abhaId && (
-                                  <span className="text-[9px] font-mono text-slate-400 bg-slate-50 border border-slate-200 px-1 rounded">
+                                  <span className="text-[9px] font-mono text-slate-600 bg-slate-50 border border-slate-200 px-1 rounded">
                                     ABHA: {p.abhaId}
                                   </span>
                                 )}
@@ -1289,7 +1289,7 @@ export const CompounderDashboard: React.FC = () => {
                                     {isOphthalmology ? '👁️' : '🌡️'} Vitals Logged
                                   </span>
                                 ) : (
-                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-slate-50 border border-slate-200 text-slate-400 rounded">
+                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-slate-50 border border-slate-200 text-slate-600 rounded">
                                     Awaiting Vitals
                                   </span>
                                 )}
@@ -1326,7 +1326,7 @@ export const CompounderDashboard: React.FC = () => {
                                 className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
                                   sess 
                                     ? 'bg-slate-100 text-slate-700 border-slate-200/80 hover:bg-slate-200' 
-                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 hover:border-emerald-600'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-slate-800 border-emerald-500 hover:border-emerald-600'
                                 }`}
                               >
                                 <Smartphone className="h-3 w-3" />
@@ -1342,8 +1342,8 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               {/* Patient Registration Form */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative">
-                <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative">
+                <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-[16px]">person_add</span>
                   Manual Patient Registration
                 </h2>
@@ -1361,7 +1361,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. Rahul Kumar"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1372,7 +1372,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. 9876543210"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                       />
                     </div>
                   </div>
@@ -1386,7 +1386,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. 35"
                         value={age}
                         onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1394,7 +1394,7 @@ export const CompounderDashboard: React.FC = () => {
                       <select
                         value={gender}
                         onChange={(e) => setGender(e.target.value as any)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg cursor-pointer"
                       >
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -1408,7 +1408,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. 14-digit index"
                         value={abhaId}
                         onChange={(e) => setAbhaId(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                       />
                     </div>
                   </div>
@@ -1426,7 +1426,7 @@ export const CompounderDashboard: React.FC = () => {
 
               {/* Scan & Analyze Previous Reports Card */}
               {activePatient && (
-                <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800 rounded-3xl mt-6">
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800 rounded-3xl mt-6">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
                   <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
                     <span className="material-symbols-outlined text-indigo-600 text-base font-bold">clinical_notes</span>
@@ -1487,7 +1487,7 @@ export const CompounderDashboard: React.FC = () => {
                         </p>
                       </div>
                     ) : (
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400 italic">
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-600 italic">
                         No previous reports scanned yet for this active profile.
                       </div>
                     )}
@@ -1501,8 +1501,8 @@ export const CompounderDashboard: React.FC = () => {
             <div className="lg:col-span-4 space-y-6">
               
               {/* Check-in staff list */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4 select-none">
-                <h3 className="font-bold text-white text-base flex items-center gap-2 border-b border-white/10 pb-3">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4 select-none">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2 border-b border-slate-200/60 pb-3">
                   <UserCheck className="h-5 w-5 text-secondary" />
                   Checked-In Active Staffs
                 </h3>
@@ -1522,7 +1522,7 @@ export const CompounderDashboard: React.FC = () => {
                         }`}
                       >
                         <div>
-                          <h5 className="font-bold text-xs text-white">{staff.staffName}</h5>
+                          <h5 className="font-bold text-xs text-slate-800">{staff.staffName}</h5>
                           <span className="text-[9px] uppercase tracking-wider text-clinical-400 font-semibold">{staff.role}</span>
                         </div>
                         <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase font-mono ${
@@ -1537,8 +1537,8 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               {/* staff registration panel */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
-                <h4 className="font-bold text-sm text-white border-b border-white/10 pb-2">Register Shifts Compounders</h4>
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
+                <h4 className="font-bold text-sm text-slate-800 border-b border-slate-200/60 pb-2">Register Shifts Compounders</h4>
                 <form onSubmit={handleRegisterStaff} className="space-y-3">
                   <input
                     type="text"
@@ -1546,13 +1546,13 @@ export const CompounderDashboard: React.FC = () => {
                     placeholder="Enter Staff Name"
                     value={newStaffName}
                     onChange={(e) => setNewStaffName(e.target.value)}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                   />
                   <div className="flex gap-2">
                     <select
                       value={newStaffRole}
                       onChange={(e) => setNewStaffRole(e.target.value as any)}
-                      className="flex-1 input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                      className="flex-1 input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg cursor-pointer"
                     >
                       <option value="compounder">Compounder</option>
                       <option value="receptionist">Receptionist</option>
@@ -1577,11 +1577,11 @@ export const CompounderDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left Hand Queue / Token list */}
             <div className="lg:col-span-6 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-indigo-500 opacity-60" />
                 
-                <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
+                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                     <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
                     Swasthya Token Queue (दैनिक टोकन कतार)
                   </h2>
@@ -1616,11 +1616,11 @@ export const CompounderDashboard: React.FC = () => {
                               <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-lg border ${
                                 p.tokenNumber 
                                   ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/25' 
-                                  : 'bg-slate-500/10 text-slate-400 border-slate-500/25'
+                                  : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
                               }`}>
                                 {p.tokenNumber || 'NO TOKEN'}
                               </span>
-                              <h4 className="font-bold text-white text-xs">{p.name}</h4>
+                              <h4 className="font-bold text-slate-800 text-xs">{p.name}</h4>
                               <span className="text-clinical-400 text-[10px] font-medium">({p.age}y · {p.gender})</span>
                             </div>
 
@@ -1686,7 +1686,7 @@ export const CompounderDashboard: React.FC = () => {
                                     api.updatePatientQueueStatus(p.id, 'completed');
                                     syncData();
                                   }}
-                                  className="text-[8px] text-clinical-400 hover:text-white underline cursor-pointer"
+                                  className="text-[8px] text-clinical-400 hover:text-slate-800 underline cursor-pointer"
                                 >
                                   Mark Completed
                                 </button>
@@ -1709,17 +1709,17 @@ export const CompounderDashboard: React.FC = () => {
             <div className="lg:col-span-6 space-y-6">
               {/* Vitals Intake Form */}
               {vitalsPatient ? (
-                <div className="glass-panel p-6 border-white/10 shadow-xl relative animate-fade-in">
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative animate-fade-in">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
                   
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
+                    <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                       <span className="material-symbols-outlined text-rose-400 text-base">monitor_heart</span>
                       Swasthya Vitals: {vitalsPatient.name}
                     </h2>
                     <button
                       onClick={() => setVitalsPatient(null)}
-                      className="text-clinical-400 hover:text-white text-xs underline cursor-pointer"
+                      className="text-clinical-400 hover:text-slate-800 text-xs underline cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1736,7 +1736,7 @@ export const CompounderDashboard: React.FC = () => {
                               required
                               value={customToken}
                               onChange={(e) => setCustomToken(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono font-bold"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg font-mono font-bold"
                             />
                           </div>
                           <div className="space-y-1">
@@ -1747,7 +1747,7 @@ export const CompounderDashboard: React.FC = () => {
                               placeholder="e.g. 16"
                               value={pulseVal === '72' ? '16' : pulseVal}
                               onChange={(e) => setPulseVal(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg font-mono"
                             />
                           </div>
                         </div>
@@ -1758,9 +1758,9 @@ export const CompounderDashboard: React.FC = () => {
                             <select
                               value={tempVal === '98.6' ? '6/6' : tempVal}
                               onChange={(e) => setTempVal(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                             >
-                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-white text-slate-800">{opt}</option>)}
                             </select>
                           </div>
                           <div className="space-y-1">
@@ -1768,9 +1768,9 @@ export const CompounderDashboard: React.FC = () => {
                             <select
                               value={bpVal === '120/80' ? '6/6' : bpVal}
                               onChange={(e) => setBpVal(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                             >
-                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-white text-slate-800">{opt}</option>)}
                             </select>
                           </div>
                         </div>
@@ -1781,10 +1781,10 @@ export const CompounderDashboard: React.FC = () => {
                             <select
                               value={weightVal === '65' ? '' : weightVal}
                               onChange={(e) => setWeightVal(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                             >
-                              <option value="" className="bg-slate-900 text-white">Select Aided VA (Optional)</option>
-                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                              <option value="" className="bg-white text-slate-800">Select Aided VA (Optional)</option>
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-white text-slate-800">{opt}</option>)}
                             </select>
                           </div>
                           <div className="space-y-1">
@@ -1792,10 +1792,10 @@ export const CompounderDashboard: React.FC = () => {
                             <select
                               value={sugarVal || ''}
                               onChange={(e) => setSugarVal(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                             >
-                              <option value="" className="bg-slate-900 text-white">Select Aided VA (Optional)</option>
-                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>)}
+                              <option value="" className="bg-white text-slate-800">Select Aided VA (Optional)</option>
+                              {VISUAL_ACUITY_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-white text-slate-800">{opt}</option>)}
                             </select>
                           </div>
                         </div>
@@ -1810,7 +1810,7 @@ export const CompounderDashboard: React.FC = () => {
                               required
                               value={customToken}
                               onChange={(e) => setCustomToken(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg font-mono font-bold"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg font-mono font-bold"
                             />
                           </div>
                           <div className="space-y-1">
@@ -1822,7 +1822,7 @@ export const CompounderDashboard: React.FC = () => {
                                 placeholder="e.g. 98.6"
                                 value={tempVal}
                                 onChange={(e) => setTempVal(e.target.value)}
-                                className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                                className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                               />
                               {parseFloat(tempVal) > 100 && (
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="Fever Alert!" />
@@ -1841,7 +1841,7 @@ export const CompounderDashboard: React.FC = () => {
                                 placeholder="e.g. 120/80"
                                 value={bpVal}
                                 onChange={(e) => setBpVal(e.target.value)}
-                                className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                                className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                               />
                               {bpVal.includes('/') && parseInt(bpVal.split('/')[0]) > 140 && (
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" title="High BP Alert!" />
@@ -1856,7 +1856,7 @@ export const CompounderDashboard: React.FC = () => {
                               placeholder="e.g. 72"
                               value={pulseVal}
                               onChange={(e) => setPulseVal(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                             />
                           </div>
                           <div className="space-y-1">
@@ -1867,7 +1867,7 @@ export const CompounderDashboard: React.FC = () => {
                               placeholder="e.g. 65"
                               value={weightVal}
                               onChange={(e) => setWeightVal(e.target.value)}
-                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                              className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                             />
                           </div>
                         </div>
@@ -1879,7 +1879,7 @@ export const CompounderDashboard: React.FC = () => {
                             placeholder="e.g. 110"
                             value={sugarVal}
                             onChange={(e) => setSugarVal(e.target.value)}
-                            className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-white rounded-lg"
+                            className="w-full input-field text-xs py-2 px-3 bg-surface-container border-outline-variant text-slate-800 rounded-lg"
                           />
                         </div>
                       </>
@@ -1894,18 +1894,18 @@ export const CompounderDashboard: React.FC = () => {
                   </form>
                 </div>
               ) : (
-                <div className="glass-panel p-6 border-white/10 shadow-xl relative text-center text-clinical-500 py-12">
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative text-center text-clinical-500 py-12">
                   <Activity className="h-8 w-8 text-clinical-600 mx-auto mb-3 animate-pulse" />
                   <p className="text-xs font-medium">Select an active patient from the Token Queue to record vitals.</p>
                 </div>
               )}
 
               {/* Localised Bhojpuri & Hindi Dosage Assistant */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-secondary opacity-60" />
                 
-                <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
+                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                     <span className="material-symbols-outlined text-secondary text-base">translate</span>
                     Dosage Slip Assistant (दवाई पर्ची सहायक)
                   </h2>
@@ -1915,7 +1915,7 @@ export const CompounderDashboard: React.FC = () => {
                     <button
                       onClick={() => setSelectedLanguage('hindi')}
                       className={`px-2.5 py-1 text-[9px] font-black uppercase rounded cursor-pointer ${
-                        selectedLanguage === 'hindi' ? 'bg-secondary text-black' : 'text-clinical-400 hover:text-white'
+                        selectedLanguage === 'hindi' ? 'bg-secondary text-black' : 'text-clinical-400 hover:text-slate-800'
                       }`}
                     >
                       Hindi
@@ -1923,7 +1923,7 @@ export const CompounderDashboard: React.FC = () => {
                     <button
                       onClick={() => setSelectedLanguage('bhojpuri')}
                       className={`px-2.5 py-1 text-[9px] font-black uppercase rounded cursor-pointer ${
-                        selectedLanguage === 'bhojpuri' ? 'bg-secondary text-black' : 'text-clinical-400 hover:text-white'
+                        selectedLanguage === 'bhojpuri' ? 'bg-secondary text-black' : 'text-clinical-400 hover:text-slate-800'
                       }`}
                     >
                       Bhojpuri
@@ -1945,7 +1945,7 @@ export const CompounderDashboard: React.FC = () => {
                         className={`py-2 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${
                           dosageTemplate === t.id 
                             ? 'bg-secondary/15 border-secondary text-secondary' 
-                            : 'border-outline-variant text-clinical-400 hover:text-white hover:bg-white/5'
+                            : 'border-outline-variant text-clinical-400 hover:text-slate-800 hover:bg-white/5'
                         }`}
                       >
                         {t.label}
@@ -2023,7 +2023,7 @@ export const CompounderDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handlePushDosageWhatsApp(activePatient, activeText)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer transition active:scale-95 border-0 flex items-center gap-1"
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer transition active:scale-95 border-0 flex items-center gap-1"
                             >
                               <Smartphone className="h-3 w-3" />
                               WhatsApp Slip
@@ -2033,7 +2033,7 @@ export const CompounderDashboard: React.FC = () => {
 
                         {/* Push button selection */}
                         <div className="space-y-2">
-                          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider font-mono block pl-1">
+                          <label className="text-[9px] text-slate-600 font-bold uppercase tracking-wider font-mono block pl-1">
                             Push Instruction to Other Patient
                           </label>
                           <select
@@ -2068,9 +2068,9 @@ export const CompounderDashboard: React.FC = () => {
         {activeTab === 'gate1' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-6 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-600 opacity-60" />
-                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[16px]">point_of_sale</span>
                   Initiate Gate 1: Consultation Invoice
                 </h2>
@@ -2096,7 +2096,7 @@ export const CompounderDashboard: React.FC = () => {
                         e.target.value = "";
                       }
                     }}
-                    className="w-full input-field text-xs py-2.5 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                    className="w-full input-field text-xs py-2.5 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-800 rounded-lg cursor-pointer"
                     defaultValue=""
                   >
                     <option value="" disabled>-- Choose Patient from Registry --</option>
@@ -2109,9 +2109,9 @@ export const CompounderDashboard: React.FC = () => {
             </div>
 
             <div className="lg:col-span-6 space-y-6">
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[16px]">receipt_long</span>
                   Active Consult Invoices
                 </h2>
@@ -2147,7 +2147,7 @@ export const CompounderDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-7 space-y-6">
               {/* Prescription Dispatch Panel */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 
                 <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
@@ -2258,7 +2258,7 @@ export const CompounderDashboard: React.FC = () => {
                         <button 
                           type="button"
                           onClick={() => setViewingDocUrl(dispatchPreviewUrl)}
-                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
                         >
                           View Rx
                         </button>
@@ -2268,7 +2268,7 @@ export const CompounderDashboard: React.FC = () => {
 
                   {/* OCR Logging Panel */}
                   {dispatchOcrLogs.length > 0 && (
-                    <div className="bg-slate-900 border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-indigo-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
+                    <div className="bg-white border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-indigo-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
                       {dispatchOcrLogs.map((log, index) => (
                         <div key={index} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('[SUCCESS]') ? 'text-emerald-400 font-bold' : ''}>
                           {log}
@@ -2463,7 +2463,7 @@ export const CompounderDashboard: React.FC = () => {
                         setIsDispatchingToLab(false);
                       }
                     }}
-                    className={`w-full py-2.5 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+                    className={`w-full py-2.5 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
                       isDispatchingToLab || isDispatchOcrParsing || !dispatchFile || !dispatchPatientName || !dispatchPatientPhone || !dispatchSelectedTestCode
                         ? 'bg-slate-400 cursor-not-allowed opacity-50'
                         : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-md shadow-indigo-600/10'
@@ -2485,7 +2485,7 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               {/* Existing Invoicing Chambers queue */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 
                 <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
@@ -2540,7 +2540,7 @@ export const CompounderDashboard: React.FC = () => {
                                 <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
                                   <Upload className="h-5 w-5 text-indigo-600" />
                                   <span>Upload / Scan Prescription</span>
-                                  <span className="text-[9px] text-slate-400 font-medium">Supports JPEG, PNG, and PDF</span>
+                                  <span className="text-[9px] text-slate-600 font-medium">Supports JPEG, PNG, and PDF</span>
                                   <input 
                                     type="file" 
                                     accept="image/*,application/pdf" 
@@ -2573,7 +2573,7 @@ export const CompounderDashboard: React.FC = () => {
                           ) : (
                             <div className="space-y-3">
                               <div className="bg-slate-50 border border-slate-150 p-3 rounded-lg space-y-2">
-                                <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Extracted Lab Tests (AI OCR)</span>
+                                <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Extracted Lab Tests (AI OCR)</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {prescription.extractedTests?.map((t, idx) => (
                                     <span key={idx} className="bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 text-[9px] font-semibold px-2 py-0.5 rounded">
@@ -2585,7 +2585,7 @@ export const CompounderDashboard: React.FC = () => {
 
                               <div className="bg-slate-50 border border-slate-150 p-3 rounded-lg flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Prescription Document</span>
+                                  <span className="text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Prescription Document</span>
                                   <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider ${
                                     prescription.prescriptionFileUrl 
                                       ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' 
@@ -2640,7 +2640,7 @@ export const CompounderDashboard: React.FC = () => {
                               {labInvoice && (
                                 <div className="flex items-center justify-between pt-1">
                                   <div>
-                                    <span className="text-[9px] text-slate-400 block font-mono">Lab Invoice: {labInvoice.id.substring(0, 8)}...</span>
+                                    <span className="text-[9px] text-slate-600 block font-mono">Lab Invoice: {labInvoice.id.substring(0, 8)}...</span>
                                     <span className="text-[12px] font-black text-slate-800">Lab Total: ₹{labInvoice.amount}</span>
                                   </div>
                                   <div>
@@ -2656,7 +2656,7 @@ export const CompounderDashboard: React.FC = () => {
                                             }
                                           }));
                                         }}
-                                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
                                       >
                                         Mark Paid &amp; Route to Lab Tech
                                       </button>
@@ -2687,7 +2687,7 @@ export const CompounderDashboard: React.FC = () => {
 
             <div className="lg:col-span-5 space-y-6">
               {/* Completed Lab Reports Approval Panel */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-60" />
                 <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-emerald-600 text-base">verified_user</span>
@@ -2733,7 +2733,7 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="flex items-center justify-between border-b border-slate-150 pb-2">
                               <div>
                                 <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
-                                <p className="text-[9px] text-slate-400 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
+                                <p className="text-[9px] text-slate-600 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
                               </div>
                               <span className="text-[9px] bg-amber-100 text-amber-800 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 uppercase">
                                 Pending
@@ -2741,7 +2741,7 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
 
                             <div className="space-y-1">
-                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
+                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
                               <div className="flex flex-wrap gap-1.5">
                                 {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
                                   const val = biomarkers[key];
@@ -2771,10 +2771,10 @@ export const CompounderDashboard: React.FC = () => {
 
                             {/* Revisit Scheduler inside report card */}
                             <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-3">
-                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Schedule Revisit Appointment</span>
+                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Schedule Revisit Appointment</span>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
-                                  <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Date</label>
+                                  <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Date</label>
                                   <input 
                                     type="date"
                                     value={reportRevisitDates[reportId] || ''}
@@ -2783,7 +2783,7 @@ export const CompounderDashboard: React.FC = () => {
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Time</label>
+                                  <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Time</label>
                                   <input 
                                     type="time"
                                     value={reportRevisitTimes[reportId] || ''}
@@ -2793,7 +2793,7 @@ export const CompounderDashboard: React.FC = () => {
                                 </div>
                               </div>
                               <div className="space-y-1">
-                                <label className="text-[8px] text-slate-400 font-bold uppercase tracking-wider font-mono">Clinical Note / Recommendation</label>
+                                <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Clinical Note / Recommendation</label>
                                 <input 
                                   type="text"
                                   placeholder="e.g. Return for HbA1c review"
@@ -2828,7 +2828,7 @@ export const CompounderDashboard: React.FC = () => {
                                       await api.rejectLabReport(report.id, rejectionReasons[report.id]);
                                       setShowRejectModalForId(null);
                                     }}
-                                    className="px-2.5 py-1 text-white bg-rose-600 hover:bg-rose-500 text-[10px] font-bold rounded-lg cursor-pointer disabled:opacity-50"
+                                    className="px-2.5 py-1 text-slate-800 bg-rose-600 hover:bg-rose-500 text-[10px] font-bold rounded-lg cursor-pointer disabled:opacity-50"
                                   >
                                     Send back to Lab
                                   </button>
@@ -2843,7 +2843,7 @@ export const CompounderDashboard: React.FC = () => {
                                     const note = reportRevisitNotes[reportId] || '';
                                     await api.approveLabReport(reportId, date, time, note);
                                   }}
-                                  className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+                                  className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
                                 >
                                   <span className="material-symbols-outlined text-[12px]">check_circle</span>
                                   Approve &amp; Revisit
@@ -2875,7 +2875,7 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="flex items-center justify-between border-b border-slate-150 pb-2">
                               <div>
                                 <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
-                                <p className="text-[9px] text-slate-400 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
+                                <p className="text-[9px] text-slate-600 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
                               </div>
                               <span className="text-[9px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
                                 Approved
@@ -2883,7 +2883,7 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
 
                             <div className="space-y-1">
-                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
+                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
                               <div className="flex flex-wrap gap-1.5">
                                 {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
                                   const val = biomarkers[key];
@@ -2923,7 +2923,7 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               {/* Revisit Scheduler Desk (Manual fallback) */}
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden bg-white text-slate-800">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
                 <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-rose-600 text-base">calendar_month</span>
@@ -2998,7 +2998,7 @@ export const CompounderDashboard: React.FC = () => {
 
                   <button 
                     type="submit"
-                    className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer"
+                    className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer"
                   >
                     Lock Revisit &amp; Dispatch Bot Notification
                   </button>
@@ -3044,7 +3044,7 @@ export const CompounderDashboard: React.FC = () => {
                         <button 
                           type="button"
                           onClick={() => setViewingDocUrl(prescriptionImage)}
-                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                          className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
                         >
                           View Rx
                         </button>
@@ -3058,7 +3058,7 @@ export const CompounderDashboard: React.FC = () => {
                       type="button"
                       onClick={handleTriggerPrescriptionOcr}
                       disabled={isPrescriptionScanning}
-                      className="w-full py-2 bg-amber-500 hover:bg-amber-450 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] flex items-center justify-center gap-1.5 transition-all shadow-md"
+                      className="w-full py-2 bg-amber-500 hover:bg-amber-450 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] flex items-center justify-center gap-1.5 transition-all shadow-md"
                     >
                       {isPrescriptionScanning ? (
                         <>
@@ -3076,7 +3076,7 @@ export const CompounderDashboard: React.FC = () => {
 
                   {/* OCR Logging Panel */}
                   {ocrLogs.length > 0 && (
-                    <div className="bg-slate-900 border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-amber-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
+                    <div className="bg-white border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-amber-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
                       {ocrLogs.map((log, index) => (
                         <div key={index} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : ''}>
                           {log}
@@ -3087,7 +3087,7 @@ export const CompounderDashboard: React.FC = () => {
 
                   {/* Patient Profile Form (Editable) */}
                   <div className="border-t border-slate-100 pt-4 mt-2">
-                    <span className="block text-[9px] font-black text-slate-400 tracking-widest uppercase font-mono mb-2">Patient Profile (Extracted)</span>
+                    <span className="block text-[9px] font-black text-slate-600 tracking-widest uppercase font-mono mb-2">Patient Profile (Extracted)</span>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient Name</label>
@@ -3150,13 +3150,13 @@ export const CompounderDashboard: React.FC = () => {
                   {/* Medicines Workspace */}
                   {billingItems.length > 0 && (
                     <div className="border-t border-slate-100 pt-4 mt-2">
-                      <span className="block text-[9px] font-black text-slate-400 tracking-widest uppercase font-mono mb-2">Sync'd Medicines from Inventory</span>
+                      <span className="block text-[9px] font-black text-slate-600 tracking-widest uppercase font-mono mb-2">Sync'd Medicines from Inventory</span>
                       <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm mb-3">
                         {billingItems.map((item, idx) => (
                           <div key={idx} className="p-3 flex items-center justify-between text-xs gap-4 hover:bg-slate-50/50 transition-colors">
                             <div className="flex-1">
                               <h4 className="font-bold text-slate-800">{item.name}</h4>
-                              <p className="text-[9px] text-slate-400 font-mono">MRP: ₹{item.mrp} · Batch: {item.batchNumber}</p>
+                              <p className="text-[9px] text-slate-600 font-mono">MRP: ₹{item.mrp} · Batch: {item.batchNumber}</p>
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
@@ -3198,7 +3198,7 @@ export const CompounderDashboard: React.FC = () => {
                         onChange={(e) => setMedSearchQuery(e.target.value)}
                         className="w-full input-field text-xs pl-10 py-2 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white"
                       />
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600 h-4 w-4" />
                       {medSearchQuery && billingSearchMatches.length > 0 && (
                         <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto border border-slate-200 bg-white rounded-xl shadow-lg z-50 divide-y divide-slate-100">
                           {billingSearchMatches.map(med => (
@@ -3212,7 +3212,7 @@ export const CompounderDashboard: React.FC = () => {
                             >
                               <div>
                                 <p className="font-bold text-slate-800">{med.name} ({med.dosage})</p>
-                                <p className="text-[9px] text-slate-400 font-mono">Stock: {med.stock} | HSN: {med.hsn}</p>
+                                <p className="text-[9px] text-slate-600 font-mono">Stock: {med.stock} | HSN: {med.hsn}</p>
                               </div>
                               <span className="font-mono font-bold text-indigo-650">₹{med.price}</span>
                             </div>
@@ -3234,7 +3234,7 @@ export const CompounderDashboard: React.FC = () => {
                             onClick={() => setCustomDiscountPercent(disc)}
                             className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
                               customDiscountPercent === disc
-                                ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/10'
+                                ? 'bg-amber-500 text-slate-800 border-amber-600 shadow-md shadow-amber-500/10'
                                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                             }`}
                           >
@@ -3375,7 +3375,7 @@ export const CompounderDashboard: React.FC = () => {
                       setCustomDiscountPercent(0);
                       syncData();
                     }}
-                    className={`w-full py-2.5 text-white font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
+                    className={`w-full py-2.5 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
                       (!billingPatient || !billingPatient.name || !billingPatient.phone || billingItems.length === 0)
                         ? 'bg-slate-400 cursor-not-allowed opacity-50'
                         : 'bg-indigo-650 hover:bg-indigo-600 active:scale-95 shadow-md shadow-indigo-600/10'
@@ -3433,14 +3433,14 @@ export const CompounderDashboard: React.FC = () => {
                                 {isActiveInvoice && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />}
                                 {patient ? patient.name : 'Unknown Patient'}
                               </h4>
-                              <p className="text-[9px] text-slate-400 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
+                              <p className="text-[9px] text-slate-600 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
                             </div>
                             <div className="text-[12px] font-black text-amber-600">₹{invoice.amount}</div>
                           </div>
 
                           {prescription && prescription.extractedMedicines && (
                             <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-3">
-                              <span className="block text-[8px] font-black text-slate-400 tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
+                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
                               
                               <InvoiceCard
                                 invoiceId={invoice.id}
@@ -3539,11 +3539,11 @@ export const CompounderDashboard: React.FC = () => {
             
             <div className="bg-[#075e54] p-4 border-b border-[#128c7e]/20 flex items-center justify-between">
               <div className="flex items-center gap-3 select-none">
-                <div className="h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center font-bold text-sm shrink-0 border border-white/20">
+                <div className="h-9 w-9 rounded-full bg-white/10 text-slate-800 flex items-center justify-center font-bold text-sm shrink-0 border border-white/20">
                   💬
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">WhatsApp Live Simulator Sandbox</h3>
+                  <h3 className="font-bold text-sm text-slate-800">WhatsApp Live Simulator Sandbox</h3>
                   <p className="text-[10px] text-emerald-200 flex items-center gap-1 font-semibold tracking-wider">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-450 animate-pulse"></span>
                     ACTIVE VERIFICATION SERVICE
@@ -3556,7 +3556,7 @@ export const CompounderDashboard: React.FC = () => {
               {activeSession ? (
                 <div className="space-y-4">
                   <div className="text-center select-none">
-                    <span className="bg-slate-900/10 text-slate-600 px-3 py-1 rounded-md text-[9px] font-bold tracking-widest uppercase font-mono">
+                    <span className="bg-white/10 text-slate-600 px-3 py-1 rounded-md text-[9px] font-bold tracking-widest uppercase font-mono">
                       TODAY
                     </span>
                   </div>
@@ -3591,7 +3591,7 @@ export const CompounderDashboard: React.FC = () => {
                                   api.processIncomingWhatsAppMessage(activeSession.patientPhone, '1');
                                   syncData();
                                 }}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                                className="bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer border-0"
                               >
                                 Grant Consent (Aarav Sharma)
                               </button>
@@ -3603,7 +3603,7 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
                           )}
 
-                          <span className="block text-[8px] text-slate-400 text-right mt-1.5 font-mono select-none">
+                          <span className="block text-[8px] text-slate-600 text-right mt-1.5 font-mono select-none">
                             {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                           </span>
                         </div>
@@ -3614,7 +3614,7 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 select-none">
-                  <span className="material-symbols-outlined text-6xl text-slate-400 animate-pulse">forum</span>
+                  <span className="material-symbols-outlined text-6xl text-slate-600 animate-pulse">forum</span>
                   <div>
                     <h4 className="font-bold text-slate-700 text-sm">No Active WhatsApp Loop</h4>
                     <p className="text-slate-500 text-xs mt-1 leading-relaxed">
@@ -3639,8 +3639,8 @@ export const CompounderDashboard: React.FC = () => {
                 disabled={!activeSession || !replyInput.trim()} 
                 className={`p-2.5 rounded-full transition-colors border-0 shrink-0 ${
                   activeSession && replyInput.trim() 
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow active:scale-95' 
-                    : 'bg-slate-200 text-slate-400'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-slate-800 cursor-pointer shadow active:scale-95' 
+                    : 'bg-slate-200 text-slate-600'
                 }`}
               >
                 <Send className="h-4 w-4" />
@@ -3652,16 +3652,16 @@ export const CompounderDashboard: React.FC = () => {
 
       {viewingDocUrl && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden">
+          <div className="bg-white border border-slate-200/60 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 to-teal-500" />
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <span className="material-symbols-outlined text-indigo-400 text-base">receipt_long</span>
                 Prescription Document Viewer
               </h3>
               <button
                 onClick={() => setViewingDocUrl(null)}
-                className="p-1.5 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border-0 rounded-lg cursor-pointer transition active:scale-95 flex items-center"
+                className="p-1.5 text-slate-600 hover:text-slate-800 bg-white/5 hover:bg-white/10 border-0 rounded-lg cursor-pointer transition active:scale-95 flex items-center"
               >
                 <span className="material-symbols-outlined text-sm font-bold">close</span>
               </button>
@@ -3678,7 +3678,7 @@ export const CompounderDashboard: React.FC = () => {
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setViewingDocUrl(null)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs cursor-pointer border-0 active:scale-95 transition"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-slate-800 font-bold rounded-xl text-xs cursor-pointer border-0 active:scale-95 transition"
               >
                 Done
               </button>
@@ -3712,13 +3712,13 @@ export const CompounderDashboard: React.FC = () => {
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
                     ? 'text-indigo-600 font-bold' 
-                    : 'text-slate-400 hover:text-slate-600'
+                    : 'text-slate-600 hover:text-slate-600'
                 }`}
               >
                 <div className={`p-1.5 rounded-lg transition-all duration-200 ${
                   isActive 
                     ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                    : 'bg-transparent text-slate-400'
+                    : 'bg-transparent text-slate-600'
                 }`}>
                   <Icon className="h-5 w-5" />
                 </div>

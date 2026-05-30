@@ -154,7 +154,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   )}
                   <div className="flex justify-between items-start">
                     <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors">{p.name}</div>
-                    <span className="text-[8px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-mono">
+                    <span className="text-[8px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-mono">
                       {p.id.toUpperCase().substring(0, 8)}
                     </span>
                   </div>
@@ -180,14 +180,14 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <span className="material-symbols-outlined text-primary text-lg">folder_zip</span>
               Biomarker Reports History
             </h2>
-            <p className="text-[10px] text-slate-400 mb-4">Click a report to open a full-screen clinical AI analysis</p>
+            <p className="text-[10px] text-slate-600 mb-4">Click a report to open a full-screen clinical AI analysis</p>
             
             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
               {(() => {
                 const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
                 if (history.length === 0) {
                   return (
-                    <div className="text-center py-6 text-slate-400 text-xs italic">
+                    <div className="text-center py-6 text-slate-600 text-xs italic">
                       No historical biomarker reports found.
                     </div>
                   );
@@ -209,15 +209,15 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     </div>
                     <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/40 text-[10px] text-slate-500">
                       <div>
-                        <span className="text-slate-400 font-medium block">{isOphthalmology ? 'VA (OD)' : 'HbA1c'}</span>
+                        <span className="text-slate-600 font-medium block">{isOphthalmology ? 'VA (OD)' : 'HbA1c'}</span>
                         <span className={`font-mono font-bold ${!isOphthalmology && report.HbA1c > 6.5 ? 'text-rose-500' : 'text-slate-700'}`}>{isOphthalmology ? '6/6' : `${report.HbA1c}%`}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 font-medium block">{isOphthalmology ? 'IOP' : 'Creatinine'}</span>
+                        <span className="text-slate-600 font-medium block">{isOphthalmology ? 'IOP' : 'Creatinine'}</span>
                         <span className={`font-mono font-bold ${!isOphthalmology && report.creatinine > 1.2 ? 'text-rose-500' : 'text-slate-700'}`}>{isOphthalmology ? '16 mmHg' : `${report.creatinine} mg/dL`}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 font-medium block">{isOphthalmology ? 'VA (OS)' : 'Hemoglobin'}</span>
+                        <span className="text-slate-600 font-medium block">{isOphthalmology ? 'VA (OS)' : 'Hemoglobin'}</span>
                         <span className={`font-mono font-bold ${!isOphthalmology && report.hemoglobin < 12.0 ? 'text-amber-500' : 'text-slate-700'}`}>{isOphthalmology ? '6/9' : `${report.hemoglobin} g/dL`}</span>
                       </div>
                     </div>
@@ -271,9 +271,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <button
                   type="button"
                   onClick={handleLaunchVideoConsult}
-                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-slate-800 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 text-slate-800-force bg-indigo-600-force"
                 >
-                  <span className="material-symbols-outlined text-[12px] text-white-force animate-pulse">video_call</span>
+                  <span className="material-symbols-outlined text-[12px] text-slate-800-force animate-pulse">video_call</span>
                   Launch Video Consult
                 </button>
               )}
@@ -418,17 +418,17 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             }
 
             return (
-              <div className="p-6 bg-slate-900 text-white rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden space-y-6 animate-fade-in my-2">
+              <div className="p-6 bg-white text-slate-800 rounded-3xl border border-slate-200 shadow-xl relative overflow-hidden space-y-6 animate-fade-in my-2">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-indigo-500/10 to-purple-500/10 rounded-full blur-2xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 rounded-full blur-2xl pointer-events-none" />
 
-                <div className="flex justify-between items-start pb-2 border-b border-slate-800/80">
+                <div className="flex justify-between items-start pb-2 border-b border-slate-200/80">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-indigo-400 text-xl font-bold">query_stats</span>
                       <h3 className="text-sm font-black text-slate-100 uppercase tracking-wider">AI Predictive Lab Pattern & Risk Disease Analyzer</h3>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-1">Advanced multi-biomarker trajectory & disease prediction engine</p>
+                    <p className="text-[10px] text-slate-600 mt-1">Advanced multi-biomarker trajectory & disease prediction engine</p>
                   </div>
                   <span className="text-[8px] font-black font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
                     Predictive Model: Active
@@ -473,11 +473,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   ].map((item, idx) => (
                     <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">{item.name}</span>
-                        <span className="text-[9px] text-slate-400 font-mono">Normal: {item.normal}</span>
+                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{item.name}</span>
+                        <span className="text-[9px] text-slate-600 font-mono">Normal: {item.normal}</span>
                       </div>
                       <div className="flex justify-between items-baseline pt-1">
-                        <span className="text-lg font-black font-mono tracking-tight text-white">{item.val}</span>
+                        <span className="text-lg font-black font-mono tracking-tight text-slate-800">{item.val}</span>
                         {baseline && item.diff !== 0 && (
                           <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
                             (item.diff > 0 && item.status !== 'normal')
@@ -488,7 +488,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           </span>
                         )}
                       </div>
-                      <div className="text-[9px] text-slate-400 pt-1 border-t border-slate-800/50 flex justify-between">
+                      <div className="text-[9px] text-slate-600 pt-1 border-t border-slate-200/50 flex justify-between">
                         <span>Base: {item.base}</span>
                         <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
                       </div>
@@ -530,11 +530,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   ].map((item, idx) => (
                     <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">{item.name}</span>
-                        <span className="text-[9px] text-slate-400 font-mono">Normal: {item.normal}</span>
+                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{item.name}</span>
+                        <span className="text-[9px] text-slate-600 font-mono">Normal: {item.normal}</span>
                       </div>
                       <div className="flex justify-between items-baseline pt-1">
-                        <span className="text-lg font-black font-mono tracking-tight text-white">{item.val}</span>
+                        <span className="text-lg font-black font-mono tracking-tight text-slate-800">{item.val}</span>
                         {baseline && item.diff !== 0 && (
                           <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
                             (item.diff > 0 && item.status !== 'normal') || (item.diff < 0 && item.name.includes('Hemoglobin'))
@@ -545,7 +545,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           </span>
                         )}
                       </div>
-                      <div className="text-[9px] text-slate-400 pt-1 border-t border-slate-800/50 flex justify-between">
+                      <div className="text-[9px] text-slate-600 pt-1 border-t border-slate-200/50 flex justify-between">
                         <span>Base: {item.base}</span>
                         <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
                       </div>
@@ -554,7 +554,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                  <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1.5 font-mono">
                     <span className="material-symbols-outlined text-xs text-indigo-400">warning</span>
                     AI Predictive Disease & Pattern Warnings
                   </h4>
@@ -577,7 +577,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           </span>
                           <div>
                             <strong className="font-extrabold text-[11px] uppercase tracking-wider block">{alert.title}</strong>
-                            <p className="text-[10px] text-slate-300 pt-0.5 font-sans leading-relaxed">{alert.desc}</p>
+                            <p className="text-[10px] text-slate-600 pt-0.5 font-sans leading-relaxed">{alert.desc}</p>
                           </div>
                         </div>
                       ))}
@@ -585,7 +585,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   )}
                 </div>
 
-                <div className="p-4 bg-slate-950/50 border border-slate-800/80 rounded-2xl space-y-1.5 relative overflow-hidden">
+                <div className="p-4 bg-white/50 border border-slate-200/80 rounded-2xl space-y-1.5 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
                   <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
@@ -616,8 +616,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
 
             {/* Local Audio Scribe Recorder Widget */}
-            <div className="p-4.5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 animate-fade-in text-white">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+            <div className="p-4.5 bg-white border border-slate-200 rounded-2xl space-y-4 animate-fade-in text-slate-800">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-xs">mic</span>
                   Audio Suggestion Scribe (Local Recording first)
@@ -633,7 +633,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     <button
                       type="button"
                       onClick={stopAudioRecording}
-                      className="w-full sm:w-auto px-5 py-2.5 bg-rose-650 hover:bg-rose-600 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md animate-pulse cursor-pointer border-0 text-white-force"
+                      className="w-full sm:w-auto px-5 py-2.5 bg-rose-650 hover:bg-rose-600 active:scale-95 text-slate-800 text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md animate-pulse cursor-pointer border-0 text-slate-800-force"
                     >
                       <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
                       Stop Recording ({recordingSeconds}s)
@@ -642,7 +642,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     <button
                       type="button"
                       onClick={startAudioRecording}
-                      className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-505 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md cursor-pointer border-0 text-white-force"
+                      className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-505 active:scale-95 text-slate-800 text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md cursor-pointer border-0 text-slate-800-force"
                     >
                       <span className="material-symbols-outlined text-sm font-bold shrink-0">mic</span>
                       Record Clinical Advice
@@ -658,16 +658,16 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       type="button"
                       onClick={executeAudioScribeTranscription}
                       disabled={isTranscribing}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 uppercase transition-all shadow-xs cursor-pointer shrink-0 border-0 text-white-force"
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-50 text-slate-800 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 uppercase transition-all shadow-xs cursor-pointer shrink-0 border-0 text-slate-800-force"
                     >
-                      <span className="material-symbols-outlined text-xs font-bold text-white-force">psychology</span>
+                      <span className="material-symbols-outlined text-xs font-bold text-slate-800-force">psychology</span>
                       {isTranscribing ? 'Scribing...' : 'Transcribe with AI'}
                     </button>
                   </div>
                 )}
               </div>
 
-              <p className="text-[9px] text-slate-400 leading-normal text-left">
+              <p className="text-[9px] text-slate-600 leading-normal text-left">
                 🎙️ **Privacy & Cost Guard**: Your voice is recorded locally in-browser. Transcribe with AI only when you are satisfied with your audio note.
               </p>
             </div>
@@ -697,7 +697,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   }
                 }}
                 disabled={isGeneratingSummary}
-                className="w-full bg-primary hover:bg-primary-505 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 text-white-force cursor-pointer border-0"
+                className="w-full bg-primary hover:bg-primary-505 text-slate-800 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 text-slate-800-force cursor-pointer border-0"
               >
                 {isGeneratingSummary ? 'Generating...' : '🤖 Generate AI Hinglish Summary'}
               </button>
@@ -723,9 +723,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       }
                     }));
                   }}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-800 text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
                 >
-                  <span className="material-symbols-outlined text-xs text-white-force">send</span>
+                  <span className="material-symbols-outlined text-xs text-slate-800-force">send</span>
                   Send to Patient WhatsApp
                 </button>
               </div>
@@ -738,7 +738,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   <span className="material-symbols-outlined text-rose-500 text-sm">analytics</span>
                   Revisit Mode: Comparative Lab Trend Analysis
                 </h3>
-                <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
+                <p className="text-[10px] text-slate-600 leading-relaxed font-sans">
                   Compare current biomarkers with historical reports to analyze improvement metrics.
                 </p>
 
@@ -764,7 +764,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       }
                     }}
                     disabled={isGeneratingTrend}
-                    className="w-full bg-rose-600 hover:bg-rose-550 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-white-force border-0"
+                    className="w-full bg-rose-600 hover:bg-rose-550 text-slate-800 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-slate-800-force border-0"
                   >
                     {isGeneratingTrend ? 'Analyzing...' : '📊 Generate Comparative AI Summary'}
                   </button>
@@ -790,9 +790,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           }
                         }));
                       }}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-800 text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
                     >
-                      <span className="material-symbols-outlined text-xs text-white-force">send</span>
+                      <span className="material-symbols-outlined text-xs text-slate-800-force">send</span>
                       Push Trend report to Patient WhatsApp
                     </button>
                   </div>
@@ -842,9 +842,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       </span>
                     </div>
                     <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
-                      isChecked ? 'bg-primary border-primary text-white' : 'border-slate-300 bg-white'
+                      isChecked ? 'bg-primary border-primary text-slate-800' : 'border-slate-300 bg-white'
                     }`}>
-                      {isChecked && <span className="material-symbols-outlined text-xs font-bold text-white-force">check</span>}
+                      {isChecked && <span className="material-symbols-outlined text-xs font-bold text-slate-800-force">check</span>}
                     </div>
                   </button>
                 );
@@ -888,7 +888,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317102">Dr. Anjali (Gynecologist) - Kankarbagh Pod</option>
                   <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317101">Dr. Raj (Pediatrician) - Patna West</option>
                 </select>
-                <span className="material-symbols-outlined text-slate-400 absolute right-3 top-2.5 text-sm pointer-events-none">arrow_drop_down</span>
+                <span className="material-symbols-outlined text-slate-600 absolute right-3 top-2.5 text-sm pointer-events-none">arrow_drop_down</span>
               </div>
             </div>
           </div>
@@ -897,9 +897,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           <div className="flex justify-end pt-5 border-t border-slate-100">
             <button
               onClick={handleSaveEncounter}
-              className="btn-primary px-8 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-white-force"
+              className="btn-primary px-8 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-slate-800-force"
             >
-              <CheckCircle2 className="h-5 w-5 text-white-force" /> Submit Encounter & Route Mappings
+              <CheckCircle2 className="h-5 w-5 text-slate-800-force" /> Submit Encounter & Route Mappings
             </button>
           </div>
         </div>

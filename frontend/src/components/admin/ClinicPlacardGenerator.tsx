@@ -122,7 +122,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
             <QrCode className="h-5 w-5 text-emerald-500 animate-pulse" />
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Walk-In WhatsApp Onboarding</h4>
-              <p className="text-[10px] text-slate-400 font-medium font-sans">Print placard for front-desk zero-type patient registrations.</p>
+              <p className="text-[10px] text-slate-600 font-medium font-sans">Print placard for front-desk zero-type patient registrations.</p>
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -148,7 +148,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
           <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in text-xs">
             <div className="space-y-3">
               <div>
-                <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Clinic Placard Name</label>
+                <label className="block text-[10px] text-slate-600 font-bold uppercase tracking-wider mb-1">Clinic Placard Name</label>
                 <input
                   type="text"
                   value={customClinicName}
@@ -159,7 +159,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">WhatsApp Business Phone</label>
+                <label className="block text-[10px] text-slate-600 font-bold uppercase tracking-wider mb-1">WhatsApp Business Phone</label>
                 <input
                   type="text"
                   value={phoneNumber}
@@ -172,7 +172,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Prefilled WhatsApp Cue Message</label>
+                <label className="block text-[10px] text-slate-600 font-bold uppercase tracking-wider mb-1">Prefilled WhatsApp Cue Message</label>
                 <textarea
                   value={welcomeText}
                   onChange={(e) => setWelcomeText(e.target.value)}
@@ -183,7 +183,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Select Theme Color</label>
+                <label className="block text-[10px] text-slate-600 font-bold uppercase tracking-wider mb-1">Select Theme Color</label>
                 <div className="flex gap-2">
                   {(['emerald', 'blue', 'indigo', 'violet'] as const).map((c) => (
                     <button
@@ -191,7 +191,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
                       type="button"
                       onClick={() => setThemeColor(c)}
                       className={`w-5 h-5 rounded-full border-2 transition-all cursor-pointer ${
-                        themeColor === c ? 'border-slate-800 scale-110 shadow-sm' : 'border-transparent hover:scale-105'
+                        themeColor === c ? 'border-slate-200 scale-110 shadow-sm' : 'border-transparent hover:scale-105'
                       }`}
                       style={{
                         backgroundColor:
@@ -236,7 +236,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
             <h1 className="text-2xl font-black text-slate-800 tracking-tight uppercase font-sans">
               Scan & Onboard
             </h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 mb-6">
+            <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest mt-1 mb-6">
               Instant Paperless Registration
             </p>
 
@@ -249,7 +249,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
                 className="w-48 h-48 rounded-2xl relative z-10 mx-auto"
                 crossOrigin="anonymous"
               />
-              <div className="mt-2 text-[8px] font-mono text-slate-400 select-none">
+              <div className="mt-2 text-[8px] font-mono text-slate-600 select-none">
                 Scan using Camera / WhatsApp
               </div>
             </div>
@@ -257,39 +257,39 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
             {/* Instruction Steps */}
             <div className="mt-8 w-full space-y-3.5 text-left bg-white/70 border border-slate-200/50 p-4 rounded-2xl backdrop-blur-md">
               <div className="flex items-start gap-3">
-                <div className={`w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
+                <div className={`w-5 h-5 rounded-full bg-white text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
                   1
                 </div>
                 <div>
                   <h5 className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide">Scan the QR code</h5>
-                  <p className="text-[9px] text-slate-400 font-sans mt-0.5 leading-relaxed">Launch your WhatsApp camera or system scanner to read the secure clinic token.</p>
+                  <p className="text-[9px] text-slate-600 font-sans mt-0.5 leading-relaxed">Launch your WhatsApp camera or system scanner to read the secure clinic token.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className={`w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
+                <div className={`w-5 h-5 rounded-full bg-white text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
                   2
                 </div>
                 <div>
                   <h5 className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide">Press "Send"</h5>
-                  <p className="text-[9px] text-slate-400 font-sans mt-0.5 leading-relaxed">The onboarding cue triggers automatically. Zero-type consent starts immediately.</p>
+                  <p className="text-[9px] text-slate-600 font-sans mt-0.5 leading-relaxed">The onboarding cue triggers automatically. Zero-type consent starts immediately.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className={`w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
+                <div className={`w-5 h-5 rounded-full bg-white text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
                   3
                 </div>
                 <div>
                   <h5 className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide">Clinical AI Queue Sync</h5>
-                  <p className="text-[9px] text-slate-400 font-sans mt-0.5 leading-relaxed">The WhatsApp bot auto-syncs your details with Mediflow. You are placed in the Doctor's Queue!</p>
+                  <p className="text-[9px] text-slate-600 font-sans mt-0.5 leading-relaxed">The WhatsApp bot auto-syncs your details with Mediflow. You are placed in the Doctor's Queue!</p>
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="mt-8 flex items-center gap-1.5 text-[8px] font-mono font-extrabold uppercase text-slate-400 tracking-wider">
-              <Smartphone className="h-3 w-3 text-slate-400 shrink-0" />
+            <div className="mt-8 flex items-center gap-1.5 text-[8px] font-mono font-extrabold uppercase text-slate-600 tracking-wider">
+              <Smartphone className="h-3 w-3 text-slate-600 shrink-0" />
               Powered by Mediflow Clinical AI Scribe
             </div>
           </div>

@@ -100,7 +100,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-md flex items-start justify-center p-4 md:p-12 transition-all animate-fade-in"
+      className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-md flex items-start justify-center p-4 md:p-12 transition-all animate-fade-in"
       onClick={onClose}
     >
       {/* Command dialog panel */}
@@ -112,7 +112,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         
         {/* Search header input */}
         <div className="relative border-b border-slate-100/60 px-5 py-4 flex items-center gap-3.5">
-          <Search className="h-5 w-5 text-slate-400 shrink-0" />
+          <Search className="h-5 w-5 text-slate-600 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -124,7 +124,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
             }}
             className="w-full bg-transparent border-0 outline-none text-slate-800 placeholder-slate-400 font-bold text-sm tracking-wide focus:ring-0 focus:border-transparent py-1.5"
           />
-          <span className="hidden sm:flex text-[9px] font-bold font-mono px-2 py-0.5 bg-slate-100 border border-slate-200/80 rounded-lg text-slate-400 select-none shadow-sm">
+          <span className="hidden sm:flex text-[9px] font-bold font-mono px-2 py-0.5 bg-slate-100 border border-slate-200/80 rounded-lg text-slate-600 select-none shadow-sm">
             ESC
           </span>
         </div>
@@ -132,8 +132,8 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         {/* Action / Results list */}
         <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 max-h-[50vh]">
           {filteredItems.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs italic flex flex-col items-center gap-2">
-              <Terminal className="h-7 w-7 text-slate-300 animate-pulse" />
+            <div className="py-12 text-center text-slate-600 text-xs italic flex flex-col items-center gap-2">
+              <Terminal className="h-7 w-7 text-slate-600 animate-pulse" />
               Scanning database... No matching commands or patients found.
             </div>
           ) : (
@@ -146,7 +146,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
               }, {})
             ).map(([category, items]) => (
               <div key={category} className="space-y-1.5 animate-fade-in">
-                <span className="block text-[8px] text-slate-400 font-extrabold uppercase tracking-widest pl-2.5 mb-2">{category}</span>
+                <span className="block text-[8px] text-slate-600 font-extrabold uppercase tracking-widest pl-2.5 mb-2">{category}</span>
                 <div className="space-y-1">
                   {items.map(item => {
                     const globalIndex = filteredItems.indexOf(item);
@@ -170,7 +170,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
                             isSelected
                               ? 'bg-primary text-white shadow-md shadow-primary/10'
-                              : 'bg-slate-50 text-slate-400'
+                              : 'bg-slate-50 text-slate-600'
                           }`}>
                             <Icon className="h-4 w-4" />
                           </div>
@@ -182,7 +182,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
                         </div>
 
                         {isSelected && (
-                          <div className="flex items-center gap-1 text-[9px] font-bold font-mono px-2 py-0.5 bg-white border border-slate-100 rounded-lg text-slate-400 animate-fade-in shadow-xs select-none">
+                          <div className="flex items-center gap-1 text-[9px] font-bold font-mono px-2 py-0.5 bg-white border border-slate-100 rounded-lg text-slate-600 animate-fade-in shadow-xs select-none">
                             <CornerDownLeft className="h-2.5 w-2.5" />
                             ENTER
                           </div>
@@ -197,7 +197,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         </div>
 
         {/* Global Footer shortcuts bar */}
-        <div className="border-t border-slate-100/60 bg-slate-50 px-5 py-3.5 flex justify-between items-center text-[10px] text-slate-400 font-semibold tracking-wide select-none">
+        <div className="border-t border-slate-100/60 bg-slate-50 px-5 py-3.5 flex justify-between items-center text-[10px] text-slate-600 font-semibold tracking-wide select-none">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
               <span className="font-mono bg-white border border-slate-200 px-1.5 py-0.5 rounded shadow-xs text-[9px]">↑↓</span>
@@ -208,7 +208,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
               Select
             </span>
           </div>
-          <span className="text-[9px] font-extrabold tracking-wider text-slate-400 bg-white border border-slate-200 px-2.5 py-1 rounded-full uppercase">
+          <span className="text-[9px] font-extrabold tracking-wider text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-full uppercase">
             Mediflow Core OS v1.0.0
           </span>
         </div>

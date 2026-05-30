@@ -570,16 +570,16 @@ export default function App() {
 
   if (isOnboarding) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
-        {/* Background Neon Glow Orbs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background Subtle Orbs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-100/50 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-100/50 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
 
-        <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-md border border-white/10 p-8 rounded-2xl shadow-xl flex flex-col items-center space-y-6 text-center z-10 animate-fade-in">
-          <Loader2 className="h-12 w-12 text-cyan-400 animate-spin" />
+        <div className="w-full max-w-md bg-white border border-slate-200/60 p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col items-center space-y-6 text-center z-10 animate-fade-in">
+          <Loader2 className="h-12 w-12 text-cyan-600 animate-spin" />
           <div className="space-y-2">
-            <h3 className="text-lg font-bold text-white">Configuring Your Workspace</h3>
-            <p className="text-xs text-slate-300">
+            <h3 className="text-lg font-bold text-slate-800">Configuring Your Workspace</h3>
+            <p className="text-xs text-slate-500">
               Please wait while we initialize your clinical care network and apply secure tenant isolation keys...
             </p>
           </div>

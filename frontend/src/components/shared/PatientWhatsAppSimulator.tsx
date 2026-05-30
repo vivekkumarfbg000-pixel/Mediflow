@@ -68,17 +68,17 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
     <div className="fixed inset-y-0 right-0 w-full sm:w-[410px] bg-slate-100 border-l border-slate-200/80 shadow-2xl z-[90] flex flex-col justify-between animate-slide-in text-slate-800 font-sans">
       
       {/* Simulator top controller bar */}
-      <div className="p-4 bg-slate-900 text-white flex justify-between items-center border-b border-slate-950">
+      <div className="p-4 bg-white text-white flex justify-between items-center border-b border-slate-950">
         <div className="flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-emerald-400 animate-pulse" />
           <div>
             <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">Mediflow Patient Sandbox</h2>
-            <p className="text-[10px] text-slate-400 mt-0.5">Dual-Screen Conversational Simulator</p>
+            <p className="text-[10px] text-slate-600 mt-0.5">Dual-Screen Conversational Simulator</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-slate-850 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-slate-850 rounded-lg text-slate-600 hover:text-white transition-colors cursor-pointer"
         >
           <span className="material-symbols-outlined text-sm font-bold">close</span>
         </button>
@@ -103,7 +103,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
         <div className="w-full h-full max-w-[340px] max-h-[560px] bg-white border-[6px] border-slate-900 rounded-[32px] shadow-2xl flex flex-col relative overflow-hidden">
           
           {/* Mobile top camera notch */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-4.5 bg-slate-900 rounded-b-xl z-20 flex justify-center items-center">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-4.5 bg-white rounded-b-xl z-20 flex justify-center items-center">
             <div className="w-3 h-3 rounded-full bg-slate-800 mr-2 border border-slate-700/50" />
             <div className="w-8 h-1 bg-slate-800 rounded-full" />
           </div>
@@ -154,7 +154,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                   }`}
                 >
                   <p className="whitespace-pre-line font-medium leading-normal">{msg.text}</p>
-                  <div className="text-[7px] text-slate-400 text-right mt-1 font-mono">
+                  <div className="text-[7px] text-slate-600 text-right mt-1 font-mono">
                     {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '12:00 PM'}
                   </div>
                 </div>
@@ -274,7 +274,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
       </div>
 
       {/* Simulator instructions footer */}
-      <div className="p-4 bg-slate-900 border-t border-slate-950 text-[10px] text-slate-400 space-y-1">
+      <div className="p-4 bg-white border-t border-slate-950 text-[10px] text-slate-600 space-y-1">
         <div><strong>Interactive Instructions:</strong></div>
         <p className="leading-normal">Select a patient, view their current conversational state on the phone screen, and trigger events reactively to watch billing splits and pharmacy flows sync instantly.</p>
       </div>

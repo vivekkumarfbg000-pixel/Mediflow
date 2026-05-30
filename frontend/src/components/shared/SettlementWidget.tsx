@@ -134,7 +134,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
 
   if (loading) {
     return (
-      <div className={`p-6 rounded-2xl flex items-center justify-center ${isDark ? 'text-clinical-400' : 'text-slate-400'}`}>
+      <div className={`p-6 rounded-2xl flex items-center justify-center ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
         <span className="material-symbols-outlined animate-spin text-xl">autorenew</span>
         <span className="text-xs ml-2">Loading banking configurations...</span>
       </div>
@@ -146,7 +146,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
       isDark ? 'bg-surface-container border-outline-variant text-white' : 'bg-white border-slate-200/80 text-slate-800'
     }`}>
       <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-3 ${
-        isDark ? 'border-white/10' : 'border-slate-100'
+        isDark ? 'border-slate-200/60' : 'border-slate-100'
       }`}>
         <div>
           <h2 className="text-sm font-bold flex items-center gap-1.5">
@@ -215,10 +215,10 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         <div className={`p-8 border border-dashed rounded-2xl text-center space-y-2 ${
           isDark ? 'border-outline-variant bg-black/20' : 'border-slate-205 bg-slate-50/50'
         }`}>
-          <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-clinical-500' : 'text-slate-300'}`}>account_balance_wallet</span>
+          <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-clinical-500' : 'text-slate-600'}`}>account_balance_wallet</span>
           <div>
             <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>No Settlement Account Configured</h4>
-            <p className={`text-[10px] mt-1 max-w-sm mx-auto ${isDark ? 'text-clinical-400' : 'text-slate-400'}`}>
+            <p className={`text-[10px] mt-1 max-w-sm mx-auto ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
               Provide your official bank account credentials to activate split payout settlements. Direct earnings will bypass central platform balance reserves.
             </p>
           </div>
@@ -229,7 +229,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
       {vendorFormOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in text-slate-808">
           <div className={`glass-panel max-w-md w-full p-6 shadow-2xl relative overflow-hidden space-y-4 rounded-3xl ${
-            isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800'
+            isDark ? 'bg-white border-slate-200/60 text-white' : 'bg-white border-slate-200 text-slate-800'
           }`}>
             <div className={`absolute top-0 left-0 w-full h-[3px] ${isDark ? 'bg-secondary' : 'bg-primary'}`} />
             
@@ -239,14 +239,14 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
                   <span className={`material-symbols-outlined font-bold ${isDark ? 'text-secondary' : 'text-primary'}`}>account_balance</span>
                   Bank Settlements Setup
                 </h3>
-                <p className={`text-[11px] mt-1 ${isDark ? 'text-clinical-400' : 'text-slate-400'}`}>
+                <p className={`text-[11px] mt-1 ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
                   Configure Cashfree Marketplace vendor sub-account details.
                 </p>
               </div>
               <button
                 onClick={() => setVendorFormOpen(false)}
                 className={`p-1 rounded-lg border-0 bg-transparent transition-colors cursor-pointer ${
-                  isDark ? 'text-clinical-400 hover:text-white' : 'text-slate-400 hover:text-slate-600'
+                  isDark ? 'text-clinical-400 hover:text-white' : 'text-slate-600 hover:text-slate-600'
                 }`}
               >
                 <span className="material-symbols-outlined text-lg">close</span>
@@ -335,7 +335,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
                   type="button"
                   onClick={() => setVendorFormOpen(false)}
                   className={`flex-1 py-2.5 rounded-xl text-center text-xs border cursor-pointer ${
-                    isDark ? 'bg-slate-800 border-white/10 hover:bg-slate-700 text-white' : 'btn-secondary'
+                    isDark ? 'bg-slate-800 border-slate-200/60 hover:bg-slate-700 text-white' : 'btn-secondary'
                   }`}
                 >
                   Cancel

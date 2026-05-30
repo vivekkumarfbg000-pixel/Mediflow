@@ -140,7 +140,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
       {/* ── Header ──────────────────────────────────────────────── */}
       {!hideHeader && (
-        <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+        <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -151,7 +151,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                 </div>
                 <div>
                   <h1 className="text-base font-bold text-slate-800 leading-tight">Pod Command Center</h1>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-slate-600 mt-0.5">
                     Admin Telemetry — Mediflow Bihar Clinic Pod · Doctor Full Access
                   </p>
                 </div>
@@ -168,7 +168,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                 }`}>
                   {overallHealthScore}
                 </div>
-                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1">Pod Health</div>
+                <div className="text-[9px] text-slate-600 font-bold uppercase tracking-wider mt-1">Pod Health</div>
               </div>
 
               {/* Live clock */}
@@ -176,7 +176,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                 <div className="text-base font-bold text-slate-800 font-mono">
                   {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono">
+                <div className="text-[10px] text-slate-600 font-mono">
                   {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
                 </div>
                 <div className="flex items-center gap-1 justify-end mt-0.5">
@@ -309,7 +309,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group relative">
                         <div className={`${bar.color} w-full rounded-t-xs transition-all duration-500`} style={{ height: `${Math.max(10, heightPct)}%` }} />
-                        <span className="text-[7px] text-slate-400 mt-1 uppercase font-bold tracking-wider">{bar.label}</span>
+                        <span className="text-[7px] text-slate-600 mt-1 uppercase font-bold tracking-wider">{bar.label}</span>
                       </div>
                     );
                   })}
@@ -351,7 +351,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             
             <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
               {patients.length === 0 ? (
-                <div className="text-center py-6 text-slate-400 text-xs italic">
+                <div className="text-center py-6 text-slate-600 text-xs italic">
                   No patients waiting today.
                 </div>
               ) : (
@@ -359,14 +359,14 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   <div key={p.id} className="p-3 bg-slate-50/60 border border-slate-200/50 rounded-xl flex items-center justify-between gap-3 group transition-all">
                     <div>
                       <div className="text-xs font-bold text-slate-700">{p.name}</div>
-                      <div className="text-[9px] text-slate-400 mt-0.5">
+                      <div className="text-[9px] text-slate-600 mt-0.5">
                         {p.age}y • {p.gender}
                       </div>
                     </div>
                     {onStartConsultation && (
                       <button
                         onClick={() => onStartConsultation(p)}
-                        className="px-2.5 py-1.5 bg-white hover:bg-indigo-600 hover:text-white border border-slate-200 hover:border-indigo-650 rounded-lg text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs transition-all cursor-pointer hover:text-white-force"
+                        className="px-2.5 py-1.5 bg-white hover:bg-indigo-600 hover:text-slate-800 border border-slate-200 hover:border-indigo-650 rounded-lg text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs transition-all cursor-pointer hover:text-slate-800-force"
                       >
                         Consult
                       </button>
@@ -460,10 +460,10 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <h2 className="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${pulse ? 'bg-emerald-400' : 'bg-emerald-600'} transition-colors`} />
               Live Pod Activity Feed
-              <span className="text-[10px] text-slate-400 font-mono ml-1">({activityFeed.length} recent events)</span>
+              <span className="text-[10px] text-slate-600 font-mono ml-1">({activityFeed.length} recent events)</span>
             </h2>
             {activityFeed.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-xs">No pod events logged today.</div>
+              <div className="text-center py-8 text-slate-600 text-xs">No pod events logged today.</div>
             ) : (
               <div className="relative">
                 {/* Timeline line */}
@@ -491,7 +491,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                           <div>
                             <div className="text-[11px] font-bold text-slate-700">{item.label}</div>
                             {item.patient && (
-                              <div className="text-[10px] text-slate-400 mt-0.5 font-mono">Patient: {item.patient}</div>
+                              <div className="text-[10px] text-slate-600 mt-0.5 font-mono">Patient: {item.patient}</div>
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0 ml-2">
@@ -500,7 +500,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                             }`}>
                               {item.type === 'lab' ? 'LAB' : 'PHARMA'}
                             </span>
-                            <span className="text-[9px] text-slate-400 font-mono">
+                            <span className="text-[9px] text-slate-600 font-mono">
                               {new Date(item.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
@@ -540,7 +540,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                       ₹{total.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                     </div>
                     <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{t.label}</div>
-                    <div className="text-[9px] text-slate-400 font-mono">{entries.length} txn</div>
+                    <div className="text-[9px] text-slate-600 font-mono">{entries.length} txn</div>
                   </div>
                 );
               })}

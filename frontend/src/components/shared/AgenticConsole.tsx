@@ -320,10 +320,10 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'success': return 'bg-emerald-500 text-white';
-      case 'validating': return 'bg-amber-500 animate-pulse text-white';
-      case 'error-halted': return 'bg-rose-600 text-white';
-      default: return 'bg-slate-700 text-slate-400';
+      case 'success': return 'bg-emerald-500 text-slate-800';
+      case 'validating': return 'bg-amber-500 animate-pulse text-slate-800';
+      case 'error-halted': return 'bg-rose-600 text-slate-800';
+      default: return 'bg-slate-700 text-slate-600';
     }
   };
 
@@ -342,7 +342,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl transition-all duration-300 hover:border-slate-700/80 hover:shadow-2xl hover:shadow-emerald-950/10">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/60 p-6 backdrop-blur-xl transition-all duration-300 hover:border-slate-700/80 hover:shadow-2xl hover:shadow-emerald-950/10">
       {/* Top sparkles border effect */}
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
       
@@ -359,12 +359,12 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
                   <Sparkles className="h-3 w-3 animate-pulse" /> Agentic
                 </span>
               </h3>
-              <p className="text-xs text-slate-400">Validate, schedule, and execute patient workflows step-by-step.</p>
+              <p className="text-xs text-slate-600">Validate, schedule, and execute patient workflows step-by-step.</p>
             </div>
           </div>
           
           {activePatient && (
-            <div className="flex items-center gap-2 rounded-lg bg-slate-950/40 border border-slate-800/80 px-3 py-1.5 text-xs text-slate-300">
+            <div className="flex items-center gap-2 rounded-lg bg-white/40 border border-slate-200/80 px-3 py-1.5 text-xs text-slate-600">
               <User className="h-3.5 w-3.5 text-emerald-400" />
               <span>Active patient: <strong className="text-slate-200">{activePatient.name}</strong></span>
             </div>
@@ -372,7 +372,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
         </div>
 
         {/* Unified Input Prompt Panel */}
-        <div className="relative flex items-center rounded-xl border border-slate-800/90 bg-slate-950/40 p-1.5 transition-all focus-within:border-emerald-500/30 focus-within:ring-2 focus-within:ring-emerald-500/5">
+        <div className="relative flex items-center rounded-xl border border-slate-200/90 bg-white/40 p-1.5 transition-all focus-within:border-emerald-500/30 focus-within:ring-2 focus-within:ring-emerald-500/5">
           <input
             type="text"
             className="flex-1 border-0 bg-transparent py-2 pl-3 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-0"
@@ -384,7 +384,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
           />
           
           {isListening && (
-            <div className="flex items-center gap-1 px-2.5 h-6 shrink-0 border-l border-slate-800 animate-fade-in select-none">
+            <div className="flex items-center gap-1 px-2.5 h-6 shrink-0 border-l border-slate-200 animate-fade-in select-none">
               {[1, 2, 3, 4, 5, 6, 7, 8].map(bar => {
                 const delay = (bar * 0.12).toFixed(2);
                 return (
@@ -409,7 +409,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
               className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${
                 isListening 
                   ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 animate-pulse' 
-                  : 'bg-slate-900 border-slate-800 hover:border-slate-700/80 text-slate-400 hover:text-slate-200'
+                  : 'bg-white border-slate-200 hover:border-slate-700/80 text-slate-600 hover:text-slate-200'
               }`}
               title="Speak instruction (Web Speech API)"
             >
@@ -434,9 +434,9 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
 
         {/* Step-by-Step Task Validation Pipeline UI */}
         {pipelineSteps.length > 0 && (
-          <div className="flex flex-col gap-4 rounded-xl border border-slate-800/80 bg-slate-950/20 p-4 transition-all">
+          <div className="flex flex-col gap-4 rounded-xl border border-slate-200/80 bg-white/20 p-4 transition-all">
             <div className="flex justify-between items-center px-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Agent Telemetry pipeline</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-600">Agent Telemetry pipeline</span>
               {executionHalted && (
                 <span className="text-[11px] font-medium text-rose-400 flex items-center gap-1">
                   <AlertTriangle className="h-3.5 w-3.5 animate-bounce" /> Workflow Halted Safety Check Alert
@@ -451,12 +451,12 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
                   {/* Circle */}
                   <div className="z-10 flex flex-col items-center gap-2">
                     <div 
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-800 font-mono text-[10px] font-bold shadow-lg transition-all duration-300 ${getStatusColor(step.status)}`}
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 font-mono text-[10px] font-bold shadow-lg transition-all duration-300 ${getStatusColor(step.status)}`}
                       title={`${step.name}: ${step.message}`}
                     >
                       {step.status === 'success' ? <CheckCircle2 className="h-4.5 w-4.5" /> : step.status === 'error-halted' ? <AlertTriangle className="h-4.5 w-4.5" /> : step.name.substring(0, 4)}
                     </div>
-                    <span className="text-[10px] font-semibold text-slate-400 tracking-wide">{step.name}</span>
+                    <span className="text-[10px] font-semibold text-slate-600 tracking-wide">{step.name}</span>
                   </div>
 
                   {/* Connective Line */}
@@ -491,7 +491,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
 
         {/* Live Scribe Reasoning Logs CLI panel */}
         {agentLogs.length > 0 && (
-          <div className="rounded-xl border border-slate-900 bg-slate-950/80 p-4 font-mono text-[11px] leading-relaxed text-slate-400">
+          <div className="rounded-xl border border-slate-900 bg-white/80 p-4 font-mono text-[11px] leading-relaxed text-slate-600">
             <div className="flex items-center gap-2 border-b border-slate-900 pb-2 mb-2 text-slate-500">
               <Terminal className="h-3.5 w-3.5" />
               <span className="text-[10px] uppercase font-semibold tracking-wider">Agent execution logs</span>
@@ -501,7 +501,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
               {agentLogs.map((log, i) => (
                 <div 
                   key={i} 
-                  className={log.startsWith('> [HALT]') ? 'text-rose-400 font-semibold' : log.startsWith('> Success!') ? 'text-emerald-400 font-semibold' : 'text-slate-400'}
+                  className={log.startsWith('> [HALT]') ? 'text-rose-400 font-semibold' : log.startsWith('> Success!') ? 'text-emerald-400 font-semibold' : 'text-slate-600'}
                 >
                   {log}
                 </div>
@@ -517,7 +517,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
                     setPipelineSteps([]);
                     setAgentLogs([]);
                   }}
-                  className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-all cursor-pointer"
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-200 transition-all cursor-pointer"
                 >
                   Reset
                 </button>

@@ -68,17 +68,17 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
     }
 
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
-        <div className="glass-panel max-w-4xl w-full p-6 md:p-8 border-slate-800 shadow-2xl relative bg-slate-900 text-white rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
+        <div className="glass-panel max-w-4xl w-full p-6 md:p-8 border-slate-200 shadow-2xl relative bg-white text-slate-800 rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
 
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800/80 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-indigo-400 text-2xl font-bold">clinical_notes</span>
                 <h2 className="text-lg font-black text-slate-100 uppercase tracking-wider font-sans">{OPHTHALMIC_EYE_CARE_COPY.analysisTitle}</h2>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-600 mt-1">
                 Eye-care review for patient: <strong className="text-slate-200 font-bold">{selectedPatient.name}</strong> ({selectedPatient.age}y, {selectedPatient.gender})
               </p>
             </div>
@@ -93,7 +93,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
               </span>
               <button
                 onClick={onCloseAnalysis}
-                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer border-0 text-white-force"
+                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-600 hover:text-slate-800 transition-colors cursor-pointer border-0 text-slate-800-force"
               >
                 <span className="material-symbols-outlined text-base">close</span>
               </button>
@@ -102,12 +102,12 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 space-y-6">
-              <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">1. Reference Range Audit & Diagnostics</h3>
+              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">1. Reference Range Audit & Diagnostics</h3>
               <div className="space-y-4">
-                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                <div className="p-4 bg-white/40 border border-slate-200 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-slate-200">{OPHTHALMIC_EYE_CARE_COPY.odLabel}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.odRefRange}</span>
+                    <span className="text-[10px] text-slate-600 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.odRefRange}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">{report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}</span>
@@ -117,10 +117,10 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                   </div>
                 </div>
 
-                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                <div className="p-4 bg-white/40 border border-slate-200 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-slate-200">{OPHTHALMIC_EYE_CARE_COPY.iopLabel}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.iopRefRange}</span>
+                    <span className="text-[10px] text-slate-600 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.iopRefRange}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">{iop} mmHg</span>
@@ -130,10 +130,10 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                   </div>
                 </div>
 
-                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                <div className="p-4 bg-white/40 border border-slate-200 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-slate-200">{OPHTHALMIC_EYE_CARE_COPY.osLabel}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.osRefRange}</span>
+                    <span className="text-[10px] text-slate-600 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.osRefRange}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-xl font-black font-mono tracking-tight">{report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}</span>
@@ -147,17 +147,17 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
 
             <div className="lg:col-span-5 space-y-6">
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">2. AI Clinical Correlations</h3>
-                <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-xs space-y-2 leading-relaxed">
+                <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">2. AI Clinical Correlations</h3>
+                <div className="p-4 bg-white/60 border border-slate-200 rounded-2xl text-xs space-y-2 leading-relaxed">
                   <strong className="text-indigo-400 block font-bold">Biomarker Interaction Profile</strong>
-                  <p className="text-slate-300 text-[11px] font-medium leading-relaxed">{riskReason}</p>
+                  <p className="text-slate-600 text-[11px] font-medium leading-relaxed">{riskReason}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">3. Future Potential Disease Forecasts</h3>
+                <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">3. Future Potential Disease Forecasts</h3>
                 {complications.length === 0 ? (
-                  <div className="p-4 bg-slate-950/20 border border-slate-800 rounded-2xl text-slate-400 text-xs italic">
+                  <div className="p-4 bg-white/20 border border-slate-200 rounded-2xl text-slate-600 text-xs italic">
                     No future potential risk patterns identified.
                   </div>
                 ) : (
@@ -173,7 +173,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">4. Safe Prescribing Directives</h3>
+                <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">4. Safe Prescribing Directives</h3>
                 <div className="p-4 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl text-[11px] text-indigo-200 space-y-2">
                   <div className="flex gap-2 animate-fade-in">
                     <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
@@ -188,10 +188,10 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
             </div>
           </div>
 
-          <div className="flex justify-end border-t border-slate-800 pt-4 gap-3">
+          <div className="flex justify-end border-t border-slate-200 pt-4 gap-3">
             <button
               onClick={onCloseAnalysis}
-              className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-xl transition-colors cursor-pointer border-0 text-white-force animate-fade-in"
+              className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-800 rounded-xl transition-colors cursor-pointer border-0 text-slate-800-force animate-fade-in"
             >
               Dismiss
             </button>
@@ -208,11 +208,11 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
           <span className="material-symbols-outlined text-primary text-lg">folder_zip</span>
           {OPHTHALMIC_EYE_CARE_COPY.timelineTitle}
         </h2>
-        <p className="text-[10px] text-slate-400 mb-4">{OPHTHALMIC_EYE_CARE_COPY.timelineSubtitle}</p>
+        <p className="text-[10px] text-slate-600 mb-4">{OPHTHALMIC_EYE_CARE_COPY.timelineSubtitle}</p>
 
         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
           {entries.length === 0 ? (
-            <div className="text-center py-6 text-slate-400 text-xs italic">
+            <div className="text-center py-6 text-slate-600 text-xs italic">
               No historical biomarker reports found.
             </div>
           ) : (
@@ -233,15 +233,15 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/40 text-[10px] text-slate-500">
                   <div>
-                    <span className="text-slate-400 font-medium block">VA (OD)</span>
+                    <span className="text-slate-600 font-medium block">VA (OD)</span>
                     <span className="font-mono font-bold text-slate-700">{report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 font-medium block">IOP</span>
+                    <span className="text-slate-600 font-medium block">IOP</span>
                     <span className="font-mono font-bold text-slate-700">{report.pulseRate ?? OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 font-medium block">VA (OS)</span>
+                    <span className="text-slate-600 font-medium block">VA (OS)</span>
                     <span className="font-mono font-bold text-slate-700">{report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}</span>
                   </div>
                 </div>

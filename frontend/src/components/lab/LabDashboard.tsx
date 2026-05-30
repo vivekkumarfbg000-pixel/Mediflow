@@ -519,7 +519,7 @@ export const LabDashboard: React.FC = () => {
             return (
               <div key={step.key} className="flex flex-col items-center z-10 relative">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all duration-300 ${
-                  isCompleted ? 'bg-primary border-primary text-white shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]'
+                  isCompleted ? 'bg-primary border-primary text-slate-800 shadow-[0_0_8px_rgba(var(--primary-rgb),0.4)]'
                     : isActive ? 'bg-surface-container border-secondary text-secondary shadow-[0_0_12px_rgba(var(--secondary-rgb),0.6)]'
                     : 'bg-surface-container-lowest border-outline-variant text-clinical-400'
                 }`}>
@@ -596,20 +596,20 @@ export const LabDashboard: React.FC = () => {
             <button onClick={() => setViewingDocUrl(null)} className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-full text-clinical-400">
               <span className="material-symbols-outlined">close</span>
             </button>
-            <h3 className="text-white font-bold mb-4">Document Preview</h3>
+            <h3 className="text-slate-800 font-bold mb-4">Document Preview</h3>
             <iframe src={viewingDocUrl} className="w-full h-[60vh] rounded-lg border border-outline-variant" title="Document Viewer" />
           </div>
         </div>
       )}
 
       {/* ── STATS HEADER ──────────────────────────────────────── */}
-      <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
+      <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-secondary to-accent-500 opacity-70" />
 
         {/* Title row */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
           <div>
-            <h1 className="text-lg font-bold text-white flex items-center gap-2">
+            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[20px]">biotech</span>
               {nomenclature.labTitle}
               <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono ml-1">LIVE</span>
@@ -619,7 +619,7 @@ export const LabDashboard: React.FC = () => {
             </p>
           </div>
           <div className="text-right">
-            <div className="text-xl font-bold text-white font-mono">
+            <div className="text-xl font-bold text-slate-800 font-mono">
               {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
             <div className="text-[10px] text-clinical-400 font-mono">
@@ -658,7 +658,7 @@ export const LabDashboard: React.FC = () => {
                 }`}>{kpi.icon}</span>
                 <span className="text-[10px] text-clinical-300 font-bold uppercase tracking-wider">{kpi.label}</span>
               </div>
-              <div className="text-3xl font-bold text-white font-mono">{kpi.value}</div>
+              <div className="text-3xl font-bold text-slate-800 font-mono">{kpi.value}</div>
               <div className="text-[10px] text-clinical-500 font-mono">{kpi.sub}</div>
             </div>
           ))}
@@ -674,13 +674,13 @@ export const LabDashboard: React.FC = () => {
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer relative ${
               activeTab === tab.id
                 ? 'bg-primary/15 border-primary/40 text-primary shadow-[0_0_12px_rgba(var(--primary-rgb),0.15)]'
-                : 'bg-surface-container-lowest/40 border-outline-variant/40 text-clinical-300 hover:border-outline/50 hover:text-white'
+                : 'bg-surface-container-lowest/40 border-outline-variant/40 text-clinical-300 hover:border-outline/50 hover:text-slate-800'
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
             {tab.label}
             {tab.badge !== undefined && tab.badge > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-slate-800 text-[9px] font-black flex items-center justify-center">
                 {tab.badge > 9 ? '9+' : tab.badge}
               </span>
             )}
@@ -697,9 +697,9 @@ export const LabDashboard: React.FC = () => {
           <div className="lg:col-span-8 space-y-6">
 
             {/* Pending draws */}
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-amber-500 to-orange-500 opacity-50" />
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 Awaiting Sample Collection ({pendingList.length})
               </h2>
@@ -719,13 +719,13 @@ export const LabDashboard: React.FC = () => {
                             <div className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-2 text-rose-500 animate-pulse">
                               <span className="material-symbols-outlined text-base">lock</span>
                             </div>
-                            <h4 className="text-white font-bold text-xs">Consent Lock</h4>
+                            <h4 className="text-slate-800 font-bold text-xs">Consent Lock</h4>
                             <p className="text-[9px] text-clinical-400 mt-1">Patient consent not verified.</p>
                           </div>
                         )}
                         <div>
                           <div className="flex justify-between items-start gap-2">
-                            <h4 className="font-bold text-sm text-white">{req.patientName}</h4>
+                            <h4 className="font-bold text-sm text-slate-800">{req.patientName}</h4>
                             <div className="flex items-center gap-1">
                               {isWalkin && (
                                 <span className="text-[8px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Walk-in</span>
@@ -775,9 +775,9 @@ export const LabDashboard: React.FC = () => {
             </div>
 
             {/* Collected / Processing */}
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                 Collected Samples in Processing ({collectedList.length})
               </h2>
@@ -796,12 +796,12 @@ export const LabDashboard: React.FC = () => {
                             <div className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-2 text-rose-500 animate-pulse">
                               <span className="material-symbols-outlined text-base">lock</span>
                             </div>
-                            <h4 className="text-white font-bold text-xs">Consent Lock</h4>
+                            <h4 className="text-slate-800 font-bold text-xs">Consent Lock</h4>
                           </div>
                         )}
                         <div>
                           <div className="flex justify-between items-start gap-2">
-                            <h4 className="font-bold text-sm text-white">{req.patientName}</h4>
+                            <h4 className="font-bold text-sm text-slate-800">{req.patientName}</h4>
                             <span className="text-[9px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">Processing</span>
                           </div>
                           <p className="text-xs font-bold text-secondary mt-2 flex items-center gap-1">
@@ -814,7 +814,7 @@ export const LabDashboard: React.FC = () => {
                           <div className="mt-3 flex items-center gap-2 bg-surface-container-lowest/70 border border-outline-variant/60 p-2.5 rounded-lg">
                             <span className="material-symbols-outlined text-sm text-primary">label</span>
                             <div className="text-[10px] text-clinical-300">
-                              Barcode <strong className="text-white font-mono">{req.barcode}</strong>
+                              Barcode <strong className="text-slate-800 font-mono">{req.barcode}</strong>
                             </div>
                           </div>
                         </div>
@@ -842,9 +842,9 @@ export const LabDashboard: React.FC = () => {
             </div>
 
             {/* Completed reports table */}
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary text-[16px]">verified</span>
                 Completed Diagnostic Report Cards
               </h2>
@@ -865,14 +865,14 @@ export const LabDashboard: React.FC = () => {
                     <tbody className="divide-y divide-outline-variant bg-surface-container-lowest/30">
                       {completedList.map(req => (
                         <tr key={req.id} className="hover:bg-surface-container/50 transition-colors">
-                          <td className="p-3.5 font-semibold text-white">
+                          <td className="p-3.5 font-semibold text-slate-800">
                             <div>{req.patientName}</div>
                             {req.encounterId === 'walkin' && (
                               <span className="text-[8px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-full uppercase font-mono">Walk-in</span>
                             )}
                           </td>
                           <td className="p-3.5 text-clinical-300">
-                            <div className="font-semibold text-white">{req.testName}</div>
+                            <div className="font-semibold text-slate-800">{req.testName}</div>
                             <div className="text-[9px] text-clinical-400 mt-1 uppercase font-mono tracking-wider">
                               LOINC: {req.testCode}
                             </div>
@@ -894,7 +894,7 @@ export const LabDashboard: React.FC = () => {
                               return rep?.reportFileUrl ? (
                                 <button 
                                   onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
-                                  className="ml-auto px-2.5 py-1 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white rounded text-[10px] flex items-center gap-1 font-bold cursor-pointer active:scale-95 transition-transform"
+                                  className="ml-auto px-2.5 py-1 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-slate-800 rounded text-[10px] flex items-center gap-1 font-bold cursor-pointer active:scale-95 transition-transform"
                                 >
                                   <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
                                   View Doc
@@ -916,9 +916,9 @@ export const LabDashboard: React.FC = () => {
           {/* Right: Result entry form (appears when a req is active) */}
           <div className="lg:col-span-4 space-y-5">
             {activeReqId && activeReq ? (
-              <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden animate-fade-in">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden animate-fade-in">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
-                <h3 className="font-semibold text-white mb-2 flex items-center gap-2 text-sm">
+                <h3 className="font-semibold text-slate-800 mb-2 flex items-center gap-2 text-sm">
                   <span className="material-symbols-outlined text-secondary text-[16px]">edit_document</span>
                   Biomarker Entry Form
                 </h3>
@@ -1020,9 +1020,9 @@ export const LabDashboard: React.FC = () => {
 
                   {/* Attach Lab Report PDF/Image Document */}
                   <div className="bg-surface-container/60 p-3.5 border border-outline-variant/80 rounded-lg space-y-2">
-                    <span className="text-[10px] text-clinical-200 font-bold uppercase tracking-wider font-mono block text-white">Attach Lab Report File (PDF / Image)</span>
+                    <span className="text-[10px] text-clinical-200 font-bold uppercase tracking-wider font-mono block text-slate-800">Attach Lab Report File (PDF / Image)</span>
                     <div className="flex gap-4 items-center">
-                      <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-secondary rounded-xl p-3 bg-[#0c101d] text-center cursor-pointer text-[11px] font-semibold text-clinical-300 hover:text-white transition-colors">
+                      <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-secondary rounded-xl p-3 bg-[#0c101d] text-center cursor-pointer text-[11px] font-semibold text-clinical-300 hover:text-slate-800 transition-colors">
                         <span className="material-symbols-outlined text-secondary text-base">upload_file</span>
                         <span>{reportFile ? reportFile.name : 'Upload Report Document'}</span>
                         <input 
@@ -1048,7 +1048,7 @@ export const LabDashboard: React.FC = () => {
                           <button 
                             type="button" 
                             onClick={() => setViewingDocUrl(reportFilePreviewUrl)}
-                            className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                            className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
                           >
                             Zoom
                           </button>
@@ -1058,30 +1058,30 @@ export const LabDashboard: React.FC = () => {
                   </div>
 
                   {/* Live JSON terminal */}
-                  <div className="border border-slate-800 rounded-xl overflow-hidden bg-[#070b15]">
-                    <div className="bg-[#0f1524] px-4 py-2.5 border-b border-slate-800/80 flex items-center justify-between">
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-[#070b15]">
+                    <div className="bg-[#0f1524] px-4 py-2.5 border-b border-slate-200/80 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="flex gap-1.5">
                           <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
                           <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
                         </div>
-                        <span className="text-[10px] text-slate-300 font-mono font-bold ml-2 flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-600 font-mono font-bold ml-2 flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           chemistry_analyzer_output.json
                         </span>
                       </div>
-                      <span className="text-[8px] text-slate-500 font-mono font-black tracking-widest uppercase bg-slate-900 px-2 py-0.5 rounded border border-slate-800/50">LIVE</span>
+                      <span className="text-[8px] text-slate-500 font-mono font-black tracking-widest uppercase bg-white px-2 py-0.5 rounded border border-slate-200/50">LIVE</span>
                     </div>
-                    <div className="py-4 text-[9px] font-mono text-slate-300 overflow-x-auto max-h-40 leading-relaxed bg-[#070b15]">
+                    <div className="py-4 text-[9px] font-mono text-slate-600 overflow-x-auto max-h-40 leading-relaxed bg-[#070b15]">
                       <pre className="m-0 bg-transparent text-left select-text">
                         {(() => {
                           try {
                             return JSON.stringify(JSON.parse(jsonPayload), null, 2)
                               .split('\n')
                               .map((line, i) => (
-                                <div key={i} className="min-h-[1.25rem] px-5 hover:bg-slate-900/30 flex">
-                                  <span className="w-6 shrink-0 text-slate-600 select-none text-[8px] text-right pr-2 border-r border-slate-800/30 mr-3">{i + 1}</span>
+                                <div key={i} className="min-h-[1.25rem] px-5 hover:bg-white/30 flex">
+                                  <span className="w-6 shrink-0 text-slate-600 select-none text-[8px] text-right pr-2 border-r border-slate-200/30 mr-3">{i + 1}</span>
                                   <span className="flex-1 whitespace-pre">{line}</span>
                                 </div>
                               ));
@@ -1104,7 +1104,7 @@ export const LabDashboard: React.FC = () => {
                 </form>
               </div>
             ) : (
-              <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
                 <div className="text-center py-6">
                   <span className="material-symbols-outlined text-4xl text-clinical-600">edit_document</span>
                   <p className="text-xs text-clinical-500 mt-2">Select a collected sample from the queue to enter analyzer results.</p>
@@ -1122,9 +1122,9 @@ export const LabDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Registration form */}
           <div className="lg:col-span-5 space-y-5">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-primary opacity-60" />
-              <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
                 <span className="material-symbols-outlined text-blue-400 text-[18px]">person_add</span>
                 Walk-in Lab Test Registration
               </h2>
@@ -1162,7 +1162,7 @@ export const LabDashboard: React.FC = () => {
                         onClick={() => { setWalkinPatientId(p.id); setWalkinSearch(''); }}
                         className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
                           walkinPatientId === p.id
-                            ? 'bg-blue-500/15 border-blue-500/40 text-white'
+                            ? 'bg-blue-500/15 border-blue-500/40 text-slate-800'
                             : 'bg-surface-container-lowest/60 border-outline-variant/40 hover:border-outline/50 text-clinical-200'
                         }`}
                       >
@@ -1179,7 +1179,7 @@ export const LabDashboard: React.FC = () => {
                   <div className="flex items-center gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
                     <span className="material-symbols-outlined text-blue-400 text-[18px]">person_check</span>
                     <div className="flex-1">
-                      <div className="text-xs font-bold text-white">
+                      <div className="text-xs font-bold text-slate-800">
                         {patients.find(p => p.id === walkinPatientId)?.name || 'Selected Patient'}
                       </div>
                       <div className="text-[10px] text-blue-300 font-mono">
@@ -1189,7 +1189,7 @@ export const LabDashboard: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setWalkinPatientId('')}
-                      className="text-clinical-400 hover:text-white text-[10px] cursor-pointer"
+                      className="text-clinical-400 hover:text-slate-800 text-[10px] cursor-pointer"
                     >
                       ✕
                     </button>
@@ -1221,7 +1221,7 @@ export const LabDashboard: React.FC = () => {
                             className="accent-primary w-3.5 h-3.5"
                           />
                           <div>
-                            <div className="text-xs font-bold text-white">{test.name}</div>
+                            <div className="text-xs font-bold text-slate-800">{test.name}</div>
                             <div className="text-[9px] text-clinical-400 font-mono">
                               {test.category} · LOINC: {test.loincCode}
                             </div>
@@ -1242,7 +1242,7 @@ export const LabDashboard: React.FC = () => {
                     Upload Request Slip / Prescription (Optional)
                   </label>
                   <div className="flex items-center gap-3">
-                    <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-blue-400 rounded-xl p-3 bg-surface-container-lowest/40 text-center cursor-pointer text-xs font-semibold text-clinical-300 hover:text-white transition-colors">
+                    <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-blue-400 rounded-xl p-3 bg-surface-container-lowest/40 text-center cursor-pointer text-xs font-semibold text-clinical-300 hover:text-slate-800 transition-colors">
                       <span className="material-symbols-outlined text-xl text-blue-400">upload_file</span>
                       <span>{walkinFileUrl ? 'Re-upload / Change Slip' : 'Upload File (JPG, PNG, PDF)'}</span>
                       <input 
@@ -1305,9 +1305,9 @@ export const LabDashboard: React.FC = () => {
 
           {/* Walk-in history */}
           <div className="lg:col-span-7">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-primary opacity-50" />
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-blue-400 text-[16px]">receipt_long</span>
                 Walk-in Test History ({walkinList.length})
               </h2>
@@ -1327,7 +1327,7 @@ export const LabDashboard: React.FC = () => {
                           'bg-amber-400 animate-pulse'
                         }`} />
                         <div>
-                          <div className="text-xs font-bold text-white">{req.patientName}</div>
+                          <div className="text-xs font-bold text-slate-800">{req.patientName}</div>
                           <div className="text-[10px] text-clinical-400 font-mono">{req.testName} · {req.testCode}</div>
                           <div className="text-[9px] text-blue-400 font-mono mt-0.5">Barcode: {req.barcode}</div>
                         </div>
@@ -1362,9 +1362,9 @@ export const LabDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left: Patient, Test & File Selector */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-60" />
-              <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[18px]">upload_file</span>
                 Direct Pathology Report Upload
               </h2>
@@ -1402,7 +1402,7 @@ export const LabDashboard: React.FC = () => {
                         onClick={() => { setDirectPatientId(p.id); setDirectSearch(''); }}
                         className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
                           directPatientId === p.id
-                            ? 'bg-primary/15 border-primary/40 text-white'
+                            ? 'bg-primary/15 border-primary/40 text-slate-800'
                             : 'bg-surface-container-lowest/60 border-outline-variant/40 hover:border-outline/50 text-clinical-200'
                         }`}
                       >
@@ -1418,7 +1418,7 @@ export const LabDashboard: React.FC = () => {
                   <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/25 rounded-xl">
                     <span className="material-symbols-outlined text-primary text-[18px]">person_check</span>
                     <div className="flex-1">
-                      <div className="text-xs font-bold text-white">
+                      <div className="text-xs font-bold text-slate-800">
                         {patients.find(p => p.id === directPatientId)?.name || 'Selected Patient'}
                       </div>
                       <div className="text-[10px] text-clinical-300 font-mono">
@@ -1428,7 +1428,7 @@ export const LabDashboard: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setDirectPatientId('')}
-                      className="text-clinical-400 hover:text-white text-[10px] cursor-pointer"
+                      className="text-clinical-400 hover:text-slate-800 text-[10px] cursor-pointer"
                     >
                       ✕
                     </button>
@@ -1460,7 +1460,7 @@ export const LabDashboard: React.FC = () => {
                             className="accent-primary w-3.5 h-3.5"
                           />
                           <div>
-                            <div className="text-xs font-bold text-white">{test.name}</div>
+                            <div className="text-xs font-bold text-slate-800">{test.name}</div>
                             <div className="text-[9px] text-clinical-400 font-mono">
                               LOINC: {test.loincCode}
                             </div>
@@ -1480,7 +1480,7 @@ export const LabDashboard: React.FC = () => {
                     Attach Lab Report File (PDF / Image)
                   </label>
                   <div className="flex items-center gap-3">
-                    <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-primary rounded-xl p-3 bg-surface-container-lowest/40 text-center cursor-pointer text-xs font-semibold text-clinical-300 hover:text-white transition-colors">
+                    <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-outline-variant hover:border-primary rounded-xl p-3 bg-surface-container-lowest/40 text-center cursor-pointer text-xs font-semibold text-clinical-300 hover:text-slate-800 transition-colors">
                       <span className="material-symbols-outlined text-xl text-primary">upload_file</span>
                       <span>{directFile ? directFile.name : 'Upload Report File (JPG, PNG, PDF)'}</span>
                       <input 
@@ -1536,9 +1536,9 @@ export const LabDashboard: React.FC = () => {
 
           {/* Right: Biomarker Entry Form */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-60" />
-              <h3 className="font-semibold text-white mb-2 flex items-center gap-2 text-sm">
+              <h3 className="font-semibold text-slate-800 mb-2 flex items-center gap-2 text-sm">
                 <span className="material-symbols-outlined text-secondary text-[16px]">edit_document</span>
                 Report Biomarker Details
               </h3>
@@ -1633,7 +1633,7 @@ export const LabDashboard: React.FC = () => {
               { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString('en-IN')}`, icon: 'currency_rupee', color: 'amber' },
               { label: 'Walk-in Tests', value: walkinList.length, icon: 'person_add', color: 'blue' }
             ].map(card => (
-              <div key={card.label} className="glass-panel p-5 border-white/10 relative overflow-hidden">
+              <div key={card.label} className="glass-panel p-5 border-slate-200/60 relative overflow-hidden">
                 <div className={`absolute top-0 left-0 w-full h-[2px] ${
                   card.color === 'primary' ? 'bg-primary' :
                   card.color === 'emerald' ? 'bg-emerald-500' :
@@ -1644,7 +1644,7 @@ export const LabDashboard: React.FC = () => {
                   card.color === 'emerald' ? 'text-emerald-400' :
                   card.color === 'amber' ? 'text-amber-400' : 'text-blue-400'
                 }`}>{card.icon}</span>
-                <div className="text-2xl font-bold text-white mt-2 font-mono">{card.value}</div>
+                <div className="text-2xl font-bold text-slate-800 mt-2 font-mono">{card.value}</div>
                 <div className="text-[10px] text-clinical-400 uppercase tracking-wider font-bold mt-1">{card.label}</div>
               </div>
             ))}
@@ -1652,9 +1652,9 @@ export const LabDashboard: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Test frequency breakdown */}
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
-              <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-5 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[16px]">pie_chart</span>
                 Test Frequency Breakdown
               </h2>
@@ -1684,9 +1684,9 @@ export const LabDashboard: React.FC = () => {
             </div>
 
             {/* LOINC catalog pricing reference */}
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary opacity-50" />
-              <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-5 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary text-[16px]">lab_research</span>
                 LOINC Test Catalog & Pricing
               </h2>
@@ -1694,7 +1694,7 @@ export const LabDashboard: React.FC = () => {
                 {testCatalog.map(test => (
                   <div key={test.loincCode} className="flex items-center justify-between p-3 bg-surface-container-lowest/60 border border-outline-variant/40 rounded-xl">
                     <div>
-                      <div className="text-xs font-bold text-white">{test.name}</div>
+                      <div className="text-xs font-bold text-slate-800">{test.name}</div>
                       <div className="text-[9px] text-clinical-400 font-mono">
                         LOINC: {test.loincCode} · {test.category} · Range: {test.normalRange} {test.unit}
                       </div>
@@ -1707,9 +1707,9 @@ export const LabDashboard: React.FC = () => {
           </div>
 
           {/* Chemical deduction audit log */}
-          <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-amber-500 opacity-40" />
-            <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-amber-400 text-[16px]">receipt_long</span>
               Chemical Reagent Deduction Audit Log
             </h2>
@@ -1730,7 +1730,7 @@ export const LabDashboard: React.FC = () => {
                     {completedList.flatMap(req =>
                       (req.reagentDeductions || []).map((ded, i) => (
                         <tr key={`${req.id}-${i}`} className="hover:bg-surface-container/30 transition-colors">
-                          <td className="p-3 font-semibold text-white">{req.testName}</td>
+                          <td className="p-3 font-semibold text-slate-800">{req.testName}</td>
                           <td className="p-3 text-clinical-300">{req.patientName}</td>
                           <td className="p-3 text-amber-300 font-mono">{ded.reagentName}</td>
                           <td className="p-3 text-right text-rose-400 font-bold font-mono">−{ded.volumeDeducted}{ded.unit}</td>
@@ -1752,11 +1752,11 @@ export const LabDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Gauges + Replenish */}
           <div className="lg:col-span-8 space-y-5">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
               <div className="flex justify-between items-center mb-5">
                 <div>
-                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-[16px]">biotech</span>
                     Volumetric Reagent Stock Ledger
                   </h2>
@@ -1799,7 +1799,7 @@ export const LabDashboard: React.FC = () => {
                   }
                   return (
                     <div key={idx} className="flex flex-col items-center group relative cursor-pointer" title={`${reag.reagentName}: ${vol}ml`}>
-                      <div className="w-6.5 h-[120px] bg-slate-900/60 rounded-full border border-white/10 relative overflow-hidden shadow-inner flex items-end">
+                      <div className="w-6.5 h-[120px] bg-white/60 rounded-full border border-slate-200/60 relative overflow-hidden shadow-inner flex items-end">
                         <div className="absolute top-0 bottom-0 left-[20%] w-[1.5px] bg-white/15 z-20 pointer-events-none" />
                         <div className="absolute inset-0 flex flex-col justify-between py-1 z-10 opacity-30 select-none pointer-events-none">
                           {[0,1,2,3,4].map(i => <div key={i} className="w-full h-[1px] bg-white/30" />)}
@@ -1853,9 +1853,9 @@ export const LabDashboard: React.FC = () => {
             </div>
 
             {/* Stock detail table */}
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-amber-500 to-rose-500 opacity-40" />
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-amber-400 text-[16px]">inventory_2</span>
                 Reagent Stock Detail Table
               </h2>
@@ -1875,8 +1875,8 @@ export const LabDashboard: React.FC = () => {
                       const status = r.stockVolume < 100 ? 'critical' : r.stockVolume < 200 ? 'low' : 'ok';
                       return (
                         <tr key={r.reagentName} className="hover:bg-surface-container/30 transition-colors">
-                          <td className="p-3 font-semibold text-white">{r.reagentName}</td>
-                          <td className="p-3 text-right font-mono font-bold text-white">{r.stockVolume} ml</td>
+                          <td className="p-3 font-semibold text-slate-800">{r.reagentName}</td>
+                          <td className="p-3 text-right font-mono font-bold text-slate-800">{r.stockVolume} ml</td>
                           <td className="p-3 text-right">
                             <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border font-mono ${
                               status === 'critical' ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' :
@@ -1908,9 +1908,9 @@ export const LabDashboard: React.FC = () => {
 
           {/* Manual replenish */}
           <div className="lg:col-span-4 space-y-5">
-            <div className="glass-panel p-6 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary opacity-50" />
-              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-secondary text-[16px]">add_circle</span>
                 Manual Stock Override
               </h3>
@@ -1956,9 +1956,9 @@ export const LabDashboard: React.FC = () => {
             </div>
 
             {/* Interconnect notice */}
-            <div className="glass-panel p-5 border-white/10 shadow-xl relative overflow-hidden">
+            <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-teal-500 opacity-50" />
-              <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
+              <h3 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
                 <span className="material-symbols-outlined text-emerald-400 text-[16px]">hub</span>
                 Live Pod Interconnection
               </h3>
@@ -1972,7 +1972,7 @@ export const LabDashboard: React.FC = () => {
                   <div key={link.label} className="flex items-start gap-2.5 p-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
                     <span className="material-symbols-outlined text-emerald-400 text-[14px] mt-0.5 flex-shrink-0">{link.icon}</span>
                     <div>
-                      <div className="font-bold text-white">{link.label}</div>
+                      <div className="font-bold text-slate-800">{link.label}</div>
                       <div className="text-clinical-500 leading-relaxed">{link.desc}</div>
                     </div>
                   </div>
@@ -1995,8 +1995,8 @@ export const LabDashboard: React.FC = () => {
           />
           
           {/* Split rules display */}
-          <div className="glass-panel p-6 border-white/10 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-base">policy</span>
               Active SOP Split Configuration
             </h3>
@@ -2006,17 +2006,17 @@ export const LabDashboard: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
               <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
                 <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Your Split</p>
-                <p className="text-xl font-extrabold text-white mt-1">Lab Split</p>
+                <p className="text-xl font-extrabold text-slate-800 mt-1">Lab Split</p>
                 <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Calculated per test catalog price</p>
               </div>
               <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
                 <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Doctor Split</p>
-                <p className="text-xl font-extrabold text-white mt-1">Managed by SOP</p>
+                <p className="text-xl font-extrabold text-slate-800 mt-1">Managed by SOP</p>
                 <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Based on active agreements</p>
               </div>
               <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
                 <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Platform Fee</p>
-                <p className="text-xl font-extrabold text-white mt-1">3%</p>
+                <p className="text-xl font-extrabold text-slate-800 mt-1">3%</p>
                 <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Platform service charge</p>
               </div>
             </div>
@@ -2026,10 +2026,10 @@ export const LabDashboard: React.FC = () => {
 
       {/* TAB: POD NETWORK */}
       {activeTab === 'pod_network' && (
-        <div className="glass-panel p-6 border-white/10 shadow-xl space-y-6">
-          <div className="flex justify-between items-center border-b border-white/10 pb-4">
+        <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+          <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
             <div>
-              <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                 <span className="material-symbols-outlined text-indigo-400 text-base">hub</span>
                 Pod Network HUB
               </h2>
@@ -2052,9 +2052,9 @@ export const LabDashboard: React.FC = () => {
                 🏥 Primary Clinic Connection
               </h3>
               <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
-                <p className="text-xs font-bold text-white">{activePod?.name || 'Patna Connected Clinic'}</p>
+                <p className="text-xs font-bold text-slate-800">{activePod?.name || 'Patna Connected Clinic'}</p>
                 <div className="text-[10px] text-clinical-400 space-y-1">
-                  <div>Clinic Code: <span className="font-mono font-bold text-white bg-black/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
+                  <div>Clinic Code: <span className="font-mono font-bold text-slate-800 bg-black/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
                   <div>Location: {activePod?.location || 'Patna, Bihar'}</div>
                   <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
                 </div>
@@ -2074,7 +2074,7 @@ export const LabDashboard: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${pe.entityType === 'clinic' ? 'bg-indigo-400' : pe.entityType === 'lab' ? 'bg-teal-400' : 'bg-amber-400'}`} />
                         <div>
-                          <p className="font-bold text-white">{pe.name}</p>
+                          <p className="font-bold text-slate-800">{pe.name}</p>
                           <p className="text-[9px] text-clinical-400 uppercase tracking-wider">{pe.entityType}</p>
                         </div>
                       </div>
@@ -2100,18 +2100,18 @@ export const LabDashboard: React.FC = () => {
           <div className="glass-panel max-w-md w-full p-6 border-primary/20 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-primary" />
             <div className="flex items-center justify-between border-b border-outline-variant pb-3">
-              <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+              <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[16px]">label</span>
                 Specimen Label Printer
               </h3>
-              <button onClick={() => setPrintLabelReq(null)} className="text-clinical-400 hover:text-white transition-colors">
+              <button onClick={() => setPrintLabelReq(null)} className="text-clinical-400 hover:text-slate-800 transition-colors">
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
             <div id="specimen-label-print-area" className="p-4 bg-white text-black rounded-lg border-2 border-dashed border-black/30 font-sans shadow-inner space-y-4">
               <div className="flex justify-between items-center border-b border-black/20 pb-2">
                 <div className="text-[10px] font-extrabold uppercase tracking-wider">Mediflow Clinical Labs</div>
-                <div className="text-[8px] bg-black text-white px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wide">Specimen Card</div>
+                <div className="text-[8px] bg-black text-slate-800 px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wide">Specimen Card</div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
                 {[
@@ -2188,7 +2188,7 @@ export const LabDashboard: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <h3 className="text-white font-bold text-base">Pathology Analyzer Active</h3>
+              <h3 className="text-slate-800 font-bold text-base">Pathology Analyzer Active</h3>
               <p className="text-xs text-clinical-400 font-mono animate-pulse tracking-wide uppercase">
                 CALIBRATING LOINC-{activeReq?.testCode || 'SPECIMEN'}
               </p>
@@ -2205,16 +2205,16 @@ export const LabDashboard: React.FC = () => {
 
       {viewingDocUrl && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden font-sans">
+          <div className="bg-white border border-slate-200/60 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden font-sans">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-secondary" />
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-base">receipt_long</span>
                 Prescription / Request Slip Viewer
               </h3>
               <button
                 onClick={() => setViewingDocUrl(null)}
-                className="p-1.5 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border-0 rounded-lg cursor-pointer transition active:scale-95 flex items-center"
+                className="p-1.5 text-slate-600 hover:text-slate-800 bg-white/5 hover:bg-white/10 border-0 rounded-lg cursor-pointer transition active:scale-95 flex items-center"
               >
                 <span className="material-symbols-outlined text-sm font-bold">close</span>
               </button>
@@ -2231,7 +2231,7 @@ export const LabDashboard: React.FC = () => {
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setViewingDocUrl(null)}
-                className="px-4 py-2 bg-primary hover:bg-primary/85 text-white font-bold rounded-xl text-xs cursor-pointer border-0 active:scale-95 transition"
+                className="px-4 py-2 bg-primary hover:bg-primary/85 text-slate-800 font-bold rounded-xl text-xs cursor-pointer border-0 active:scale-95 transition"
               >
                 Done
               </button>
@@ -2258,17 +2258,17 @@ export const LabDashboard: React.FC = () => {
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
                     ? 'text-indigo-600 font-bold' 
-                    : 'text-slate-400 hover:text-slate-600'
+                    : 'text-slate-600 hover:text-slate-600'
                 }`}
               >
                 <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
                   isActive 
                     ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                    : 'bg-transparent text-slate-400'
+                    : 'bg-transparent text-slate-600'
                 }`}>
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-slate-800 text-[8px] font-black flex items-center justify-center animate-pulse">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}

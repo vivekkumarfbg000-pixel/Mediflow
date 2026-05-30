@@ -197,7 +197,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               </div>
               <div className="text-center">
                 <p className="font-bold text-slate-700 text-sm">{sopFile ? sopFile.name : 'Drop your SOP document here'}</p>
-                <p className="text-xs text-slate-400 mt-1">Supports .txt, .pdf, .doc, .docx, .md — AI will parse it automatically</p>
+                <p className="text-xs text-slate-600 mt-1">Supports .txt, .pdf, .doc, .docx, .md — AI will parse it automatically</p>
               </div>
               {sopFile && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-semibold">
@@ -268,7 +268,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-emerald-500">verified</span>
                 <h3 className="font-bold text-slate-800 text-sm">AI-Extracted Configuration Preview</h3>
-                <span className="text-xs text-slate-400">— review before activating</span>
+                <span className="text-xs text-slate-600">— review before activating</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -279,7 +279,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     Doctor Fee
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-400 text-sm">₹</span>
+                    <span className="text-slate-600 text-sm">₹</span>
                     <input
                       type="number"
                       value={extractedConfig.doctor_fee}
@@ -309,7 +309,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                           onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, [s.key]: parseFloat(e.target.value)}})}
                           className="flex-1 bg-white border border-violet-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
                         />
-                        <span className="text-xs text-slate-400">%</span>
+                        <span className="text-xs text-slate-600">%</span>
                       </div>
                     ))}
                   </div>
@@ -344,7 +344,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   {Object.entries(testNames).map(([loinc, name]) => (
                     <div key={loinc} className="bg-white border border-slate-200 rounded-xl p-3 space-y-1.5">
                       <p className="text-xs font-bold text-slate-700 truncate">{name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">LOINC: {loinc}</p>
+                      <p className="text-[10px] text-slate-600 font-mono">LOINC: {loinc}</p>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-slate-500">₹</span>
                         <input
@@ -394,7 +394,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       {sopActiveSubTab === 'active' && (
         <div className="space-y-5">
           {!activeSop ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-600">
               <span className="material-symbols-outlined text-6xl">policy</span>
               <p className="font-semibold text-sm">No active SOP found</p>
               <button onClick={() => setSopActiveSubTab('upload')} className="px-6 py-3 bg-violet-600 text-white rounded-2xl text-xs font-bold hover:bg-violet-750 cursor-pointer border-0">
@@ -445,11 +445,11 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     <div key={loinc} className="flex items-center justify-between py-2.5">
                       <div>
                         <p className="text-xs font-semibold text-slate-700">{testNames[loinc] || loinc}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">LOINC: {loinc}</p>
+                        <p className="text-[10px] text-slate-600 font-mono">LOINC: {loinc}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-extrabold text-slate-800">₹{price as number}</span>
-                        <div className="text-[10px] text-slate-400 space-y-0.5 text-right">
+                        <div className="text-[10px] text-slate-600 space-y-0.5 text-right">
                           <p className="text-blue-600">Dr: ₹{((price as number) * activeSop.extractedConfig.splits.doctor / 100).toFixed(0)}</p>
                           <p className="text-emerald-600">Lab: ₹{((price as number) * activeSop.extractedConfig.splits.lab / 100).toFixed(0)}</p>
                         </div>
@@ -489,7 +489,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       <div key={s.id} className="flex items-center justify-between py-2 px-3 bg-white border border-slate-200 rounded-xl">
                         <div>
                           <p className="text-xs font-semibold text-slate-600">{s.sopFileName}</p>
-                          <p className="text-[10px] text-slate-400">{new Date(s.createdAt).toLocaleDateString('en-IN')}</p>
+                          <p className="text-[10px] text-slate-600">{new Date(s.createdAt).toLocaleDateString('en-IN')}</p>
                         </div>
                         <button
                           onClick={() => {

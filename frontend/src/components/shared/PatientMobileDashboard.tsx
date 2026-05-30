@@ -163,7 +163,7 @@ export const PatientMobileDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-300 font-sans select-none">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-600 font-sans select-none">
       
       {/* LEFT COLUMN: Simulation controller */}
       <div className="lg:col-span-4 space-y-6">
@@ -185,7 +185,7 @@ export const PatientMobileDashboard: React.FC = () => {
               <select
                 value={selectedPhone}
                 onChange={e => setSelectedPhone(e.target.value)}
-                className="w-full bg-zinc-950 border border-white/10 rounded-xl py-2 px-3 text-xs text-white outline-none focus:border-cyan-500/30"
+                className="w-full bg-zinc-950 border border-slate-200/60 rounded-xl py-2 px-3 text-xs text-white outline-none focus:border-cyan-500/30"
               >
                 {patients.map(p => (
                   <option key={p.id} value={p.phone} className="bg-zinc-900">{p.name} ({p.phone})</option>
@@ -225,7 +225,7 @@ export const PatientMobileDashboard: React.FC = () => {
                 placeholder="e.g. 130"
                 value={loggedGlucose}
                 onChange={e => setLoggedGlucose(e.target.value !== '' ? Number(e.target.value) : '')}
-                className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
+                className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
               />
             </div>
             <div className="grid grid-cols-2 gap-3.5">
@@ -236,7 +236,7 @@ export const PatientMobileDashboard: React.FC = () => {
                   placeholder="e.g. 120"
                   value={loggedBpSystolic}
                   onChange={e => setLoggedBpSystolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                  className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
+                  className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                 />
               </div>
               <div>
@@ -246,7 +246,7 @@ export const PatientMobileDashboard: React.FC = () => {
                   placeholder="e.g. 80"
                   value={loggedBpDiastolic}
                   onChange={e => setLoggedBpDiastolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                  className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
+                  className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                 />
               </div>
             </div>
@@ -269,7 +269,7 @@ export const PatientMobileDashboard: React.FC = () => {
           
           {/* iOS Dynamic Island Notch */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-5.5 bg-zinc-900 rounded-b-2xl z-50 flex justify-center items-center border-b border-white/5">
-            <div className="w-2.5 h-2.5 rounded-full bg-zinc-950 border border-white/10" />
+            <div className="w-2.5 h-2.5 rounded-full bg-zinc-950 border border-slate-200/60" />
             <div className="w-10 h-1 bg-zinc-950 rounded-full ml-4" />
           </div>
 
@@ -381,7 +381,7 @@ export const PatientMobileDashboard: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <div className="flex gap-2.5 items-center">
-                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-cyan-400 shrink-0">
                             <span className="material-symbols-outlined text-sm">pill</span>
                           </div>
                           <div>
@@ -394,7 +394,7 @@ export const PatientMobileDashboard: React.FC = () => {
 
                       <div className="flex justify-between items-center">
                         <div className="flex gap-2.5 items-center">
-                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-emerald-400 shrink-0">
                             <span className="material-symbols-outlined text-sm">pill</span>
                           </div>
                           <div>
@@ -535,7 +535,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         <h4 className="text-xs font-extrabold tracking-wide mt-1.5 text-white-force">Aarav Sharma</h4>
                         <p className="text-[8px] text-cyan-200">ABHA No: 12-3456-7890-1234</p>
                       </div>
-                      <div className="w-8 h-8 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center">
+                      <div className="w-8 h-8 bg-white/10 border border-slate-200/60 rounded-xl flex items-center justify-center">
                         <span className="material-symbols-outlined text-lg text-cyan-300 font-bold">badge</span>
                       </div>
                     </div>
@@ -662,7 +662,7 @@ export const PatientMobileDashboard: React.FC = () => {
                     <div className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-cyan-400 shrink-0">
                             <span className="material-symbols-outlined text-sm font-bold">pill</span>
                           </div>
                           <div>
@@ -674,7 +674,7 @@ export const PatientMobileDashboard: React.FC = () => {
                       </div>
                       <button
                         onClick={() => handleOneClickRefill('Metformin 500mg')}
-                        className="w-full bg-zinc-950 hover:bg-zinc-900 border border-white/10 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
+                        className="w-full bg-zinc-950 hover:bg-zinc-900 border border-slate-200/60 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                         1-Tap Auto-Refill (Patna Pharmacy)
@@ -684,7 +684,7 @@ export const PatientMobileDashboard: React.FC = () => {
                     <div className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-emerald-400 shrink-0">
                             <span className="material-symbols-outlined text-sm font-bold">pill</span>
                           </div>
                           <div>
@@ -696,7 +696,7 @@ export const PatientMobileDashboard: React.FC = () => {
                       </div>
                       <button
                         onClick={() => handleOneClickRefill('Atorvastatin 10mg')}
-                        className="w-full bg-zinc-950 hover:bg-zinc-900 border border-white/10 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
+                        className="w-full bg-zinc-950 hover:bg-zinc-900 border border-slate-200/60 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                         1-Tap Auto-Refill (Patna Pharmacy)
@@ -724,7 +724,7 @@ export const PatientMobileDashboard: React.FC = () => {
                       <select
                         value={selectedPhone}
                         onChange={e => setSelectedPhone(e.target.value)}
-                        className="w-full bg-zinc-950 border border-white/10 rounded-xl py-2 px-3 text-xs text-white outline-none"
+                        className="w-full bg-zinc-950 border border-slate-200/60 rounded-xl py-2 px-3 text-xs text-white outline-none"
                       >
                         {patients.map(p => (
                           <option key={p.id} value={p.phone} className="bg-zinc-900">{p.name} ({p.phone})</option>
@@ -753,7 +753,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         placeholder="e.g. 130"
                         value={loggedGlucose}
                         onChange={e => setLoggedGlucose(e.target.value !== '' ? Number(e.target.value) : '')}
-                        className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
+                        className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3.5">
@@ -764,7 +764,7 @@ export const PatientMobileDashboard: React.FC = () => {
                           placeholder="e.g. 120"
                           value={loggedBpSystolic}
                           onChange={e => setLoggedBpSystolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                          className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
+                          className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                         />
                       </div>
                       <div>
@@ -774,7 +774,7 @@ export const PatientMobileDashboard: React.FC = () => {
                           placeholder="e.g. 80"
                           value={loggedBpDiastolic}
                           onChange={e => setLoggedBpDiastolic(e.target.value !== '' ? Number(e.target.value) : '')}
-                          className="w-full bg-zinc-950 border border-white/10 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
+                          className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -810,7 +810,7 @@ export const PatientMobileDashboard: React.FC = () => {
                           }
                         }));
                       }}
-                      className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer text-zinc-300"
+                      className="w-full py-2 bg-white/5 hover:bg-white/10 border border-slate-200/60 rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer text-zinc-300"
                     >
                       <Smartphone className="h-3.5 w-3.5" />
                       Add to Mobile Home Screen
@@ -824,7 +824,7 @@ export const PatientMobileDashboard: React.FC = () => {
             {/* Google Pay Style mobile sheet modal backdrop */}
             {isUpiModalOpen && activeUpiInvoice && (
               <div className="absolute inset-0 bg-black/80 z-50 flex flex-col justify-end animate-fade-in">
-                <div className="bg-zinc-900 rounded-t-[32px] p-5 space-y-4 border-t border-white/10 animate-slide-up shadow-2xl">
+                <div className="bg-zinc-900 rounded-t-[32px] p-5 space-y-4 border-t border-slate-200/60 animate-slide-up shadow-2xl">
                   
                   {/* Modal Header */}
                   <div className="flex justify-between items-center border-b border-white/5 pb-3">
@@ -881,7 +881,7 @@ export const PatientMobileDashboard: React.FC = () => {
                           placeholder="••••"
                           value={upiPin}
                           onChange={e => setUpiPin(e.target.value)}
-                          className="w-24 mx-auto text-center font-extrabold font-mono tracking-widest text-lg bg-zinc-950 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 rounded-lg py-1 flex justify-center"
+                          className="w-24 mx-auto text-center font-extrabold font-mono tracking-widest text-lg bg-zinc-950 border border-slate-200/60 text-white focus:outline-none focus:border-cyan-500/50 rounded-lg py-1 flex justify-center"
                         />
                       </div>
 
