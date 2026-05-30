@@ -381,7 +381,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onToggleSidebarCollapse?.(false);
           }
         }}
-        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-slate-50 border-r border-slate-200/80 z-40 justify-between transition-all duration-300 ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
+        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white dark:bg-slate-900/95 border-r border-slate-200/50 dark:border-slate-800 z-40 justify-between transition-all duration-300 ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
       >
         {/* Collapse Toggle Button (Circular) */}
         <button
@@ -709,7 +709,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </button>
 
                       {/* Relocated SOP Info Section */}
-                      <div className="p-2 bg-slate-50 rounded-md border border-slate-100 space-y-1.5 text-[9px] w-full">
+                      <div className="p-2 bg-slate-50/50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-800/80 space-y-1.5 text-[9px] w-full">
                         <div className="flex items-center gap-1.5 font-bold text-slate-600 uppercase tracking-wider">
                           <FileText className="h-3 w-3 text-indigo-500" />
                           <span>Active SOP Details</span>
@@ -755,7 +755,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="md:hidden border-b border-slate-200/80 bg-slate-50/80 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
+      <nav className="md:hidden border-b border-slate-200/50 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
         <div className="max-w-7xl mx-auto flex flex-col gap-2">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2 min-w-0">
@@ -887,7 +887,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
 
           {/* Drawer Content Sheet */}
-          <aside className="relative flex flex-col w-72 bg-slate-50 h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50">
+          <aside className="relative flex flex-col w-72 bg-white dark:bg-slate-900 h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50 border-r border-slate-200/50 dark:border-slate-800">
             <div className="space-y-6">
               {/* Header inside drawer */}
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
@@ -1097,7 +1097,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </button>
 
                         {/* SOP Info Section */}
-                        <div className="p-2 bg-slate-50 rounded-md border border-slate-100 space-y-1.5 text-[9px] w-full">
+                        <div className="p-2 bg-slate-50/50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-800/80 space-y-1.5 text-[9px] w-full">
                           <div className="flex items-center gap-1.5 font-bold text-slate-600 uppercase tracking-wider">
                             <FileText className="h-3 w-3 text-indigo-500" />
                             <span>Active SOP Details</span>
@@ -1217,7 +1217,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
       {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200/50 dark:border-slate-800 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
           <div className="flex items-center justify-around h-16">
             {visibleRoles.map((r) => {
               const Icon = r.icon;
