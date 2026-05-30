@@ -287,13 +287,14 @@ export const DoctorDashboard: React.FC = () => {
 
     // Must be horizontal swipe: deltaX magnitude must be much larger than deltaY to prevent vertical scroll conflicts
     if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
-      const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
+      const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'health'> = [
         'pod_view',
         'consultation', 
         'financials', 
         'patients',
         'whatsapp',
-        'sop'
+        'sop',
+        'health'
       ];
       const currentIdx = tabs.indexOf(activeTab);
       

@@ -1,0 +1,16 @@
+# =============================================================================
+# Mediflow Backend — Railway Deployment Configuration
+# =============================================================================
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 5
+
+[service]
+# Configure automatic service scaling or memory limits if needed
