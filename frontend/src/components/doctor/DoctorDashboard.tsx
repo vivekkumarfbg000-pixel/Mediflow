@@ -1109,30 +1109,30 @@ Keep the tone professional, clinical, objective, and precise.`;
     }
 
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
-        <div className="glass-panel max-w-4xl w-full p-6 md:p-8 border-slate-800 shadow-2xl relative bg-slate-900 text-white rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
+        <div className="glass-panel max-w-4xl w-full p-6 md:p-8 border-slate-200 shadow-2xl relative bg-white text-slate-800 rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
           
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800/80 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-400 text-2xl font-bold">clinical_notes</span>
-                <h2 className="text-lg font-black text-slate-100 uppercase tracking-wider font-sans">Clinical AI Laboratory Analysis Report</h2>
+                <span className="material-symbols-outlined text-indigo-650 text-2xl font-bold">clinical_notes</span>
+                <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider font-sans">Clinical AI Laboratory Analysis Report</h2>
               </div>
-              <p className="text-xs text-slate-400 mt-1">Deep Diagnostics audit for patient: <strong className="text-slate-200 font-bold">{selectedPatient?.name}</strong> ({selectedPatient?.age}y, {selectedPatient?.gender})</p>
+              <p className="text-xs text-slate-500 mt-1">Deep Diagnostics audit for patient: <strong className="text-slate-700 font-bold">{selectedPatient?.name}</strong> ({selectedPatient?.age}y, {selectedPatient?.gender})</p>
             </div>
             
             <div className="flex gap-2">
               <span className={`text-[10px] font-black font-mono px-3.5 py-1.5 rounded-full uppercase tracking-wider border ${
-                riskTier === 'Critical Risk' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' :
-                riskTier === 'High Risk' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
-                'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                riskTier === 'Critical Risk' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                riskTier === 'High Risk' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                'bg-emerald-50 text-emerald-700 border-emerald-200'
               }`}>
                 {riskTier}
               </span>
               <button
                 onClick={() => setAnalyzingReport(null)}
-                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer border-0 text-white-force"
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0"
               >
                 <span className="material-symbols-outlined text-base">close</span>
               </button>
@@ -1141,14 +1141,14 @@ Keep the tone professional, clinical, objective, and precise.`;
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 space-y-6">
-              <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest font-mono">
                 1. Reference Range Audit & Diagnostics
               </h3>
               
               <div className="space-y-4">
-                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                <div className="p-4 bg-slate-50/50 border border-slate-200/80 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">
+                    <span className="text-xs font-bold text-slate-700">
                       {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.odLabel : "HbA1c (Glycated Hemoglobin)"}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
@@ -1156,19 +1156,19 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">
+                    <span className="text-xl font-black font-mono tracking-tight text-slate-800">
                       {isOphthalmology ? (report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) : `${report.HbA1c}%`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
-                      isHbA1cHigh ? 'bg-rose-500/20 text-rose-400' :
-                      isHbA1cWarning ? 'bg-amber-500/20 text-amber-400' :
-                      'bg-emerald-500/20 text-emerald-400'
+                      isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100') :
+                      isHbA1cHigh ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                      isHbA1cWarning ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                      'bg-emerald-50 text-emerald-700 border-emerald-100'
                     }`}>
                       {isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'Abnormal (Low)' : 'Normal') : isHbA1cHigh ? 'Diabetic' : isHbA1cWarning ? 'Prediabetic' : 'Normal'}
                     </span>
                   </div>
-                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
                        className={`h-full rounded-full ${
                         isOphthalmology ? (getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'bg-rose-500' : 'bg-emerald-500') :
@@ -1179,9 +1179,9 @@ Keep the tone professional, clinical, objective, and precise.`;
                   </div>
                 </div>
 
-                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                <div className="p-4 bg-slate-50/50 border border-slate-200/80 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">
+                    <span className="text-xs font-bold text-slate-700">
                       {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.iopLabel : "Serum Creatinine"}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
@@ -1189,17 +1189,17 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">
+                    <span className="text-xl font-black font-mono tracking-tight text-slate-800">
                       {isOphthalmology ? `${report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback} mmHg` : `${report.creatinine} mg/dL`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400') :
-                      isCreatinineHigh ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
+                      isOphthalmology ? ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100') :
+                      isCreatinineHigh ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                     }`}>
                       {isOphthalmology ? ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? 'Glaucoma Risk (High)' : 'Normal') : isCreatinineHigh ? 'Abnormal (High)' : 'Normal'}
                     </span>
                   </div>
-                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${isOphthalmology ? ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? 'bg-rose-500' : 'bg-emerald-500') : isCreatinineHigh ? 'bg-rose-500' : 'bg-emerald-500'}`}
                       style={{ width: isOphthalmology ? `${Math.min(100, ((report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) / 30) * 100)}%` : `${Math.min(100, (report.creatinine / 2.5) * 100)}%` }}
@@ -1207,9 +1207,9 @@ Keep the tone professional, clinical, objective, and precise.`;
                   </div>
                 </div>
 
-                <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-2xl space-y-2">
+                <div className="p-4 bg-slate-50/50 border border-slate-200/80 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">
+                    <span className="text-xs font-bold text-slate-700">
                       {isOphthalmology ? OPHTHALMIC_EYE_CARE_COPY.osLabel : "Total Hemoglobin"}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
@@ -1217,17 +1217,17 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">
+                    <span className="text-xl font-black font-mono tracking-tight text-slate-800">
                       {isOphthalmology ? (report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) : `${report.hemoglobin} g/dL`}
                     </span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${
-                      isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400') :
-                      isHemoglobinLow ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'
+                      isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-amber-50 text-amber-700 border-amber-100') :
+                      isHemoglobinLow ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                     }`}>
                       {isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'Abnormal (Low)' : 'Borderline') : isHemoglobinLow ? 'Anemic (Low)' : 'Normal'}
                     </span>
                   </div>
-                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'bg-rose-500' : 'bg-amber-500') : isHemoglobinLow ? 'bg-rose-500' : 'bg-emerald-500'}`}
                       style={{ width: isOphthalmology ? (getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? '50%' : '80%') : `${Math.min(100, (report.hemoglobin / 18) * 100)}%` }}
@@ -1239,28 +1239,28 @@ Keep the tone professional, clinical, objective, and precise.`;
 
             <div className="lg:col-span-5 space-y-6">
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest font-mono">
                   2. AI Clinical Correlations
                 </h3>
-                <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl text-xs space-y-2 leading-relaxed">
-                  <strong className="text-indigo-400 block font-bold">Biomarker Interaction Profile</strong>
-                  <p className="text-slate-300 text-[11px] font-medium leading-relaxed">{riskReason}</p>
+                <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl text-xs space-y-2 leading-relaxed">
+                  <strong className="text-indigo-700 block font-bold">Biomarker Interaction Profile</strong>
+                  <p className="text-indigo-950 text-[11px] font-medium leading-relaxed">{riskReason}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest font-mono">
                   3. Future Potential Disease Forecasts
                 </h3>
                 {complications.length === 0 ? (
-                  <div className="p-4 bg-slate-950/20 border border-slate-800 rounded-2xl text-slate-400 text-xs italic">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-500 text-xs italic">
                     No future potential risk patterns identified.
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {complications.map((c, i) => (
-                      <div key={i} className="p-3 bg-rose-950/20 border border-rose-900/30 rounded-xl flex items-center gap-2.5 text-xs text-rose-200">
-                        <span className="material-symbols-outlined text-rose-400 text-sm shrink-0">warning</span>
+                      <div key={i} className="p-3 bg-rose-550/10 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2.5 text-xs text-rose-800">
+                        <span className="material-symbols-outlined text-rose-600 text-sm shrink-0">warning</span>
                         <span className="font-bold">{c}</span>
                       </div>
                     ))}
@@ -1269,29 +1269,29 @@ Keep the tone professional, clinical, objective, and precise.`;
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest font-mono">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest font-mono">
                   4. Safe Prescribing Directives
                 </h3>
-                <div className="p-4 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl text-[11px] text-indigo-200 space-y-2">
+                <div className="p-4 bg-teal-50 border border-teal-100 rounded-2xl text-[11px] text-teal-950 space-y-2">
                   {isOphthalmology ? (
                     <>
                       <div className="flex gap-2 animate-fade-in">
-                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span className="material-symbols-outlined text-xs text-teal-700 shrink-0 font-bold">check_circle</span>
                         <span>{(report.pulseRate || OPHTHALMIC_EYE_CARE_COPY.iopFallback) > 21 ? "STRICT CONFLICT: Avoid dilating drops (Atropine/Tropicamide) to prevent acute angle closure." : "Dilating drops cleared within safe intraocular pressure thresholds."}</span>
                       </div>
                       <div className="flex gap-2 animate-fade-in">
-                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span className="material-symbols-outlined text-xs text-teal-700 shrink-0 font-bold">check_circle</span>
                         <span>{getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 || getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? "Review spectacle prescription. Reroute to Optical Shop for lens grinding." : "Visual acuity cleared within functional limits."}</span>
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="flex gap-2">
-                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span className="material-symbols-outlined text-xs text-teal-700 shrink-0 font-bold">check_circle</span>
                         <span>{isCreatinineHigh ? "STRICT CONFLICT: Avoid NSAIDs (Ibuprofen, Diclofenac) to protect renal nephron capacity." : "NSAID usage cleared within standard clinical doses."}</span>
                       </div>
                       <div className="flex gap-2">
-                        <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                        <span className="material-symbols-outlined text-xs text-teal-700 shrink-0 font-bold">check_circle</span>
                         <span>{isHbA1cHigh ? "Review glycemic therapy. Consider adding SGLT2 inhibitors for cardio-renal protection." : "Glycemic profile does not require immediate pharmacological adjustment."}</span>
                       </div>
                     </>
@@ -1301,10 +1301,10 @@ Keep the tone professional, clinical, objective, and precise.`;
             </div>
           </div>
           
-          <div className="flex justify-end border-t border-slate-800 pt-4 gap-3">
+          <div className="flex justify-end border-t border-slate-100 pt-4 gap-3">
             <button
               onClick={() => setAnalyzingReport(null)}
-              className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white rounded-xl transition-colors cursor-pointer border-0 text-white-force animate-fade-in"
+              className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-white rounded-xl transition-all cursor-pointer border-0 active:scale-95"
             >
               Dismiss
             </button>

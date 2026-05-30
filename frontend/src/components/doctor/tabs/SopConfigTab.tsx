@@ -241,19 +241,22 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
           {/* Live Extraction Logs */}
           {extractionLogs.length > 0 && (
-            <div className="rounded-2xl bg-slate-900 border border-slate-700 p-4 space-y-1.5 font-mono text-zinc-300">
-              <p className="text-xs text-slate-400 font-bold mb-2 uppercase tracking-wider">AI Extraction Console</p>
+            <div className="rounded-2xl bg-violet-50/40 border border-violet-100 p-4 space-y-1.5 font-mono text-slate-700 shadow-sm">
+              <p className="text-xs text-violet-600 font-bold mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm animate-pulse">terminal</span>
+                AI Extraction Console
+              </p>
               {extractionLogs.map((log, i) => (
-                <p key={i} className={`text-xs ${i === extractionLogs.length - 1 ? 'text-emerald-400 font-semibold' : 'text-slate-300'}`}>{log}</p>
+                <p key={i} className={`text-xs ${i === extractionLogs.length - 1 ? 'text-emerald-600 font-bold' : 'text-slate-600'}`}>{log}</p>
               ))}
               {isExtractingSop && (
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
-                    <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
-                    <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
+                    <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
+                    <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
+                    <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
                   </div>
-                  <span className="text-xs text-violet-300">Processing...</span>
+                  <span className="text-xs text-violet-600 font-semibold">Processing...</span>
                 </div>
               )}
             </div>
