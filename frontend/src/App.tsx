@@ -256,16 +256,7 @@ function AppContent({
         })}
       </div>
 
-      {/* Ecosystem Footer Status bar */}
-      <footer className="border-t border-clinical-800/80 bg-clinical-950/80 backdrop-blur-md py-4 text-center text-[10px] text-clinical-500 font-semibold uppercase tracking-wider sticky bottom-0 hidden lg:block">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Mediflow Clinical Network Pod • Patna Zone 1</span>
-          <span className="flex items-center gap-1.5 text-accent-500 bg-accent-500/10 px-2.5 py-0.5 rounded-full border border-accent-500/25">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-500 animate-pulse-subtle"></span>
-            Ecosystem Core Active
-          </span>
-        </div>
-      </footer>
+
 
       {/* Floating WhatsApp Sandbox Trigger Button */}
       <button
@@ -408,6 +399,7 @@ export default function App() {
               setActiveProfile(finalProfile);
               let defaultRole: UserRole = 'doctor';
               if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+              else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
               else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
               else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
               else if (finalProfile.role === 'patient') defaultRole = 'patient';
@@ -435,6 +427,7 @@ export default function App() {
               setActiveProfile(finalProfile);
               let defaultRole: UserRole = 'doctor';
               if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+              else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
               else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
               else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
               else if (finalProfile.role === 'patient') defaultRole = 'patient';
@@ -480,6 +473,7 @@ export default function App() {
     
     let defaultRole: UserRole = 'doctor';
     if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+    else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
     else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
     else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
     else if (finalProfile.role === 'patient') defaultRole = 'patient';

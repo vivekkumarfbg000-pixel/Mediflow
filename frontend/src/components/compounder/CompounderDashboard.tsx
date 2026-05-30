@@ -829,7 +829,7 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-8 md:p-8 space-y-8 animate-fade-in">
       <style>{`
         @keyframes sweep {
           0% { top: 0%; opacity: 0.3; }
@@ -879,7 +879,7 @@ export const CompounderDashboard: React.FC = () => {
         </div>
 
         {/* Integrated Tab Switcher — lives in header */}
-        <div className="flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
+        <div className="hidden md:flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
           <button
             onClick={() => setActiveTab('registry')}
             className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
@@ -3629,6 +3629,53 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Compounder Dashboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16">
+          {[
+            { id: 'registry', label: 'Patients', icon: UserCheck },
+            { id: 'vitals', label: 'Vitals', icon: Activity },
+            { id: 'gate1', label: 'Consult', icon: Coins },
+            { id: 'gate2', label: 'Lab Upload', icon: FileText },
+            { id: 'gate3', label: 'Rx POS', icon: QrCode }
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id as any);
+                  if (item.id === 'vitals' && activePatient) {
+                    setVitalsPatient(activePatient);
+                    setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
+                  }
+                }}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
+                  isActive 
+                    ? 'text-indigo-600 font-bold' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg transition-all duration-200 ${
+                  isActive 
+                    ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
+                    : 'bg-transparent text-slate-400'
+                }`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className="text-[9px] mt-1 tracking-tight">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

@@ -19,8 +19,7 @@ interface ConsultationTabProps {
   selectedTests: DiagnosticTest[];
   notes: string;
   setNotes: (n: string) => void;
-  prescriptionNotes: string;
-  setPrescriptionNotes: (n: string) => void;
+
   medName: string;
   setMedName: (n: string) => void;
   medDosage: string;
@@ -64,6 +63,7 @@ interface ConsultationTabProps {
   handleRemoveMedication: (idx: number) => void;
   handleToggleTest: (test: DiagnosticTest) => void;
   handleSaveEncounter: () => void;
+  handleLaunchVideoConsult?: () => void;
 }
 
 export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
@@ -74,8 +74,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   selectedTests,
   notes,
   setNotes,
-  prescriptionNotes,
-  setPrescriptionNotes,
+
   medName,
   setMedName,
   medDosage,
@@ -118,7 +117,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   handleAddMedication,
   handleRemoveMedication,
   handleToggleTest,
-  handleSaveEncounter
+  handleSaveEncounter,
+  handleLaunchVideoConsult
 }) => {
   const activeHistory = selectedPatient ? api.getPatientHistoricalBiomarkers(selectedPatient.id) : null;
   const baseReport = activeHistory?.find(h => h.date === baselineDate) ?? null;
@@ -266,11 +266,23 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 Selected Profile: <strong className="text-slate-700 font-bold">{selectedPatient.name}</strong> ({selectedPatient.age}y, {selectedPatient.gender})
               </p>
             </div>
-            {selectedPatient.abhaId && (
-              <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full font-bold tracking-wider uppercase font-mono">
-                ABHA Verified
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {handleLaunchVideoConsult && (
+                <button
+                  type="button"
+                  onClick={handleLaunchVideoConsult}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
+                >
+                  <span className="material-symbols-outlined text-[12px] text-white-force animate-pulse">video_call</span>
+                  Launch Video Consult
+                </button>
+              )}
+              {selectedPatient.abhaId && (
+                <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full font-bold tracking-wider uppercase font-mono">
+                  ABHA Verified
+                </span>
+              )}
+            </div>
           </div>
 
           {/* AI Predictive Lab Pattern & Risk Disease Analyzer Card */}
@@ -850,42 +862,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
           )}
 
-          {/* Manual Handwritten Prescription Logger */}
-          <div className="space-y-4 pt-5 border-t border-slate-100 text-left">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-xs text-primary font-bold">menu_book</span>
-              Manual Handwritten Prescription Logger
-            </label>
-            
-            <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
-                  defaultChecked={true}
-                />
-                <span className="text-xs font-bold text-slate-700">I have written a physical paper prescription for this patient</span>
-              </label>
-              
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <label className="block text-[10px] text-slate-550 uppercase font-bold">Medicines & Dosages Written (One per line)</label>
-                  <span className="text-[9px] text-slate-404 font-mono font-medium">Separate name, dosage, frequency, duration with a dash (-)</span>
-                </div>
-                <textarea
-                  value={prescriptionNotes}
-                  onChange={(e) => setPrescriptionNotes(e.target.value)}
-                  placeholder={
-                    isOphthalmology
-                      ? "e.g.\nMoxifloxacin 0.5% - 1 Drop - 1 drop 4 times daily - 7 Days\nHomatropine 2% - 1 Drop - Instill 1 drop twice daily - 3 Days"
-                      : "e.g.\nMetformin 500mg - 1 Tab - 1-0-1 - 5 Days\nAtorvastatin 10mg - 1 Tab - 0-0-1 - 10 Days"
-                  }
-                  rows={4}
-                  className="w-full input-field bg-white text-xs leading-relaxed font-mono"
-                />
-              </div>
-            </div>
-          </div>
+
 
           {/* Pod-to-Pod Network Referral */}
           <div className="border-t border-slate-100 pt-5 mt-5 space-y-3 text-left">

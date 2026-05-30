@@ -589,7 +589,7 @@ export const LabDashboard: React.FC = () => {
      RENDER
   ══════════════════════════════════════════════════════════════ */
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-6 md:p-6 space-y-6 animate-fade-in">
       {viewingDocUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <div className="bg-surface-container rounded-2xl w-full max-w-2xl p-6 border border-outline-variant shadow-2xl relative">
@@ -666,7 +666,7 @@ export const LabDashboard: React.FC = () => {
       </div>
 
       {/* ── TAB NAV ───────────────────────────────────────────── */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="hidden md:flex gap-2 flex-wrap">
         {tabItems.map(tab => (
           <button
             key={tab.id}
@@ -2240,6 +2240,50 @@ export const LabDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Lab Dashboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16">
+          {[
+            { id: 'queue', label: 'Draw Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
+            { id: 'walkin', label: 'Walk-in', icon: 'person_add', badge: walkinList.length },
+            { id: 'upload_report', label: 'Upload', icon: 'upload_file' },
+            { id: 'reagents', label: 'Reagents', icon: 'science', badge: lowStockCount > 0 ? lowStockCount : undefined },
+            { id: 'settlements', label: 'Ledger', icon: 'account_balance' }
+          ].map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
+                  isActive 
+                    ? 'text-indigo-600 font-bold' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
+                  isActive 
+                    ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
+                    : 'bg-transparent text-slate-400'
+                }`}>
+                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] mt-1 tracking-tight">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

@@ -17,7 +17,9 @@ import {
   FileSpreadsheet,
   Camera,
   Download,
-  AlertCircle
+  AlertCircle,
+  History,
+  Coins
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
@@ -95,6 +97,26 @@ export const PharmacyDashboard: React.FC = () => {
   const [isOcrScanning, setIsOcrScanning] = useState(false);
   const [ocrLogs, setOcrLogs] = useState<string[]>([]);
   const [ocrResults, setOcrResults] = useState<MedicineImportRow[]>([]);
+
+  // Seasonal Demand State
+  const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
+
+  const handleRegenerateForecast = async () => {
+    setIsGeneratingForecast(true);
+    try {
+      await api.generateSeasonalForecast({
+        pharmacy_entity_id: activeEntity?.id || 'pharmacy-partner-entity',
+        pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+        current_month: 'May',
+        regional_weather: 'Pre-monsoon rainfall and high humidity'
+      });
+      syncData();
+    } catch (err) {
+      console.error('[Forecast UI] Failed to regenerate forecast:', err);
+    } finally {
+      setIsGeneratingForecast(false);
+    }
+  };
 
   // Categories list
   const categories = isOphthalmology ? [
@@ -524,7 +546,7 @@ export const PharmacyDashboard: React.FC = () => {
   const criticalExpiryCount = consolidatedExpiryBatches.filter(b => b.tier === 'EXPIRED' || b.tier === 'CRITICAL').length;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-fade-in relative">
+    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-8 md:p-8 space-y-8 animate-fade-in relative">
       <style>{`
         @keyframes laser-sweep {
           0% { top: 0%; opacity: 0.3; }
@@ -577,7 +599,7 @@ export const PharmacyDashboard: React.FC = () => {
       </div>
 
       {/* HORIZONTAL TAB SWITCHER */}
-      <div className="flex border-b border-slate-200 overflow-x-auto gap-2 pb-0.5 no-scrollbar">
+      <div className="hidden md:flex border-b border-slate-200 overflow-x-auto gap-2 pb-0.5 no-scrollbar">
         <button
           onClick={() => setActiveTab('prescription_queue')}
           className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
@@ -1312,14 +1334,33 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-6">
               <div className="glass-panel p-6 border-white/10 shadow-xl space-y-5">
-                <div>
-                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-[16px]">psychology</span>
-                    Gemini Seasonal Demand Surveillance Forecasts
-                  </h2>
-                  <p className="text-xs text-clinical-400 mt-1">
-                    Localized Bihar epidemiology and Sewage Pathogen metrics generating automatic stocking levels.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                  <div>
+                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-[16px]">psychology</span>
+                      Gemini Seasonal Demand Surveillance Forecasts
+                    </h2>
+                    <p className="text-xs text-clinical-400 mt-1">
+                      Localized Bihar epidemiology and Sewage Pathogen metrics generating automatic stocking levels.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRegenerateForecast}
+                    disabled={isGeneratingForecast}
+                    className="px-4.5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-50 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer border-0 text-white-force"
+                  >
+                    {isGeneratingForecast ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-white-force" />
+                        Generating Forecasts...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 text-white-force" />
+                        ⚡ Run Predictive Demand Analysis
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div className="space-y-4">
@@ -2053,11 +2094,59 @@ export const PharmacyDashboard: React.FC = () => {
                 Authorize Stock Entry
               </button>
             </div>
-
           </div>
         </div>
       )}
 
+      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Pharmacy Dashboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16">
+          {[
+            { id: 'prescription_queue', label: 'Rx Queue', icon: History, badge: holds.filter(h => h.holdStatus === 'held').length },
+            { id: 'inventory_catalog', label: 'Catalog', icon: Search },
+            { id: 'expiry_tracker', label: 'Expiry', icon: AlertCircle, badge: inventory.filter(i => {
+                const isExp = new Date(i.expiryDate) < new Date();
+                const isNear = !isExp && new Date(i.expiryDate) < new Date(Date.now() + 30 * 24 * 3600000);
+                return isExp || isNear;
+              }).length },
+            { id: 'ai_demand', label: 'Demand AI', icon: Lightbulb },
+            { id: 'settlements', label: 'Ledger', icon: Coins }
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
+                  isActive 
+                    ? 'text-indigo-600 font-bold' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
+                  isActive 
+                    ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
+                    : 'bg-transparent text-slate-400'
+                }`}>
+                  <Icon className="h-5 w-5" />
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] mt-1 tracking-tight">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

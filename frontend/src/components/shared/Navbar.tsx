@@ -17,7 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
+  X,
+  Settings,
+  FileText
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 
@@ -48,6 +50,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { activePod, activeEntity } = useClinic();
   const [isSyncing, setIsSyncing] = useState(api.isSyncing);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  const activeSop = api.getActiveSop();
+
+  const handleCollapsedSettingsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleSidebarCollapse?.(false);
+    setIsSettingsOpen(true);
+  };
   const [activePatient, setActivePatient] = useState<any>(null);
   const [activePatientStage, setActivePatientStage] = useState<string>('registered');
   const [logs, setLogs] = useState<any[]>([]);
@@ -530,40 +541,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {activeProfile.display_name.charAt(0)}
                 </div>
 
-                {/* Collapsed Dev Bypass Trigger */}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleBypass(!isBypassMode);
-                  }}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${
-                    isBypassMode 
-                      ? 'bg-amber-50 border-amber-200 text-amber-600' 
-                      : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600'
-                  }`}
-                  title={isBypassMode ? "Bypass Mode Active" : "Secure Mode Active"}
-                >
-                  {isBypassMode ? (
-                    <ShieldAlert className="h-4 w-4 text-amber-600 animate-pulse" />
-                  ) : (
-                    <ShieldCheck className="h-4 w-4" />
-                  )}
-                </button>
-
-                {/* Collapsed Log Out Button */}
+                {/* Collapsed Settings Trigger */}
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSignOut();
-                  }}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-400 hover:text-rose-500 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                  title="Sign Out Workspace"
+                  onClick={handleCollapsedSettingsClick}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  title="Open Settings & SOPs"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <Settings className="h-4 w-4" />
                 </button>
               </div>
             ) : (
-              <div className="space-y-3 animate-fade-in">
+              <div className="space-y-3 animate-fade-in w-full">
                 {/* Profile Details Badge */}
                 <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white border border-slate-200/50 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                   <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
@@ -575,36 +563,87 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                {/* Dev Bypass Trigger */}
-                <button 
-                  onClick={() => onToggleBypass(!isBypassMode)}
-                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                    isBypassMode 
-                      ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
-                      : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {isBypassMode ? (
-                    <>
-                      <ShieldAlert className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
-                      Bypass Active
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
-                      Secure Mode
-                    </>
-                  )}
-                </button>
+                {/* Settings & SOP Section (Collapsible Accordion) */}
+                <div className="border border-slate-200/60 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
+                  <button
+                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100/50 text-[11px] font-semibold text-slate-700 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Settings className="h-3.5 w-3.5 text-slate-500" />
+                      Settings & SOP
+                    </span>
+                    {isSettingsOpen ? (
+                      <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </button>
 
-                {/* Log Out Button */}
-                <button
-                  onClick={onSignOut}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 rounded-lg transition-all duration-200 font-semibold text-xs cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  Sign Out Workspace
-                </button>
+                  {isSettingsOpen && (
+                    <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
+                      {/* Dev Bypass Trigger */}
+                      <button 
+                        onClick={() => onToggleBypass(!isBypassMode)}
+                        className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                          isBypassMode 
+                            ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
+                            : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {isBypassMode ? (
+                          <>
+                            <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
+                            Bypass Active
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-3 w-3 text-slate-400" />
+                            Secure Mode
+                          </>
+                        )}
+                      </button>
+
+                      {/* Relocated SOP Info Section */}
+                      <div className="p-2 bg-slate-50 rounded-md border border-slate-100 space-y-1.5 text-[9px] w-full">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-600 uppercase tracking-wider">
+                          <FileText className="h-3 w-3 text-indigo-500" />
+                          <span>Active SOP Details</span>
+                        </div>
+                        
+                        {activeSop ? (
+                          <div className="space-y-1 font-medium text-slate-500 leading-normal">
+                            <div className="text-slate-700 font-semibold truncate" title={activeSop.sopFileName}>
+                              📄 {activeSop.sopFileName}
+                            </div>
+                            <div className="text-[8.5px] bg-white p-1 rounded border border-slate-200/50 break-words max-h-16 overflow-y-auto font-mono">
+                              {activeSop.sopText}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="block text-slate-400 italic">No active SOP loaded</span>
+                        )}
+
+                        <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wide">
+                          <span>Pod: Patna Zone 1</span>
+                          <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30 w-fit">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Ecosystem Core Active
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Relocated Log Out Button */}
+                      <button
+                        onClick={onSignOut}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 hover:text-rose-800 rounded-md transition-all duration-200 font-semibold text-[10px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                      >
+                        <LogOut className="h-3 w-3" />
+                        Sign Out Workspace
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )
           )}
@@ -612,71 +651,56 @@ export const Navbar: React.FC<NavbarProps> = ({
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="md:hidden border-b border-slate-200/80 bg-slate-50/80 backdrop-blur-xl sticky top-0 z-50 px-4 py-3 shadow-[0_2px_12px_-4px_rgba(15,23,42,0.03)] w-full">
-        <div className="max-w-7xl mx-auto flex flex-col gap-4">
+      <nav className="md:hidden border-b border-slate-200/80 bg-slate-50/80 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
+        <div className="max-w-7xl mx-auto flex flex-col gap-2">
           <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
               {/* Mobile Sidebar Drawer Hamburger Trigger */}
               <button 
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="p-1.5 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer mr-1"
+                className="p-1 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-md text-slate-500 hover:text-slate-800 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
                 aria-label="Open Sidebar Drawer"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-4 w-4" />
               </button>
 
-              <div className="flex items-center justify-center h-8.5 w-8.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shrink-0 shadow-sm shadow-indigo-600/10">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="font-semibold text-sm tracking-tight text-slate-900 flex items-center gap-1.5">
-                  Mediflow Care
-                  <span className={`flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded-full border transition-all duration-300 font-mono font-bold ${
+              <div className="flex flex-col min-w-0">
+                <h1 className="font-bold text-[9px] uppercase tracking-wider text-slate-700 truncate flex items-center gap-1 leading-none">
+                  {activeProfile?.display_name 
+                    ? (activeProfile.display_name.toLowerCase().startsWith('dr.') 
+                        ? `${activeProfile.display_name}'s Care Dashboard` 
+                        : `Dr. ${activeProfile.display_name}'s Care Dashboard`)
+                    : 'Doctor Dashboard'}
+                  <span className={`flex items-center gap-0.5 text-[7px] font-mono px-1 py-0.2 rounded border transition-all duration-300 shrink-0 ${
                     isSyncing 
                       ? 'bg-primary/10 text-primary border-primary/25'
                       : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
                   }`}>
                     <span className={`w-1 h-1 rounded-full ${isSyncing ? 'bg-primary' : 'bg-emerald-500 animate-pulse'}`} />
-                    {isSyncing ? 'Syncing' : 'Live'}
+                    {isSyncing ? 'Sync' : 'Live'}
                   </span>
                 </h1>
-                <p className="text-slate-400 text-[10px] font-semibold mt-0.5">
-                  {activePod ? (
-                    <>
-                      Connected to <strong className="text-slate-600 font-bold">{activeEntity?.name}</strong>
-                    </>
-                  ) : (
-                    'Clinical Connected Care Network'
-                  )}
-                </p>
+                {activePod && (
+                  <p className="text-slate-400 text-[8px] font-medium leading-none mt-0.5 truncate">
+                    Connected: <strong className="text-slate-500 font-semibold">{activeEntity?.name}</strong>
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Mobile Actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button 
                 onClick={() => onToggleBypass(!isBypassMode)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                   isBypassMode 
                     ? 'bg-amber-50 border-amber-200 text-amber-600' 
-                    : 'bg-white border-slate-200 text-slate-500'
+                    : 'bg-white border-slate-200 text-slate-400'
                 }`}
               >
-                {isBypassMode ? <ShieldAlert className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
+                {isBypassMode ? <ShieldAlert className="h-2.5 w-2.5" /> : <ShieldCheck className="h-2.5 w-2.5" />}
                 Bypass
               </button>
-
-              {activeProfile && (
-                <button
-                  onClick={onSignOut}
-                  className="p-1.5 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-500 hover:text-rose-500 rounded-lg transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
-                  title="Sign out of professional workspace"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
-              )}
             </div>
           </div>
 
@@ -867,6 +891,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="space-y-4 pt-4 border-t border-slate-200/60">
               {activeProfile && (
                 <div className="space-y-3">
+                  {/* Profile Card */}
                   <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white border border-slate-200/50 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                     <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
                       {activeProfile.display_name.charAt(0)}
@@ -877,40 +902,93 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => {
-                      onToggleBypass(!isBypassMode);
-                      setIsMobileDrawerOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                      isBypassMode 
-                        ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
-                        : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {isBypassMode ? (
-                      <>
-                        <ShieldAlert className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
-                        Bypass Active
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
-                        Secure Mode
-                      </>
-                    )}
-                  </button>
+                  {/* Settings & SOP Section (Collapsible Accordion) */}
+                  <div className="border border-slate-200/60 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
+                    <button
+                      onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100/50 text-[11px] font-semibold text-slate-700 transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Settings className="h-3.5 w-3.5 text-slate-500" />
+                        Settings & SOP
+                      </span>
+                      {isSettingsOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                      )}
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      onSignOut();
-                      setIsMobileDrawerOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-600 rounded-lg transition-all duration-200 font-semibold text-xs cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Sign Out Workspace
-                  </button>
+                    {isSettingsOpen && (
+                      <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
+                        {/* Dev Bypass Trigger */}
+                        <button 
+                          onClick={() => {
+                            onToggleBypass(!isBypassMode);
+                            setIsMobileDrawerOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                            isBypassMode 
+                              ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
+                              : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
+                          }`}
+                        >
+                          {isBypassMode ? (
+                            <>
+                              <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
+                              Bypass Active
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-3 w-3 text-slate-400" />
+                              Secure Mode
+                            </>
+                          )}
+                        </button>
+
+                        {/* SOP Info Section */}
+                        <div className="p-2 bg-slate-50 rounded-md border border-slate-100 space-y-1.5 text-[9px] w-full">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-600 uppercase tracking-wider">
+                            <FileText className="h-3 w-3 text-indigo-500" />
+                            <span>Active SOP Details</span>
+                          </div>
+                          
+                          {activeSop ? (
+                            <div className="space-y-1 font-medium text-slate-500 leading-normal">
+                              <div className="text-slate-700 font-semibold truncate" title={activeSop.sopFileName}>
+                                📄 {activeSop.sopFileName}
+                              </div>
+                              <div className="text-[8.5px] bg-white p-1 rounded border border-slate-200/50 break-words max-h-16 overflow-y-auto font-mono">
+                                {activeSop.sopText}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="block text-slate-400 italic">No active SOP loaded</span>
+                          )}
+
+                          <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wide">
+                            <span>Pod: Patna Zone 1</span>
+                            <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30 w-fit">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              Ecosystem Core Active
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Relocated Log Out Button */}
+                        <button
+                          onClick={() => {
+                            onSignOut();
+                            setIsMobileDrawerOpen(false);
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 hover:text-rose-800 rounded-md transition-all duration-200 font-semibold text-[10px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                        >
+                          <LogOut className="h-3 w-3" />
+                          Sign Out Workspace
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -988,7 +1066,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
-      {currentRole !== 'doctor' && (
+      {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
           <div className="flex items-center justify-around h-16">
             {visibleRoles.map((r) => {

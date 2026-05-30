@@ -54,7 +54,6 @@ export const DoctorDashboard: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [medications, setMedications] = useState<Omit<MedicationRequest, 'id'>[]>([]);
   const [selectedTests, setSelectedTests] = useState<DiagnosticTest[]>([]);
-  const [prescriptionNotes, setPrescriptionNotes] = useState('');
   
   const [medName, setMedName] = useState('');
   const [medDosage, setMedDosage] = useState('');
@@ -235,6 +234,19 @@ export const DoctorDashboard: React.FC = () => {
       console.error('[Mediflow] Scribe failed:', err);
     } finally {
       setIsTranscribing(false);
+    }
+  };
+
+  const handleLaunchVideoConsult = async () => {
+    if (!selectedPatient) return;
+    try {
+      const apptId = `apt-${Date.now()}`;
+      const res = await api.generateConsultRoom(apptId, selectedPatient.phone, 'Dr. Sharma');
+      if (res && res.roomUrl) {
+        window.open(res.roomUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      console.error('[Consultation Tab] Failed to launch video consult:', err);
     }
   };
 
@@ -723,31 +735,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   const handleSaveEncounter = () => {
     if (!selectedPatient) return;
 
-    const parsedMeds: Omit<MedicationRequest, 'id'>[] = [];
-    if (prescriptionNotes.trim()) {
-      const lines = prescriptionNotes.split('\n');
-      lines.forEach((line) => {
-        const cleaned = line.trim();
-        if (!cleaned) return;
-        const parts = cleaned.split(/[-—,]/).map(p => p.trim());
-        const medicineName = parts[0] || cleaned;
-        const dosage = parts[1] || 'As written';
-        const frequency = parts[2] || 'As written';
-        const duration = parts[3] || 'As written';
-        parsedMeds.push({ medicineName, dosage, frequency, duration });
-      });
-    }
-
-    const finalMedications = parsedMeds.map((m: Omit<MedicationRequest, 'id'>, idx: number) => ({ ...m, id: `med-${idx}` }));
-    if (prescriptionNotes.trim()) {
-      finalMedications.push({
-        id: `med-handwritten`,
-        medicineName: `Handwritten Rx Summary: ${prescriptionNotes.trim().replace(/\n/g, ' | ')}`,
-        dosage: 'As written',
-        frequency: 'As written',
-        duration: 'As written'
-      });
-    }
+    const finalMedications = medications.map((m: Omit<MedicationRequest, 'id'>, idx: number) => ({ ...m, id: `med-${idx}` }));
 
     // Ophthalmology spectacle support
     if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
@@ -760,7 +748,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       });
     }
 
-    let finalNotes = notes + (prescriptionNotes.trim() ? `\n[Handwritten Prescription Note]: ${prescriptionNotes.trim()}` : '');
+    let finalNotes = notes;
     if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
       finalNotes += serializeRefractionRx(refractionRx);
     }
@@ -785,9 +773,9 @@ Keep the tone professional, clinical, objective, and precise.`;
         if (notes) {
           whatsAppMsg += `\n\n👉 *Doctor's Advice (Hinglish):*\n_"${notes}"_`;
         }
-        if (parsedMeds.length > 0) {
+        if (medications.length > 0) {
           whatsAppMsg += `\n\n💊 *Prescribed Medications:*\n`;
-          parsedMeds.forEach((m, idx) => {
+          medications.forEach((m, idx) => {
             whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
           });
         }
@@ -798,10 +786,6 @@ Keep the tone professional, clinical, objective, and precise.`;
         // Add Hinglish clinical directions
         whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${notes || "Continue active lifestyle management."}"_\n\n`;
         
-        if (prescriptionNotes.trim()) {
-          whatsAppMsg += `📝 *Handwritten Prescription Notes:*\n_"${prescriptionNotes.trim()}"_\n\n`;
-        }
-        
         if (latestReport) {
           whatsAppMsg += `🧪 *Consolidated Lab Report (Date: ${latestReport.date}):*\n`;
           whatsAppMsg += `- *HbA1c*: ${latestReport.HbA1c}%\n`;
@@ -809,9 +793,9 @@ Keep the tone professional, clinical, objective, and precise.`;
           whatsAppMsg += `- *Total Hemoglobin*: ${latestReport.hemoglobin} g/dL\n\n`;
         }
         
-        if (parsedMeds.length > 0) {
+        if (medications.length > 0) {
           whatsAppMsg += `💊 *Prescribed Medications (Collect at Counter):*\n`;
-          parsedMeds.forEach((m, idx) => {
+          medications.forEach((m, idx) => {
             whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
           });
           whatsAppMsg += `\n`;
@@ -827,7 +811,6 @@ Keep the tone professional, clinical, objective, and precise.`;
 
     // Reset Form
     setNotes('');
-    setPrescriptionNotes('');
     setHinglishSummary('');
     setAudioUrl(null);
     setAudioBlob(null);
@@ -883,8 +866,6 @@ Keep the tone professional, clinical, objective, and precise.`;
                   selectedTests={selectedTests}
                   notes={notes}
                   setNotes={setNotes}
-                  prescriptionNotes={prescriptionNotes}
-                  setPrescriptionNotes={setPrescriptionNotes}
                   medName={medName}
                   setMedName={setMedName}
                   medDosage={medDosage}
@@ -928,6 +909,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   handleRemoveMedication={handleRemoveMedication}
                   handleToggleTest={handleToggleTest}
                   handleSaveEncounter={handleSaveEncounter}
+                  handleLaunchVideoConsult={handleLaunchVideoConsult}
                 />
               );
             case 'financials':
