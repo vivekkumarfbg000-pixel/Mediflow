@@ -75,27 +75,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, []);
   
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark';
-    }
-    return false;
-  });
+  const isDark = false;
 
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      document.body?.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.body?.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark } }));
-  }, [isDark]);
+    document.documentElement.classList.remove('dark');
+    document.body?.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
+    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: false } }));
+  }, []);
 
-  const toggleTheme = () => setIsDark(prev => !prev);
+  const toggleTheme = () => {};
   
   const activeSop = api.getActiveSop();
 
@@ -623,15 +612,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {activeProfile.display_name.charAt(0)}
                 </div>
 
-                {/* Collapsed Theme Trigger */}
-                <button
-                  onClick={toggleTheme}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                  title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                >
-                  {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-slate-600" />}
-                </button>
-
                 {/* Collapsed Settings Trigger */}
                 <button
                   onClick={handleCollapsedSettingsClick}
@@ -673,17 +653,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   {isSettingsOpen && (
                     <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
-                      {/* Theme Toggle Trigger */}
-                      <button 
-                        onClick={toggleTheme}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider bg-white border-slate-200/60 text-slate-500 hover:text-slate-700 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
-                      >
-                        <span className="flex items-center gap-2">
-                          {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-600" />}
-                          Theme Mode
-                        </span>
-                        <span className="text-[8px] font-bold text-slate-600">{isDark ? 'Dark' : 'Light'}</span>
-                      </button>
 
                       {/* Dev Bypass Trigger */}
                       <button 
@@ -793,14 +762,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Mobile Actions */}
             <div className="flex items-center gap-1.5">
-              {/* Theme Toggle Trigger */}
-              <button 
-                onClick={toggleTheme}
-                className="p-1 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-md text-slate-500 hover:text-slate-800 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
-                aria-label="Toggle Theme"
-              >
-                {isDark ? <Sun className="h-3 w-3.5 text-amber-500" /> : <Moon className="h-3 w-3.5 text-slate-600" />}
-              </button>
 
               <button 
                 onClick={() => onToggleBypass(!isBypassMode)}
@@ -1058,17 +1019,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     {isSettingsOpen && (
                       <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
-                        {/* Theme Toggle Trigger */}
-                        <button 
-                          onClick={toggleTheme}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider bg-white border-slate-200/60 text-slate-500 hover:text-slate-700 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
-                        >
-                          <span className="flex items-center gap-2">
-                            {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-slate-600" />}
-                            Theme Mode
-                          </span>
-                          <span className="text-[8px] font-bold text-slate-600">{isDark ? 'Dark' : 'Light'}</span>
-                        </button>
 
                         {/* Dev Bypass Trigger */}
                         <button 

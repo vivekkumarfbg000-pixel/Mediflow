@@ -9,14 +9,9 @@
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <script>
       (function() {
-        const theme = localStorage.getItem('theme') || 'light';
-        if (theme === 'dark') {
-          document.documentElement.classList.add('dark');
-          document.body?.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-          document.body?.classList.remove('dark');
-        }
+        localStorage.setItem('theme', 'light');
+        document.documentElement.classList.remove('dark');
+        document.body?.classList.remove('dark');
       })();
     </script>
     <title>Mediflow Care - Connected Care Network</title>
