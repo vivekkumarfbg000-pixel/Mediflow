@@ -15,19 +15,19 @@ const ASSETS_TO_CACHE = [
 ];
 
 // 1. Install Event: Populate standard pre-cache buffers
-self.addEventListener('install', (event: any) => {
+self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[PWA-SW] Pre-caching critical application shells...');
       return cache.addAll(ASSETS_TO_CACHE);
     }).then(() => {
-      return (self as any).skipWaiting();
+      return self.skipWaiting();
     })
   );
 });
 
 // 2. Activate Event: Evict obsolete caches from local clients
-self.addEventListener('activate', (event: any) => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
@@ -39,13 +39,13 @@ self.addEventListener('activate', (event: any) => {
         })
       );
     }).then(() => {
-      return (self as any).clients.claim();
+      return self.clients.claim();
     })
   );
 });
 
 // 3. Fetch Event: Stale-While-Revalidate caching pipeline
-self.addEventListener('fetch', (event: any) => {
+self.addEventListener('fetch', (event) => {
   // Avoid intercepting direct remote API/Supabase calls or localhost hot reloading
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET' || url.pathname.includes('/api/v1') || url.pathname.includes('supabase')) {
@@ -70,3 +70,4 @@ self.addEventListener('fetch', (event: any) => {
     })
   );
 });
+
