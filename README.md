@@ -2,6 +2,14 @@
 
 A full-stack connected care platform for clinic operations, partner network onboarding, lab billing, pharmacy workflows, and AI-assisted invoice capture.
 
+> [!IMPORTANT]
+> **CRITICAL SECURITY GUIDELINE: NEVER COMMIT API KEYS OR CREDENTIALS TO GITHUB**
+> * **Local Development**: All secret keys (Supabase anon keys, LLM API keys, database connection passwords) **MUST** only be stored inside local `.env` or `.env.local` files. These files are declared in `.gitignore` and strictly blocked from git tracking.
+> * **Production Deployment**: Store all production environment variables securely inside the respective cloud host dashboards:
+>   * **Vercel Frontend** (`https://mediflow-ochre.vercel.app/`): Set keys via *Project Settings ➔ Environment Variables*.
+>   * **Hugging Face Backend**: Set keys via *Space Settings ➔ Variables and Secrets*.
+> * **Git Pre-flight Check**: Always run `git diff --cached` before executing a `git push` to audit and guarantee no credentials are accidentally committed.
+
 ## Project Structure
 
 - `frontend/` — React + Vite dashboard and role-based user interface
