@@ -22,14 +22,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ ./app/
 
-# Create tmp directory for file uploads
-RUN mkdir -p /app/tmp
+# Non-root user for security
+RUN adduser --disabled-password --gecos "" mediflow
+
+# Create tmp directory for file uploads and set ownership/permissions
+RUN mkdir -p /app/tmp && chown -R mediflow:mediflow /app && chmod -R 777 /app/tmp
 
 # Expose the API port
 EXPOSE 8000
 
-# Non-root user for security
-RUN adduser --disabled-password --gecos "" mediflow
 USER mediflow
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

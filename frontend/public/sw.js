@@ -5,9 +5,6 @@ const CACHE_NAME = 'mediflow-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/src/main.tsx',
-  '/src/App.tsx',
-  '/src/index.css',
   '/favicon.svg',
   '/icons.svg',
   '/manifest.json',
@@ -44,7 +41,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. Fetch Event: Stale-While-Revalidate caching pipeline
+// 3. Fetch Event: Intelligent Caching Strategy (Network-First for HTML, Stale-While-Revalidate for Assets)
 self.addEventListener('fetch', (event) => {
   // Avoid intercepting direct remote API/Supabase calls or localhost hot reloading
   const url = new URL(event.request.url);
@@ -52,10 +49,42 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const isNavigation = event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html';
+
+  if (isNavigation) {
+    // Network-First strategy for HTML/Navigation requests to ensure immediate updates to hashed bundles
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const cacheCopy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, cacheCopy);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate for other static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
+          // Defend against Vercel's SPA rewrites on missing files.
+          // If a JS/CSS file is requested but returns text/html, do NOT cache or serve it!
+          const contentType = networkResponse.headers.get('content-type') || '';
+          const isAsset = url.pathname.includes('/assets/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
+          if (isAsset && contentType.includes('text/html')) {
+            console.warn(`[PWA-SW] Asset ${url.pathname} returned HTML instead of raw asset (Vercel SPA rewrite/404). Bypassing cache.`);
+            return new Response('Asset not found', { status: 404, statusText: 'Not Found' });
+          }
+
           const cacheCopy = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, cacheCopy);
