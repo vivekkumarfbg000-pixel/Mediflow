@@ -506,7 +506,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-3xl font-extrabold tracking-tight text-white leading-tight">
+            <h2 className="text-3xl font-extrabold tracking-tight text-clinical-50 leading-tight">
               Clinical Care Networks, Re-imagined.
             </h2>
             <p className="text-sm text-clinical-300 leading-relaxed font-medium">
@@ -533,7 +533,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         {/* Right Side: Authentication/Onboarding Panel */}
         <div className="md:col-span-7 glass-panel p-8 shadow-xl flex flex-col space-y-5">
           <div>
-            <h3 className="text-xl font-extrabold text-white">
+            <h3 className="text-xl font-extrabold text-clinical-50">
               {activeTab === 'signin' && 'Sign In to Mediflow'}
               {activeTab === 'register' && 'Register Your Clinic'}
               {activeTab === 'join' && 'Join Existing Clinic Network'}
@@ -591,7 +591,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@mediflow.com"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-white placeholder-clinical-600 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
                     required
                   />
                 </div>
@@ -608,7 +608,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-white placeholder-clinical-600 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
                     required
                   />
                   <button
@@ -644,7 +644,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Dr. Vivek Kumar"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -657,7 +657,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={clinicName}
                     onChange={(e) => setClinicName(e.target.value)}
                     placeholder="Kankarbagh Connected Clinic"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -671,14 +671,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   <select
                     value={specialization}
                     onChange={(e) => setSpecialization(e.target.value)}
-                    className="w-full bg-clinical-900/90 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/90 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans"
                   >
-                    <option value="General Medicine">General Medicine</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="Ophthalmology">Ophthalmology</option>
-                    <option value="Cardiology">Cardiology</option>
-                    <option value="Dermatology">Dermatology</option>
-                    <option value="Gynecology">Gynecology</option>
+                    <option value="General Medicine" className="text-clinical-100 bg-clinical-800">General Medicine</option>
+                    <option value="Pediatrics" className="text-clinical-100 bg-clinical-800">Pediatrics</option>
+                    <option value="Ophthalmology" className="text-clinical-100 bg-clinical-800">Ophthalmology</option>
+                    <option value="Cardiology" className="text-clinical-100 bg-clinical-800">Cardiology</option>
+                    <option value="Dermatology" className="text-clinical-100 bg-clinical-800">Dermatology</option>
+                    <option value="Gynecology" className="text-clinical-100 bg-clinical-800">Gynecology</option>
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -690,7 +690,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="9999000001"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -705,7 +705,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Main Road, Kankarbagh, Patna, Bihar"
-                  className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                  className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                   required
                 />
               </div>
@@ -719,7 +719,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="doctor@mediflow.com"
-                  className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                  className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                   required
                 />
               </div>
@@ -734,7 +734,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -747,7 +747,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -792,7 +792,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     onChange={(e) => setClinicCode(e.target.value.toUpperCase())}
                     placeholder="MF-A1B2"
                     maxLength={10}
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 pl-10 pr-4 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-mono font-bold"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 pl-10 pr-4 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-mono font-bold"
                     required
                   />
                   {validatingCode && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-400 animate-spin" />}
@@ -800,7 +800,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
                 {validatedClinicName ? (
                   <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pl-1 mt-1">
-                    <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-white">{validatedClinicName}</strong>
+                    <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-clinical-100">{validatedClinicName}</strong>
                   </span>
                 ) : clinicCode.length >= 7 && !validatingCode ? (
                   <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1 pl-1 mt-1">
@@ -817,11 +817,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   <select
                     value={partnerType}
                     onChange={(e) => setPartnerType(e.target.value as any)}
-                    className="w-full bg-clinical-900/90 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/90 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans"
                   >
-                    <option value="pharmacy">Pharmacy POS</option>
-                    <option value="lab">Pathology Lab</option>
-                    <option value="compounder">Clinic Compounder</option>
+                    <option value="pharmacy" className="text-clinical-100 bg-clinical-800">Pharmacy POS</option>
+                    <option value="lab" className="text-clinical-100 bg-clinical-800">Pathology Lab</option>
+                    <option value="compounder" className="text-clinical-100 bg-clinical-800">Clinic Compounder</option>
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -833,7 +833,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder={partnerType === 'pharmacy' ? 'Kankarbagh Smart Pharmacy' : 'Patna Pathology Lab'}
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -849,7 +849,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="9999000003"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -862,7 +862,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Opposite Clinic main gate, Patna"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -877,7 +877,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="pharmacist@mediflow.com"
-                  className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                  className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                   required
                 />
               </div>
@@ -892,7 +892,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
@@ -905,7 +905,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-800 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-clinical-600 outline-none transition-all duration-300 font-medium font-sans"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
                     required
                   />
                 </div>
