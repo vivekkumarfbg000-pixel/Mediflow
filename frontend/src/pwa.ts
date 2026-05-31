@@ -6,7 +6,7 @@ export class PwaSyncManager {
 
   // 1. Initialize PWA Service Worker Registration
   static registerServiceWorker() {
-    if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
           .then((reg) => {
@@ -86,6 +86,14 @@ export class PwaSyncManager {
   static async flushOfflineSyncQueue() {
     if (this.isSyncActive) return;
     
+    // Synchronize WAL Outbox first
+    try {
+      console.log('[PWA-Sync] Replaying WAL Outbox...');
+      await api.replayWALOutbox();
+    } catch (walErr) {
+      console.error('[PWA-Sync] Failed to replay WAL Outbox:', walErr);
+    }
+
     const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
     if (queue.length === 0) return;
 

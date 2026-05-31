@@ -12,8 +12,10 @@ Active Roles for this Action:
 
 ## 1. COMPONENT & REPOSITORY BOUNDARIES
 *   **TARGET_FILES_TO_EDIT:** 
+    *   `frontend/src/App.tsx` -> Introduce initial auth `isLoadingSession` check to render `FullPageLoader` and eliminate login page flashing.
+    *   `frontend/e2e_pilot_validation.js` -> Convert CommonJS imports to ES Modules syntax to resolve Node ESM runtime reference crashes.
+    *   `Teach-team-main/scripts/verify_ui_e2e.js` -> Refactor `cwd` configuration to build and run Vite preview servers within the nested `frontend/` directory dynamically.
     *   `frontend/tailwind.config.js` -> Locked to `darkMode: 'class'` to completely disable system OS-level dark theme hijacking.
-    *   `frontend/src/App.tsx` -> Standardized main canvas, panels, and onboarding state to light `#F8FAFC` base layers and `#FFFFFF` cards.
     *   `frontend/src/components/shared/Navbar.tsx` -> Refactored all drawer, header, bottom nav, and side panel states to white.
     *   `frontend/src/components/admin/PodCommandCenter.tsx` -> Handled modern, light clinical scorecard grids, monospaced tabular metrics, and border outlines instead of circular neon graphs.
 *   **FORBIDDEN_FILES (NO-FLY ZONES):** 

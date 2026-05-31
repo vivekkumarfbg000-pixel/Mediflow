@@ -9,6 +9,7 @@ import { BillingService } from './billingService';
 import { WhatsAppService } from './whatsappService';
 import { ForecastService } from './forecastService';
 import { StaffService } from './staffService';
+import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
 
 import type { 
   Patient, 
@@ -96,6 +97,132 @@ export interface DBInvoice {
   patient: { name: string; phone: string } | null;
 }
 
+export interface WALEntry {
+  id: string; // client UUID (idempotency key)
+  action: 'CREATE_ENCOUNTER' | 'UPDATE_VITALS' | 'REGISTER_PATIENT' | 'REGISTER_WALKIN_LAB' | 'CREATE_LAB_REQ_FROM_RX' | 'UPDATE_QUEUE_STATUS';
+  payload: any;
+  timestamp: string;
+  synced: boolean;
+}
+
+class WALIndexedDB {
+  private dbName = 'mediflow_wal_db';
+  private storeName = 'wal_outbox';
+  private version = 1;
+
+  private getDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') {
+        reject(new Error('IndexedDB is not available'));
+        return;
+      }
+      const request = indexedDB.open(this.dbName, this.version);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async addEntry(action: WALEntry['action'], payload: any): Promise<WALEntry> {
+    const entry: WALEntry = {
+      id: payload.id || crypto.randomUUID(),
+      action,
+      payload,
+      timestamp: new Date().toISOString(),
+      synced: false,
+    };
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.add(entry);
+        request.onsuccess = () => resolve(entry);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      console.warn('[WAL IndexedDB] Fallback to memory outbox:', e);
+      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      memOutbox.push(entry);
+      localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox));
+      return entry;
+    }
+  }
+
+  async getUnsyncedEntries(): Promise<WALEntry[]> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readonly');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const all = request.result as WALEntry[];
+          resolve(all.filter(e => !e.synced).sort((a, b) => a.timestamp.localeCompare(b.timestamp)));
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      return memOutbox.filter((e: any) => !e.synced);
+    }
+  }
+
+  async markSynced(id: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.get(id);
+        request.onsuccess = () => {
+          const entry = request.result as WALEntry;
+          if (entry) {
+            entry.synced = true;
+            const updateReq = store.put(entry);
+            updateReq.onsuccess = () => resolve();
+            updateReq.onerror = () => reject(updateReq.error);
+          } else {
+            resolve();
+          }
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const entry = memOutbox.find((x: any) => x.id === id);
+      if (entry) {
+        entry.synced = true;
+        localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox));
+      }
+    }
+  }
+
+  async deleteEntry(id: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const filtered = memOutbox.filter((x: any) => x.id !== id);
+      localStorage.setItem('wal_mem_outbox', JSON.stringify(filtered));
+    }
+  }
+}
+
+export const walDB = new WALIndexedDB();
+
 class MediflowApiService {
   private listeners: Set<() => void> = new Set();
   public isSyncing = false;
@@ -122,10 +249,35 @@ class MediflowApiService {
         }
       )
       .subscribe((status) => {
-        console.log('[Mediflow Realtime] Channel status changed:', status);
+          console.log('[Mediflow Realtime] Channel status changed:', status);
       });
 
     setInterval(() => this.syncFromSupabase(), 15000);
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        console.log('[Mediflow API] Network back online. Triggering WAL replay...');
+        this.replayWALOutbox();
+      });
+
+      window.addEventListener('mediflow-circuit-open', (e: Event) => {
+        const detail = (e as CustomEvent).detail || {};
+        if (detail.name === 'supabase-db') {
+          console.warn('[Mediflow API] Database Circuit OPEN! Activating offline standby fallback...');
+        }
+      });
+
+      window.addEventListener('mediflow-circuit-closed', (e: Event) => {
+        const detail = (e as CustomEvent).detail || {};
+        if (detail.name === 'supabase-db') {
+          console.log('[Mediflow API] Database Circuit CLOSED. Triggering WAL replay...');
+          this.replayWALOutbox();
+        }
+      });
+
+      // Probe WAL replay initially
+      setTimeout(() => this.replayWALOutbox(), 1000);
+    }
   }
 
   setSimulatedRole(role: string) {
@@ -156,14 +308,172 @@ class MediflowApiService {
     save(key, value);
   }
 
+  public async replayWALOutbox(): Promise<void> {
+    if (this.isSyncing) return;
+    let entries;
+    try {
+      entries = await walDB.getUnsyncedEntries();
+    } catch (e) {
+      console.warn('[Mediflow WAL] Failed to fetch WAL outbox entries:', e);
+      return;
+    }
+    if (!entries || entries.length === 0) return;
+
+    console.log(`[Mediflow WAL] Replaying ${entries.length} offline operations...`);
+    for (const entry of entries) {
+      try {
+        console.log(`[Mediflow WAL] Syncing entry ${entry.id} (${entry.action})...`);
+        
+        switch (entry.action) {
+          case 'CREATE_ENCOUNTER': {
+            const { payload } = entry;
+            // Execute Supabase insert sequentially
+            const { error: encError } = await supabase
+              .from('encounters')
+              .insert({
+                id: entry.id, // client UUID (idempotency key)
+                patient_id: payload.patientId,
+                doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+                entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+                clinical_notes: payload.clinicalNotes,
+                status: 'active'
+              });
+            if (encError) throw encError;
+
+            if (payload.medications && payload.medications.length > 0) {
+              const medsPayload = payload.medications.map((med: any) => ({
+                encounter_id: entry.id,
+                medicine_name: med.medicineName,
+                dosage: med.dosage,
+                frequency: med.frequency,
+                duration: med.duration
+              }));
+              const { error: medsError } = await supabase.from('encounter_medications').insert(medsPayload);
+              if (medsError) throw medsError;
+            }
+
+            if (payload.diagnosticTests && payload.diagnosticTests.length > 0) {
+              const diagsPayload = payload.diagnosticTests.map((test: any) => ({
+                encounter_id: entry.id,
+                loinc_code: test.loincCode,
+                test_name: test.name,
+                status: 'ordered'
+              }));
+              const { error: diagsError } = await supabase.from('encounter_diagnostics').insert(diagsPayload);
+              if (diagsError) throw diagsError;
+            }
+
+            const { error: updateError } = await supabase
+              .from('encounters')
+              .update({ status: 'completed' })
+              .eq('id', entry.id);
+            if (updateError) throw updateError;
+            break;
+          }
+          case 'UPDATE_VITALS': {
+            const { payload } = entry;
+            const { error } = await supabase.from('patient_registry').update({
+              vitals: payload.vitals,
+              token_number: payload.token,
+              queue_status: 'awaiting_consultation'
+            }).eq('id', payload.patientId);
+            if (error) throw error;
+            break;
+          }
+          case 'UPDATE_QUEUE_STATUS': {
+            const { payload } = entry;
+            const { error } = await supabase.from('patient_registry').update({
+              queue_status: payload.status
+            }).eq('id', payload.patientId);
+            if (error) throw error;
+            break;
+          }
+          case 'REGISTER_PATIENT': {
+            const { payload } = entry;
+            const { error } = await supabase.from('patient_registry').insert({
+              id: entry.id,
+              name: payload.name,
+              phone: payload.phone,
+              age: payload.age,
+              gender: payload.gender,
+              allergies: payload.allergies,
+              chronic_conditions: payload.chronicConditions,
+              abha_id: payload.abhaId,
+              registered_by: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+              registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
+            });
+            if (error) throw error;
+            break;
+          }
+          case 'REGISTER_WALKIN_LAB': {
+            const { payload } = entry;
+            const { error } = await supabase.from('lab_requisitions').insert({
+              id: entry.id,
+              encounter_id: null,
+              patient_id: payload.patientId,
+              loinc_code: payload.testCode,
+              test_name: payload.testName,
+              barcode: payload.barcode || `WALK-${Date.now()}-${payload.testCode}`,
+              status: 'pending',
+              assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+              created_at: entry.timestamp
+            });
+            if (error) throw error;
+            break;
+          }
+          case 'CREATE_LAB_REQ_FROM_RX': {
+            const { payload } = entry;
+            const { error } = await supabase.from('lab_requisitions').insert({
+              id: entry.id,
+              encounter_id: null,
+              patient_id: payload.patientId,
+              loinc_code: payload.testCode,
+              test_name: payload.testName,
+              barcode: payload.barcode || `RX-${Date.now()}-${payload.testCode}`,
+              status: 'pending',
+              prescription_file_url: payload.prescriptionFileUrl,
+              assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+              created_at: entry.timestamp
+            });
+            if (error) throw error;
+            break;
+          }
+          default:
+            console.warn(`[Mediflow WAL] Unrecognized WAL entry action: ${entry.action}`);
+        }
+
+        await walDB.markSynced(entry.id);
+        console.log(`[Mediflow WAL] Entry ${entry.id} synced successfully ✅`);
+      } catch (err) {
+        console.error(`[Mediflow WAL] Replay failed for entry ${entry.id}:`, err);
+        const errString = String(err);
+        if (errString.includes('23505') || errString.includes('already exists') || errString.includes('duplicate key')) {
+          await walDB.markSynced(entry.id);
+          console.log(`[Mediflow WAL] Duplicate entry resolved. Marked as synced ✅`);
+        } else {
+          break;
+        }
+      }
+    }
+
+    await this.syncFromSupabase();
+  }
+
   public async syncFromSupabase(): Promise<void> {
     this.isSyncing = true;
     this.notify();
     try {
-      const { data: dbConsents } = await supabase
-        .from('patient_consents')
-        .select('*')
-        .is('revoked_at', null);
+      const dbConsents = await supabaseCircuit.execute(async () => {
+        const { data, error } = await supabase
+          .from('patient_consents')
+          .select('*')
+          .is('revoked_at', null);
+        if (error) throw error;
+        return data;
+      }, () => {
+        const cachedConsentIds = this.load<string[]>('active_consent_ids', []);
+        return cachedConsentIds.map(id => ({ patient_id: id, granted_at: new Date().toISOString() }));
+      });
 
       const activePatientIds = new Set<string>();
       if (dbConsents) {
@@ -177,7 +487,28 @@ class MediflowApiService {
       }
       this.save('active_consent_ids', Array.from(activePatientIds));
 
-      const { data: dbPatients } = await supabase.from('patient_registry').select('*');
+      const dbPatients = await supabaseCircuit.execute(async () => {
+        const { data, error } = await supabase.from('patient_registry').select('*');
+        if (error) throw error;
+        return data;
+      }, () => {
+        return this.load<any[]>('patients', []).map(p => ({
+          id: p.id,
+          name: p.name,
+          phone: p.phone,
+          age: p.age,
+          gender: p.gender,
+          allergies: p.allergies,
+          chronic_conditions: p.chronicConditions,
+          abha_id: p.abhaId,
+          vitals: p.vitals,
+          token_number: p.tokenNumber,
+          queue_status: p.queueStatus,
+          past_reports_summary: p.pastReportsSummary,
+          created_at: p.createdAt
+        }));
+      });
+
       if (dbPatients) {
         const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin'].includes(this.simulatedRole);
         const filteredPatients = dbPatients.filter(p => isClinicalRole || activePatientIds.has(p.id));
@@ -189,26 +520,39 @@ class MediflowApiService {
           age: p.age,
           gender: p.gender as Patient['gender'],
           allergies: p.allergies || [],
-          chronicConditions: p.chronic_conditions || [],
-          abhaId: p.abha_id || undefined,
+          chronicConditions: p.chronicConditions || p.chronic_conditions || [],
+          abhaId: p.abhaId || p.abha_id || undefined,
           vitals: p.vitals || undefined,
-          tokenNumber: p.token_number || undefined,
-          queueStatus: (p.queue_status as Patient['queueStatus']) || undefined,
-          pastReportsSummary: p.past_reports_summary || undefined,
-          createdAt: p.created_at
+          tokenNumber: p.tokenNumber || p.token_number || undefined,
+          queueStatus: (p.queueStatus as Patient['queueStatus']) || (p.queue_status as Patient['queueStatus']) || undefined,
+          pastReportsSummary: p.pastReportsSummary || p.past_reports_summary || undefined,
+          createdAt: p.createdAt || p.created_at
         }));
         this.save('patients', patients);
       }
 
-      const { data: dbSessions } = await supabase.from('whatsapp_sessions').select('*');
+      const dbSessions = await supabaseCircuit.execute(async () => {
+        const { data, error } = await supabase.from('whatsapp_sessions').select('*');
+        if (error) throw error;
+        return data;
+      }, () => {
+        return this.load<any[]>('whatsapp_sessions', []).map(s => ({
+          id: s.id,
+          patient_phone: s.patientPhone || s.patient_phone,
+          current_state: s.currentState || s.current_state,
+          last_interaction: s.lastInteraction || s.last_interaction,
+          session_data: s.sessionData || s.session_data
+        }));
+      });
+
       if (dbSessions) {
         const sessions = dbSessions.map(s => {
-          const sessionData = s.session_data || {};
+          const sessionData = s.session_data || s.sessionData || {};
           return {
             id: s.id,
-            patientPhone: s.patient_phone,
-            currentState: (sessionData.currentState || s.current_state) as WhatsAppSession['currentState'],
-            lastInteraction: s.last_interaction,
+            patientPhone: s.patient_phone || s.patientPhone,
+            currentState: (sessionData.currentState || s.current_state || s.currentState) as WhatsAppSession['currentState'],
+            lastInteraction: s.last_interaction || s.lastInteraction,
             sessionData
           };
         });
@@ -219,17 +563,42 @@ class MediflowApiService {
         console.warn('[Mediflow DevSecOps] Security Block: Pharmacist role is strictly blocked from querying clinical encounter notes.');
         this.save('encounters', []);
       } else {
-        const { data: dbEncounters } = await supabase.from('encounters').select(`
-          id,
-          patient_id,
-          doctor_id,
-          clinical_notes,
-          status,
-          created_at,
-          patient:patient_registry(name),
-          encounter_medications(id, medicine_name, dosage, frequency, duration),
-          encounter_diagnostics(loinc_code, test_name)
-        `);
+        const dbEncounters = await supabaseCircuit.execute<any>(async () => {
+          const { data, error } = await supabase.from('encounters').select(`
+            id,
+            patient_id,
+            doctor_id,
+            clinical_notes,
+            status,
+            created_at,
+            patient:patient_registry(name),
+            encounter_medications(id, medicine_name, dosage, frequency, duration),
+            encounter_diagnostics(loinc_code, test_name)
+          `);
+          if (error) throw error;
+          return data;
+        }, () => {
+          return this.load<any[]>('encounters', []).map(e => ({
+            id: e.id,
+            patient_id: e.patientId || e.patient_id,
+            doctor_id: e.doctorId || e.doctor_id,
+            clinical_notes: e.clinicalNotes || e.clinical_notes,
+            status: e.status,
+            created_at: e.createdAt || e.created_at,
+            patient: { name: e.patientName },
+            encounter_medications: (e.medications || e.encounter_medications || []).map((m: any) => ({
+              id: m.id,
+              medicine_name: m.medicineName || m.medicine_name,
+              dosage: m.dosage,
+              frequency: m.frequency,
+              duration: m.duration
+            })),
+            encounter_diagnostics: (e.diagnosticTests || e.encounter_diagnostics || []).map((d: any) => ({
+              loinc_code: d.loincCode || d.loinc_code,
+              test_name: d.name || d.test_name
+            }))
+          }));
+        });
         if (dbEncounters) {
           const encounters = (dbEncounters as unknown as DBEncounter[]).map((e: DBEncounter) => ({
             id: e.id,
@@ -434,11 +803,50 @@ class MediflowApiService {
   }
 
   updatePatientVitalsAndToken(patientId: string, vitals: PatientVitals, token: string): void {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    if (isOffline || isCircuitOpen) {
+      console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing UPDATE_VITALS in local outbox...');
+      
+      // Perform optimistic local update
+      PatientService.updatePatientVitalsAndToken(patientId, vitals, token);
+      
+      walDB.addEntry('UPDATE_VITALS', {
+        id: crypto.randomUUID(),
+        patientId,
+        vitals,
+        token
+      }).then(() => {
+        this.notify();
+      });
+      return;
+    }
+
     PatientService.updatePatientVitalsAndToken(patientId, vitals, token);
     this.notify();
   }
 
   updatePatientQueueStatus(patientId: string, status: Patient['queueStatus']): void {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    if (isOffline || isCircuitOpen) {
+      console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing UPDATE_QUEUE_STATUS in local outbox...');
+      
+      // Perform optimistic local update
+      PatientService.updatePatientQueueStatus(patientId, status);
+      
+      walDB.addEntry('UPDATE_QUEUE_STATUS', {
+        id: crypto.randomUUID(),
+        patientId,
+        status
+      }).then(() => {
+        this.notify();
+      });
+      return;
+    }
+
     PatientService.updatePatientQueueStatus(patientId, status);
     this.notify();
   }
@@ -448,6 +856,24 @@ class MediflowApiService {
   }
 
   registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'>): Patient {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    if (isOffline || isCircuitOpen) {
+      console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing REGISTER_PATIENT in local outbox...');
+      
+      // Perform optimistic local update
+      const res = PatientService.registerPatient(patientData);
+      
+      walDB.addEntry('REGISTER_PATIENT', {
+        id: res.id,
+        ...patientData
+      }).then(() => {
+        this.notify();
+      });
+      return res;
+    }
+
     const res = PatientService.registerPatient(patientData);
     this.notify();
     return res;
@@ -548,6 +974,32 @@ class MediflowApiService {
   }
 
   createEncounter(encounterData: Omit<Encounter, 'id' | 'createdAt' | 'status'>): Encounter {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    if (isOffline || isCircuitOpen) {
+      console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing CREATE_ENCOUNTER in local outbox...');
+      const encounterId = crypto.randomUUID();
+      const newEncounter: Encounter = {
+        ...encounterData,
+        id: encounterId,
+        status: 'completed',
+        createdAt: new Date().toISOString()
+      };
+      
+      const encounters = load<Encounter[]>('encounters', []);
+      encounters.push(newEncounter);
+      save('encounters', encounters);
+
+      walDB.addEntry('CREATE_ENCOUNTER', {
+        id: encounterId,
+        ...encounterData
+      }).then(() => {
+        this.notify();
+      });
+      return newEncounter;
+    }
+
     const res = EncounterService.createEncounter(encounterData);
     this.notify();
     return res;
@@ -583,6 +1035,48 @@ class MediflowApiService {
   }
 
   registerWalkinLabTest(patientId: string, testCode: string, testName: string, prescriptionFileUrl?: string): LabRequisition {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    if (isOffline || isCircuitOpen) {
+      console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing REGISTER_WALKIN_LAB in local outbox...');
+      const reqId = crypto.randomUUID();
+      const barcode = `WALK-${Date.now()}-${testCode}`.toUpperCase();
+      const patients = this.getPatients();
+      const patient = patients.find(p => p.id === patientId);
+
+      const newReq: LabRequisition = {
+        id: reqId,
+        encounterId: 'walkin',
+        patientId,
+        patientName: patient?.name || 'Walk-in Patient',
+        testCode,
+        testName,
+        barcode,
+        status: 'pending',
+        reagentDeductions: [],
+        prescriptionFileUrl,
+        createdAt: new Date().toISOString()
+      };
+
+      const existing = load<LabRequisition[]>('lab_requisitions', []);
+      existing.unshift(newReq);
+      save('lab_requisitions', existing);
+
+      walDB.addEntry('REGISTER_WALKIN_LAB', {
+        id: reqId,
+        patientId,
+        testCode,
+        testName,
+        barcode,
+        prescriptionFileUrl
+      }).then(() => {
+        this.notify();
+      });
+
+      return newReq;
+    }
+
     const res = LabService.registerWalkinLabTest(patientId, testCode, testName, prescriptionFileUrl);
     this.notify();
     return res;
@@ -607,6 +1101,48 @@ class MediflowApiService {
   }
 
   createLabRequisitionFromPrescription(patientId: string, testCode: string, testName: string, prescriptionFileUrl: string): LabRequisition {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    if (isOffline || isCircuitOpen) {
+      console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing CREATE_LAB_REQ_FROM_RX in local outbox...');
+      const reqId = crypto.randomUUID();
+      const barcode = `RX-${Date.now()}-${testCode}`.toUpperCase();
+      const patients = this.getPatients();
+      const patient = patients.find(p => p.id === patientId);
+
+      const newReq: LabRequisition = {
+        id: reqId,
+        encounterId: `rx-dispatch-${reqId.substring(0, 8)}`,
+        patientId,
+        patientName: patient?.name || 'Unknown Patient',
+        testCode,
+        testName,
+        barcode,
+        status: 'pending',
+        reagentDeductions: [],
+        prescriptionFileUrl,
+        createdAt: new Date().toISOString()
+      };
+
+      const existing = load<LabRequisition[]>('lab_requisitions', []);
+      existing.unshift(newReq);
+      save('lab_requisitions', existing);
+
+      walDB.addEntry('CREATE_LAB_REQ_FROM_RX', {
+        id: reqId,
+        patientId,
+        testCode,
+        testName,
+        barcode,
+        prescriptionFileUrl
+      }).then(() => {
+        this.notify();
+      });
+
+      return newReq;
+    }
+
     const res = LabService.createLabRequisitionFromPrescription(patientId, testCode, testName, prescriptionFileUrl);
     this.notify();
     return res;

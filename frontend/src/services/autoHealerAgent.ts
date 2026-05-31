@@ -378,6 +378,10 @@ export class ProactiveHealthMonitor {
   }
 
   static async runChecks(): Promise<ServiceHealth[]> {
+    // Run cache sanity checks and session renewal probes proactively
+    ProactiveHealthMonitor.runCacheSanityCheck();
+    await ProactiveHealthMonitor.checkAndRenewSession();
+
     const checks = await Promise.allSettled([
       ProactiveHealthMonitor.checkSupabase(),
       ProactiveHealthMonitor.checkBackendApi(),
@@ -396,6 +400,50 @@ export class ProactiveHealthMonitor {
 
     window.dispatchEvent(new CustomEvent('mediflow-health-update', { detail: results }));
     return results;
+  }
+
+  /** Proactive cache audit: scans and heals malformed or corrupted JSON keys in localStorage */
+  static runCacheSanityCheck(): void {
+    const keys = ['whatsapp_sessions', 'reagents', 'pharmacy_inventory', 'patients', 'unified_invoices', 'active_consent_ids'];
+    let corruptedKeysFound = 0;
+
+    keys.forEach(k => {
+      try {
+        const data = localStorage.getItem(k);
+        if (data) {
+          JSON.parse(data);
+        }
+      } catch (e) {
+        console.warn(`[Auto-Healer] Proactive Scan: Corrupted cache key detected: "${k}". Initiating hot-heal...`);
+        localStorage.removeItem(k);
+        corruptedKeysFound++;
+      }
+    });
+
+    if (corruptedKeysFound > 0) {
+      // Trigger hot re-sync from Supabase via StateHealingEngine
+      StateHealingEngine.handleException(new Error('proactive cache integrity scan - corrupted partition recovered'));
+    }
+  }
+
+  /** Proactive session health check: refreshes Supabase session before expiry */
+  static async checkAndRenewSession(): Promise<void> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.expires_at) {
+        const expiresAtMs = session.expires_at * 1000;
+        const timeUntilExpiry = expiresAtMs - Date.now();
+        // If session expires in less than 5 minutes (300,000 ms), proactively refresh it!
+        if (timeUntilExpiry > 0 && timeUntilExpiry < 300_000) {
+          console.log('[Auto-Healer] Proactive Scan: Session near expiry. Renewing token...');
+          const { error } = await supabase.auth.refreshSession();
+          if (error) throw error;
+          console.log('[Auto-Healer] Proactive Scan: Session successfully renewed.');
+        }
+      }
+    } catch (e: any) {
+      console.warn('[Auto-Healer] Proactive session renewal probe failed:', e.message);
+    }
   }
 
   private static async checkSupabase(): Promise<ServiceHealth> {

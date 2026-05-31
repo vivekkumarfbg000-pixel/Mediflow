@@ -302,6 +302,7 @@ export default function App() {
   const [activeProfile, setActiveProfile] = useState<any>(null);
   const [isBypassMode, setIsBypassMode] = useState<boolean>(false); // Production default (bypass mode disabled)
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
 
   useEffect(() => {
     PwaSyncManager.registerServiceWorker();
@@ -398,8 +399,11 @@ export default function App() {
   };
 
   useEffect(() => {
+    let active = true;
+
     // 1. Check existing Supabase session and load active profile
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
       setSession(session);
       if (session?.user) {
         supabase
@@ -408,6 +412,7 @@ export default function App() {
           .eq('id', session.user.id)
           .single()
           .then(async ({ data: profile }) => {
+            if (!active) return;
             if (profile) {
               const finalProfile = await checkAndCompleteOnboarding(session, profile);
               setActiveProfile(finalProfile);
@@ -420,15 +425,24 @@ export default function App() {
               else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
               setCurrentRole(defaultRole);
             }
+            setIsLoadingSession(false);
+          }, () => {
+            if (active) setIsLoadingSession(false);
           });
+      } else {
+        setIsLoadingSession(false);
       }
+    }).catch(() => {
+      if (active) setIsLoadingSession(false);
     });
 
     // 2. Setup auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
       setSession(session);
       if (!session) {
         setActiveProfile(null);
+        setIsLoadingSession(false);
       } else {
         supabase
           .from('profiles')
@@ -436,6 +450,7 @@ export default function App() {
           .eq('id', session.user.id)
           .single()
           .then(async ({ data: profile }) => {
+            if (!active) return;
             if (profile) {
               const finalProfile = await checkAndCompleteOnboarding(session, profile);
               setActiveProfile(finalProfile);
@@ -448,6 +463,9 @@ export default function App() {
               else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
               setCurrentRole(defaultRole);
             }
+            setIsLoadingSession(false);
+          }, () => {
+            if (active) setIsLoadingSession(false);
           });
       }
     });
@@ -471,6 +489,7 @@ export default function App() {
     window.addEventListener('mediflow-toast', handleToast);
     
     return () => {
+      active = false;
       subscription.unsubscribe();
       window.removeEventListener('mediflow-toast', handleToast);
     };
@@ -567,6 +586,10 @@ export default function App() {
     }
     setCurrentRole(role);
   };
+
+  if (isLoadingSession) {
+    return <FullPageLoader message="Initializing clinical session..." />;
+  }
 
   if (isOnboarding) {
     return (

@@ -1,4 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 // Supabase credentials extracted from frontend VITE environment
 const supabaseUrl = 'https://kguupaybvbngyzyofjun.supabase.co';

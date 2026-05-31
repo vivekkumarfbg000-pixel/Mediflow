@@ -52,10 +52,14 @@ if (chromePath) {
 const port = 4173;
 const previewUrl = `http://127.0.0.1:${port}`;
 
+const frontCwd = fs.existsSync(path.resolve(process.cwd(), 'frontend'))
+  ? path.resolve(process.cwd(), 'frontend')
+  : process.cwd();
+
 console.log('\n📦 Compiling production distribution bundle...');
 try {
   // Execute clean production build dynamically
-  const buildResult = spawnSync('npm', ['run', 'build'], { shell: true, stdio: 'inherit', cwd: process.cwd() });
+  const buildResult = spawnSync('npm', ['run', 'build'], { shell: true, stdio: 'inherit', cwd: frontCwd });
   if (buildResult.status !== 0) {
     console.error('❌ [Build Failure] Production build compile failed.');
     process.exit(1);
@@ -68,7 +72,7 @@ try {
 
 console.log('\n🚀 Spinning up local preview server...');
 const previewProcess = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--port', port.toString(), '--host', '127.0.0.1'], {
-  cwd: process.cwd(),
+  cwd: frontCwd,
   shell: true
 });
 
