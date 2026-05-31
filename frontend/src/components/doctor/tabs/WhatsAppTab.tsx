@@ -88,7 +88,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Meta WhatsApp Cloud API Connected</h3>
-                  <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-emerald-100 text-emerald-750 rounded-full uppercase tracking-wider">Active Channel</span>
+                  <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full uppercase tracking-wider">Active Channel</span>
                 </div>
                 <div className="text-[10px] text-slate-600 font-mono mt-1 space-y-0.5">
                   <div>WABA Phone Number: <strong className="text-slate-600 font-sans">{activeWabaConnection.phone_number}</strong></div>
@@ -129,8 +129,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <div className="flex gap-4.5 items-start">
               <span className="material-symbols-outlined text-primary text-4xl mt-1">chat_bubble</span>
               <div className="space-y-1">
-                <h3 className="text-sm font-extrabold text-slate-805 uppercase tracking-wider font-sans">Deploy Production-Grade WhatsApp Chatbot Engine</h3>
-                <p className="text-xs text-slate-404 leading-relaxed max-w-2xl font-sans">
+                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Deploy Production-Grade WhatsApp Chatbot Engine</h3>
+                <p className="text-xs text-slate-400 leading-relaxed max-w-2xl font-sans">
                   Mediflow utilizes Meta's official WhatsApp Business Cloud API. Connect your unique clinic phone number to allow patients to instantly verify data consents, receive RAG diagnostic summaries, query generic medication dosage, and settle splits dynamic UPI payouts in real-time.
                 </p>
               </div>
@@ -175,7 +175,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             {/* Session cards mapping */}
             <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1.5">
               {filteredSessions.length === 0 ? (
-                <div className="text-center py-10 text-slate-404 text-xs italic">
+                <div className="text-center py-10 text-slate-400 text-xs italic">
                   No active sessions found.
                 </div>
               ) : (
@@ -188,7 +188,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   let stateBadge = 'bg-slate-100 text-slate-500';
                   if (s.currentState === 'AWAITING_PAYMENT') stateBadge = 'bg-amber-100 text-amber-700';
                   else if (s.currentState === 'COMPLETED') stateBadge = 'bg-emerald-100 text-emerald-700';
-                  else if (s.currentState === 'FAILED_DELIVERY') stateBadge = 'bg-rose-100 text-rose-750';
+                  else if (s.currentState === 'FAILED_DELIVERY') stateBadge = 'bg-rose-100 text-rose-700';
                   else if (s.currentState === 'AWAITING_CONFIRMATION') stateBadge = 'bg-blue-100 text-blue-700';
 
                   return (
@@ -219,7 +219,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-105 text-[9px] text-slate-404 flex items-center gap-1 leading-relaxed">
+          <div className="pt-4 border-t border-slate-100 text-[9px] text-slate-400 flex items-center gap-1 leading-relaxed">
             <span className="material-symbols-outlined text-xs">info</span>
             * Uses Supabase Realtime to broadcast incoming patient responses instantly.
           </div>
@@ -276,7 +276,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               {/* Takeover Control Toggle */}
               <div className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200/40 rounded-2xl">
                 <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                  isHumanOverride ? 'bg-amber-100 text-amber-700' : 'bg-blue-105 text-blue-700'
+                  isHumanOverride ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                 }`}>
                   {isHumanOverride ? '⚡ Human Takeover' : '🤖 AI Agent Active'}
                 </span>
@@ -422,7 +422,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     <span className="material-symbols-outlined text-sm text-blue-500 animate-pulse">lock</span>
                     AI chatbot agent is actively handling this patient care session
                   </div>
-                  <p className="text-[10px] text-slate-404">
+                  <p className="text-[10px] text-slate-400">
                     Click the "Take Over Chat" button at the top header to halt AI automations and send manual updates.
                   </p>
                 </div>
@@ -436,7 +436,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <span className="material-symbols-outlined text-slate-200 text-6xl">chat</span>
             <div>
               <h3 className="text-slate-700 font-extrabold uppercase text-xs tracking-wider">No Patient Conversation Selected</h3>
-              <p className="text-xs text-slate-404 mt-2 max-w-sm font-sans">
+              <p className="text-xs text-slate-400 mt-2 max-w-sm font-sans">
                 Select a live active chat session from the queue registry on the left to monitor, review clinical guidelines, or override chatbot automations with human takeover capabilities.
               </p>
             </div>
@@ -446,7 +446,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
       {/* Link Meta Cloud WABA Account Connection Form */}
       {wabaFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-808">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
           <div className="glass-panel max-w-lg w-full p-6.5 border-slate-200 shadow-2xl relative overflow-hidden space-y-5 bg-white rounded-3xl">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-primary" />
             
@@ -456,7 +456,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   <span className="material-symbols-outlined text-primary font-bold">cell_tower</span>
                   Link WhatsApp Business API
                 </h3>
-                <p className="text-[11px] text-slate-404 mt-1 leading-relaxed">
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
                   Verify business phone number using secure 6-Digit OTP to permanently activate Mediflow chatbot automations.
                 </p>
               </div>

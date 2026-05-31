@@ -2347,7 +2347,7 @@ export const CompounderDashboard: React.FC = () => {
                     const test = MASTER_TEST_CATALOG.find(t => t.loincCode === dispatchSelectedTestCode);
                     if (test) {
                       return (
-                        <div className="bg-slate-50 border border-slate-205 p-3.5 rounded-xl space-y-2 text-xs select-none">
+                        <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-2 text-xs select-none">
                           <div className="flex justify-between items-center text-slate-600">
                             <span>Diagnostic Test Name:</span>
                             <span className="font-bold text-slate-800">{test.name}</span>
@@ -2358,7 +2358,7 @@ export const CompounderDashboard: React.FC = () => {
                           </div>
                           <div className="flex justify-between items-center border-t border-slate-200/80 pt-2 text-sm font-bold text-slate-800">
                             <span>Test Fee Payable:</span>
-                            <span className="text-indigo-650">₹{(test.price || 0).toFixed(2)}</span>
+                            <span className="text-indigo-600">₹{(test.price || 0).toFixed(2)}</span>
                           </div>
                         </div>
                       );
@@ -2526,7 +2526,7 @@ export const CompounderDashboard: React.FC = () => {
                                 {isActiveAppt && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping shrink-0" />}
                                 {patient ? patient.name : 'Unknown Patient'}
                               </h4>
-                              <p className="text-[9px] text-slate-405 font-mono">Appt ID: {appt.id.substring(0, 8)}... | Status: {appt.status}</p>
+                              <p className="text-[9px] text-slate-400 font-mono">Appt ID: {appt.id.substring(0, 8)}... | Status: {appt.status}</p>
                             </div>
                             <span className="text-[9px] bg-indigo-100 text-indigo-750 font-mono font-bold px-2 py-0.5 rounded border border-indigo-200">
                               CHAMBER OUT
@@ -2962,7 +2962,7 @@ export const CompounderDashboard: React.FC = () => {
                     <select
                       value={revisitPatientId}
                       onChange={(e) => setRevisitPatientId(e.target.value)}
-                      className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-205 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
+                      className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
                       required
                     >
                       <option value="" disabled>-- Select Patient --</option>
@@ -2979,7 +2979,7 @@ export const CompounderDashboard: React.FC = () => {
                         type="date"
                         value={revisitDate}
                         onChange={(e) => setRevisitDate(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-205 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
+                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
                         required
                       />
                     </div>
@@ -2990,7 +2990,7 @@ export const CompounderDashboard: React.FC = () => {
                         type="time"
                         value={revisitTime}
                         onChange={(e) => setRevisitTime(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-205 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
+                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
                         required
                       />
                     </div>
@@ -3214,7 +3214,7 @@ export const CompounderDashboard: React.FC = () => {
                                 <p className="font-bold text-slate-800">{med.name} ({med.dosage})</p>
                                 <p className="text-[9px] text-slate-600 font-mono">Stock: {med.stock} | HSN: {med.hsn}</p>
                               </div>
-                              <span className="font-mono font-bold text-indigo-650">₹{med.price}</span>
+                              <span className="font-mono font-bold text-indigo-600">₹{med.price}</span>
                             </div>
                           ))}
                         </div>
@@ -3248,7 +3248,7 @@ export const CompounderDashboard: React.FC = () => {
                   {/* Financial Invoice Breakdown */}
                   {billingItems.length > 0 && (
                     <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-2.5 text-xs select-none">
-                      <div className="flex justify-between text-slate-655">
+                      <div className="flex justify-between text-slate-600">
                         <span>Subtotal (Net):</span>
                         <span className="font-semibold">₹{billingTotals.subtotal.toFixed(2)}</span>
                       </div>
@@ -3258,13 +3258,13 @@ export const CompounderDashboard: React.FC = () => {
                           <span>-₹{billingTotals.loyaltyDiscountAmount.toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-slate-655">
+                      <div className="flex justify-between text-slate-600">
                         <span>GST Tax Amount:</span>
                         <span className="font-semibold">₹{billingTotals.gstAmount.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between border-t border-slate-200 pt-2.5 text-sm font-bold text-slate-800">
                         <span>Total Amount Payable:</span>
-                        <span className="text-indigo-650">₹{billingTotals.totalAmount.toFixed(2)}</span>
+                        <span className="text-indigo-600">₹{billingTotals.totalAmount.toFixed(2)}</span>
                       </div>
                     </div>
                   )}
@@ -3378,7 +3378,7 @@ export const CompounderDashboard: React.FC = () => {
                     className={`w-full py-2.5 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
                       (!billingPatient || !billingPatient.name || !billingPatient.phone || billingItems.length === 0)
                         ? 'bg-slate-400 cursor-not-allowed opacity-50'
-                        : 'bg-indigo-650 hover:bg-indigo-600 active:scale-95 shadow-md shadow-indigo-600/10'
+                        : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-md shadow-indigo-600/10'
                     }`}
                   >
                     <span className="material-symbols-outlined text-[14px]">send_to_mobile</span>
@@ -3390,7 +3390,7 @@ export const CompounderDashboard: React.FC = () => {
 
             {/* Right Column: Active Pharmacy Invoices Queue (consultation splits) */}
             <div className="lg:col-span-5 space-y-6">
-              <div className="glass-panel p-6 border-slate-205 shadow-xl relative overflow-hidden bg-white text-slate-800">
+              <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 
                 <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">

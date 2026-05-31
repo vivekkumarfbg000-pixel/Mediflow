@@ -559,7 +559,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     AI Predictive Disease & Pattern Warnings
                   </h4>
                   {riskAlerts.length === 0 ? (
-                    <div className="p-3 bg-slate-800/40 border border-slate-700/30 rounded-xl text-slate-404 text-xs italic">
+                    <div className="p-3 bg-slate-800/40 border border-slate-700/30 rounded-xl text-slate-400 text-xs italic">
                       No critical disease risks flagged based on biomarker trajectories.
                     </div>
                   ) : (
@@ -803,7 +803,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* Prescribe Medications */}
           <div className="space-y-4 text-left border-t border-slate-100 pt-5">
-            <label className="block text-xs font-bold text-slate-650 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
               <span className="material-symbols-outlined text-xs text-primary font-bold">medication</span>
               Prescribe Medications (e-Rx)
             </label>
@@ -881,7 +881,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <button
                   type="button"
                   onClick={handleAddMedication}
-                  className="bg-[#075e54] hover:bg-[#0c4e46] text-white font-bold text-xs px-4 py-2 rounded-xl active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-650-force"
+                  className="bg-[#075e54] hover:bg-[#0c4e46] text-white font-bold text-xs px-4 py-2 rounded-xl active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
                 >
                   <span className="material-symbols-outlined text-xs font-bold text-white-force">add</span>
                   Add to Prescription
@@ -926,7 +926,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   >
                     <div>
                       <span className="font-bold block text-slate-700">{test.name}</span>
-                      <span className="text-[8px] text-slate-404 font-mono mt-1 inline-block uppercase bg-slate-105 border border-slate-200/50 px-1.5 py-0.5 rounded">
+                      <span className="text-[8px] text-slate-400 font-mono mt-1 inline-block uppercase bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded">
                         LOINC: {test.loincCode}
                       </span>
                     </div>
@@ -955,7 +955,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* Pod-to-Pod Network Referral */}
           <div className="border-t border-slate-100 pt-5 mt-5 space-y-3 text-left">
-            <label className="block text-xs font-bold text-slate-650 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
               <span className="material-symbols-outlined text-xs text-primary font-bold">groups</span>
               Refer to Pod Partner Specialist
             </label>

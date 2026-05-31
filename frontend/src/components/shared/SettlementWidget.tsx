@@ -153,7 +153,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
             <span className={`material-symbols-outlined text-base font-bold ${isDark ? 'text-secondary' : 'text-primary'}`}>account_balance</span>
             {displayName} Bank Onboarding (Cashfree splits)
           </h2>
-          <p className={`text-[10px] mt-0.5 ${isDark ? 'text-clinical-400' : 'text-slate-405'}`}>
+          <p className={`text-[10px] mt-0.5 ${isDark ? 'text-clinical-400' : 'text-slate-400'}`}>
             Provide official bank credentials to activate automated UPI payment settlements.
           </p>
         </div>
@@ -191,12 +191,12 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
               <div className="flex items-center gap-2">
                 <h3 className={`text-xs font-bold ${isDark ? 'text-emerald-300' : 'text-slate-800'}`}>Verified Settlement Account</h3>
                 <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                  isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-105 text-emerald-700'
+                  isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700'
                 }`}>Active</span>
               </div>
               <div className={`text-[10px] font-mono mt-1 space-y-0.5 ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>
                 <div>Holder Name: <strong className={isDark ? 'text-white' : 'text-slate-700 font-sans'}>{activeVendor.holder_name}</strong></div>
-                <div>Vendor ID: <strong className={isDark ? 'text-white' : 'text-slate-655'}>{activeVendor.vendor_id}</strong> • Bank Account: <strong className={isDark ? 'text-white' : 'text-slate-655'}>XXXX-XXXX-XXXX-{activeVendor.bank_account_last4}</strong></div>
+                <div>Vendor ID: <strong className={isDark ? 'text-white' : 'text-slate-600'}>{activeVendor.vendor_id}</strong> • Bank Account: <strong className={isDark ? 'text-white' : 'text-slate-600'}>XXXX-XXXX-XXXX-{activeVendor.bank_account_last4}</strong></div>
               </div>
             </div>
           </div>
@@ -213,7 +213,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         </div>
       ) : (
         <div className={`p-8 border border-dashed rounded-2xl text-center space-y-2 ${
-          isDark ? 'border-outline-variant bg-slate-800/20' : 'border-slate-205 bg-slate-50/50'
+          isDark ? 'border-outline-variant bg-slate-800/20' : 'border-slate-200 bg-slate-50/50'
         }`}>
           <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-clinical-500' : 'text-slate-600'}`}>account_balance_wallet</span>
           <div>
@@ -227,7 +227,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
 
       {/* Onboarding Modal */}
       {vendorFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-808">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
           <div className={`glass-panel max-w-md w-full p-6 shadow-2xl relative overflow-hidden space-y-4 rounded-3xl ${
             isDark ? 'bg-white border-slate-200/60 text-white' : 'bg-white border-slate-200 text-slate-800'
           }`}>

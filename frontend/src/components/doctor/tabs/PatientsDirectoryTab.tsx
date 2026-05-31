@@ -182,7 +182,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 >
                   <span className="material-symbols-outlined text-teal-600 text-lg">local_pharmacy</span>
                   <strong className="block text-[11px] text-slate-700 font-semibold">30% Off Medicine Coupon</strong>
-                  <p className="text-[9px] text-slate-404 leading-normal">For repeat glycemic drugs refill orders.</p>
+                  <p className="text-[9px] text-slate-400 leading-normal">For repeat glycemic drugs refill orders.</p>
                 </button>
                 <button
                   onClick={() => api.dispatchWhatsAppLoyaltyOffer(selectedDirectoryPatient.id, 'virtual_appointment')}
@@ -190,7 +190,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 >
                   <span className="material-symbols-outlined text-blue-600 text-lg">video_call</span>
                   <strong className="block text-[11px] text-slate-700 font-semibold">10-Day Virtual Invite</strong>
-                  <p className="text-[9px] text-slate-404 leading-normal">Invite to virtual telemedicine follow-up.</p>
+                  <p className="text-[9px] text-slate-400 leading-normal">Invite to virtual telemedicine follow-up.</p>
                 </button>
                 <button
                   onClick={() => api.dispatchWhatsAppLoyaltyOffer(selectedDirectoryPatient.id, 'quick_booking')}
@@ -198,7 +198,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 >
                   <span className="material-symbols-outlined text-amber-600 text-lg">event_available</span>
                   <strong className="block text-[11px] text-slate-700 font-semibold">Portal Invite Link</strong>
-                  <p className="text-[9px] text-slate-404 leading-normal">Invoice and home lab sample booking portal.</p>
+                  <p className="text-[9px] text-slate-400 leading-normal">Invoice and home lab sample booking portal.</p>
                 </button>
               </div>
             </div>
@@ -226,7 +226,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   {patientRAGSummary}
                 </div>
               ) : (
-                <p className="text-xs text-slate-404 italic">Click Generate Summary to run the RAG diagnostic prompt analyzing the patient chronic history.</p>
+                <p className="text-xs text-slate-400 italic">Click Generate Summary to run the RAG diagnostic prompt analyzing the patient chronic history.</p>
               )}
             </div>
           </div>
@@ -235,7 +235,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             <span className="material-symbols-outlined text-slate-600 text-5xl">group</span>
             <div>
               <h3 className="text-slate-700 font-bold">No Patient Profile Selected</h3>
-              <p className="text-xs text-slate-404 mt-1 max-w-sm">Select an active patient registry profile from the directory on the left to dispatch loyalty rewards or generate chronic summaries.</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm">Select an active patient registry profile from the directory on the left to dispatch loyalty rewards or generate chronic summaries.</p>
             </div>
           </div>
         )}

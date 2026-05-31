@@ -32,7 +32,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       {/* Revenue splits grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="glass-panel p-6 bg-white border-slate-200/85 shadow-sm rounded-2xl">
-          <div className="text-[10px] text-slate-404 uppercase tracking-widest font-bold">Total Earnings</div>
+          <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Total Earnings</div>
           <div className="text-2xl font-bold mt-2 text-slate-900">₹{totalEarnings.toLocaleString()}</div>
           <p className="text-[10px] text-slate-500 mt-1">Consolidated Clinic + Referral Fees</p>
         </div>
@@ -43,7 +43,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         ].map((item, i) => (
           <div key={i} className="glass-panel p-6 bg-white border-slate-200/85 shadow-sm rounded-2xl">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] text-slate-404 uppercase tracking-widest font-bold">{item.label}</span>
+              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{item.label}</span>
               <span className={`material-symbols-outlined text-lg ${item.color}`}>{item.icon}</span>
             </div>
             <div className="text-xl font-bold mt-2 text-slate-850">{item.val}</div>

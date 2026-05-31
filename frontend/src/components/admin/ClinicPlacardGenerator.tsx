@@ -257,7 +257,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
             {/* Instruction Steps */}
             <div className="mt-8 w-full space-y-3.5 text-left bg-white/70 border border-slate-200/50 p-4 rounded-2xl backdrop-blur-md">
               <div className="flex items-start gap-3">
-                <div className={`w-5 h-5 rounded-full bg-white text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
+                <div className={`w-5 h-5 rounded-full ${selectedColor.badge} border ${selectedColor.border} flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
                   1
                 </div>
                 <div>
@@ -267,7 +267,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
               </div>
 
               <div className="flex items-start gap-3">
-                <div className={`w-5 h-5 rounded-full bg-white text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
+                <div className={`w-5 h-5 rounded-full ${selectedColor.badge} border ${selectedColor.border} flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
                   2
                 </div>
                 <div>
@@ -277,7 +277,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
               </div>
 
               <div className="flex items-start gap-3">
-                <div className={`w-5 h-5 rounded-full bg-white text-white flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
+                <div className={`w-5 h-5 rounded-full ${selectedColor.badge} border ${selectedColor.border} flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5`}>
                   3
                 </div>
                 <div>

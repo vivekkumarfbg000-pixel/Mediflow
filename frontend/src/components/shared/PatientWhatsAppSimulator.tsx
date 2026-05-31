@@ -68,17 +68,17 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
     <div className="fixed inset-y-0 right-0 w-full sm:w-[410px] bg-slate-100 border-l border-slate-200/80 shadow-2xl z-[90] flex flex-col justify-between animate-slide-in text-slate-800 font-sans">
       
       {/* Simulator top controller bar */}
-      <div className="p-4 bg-white text-white flex justify-between items-center border-b border-slate-950">
+      <div className="p-4 bg-slate-900 text-white flex justify-between items-center border-b border-slate-950">
         <div className="flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-emerald-400 animate-pulse" />
           <div>
             <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">Mediflow Patient Sandbox</h2>
-            <p className="text-[10px] text-slate-600 mt-0.5">Dual-Screen Conversational Simulator</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Dual-Screen Conversational Simulator</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-slate-850 rounded-lg text-slate-600 hover:text-white transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
         >
           <span className="material-symbols-outlined text-sm font-bold">close</span>
         </button>

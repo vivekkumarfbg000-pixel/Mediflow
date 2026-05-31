@@ -210,19 +210,19 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
               <div className="space-y-4">
                 <div>
                   <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white font-mono">{total}</div>
-                  <div className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Total Requisitions</div>
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Total Requisitions</div>
                 </div>
                 
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-[11px] font-medium">
-                  <div className="flex justify-between items-center text-slate-650 dark:text-slate-350">
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-350">
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Done Today</span>
-                    <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.completedToday}</span>
+                    <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.completedToday}</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-650 dark:text-slate-350">
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-350">
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"/>Processing</span>
-                    <span className="bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.processing}</span>
+                    <span className="bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.processing}</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-650 dark:text-slate-350">
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-350">
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Pending Queue</span>
                     <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{labMetrics.pending}</span>
                   </div>
@@ -252,19 +252,19 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           <div className="space-y-4">
             <div>
               <div className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white font-mono">{pharmacyMetrics.dispensedToday}</div>
-              <div className="text-[10px] text-slate-450 dark:text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Dispensed Today</div>
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Dispensed Today</div>
             </div>
             
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-[11px] font-medium">
-              <div className="flex justify-between items-center text-slate-655 dark:text-slate-350">
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-350">
                 <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>Dispensed</span>
                 <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{pharmacyMetrics.dispensedToday}</span>
               </div>
-              <div className="flex justify-between items-center text-slate-655 dark:text-slate-350">
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-350">
                 <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500"/>Active Holds</span>
                 <span className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{pharmacyMetrics.pendingHolds}</span>
               </div>
-              <div className="flex justify-between items-center text-slate-655 dark:text-slate-350">
+              <div className="flex justify-between items-center text-slate-600 dark:text-slate-350">
                 <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>Low Stock SKU</span>
                 <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-455 font-bold px-2 py-0.5 rounded-full font-mono text-[10px]">{pharmacyMetrics.lowStockItems}</span>
               </div>
@@ -290,7 +290,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-400 opacity-60" />
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-amber-650 text-[20px]">account_balance_wallet</span>
+              <span className="material-symbols-outlined text-amber-600 text-[20px]">account_balance_wallet</span>
               <span className="font-bold text-sm text-amber-950">Revenue Ledger</span>
             </div>
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -344,7 +344,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                 <span className="material-symbols-outlined text-sky-600 text-[16px]">pending_actions</span>
                 Active Consultation Queue
               </h2>
-              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-sky-50 dark:bg-sky-500/10 border border-sky-150/40 dark:border-sky-800/80 text-sky-700 dark:text-sky-400 rounded-full">
+              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-sky-50 dark:bg-sky-500/10 border border-sky-200/40 dark:border-sky-800/80 text-sky-700 dark:text-sky-400 rounded-full">
                 {patients.length} Checked In
               </span>
             </div>
@@ -366,7 +366,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                     {onStartConsultation && (
                       <button
                         onClick={() => onStartConsultation(p)}
-                        className="px-2.5 py-1.5 bg-white hover:bg-indigo-600 hover:text-slate-800 border border-slate-200 hover:border-indigo-650 rounded-lg text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs transition-all cursor-pointer hover:text-slate-800-force"
+                        className="px-2.5 py-1.5 bg-white hover:bg-indigo-600 hover:text-slate-800 border border-slate-200 hover:border-indigo-600 rounded-lg text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-2xs transition-all cursor-pointer hover:text-slate-800-force"
                       >
                         Consult
                       </button>

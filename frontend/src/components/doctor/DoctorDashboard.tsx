@@ -1123,7 +1123,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-650 text-2xl font-bold">clinical_notes</span>
+                <span className="material-symbols-outlined text-indigo-600 text-2xl font-bold">clinical_notes</span>
                 <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider font-sans">Clinical AI Laboratory Analysis Report</h2>
               </div>
               <p className="text-xs text-slate-500 mt-1">Deep Diagnostics audit for patient: <strong className="text-slate-700 font-bold">{selectedPatient?.name}</strong> ({selectedPatient?.age}y, {selectedPatient?.gender})</p>
