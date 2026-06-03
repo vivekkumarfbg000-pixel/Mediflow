@@ -185,108 +185,333 @@ export class BillingService {
   }
 
   static settleSaaSInvoice(invoiceId: string): void {
-    const invoices = this.getInvoices();
-    const inv = invoices.find(i => i.id === invoiceId);
-    if (!inv) return;
-    inv.status = 'paid';
-    save('saas_invoices', invoices);
+    this.recordInvoicePayment(invoiceId);
+    notify();
+  }
 
-    const appt = this.getAppointments().find(a => a.id === inv.appointmentId);
-    if (appt) {
-      if (inv.type === 'consult') {
-        appt.status = 'ready_for_consult';
-        this.saveAppointment(appt);
-        
-        PatientService.updatePatientQueueStatus(appt.patientId, 'awaiting_consultation');
-        
-        const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
-        if (patient) {
-          const sessions = load<any[]>('whatsapp_sessions', []);
-          const existing = sessions.find(s => s.patientPhone === patient.phone);
-          if (existing) {
-            const text = `✅ *Consultation Fee Received!* \n\nPatient has been added to Doctor Vivek's active queue. Please enter the consultation chamber when called.`;
-            const currentHistory = existing.sessionData.chatHistory || [];
-            currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
-            existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
-            save('whatsapp_sessions', sessions);
-            supabase.from('whatsapp_sessions').update({
-              session_data: existing.sessionData,
-              last_interaction: new Date().toISOString()
-            }).eq('patient_phone', patient.phone);
+  static createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number): void {
+    const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    
+    // Check if splits already exist for this invoiceId
+    const exists = ledgerEntries.some(l => l.invoiceId === invoiceId);
+    if (exists) return;
+
+    // Fetch active SOP or use defaults
+    const activeSop = this.getActiveSop();
+    const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
+    const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 3;
+    const splitLab = activeSop?.extractedConfig?.splits?.lab ?? 57;
+
+    const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
+    const listToSave: FinancialLedgerEntry[] = [];
+
+    if (type === 'consult') {
+      const docAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
+      const platformLedger: FinancialLedgerEntry = {
+        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'platform-admin-entity',
+        transactionType: 'platform_fee',
+        grossAmount: amount,
+        commissionRate: splitPlat / 105, // matches commissionRate type bounds
+        netPayout: platformAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+
+      const docLedger: FinancialLedgerEntry = {
+        id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'clinic-admin-entity',
+        transactionType: 'appointment_fee',
+        grossAmount: amount,
+        commissionRate: 1 - splitPlat / 100,
+        netPayout: docAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      listToSave.push(platformLedger, docLedger);
+    } else if (type === 'lab') {
+      const docAmt = parseFloat((amount * (splitDoc / 100)).toFixed(2));
+      const labAmt = parseFloat((amount * (splitLab / 100)).toFixed(2));
+
+      const platformLedger: FinancialLedgerEntry = {
+        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'platform-admin-entity',
+        transactionType: 'platform_fee',
+        grossAmount: amount,
+        commissionRate: splitPlat / 100,
+        netPayout: platformAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+
+      const docLedger: FinancialLedgerEntry = {
+        id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'clinic-admin-entity',
+        transactionType: 'appointment_fee',
+        grossAmount: amount,
+        commissionRate: splitDoc / 100,
+        netPayout: docAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+
+      const labLedger: FinancialLedgerEntry = {
+        id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'lab-partner-entity',
+        transactionType: 'lab_commission',
+        grossAmount: amount,
+        commissionRate: splitLab / 100,
+        netPayout: labAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      listToSave.push(platformLedger, docLedger, labLedger);
+    } else if (type === 'pharmacy') {
+      const pharmaAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
+      const platformLedger: FinancialLedgerEntry = {
+        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'platform-admin-entity',
+        transactionType: 'platform_fee',
+        grossAmount: amount,
+        commissionRate: splitPlat / 100,
+        netPayout: platformAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+
+      const pharmacyLedger: FinancialLedgerEntry = {
+        id: `tx-pharma-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'pharmacy-partner-entity',
+        transactionType: 'medicine_commission',
+        grossAmount: amount,
+        commissionRate: 1 - splitPlat / 100,
+        netPayout: pharmaAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      listToSave.push(platformLedger, pharmacyLedger);
+    }
+
+    if (listToSave.length > 0) {
+      ledgerEntries.unshift(...listToSave);
+      save('financial_ledgers', ledgerEntries);
+
+      // Sync splits to Supabase
+      const dbEntries = listToSave.map(s => ({
+        invoice_id: s.invoiceId.length === 36 ? s.invoiceId : null,
+        source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
+        destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' : (s.destinationEntityId === 'lab-partner-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' : 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004'), // lab or pharmacy
+        transaction_type: s.transactionType,
+        gross_amount: s.grossAmount,
+        commission_rate: s.commissionRate * 100,
+        net_payout: s.netPayout,
+        payment_status: 'cleared',
+        settled_at: new Date().toISOString()
+      }));
+
+      supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {
+        if (error) console.error('Error inserting cash ledger splits in Supabase:', error);
+      });
+    }
+  }
+
+  static recordInvoicePayment(invoiceId: string): void {
+    const saasInvoices = this.getInvoices();
+    const saasInv = saasInvoices.find(i => i.id === invoiceId);
+    
+    const uInvoices = this.getUnifiedInvoices();
+    const uInv = uInvoices.find(i => i.id === invoiceId || (saasInv && i.encounterId === saasInv.appointmentId));
+
+    let resolvedInvoice: any = null;
+    let amount = 0;
+    let type: 'consult' | 'lab' | 'pharmacy' = 'consult';
+    let apptId = '';
+
+    if (saasInv) {
+      saasInv.status = 'paid';
+      save('saas_invoices', saasInvoices);
+      resolvedInvoice = saasInv;
+      amount = saasInv.amount;
+      type = saasInv.type;
+      apptId = saasInv.appointmentId;
+
+      const appt = this.getAppointments().find(a => a.id === saasInv.appointmentId);
+      if (appt) {
+        if (saasInv.type === 'consult') {
+          appt.status = 'ready_for_consult';
+          this.saveAppointment(appt);
+          
+          PatientService.updatePatientQueueStatus(appt.patientId, 'awaiting_consultation');
+          
+          const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
+          if (patient) {
+            const sessions = load<any[]>('whatsapp_sessions', []);
+            const existing = sessions.find(s => s.patientPhone === patient.phone);
+            if (existing) {
+              const text = `✅ *Consultation Fee Received!* \n\nPatient has been added to Doctor Vivek's active queue. Please enter the consultation chamber when called.`;
+              const currentHistory = existing.sessionData.chatHistory || [];
+              currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
+              existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
+              save('whatsapp_sessions', sessions);
+              supabase.from('whatsapp_sessions').update({
+                session_data: existing.sessionData,
+                last_interaction: new Date().toISOString()
+              }).eq('patient_phone', patient.phone);
+            }
+          }
+        } else if (saasInv.type === 'lab') {
+          const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
+          if (rx && rx.extractedTests) {
+            rx.extractedTests.forEach(testName => {
+              const loinc = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase() === testName.toLowerCase())?.loincCode || 'unknown';
+              const reqId = crypto.randomUUID();
+              const requisitions = load<any[]>('lab_requisitions', []);
+              requisitions.push({
+                id: reqId,
+                encounterId: appt.id,
+                patientId: appt.patientId,
+                patientName: PatientService.getPatients().find(p => p.id === appt.patientId)?.name || 'Unknown',
+                testCode: loinc,
+                testName: testName,
+                barcode: `BAR-${appt.id.substring(0, 8).toUpperCase()}-${loinc}`,
+                status: 'pending',
+                prescriptionFileUrl: rx?.prescriptionFileUrl,
+                createdAt: new Date().toISOString()
+              });
+              save('lab_requisitions', requisitions);
+            });
+          }
+          const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
+          if (patient) {
+            const sessions = load<any[]>('whatsapp_sessions', []);
+            const existing = sessions.find(s => s.patientPhone === patient.phone);
+            if (existing) {
+              const text = `✅ *Pathology Lab Fees Settled!* \n\nLab requests have been dispatched to Lab Tech Lalit Prasad. Please proceed to the lab collection counter.`;
+              const currentHistory = existing.sessionData.chatHistory || [];
+              currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
+              existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
+              save('whatsapp_sessions', sessions);
+              supabase.from('whatsapp_sessions').update({
+                session_data: existing.sessionData,
+                last_interaction: new Date().toISOString()
+              }).eq('patient_phone', patient.phone);
+            }
+          }
+        } else if (saasInv.type === 'pharmacy') {
+          appt.status = 'completed';
+          this.saveAppointment(appt);
+          
+          const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
+          if (rx && rx.extractedMedicines) {
+            rx.extractedMedicines.forEach(med => {
+              const holds = load<any[]>('inventory_holds', []);
+              holds.push({
+                id: crypto.randomUUID(),
+                patientId: appt.patientId,
+                medicineName: med.name,
+                dosage: med.dosage,
+                quantity: 10,
+                holdStatus: 'dispensed',
+                expiryDate: '2027-12-31',
+                batchNumber: 'BATCH-2026-X1',
+                createdAt: new Date().toISOString()
+              });
+              save('inventory_holds', holds);
+            });
+          }
+
+          const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
+          if (patient) {
+            const sessions = load<any[]>('whatsapp_sessions', []);
+            const existing = sessions.find(s => s.patientPhone === patient.phone);
+            if (existing) {
+              const text = `✅ *Pharmacy Invoice Paid!* \n\nYour digital invoice has been sent to your WhatsApp. Please show this receipt at the medicine counter to collect your medicines.`;
+              const currentHistory = existing.sessionData.chatHistory || [];
+              currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
+              existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
+              save('whatsapp_sessions', sessions);
+              supabase.from('whatsapp_sessions').update({
+                session_data: existing.sessionData,
+                last_interaction: new Date().toISOString()
+              }).eq('patient_phone', patient.phone);
+            }
           }
         }
-      } else if (inv.type === 'lab') {
-        const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
-        if (rx && rx.extractedTests) {
-          rx.extractedTests.forEach(testName => {
-            const loinc = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase() === testName.toLowerCase())?.loincCode || 'unknown';
-            const reqId = crypto.randomUUID();
-            const requisitions = load<any[]>('lab_requisitions', []);
-            requisitions.push({
-              id: reqId,
-              encounterId: appt.id,
-              patientId: appt.patientId,
-              patientName: PatientService.getPatients().find(p => p.id === appt.patientId)?.name || 'Unknown',
-              testCode: loinc,
-              testName: testName,
-              barcode: `BAR-${appt.id.substring(0, 8).toUpperCase()}-${loinc}`,
-              status: 'pending',
-              prescriptionFileUrl: rx?.prescriptionFileUrl,
-              createdAt: new Date().toISOString()
-            });
-            save('lab_requisitions', requisitions);
-          });
-        }
-        const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
-        if (patient) {
-          const sessions = load<any[]>('whatsapp_sessions', []);
-          const existing = sessions.find(s => s.patientPhone === patient.phone);
-          if (existing) {
-            const text = `✅ *Pathology Lab Fees Settled!* \n\nLab requests have been dispatched to Lab Tech Lalit Prasad. Please proceed to the lab collection counter.`;
-            const currentHistory = existing.sessionData.chatHistory || [];
-            currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
-            existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
-            save('whatsapp_sessions', sessions);
-            supabase.from('whatsapp_sessions').update({
-              session_data: existing.sessionData,
-              last_interaction: new Date().toISOString()
-            }).eq('patient_phone', patient.phone);
-          }
-        }
-      } else if (inv.type === 'pharmacy') {
-        appt.status = 'completed';
-        this.saveAppointment(appt);
-        
-        const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
-        if (rx && rx.extractedMedicines) {
-          rx.extractedMedicines.forEach(med => {
-            const holds = load<any[]>('inventory_holds', []);
-            holds.push({
-              id: crypto.randomUUID(),
-              patientId: appt.patientId,
-              medicineName: med.name,
-              dosage: med.dosage,
-              quantity: 10,
-              holdStatus: 'dispensed',
-              expiryDate: '2027-12-31',
-              batchNumber: 'BATCH-2026-X1',
-              createdAt: new Date().toISOString()
-            });
-            save('inventory_holds', holds);
-          });
-        }
+      }
+    }
 
-        const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
-        if (patient) {
+    if (uInv) {
+      uInv.paymentStatus = 'cleared';
+      save('unified_invoices', uInvoices);
+      if (!resolvedInvoice) {
+        resolvedInvoice = uInv;
+        amount = uInv.totalAmount;
+        apptId = uInv.encounterId;
+        if (uInv.doctorFee > 0) type = 'consult';
+        else if (uInv.labFee > 0) type = 'lab';
+        else if (uInv.pharmacyFee > 0) type = 'pharmacy';
+      }
+    }
+
+    if (resolvedInvoice) {
+      this.createLedgerSplitsForInvoiceFields(invoiceId, apptId, type, amount);
+    }
+  }
+
+  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true): Promise<void> {
+    const { error } = await supabase.from('unified_invoices')
+      .update({ payment_status: 'paid' })
+      .eq('id', invoiceId);
+    if (error) {
+      console.error('[Mediflow API] markInvoicePaid error:', error);
+      throw error;
+    }
+    writeAuditLog('INVOICE_PAID', { invoiceId }, invoiceId);
+    
+    // Process local status transitions and create ledger splits
+    this.recordInvoicePayment(invoiceId);
+
+    if (sendWhatsApp) {
+      const { data: inv } = await supabase.from('unified_invoices')
+        .select('patient_id')
+        .eq('id', invoiceId)
+        .single();
+      if (inv?.patient_id) {
+        const { data: patient } = await supabase.from('patient_registry')
+          .select('phone')
+          .eq('id', inv.patient_id)
+          .single();
+        if (patient?.phone) {
+          // Trigger mock whatsapp message send payload
           const sessions = load<any[]>('whatsapp_sessions', []);
           const existing = sessions.find(s => s.patientPhone === patient.phone);
           if (existing) {
-            const text = `✅ *Pharmacy Invoice Paid!* \n\nYour digital invoice has been sent to your WhatsApp. Please show this receipt at the medicine counter to collect your medicines.`;
             const currentHistory = existing.sessionData.chatHistory || [];
-            currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
+            currentHistory.push({ sender: 'bot', text: `Invoice MF-INV-${invoiceId.substring(0,4)} is marked PAID.`, time: new Date().toISOString() });
             existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
             save('whatsapp_sessions', sessions);
-            supabase.from('whatsapp_sessions').update({
+            await supabase.from('whatsapp_sessions').update({
               session_data: existing.sessionData,
               last_interaction: new Date().toISOString()
             }).eq('patient_phone', patient.phone);
@@ -294,7 +519,6 @@ export class BillingService {
         }
       }
     }
-    notify();
   }
 
   static async runSaaSPrescriptionOCR(appointmentId: string, file: File | string): Promise<Prescription> {
@@ -379,44 +603,6 @@ export class BillingService {
     }
     writeAuditLog('INVOICE_CREATED', { invoiceId: data.id, type, amount }, data.id);
     return data.id;
-  }
-
-  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true): Promise<void> {
-    const { error } = await supabase.from('unified_invoices')
-      .update({ payment_status: 'paid' })
-      .eq('id', invoiceId);
-    if (error) {
-      console.error('[Mediflow API] markInvoicePaid error:', error);
-      throw error;
-    }
-    writeAuditLog('INVOICE_PAID', { invoiceId }, invoiceId);
-    if (sendWhatsApp) {
-      const { data: inv } = await supabase.from('unified_invoices')
-        .select('patient_id')
-        .eq('id', invoiceId)
-        .single();
-      if (inv?.patient_id) {
-        const { data: patient } = await supabase.from('patient_registry')
-          .select('phone')
-          .eq('id', inv.patient_id)
-          .single();
-        if (patient?.phone) {
-          // Trigger mock whatsapp message send payload
-          const sessions = load<any[]>('whatsapp_sessions', []);
-          const existing = sessions.find(s => s.patientPhone === patient.phone);
-          if (existing) {
-            const currentHistory = existing.sessionData.chatHistory || [];
-            currentHistory.push({ sender: 'bot', text: `Invoice MF-INV-${invoiceId.substring(0,4)} is marked PAID.`, time: new Date().toISOString() });
-            existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
-            save('whatsapp_sessions', sessions);
-            await supabase.from('whatsapp_sessions').update({
-              session_data: existing.sessionData,
-              last_interaction: new Date().toISOString()
-            }).eq('patient_phone', patient.phone);
-          }
-        }
-      }
-    }
   }
 
   static getClinicSops(): ClinicSop[] {

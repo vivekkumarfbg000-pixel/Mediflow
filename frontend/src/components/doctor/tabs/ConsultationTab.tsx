@@ -335,6 +335,15 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
           </div>
 
+          {/* Handwritten prescription workflow notice */}
+          <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-start gap-2.5 my-3">
+            <span className="material-symbols-outlined text-indigo-600 text-lg mt-0.5">edit_note</span>
+            <div className="text-[10px] text-indigo-950 leading-relaxed">
+              <strong className="font-bold text-[11px] text-indigo-950 block mb-0.5">Handwritten Rx Support Enabled</strong>
+              Prefer paper? Write the prescription by hand as usual. The compounder will scan it at the counter, and our clinical AI will automatically reserve medicine inventory and queue pathology tests.
+            </div>
+          </div>
+
           {/* Virtual Appointment Timing Allocator */}
           {(() => {
             const patientAppts = appointments.filter(a => a.patientId === selectedPatient.id);

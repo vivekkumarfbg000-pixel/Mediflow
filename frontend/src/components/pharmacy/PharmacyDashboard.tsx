@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
+import { supabase } from '../../lib/supabaseClient';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { generateSpectaclePdfCard } from '../../utils/pdfGenerator';
 import type { InventoryHold, SeasonalForecast, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
@@ -19,15 +20,71 @@ import {
   Download,
   AlertCircle,
   History,
-  Coins
+  Coins,
+  Settings
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
 
 export const PharmacyDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
-  const { activePod, activeEntity, podEntities } = useClinic();
-  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand' | 'settlements' | 'pod_connect'>('prescription_queue');
+  const { activePod, activeEntity, podEntities, refreshClinic } = useClinic();
+  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand' | 'settlements' | 'pod_connect' | 'profile_settings'>('prescription_queue');
+
+  // Pharmacy Profile Settings States
+  const [profileName, setProfileName] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileAddress, setProfileAddress] = useState('');
+  const [profileGstin, setProfileGstin] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (activeEntity) {
+      setProfileName(activeEntity.name || '');
+      setProfilePhone(activeEntity.phone || '');
+      setProfileAddress(activeEntity.address || '');
+      setProfileGstin(activeEntity.gstin || '');
+    }
+  }, [activeEntity]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeEntity) return;
+    setIsSavingProfile(true);
+    try {
+      const { error } = await supabase
+        .from('entities')
+        .update({
+          name: profileName.trim(),
+          phone: profilePhone.trim() || null,
+          address: profileAddress.trim() || null,
+          gstin: profileGstin.trim() || null
+        })
+        .eq('id', activeEntity.id);
+
+      if (error) throw error;
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Profile Updated',
+          message: 'Pharmacy profile and GSTIN updated successfully.',
+          type: 'success'
+        }
+      }));
+      await refreshClinic();
+    } catch (err: any) {
+      console.error('[Pharmacy Profile] Save failed:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Update Failed',
+          message: err.message || 'Failed to update profile details.',
+          type: 'error'
+        }
+      }));
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
   const [inventory, setInventory] = useState<PharmacyInventoryItem[]>([]);
   const [holds, setHolds] = useState<InventoryHold[]>([]);
   const [forecasts, setForecasts] = useState<SeasonalForecast[]>([]);
@@ -698,6 +755,18 @@ export const PharmacyDashboard: React.FC = () => {
           <span className="material-symbols-outlined text-sm">hub</span>
           Pod Interconnect
         </button>
+
+        <button
+          onClick={() => setActiveTab('profile_settings')}
+          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
+            activeTab === 'profile_settings'
+              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <span className="material-symbols-outlined text-sm">settings</span>
+          Profile & GSTIN
+        </button>
       </div>
 
       {/* TAB CONTENT AREAS */}
@@ -942,7 +1011,10 @@ export const PharmacyDashboard: React.FC = () => {
                             <div className="flex justify-between items-center pt-2">
                               <div>
                                 <span className="text-[9px] text-slate-500 block font-mono">Invoice: {invoice.id.substring(0, 8)}...</span>
-                                <span className="text-xs font-black text-white">Amount Verified: ₹{invoice.amount}</span>
+                                {activeEntity?.gstin && (
+                                  <span className="text-[9.5px] text-indigo-600 block font-mono font-bold">GSTIN: {activeEntity.gstin}</span>
+                                )}
+                                <span className="text-xs font-black text-slate-800">Amount Verified: ₹{invoice.amount}</span>
                               </div>
                               <button
                                 onClick={() => {
@@ -1552,6 +1624,75 @@ export const PharmacyDashboard: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'profile_settings' && (
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6 bg-white text-slate-800">
+            <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-855 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-600 text-base">settings</span>
+                  Pharmacy Profile & Settings
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manage your Pharmacy entity settings, including your GST number for patient billing.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4 max-w-lg text-left">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Pharmacy Name</label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">GSTIN (GST Number)</label>
+                  <input
+                    type="text"
+                    value={profileGstin}
+                    onChange={(e) => setProfileGstin(e.target.value)}
+                    placeholder="e.g. 27AAAAA1111A1Z1"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">Address</label>
+                <textarea
+                  value={profileAddress}
+                  onChange={(e) => setProfileAddress(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSavingProfile}
+                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md border-0 outline-none"
+              >
+                {isSavingProfile ? 'Saving...' : 'Save Profile Changes'}
+              </button>
+            </form>
+          </div>
+        )}
+
       </div>
 
       {/* V2.0 PREMIUM LASER BARCODE SCANNER SIMULATION MODAL */}
@@ -2109,8 +2250,8 @@ export const PharmacyDashboard: React.FC = () => {
                 const isNear = !isExp && new Date(i.expiryDate) < new Date(Date.now() + 30 * 24 * 3600000);
                 return isExp || isNear;
               }).length },
-            { id: 'ai_demand', label: 'Demand AI', icon: Lightbulb },
-            { id: 'settlements', label: 'Ledger', icon: Coins }
+            { id: 'settlements', label: 'Ledger', icon: Coins },
+            { id: 'profile_settings', label: 'Settings', icon: Settings }
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

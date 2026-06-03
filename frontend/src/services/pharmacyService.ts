@@ -8,7 +8,8 @@ import type {
   MedicineBill, 
   CounterTransaction,
   WhatsAppDrugOrder,
-  MedicineImportRow
+  MedicineImportRow,
+  FinancialLedgerEntry
 } from '../types';
 
 export class PharmacyService {
@@ -351,6 +352,81 @@ export class PharmacyService {
       this.savePharmacyInventory(inventory);
       bills[billIndex] = bill;
       save('medicine_bills', bills);
+
+      // Record splits for pharmacy cash payments!
+      const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+      const exists = ledgerEntries.some(l => l.invoiceId === id);
+      if (!exists) {
+        const sops = load<any[]>('clinic_sops', []);
+        const activeSop = sops.find(s => s.isActive) || null;
+        const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 3;
+        
+        const amount = bill.totalAmount;
+        const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
+        const pharmaAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
+
+        const platformLedger: FinancialLedgerEntry = {
+          id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+          invoiceId: id,
+          sourceEntityId: 'clinic-admin-entity',
+          destinationEntityId: 'platform-admin-entity',
+          transactionType: 'platform_fee',
+          grossAmount: amount,
+          commissionRate: splitPlat / 100,
+          netPayout: platformAmt,
+          paymentStatus: 'cleared',
+          settledAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+
+        const pharmacyLedger: FinancialLedgerEntry = {
+          id: `tx-pharma-${crypto.randomUUID().substring(0, 8)}`,
+          invoiceId: id,
+          sourceEntityId: 'clinic-admin-entity',
+          destinationEntityId: 'pharmacy-partner-entity',
+          transactionType: 'medicine_commission',
+          grossAmount: amount,
+          commissionRate: 1 - splitPlat / 100,
+          netPayout: pharmaAmt,
+          paymentStatus: 'cleared',
+          settledAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+
+        ledgerEntries.unshift(platformLedger, pharmacyLedger);
+        save('financial_ledgers', ledgerEntries);
+
+        // Sync splits to Supabase
+        const dbEntries = [
+          {
+            invoice_id: id.length === 36 ? id : null,
+            source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
+            destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic-admin/platform-admin mapping
+            transaction_type: 'platform_fee',
+            gross_amount: amount,
+            commission_rate: splitPlat,
+            net_payout: platformAmt,
+            payment_status: 'cleared',
+            settled_at: new Date().toISOString()
+          },
+          {
+            invoice_id: id.length === 36 ? id : null,
+            source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
+            destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004', // pharmacy
+            transaction_type: 'medicine_commission',
+            gross_amount: amount,
+            commission_rate: 100 - splitPlat,
+            net_payout: pharmaAmt,
+            payment_status: 'cleared',
+            settled_at: new Date().toISOString()
+          }
+        ];
+
+        supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {
+          if (error) console.error('Error inserting pharmacy cash ledger splits in Supabase:', error);
+        });
+      }
+
       notify();
       writeAuditLog('medicine_bill_dispensed', { billId: id }, bill.patientId);
     }
@@ -403,11 +479,13 @@ export class PharmacyService {
       ? `\n🚚 Shiprocket Delivery: ₹${bill.deliveryCharge?.toFixed(2)} to ${bill.deliveryAddress}`
       : '\n🚶 Counter Pickup: ₹0.00';
 
+    const gstinText = bill.pharmacyGstin ? `\nPharmacy GSTIN: *${bill.pharmacyGstin}*` : '';
+
     return `🏥 *MEDIFLOW PHARMACY INVOICE*
 ----------------------------------------
 Patient Name: *${bill.patientName}*
 Invoice Ref: #${bill.id.substring(4, 10).toUpperCase()}
-Date: ${new Date(bill.createdAt).toLocaleDateString()}
+Date: ${new Date(bill.createdAt).toLocaleDateString()}${gstinText}
 
 *Medicines Ordered:*
 ${itemsList}

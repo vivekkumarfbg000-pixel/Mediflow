@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
 import { useSpecialization } from '../../context/SpecializationContext';
+import { useClinic } from '../../context/ClinicContext';
 import { VISUAL_ACUITY_OPTIONS } from '../../types/ophthalmic';
 import type {
   PharmacyInventoryItem,
@@ -71,6 +72,7 @@ const getBilingualInstruction = (medicineName: string, dosage?: string) => {
 
 export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
+  const { podEntities } = useClinic();
   const [activeTab, setActiveTab] = useState<'intake' | 'tokens' | 'labs' | 'pharmacy'>('intake');
 
   // Active patient in care loop
@@ -776,12 +778,14 @@ export const CompounderDashboard: React.FC = () => {
   const handleGenerateInvoice = async (mode: 'whatsapp' | 'cash') => {
     if (!billingPatient || billingItems.length === 0) return;
 
+    const pharmacyGstin = podEntities.find(pe => pe.entityType === 'pharmacy' && pe.status === 'approved')?.gstin;
     const billId = `bill-${Date.now()}`;
     const bill: MedicineBill = {
       id: billId,
       patientId: billingPatient.id,
       patientName: billingPatient.name,
       patientPhone: billingPatient.phone,
+      pharmacyGstin: pharmacyGstin,
       items: billingItems,
       subtotal: billingTotals.subtotal,
       loyaltyDiscountPercent: billingTotals.loyaltyDiscountPercent,
@@ -2157,6 +2161,16 @@ export const CompounderDashboard: React.FC = () => {
                           patientName={patient?.name ?? 'Unknown Patient'}
                           amount={invoice.amount}
                           status={invoice.status}
+                          onPay={invoice.status === 'unpaid' ? () => {
+                            api.markInvoicePaid(invoice.id);
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Consultation Fee Settled ✅',
+                                message: `Consultation fee of ₹${invoice.amount} paid at counter in Cash. Patient routed to consult queue.`,
+                                type: 'success'
+                              }
+                            }));
+                          } : undefined}
                         />
                       );
                     })
@@ -2182,6 +2196,14 @@ export const CompounderDashboard: React.FC = () => {
                 <p className="text-xs text-slate-500 mb-4">
                   Upload or scan a doctor's prescription. Clinical AI OCR will automatically extract patient credentials, match or register them, and send a requisition to the lab queue.
                 </p>
+
+                {/* Handwritten Rx Workflow Alert */}
+                <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-2 mb-4">
+                  <span className="material-symbols-outlined text-indigo-600 text-sm mt-0.5">info</span>
+                  <div className="text-[10px] text-indigo-900 leading-relaxed text-left">
+                    <span className="font-bold">Handwritten Rx Workflow:</span> Capture/upload the doctor's paper prescription here. The AI will extract the parameters and populate the lab/medicine queues automatically.
+                  </div>
+                </div>
 
                 <div className="space-y-4">
                   {/* File Upload Area */}
@@ -2628,6 +2650,15 @@ export const CompounderDashboard: React.FC = () => {
                           {!prescription ? (
                             <div className="space-y-3">
                               <p className="text-[10px] text-slate-500">Upload or scan the doctor's handwritten/printed prescription to run AI OCR and auto-generate invoices.</p>
+                              
+                              {/* Handwritten Rx Scanner Alert */}
+                              <div className="p-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-2">
+                                <span className="material-symbols-outlined text-indigo-650 text-sm mt-0.5">info</span>
+                                <div className="text-[10px] text-indigo-900 leading-relaxed text-left">
+                                  <span className="font-bold">Handwritten Rx Workflow:</span> Capture/upload the doctor's paper prescription here. The AI will extract the parameters and populate the lab/medicine queues automatically.
+                                </div>
+                              </div>
+
                               <div className="flex items-center gap-3">
                                 <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
                                   <Upload className="h-5 w-5 text-indigo-600" />
@@ -3358,6 +3389,12 @@ export const CompounderDashboard: React.FC = () => {
                   {/* Financial Invoice Breakdown */}
                   {billingItems.length > 0 && (
                     <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-2.5 text-xs select-none">
+                      {podEntities.find(pe => pe.entityType === 'pharmacy' && pe.status === 'approved')?.gstin && (
+                        <div className="flex justify-between text-[10.5px] text-slate-500 font-mono border-b border-slate-200 pb-1.5 mb-1.5">
+                          <span>Pharmacy GSTIN:</span>
+                          <span className="font-bold">{podEntities.find(pe => pe.entityType === 'pharmacy' && pe.status === 'approved')?.gstin}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-slate-600">
                         <span>Subtotal (Net):</span>
                         <span className="font-semibold">₹{billingTotals.subtotal.toFixed(2)}</span>
@@ -3386,12 +3423,14 @@ export const CompounderDashboard: React.FC = () => {
                     onClick={async () => {
                       if (!billingPatient || billingItems.length === 0) return;
                       
+                      const pharmacyGstin = podEntities.find(pe => pe.entityType === 'pharmacy' && pe.status === 'approved')?.gstin;
                       const billId = `bill-${Date.now()}`;
                       const bill: MedicineBill = {
                         id: billId,
                         patientId: billingPatient.id,
                         patientName: billingPatient.name,
                         patientPhone: billingPatient.phone,
+                        pharmacyGstin: pharmacyGstin,
                         items: billingItems,
                         subtotal: billingTotals.subtotal,
                         loyaltyDiscountPercent: billingTotals.loyaltyDiscountPercent,

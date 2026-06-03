@@ -310,6 +310,7 @@ export interface MedicineBill {
   patientName: string;
   patientPhone: string;
   encounterId?: string;             // linked prescription encounter if any
+  pharmacyGstin?: string;           // GSTIN of the dispensing pharmacy
   items: MedicineBillItem[];
   subtotal: number;
   loyaltyDiscountPercent: number;   // 0 or 10
