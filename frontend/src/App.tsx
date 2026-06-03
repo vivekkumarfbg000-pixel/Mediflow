@@ -487,11 +487,28 @@ export default function App() {
     };
 
     window.addEventListener('mediflow-toast', handleToast);
+
+    const handleProfileUpdate = () => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+            .then(({ data: profile }) => {
+              if (profile) setActiveProfile(profile);
+            });
+        }
+      });
+    };
+    window.addEventListener('mediflow-profile-updated', handleProfileUpdate);
     
     return () => {
       active = false;
       subscription.unsubscribe();
       window.removeEventListener('mediflow-toast', handleToast);
+      window.removeEventListener('mediflow-profile-updated', handleProfileUpdate);
     };
   }, []);
 

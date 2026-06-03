@@ -4,6 +4,7 @@ import { useSpecialization } from '../../context/SpecializationContext';
 
 import { 
   UserPlus, 
+  User,
   Stethoscope, 
   Beaker, 
   ShoppingBag, 
@@ -20,6 +21,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
+import { ProfileSettingsModal } from './ProfileSettingsModal';
 
 export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient';
 
@@ -57,6 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     const handleDoctorTabChange = (e: Event) => {
@@ -503,6 +506,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </div>
                       </div>
 
+                      {/* Profile & Partners settings button */}
+                      <button
+                        onClick={() => setIsProfileModalOpen(true)}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 hover:text-indigo-850 rounded-md transition-all duration-200 font-semibold text-[10px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                      >
+                        <User className="h-3.5 w-3.5 text-indigo-600" />
+                        Profile & Partners
+                      </button>
+
                       {/* Relocated Log Out Button */}
                       <button
                         onClick={onSignOut}
@@ -872,6 +884,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </div>
                         </div>
 
+                        {/* Profile & Partners settings button */}
+                        <button
+                          onClick={() => {
+                            setIsProfileModalOpen(true);
+                            setIsMobileDrawerOpen(false);
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 hover:text-indigo-850 rounded-md transition-all duration-200 font-semibold text-[10px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                        >
+                          <User className="h-3.5 w-3.5 text-indigo-600" />
+                          Profile & Partners
+                        </button>
+
                         {/* Relocated Log Out Button */}
                         <button
                           onClick={() => {
@@ -945,6 +969,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       )}
+
+      <ProfileSettingsModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
     </>
   );
 };
