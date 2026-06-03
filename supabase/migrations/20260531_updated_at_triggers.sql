@@ -157,26 +157,38 @@ CREATE TRIGGER trg_seasonal_forecasts_updated_at
 -- 14. Numeric field constraints (prevent negative amounts)
 
 -- Invoices: fees must be non-negative
+ALTER TABLE public.unified_invoices DROP CONSTRAINT IF EXISTS chk_invoice_doctor_fee;
+ALTER TABLE public.unified_invoices DROP CONSTRAINT IF EXISTS chk_invoice_lab_fee;
+ALTER TABLE public.unified_invoices DROP CONSTRAINT IF EXISTS chk_invoice_pharmacy_fee;
+ALTER TABLE public.unified_invoices DROP CONSTRAINT IF EXISTS chk_invoice_platform_fee;
+ALTER TABLE public.unified_invoices DROP CONSTRAINT IF EXISTS chk_invoice_total;
+
 ALTER TABLE public.unified_invoices
-  ADD CONSTRAINT IF NOT EXISTS chk_invoice_doctor_fee CHECK (doctor_fee >= 0),
-  ADD CONSTRAINT IF NOT EXISTS chk_invoice_lab_fee CHECK (lab_fee >= 0),
-  ADD CONSTRAINT IF NOT EXISTS chk_invoice_pharmacy_fee CHECK (pharmacy_fee >= 0),
-  ADD CONSTRAINT IF NOT EXISTS chk_invoice_platform_fee CHECK (platform_fee >= 0),
-  ADD CONSTRAINT IF NOT EXISTS chk_invoice_total CHECK (total_amount >= 0);
+  ADD CONSTRAINT chk_invoice_doctor_fee CHECK (doctor_fee >= 0),
+  ADD CONSTRAINT chk_invoice_lab_fee CHECK (lab_fee >= 0),
+  ADD CONSTRAINT chk_invoice_pharmacy_fee CHECK (pharmacy_fee >= 0),
+  ADD CONSTRAINT chk_invoice_platform_fee CHECK (platform_fee >= 0),
+  ADD CONSTRAINT chk_invoice_total CHECK (total_amount >= 0);
 
 -- Financial ledgers: amounts must be positive
+ALTER TABLE public.financial_ledgers DROP CONSTRAINT IF EXISTS chk_ledger_gross;
+ALTER TABLE public.financial_ledgers DROP CONSTRAINT IF EXISTS chk_ledger_net;
+ALTER TABLE public.financial_ledgers DROP CONSTRAINT IF EXISTS chk_ledger_commission;
+
 ALTER TABLE public.financial_ledgers
-  ADD CONSTRAINT IF NOT EXISTS chk_ledger_gross CHECK (gross_amount > 0),
-  ADD CONSTRAINT IF NOT EXISTS chk_ledger_net CHECK (net_payout >= 0),
-  ADD CONSTRAINT IF NOT EXISTS chk_ledger_commission CHECK (commission_rate >= 0 AND commission_rate <= 100);
+  ADD CONSTRAINT chk_ledger_gross CHECK (gross_amount > 0),
+  ADD CONSTRAINT chk_ledger_net CHECK (net_payout >= 0),
+  ADD CONSTRAINT chk_ledger_commission CHECK (commission_rate >= 0 AND commission_rate <= 100);
 
 -- Pharmacy inventory: stock can't be negative
+ALTER TABLE public.pharmacy_inventory DROP CONSTRAINT IF EXISTS chk_pharmacy_stock;
 ALTER TABLE public.pharmacy_inventory
-  ADD CONSTRAINT IF NOT EXISTS chk_pharmacy_stock CHECK (stock >= 0);
+  ADD CONSTRAINT chk_pharmacy_stock CHECK (stock >= 0);
 
 -- Inventory holds: quantity must be positive
+ALTER TABLE public.inventory_holds DROP CONSTRAINT IF EXISTS chk_hold_quantity;
 ALTER TABLE public.inventory_holds
-  ADD CONSTRAINT IF NOT EXISTS chk_hold_quantity CHECK (quantity > 0);
+  ADD CONSTRAINT chk_hold_quantity CHECK (quantity > 0);
 
 -- 15. Backfill updated_at for existing rows (set to created_at value)
 
