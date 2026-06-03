@@ -298,13 +298,16 @@ export class PharmacyService {
         subtotal: bill.subtotal,
         loyalty_discount_percent: bill.loyaltyDiscountPercent,
         loyalty_discount_amount: bill.loyaltyDiscountAmount,
+        item_discount_amount: bill.itemDiscountAmount || 0,
+        gst_amount: bill.gstAmount || 0,
         total_amount: bill.totalAmount,
-        payment_mode: bill.paymentMode,
-        status: bill.status,
-        source: bill.source
+        payment_mode: (bill.paymentMode as string) || 'cash', // fallback prevents DB check constraint violation
+        status: bill.status || 'draft',
+        source: bill.source || 'counter'
       }).then(({ error }) => {
         if (error) console.error('Error saving bill in Supabase:', error);
       });
+
     }
 
     return bill;

@@ -37,17 +37,27 @@ export function save<T>(key: string, value: T): void {
 export async function writeAuditLog(actionType: string, details: Record<string, any> = {}, entityId: string | null = null): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('activity_logs').insert({
-      actor_id: user?.id || null,
+    // Skip audit log if no authenticated user — RLS blocks anon inserts
+    if (!user?.id) {
+      console.debug('[Mediflow Audit] Skipping audit log (no authenticated user):', actionType);
+      return;
+    }
+    const { error } = await supabase.from('activity_logs').insert({
+      actor_id: user.id,
       action_type: actionType,
-      entity_id: entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Seeded clinic
+      entity_id: entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Seeded clinic entity
+      pod_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001', // Seeded pod (satisfies NOT NULL)
       details: {
         ...details,
         simulated_role: state.simulatedRole,
         timestamp: new Date().toISOString()
       }
     });
+    if (error) {
+      // Log but don't throw — audit failures should not crash clinical workflows
+      console.warn('[Mediflow Audit] Non-fatal audit log error:', error.message);
+    }
   } catch (e) {
-    console.error('[Mediflow DevSecOps] Failed to write audit log:', e);
+    console.warn('[Mediflow DevSecOps] Failed to write audit log (non-fatal):', e);
   }
 }

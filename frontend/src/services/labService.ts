@@ -138,14 +138,15 @@ export class LabService {
         }
         writeAuditLog('lab_result_submitted', { reqId, resultValue }, reqId);
 
+        const patient = PatientService.getPatients().find(p => p.id === req.patientId);
         await supabase.from('lab_reports').insert({
           requisition_id: reqId,
           patient_id: req.patientId,
-          submitted_by: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102', // Lalit Prasad
-          result_value: resultValue,
-          is_verified: true,
-          verified_by: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102'
+          patient_name: patient?.name || req.patientName || 'Unknown',
+          biomarker_json: { testCode: req.testCode, testName: req.testName, resultValue },
+          status: 'approved' // lab tech submit = auto-approved at technician level
         });
+
       });
     }
   }
@@ -207,6 +208,7 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
+      lab_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003', // Seeded lab entity
       loinc_code: testCode,
       test_name: testName,
       barcode,
@@ -327,6 +329,10 @@ export class LabService {
       ledgerEntries.unshift(docLedger, platformLedger, labLedger);
       save('financial_ledgers', ledgerEntries);
 
+      // Only sync to Supabase if there's a real UUID invoice reference
+      // Pathology report ledger entries use local-only IDs (inv-rep-xxx) that are not real UUIDs
+      // Skip Supabase sync to avoid FK constraint violations on financial_ledgers.invoice_id
+
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Lab Report Approved! 🧪',
@@ -394,6 +400,7 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
+      lab_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003', // Seeded lab entity
       loinc_code: testCode,
       test_name: testName,
       barcode,

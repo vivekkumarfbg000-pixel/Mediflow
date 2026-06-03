@@ -17,13 +17,16 @@ export class BillingService {
       invoices[idx].paymentStatus = 'cleared';
       save('unified_invoices', invoices);
 
+      const inv = invoices[idx];
+      const invoiceAmount = inv.totalAmount || 500;
+
       const sessions = load<any[]>('whatsapp_sessions', []);
-      const session = sessions.find(s => s.patientPhone === invoices[idx].patientPhone);
+      const session = sessions.find(s => s.patientPhone === inv.patientPhone);
       if (session?.sessionData?.referral) {
         const ref = session.sessionData.referral;
         const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
         
-        const platformAmt = Math.max(10.00, parseFloat((500 * 0.03).toFixed(2)));
+        const platformAmt = parseFloat((invoiceAmount * 0.03).toFixed(2));
         
         const referralLedger: FinancialLedgerEntry = {
           id: `tx-ref-${crypto.randomUUID().substring(0, 8)}`,
@@ -31,9 +34,9 @@ export class BillingService {
           sourceEntityId: 'clinic-admin-entity',
           destinationEntityId: 'clinic-admin-entity',
           transactionType: 'appointment_fee',
-          grossAmount: 500,
+          grossAmount: invoiceAmount,
           commissionRate: 0.10,
-          netPayout: ref.referralCommissionAmt || 50.00,
+          netPayout: ref.referralCommissionAmt || parseFloat((invoiceAmount * 0.10).toFixed(2)),
           paymentStatus: 'cleared',
           settledAt: new Date().toISOString(),
           createdAt: new Date().toISOString()
@@ -45,7 +48,7 @@ export class BillingService {
           sourceEntityId: 'clinic-admin-entity',
           destinationEntityId: 'platform-admin-entity',
           transactionType: 'platform_fee',
-          grossAmount: 500,
+          grossAmount: invoiceAmount,
           commissionRate: 0.03,
           netPayout: platformAmt,
           paymentStatus: 'cleared',
@@ -64,9 +67,9 @@ export class BillingService {
           source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'appointment_fee',
-          gross_amount: 500,
+          gross_amount: invoiceAmount,
           commission_rate: 10,
-          net_payout: 50.00,
+          net_payout: referralLedger.netPayout,
           payment_status: 'cleared',
           settled_at: new Date().toISOString()
         };
@@ -75,7 +78,7 @@ export class BillingService {
           source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'platform_fee',
-          gross_amount: 500,
+          gross_amount: invoiceAmount,
           commission_rate: 3,
           net_payout: platformAmt,
           payment_status: 'cleared',
@@ -88,14 +91,15 @@ export class BillingService {
       }
 
       supabase.from('unified_invoices').update({
-        payment_status: 'cleared',
-        paid_at: new Date().toISOString()
+        payment_status: 'cleared'
       }).eq('id', invoiceId).then(({ error }) => {
         if (error) console.error('Error clearing invoice payment in Supabase:', error);
         else writeAuditLog('invoice_payment_cleared', { invoiceId }, invoiceId);
       });
+
     }
   }
+
 
   static getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
     const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);

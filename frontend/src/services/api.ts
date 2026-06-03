@@ -399,12 +399,12 @@ class MediflowApiService {
               allergies: payload.allergies,
               chronic_conditions: payload.chronicConditions,
               abha_id: payload.abhaId,
-              registered_by: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
               registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
             });
             if (error) throw error;
             break;
           }
+
           case 'REGISTER_WALKIN_LAB': {
             const { payload } = entry;
             const { error } = await supabase.from('lab_requisitions').insert({

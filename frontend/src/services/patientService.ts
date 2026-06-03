@@ -128,7 +128,7 @@ export class PatientService {
     const staffList = load<any[]>('clinic_staff', []);
     const activeStaffId = load<string | null>('active_staff_id', null);
     const activeStaff = staffList.find(s => s.id === activeStaffId);
-    const registeredBy = activeStaff?.userId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101';
+
 
     supabase.from('patient_registry').insert({
       id: newPatient.id,
@@ -139,7 +139,6 @@ export class PatientService {
       allergies: newPatient.allergies,
       chronic_conditions: newPatient.chronicConditions,
       abha_id: newPatient.abhaId,
-      registered_by: registeredBy,
       registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
     }).then(({ error }) => {
       if (error) console.error('Error registering patient in Supabase:', JSON.stringify({ message: error.message, details: error.details, hint: error.hint, code: error.code }));
@@ -150,6 +149,7 @@ export class PatientService {
         registeredByStaffName: activeStaff?.staffName || 'System'
       }, newPatient.id);
     });
+
 
     return newPatient;
   }
