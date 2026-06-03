@@ -279,9 +279,30 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <span className="material-symbols-outlined text-2xl">lock</span>
               </div>
               <h3 className="text-slate-800 font-bold text-sm mb-2">Compliance Lock: Active Consent Missing</h3>
-              <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-4">
-                Access to clinical records, diagnostics ordering, and medication prescribing is locked. Please direct the patient to reply <strong className="text-secondary font-mono">"1" (Grant Access)</strong> on their WhatsApp simulator interface.
+              <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-5">
+                Access to clinical records, diagnostics ordering, and medication prescribing is locked. Please direct the patient to reply <strong className="text-secondary font-mono">"1" (Grant Access)</strong> on their WhatsApp simulator interface, or authorize physical consent.
               </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await api.grantInPersonConsent(selectedPatient.id);
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'Consent Authorized',
+                        message: `Physical data consent granted for ${selectedPatient.name}.`,
+                        type: 'success'
+                      }
+                    }));
+                  } catch (err: any) {
+                    console.error('[Consent Bypass] Failed to grant physical consent:', err);
+                  }
+                }}
+                className="px-4 py-2 bg-indigo-650 hover:bg-indigo-500 active:scale-95 text-slate-800 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 bg-indigo-600-force text-slate-800-force"
+              >
+                <span className="material-symbols-outlined text-[13px] text-slate-800-force">how_to_reg</span>
+                Grant Physical Consent (Bypass)
+              </button>
             </div>
           )}
           

@@ -117,7 +117,18 @@ Avoid browser default font weights. Ensure labels are distinct.
 
 ---
 
-## ⚙️ Part 4: DevSecOps Verification Pipeline
+## 🔒 Part 4: Compliance Lock & Patient Consent Lifecycle
+
+Clinical records, diagnostics ordering, and prescribing are locked behind a **Compliance Lock** if the patient's data processing consent is missing or expired (older than 30 days).
+
+### Consent Architecture:
+1. **WhatsApp Simulator Flow:** The patient receives a consent opt-in request on WhatsApp. Replying **"1"** invokes the WhatsApp session handler, registering the row inside `public.patient_consents`.
+2. **Physical Consent Override (Bypass):** In clinical dashboards, a **"Grant Physical Consent (Bypass)"** button is provided on the lock screen. Clicking this runs `api.grantInPersonConsent(patientId)` which immediately inserts a consent record into Supabase or updates local storage cache `active_consent_ids`.
+3. **State Syncing:** Both actions fire `api.notify()`, triggering React subscribers to automatically remove the visual Compliance Lock overlay in under 100ms.
+
+---
+
+## ⚙️ Part 5: DevSecOps Verification Pipeline
 
 Before pushing code:
 1.  **Run Type Checks Locally**: 
