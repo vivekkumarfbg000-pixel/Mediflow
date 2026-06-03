@@ -708,13 +708,13 @@ export const PharmacyDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-600 opacity-60" />
               
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
                 <div>
-                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                     <span className="material-symbols-outlined text-emerald-400 text-base">verified</span>
                     Gate 3: Paid Invoice Dispensation Verification Hub
                   </h2>
-                  <p className="text-xs text-clinical-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Lookup and verify patient digital invoices that have cleared payment. Read-only verification before physical dispensing.
                   </p>
                 </div>
@@ -724,9 +724,9 @@ export const PharmacyDashboard: React.FC = () => {
                     placeholder="Search by name or phone..."
                     value={verifySearch}
                     onChange={(e) => setVerifySearch(e.target.value)}
-                    className="w-full input-field pl-10 focus:ring-1 focus:ring-secondary focus:border-secondary text-xs py-2 bg-surface-container border-outline-variant text-white rounded-lg"
+                    className="w-full input-field pl-10 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 text-xs py-2 bg-white border-slate-200 text-slate-800 rounded-lg"
                   />
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-clinical-400 h-4 w-4" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 h-4 w-4" />
                 </div>
               </div>
 
@@ -749,7 +749,7 @@ export const PharmacyDashboard: React.FC = () => {
 
                   if (filteredInvoices.length === 0) {
                     return (
-                      <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-sm text-clinical-500">
+                      <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-sm text-slate-400">
                         No paid medicine invoices matching search.
                       </div>
                     );
@@ -763,23 +763,23 @@ export const PharmacyDashboard: React.FC = () => {
                         const prescription = appt ? prescriptions.find(p => p.appointmentId === appt.id) : null;
 
                         return (
-                          <div key={invoice.id} className="p-5 bg-surface-container border border-outline-variant rounded-xl space-y-4 relative overflow-hidden">
+                          <div key={invoice.id} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative overflow-hidden">
                             <div className="absolute top-0 right-0 bg-emerald-600 text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
                               PAID ✅
                             </div>
 
-                            <div className="flex justify-between items-start border-b border-white/5 pb-2">
+                            <div className="flex justify-between items-start border-b border-slate-100 pb-2">
                               <div>
-                                <h4 className="font-bold text-white text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
-                                <p className="text-[10px] text-clinical-400 mt-0.5 font-mono">
+                                <h4 className="font-bold text-slate-800 text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                                <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
                                   Phone: +91 {patient ? patient.phone : 'N/A'}
                                 </p>
                               </div>
                             </div>
 
                             {prescription && prescription.extractedMedicines && (
-                              <div className="bg-surface-container-lowest/80 border border-outline-variant p-3 rounded-lg space-y-2">
-                                <span className="block text-[8px] font-black text-secondary tracking-widest uppercase font-mono">
+                              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
+                                <span className="block text-[8px] font-black text-teal-600 tracking-widest uppercase font-mono">
                                   Approved Medicines to Dispense
                                 </span>
                                 <div className="space-y-1.5">
@@ -808,8 +808,8 @@ export const PharmacyDashboard: React.FC = () => {
                                       const lensType = m.name.replace('Spectacles (', '').replace(')', '');
                                       
                                       return (
-                                        <div key={idx} className="bg-white/80 border border-indigo-500/30 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-white w-full">
-                                          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                        <div key={idx} className="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-slate-800 w-full">
+                                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                                             <div className="flex items-center gap-1.5">
                                               <span className="material-symbols-outlined text-indigo-400 text-sm">visibility</span>
                                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-350">Refraction Rx / Spectacles</span>
@@ -821,54 +821,54 @@ export const PharmacyDashboard: React.FC = () => {
                                           
                                           <div className="grid grid-cols-2 gap-3">
                                             {/* OD */}
-                                            <div className="space-y-1 p-2 bg-white/5 rounded border border-white/5">
-                                              <div className="text-[8px] font-bold uppercase text-indigo-400 font-mono">Right Eye (OD)</div>
+                                            <div className="space-y-1 p-2 bg-white rounded-lg border border-indigo-100">
+                                              <div className="text-[8px] font-bold uppercase text-indigo-500 font-mono">Right Eye (OD)</div>
                                               <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">SPH</span>
-                                                  <span className="font-bold text-white">{od.sph}</span>
+                                                  <span className="block text-[7px] text-slate-400">SPH</span>
+                                                  <span className="font-bold text-slate-800">{od.sph}</span>
                                                 </div>
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">CYL</span>
-                                                  <span className="font-bold text-white">{od.cyl}</span>
+                                                  <span className="block text-[7px] text-slate-400">CYL</span>
+                                                  <span className="font-bold text-slate-800">{od.cyl}</span>
                                                 </div>
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">AXIS</span>
-                                                  <span className="font-bold text-white">{od.axis}</span>
+                                                  <span className="block text-[7px] text-slate-400">AXIS</span>
+                                                  <span className="font-bold text-slate-800">{od.axis}</span>
                                                 </div>
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">ADD</span>
-                                                  <span className="font-bold text-white">{od.add}</span>
+                                                  <span className="block text-[7px] text-slate-400">ADD</span>
+                                                  <span className="font-bold text-slate-800">{od.add}</span>
                                                 </div>
                                               </div>
                                             </div>
                                             
                                             {/* OS */}
-                                            <div className="space-y-1 p-2 bg-white/5 rounded border border-white/5">
-                                              <div className="text-[8px] font-bold uppercase text-indigo-400 font-mono">Left Eye (OS)</div>
+                                            <div className="space-y-1 p-2 bg-white rounded-lg border border-indigo-100">
+                                              <div className="text-[8px] font-bold uppercase text-indigo-500 font-mono">Left Eye (OS)</div>
                                               <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">SPH</span>
-                                                  <span className="font-bold text-white">{os.sph}</span>
+                                                  <span className="block text-[7px] text-slate-400">SPH</span>
+                                                  <span className="font-bold text-slate-800">{os.sph}</span>
                                                 </div>
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">CYL</span>
-                                                  <span className="font-bold text-white">{os.cyl}</span>
+                                                  <span className="block text-[7px] text-slate-400">CYL</span>
+                                                  <span className="font-bold text-slate-800">{os.cyl}</span>
                                                 </div>
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">AXIS</span>
-                                                  <span className="font-bold text-white">{os.axis}</span>
+                                                  <span className="block text-[7px] text-slate-400">AXIS</span>
+                                                  <span className="font-bold text-slate-800">{os.axis}</span>
                                                 </div>
                                                 <div>
-                                                  <span className="block text-[7px] text-clinical-500">ADD</span>
-                                                  <span className="font-bold text-white">{os.add}</span>
+                                                  <span className="block text-[7px] text-slate-400">ADD</span>
+                                                  <span className="font-bold text-slate-800">{os.add}</span>
                                                 </div>
                                               </div>
                                             </div>
                                           </div>
                                           
-                                          <div className="flex justify-between items-center pt-2 border-t border-white/5 text-[9px]">
-                                            <span className="text-clinical-400 italic">Freq: {m.frequency}</span>
+                                          <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[9px]">
+                                            <span className="text-slate-500 italic">Freq: {m.frequency}</span>
                                             <button
                                               onClick={async () => {
                                                 try {
@@ -929,7 +929,7 @@ export const PharmacyDashboard: React.FC = () => {
                                     }
                                     
                                     return (
-                                      <div key={idx} className="text-[10px] text-clinical-300 font-mono flex items-center justify-between border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                                      <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1 last:border-0 last:pb-0">
                                         <span>💊 {m.name} ({m.dosage})</span>
                                         <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
                                       </div>
@@ -941,7 +941,7 @@ export const PharmacyDashboard: React.FC = () => {
 
                             <div className="flex justify-between items-center pt-2">
                               <div>
-                                <span className="text-[9px] text-clinical-400 block font-mono">Invoice: {invoice.id.substring(0, 8)}...</span>
+                                <span className="text-[9px] text-slate-500 block font-mono">Invoice: {invoice.id.substring(0, 8)}...</span>
                                 <span className="text-xs font-black text-white">Amount Verified: ₹{invoice.amount}</span>
                               </div>
                               <button
@@ -983,16 +983,16 @@ export const PharmacyDashboard: React.FC = () => {
                   placeholder="Search catalog by name, generic, or batch..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full input-field pl-10 focus:ring-1 focus:ring-secondary focus:border-secondary text-xs py-2 bg-surface-container-lowest/60 border-outline-variant text-white rounded-lg"
+                  className="w-full input-field pl-10 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 text-xs py-2 bg-slate-50 border-slate-200 text-white rounded-lg"
                 />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-clinical-400 h-4.5 w-4.5" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 h-4.5 w-4.5" />
               </div>
               <div className="flex items-center gap-3 w-full sm:w-auto">
-                <span className="text-xs text-clinical-400 font-bold shrink-0">Category:</span>
+                <span className="text-xs text-slate-500 font-bold shrink-0">Category:</span>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container-lowest border-outline-variant text-white rounded-lg cursor-pointer"
+                  className="input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-slate-50 border-slate-200 text-white rounded-lg cursor-pointer"
                 >
                   <option value="All">All Categories</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1001,10 +1001,10 @@ export const PharmacyDashboard: React.FC = () => {
             </div>
 
             {/* Inventory table */}
-            <div className="border border-outline-variant rounded-xl overflow-hidden glass-panel-inner">
+            <div className="border border-slate-200 rounded-xl overflow-hidden glass-panel-inner">
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-surface-container text-clinical-300 border-b border-outline-variant font-bold uppercase tracking-wider text-[10px]">
+                  <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
                     <tr>
                       <th className="p-3.5">Medicine & Generic</th>
                       <th className="p-3.5">Category</th>
@@ -1015,10 +1015,10 @@ export const PharmacyDashboard: React.FC = () => {
                       <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-outline-variant bg-surface-container-lowest/30">
+                  <tbody className="divide-y divide-slate-200 bg-slate-50/30">
                     {filteredCatalog.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-8 text-center text-clinical-500 font-medium">
+                        <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
                           No matching medicine batches found in catalog.
                         </td>
                       </tr>
@@ -1028,32 +1028,32 @@ export const PharmacyDashboard: React.FC = () => {
                         const isExpired = new Date(item.expiryDate) < new Date();
                         
                         return (
-                          <tr key={item.id} className="hover:bg-surface-container/40 transition-colors">
+                          <tr key={item.id} className="hover:bg-white/40 transition-colors">
                             <td className="p-3.5 space-y-1">
-                              <div className="font-bold text-white text-xs">{item.name} <span className="text-[10px] text-clinical-400 font-normal">({item.dosage})</span></div>
-                              <div className="text-[10px] text-clinical-400 italic font-mono">{item.genericName}</div>
+                              <div className="font-bold text-slate-800 text-xs">{item.name} <span className="text-[10px] text-slate-500 font-normal">({item.dosage})</span></div>
+                              <div className="text-[10px] text-slate-500 italic font-mono">{item.genericName}</div>
                             </td>
-                            <td className="p-3.5 text-clinical-300 font-semibold">{item.category}</td>
+                            <td className="p-3.5 text-slate-600 font-semibold">{item.category}</td>
                             <td className="p-3.5 space-y-1">
-                              <div className="font-bold text-white font-mono text-[10px]">Batch: {item.batchNumber}</div>
-                              <div className={`text-[9px] font-mono ${isExpired ? 'text-rose-400 font-bold' : 'text-clinical-400'}`}>
+                              <div className="font-bold text-slate-800 font-mono text-[10px]">Batch: {item.batchNumber}</div>
+                              <div className={`text-[9px] font-mono ${isExpired ? 'text-rose-400 font-bold' : 'text-slate-500'}`}>
                                 Exp: {item.expiryDate} {isExpired && '[EXPIRED]'}
                               </div>
                             </td>
                             <td className="p-3.5 text-right font-mono text-white font-semibold">
-                              ₹{item.price.toFixed(2)} <span className="text-[9px] text-clinical-400 font-normal">(₹{item.mrp.toFixed(2)})</span>
+                              ₹{item.price.toFixed(2)} <span className="text-[9px] text-slate-500 font-normal">(₹{item.mrp.toFixed(2)})</span>
                             </td>
                             <td className="p-3.5 text-center">
                               <span className={`font-mono font-bold text-xs ${isLow ? 'text-rose-400 font-black' : 'text-emerald-400'}`}>
                                 {item.stock} {item.unit}
                               </span>
                             </td>
-                            <td className="p-3.5 text-center font-mono text-clinical-400">{item.threshold} {item.unit}</td>
+                            <td className="p-3.5 text-center font-mono text-slate-500">{item.threshold} {item.unit}</td>
                             <td className="p-3.5 text-right">
                               <div className="flex gap-2 justify-end">
                                 <button
                                   onClick={() => handleQuickRestock(item)}
-                                  className="px-2.5 py-1 text-[9px] bg-secondary/15 hover:bg-secondary text-secondary hover:text-black border border-secondary/25 hover:border-secondary font-black rounded-lg uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
+                                  className="px-2.5 py-1 text-[9px] bg-teal-600/15 hover:bg-teal-600 text-teal-600 hover:text-black border border-teal-500/25 hover:border-teal-500 font-black rounded-lg uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
                                   title="Quick Restock"
                                 >
                                   Restock
@@ -1084,11 +1084,11 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
               <div>
-                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-rose-400 animate-pulse" />
                   Pharmacy Stock Deficit Alerts
                 </h2>
-                <p className="text-xs text-clinical-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Active batches that have fallen below the configured low-stock safety margins. Restock immediately.
                 </p>
               </div>
@@ -1098,10 +1098,10 @@ export const PharmacyDashboard: React.FC = () => {
             </div>
 
             {lowStockItems.length === 0 ? (
-              <div className="p-8 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center">
+              <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center">
                 <CheckCircle className="h-10 w-10 text-emerald-400 mx-auto mb-2" />
                 <h4 className="text-white font-bold text-sm">All Stock Levels Secure!</h4>
-                <p className="text-xs text-clinical-500 mt-1">No items are currently running below their safety thresholds.</p>
+                <p className="text-xs text-slate-400 mt-1">No items are currently running below their safety thresholds.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -1129,16 +1129,16 @@ export const PharmacyDashboard: React.FC = () => {
                             {tierText}
                           </span>
                         </div>
-                        <p className="text-[10px] text-clinical-400 font-mono">Generic: {item.genericName}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">Generic: {item.genericName}</p>
                         
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
                           <div>
-                            <span className="text-[9px] text-clinical-500 font-bold block uppercase tracking-wider font-mono">Stock Level</span>
+                            <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider font-mono">Stock Level</span>
                             <span className="font-mono text-base font-black text-white">{item.stock} {item.unit}</span>
                           </div>
                           <div>
-                            <span className="text-[9px] text-clinical-500 font-bold block uppercase tracking-wider font-mono">Safety Level</span>
-                            <span className="font-mono text-base font-black text-clinical-300">{item.threshold} {item.unit}</span>
+                            <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider font-mono">Safety Level</span>
+                            <span className="font-mono text-base font-black text-slate-600">{item.threshold} {item.unit}</span>
                           </div>
                         </div>
 
@@ -1149,7 +1149,7 @@ export const PharmacyDashboard: React.FC = () => {
                             style={{ width: `${Math.min(100, percentOfSafety)}%` }} 
                           />
                         </div>
-                        <span className="text-[9px] text-clinical-400 font-mono font-medium block">
+                        <span className="text-[9px] text-slate-500 font-mono font-medium block">
                           Stock is at <strong className="text-white font-bold">{percentOfSafety}%</strong> of safety margin.
                         </span>
                       </div>
@@ -1175,11 +1175,11 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-200/60 pb-4 gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                   <span className="material-symbols-outlined text-rose-400 text-[16px]">event_busy</span>
                   Consolidated Facility Expiry Tracker (FEFO)
                 </h2>
-                <p className="text-xs text-clinical-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Comprehensive auditing dashboard merging shelf stock batches AND e-prescription holds. color-coded to enforce FEFO.
                 </p>
               </div>
@@ -1188,8 +1188,8 @@ export const PharmacyDashboard: React.FC = () => {
                   onClick={() => setExpiryFilter('all')}
                   className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider cursor-pointer ${
                     expiryFilter === 'all'
-                      ? 'border-secondary text-secondary bg-secondary/5 font-black'
-                      : 'border-outline-variant text-clinical-400 hover:text-white'
+                      ? 'border-teal-500 text-teal-600 bg-teal-600/5 font-black'
+                      : 'border-slate-200 text-slate-500 hover:text-white'
                   }`}
                 >
                   All
@@ -1199,7 +1199,7 @@ export const PharmacyDashboard: React.FC = () => {
                   className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider cursor-pointer ${
                     expiryFilter === 'expired'
                       ? 'border-rose-500 text-rose-400 bg-rose-500/5 font-black animate-pulse'
-                      : 'border-outline-variant text-clinical-400 hover:text-white'
+                      : 'border-slate-200 text-slate-500 hover:text-white'
                   }`}
                 >
                   Expired
@@ -1209,7 +1209,7 @@ export const PharmacyDashboard: React.FC = () => {
                   className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider cursor-pointer ${
                     expiryFilter === 'expiring'
                       ? 'border-amber-500 text-amber-400 bg-amber-500/5 font-black'
-                      : 'border-outline-variant text-clinical-400 hover:text-white'
+                      : 'border-slate-200 text-slate-500 hover:text-white'
                   }`}
                 >
                   Expiring Soon (&lt;90d)
@@ -1218,12 +1218,12 @@ export const PharmacyDashboard: React.FC = () => {
             </div>
 
             {consolidatedExpiryBatches.length === 0 ? (
-              <p className="text-sm text-clinical-500 text-center py-6">No matching expiring batches found in facility.</p>
+              <p className="text-sm text-slate-400 text-center py-6">No matching expiring batches found in facility.</p>
             ) : (
-              <div className="border border-outline-variant rounded-xl overflow-hidden glass-panel-inner">
+              <div className="border border-slate-200 rounded-xl overflow-hidden glass-panel-inner">
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-surface-container text-clinical-300 border-b border-outline-variant font-bold uppercase tracking-wider text-[10px]">
+                    <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
                       <tr>
                         <th className="p-3.5">Source</th>
                         <th className="p-3.5">Medicine Info</th>
@@ -1234,7 +1234,7 @@ export const PharmacyDashboard: React.FC = () => {
                         <th className="p-3.5 text-right">Logistics Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-outline-variant bg-surface-container-lowest/30">
+                    <tbody className="divide-y divide-slate-200 bg-slate-50/30">
                       {consolidatedExpiryBatches.map((batch, idx) => {
                         // color styling
                         let badgeStyle = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25';
@@ -1254,22 +1254,22 @@ export const PharmacyDashboard: React.FC = () => {
                         }
 
                         return (
-                          <tr key={`${batch.source}-${batch.id}-${idx}`} className="hover:bg-surface-container/40 transition-colors">
+                          <tr key={`${batch.source}-${batch.id}-${idx}`} className="hover:bg-white/40 transition-colors">
                             <td className="p-3.5">
                               <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${
                                 batch.source === 'SHELF' 
-                                  ? 'bg-secondary/15 text-secondary border-secondary/20' 
+                                  ? 'bg-teal-600/15 text-teal-600 border-teal-500/20' 
                                   : 'bg-primary/15 text-primary border-primary/20'
                               }`}>
                                 {batch.source}
                               </span>
                             </td>
-                            <td className="p-3.5 font-bold text-white text-xs">
+                            <td className="p-3.5 font-bold text-slate-800 text-xs">
                               {batch.name}
                             </td>
-                            <td className="p-3.5 font-mono font-semibold text-clinical-300">{batch.batchNumber}</td>
-                            <td className="p-3.5 text-center font-mono font-bold text-white">{batch.stock} units</td>
-                            <td className="p-3.5 font-mono text-clinical-300">{batch.expiryDate}</td>
+                            <td className="p-3.5 font-mono font-semibold text-slate-600">{batch.batchNumber}</td>
+                            <td className="p-3.5 text-center font-mono font-bold text-slate-800">{batch.stock} units</td>
+                            <td className="p-3.5 font-mono text-slate-600">{batch.expiryDate}</td>
                             <td className="p-3.5 text-center">
                               <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-mono font-bold ${badgeStyle}`}>
                                 {daysText}
@@ -1308,13 +1308,13 @@ export const PharmacyDashboard: React.FC = () => {
                                       }
                                     }));
                                   }}
-                                  className="px-2.5 py-1 text-[9px] bg-secondary/15 hover:bg-secondary text-secondary hover:text-black border border-secondary/25 hover:border-secondary font-black rounded-lg uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
+                                  className="px-2.5 py-1 text-[9px] bg-teal-600/15 hover:bg-teal-600 text-teal-600 hover:text-black border border-teal-500/25 hover:border-teal-500 font-black rounded-lg uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
                                 >
                                   Prioritize
                                 </button>
                               )}
                               {!disposeBtn && !prioritizeBtn && (
-                                <span className="text-[10px] text-clinical-500 font-semibold font-mono">Secure</span>
+                                <span className="text-[10px] text-slate-400 font-semibold font-mono">Secure</span>
                               )}
                             </td>
                           </tr>
@@ -1334,13 +1334,13 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-6">
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                   <div>
-                    <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary text-[16px]">psychology</span>
                       Gemini Seasonal Demand Surveillance Forecasts
                     </h2>
-                    <p className="text-xs text-clinical-400 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                       Localized Bihar epidemiology and Sewage Pathogen metrics generating automatic stocking levels.
                     </p>
                   </div>
@@ -1369,32 +1369,32 @@ export const PharmacyDashboard: React.FC = () => {
                       key={forecast.id} 
                       className={`p-4 rounded-xl border relative transition-all duration-300 ${
                         forecast.isActedUpon 
-                          ? 'bg-surface-container-lowest/40 border-outline-variant/60 text-clinical-400' 
-                          : 'bg-surface-container border-outline-variant hover:border-primary/40'
+                          ? 'bg-slate-50 border-slate-200 text-slate-500' 
+                          : 'bg-white border-slate-200 hover:border-primary/40'
                       }`}
                     >
                       <div className="flex justify-between items-start gap-2 mb-2">
                         <h4 className="font-bold text-xs text-white">{forecast.medicineName}</h4>
                         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase font-mono border ${
                           forecast.isActedUpon 
-                            ? 'bg-surface-container-lowest text-clinical-400 border-outline-variant' 
-                            : 'bg-secondary/10 text-secondary border border-secondary/20'
+                            ? 'bg-slate-50 text-slate-500 border-slate-200' 
+                            : 'bg-teal-600/10 text-teal-600 border border-teal-500/20'
                         }`}>
                           {forecast.isActedUpon ? 'Acted Upon' : `+${forecast.suggestedIncreasePercentage}% Restock`}
                         </span>
                       </div>
                       
-                      <p className="text-[11px] leading-relaxed text-clinical-400 mb-3">{forecast.reason}</p>
+                      <p className="text-[11px] leading-relaxed text-slate-500 mb-3">{forecast.reason}</p>
                       
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-[9px] text-clinical-400 flex items-center gap-1 font-semibold font-mono">
-                          <Lightbulb className="h-3.5 w-3.5 text-secondary shrink-0" />
+                        <div className="text-[9px] text-slate-500 flex items-center gap-1 font-semibold font-mono">
+                          <Lightbulb className="h-3.5 w-3.5 text-teal-600 shrink-0" />
                           Confidence Level: {Math.floor(forecast.forecastConfidence * 100)}%
                         </div>
                         {!forecast.isActedUpon && (
                           <button
                             onClick={() => handleActOnForecast(forecast.id, forecast.medicineName)}
-                            className="bg-secondary text-black font-black border-0 hover:bg-secondary/80 text-[9px] tracking-wider uppercase px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer"
+                            className="bg-teal-600 text-black font-black border-0 hover:bg-teal-600/80 text-[9px] tracking-wider uppercase px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer"
                           >
                             Authorize B2B Order
                           </button>
@@ -1409,23 +1409,23 @@ export const PharmacyDashboard: React.FC = () => {
             {/* Pathogen density card */}
             <div className="lg:col-span-4 space-y-6">
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
-                <h4 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                <h4 className="font-bold text-[10px] text-slate-600 uppercase tracking-widest flex items-center gap-1.5 font-mono">
                   <TrendingUp className="h-4 w-4 text-primary animate-pulse" />
                   Patna Sewage surveillance
                 </h4>
                 
-                <div className="h-16 flex items-end justify-between gap-2 border-b border-l border-outline-variant pb-1 pl-1 select-none">
+                <div className="h-16 flex items-end justify-between gap-2 border-b border-l border-slate-200 pb-1 pl-1 select-none">
                   <div className="flex-1 flex flex-col items-center">
                     <div className="w-full bg-primary/20 h-4 rounded-t" />
-                    <span className="text-[8px] text-clinical-400 font-mono mt-1 uppercase">Mar</span>
+                    <span className="text-[8px] text-slate-500 font-mono mt-1 uppercase">Mar</span>
                   </div>
                   <div className="flex-1 flex flex-col items-center">
                     <div className="w-full bg-primary/40 h-8 rounded-t" />
-                    <span className="text-[8px] text-clinical-400 font-mono mt-1 uppercase">Apr</span>
+                    <span className="text-[8px] text-slate-500 font-mono mt-1 uppercase">Apr</span>
                   </div>
                   <div className="flex-1 flex flex-col items-center">
                     <div className="w-full bg-gradient-to-t from-secondary to-primary h-14 rounded-t animate-pulse" />
-                    <span className="text-[8px] text-secondary font-mono font-bold mt-1 uppercase">May</span>
+                    <span className="text-[8px] text-teal-600 font-mono font-bold mt-1 uppercase">May</span>
                   </div>
                 </div>
 
@@ -1433,7 +1433,7 @@ export const PharmacyDashboard: React.FC = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping shrink-0" />
                   Pre-monsoon sewage surveillance alert.
                 </p>
-                <div className="text-[9px] text-clinical-500 font-semibold font-mono border-t border-white/5 pt-3 leading-relaxed">
+                <div className="text-[9px] text-slate-400 font-semibold font-mono border-t border-slate-100 pt-3 leading-relaxed">
                   Surveillance alerts monitor heavy rainwater waterlogging vectors linked with Cholera, Dengue and Typhoid spikes to prevent stocking shocks.
                 </div>
               </div>
@@ -1454,28 +1454,28 @@ export const PharmacyDashboard: React.FC = () => {
             
             {/* Split rules display */}
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-base">policy</span>
                 Active SOP Split Configuration
               </h3>
-              <p className="text-xs text-clinical-400">
+              <p className="text-xs text-slate-500">
                 These percentages represent your shared payouts calculated dynamically on invoice clearance.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
-                  <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Your Split</p>
+                <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Your Split</p>
                   <p className="text-xl font-extrabold text-white mt-1">Pharmacy Split</p>
-                  <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Calculated per product margin</p>
+                  <p className="text-xs text-slate-400 mt-0.5 font-semibold">Calculated per product margin</p>
                 </div>
-                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
-                  <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Doctor Split</p>
+                <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Doctor Split</p>
                   <p className="text-xl font-extrabold text-white mt-1">Managed by SOP</p>
-                  <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Based on active agreements</p>
+                  <p className="text-xs text-slate-400 mt-0.5 font-semibold">Based on active agreements</p>
                 </div>
-                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl text-center">
-                  <p className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider">Platform Fee</p>
+                <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Platform Fee</p>
                   <p className="text-xl font-extrabold text-white mt-1">3%</p>
-                  <p className="text-xs text-clinical-500 mt-0.5 font-semibold">Platform service charge</p>
+                  <p className="text-xs text-slate-400 mt-0.5 font-semibold">Platform service charge</p>
                 </div>
               </div>
             </div>
@@ -1487,11 +1487,11 @@ export const PharmacyDashboard: React.FC = () => {
           <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
               <div>
-                <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                   <span className="material-symbols-outlined text-indigo-400 text-base">hub</span>
                   Pod Connection HUD
                 </h2>
-                <p className="text-xs text-clinical-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Connected clinical clinic node and ecosystem partner network details.
                 </p>
               </div>
@@ -1506,13 +1506,13 @@ export const PharmacyDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-clinical-300 uppercase tracking-widest font-mono">
+                <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">
                   🏥 Primary Clinic Connection
                 </h3>
-                <div className="p-4 bg-surface-container border border-outline-variant rounded-xl space-y-2">
-                  <p className="text-xs font-bold text-white">{activePod?.name || 'Patna Connected Clinic'}</p>
-                  <div className="text-[10px] text-clinical-400 space-y-1">
-                    <div>Clinic Code: <span className="font-mono font-bold text-white bg-slate-800/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
+                <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+                  <p className="text-xs font-bold text-slate-800">{activePod?.name || 'Patna Connected Clinic'}</p>
+                  <div className="text-[10px] text-slate-500 space-y-1">
+                    <div>Clinic Code: <span className="font-mono font-bold text-slate-800 bg-slate-800/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
                     <div>Location: {activePod?.location || 'Patna, Bihar'}</div>
                     <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
                   </div>
@@ -1520,20 +1520,20 @@ export const PharmacyDashboard: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-clinical-300 uppercase tracking-widest font-mono">
+                <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">
                   👥 Node Partner Network
                 </h3>
                 <div className="space-y-2">
                   {podEntities.length === 0 ? (
-                    <p className="text-xs text-clinical-500 italic">No partners found in this Pod.</p>
+                    <p className="text-xs text-slate-400 italic">No partners found in this Pod.</p>
                   ) : (
                     podEntities.map(pe => (
-                      <div key={pe.id} className="p-3 bg-surface-container border border-outline-variant rounded-xl flex items-center justify-between gap-3 text-xs">
+                      <div key={pe.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${pe.entityType === 'clinic' ? 'bg-indigo-400' : pe.entityType === 'lab' ? 'bg-teal-400' : 'bg-amber-400'}`} />
                           <div>
-                            <p className="font-bold text-white">{pe.name}</p>
-                            <p className="text-[9px] text-clinical-400 uppercase tracking-wider">{pe.entityType}</p>
+                            <p className="font-bold text-slate-800">{pe.name}</p>
+                            <p className="text-[9px] text-slate-500 uppercase tracking-wider">{pe.entityType}</p>
                           </div>
                         </div>
                         <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded border ${
@@ -1557,12 +1557,12 @@ export const PharmacyDashboard: React.FC = () => {
       {/* V2.0 PREMIUM LASER BARCODE SCANNER SIMULATION MODAL */}
       {scanningHold && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
-          <div className="glass-panel max-w-md w-full p-6 border-secondary/20 shadow-2xl space-y-5 relative overflow-hidden">
+          <div className="glass-panel max-w-md w-full p-6 border-teal-500/20 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary animate-pulse">qr_code_scanner</span>
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <span className="material-symbols-outlined text-teal-600 animate-pulse">qr_code_scanner</span>
                 FEFO Barcode Scan Verification
               </h3>
               <button
@@ -1570,17 +1570,17 @@ export const PharmacyDashboard: React.FC = () => {
                   setScanningHold(null);
                   setScannerStage('idle');
                 }}
-                className="text-clinical-400 hover:text-white transition-colors cursor-pointer border-0 bg-transparent"
+                className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
             <div className="relative h-48 w-full bg-slate-800/80 rounded-lg border border-slate-200/60 flex flex-col items-center justify-center overflow-hidden select-none">
-              <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-secondary/80 rounded-tl" />
-              <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-secondary/80 rounded-tr" />
-              <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-secondary/80 rounded-bl" />
-              <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-secondary/80 rounded-br" />
+              <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-teal-500/80 rounded-tl" />
+              <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-teal-500/80 rounded-tr" />
+              <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-teal-500/80 rounded-bl" />
+              <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-teal-500/80 rounded-br" />
 
               {scannerStage === 'scanning' && (
                 <div className="absolute left-0 w-full h-[2px] bg-rose-500 shadow-[0_0_12px_#ef4444] laser-line z-10" />
@@ -1613,15 +1613,15 @@ export const PharmacyDashboard: React.FC = () => {
                   <rect x="178" y="5" width="2" height="50" fill="currentColor" />
                   <rect x="185" y="5" width="3" height="50" fill="currentColor" />
                 </svg>
-                <div className="text-[10px] font-mono text-secondary tracking-widest font-black uppercase">
+                <div className="text-[10px] font-mono text-teal-600 tracking-widest font-black uppercase">
                   {scanningHold.batchNumber}
                 </div>
               </div>
 
               <div className="absolute bottom-4 bg-slate-800/60 px-3 py-1 rounded border border-slate-200/60 text-[9px] font-mono uppercase tracking-widest text-center">
                 {scannerStage === 'scanning' ? (
-                  <span className="text-secondary flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping" />
+                  <span className="text-teal-600 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-ping" />
                     scanning BATCH CODE...
                   </span>
                 ) : (
@@ -1632,9 +1632,9 @@ export const PharmacyDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-surface-container-lowest border border-outline-variant p-3.5 rounded-lg h-32 overflow-y-auto font-mono text-[9px] text-clinical-300 space-y-1">
+            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-lg h-32 overflow-y-auto font-mono text-[9px] text-slate-600 space-y-1">
               {scanLogs.map((log, idx) => (
-                <div key={idx} className={log.includes('MATCH') ? 'text-emerald-400 font-bold' : log.includes('Laser sweep') ? 'text-secondary' : ''}>
+                <div key={idx} className={log.includes('MATCH') ? 'text-emerald-400 font-bold' : log.includes('Laser sweep') ? 'text-teal-600' : ''}>
                   {log}
                 </div>
               ))}
@@ -1646,7 +1646,7 @@ export const PharmacyDashboard: React.FC = () => {
                   setScanningHold(null);
                   setScannerStage('idle');
                 }}
-                className="px-4 py-2 bg-surface-container hover:bg-surface-container-highest border border-outline-variant text-clinical-300 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-white hover:bg-white-highest border border-slate-200 text-slate-600 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 Abort
               </button>
@@ -1664,7 +1664,7 @@ export const PharmacyDashboard: React.FC = () => {
               ) : (
                 <button
                   disabled
-                  className="px-5 py-2 bg-surface-container-highest border border-outline-variant text-clinical-500 rounded-xl text-xs font-bold cursor-not-allowed uppercase flex items-center gap-2 border-0"
+                  className="px-5 py-2 bg-white-highest border border-slate-200 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed uppercase flex items-center gap-2 border-0"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-clinical-500 animate-pulse" />
                   processing...
@@ -1682,11 +1682,11 @@ export const PharmacyDashboard: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary">add_circle</span>
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <span className="material-symbols-outlined text-teal-600">add_circle</span>
                 Manual Register Batch Medicine
               </h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-clinical-400 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
@@ -1694,99 +1694,99 @@ export const PharmacyDashboard: React.FC = () => {
             <form onSubmit={handleAddMedicineSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Medicine Brand Name *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Medicine Brand Name *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Metformin 500mg"
                     value={addForm.name}
                     onChange={(e) => setAddForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Generic Name</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Generic Name</label>
                   <input
                     type="text"
                     placeholder="e.g. Metformin Hydrochloride"
                     value={addForm.genericName}
                     onChange={(e) => setAddForm(prev => ({ ...prev, genericName: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Category</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Category</label>
                   <select
                     value={addForm.category}
                     onChange={(e) => setAddForm(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg cursor-pointer"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg cursor-pointer"
                   >
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Manufacturer</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Manufacturer</label>
                   <input
                     type="text"
                     placeholder="e.g. Sun Pharma"
                     value={addForm.manufacturer}
                     onChange={(e) => setAddForm(prev => ({ ...prev, manufacturer: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Dosage Unit *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Dosage Unit *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. 500mg, 10ml, 1 Strip"
                     value={addForm.dosage}
                     onChange={(e) => setAddForm(prev => ({ ...prev, dosage: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Batch Number *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Batch Number *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. MET26A-08"
                     value={addForm.batchNumber}
                     onChange={(e) => setAddForm(prev => ({ ...prev, batchNumber: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Expiry Date *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Expiry Date *</label>
                   <input
                     type="date"
                     required
                     value={addForm.expiryDate}
                     onChange={(e) => setAddForm(prev => ({ ...prev, expiryDate: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">HSN Code (GST)</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">HSN Code (GST)</label>
                   <input
                     type="text"
                     placeholder="e.g. 300490"
                     value={addForm.hsn}
                     onChange={(e) => setAddForm(prev => ({ ...prev, hsn: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg font-mono"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">MRP Price (₹) *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">MRP Price (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1794,11 +1794,11 @@ export const PharmacyDashboard: React.FC = () => {
                     placeholder="e.g. 15"
                     value={addForm.mrp}
                     onChange={(e) => setAddForm(prev => ({ ...prev, mrp: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Selling Price (₹) *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Selling Price (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1806,29 +1806,29 @@ export const PharmacyDashboard: React.FC = () => {
                     placeholder="e.g. 13"
                     value={addForm.price}
                     onChange={(e) => setAddForm(prev => ({ ...prev, price: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Units In Stock *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Units In Stock *</label>
                   <input
                     type="number"
                     required
                     placeholder="e.g. 100"
                     value={addForm.stock}
                     onChange={(e) => setAddForm(prev => ({ ...prev, stock: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Low-Stock Margin *</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Low-Stock Margin *</label>
                   <input
                     type="number"
                     required
                     placeholder="e.g. 20"
                     value={addForm.threshold}
                     onChange={(e) => setAddForm(prev => ({ ...prev, threshold: e.target.value }))}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-white rounded-lg font-mono"
+                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-white border-slate-200 text-white rounded-lg font-mono"
                   />
                 </div>
               </div>
@@ -1837,7 +1837,7 @@ export const PharmacyDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 bg-surface-container hover:bg-surface-container-highest border border-outline-variant text-clinical-300 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-white hover:bg-white-highest border border-slate-200 text-slate-600 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1860,11 +1860,11 @@ export const PharmacyDashboard: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
                 Smart CSV Template Importer
               </h3>
-              <button onClick={() => setIsCsvImportOpen(false)} className="text-clinical-400 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
+              <button onClick={() => setIsCsvImportOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
@@ -1885,16 +1885,16 @@ export const PharmacyDashboard: React.FC = () => {
             </div>
 
             {/* Dropzone */}
-            <div className="relative border-2 border-dashed border-outline-variant hover:border-emerald-400/50 rounded-xl p-6 text-center transition-all bg-slate-800/20">
+            <div className="relative border-2 border-dashed border-slate-200 hover:border-emerald-400/50 rounded-xl p-6 text-center transition-all bg-slate-800/20">
               <input
                 type="file"
                 accept=".csv"
                 onChange={handleCsvFileChange}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
-              <FileSpreadsheet className="h-10 w-10 text-clinical-400 mx-auto mb-2" />
+              <FileSpreadsheet className="h-10 w-10 text-slate-500 mx-auto mb-2" />
               <p className="text-xs text-white font-bold">{csvFileName || 'Click or drag `.csv` file here'}</p>
-              <p className="text-[10px] text-clinical-500 mt-1">UTF-8 comma separated files only.</p>
+              <p className="text-[10px] text-slate-400 mt-1">UTF-8 comma separated files only.</p>
             </div>
 
             {/* Parsing errors */}
@@ -1908,10 +1908,10 @@ export const PharmacyDashboard: React.FC = () => {
             {/* Parsed Rows Preview */}
             {csvPreview.length > 0 && (
               <div className="space-y-2 select-none">
-                <h4 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest font-mono">CSV Import Preview ({csvPreview.length} rows)</h4>
-                <div className="border border-outline-variant rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                <h4 className="font-bold text-[10px] text-slate-600 uppercase tracking-widest font-mono">CSV Import Preview ({csvPreview.length} rows)</h4>
+                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                   <table className="w-full text-[10px] text-left">
-                    <thead className="bg-surface-container text-clinical-300 font-mono uppercase font-bold sticky top-0">
+                    <thead className="bg-white text-slate-600 font-mono uppercase font-bold sticky top-0">
                       <tr>
                         <th className="p-2">Name</th>
                         <th className="p-2 font-mono">Batch</th>
@@ -1920,9 +1920,9 @@ export const PharmacyDashboard: React.FC = () => {
                         <th className="p-2 text-center font-mono">Stock</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-outline-variant bg-surface-container-lowest/50 text-white font-mono">
+                    <tbody className="divide-y divide-slate-200 bg-slate-50/50 text-white font-mono">
                       {csvPreview.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-surface-container-highest/20">
+                        <tr key={idx} className="hover:bg-white-highest/20">
                           <td className="p-2 font-sans font-bold">{row.name}</td>
                           <td className="p-2">{row.batchNumber}</td>
                           <td className="p-2">{row.expiryDate}</td>
@@ -1945,7 +1945,7 @@ export const PharmacyDashboard: React.FC = () => {
                   setCsvFileName('');
                   setIsCsvImportOpen(false);
                 }}
-                className="px-4 py-2 bg-surface-container hover:bg-surface-container-highest border border-outline-variant text-clinical-300 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-white hover:bg-white-highest border border-slate-200 text-slate-600 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1954,7 +1954,7 @@ export const PharmacyDashboard: React.FC = () => {
                 onClick={handleConfirmCsvImport}
                 className={`px-5 py-2 rounded-xl text-xs font-black tracking-wider uppercase border-0 cursor-pointer ${
                   csvPreview.length === 0 
-                    ? 'bg-surface-container-highest text-clinical-500 cursor-not-allowed'
+                    ? 'bg-white-highest text-slate-400 cursor-not-allowed'
                     : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg active:scale-95 transition-all'
                 }`}
               >
@@ -1973,11 +1973,11 @@ export const PharmacyDashboard: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
-                <Camera className="h-5 w-5 text-secondary" />
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <Camera className="h-5 w-5 text-teal-600" />
                 AI Suppliers Invoice OCR Parser
               </h3>
-              <button onClick={() => setIsBillScanOpen(false)} className="text-clinical-400 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
+              <button onClick={() => setIsBillScanOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
@@ -1986,8 +1986,8 @@ export const PharmacyDashboard: React.FC = () => {
               
               {/* Photo selector dropzone */}
               <div className="space-y-3">
-                <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Upload Supplier Bill Photo / Challan</label>
-                <div className="relative border-2 border-dashed border-outline-variant hover:border-secondary/50 rounded-xl h-44 flex flex-col items-center justify-center overflow-hidden bg-slate-800/20 select-none">
+                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Upload Supplier Bill Photo / Challan</label>
+                <div className="relative border-2 border-dashed border-slate-200 hover:border-teal-500/50 rounded-xl h-44 flex flex-col items-center justify-center overflow-hidden bg-slate-800/20 select-none">
                   {billImage ? (
                     <>
                       <img src={billImage} className="w-full h-full object-cover opacity-75" alt="Suppliers bill upload" />
@@ -1997,7 +1997,7 @@ export const PharmacyDashboard: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <Camera className="h-10 w-10 text-clinical-400 mb-2" />
+                      <Camera className="h-10 w-10 text-slate-500 mb-2" />
                       <span className="text-xs text-white font-bold">Select supplier invoice image</span>
                     </>
                   )}
@@ -2022,13 +2022,13 @@ export const PharmacyDashboard: React.FC = () => {
 
               {/* Streaming logs panel */}
               <div className="space-y-3 flex flex-col">
-                <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Gemini Extraction Logs</label>
-                <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-3.5 font-mono text-[9px] text-clinical-300 space-y-1 h-44 overflow-y-auto flex-1">
+                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Gemini Extraction Logs</label>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-mono text-[9px] text-slate-600 space-y-1 h-44 overflow-y-auto flex-1">
                   {ocrLogs.length === 0 ? (
-                    <div className="text-clinical-500 italic">Logs will stream here during billing OCR analysis...</div>
+                    <div className="text-slate-400 italic">Logs will stream here during billing OCR analysis...</div>
                   ) : (
                     ocrLogs.map((log, i) => (
-                      <div key={i} className={log.includes('verified') ? 'text-emerald-400 font-bold font-mono' : log.includes('Gemini') ? 'text-secondary font-mono' : 'font-mono'}>
+                      <div key={i} className={log.includes('verified') ? 'text-emerald-400 font-bold font-mono' : log.includes('Gemini') ? 'text-teal-600 font-mono' : 'font-mono'}>
                         {log}
                       </div>
                     ))
@@ -2040,11 +2040,11 @@ export const PharmacyDashboard: React.FC = () => {
 
             {/* OCR Extracted preview table */}
             {ocrResults.length > 0 && (
-              <div className="space-y-2 select-none border-t border-white/5 pt-4">
-                <h4 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest font-mono">Extracted Medicines Preview</h4>
-                <div className="border border-outline-variant rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+              <div className="space-y-2 select-none border-t border-slate-100 pt-4">
+                <h4 className="font-bold text-[10px] text-slate-600 uppercase tracking-widest font-mono">Extracted Medicines Preview</h4>
+                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                   <table className="w-full text-[10px] text-left">
-                    <thead className="bg-surface-container text-clinical-300 font-mono uppercase font-bold sticky top-0">
+                    <thead className="bg-white text-slate-600 font-mono uppercase font-bold sticky top-0">
                       <tr>
                         <th className="p-2">Name</th>
                         <th className="p-2 font-mono">Batch</th>
@@ -2053,9 +2053,9 @@ export const PharmacyDashboard: React.FC = () => {
                         <th className="p-2 text-center font-mono">QTY</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-outline-variant bg-surface-container-lowest/50 text-white font-mono">
+                    <tbody className="divide-y divide-slate-200 bg-slate-50/50 text-white font-mono">
                       {ocrResults.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-surface-container-highest/20">
+                        <tr key={idx} className="hover:bg-white-highest/20">
                           <td className="p-2 font-sans font-bold">{row.name}</td>
                           <td className="p-2">{row.batchNumber}</td>
                           <td className="p-2">{row.expiryDate}</td>
@@ -2078,7 +2078,7 @@ export const PharmacyDashboard: React.FC = () => {
                   setBillImage(null);
                   setIsBillScanOpen(false);
                 }}
-                className="px-4 py-2 bg-surface-container hover:bg-surface-container-highest border border-outline-variant text-clinical-300 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-white hover:bg-white-highest border border-slate-200 text-slate-600 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -2087,7 +2087,7 @@ export const PharmacyDashboard: React.FC = () => {
                 onClick={handleConfirmOcrImport}
                 className={`px-5 py-2 rounded-xl text-xs font-black tracking-wider uppercase border-0 cursor-pointer ${
                   ocrResults.length === 0 
-                    ? 'bg-surface-container-highest text-clinical-500 cursor-not-allowed'
+                    ? 'bg-white-highest text-slate-400 cursor-not-allowed'
                     : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg active:scale-95 transition-all'
                 }`}
               >
@@ -2150,3 +2150,4 @@ export const PharmacyDashboard: React.FC = () => {
     </div>
   );
 };
+

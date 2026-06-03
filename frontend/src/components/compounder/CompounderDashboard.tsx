@@ -3090,9 +3090,9 @@ export const CompounderDashboard: React.FC = () => {
 
                   {/* OCR Logging Panel */}
                   {ocrLogs.length > 0 && (
-                    <div className="bg-white border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-amber-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 font-mono text-[9px] text-indigo-700 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
                       {ocrLogs.map((log, index) => (
-                        <div key={index} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : ''}>
+                        <div key={index} className={log.includes('[ERROR]') ? 'text-rose-600 font-bold' : log.includes('SUCCESS') ? 'text-emerald-600 font-bold' : 'text-indigo-700'}>
                           {log}
                         </div>
                       ))}
