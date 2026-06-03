@@ -12,7 +12,8 @@ import type {
   PharmacyInventoryItem,
   MedicineBillItem,
   MedicineBill,
-  FinancialLedgerEntry
+  FinancialLedgerEntry,
+  Appointment
 } from '../types';
 
 export class WhatsAppService {
@@ -288,6 +289,10 @@ export class WhatsAppService {
           } else if (cleaned === 'home' && awaitingAction === 'lab') {
             sessionData.awaitingProactiveAction = 'lab_slot';
             replyMessage = "Please select a slot:\n1. 8:00 AM\n2. 10:00 AM\n3. 4:00 PM.";
+          } else if ((cleaned === 'book' || cleaned === '1') && awaitingAction === 'followup') {
+            sessionData.awaitingProactiveAction = 'virtual_slot';
+            nextState = 'BOOKING_VIRTUAL';
+            replyMessage = `📅 *Virtual Consultation Booking* \n\nDr. Vivek has unlocked a virtual follow-up consult slot for you. \n\nPlease select your preferred slot:\n*1* - Morning Slot (10:00 AM - 11:30 AM)\n*2* - Afternoon Slot (2:00 PM - 3:30 PM)\n*3* - Evening Slot (5:00 PM - 6:30 PM)\n\nReply with **1**, **2**, or **3** to book.`;
           } else if (awaitingAction === 'lab_slot' && ['1', '2', '3'].includes(cleaned)) {
             sessionData.awaitingProactiveAction = null;
             const slotMap: Record<string, string> = { '1': '8:00 AM', '2': '10:00 AM', '3': '4:00 PM' };
@@ -372,6 +377,10 @@ export class WhatsAppService {
             nextState = 'MEDICINE_ORDERING';
             sessionData.medicineOrderStage = 'INITIAL';
             replyMessage = "Ji bilkul! Kaunsi dawaiyaan chahiye aapko? Please unka name aur total quantity type karke bhejein (For example: 'Metformin 30 tabs'):";
+          } else if (cleaned.includes('book') || cleaned.includes('virtual') || cleaned.includes('video') || cleaned.includes('tele') || cleaned.includes('consult')) {
+            sessionData.awaitingProactiveAction = 'virtual_slot';
+            nextState = 'BOOKING_VIRTUAL';
+            replyMessage = `📅 *Virtual Consultation Booking* \n\nDr. Vivek has unlocked a virtual follow-up consult slot for you. \n\nPlease select your preferred slot:\n*1* - Morning Slot (10:00 AM - 11:30 AM)\n*2* - Afternoon Slot (2:00 PM - 3:30 PM)\n*3* - Evening Slot (5:00 PM - 6:30 PM)\n\nReply with **1**, **2**, or **3** to book.`;
           } else if (cleaned.includes('report') || cleaned.includes('pathology') || cleaned.includes('test')) {
             const approvedReports = LabService.getPathologyReports().filter(r => r.patientId === currentPat?.id && r.status === 'approved');
             if (approvedReports.length > 0) {
@@ -419,6 +428,60 @@ export class WhatsAppService {
 
               replyMessage = `*Mediflow AI-RAG support team* 🤖\n\nAapke query \"${text}\" ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
             }
+          }
+        }
+        break;
+
+        case 'BOOKING_VIRTUAL': {
+          const currentPat = PatientService.getPatients().find(p => p.phone === phone);
+          const awaitingAction = sessionData.awaitingProactiveAction;
+
+          if (awaitingAction === 'virtual_slot' && ['1', '2', '3'].includes(cleaned)) {
+            sessionData.awaitingProactiveAction = null;
+            const slotMap: Record<string, string> = {
+              '1': 'Morning Slot (10:00 AM - 11:30 AM)',
+              '2': 'Afternoon Slot (2:00 PM - 3:30 PM)',
+              '3': 'Evening Slot (5:00 PM - 6:30 PM)'
+            };
+            const selectedSlotText = slotMap[cleaned] || 'Morning Slot (10:00 AM - 11:30 AM)';
+
+            if (currentPat) {
+              const apptId = `appt-virt-${Date.now()}`;
+              const newAppt: Appointment = {
+                id: apptId,
+                patientId: currentPat.id,
+                doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101', // Dr. Vivek
+                status: 'ready_for_consult',
+                createdAt: new Date().toISOString(),
+                isVirtual: true,
+                virtualDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0], // Tomorrow
+                virtualTime: selectedSlotText,
+                virtualMeetingUrl: `https://meet.jit.si/mediflow-consult-${apptId}`,
+                virtualTimeAllocated: false
+              };
+              BillingService.saveAppointment(newAppt);
+
+              const runInsert = async () => {
+                try {
+                  const { error } = await supabase.from('appointments').insert({
+                    id: apptId,
+                    patient_id: currentPat.id,
+                    doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+                    status: 'ready_for_consult',
+                    created_at: new Date().toISOString()
+                  });
+                  if (error) console.error('Error creating virtual appt in Supabase:', error);
+                } catch (err) {
+                  console.error('Error connecting to Supabase:', err);
+                }
+              };
+              runInsert();
+            }
+
+            nextState = 'COMPLETED';
+            replyMessage = `🎉 *Virtual Appointment Booked!* \n\nSlot: *${selectedSlotText}* (Tomorrow)\n\nWe have notified Dr. Vivek. He will allocate your exact consultation timing shortly and we will notify you here with the virtual meeting link. \n\nThank you! 🩺`;
+          } else {
+            replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
         }
         break;

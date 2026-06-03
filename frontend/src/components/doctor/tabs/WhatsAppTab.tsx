@@ -71,7 +71,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   });
 
   const activeChat = whatsAppSessions.find(s => s.id === selectedChatSession?.id) ?? selectedChatSession;
-  const isHumanOverride = activeChat?.session_data?.humanOverride === true;
+  const sessionData = activeChat?.sessionData || activeChat?.session_data || {};
+  const isHumanOverride = sessionData.humanOverride === true;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800 font-sans text-left">
@@ -182,7 +183,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 filteredSessions.map(s => {
                   const pat = patients.find(p => p.id === s.patientId);
                   const name = pat ? pat.name : 'Unknown Patient';
-                  const lastMsg = s.session_data?.chatHistory?.[s.session_data.chatHistory.length - 1]?.text ?? 'Session initialized';
+                  const sSessData = s.sessionData || s.session_data || {};
+                  const lastMsg = sSessData.chatHistory?.[sSessData.chatHistory.length - 1]?.text ?? 'Session initialized';
                   const isSelected = activeChat?.id === s.id;
 
                   let stateBadge = 'bg-slate-100 text-slate-500';
@@ -283,9 +285,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 <button
                   onClick={async () => {
                     const updatedOverride = !isHumanOverride;
-                    const sessionData = activeChat.session_data ?? {};
                     const updatedSess = {
                       ...activeChat,
+                      sessionData: { ...sessionData, humanOverride: updatedOverride },
                       session_data: { ...sessionData, humanOverride: updatedOverride }
                     };
 
@@ -323,7 +325,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
             {/* Chat Message Stream */}
             <div className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[360px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
-              {(activeChat.session_data?.chatHistory ?? []).map((msg: any, idx: number) => {
+              {(sessionData.chatHistory ?? []).map((msg: any, idx: number) => {
                 const isBot = msg.sender === 'bot';
                 const isPatient = msg.sender === 'patient';
                 
@@ -358,7 +360,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     const textToSend = manualChatMsg.trim();
                     setManualChatMsg('');
 
-                    const sessionData = activeChat.session_data ?? {};
                     const chatHistory = sessionData.chatHistory ?? [];
                     const currentTime = new Date().toISOString();
                     
@@ -385,6 +386,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                       const updatedSess = {
                         ...activeChat,
+                        sessionData: { ...sessionData, chatHistory },
                         session_data: { ...sessionData, chatHistory }
                       };
                       setSelectedChatSession(updatedSess);

@@ -15,7 +15,8 @@ import type {
   PathologyReport,
   CounterTransaction,
   LabReport,
-  LabRequisition
+  LabRequisition,
+  Appointment
 } from '../../types';
 import InvoiceGenerator from './InvoiceGenerator';
 import { InvoiceCard } from '../InvoiceCard';
@@ -67,6 +68,7 @@ export const CompounderDashboard: React.FC = () => {
   // Registry Registry state
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   
   // Real-time Network Resilience State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -184,6 +186,7 @@ export const CompounderDashboard: React.FC = () => {
     setReports(api.getPathologyReports());
     setActiveInventory(api.getPharmacyInventory());
     setFullLabReports(api.getFullLabReports());
+    setAppointments(api.getAppointments());
 
     const activePat = api.getActivePatient();
     setActivePatientState(activePat);
@@ -1293,6 +1296,17 @@ export const CompounderDashboard: React.FC = () => {
                                     Awaiting Vitals
                                   </span>
                                 )}
+
+                                {(() => {
+                                  const virtualAppt = appointments.find(a => a.patientId === p.id && a.isVirtual);
+                                  if (!virtualAppt) return null;
+                                  return (
+                                    <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-250 text-emerald-700 px-1.5 py-0.2 rounded animate-pulse font-sans">
+                                      <span className="material-symbols-outlined text-[10px] text-emerald-700 font-bold">check_circle</span>
+                                      📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
+                                    </span>
+                                  );
+                                })()}
 
                                 {stage === 'diagnosing' && (
                                   <span className="text-[8px] font-bold px-1.5 py-0.2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded animate-pulse-subtle">
@@ -3544,72 +3558,111 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-slate-800">WhatsApp Live Simulator Sandbox</h3>
-                  <p className="text-[10px] text-emerald-200 flex items-center gap-1 font-semibold tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-450 animate-pulse"></span>
+                  <p className="text-[10px] text-emerald-250 flex items-center gap-1 font-semibold tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     ACTIVE VERIFICATION SERVICE
                   </p>
                 </div>
               </div>
             </div>
 
+            {/* Session Selector Dropdown */}
+            <div className="bg-white border-b border-slate-200/60 p-3 flex items-center gap-2 select-none">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                Select Patient Loop:
+              </span>
+              <select
+                value={activeSession?.patientPhone || ''}
+                onChange={(e) => {
+                  const phone = e.target.value;
+                  const sess = sessions.find(s => s.patientPhone === phone);
+                  if (sess) {
+                    setActiveSession(sess);
+                    const pat = patients.find(p => p.phone === phone);
+                    if (pat) {
+                      api.setActivePatient(pat);
+                    }
+                  } else {
+                    setActiveSession(null);
+                  }
+                }}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-755 outline-none font-medium text-slate-700"
+              >
+                <option value="">-- Select Active Loop --</option>
+                {sessions.map(s => {
+                  const pat = patients.find(p => p.phone === s.patientPhone);
+                  const name = pat ? pat.name : 'Unknown Patient';
+                  return (
+                    <option key={s.id} value={s.patientPhone}>
+                      {name} ({s.patientPhone}) - State: {s.currentState.replace('_', ' ')}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
             <div className="flex-1 bg-[#efeae2] p-4 overflow-y-auto space-y-4 font-sans text-xs">
               {activeSession ? (
                 <div className="space-y-4">
                   <div className="text-center select-none">
-                    <span className="bg-white/10 text-slate-600 px-3 py-1 rounded-md text-[9px] font-bold tracking-widest uppercase font-mono">
+                    <span className="bg-white/10 text-slate-650 px-3 py-1 rounded-md text-[9px] font-bold tracking-widest uppercase font-mono">
                       TODAY
                     </span>
                   </div>
 
                   <div className="bg-white/90 border border-slate-200/80 p-3.5 rounded-xl flex gap-3 leading-relaxed shadow-sm select-none">
-                    <ShieldAlert className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-slate-600 text-[10px] leading-relaxed">
-                      Time-locked patient clinical consent simulation for +91 {activeSession.patientPhone}. Current state: <span className="font-mono text-emerald-600 uppercase font-semibold">{activeSession.currentState}</span>
+                    <ShieldAlert className="h-5 w-5 text-indigo-650 flex-shrink-0 mt-0.5" />
+                    <p className="text-slate-605 text-[10px] leading-relaxed">
+                      Time-locked patient clinical consent simulation for <strong>{patients.find(p => p.phone === activeSession.patientPhone)?.name || 'Patient'}</strong> (+91 {activeSession.patientPhone}). Current state: <span className="font-mono text-emerald-600 uppercase font-semibold">{activeSession.currentState.replace('_', ' ')}</span>
                     </p>
                   </div>
 
-                  {(activeSession.sessionData.chatHistory || []).map((msg: ChatMessage, idx: number) => {
-                    const isBot = msg.sender === 'bot';
-                    return (
-                      <div 
-                        key={idx} 
-                        className={`flex ${isBot ? 'justify-start' : 'justify-end'} animate-fade-in`}
-                      >
+                  {(() => {
+                    const sessData = activeSession.sessionData || (activeSession as any).session_data || {};
+                    const chatHistory = sessData.chatHistory || [];
+                    return chatHistory.map((msg: ChatMessage, idx: number) => {
+                      const isBot = msg.sender === 'bot';
+                      return (
                         <div 
-                          className={`max-w-[85%] p-3.5 rounded-2xl shadow-sm relative leading-relaxed ${
-                            isBot 
-                              ? 'bg-white rounded-tl-none text-slate-800' 
-                              : 'bg-[#d9fdd3] rounded-tr-none text-slate-850'
-                          }`}
+                          key={idx} 
+                          className={`flex ${isBot ? 'justify-start' : 'justify-end'} animate-fade-in`}
                         >
-                          <p className="leading-relaxed whitespace-pre-line font-mono text-[11px] font-medium">{msg.text}</p>
-                          
-                          {isBot && msg.text.includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
-                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2 select-none">
-                              <button
-                                onClick={() => {
-                                  api.processIncomingWhatsAppMessage(activeSession.patientPhone, '1');
-                                  syncData();
-                                }}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer border-0"
-                              >
-                                Grant Consent (Aarav Sharma)
-                              </button>
-                            </div>
-                          )}
-                          {isBot && msg.text.includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
-                            <div className="mt-2 flex items-center gap-1 text-emerald-600 text-[9px] font-bold uppercase tracking-wider select-none">
-                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-650 animate-pulse" /> Consent Registered
-                            </div>
-                          )}
+                          <div 
+                            className={`max-w-[85%] p-3.5 rounded-2xl shadow-sm relative leading-relaxed ${
+                              isBot 
+                                ? 'bg-white rounded-tl-none text-slate-800' 
+                                : 'bg-[#d9fdd3] rounded-tr-none text-slate-850'
+                            }`}
+                          >
+                            <p className="leading-relaxed whitespace-pre-line font-mono text-[11px] font-medium text-slate-800">{msg.text}</p>
+                            
+                            {isBot && msg.text.includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
+                              <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2 select-none">
+                                <button
+                                  onClick={() => {
+                                    api.processIncomingWhatsAppMessage(activeSession.patientPhone, '1');
+                                    syncData();
+                                  }}
+                                  className="bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                                >
+                                  Grant Consent ({patients.find(p => p.phone === activeSession.patientPhone)?.name || 'Patient'})
+                                </button>
+                              </div>
+                            )}
+                            {isBot && msg.text.includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
+                              <div className="mt-2 flex items-center gap-1 text-emerald-600 text-[9px] font-bold uppercase tracking-wider select-none">
+                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-655 animate-pulse" /> Consent Registered
+                              </div>
+                            )}
 
-                          <span className="block text-[8px] text-slate-600 text-right mt-1.5 font-mono select-none">
-                            {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                          </span>
+                            <span className="block text-[8px] text-slate-500 text-right mt-1.5 font-mono select-none">
+                              {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                   <div ref={chatEndRef} />
                 </div>
               ) : (
@@ -3640,7 +3693,7 @@ export const CompounderDashboard: React.FC = () => {
                 className={`p-2.5 rounded-full transition-colors border-0 shrink-0 ${
                   activeSession && replyInput.trim() 
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-slate-800 cursor-pointer shadow active:scale-95' 
-                    : 'bg-slate-200 text-slate-600'
+                    : 'bg-slate-200 text-slate-650'
                 }`}
               >
                 <Send className="h-4 w-4" />

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
-import type { Patient, DiagnosticTest, MedicationRequest } from '../../../types';
+import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
 import { CheckCircle2 } from 'lucide-react';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
 import { OphthalmicRefractionGrid } from '../OphthalmicRefractionGrid';
@@ -120,6 +120,24 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   handleSaveEncounter,
   handleLaunchVideoConsult
 }) => {
+  const appointments: Appointment[] = api.getAppointments();
+  const [virtualDateInput, setVirtualDateInput] = useState('');
+  const [virtualTimeInput, setVirtualTimeInput] = useState('');
+
+  useEffect(() => {
+    if (selectedPatient) {
+      const patientAppts = appointments.filter((a: Appointment) => a.patientId === selectedPatient.id);
+      const virtualAppt = patientAppts.find((a: Appointment) => a.isVirtual);
+      if (virtualAppt) {
+        setVirtualDateInput(virtualAppt.virtualDate || '');
+        setVirtualTimeInput(virtualAppt.virtualTime || '');
+      } else {
+        setVirtualDateInput('');
+        setVirtualTimeInput('');
+      }
+    }
+  }, [selectedPatient]);
+
   const activeHistory = selectedPatient ? api.getPatientHistoricalBiomarkers(selectedPatient.id) : null;
   const baseReport = activeHistory?.find(h => h.date === baselineDate) ?? null;
   const compReport = activeHistory?.find(h => h.date === comparisonDate) ?? (activeHistory ? activeHistory[activeHistory.length - 1] : null);
@@ -139,6 +157,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
             {patients.map((p: Patient) => {
               const isSelected = selectedPatient?.id === p.id;
+              const patientAppts = appointments.filter(a => a.patientId === p.id);
+              const virtualAppt = patientAppts.find(a => a.isVirtual);
+
               return (
                 <button
                   key={p.id}
@@ -159,13 +180,21 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     </span>
                   </div>
                   
-                  <div className="text-[10px] text-slate-500 mt-2 flex justify-between items-center">
+                  <div className="text-[10px] text-slate-500 mt-2 flex justify-between items-center flex-wrap gap-1.5">
                     <span>{p.gender}, {p.age} years</span>
-                    {p.abhaId && (
-                      <span className="bg-secondary/10 text-secondary border border-secondary/20 px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider font-mono">
-                        ABHA
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {p.abhaId && (
+                        <span className="bg-secondary/10 text-secondary border border-secondary/20 px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider font-mono">
+                          ABHA
+                        </span>
+                      )}
+                      {virtualAppt && (
+                        <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-250 text-emerald-700 px-1.5 py-0.5 rounded-md animate-pulse font-sans">
+                          <span className="material-symbols-outlined text-[10px] text-emerald-700">check_circle</span>
+                          📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </button>
               );
@@ -284,6 +313,92 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               )}
             </div>
           </div>
+
+          {/* Virtual Appointment Timing Allocator */}
+          {(() => {
+            const patientAppts = appointments.filter(a => a.patientId === selectedPatient.id);
+            const virtualAppt = patientAppts.find(a => a.isVirtual);
+            if (!virtualAppt) return null;
+
+            return (
+              <div className="p-4 bg-emerald-50/50 border border-emerald-200/60 rounded-2xl space-y-3 animate-fade-in my-4 text-left">
+                <div className="flex items-center justify-between border-b border-emerald-100/80 pb-2">
+                  <div className="flex items-center gap-1.5 text-[#075e54] font-bold text-xs">
+                    <span className="material-symbols-outlined text-sm font-bold">video_call</span>
+                    Virtual Consultation Timing Scheduler
+                  </div>
+                  <span className={`text-[8px] font-bold px-2 py-0.5 rounded font-mono uppercase tracking-wider ${
+                    virtualAppt.virtualTimeAllocated ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700 animate-pulse'
+                  }`}>
+                    {virtualAppt.virtualTimeAllocated ? 'Timing Confirmed' : 'Awaiting timing'}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Allocate Meeting Date</label>
+                    <input
+                      type="date"
+                      value={virtualDateInput || virtualAppt.virtualDate || ''}
+                      onChange={(e) => setVirtualDateInput(e.target.value)}
+                      className="w-full px-3.5 py-2 border border-slate-200 focus:border-emerald-500/50 rounded-xl outline-none bg-white text-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Allocate Slot / Time</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 10:30 AM"
+                      value={virtualTimeInput || virtualAppt.virtualTime || ''}
+                      onChange={(e) => setVirtualTimeInput(e.target.value)}
+                      className="w-full px-3.5 py-2 border border-slate-200 focus:border-emerald-500/50 rounded-xl outline-none bg-white text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <div className="text-[10px] text-slate-550 flex items-center gap-1 font-mono select-none">
+                    <span className="material-symbols-outlined text-xs">link</span>
+                    Meet: {virtualAppt.virtualMeetingUrl || `https://meet.jit.si/mediflow-consult-${virtualAppt.id}`}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const finalDate = virtualDateInput || virtualAppt.virtualDate || new Date().toISOString().split('T')[0];
+                      const finalTime = virtualTimeInput || virtualAppt.virtualTime || '10:30 AM';
+                      
+                      // Update appointment
+                      const updatedAppt = {
+                        ...virtualAppt,
+                        virtualDate: finalDate,
+                        virtualTime: finalTime,
+                        virtualTimeAllocated: true
+                      };
+                      api.saveAppointment(updatedAppt);
+                      
+                      // Notify patient on WhatsApp
+                      const patient = patients.find(p => p.id === selectedPatient.id);
+                      if (patient) {
+                        const notificationText = `📅 *Virtual Consultation Confirmed!* \n\nDr. Vivek has allocated your virtual consultation timing: \n🗓️ *Date:* ${finalDate} \n⏰ *Time:* ${finalTime} \n\nPlease join the meeting using this link when scheduled: \n🔗 ${virtualAppt.virtualMeetingUrl || `https://meet.jit.si/mediflow-consult-${virtualAppt.id}`}`;
+                        api.pushWhatsAppMessageFromBot(patient.phone, notificationText);
+                      }
+
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Timing Allocated! 📅',
+                          message: `Virtual consultation slot saved and patient notified via WhatsApp.`,
+                          type: 'success'
+                        }
+                      }));
+                    }}
+                    className="px-4.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer border-0 active:scale-95 text-white-force bg-emerald-600-force"
+                  >
+                    Confirm & Send WhatsApp
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* AI Predictive Lab Pattern & Risk Disease Analyzer Card */}
           {(() => {

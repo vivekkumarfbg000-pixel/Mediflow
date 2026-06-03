@@ -378,6 +378,11 @@ export interface Appointment {
   doctorId: string;
   status: 'pending_payment' | 'ready_for_consult' | 'completed';
   createdAt: string;
+  isVirtual?: boolean;
+  virtualDate?: string;
+  virtualTime?: string;
+  virtualMeetingUrl?: string;
+  virtualTimeAllocated?: boolean;
 }
 
 export interface Invoice {
