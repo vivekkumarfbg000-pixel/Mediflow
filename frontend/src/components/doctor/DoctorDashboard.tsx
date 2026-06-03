@@ -1434,7 +1434,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         {/* Desktop tab nav — integrated into header */}
         <div className="hidden lg:flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px">
           {[
-            { id: 'pod_view',      label: 'Pod Command Center',  icon: 'hub' },
+            { id: 'pod_view',      label: 'Clinic Dashboard',  icon: 'dashboard' },
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
             { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
             { id: 'patients',      label: 'Patient Directory',   icon: 'group' },

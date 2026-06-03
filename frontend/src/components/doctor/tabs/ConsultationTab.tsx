@@ -425,12 +425,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <div className="flex justify-between items-start pb-2 border-b border-slate-200/80">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-indigo-400 text-xl font-bold">query_stats</span>
-                      <h3 className="text-sm font-black text-slate-100 uppercase tracking-wider">AI Predictive Lab Pattern & Risk Disease Analyzer</h3>
+                      <span className="material-symbols-outlined text-indigo-600 text-xl font-bold">query_stats</span>
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">AI Predictive Lab Pattern & Risk Disease Analyzer</h3>
                     </div>
                     <p className="text-[10px] text-slate-600 mt-1">Advanced multi-biomarker trajectory & disease prediction engine</p>
                   </div>
-                  <span className="text-[8px] font-black font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
+                  <span className="text-[8px] font-black font-mono bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
                     Predictive Model: Active
                   </span>
                 </div>
@@ -446,7 +446,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: OPHTHALMIC_EYE_CARE_COPY.odFallback,
                       status: getAcuityRank(recent.temperature || '6/6') > 2 ? 'abnormal' : 'normal',
                       icon: 'visibility',
-                      color: getAcuityRank(recent.temperature || '6/6') > 2 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-305' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      color: getAcuityRank(recent.temperature || '6/6') > 2 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-700' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
                     },
                     {
                       name: 'Intraocular Pressure',
@@ -457,7 +457,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '10 - 21',
                       status: (recent.pulseRate || 16) > 21 ? 'critical' : 'normal',
                       icon: 'eye_tracking',
-                      color: (recent.pulseRate || 16) > 21 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-305' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      color: (recent.pulseRate || 16) > 21 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-700' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
                     },
                     {
                       name: 'Visual Acuity (OS)',
@@ -468,12 +468,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: OPHTHALMIC_EYE_CARE_COPY.osFallback,
                       status: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'abnormal' : 'borderline',
                       icon: 'visibility',
-                      color: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-305' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      color: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-700' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
                     }
                   ].map((item, idx) => (
                     <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{item.name}</span>
+                        <span className="text-[10px] text-slate-650 font-bold uppercase tracking-wider">{item.name}</span>
                         <span className="text-[9px] text-slate-600 font-mono">Normal: {item.normal}</span>
                       </div>
                       <div className="flex justify-between items-baseline pt-1">
@@ -481,8 +481,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         {baseline && item.diff !== 0 && (
                           <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
                             (item.diff > 0 && item.status !== 'normal')
-                              ? 'text-rose-400'
-                              : 'text-emerald-400'
+                              ? 'text-rose-750'
+                              : 'text-emerald-750'
                           }`}>
                             {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff).toFixed(0)}
                           </span>
@@ -503,7 +503,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '4.0 - 5.6',
                       status: recent.HbA1c > 6.5 ? 'critical' : recent.HbA1c > 5.7 ? 'warning' : 'normal',
                       icon: 'water_drop',
-                      color: recent.HbA1c > 6.5 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-305' : recent.HbA1c > 5.7 ? 'from-amber-500/20 to-amber-600/5 border-amber-500/35 text-amber-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      color: recent.HbA1c > 6.5 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-700' : recent.HbA1c > 5.7 ? 'from-amber-50 to-amber-100/50 border-amber-250 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
                     },
                     {
                       name: 'Serum Creatinine',
@@ -514,7 +514,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '0.6 - 1.2',
                       status: recent.creatinine > 1.2 ? 'critical' : recent.creatinine > 1.0 ? 'warning' : 'normal',
                       icon: 'kidney',
-                      color: recent.creatinine > 1.2 ? 'from-rose-500/20 to-rose-600/5 border-rose-500/35 text-rose-305' : recent.creatinine > 1.0 ? 'from-amber-500/20 to-amber-600/5 border-amber-500/35 text-amber-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      color: recent.creatinine > 1.2 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-700' : recent.creatinine > 1.0 ? 'from-amber-50 to-amber-100/50 border-amber-250 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
                     },
                     {
                       name: 'Total Hemoglobin',
@@ -525,12 +525,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '12.0 - 16.0',
                       status: recent.hemoglobin < 12.0 ? 'warning' : 'normal',
                       icon: 'bloodtype',
-                      color: recent.hemoglobin < 12.0 ? 'from-amber-500/20 to-amber-600/5 border-amber-500/35 text-amber-300' : 'from-slate-800/50 to-slate-800/20 border-slate-700/50 text-emerald-400'
+                      color: recent.hemoglobin < 12.0 ? 'from-amber-50 to-amber-100/50 border-amber-250 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
                     }
                   ].map((item, idx) => (
                     <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{item.name}</span>
+                        <span className="text-[10px] text-slate-650 font-bold uppercase tracking-wider">{item.name}</span>
                         <span className="text-[9px] text-slate-600 font-mono">Normal: {item.normal}</span>
                       </div>
                       <div className="flex justify-between items-baseline pt-1">
@@ -552,14 +552,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     </div>
                   ))}
                 </div>
-
                 <div className="space-y-3">
                   <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1.5 font-mono">
-                    <span className="material-symbols-outlined text-xs text-indigo-400">warning</span>
+                    <span className="material-symbols-outlined text-xs text-indigo-600">warning</span>
                     AI Predictive Disease & Pattern Warnings
                   </h4>
                   {riskAlerts.length === 0 ? (
-                    <div className="p-3 bg-slate-800/40 border border-slate-700/30 rounded-xl text-slate-400 text-xs italic">
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs italic">
                       No critical disease risks flagged based on biomarker trajectories.
                     </div>
                   ) : (
@@ -567,31 +566,31 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       {riskAlerts.map((alert, i) => (
                         <div key={i} className={`p-3 rounded-xl border flex gap-3 text-xs leading-relaxed ${
                           alert.type === 'critical'
-                            ? 'bg-rose-950/20 border-rose-500/20 text-rose-200'
+                            ? 'bg-rose-50 border-rose-200 text-rose-800'
                             : alert.type === 'warning'
-                            ? 'bg-amber-950/20 border-amber-500/20 text-amber-200'
-                            : 'bg-indigo-950/20 border-indigo-500/20 text-indigo-200'
+                            ? 'bg-amber-50 border-amber-200/60 text-amber-900'
+                            : 'bg-indigo-50 border-indigo-200 text-indigo-850'
                         }`}>
                           <span className="material-symbols-outlined text-base font-bold mt-0.5 shrink-0">
                             {alert.type === 'critical' ? 'gavel' : alert.type === 'warning' ? 'error' : 'info'}
                           </span>
                           <div>
                             <strong className="font-extrabold text-[11px] uppercase tracking-wider block">{alert.title}</strong>
-                            <p className="text-[10px] text-slate-600 pt-0.5 font-sans leading-relaxed">{alert.desc}</p>
+                            <p className="text-[10px] text-slate-700 pt-0.5 font-sans leading-relaxed">{alert.desc}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-
-                <div className="p-4 bg-white/50 border border-slate-200/80 rounded-2xl space-y-1.5 relative overflow-hidden">
+ 
+                <div className="p-4 bg-indigo-50/20 border border-indigo-100/80 rounded-2xl space-y-1.5 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
-                  <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
+                  <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping" />
                     Professional AI Consultation Summary
                   </span>
-                  <p className="text-xs text-slate-200 leading-relaxed font-sans font-medium italic pt-1">
+                  <p className="text-xs text-slate-700 leading-relaxed font-sans font-medium italic pt-1">
                     "{summaryText}"
                   </p>
                 </div>

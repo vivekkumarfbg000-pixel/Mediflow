@@ -75,25 +75,25 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-400 text-2xl font-bold">clinical_notes</span>
-                <h2 className="text-lg font-black text-slate-100 uppercase tracking-wider font-sans">{OPHTHALMIC_EYE_CARE_COPY.analysisTitle}</h2>
+                <span className="material-symbols-outlined text-indigo-650 text-2xl font-bold">clinical_notes</span>
+                <h2 className="text-lg font-black text-slate-850 uppercase tracking-wider font-sans">{OPHTHALMIC_EYE_CARE_COPY.analysisTitle}</h2>
               </div>
               <p className="text-xs text-slate-600 mt-1">
-                Eye-care review for patient: <strong className="text-slate-200 font-bold">{selectedPatient.name}</strong> ({selectedPatient.age}y, {selectedPatient.gender})
+                Eye-care review for patient: <strong className="text-slate-800 font-bold">{selectedPatient.name}</strong> ({selectedPatient.age}y, {selectedPatient.gender})
               </p>
             </div>
 
             <div className="flex gap-2">
               <span className={`text-[10px] font-black font-mono px-3.5 py-1.5 rounded-full uppercase tracking-wider border ${
-                riskTier === 'Critical Risk' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' :
-                riskTier === 'High Risk' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
-                'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                riskTier === 'Critical Risk' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                riskTier === 'High Risk' ? 'bg-amber-50 text-amber-850 border-amber-200' :
+                'bg-emerald-50 text-emerald-700 border-emerald-200'
               }`}>
                 {riskTier}
               </span>
               <button
                 onClick={onCloseAnalysis}
-                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-600 hover:text-slate-800 transition-colors cursor-pointer border-0 text-slate-800-force"
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors cursor-pointer border-0"
               >
                 <span className="material-symbols-outlined text-base">close</span>
               </button>
@@ -104,40 +104,40 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
             <div className="lg:col-span-7 space-y-6">
               <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">1. Reference Range Audit & Diagnostics</h3>
               <div className="space-y-4">
-                <div className="p-4 bg-white/40 border border-slate-200 rounded-2xl space-y-2">
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">{OPHTHALMIC_EYE_CARE_COPY.odLabel}</span>
+                    <span className="text-xs font-bold text-slate-700">{OPHTHALMIC_EYE_CARE_COPY.odLabel}</span>
                     <span className="text-[10px] text-slate-600 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.odRefRange}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">{report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}</span>
-                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    <span className="text-xl font-black font-mono tracking-tight text-slate-800">{report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback}</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono border ${getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'bg-rose-50 text-rose-700 border-rose-200/60' : 'bg-emerald-50 text-emerald-750 border-emerald-200/60'}`}>
                       {getAcuityRank(report.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) > 2 ? 'Abnormal (Low)' : 'Normal'}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white/40 border border-slate-200 rounded-2xl space-y-2">
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">{OPHTHALMIC_EYE_CARE_COPY.iopLabel}</span>
+                    <span className="text-xs font-bold text-slate-700">{OPHTHALMIC_EYE_CARE_COPY.iopLabel}</span>
                     <span className="text-[10px] text-slate-600 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.iopRefRange}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">{iop} mmHg</span>
-                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${iop > 21 ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    <span className="text-xl font-black font-mono tracking-tight text-slate-800">{iop} mmHg</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono border ${iop > 21 ? 'bg-rose-50 text-rose-700 border-rose-200/60' : 'bg-emerald-50 text-emerald-750 border-emerald-200/60'}`}>
                       {iop > 21 ? 'Glaucoma Risk (High)' : 'Normal'}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white/40 border border-slate-200 rounded-2xl space-y-2">
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-200">{OPHTHALMIC_EYE_CARE_COPY.osLabel}</span>
+                    <span className="text-xs font-bold text-slate-700">{OPHTHALMIC_EYE_CARE_COPY.osLabel}</span>
                     <span className="text-[10px] text-slate-600 font-mono">Ref Range: {OPHTHALMIC_EYE_CARE_COPY.osRefRange}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
-                    <span className="text-xl font-black font-mono tracking-tight">{report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}</span>
-                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono ${getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                    <span className="text-xl font-black font-mono tracking-tight text-slate-800">{report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback}</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded font-mono border ${getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'bg-rose-50 text-rose-700 border-rose-200/60' : 'bg-amber-50 text-amber-800 border-amber-200/60'}`}>
                       {getAcuityRank(report.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) > 3 ? 'Abnormal (Low)' : 'Borderline'}
                     </span>
                   </div>
@@ -149,22 +149,22 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
               <div className="space-y-4">
                 <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">2. AI Clinical Correlations</h3>
                 <div className="p-4 bg-white/60 border border-slate-200 rounded-2xl text-xs space-y-2 leading-relaxed">
-                  <strong className="text-indigo-400 block font-bold">Biomarker Interaction Profile</strong>
-                  <p className="text-slate-600 text-[11px] font-medium leading-relaxed">{riskReason}</p>
+                  <strong className="text-indigo-700 block font-bold">Biomarker Interaction Profile</strong>
+                  <p className="text-slate-655 text-[11px] font-semibold leading-relaxed">{riskReason}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">3. Future Potential Disease Forecasts</h3>
                 {complications.length === 0 ? (
-                  <div className="p-4 bg-white/20 border border-slate-200 rounded-2xl text-slate-600 text-xs italic">
+                  <div className="p-4 bg-white/20 border border-slate-200 rounded-2xl text-slate-605 text-xs italic">
                     No future potential risk patterns identified.
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {complications.map((item, index) => (
-                      <div key={index} className="p-3 bg-rose-950/20 border border-rose-900/30 rounded-xl flex items-center gap-2.5 text-xs text-rose-200">
-                        <span className="material-symbols-outlined text-rose-400 text-sm shrink-0">warning</span>
+                      <div key={index} className="p-3 bg-rose-50 border border-rose-200/60 rounded-xl flex items-center gap-2.5 text-xs text-rose-800">
+                        <span className="material-symbols-outlined text-rose-600 text-sm shrink-0">warning</span>
                         <span className="font-bold">{item}</span>
                       </div>
                     ))}
@@ -174,13 +174,13 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
 
               <div className="space-y-4">
                 <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">4. Safe Prescribing Directives</h3>
-                <div className="p-4 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl text-[11px] text-indigo-200 space-y-2">
+                <div className="p-4 bg-indigo-50 border border-indigo-200/60 rounded-2xl text-[11px] text-indigo-850 space-y-2">
                   <div className="flex gap-2 animate-fade-in">
-                    <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                    <span className="material-symbols-outlined text-xs text-indigo-650 shrink-0 font-bold">check_circle</span>
                     <span>{isIopHigh ? 'STRICT CONFLICT: Avoid dilating drops (Atropine/Tropicamide) to prevent acute angle closure.' : 'Dilating drops cleared within safe intraocular pressure thresholds.'}</span>
                   </div>
                   <div className="flex gap-2 animate-fade-in">
-                    <span className="material-symbols-outlined text-xs text-indigo-400 shrink-0 font-bold">check_circle</span>
+                    <span className="material-symbols-outlined text-xs text-indigo-650 shrink-0 font-bold">check_circle</span>
                     <span>{isAcuityDropped ? 'Review spectacle prescription. Reroute to Optical Shop for lens grinding.' : 'Visual acuity cleared within functional limits.'}</span>
                   </div>
                 </div>
@@ -191,7 +191,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
           <div className="flex justify-end border-t border-slate-200 pt-4 gap-3">
             <button
               onClick={onCloseAnalysis}
-              className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-800 rounded-xl transition-colors cursor-pointer border-0 text-slate-800-force animate-fade-in"
+              className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 rounded-xl transition-colors cursor-pointer border-0 animate-fade-in"
             >
               Dismiss
             </button>

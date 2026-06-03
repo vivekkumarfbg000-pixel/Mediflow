@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { api } from '../../../services/api';
 import type { ClinicSop } from '../../../types';
 
@@ -183,30 +183,118 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       {/* UPLOAD PANEL */}
       {sopActiveSubTab === 'upload' && (
         <div className="space-y-5">
-          {/* Drop zone */}
-          <div className="relative border-2 border-dashed border-violet-200 rounded-2xl bg-violet-50/40 hover:bg-violet-50/70 transition-colors">
-            <input
-              type="file"
-              accept=".txt,.pdf,.doc,.docx,.md"
-              onChange={handleFileUpload}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
-            <div className="flex flex-col items-center justify-center py-12 gap-3 pointer-events-none">
-              <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center shadow-sm">
-                <span className="material-symbols-outlined text-4xl text-violet-500">upload_file</span>
-              </div>
-              <div className="text-center">
-                <p className="font-bold text-slate-700 text-sm">{sopFile ? sopFile.name : 'Drop your SOP document here'}</p>
-                <p className="text-xs text-slate-600 mt-1">Supports .txt, .pdf, .doc, .docx, .md — AI will parse it automatically</p>
-              </div>
-              {sopFile && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-semibold">
-                  <span className="material-symbols-outlined text-sm">check_circle</span>
-                  {sopFile.name} ready for extraction
+          {/* ── Revenue Split Ledger Widget ─────────────────────────── */}
+          {(() => {
+            const financials = api.getFinancialLedgers();
+            const todayStr = new Date().toISOString().split('T')[0];
+            const grossRev  = financials.filter(l => l.transactionType === 'appointment_fee').reduce((s, l) => s + l.grossAmount, 0);
+            const cleared   = financials.filter(l => l.paymentStatus === 'cleared').reduce((s, l) => s + l.netPayout, 0);
+            const pending   = financials.filter(l => l.paymentStatus === 'pending').reduce((s, l) => s + l.netPayout, 0);
+            const todayCount = financials.filter(l => l.createdAt?.startsWith(todayStr)).length;
+            const allTotal  = financials.reduce((s, l) => s + l.netPayout, 0) || 1;
+
+            const categories = [
+              { type: 'appointment_fee',      label: 'Clinic Consult Payout',       dot: 'bg-indigo-500',  bar: 'bg-indigo-500' },
+              { type: 'lab_commission',        label: 'Lab Share Settlement',         dot: 'bg-teal-500',    bar: 'bg-teal-500'   },
+              { type: 'medicine_commission',   label: 'Pharmacy Share Settlement',    dot: 'bg-violet-500',  bar: 'bg-violet-500' },
+              { type: 'platform_fee',          label: 'Platform Commission Split',    dot: 'bg-slate-400',   bar: 'bg-slate-400'  },
+            ];
+
+            return (
+              <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 to-orange-50/40 overflow-hidden shadow-sm">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-amber-600 text-[20px]">payments</span>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-slate-800 leading-none">Revenue Split Ledger</h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Bihar Zone · Real-time payout breakdown</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+                    {todayCount} Today
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
+
+                {/* KPI Row */}
+                <div className="grid grid-cols-3 gap-3 px-5 pb-4">
+                  <div className="p-3 bg-white/80 border border-slate-200/60 rounded-xl text-center shadow-xs">
+                    <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest">Gross</p>
+                    <p className="text-base font-black text-slate-800 mt-0.5 font-mono">₹{grossRev.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="p-3 bg-emerald-50 border border-emerald-200/60 rounded-xl text-center shadow-xs">
+                    <p className="text-[9px] text-emerald-600 font-semibold uppercase tracking-widest">Cleared</p>
+                    <p className="text-base font-black text-emerald-700 mt-0.5 font-mono">₹{cleared.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="p-3 bg-amber-50 border border-amber-200/60 rounded-xl text-center shadow-xs">
+                    <p className="text-[9px] text-amber-600 font-semibold uppercase tracking-widest">Pending</p>
+                    <p className="text-base font-black text-amber-700 mt-0.5 font-mono">₹{pending.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+
+                {/* Stacked proportional bar */}
+                <div className="px-5 pb-2">
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-2">Revenue Transaction Shares</p>
+                  <div className="h-4 bg-slate-200/60 rounded-full overflow-hidden flex gap-px">
+                    {categories.map((cat, idx) => {
+                      const amt = financials.filter(l => l.transactionType === cat.type).reduce((s, l) => s + l.netPayout, 0);
+                      const pct = (amt / allTotal) * 100;
+                      if (pct < 0.5) return null;
+                      return (
+                        <div
+                          key={idx}
+                          className={`${cat.bar} h-full transition-all duration-700 first:rounded-l-full last:rounded-r-full`}
+                          style={{ width: `${pct}%` }}
+                          title={`${cat.label}: ₹${Math.round(amt)} (${Math.round(pct)}%)`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Per-category breakdown */}
+                <div className="px-5 pb-5 pt-3 space-y-2">
+                  {categories.map((cat, idx) => {
+                    const amt = financials.filter(l => l.transactionType === cat.type).reduce((s, l) => s + l.netPayout, 0);
+                    const pct = ((amt / allTotal) * 100).toFixed(1);
+                    return (
+                      <div key={idx} className="flex items-center justify-between bg-white/70 border border-slate-200/50 px-3 py-2.5 rounded-xl hover:bg-white transition-colors">
+                        <span className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                          <span className={`w-2.5 h-2.5 rounded-full ${cat.dot} shrink-0`} />
+                          {cat.label}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-slate-500 font-mono">{pct}%</span>
+                          <span className="font-mono font-bold text-slate-800 text-xs">₹{Math.round(amt).toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Upload SOP file — compact trigger */}
+                <div className="px-5 pb-5 pt-1 border-t border-amber-100/60">
+                  <label className="relative w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border-2 border-dashed border-violet-300 text-violet-600 font-bold text-xs hover:bg-violet-50 transition-colors cursor-pointer">
+                    <input
+                      type="file"
+                      accept=".txt,.pdf,.doc,.docx,.md"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <span className="material-symbols-outlined text-base">upload_file</span>
+                    {sopFile ? `📄 ${sopFile.name}` : 'Upload SOP Document (.txt / .pdf / .doc)'}
+                    {sopFile && (
+                      <span className="ml-1 px-1.5 py-0.5 bg-emerald-100 border border-emerald-200 rounded-md text-emerald-700 text-[9px] font-bold">Ready</span>
+                    )}
+                  </label>
+                </div>
+              </div>
+            );
+          })()}
+
 
           {/* Paste text directly */}
           <div className="space-y-2">

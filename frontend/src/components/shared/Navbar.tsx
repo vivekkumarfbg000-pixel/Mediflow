@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { useSpecialization } from '../../context/SpecializationContext';
-import { supabase } from '../../lib/supabaseClient';
+
 import { 
   UserPlus, 
   Stethoscope, 
@@ -11,17 +11,13 @@ import {
   LogOut,
   ShieldCheck,
   ShieldAlert,
-  Terminal,
-  ChevronUp,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Menu,
   X,
   Settings,
-  FileText,
-  Sun,
-  Moon
+  FileText
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 
@@ -95,9 +91,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
   const [activePatient, setActivePatient] = useState<any>(null);
   const [activePatientStage, setActivePatientStage] = useState<string>('registered');
-  const [logs, setLogs] = useState<any[]>([]);
-  const [isHudExpanded, setIsHudExpanded] = useState(false);
-  const [isConnected, setIsConnected] = useState(true);
   const [offlineCount, setOfflineCount] = useState(0);
 
   useEffect(() => {
@@ -138,202 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return api.subscribe(updateNavbarState);
   }, []);
 
-  // Format activity log entries to show descriptive text in Telemetry console
-  const formatLogEntry = (log: any) => {
-    const details = log.details || {};
-    const timestamp = details.timestamp 
-      ? new Date(details.timestamp).toLocaleTimeString() 
-      : new Date(log.created_at).toLocaleTimeString();
-    
-    let text = '';
-    const action = log.action_type;
-    
-    switch (action) {
-      case 'patient_registered':
-        text = `New Patient registered: ${details.name || 'Anonymous'} (PID: ${details.patientId || details.patient_id || 'N/A'})`;
-        break;
-      case 'encounter_created':
-        text = `Clinical e-Prescription (e-Rx) & encounter signed off for Patient ID ${details.patientId || 'N/A'}`;
-        break;
-      case 'lab_sample_collected':
-        text = `Lab Sample Collected for Requisition ID ${details.reqId || 'N/A'}`;
-        break;
-      case 'lab_result_submitted':
-        text = `Pathology Lab test processed for Requisition ID ${details.reqId || 'N/A'}: ${details.resultValue || 'Approved'}`;
-        break;
-      case 'pharmacy_inventory_dispensed':
-        text = `Pharmacy inventory dispensed and FEFO allocated for Hold ID ${details.holdId || 'N/A'}`;
-        break;
-      case 'pharmacy_inventory_hold_cancelled':
-        text = `Pharmacy inventory hold cancelled for Hold ID ${details.holdId || 'N/A'}`;
-        break;
-      case 'invoice_payment_cleared':
-        text = `Split billing invoice payment cleared for Invoice ID ${details.invoiceId || 'N/A'}. Ledger settled.`;
-        break;
-      case 'seasonal_forecast_acted_upon':
-        text = `CDSS acting on seasonal epidemiologic forecast ID ${details.forecastId || 'N/A'}`;
-        break;
-      case 'clinic_staff_registered':
-        text = `Workspace User ${details.name || 'N/A'} registered with role: ${details.role || 'N/A'}`;
-        break;
-      case 'clinic_staff_shift_toggled':
-        text = `Staff ID ${details.staffId || 'N/A'} shift status updated to ${details.isActive ? 'ACTIVE' : 'INACTIVE'}`;
-        break;
-      case 'reagent_replenished':
-        text = `Pathology Reagent [${details.reagentName || 'N/A'}] replenished by ${details.replenishedVolume}ml (New level: ${details.newVolume}ml)`;
-        break;
-      case 'SYSTEM_ERROR':
-        text = `🚨 Clinical CDSS error in [${details.action || 'N/A'}]: ${details.error || 'Unknown'}`;
-        break;
-      case 'PATIENT_CONSENT_GRANTED':
-        text = `Consent GRANTED via WhatsApp simulator for Patient ID: ${details.patientId || 'N/A'}`;
-        break;
-      case 'PATIENT_CONSENT_REVOKED':
-        text = `Consent REVOKED via WhatsApp simulator for Patient ID: ${details.patientId || 'N/A'}`;
-        break;
-      default:
-        text = `DB Activity: [${action}] details: ${JSON.stringify(details)}`;
-    }
 
-    return {
-      id: log.id || `log-${Date.now()}-${Math.random()}`,
-      timestamp,
-      type: 'ACTIVITY',
-      action_type: action,
-      text,
-      role: details.simulated_role || 'system'
-    };
-  };
-
-  // Fetch initial activity logs
-  useEffect(() => {
-    const fetchInitialLogs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('activity_logs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
-          
-        if (!error && data) {
-          const formattedLogs = data.map((log: any) => formatLogEntry(log));
-          setLogs(formattedLogs);
-        }
-      } catch (err) {
-        console.error('Failed to load initial telemetry logs:', err);
-      }
-    };
-    
-    fetchInitialLogs();
-  }, []);
-
-  // Set up Supabase Realtime channel for CDC and Activity logs
-  useEffect(() => {
-    const activityChannel = supabase
-      .channel('navbar-telemetry-hud')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'activity_logs' },
-        (payload) => {
-          const newLog = formatLogEntry(payload.new);
-          setLogs(prev => [newLog, ...prev].slice(0, 55));
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public' },
-        (payload) => {
-          if (payload.table === 'activity_logs') return; // Handled by INSERT above
-          
-          const timestamp = new Date().toLocaleTimeString();
-          const table = payload.table.toUpperCase();
-          const event = payload.eventType;
-          let text = `CDC Broadcast: Row ${event.toLowerCase()}d in table ${table}.`;
-          
-          const record = (payload.new || {}) as any;
-          if (payload.table === 'encounters') {
-            text = `CDC Broadcast: Encounter ${event}d for Patient ID ${record.patientId || record.patient_id || 'N/A'}`;
-          } else if (payload.table === 'lab_requisitions') {
-            text = `CDC Broadcast: Lab Requisition status changed to ${record.status || 'N/A'} (PID: ${record.patientId || 'N/A'})`;
-          } else if (payload.table === 'inventory_holds') {
-            text = `CDC Broadcast: Pharmacy Hold status changed to ${record.holdStatus || 'N/A'} (PID: ${record.patientId || 'N/A'})`;
-          } else if (payload.table === 'unified_invoices') {
-            text = `CDC Broadcast: Invoice status changed to ${record.paymentStatus || 'N/A'} (Amount: ₹${record.totalAmount || '0'})`;
-          } else if (payload.table === 'whatsapp_sessions') {
-            text = `CDC Broadcast: WhatsApp Session state transitioned to: ${record.currentState || 'N/A'}`;
-          }
-          
-          const newCdcLog = {
-            id: `cdc-${Date.now()}-${Math.random()}`,
-            timestamp,
-            type: 'CDC_STREAM',
-            action_type: `CDC_${table}_${event}`,
-            text,
-            role: 'system'
-          };
-          
-          setLogs(prev => [newCdcLog, ...prev].slice(0, 55));
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true);
-        } else {
-          setIsConnected(false);
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(activityChannel);
-    };
-  }, []);
-
-  const getLogTagStyle = (actionType: string) => {
-    if (actionType.startsWith('CDC_')) {
-      return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
-    }
-    switch (actionType) {
-      case 'patient_registered':
-        return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-      case 'encounter_created':
-        return 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20';
-      case 'lab_sample_collected':
-      case 'lab_result_submitted':
-        return 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20';
-      case 'pharmacy_inventory_dispensed':
-      case 'pharmacy_inventory_hold_cancelled':
-        return 'bg-pink-500/10 text-pink-400 border border-pink-500/20';
-      case 'invoice_payment_cleared':
-        return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
-      case 'SYSTEM_ERROR':
-        return 'bg-rose-500/10 text-rose-400 border border-rose-500/25 animate-pulse';
-      case 'PATIENT_CONSENT_GRANTED':
-        return 'bg-teal-500/10 text-teal-400 border border-teal-500/20';
-      case 'PATIENT_CONSENT_REVOKED':
-        return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
-      default:
-        return 'bg-clinical-800 text-clinical-400 border border-clinical-700/50';
-    }
-  };
-
-  const getLogTagLabel = (actionType: string) => {
-    if (actionType.startsWith('CDC_')) {
-      return 'CDC_EVENT';
-    }
-    switch (actionType) {
-      case 'patient_registered': return 'REGISTRY';
-      case 'encounter_created': return 'ENCOUNTER';
-      case 'lab_sample_collected': return 'LAB_COLLECT';
-      case 'lab_result_submitted': return 'LAB_RESULT';
-      case 'pharmacy_inventory_dispensed': return 'RX_DISPENSE';
-      case 'pharmacy_inventory_hold_cancelled': return 'RX_HOLD_DEL';
-      case 'invoice_payment_cleared': return 'UPI_SETTLE';
-      case 'SYSTEM_ERROR': return 'SYS_ERROR';
-      case 'PATIENT_CONSENT_GRANTED': return 'CONSENT_OK';
-      case 'PATIENT_CONSENT_REVOKED': return 'CONSENT_REV';
-      default: return 'ACTIVITY';
-    }
-  };
 
   const roles = [
     { id: 'compounder', name: 'Compounder', icon: UserPlus, color: 'text-accent-500 bg-accent-500/10' },
@@ -1095,74 +893,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Ecosystem Live Pipeline Telemetry HUD Bottom Drawer */}
-      <div 
-        className={`fixed left-0 right-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'} z-40 transition-all duration-500 ease-in-out border-t border-slate-100 bg-white/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,23,42,0.02)] flex flex-col md:bottom-0 ${
-          isHudExpanded ? 'h-[230px]' : 'h-[36px]'
-        } bottom-16`}
-      >
-        {/* HUD Top Bar Toggler */}
-        <div 
-          onClick={() => setIsHudExpanded(!isHudExpanded)}
-          className="h-[35px] shrink-0 px-4 md:px-8 border-b border-slate-100/40 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 select-none transition-colors"
-        >
-          <div className="flex items-center gap-2 md:gap-3.5">
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-              <span className="text-[10px] md:text-xs font-bold text-slate-700 tracking-wide flex items-center gap-1.5 font-sans">
-                <Terminal className="h-3.5 w-3.5 text-primary" />
-                Ecosystem Live Telemetry HUD
-              </span>
-            </div>
-            
-            <div className="hidden sm:flex items-center gap-1.5 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-50 border border-slate-100 text-slate-500">
-              CDC Channels: active
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <span className="text-[9px] font-mono text-slate-600">
-              {logs.length} events logged
-            </span>
-            <div className="text-slate-600 hover:text-slate-700 transition-colors">
-              {isHudExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </div>
-          </div>
-        </div>
 
-        {/* HUD Log Output Panel */}
-        {isHudExpanded && (
-          <div className="flex-1 p-4 overflow-y-auto font-mono text-[10.5px] leading-relaxed space-y-2 bg-slate-50/50">
-            {logs.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-slate-600 text-xs italic">
-                Scanning database pipeline... Listening for Postgres CDC mutations.
-              </div>
-            ) : (
-              logs.map((log) => (
-                <div key={log.id} className="flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-slate-100/30 py-0.5 px-2 rounded transition-colors group">
-                  {/* Timestamp */}
-                  <span className="text-slate-600 shrink-0 select-none">[{log.timestamp}]</span>
-                  
-                  {/* Event tag */}
-                  <span className={`text-[8.5px] font-bold tracking-widest px-1.5 py-0.5 rounded shrink-0 uppercase ${getLogTagStyle(log.action_type)}`}>
-                    {getLogTagLabel(log.action_type)}
-                  </span>
-                  
-                  {/* Role descriptor */}
-                  {log.role && log.role !== 'system' && (
-                    <span className="text-slate-600 font-bold uppercase text-[8px] bg-slate-50 px-1 py-0.2 rounded border border-slate-100">
-                      {log.role}
-                    </span>
-                  )}
-                  
-                  {/* Log body */}
-                  <span className="text-slate-600 font-medium break-all">{log.text}</span>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
       {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && (
