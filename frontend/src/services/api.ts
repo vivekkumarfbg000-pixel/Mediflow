@@ -736,7 +736,9 @@ class MediflowApiService {
           platformFee: Number(i.platform_fee),
           totalAmount: Number(i.total_amount),
           upiQrPayload: i.upi_qr_payload || '',
-          paymentStatus: i.payment_status === 'refunded' ? 'pending' : i.payment_status,
+          paymentStatus: (i.payment_status === 'unpaid' || i.payment_status === 'refunded' || i.payment_status === 'pending') 
+            ? 'pending' 
+            : ((i.payment_status === 'paid' || i.payment_status === 'cleared') ? 'cleared' : i.payment_status as any),
           createdAt: i.created_at
         }));
         this.save('unified_invoices', invoices);

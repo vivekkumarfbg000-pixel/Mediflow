@@ -196,17 +196,18 @@ export class BillingService {
     const exists = ledgerEntries.some(l => l.invoiceId === invoiceId);
     if (exists) return;
 
-    // Fetch active SOP or use defaults
+    // Fetch active SOP or use defaults for doctor/lab splits
     const activeSop = this.getActiveSop();
     const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
-    const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 3;
     const splitLab = activeSop?.extractedConfig?.splits?.lab ?? 57;
 
-    const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
     const listToSave: FinancialLedgerEntry[] = [];
 
     if (type === 'consult') {
+      const splitPlat = 3; // Hardcoded platform fee split (3%)
+      const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
       const docAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
+
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
@@ -214,7 +215,7 @@ export class BillingService {
         destinationEntityId: 'platform-admin-entity',
         transactionType: 'platform_fee',
         grossAmount: amount,
-        commissionRate: splitPlat / 105, // matches commissionRate type bounds
+        commissionRate: splitPlat / 100,
         netPayout: platformAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
@@ -236,6 +237,8 @@ export class BillingService {
       };
       listToSave.push(platformLedger, docLedger);
     } else if (type === 'lab') {
+      const splitPlat = 5; // Hardcoded platform fee split (5%)
+      const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
       const docAmt = parseFloat((amount * (splitDoc / 100)).toFixed(2));
       const labAmt = parseFloat((amount * (splitLab / 100)).toFixed(2));
 
@@ -282,7 +285,10 @@ export class BillingService {
       };
       listToSave.push(platformLedger, docLedger, labLedger);
     } else if (type === 'pharmacy') {
+      const splitPlat = 5; // Hardcoded platform fee split (5%)
+      const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
       const pharmaAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
+
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
@@ -321,10 +327,12 @@ export class BillingService {
       const dbEntries = listToSave.map(s => ({
         invoice_id: s.invoiceId.length === 36 ? s.invoiceId : null,
         source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
-        destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' : (s.destinationEntityId === 'lab-partner-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' : 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004'), // lab or pharmacy
+        destination_entity_id: s.destinationEntityId === 'platform-admin-entity' 
+          ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' 
+          : (s.destinationEntityId === 'lab-partner-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' : 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004'), // lab or pharmacy
         transaction_type: s.transactionType,
         gross_amount: s.grossAmount,
-        commission_rate: s.commissionRate * 100,
+        commission_rate: Math.round(s.commissionRate * 100),
         net_payout: s.netPayout,
         payment_status: 'cleared',
         settled_at: new Date().toISOString()

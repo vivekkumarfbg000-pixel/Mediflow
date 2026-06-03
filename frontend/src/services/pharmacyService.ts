@@ -357,9 +357,7 @@ export class PharmacyService {
       const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
       const exists = ledgerEntries.some(l => l.invoiceId === id);
       if (!exists) {
-        const sops = load<any[]>('clinic_sops', []);
-        const activeSop = sops.find(s => s.isActive) || null;
-        const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 3;
+        const splitPlat = 5; // Hardcoded platform fee split (5% for pharmacy sales)
         
         const amount = bill.totalAmount;
         const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
