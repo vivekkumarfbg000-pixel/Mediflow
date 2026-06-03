@@ -7,6 +7,18 @@ export class PwaSyncManager {
   // 1. Initialize PWA Service Worker Registration
   static registerServiceWorker() {
     if ('serviceWorker' in navigator) {
+      // Disable service worker in development mode to prevent caching Vite dev modules and infinite reload loops
+      if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('[PWA-Client] Service Worker registration bypassed in development mode.');
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister();
+            console.log('[PWA-Client] Unregistered active service worker for development.');
+          }
+        });
+        return;
+      }
+
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
           .then((reg) => {
