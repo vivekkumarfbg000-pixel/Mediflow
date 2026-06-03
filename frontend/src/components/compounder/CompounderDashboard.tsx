@@ -1286,22 +1286,7 @@ export const CompounderDashboard: React.FC = () => {
 
           </div>
         </div>
-      ) : (
-        <div className="glass-panel p-6 border-dashed border-2 border-indigo-500/20 shadow-sm relative overflow-hidden bg-white/40 text-center py-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/2 to-teal-500/2 pointer-events-none" />
-          <div className="max-w-md mx-auto space-y-2.5">
-            <div className="h-10 w-10 rounded-full bg-indigo-500/5 text-indigo-500 flex items-center justify-center mx-auto border border-indigo-500/10 animate-pulse-subtle">
-              <span className="material-symbols-outlined text-xl animate-pulse">person_search</span>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-800">No Patient Session Active</p>
-              <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
-                Search the Patient Registry or register a new patient manually to initiate the dynamic clinic care loop.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* TAB CONTENT SPACES */}
       <div className="space-y-6">
@@ -1590,18 +1575,18 @@ export const CompounderDashboard: React.FC = () => {
                 </form>
               </div>
 
-              {/* Scan & Analyze Previous Reports Card */}
-              {activePatient && (
-                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800 rounded-3xl mt-6">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                  <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-indigo-600 text-base font-bold">clinical_notes</span>
-                    Scan &amp; Analyze Patient's Past Reports (रिपोर्ट्स स्कैन)
-                  </h2>
-                  <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                    Upload or snap a photo of patient's previous diagnostic reports. Clinical AI OCR will build a longitudinal trajectory for the doctor.
-                  </p>
+              {/* Scan & Analyze Previous Reports Card — always visible */}
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800 rounded-3xl mt-6">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
+                <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-600 text-base font-bold">clinical_notes</span>
+                  Scan &amp; Analyze Patient's Past Reports (रिपोर्ट्स स्कैन)
+                </h2>
+                <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                  Upload or snap a photo of the patient's previous diagnostic reports. Clinical AI OCR will build a longitudinal health trajectory for the doctor.
+                </p>
 
+                {activePatient ? (
                   <div className="space-y-4">
                     <div className="flex gap-4 items-start">
                       <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md relative overflow-hidden">
@@ -1611,12 +1596,13 @@ export const CompounderDashboard: React.FC = () => {
                           </div>
                         )}
                         <span className="material-symbols-outlined text-xl text-indigo-600">upload</span>
-                        <span>{isReportScanning ? 'Analyzing Clinical Values...' : 'Upload Previous Report'}</span>
-                        <input 
-                          type="file" 
+                        <span>{isReportScanning ? 'AI OCR Analyzing Clinical Values...' : 'Upload / Snap Previous Report'}</span>
+                        <span className="text-[9px] text-slate-500 font-medium">Supports JPG, PNG, PDF</span>
+                        <input
+                          type="file"
                           disabled={isReportScanning}
-                          accept="image/*,application/pdf" 
-                          className="hidden" 
+                          accept="image/*,application/pdf"
+                          className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handlePreviousReportScan(file);
@@ -1637,19 +1623,24 @@ export const CompounderDashboard: React.FC = () => {
 
                     {activePatient.pastReportsSummary ? (
                       <div className="bg-indigo-50 border border-indigo-200/60 p-4 rounded-xl space-y-2.5 animate-fade-in text-slate-800">
-                        <span className="block text-[8px] font-black text-indigo-700 tracking-widest uppercase font-mono">Synced Past Reports Summary</span>
+                        <span className="block text-[8px] font-black text-indigo-700 tracking-widest uppercase font-mono">AI — Longitudinal Report Summary</span>
                         <p className="text-xs font-semibold leading-relaxed italic">
                           "{activePatient.pastReportsSummary}"
                         </p>
                       </div>
                     ) : (
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-600 italic">
-                        No previous reports scanned yet for this active profile.
+                        No previous reports scanned yet. Upload a report above to generate AI longitudinal summary.
                       </div>
                     )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-indigo-200 rounded-2xl p-6 bg-indigo-50/30 text-center">
+                    <span className="material-symbols-outlined text-2xl text-indigo-400">person_search</span>
+                    <p className="text-xs text-slate-600 font-medium">Search or register a patient first to enable AI report scanning.</p>
+                  </div>
+                )}
+              </div>
 
             </div>
 
