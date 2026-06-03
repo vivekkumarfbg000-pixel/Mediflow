@@ -1767,7 +1767,7 @@ export const LabDashboard: React.FC = () => {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[10px] font-extrabold cursor-pointer hover:scale-105 active:scale-95 ${
                     autopilotEnabled
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                      : 'bg-clinical-950 border-slate-200 text-slate-500'
+                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${autopilotEnabled ? 'bg-emerald-400 animate-ping' : 'bg-clinical-500'}`} />
@@ -2183,7 +2183,7 @@ export const LabDashboard: React.FC = () => {
             <div className="relative w-24 h-24 mx-auto">
               <div className="absolute inset-0 rounded-full border-4 border-indigo-500/10 border-t-primary animate-spin" />
               <div className="absolute inset-2 rounded-full border-4 border-teal-200 border-b-secondary animate-spin [animation-direction:reverse] [animation-duration:1.5s]" />
-              <div className="absolute inset-4 rounded-full bg-clinical-950 flex items-center justify-center text-indigo-600 animate-pulse">
+              <div className="absolute inset-4 rounded-full bg-white border border-indigo-100 flex items-center justify-center text-indigo-600 animate-pulse shadow-sm">
                 <span className="material-symbols-outlined text-2xl">science</span>
               </div>
             </div>
@@ -2193,7 +2193,7 @@ export const LabDashboard: React.FC = () => {
                 CALIBRATING LOINC-{activeReq?.testCode || 'SPECIMEN'}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-200 font-mono text-[9px] text-emerald-400 text-left space-y-1 max-h-24 overflow-y-auto">
+            <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-100 font-mono text-[9px] text-indigo-600 text-left space-y-1 max-h-24 overflow-y-auto">
               <div>&gt; Specimen Barcode verified: {activeReq?.barcode}</div>
               <div>&gt; Injecting chemical reagent...</div>
               <div>&gt; Reading optical absorption values...</div>
