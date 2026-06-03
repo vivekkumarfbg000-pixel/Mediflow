@@ -417,7 +417,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={handleCollapsedSettingsClick}
                   className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                  title="Open Settings & SOPs"
+                  title="Open Settings"
                 >
                   <Settings className="h-4 w-4" />
                 </button>
@@ -435,7 +435,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                {/* Settings & SOP Section (Collapsible Accordion) */}
+                {/* Settings Section (Collapsible Accordion) */}
                 <div className="border border-slate-200/60 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
                   <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -443,7 +443,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <span className="flex items-center gap-2">
                       <Settings className="h-3.5 w-3.5 text-slate-500" />
-                      Settings & SOP
+                      Settings
                     </span>
                     {isSettingsOpen ? (
                       <ChevronDown className="h-3.5 w-3.5 text-slate-600" />
@@ -476,35 +476,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </>
                         )}
                       </button>
-
-                      {/* Relocated SOP Info Section */}
-                      <div className="p-2 bg-slate-50/50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-800/80 space-y-1.5 text-[9px] w-full">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-600 uppercase tracking-wider">
-                          <FileText className="h-3 w-3 text-indigo-500" />
-                          <span>Active SOP Details</span>
-                        </div>
-                        
-                        {activeSop ? (
-                          <div className="space-y-1 font-medium text-slate-500 leading-normal">
-                            <div className="text-slate-700 font-semibold truncate" title={activeSop.sopFileName}>
-                              📄 {activeSop.sopFileName}
-                            </div>
-                            <div className="text-[8.5px] bg-white p-1 rounded border border-slate-200/50 break-words max-h-16 overflow-y-auto font-mono">
-                              {activeSop.sopText}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="block text-slate-600 italic">No active SOP loaded</span>
-                        )}
-
-                        <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-600 uppercase tracking-wide">
-                          <span>Pod: Patna Zone 1</span>
-                          <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30 w-fit">
-                            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Ecosystem Core Active
-                          </span>
-                        </div>
-                      </div>
 
                       {/* Profile & Partners settings button */}
                       <button
@@ -810,7 +781,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
 
-                  {/* Settings & SOP Section (Collapsible Accordion) */}
+                  {/* Settings Section (Collapsible Accordion) */}
                   <div className="border border-slate-200/60 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
                     <button
                       onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -818,7 +789,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       <span className="flex items-center gap-2">
                         <Settings className="h-3.5 w-3.5 text-slate-500" />
-                        Settings & SOP
+                        Settings
                       </span>
                       {isSettingsOpen ? (
                         <ChevronDown className="h-3.5 w-3.5 text-slate-600" />
@@ -854,35 +825,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </>
                           )}
                         </button>
-
-                        {/* SOP Info Section */}
-                        <div className="p-2 bg-slate-50/50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-800/80 space-y-1.5 text-[9px] w-full">
-                          <div className="flex items-center gap-1.5 font-bold text-slate-600 uppercase tracking-wider">
-                            <FileText className="h-3 w-3 text-indigo-500" />
-                            <span>Active SOP Details</span>
-                          </div>
-                          
-                          {activeSop ? (
-                            <div className="space-y-1 font-medium text-slate-500 leading-normal">
-                              <div className="text-slate-700 font-semibold truncate" title={activeSop.sopFileName}>
-                                📄 {activeSop.sopFileName}
-                              </div>
-                              <div className="text-[8.5px] bg-white p-1 rounded border border-slate-200/50 break-words max-h-16 overflow-y-auto font-mono">
-                                {activeSop.sopText}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="block text-slate-600 italic">No active SOP loaded</span>
-                          )}
-
-                          <div className="pt-1.5 border-t border-slate-200/50 flex flex-col gap-1 text-[8px] font-semibold text-slate-600 uppercase tracking-wide">
-                            <span>Pod: Patna Zone 1</span>
-                            <span className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30 w-fit">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                              Ecosystem Core Active
-                            </span>
-                          </div>
-                        </div>
 
                         {/* Profile & Partners settings button */}
                         <button
