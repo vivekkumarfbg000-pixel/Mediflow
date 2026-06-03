@@ -82,7 +82,7 @@ CREATE INDEX IF NOT EXISTS idx_inventory_holds_patient
 -- Pharmacy inventory expiry scan (expiry alerts — only stock > 0 matters)
 CREATE INDEX IF NOT EXISTS idx_pharmacy_inventory_expiry
   ON public.pharmacy_inventory(expiry_date, pharmacy_entity_id)
-  WHERE stock > 0;
+  WHERE quantity_in_stock > 0;
 
 -- Generic name search (Pharmacy POS: autocomplete medicine name)
 CREATE INDEX IF NOT EXISTS idx_pharmacy_inventory_name_trgm
@@ -90,8 +90,8 @@ CREATE INDEX IF NOT EXISTS idx_pharmacy_inventory_name_trgm
 
 -- Low stock detection (stock <= reorder_level)
 CREATE INDEX IF NOT EXISTS idx_pharmacy_inventory_low_stock
-  ON public.pharmacy_inventory(pharmacy_entity_id, stock)
-  WHERE stock <= 10;
+  ON public.pharmacy_inventory(pharmacy_entity_id, quantity_in_stock)
+  WHERE quantity_in_stock <= 10;
 
 -- 5. Unified Invoices & Financial Ledgers — Billing dashboard hot paths
 

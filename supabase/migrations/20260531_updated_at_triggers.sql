@@ -183,7 +183,7 @@ ALTER TABLE public.financial_ledgers
 -- Pharmacy inventory: stock can't be negative
 ALTER TABLE public.pharmacy_inventory DROP CONSTRAINT IF EXISTS chk_pharmacy_stock;
 ALTER TABLE public.pharmacy_inventory
-  ADD CONSTRAINT chk_pharmacy_stock CHECK (stock >= 0);
+  ADD CONSTRAINT chk_pharmacy_stock CHECK (quantity_in_stock >= 0);
 
 -- Inventory holds: quantity must be positive
 ALTER TABLE public.inventory_holds DROP CONSTRAINT IF EXISTS chk_hold_quantity;
