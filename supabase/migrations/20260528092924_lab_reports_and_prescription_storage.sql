@@ -1,7 +1,6 @@
--- ============================================================
+
 -- Mediflow: Lab Reports Table + Prescription Storage Policies
 -- Migration: 20260528092924_lab_reports_and_prescription_storage
--- ============================================================
 
 -- 1. Extend lab_requisitions to track prescription file URL and revisit info
 ALTER TABLE lab_requisitions

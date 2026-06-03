@@ -1,9 +1,8 @@
--- ============================================================
+
 -- Mediflow Production Cleanup — v1.0
 -- Drops all testing junk columns from the pods table that were
 -- accumulated during development sandbox iterations.
 -- This restores the pods table to its correct clean schema.
--- ============================================================
 
 ALTER TABLE public.pods
   DROP COLUMN IF EXISTS dummy_col_1780163528161,

@@ -1,4 +1,4 @@
--- =============================================================================
+
 -- Mediflow Connected Care Ecosystem — Telemetry Webhook Notifier
 -- Migration: 20260530000000_telemetry_webhook_notifier.sql
 --
@@ -6,7 +6,6 @@
 -- CRITICAL severity row is inserted into system_health_telemetry, enabling
 -- real-time push notifications to the developer Discord / Slack / Telegram
 -- channel without polling.
--- =============================================================================
 
 -- Enable the pg_net extension (required for HTTP calls from Postgres triggers)
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;

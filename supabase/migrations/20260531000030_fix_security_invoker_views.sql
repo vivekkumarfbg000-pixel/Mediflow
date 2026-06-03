@@ -1,11 +1,10 @@
--- =============================================================================
+
 -- Mediflow Connected Care Ecosystem
 -- Migration: 20260531000030_fix_security_invoker_views.sql
 --
 -- Purpose: Fix the security_invoker property for public.pod_daily_stats view.
 --          Setting security_invoker = true forces the view to respect the
 --          querying user's RLS policies, satisfying Supabase Security Advisor.
--- =============================================================================
 
 -- Drop the old view that lacks security_invoker
 DROP VIEW IF EXISTS public.pod_daily_stats;

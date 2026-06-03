@@ -16,7 +16,7 @@ DECLARE
     total DECIMAL;
     v_patient_phone TEXT;
     v_test_price DECIMAL;
-    
+
     needed_qty INT := 10;
     remaining_qty INT;
     cur_batch RECORD;
@@ -35,7 +35,7 @@ BEGIN
     SELECT COALESCE(consultation_fee, 400.00) INTO doctor_fee
     FROM public.profiles
     WHERE id = NEW.doctor_id;
-    
+
     IF doctor_fee IS NULL THEN
         doctor_fee := 400.00;
     END IF;
@@ -72,7 +72,7 @@ BEGIN
         VALUES (NEW.id, NEW.patient_id, v_lab_entity_id, diag.loinc_code, diag.test_name,
                 'BAR-' || upper(substring(NEW.id::text, 1, 8)) || '-' || diag.loinc_code,
                 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102');
-                
+
         lab_fee := lab_fee + v_test_price;
     END LOOP;
 
@@ -81,7 +81,7 @@ BEGIN
         FOR med IN SELECT * FROM public.encounter_medications WHERE encounter_id = NEW.id
         LOOP
             remaining_qty := needed_qty;
-            
+
             FOR cur_batch IN 
                 SELECT id, batch_number, expiry_date, quantity_in_stock
                 FROM public.pharmacy_inventory
@@ -165,7 +165,7 @@ BEGIN
     IF platform_fee < 10.00 THEN
         platform_fee := 10.00;
     END IF;
-    
+
     total := doctor_fee + lab_fee + pharmacy_fee + platform_fee;
 
     SELECT phone INTO v_patient_phone FROM public.patient_registry WHERE id = NEW.patient_id;

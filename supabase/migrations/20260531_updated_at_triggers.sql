@@ -1,14 +1,12 @@
--- =============================================================================
+
 -- Mediflow Connected Care Ecosystem — Automatic Timestamps Migration
 -- Migration ID: 20260531_updated_at_triggers
 -- Created: 2026-05-31
 -- Purpose: Add updated_at columns + auto-update triggers on all mutable tables
 -- Ensures accurate modification tracking for audit, caching, and conflict resolution
--- =============================================================================
 
--- =============================================================================
 -- 1. Shared trigger function (single definition, reused across all tables)
--- =============================================================================
+
 CREATE OR REPLACE FUNCTION public.update_modified_column()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -24,9 +22,8 @@ $$;
 -- Revoke public execution to prevent privilege leak
 REVOKE EXECUTE ON FUNCTION public.update_modified_column() FROM PUBLIC;
 
--- =============================================================================
 -- 2. Patient Registry
--- =============================================================================
+
 ALTER TABLE public.patient_registry
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -36,9 +33,8 @@ CREATE TRIGGER trg_patient_registry_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 3. Encounters
--- =============================================================================
+
 ALTER TABLE public.encounters
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -48,9 +44,8 @@ CREATE TRIGGER trg_encounters_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 4. Lab Requisitions
--- =============================================================================
+
 ALTER TABLE public.lab_requisitions
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -60,9 +55,8 @@ CREATE TRIGGER trg_lab_req_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 5. Inventory Holds
--- =============================================================================
+
 ALTER TABLE public.inventory_holds
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -72,9 +66,8 @@ CREATE TRIGGER trg_inventory_holds_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 6. Unified Invoices
--- =============================================================================
+
 ALTER TABLE public.unified_invoices
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -84,9 +77,8 @@ CREATE TRIGGER trg_unified_invoices_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 7. Financial Ledgers
--- =============================================================================
+
 ALTER TABLE public.financial_ledgers
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -96,9 +88,8 @@ CREATE TRIGGER trg_financial_ledgers_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 8. Pharmacy Inventory
--- =============================================================================
+
 ALTER TABLE public.pharmacy_inventory
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -108,9 +99,8 @@ CREATE TRIGGER trg_pharmacy_inventory_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 9. WhatsApp Sessions
--- =============================================================================
+
 ALTER TABLE public.whatsapp_sessions
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -120,9 +110,8 @@ CREATE TRIGGER trg_whatsapp_sessions_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 10. Profiles (Auth users)
--- =============================================================================
+
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -132,9 +121,8 @@ CREATE TRIGGER trg_profiles_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 11. Entities (Clinic/Pharmacy/Lab registrations)
--- =============================================================================
+
 ALTER TABLE public.entities
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -144,9 +132,8 @@ CREATE TRIGGER trg_entities_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 12. Pods (Healthcare cluster units)
--- =============================================================================
+
 ALTER TABLE public.pods
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -156,9 +143,8 @@ CREATE TRIGGER trg_pods_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 13. Seasonal Demand Forecasts
--- =============================================================================
+
 ALTER TABLE public.seasonal_demand_forecasts
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
@@ -168,9 +154,7 @@ CREATE TRIGGER trg_seasonal_forecasts_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_modified_column();
 
--- =============================================================================
 -- 14. Numeric field constraints (prevent negative amounts)
--- =============================================================================
 
 -- Invoices: fees must be non-negative
 ALTER TABLE public.unified_invoices
@@ -194,9 +178,8 @@ ALTER TABLE public.pharmacy_inventory
 ALTER TABLE public.inventory_holds
   ADD CONSTRAINT IF NOT EXISTS chk_hold_quantity CHECK (quantity > 0);
 
--- =============================================================================
 -- 15. Backfill updated_at for existing rows (set to created_at value)
--- =============================================================================
+
 UPDATE public.patient_registry SET updated_at = created_at WHERE updated_at IS NULL;
 UPDATE public.encounters SET updated_at = created_at WHERE updated_at IS NULL;
 UPDATE public.lab_requisitions SET updated_at = created_at WHERE updated_at IS NULL;

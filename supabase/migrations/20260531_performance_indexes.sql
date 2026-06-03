@@ -1,17 +1,14 @@
--- =============================================================================
+
 -- Mediflow Connected Care Ecosystem — Performance Index Migration
 -- Migration ID: 20260531_performance_indexes
 -- Created: 2026-05-31
 -- Purpose: Add targeted indexes for hot query paths across all dashboard roles
 -- Safe to run multiple times (uses CREATE INDEX IF NOT EXISTS)
--- =============================================================================
 
 -- Enable pg_trgm for fuzzy text search on patient names
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- =============================================================================
 -- 1. Patient Registry — Most frequent queries across all roles
--- =============================================================================
 
 -- Phone lookup (Compounder: search patient by phone on check-in)
 CREATE INDEX IF NOT EXISTS idx_patient_registry_phone
@@ -30,9 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_patient_registry_abha
   ON public.patient_registry(abha_id)
   WHERE abha_id IS NOT NULL;
 
--- =============================================================================
 -- 2. Encounters — Doctor dashboard (most complex join queries)
--- =============================================================================
 
 -- Doctor's patient list (ordered by latest first)
 CREATE INDEX IF NOT EXISTS idx_encounters_doctor_time
@@ -50,9 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_encounters_status
 CREATE INDEX IF NOT EXISTS idx_encounters_entity
   ON public.encounters(entity_id, created_at DESC);
 
--- =============================================================================
 -- 3. Lab Requisitions — Lab dashboard hot paths
--- =============================================================================
 
 -- Lab entity listing (Lab tech: see their pending requisitions)
 CREATE INDEX IF NOT EXISTS idx_lab_req_lab_entity
@@ -76,9 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_lab_req_technician
   ON public.lab_requisitions(assigned_technician_id, status)
   WHERE assigned_technician_id IS NOT NULL;
 
--- =============================================================================
 -- 4. Pharmacy Inventory & Inventory Holds — Pharmacy POS hot paths
--- =============================================================================
 
 -- Inventory holds by pharmacy + status (Pharmacy: pending fulfillment queue)
 CREATE INDEX IF NOT EXISTS idx_inventory_holds_pharmacy_status
@@ -102,9 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_pharmacy_inventory_low_stock
   ON public.pharmacy_inventory(pharmacy_entity_id, stock)
   WHERE stock <= 10;
 
--- =============================================================================
 -- 5. Unified Invoices & Financial Ledgers — Billing dashboard hot paths
--- =============================================================================
 
 -- Invoice status scan (Billing: unpaid invoices list)
 CREATE INDEX IF NOT EXISTS idx_unified_invoices_status
@@ -130,9 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_financial_ledgers_destination
 CREATE INDEX IF NOT EXISTS idx_financial_ledgers_source
   ON public.financial_ledgers(source_entity_id, created_at DESC);
 
--- =============================================================================
 -- 6. WhatsApp Sessions — Bot state machine hot path
--- =============================================================================
 
 -- Phone-based session lookup (most critical — called on every inbound message)
 CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_phone
@@ -142,9 +129,7 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_phone
 CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_state
   ON public.whatsapp_sessions(current_state, last_interaction DESC);
 
--- =============================================================================
 -- 7. Activity Logs & Telemetry — Audit & observability
--- =============================================================================
 
 -- Activity log by entity (Admin: entity-level audit trail)
 CREATE INDEX IF NOT EXISTS idx_activity_logs_entity
@@ -160,26 +145,20 @@ CREATE INDEX IF NOT EXISTS idx_activity_logs_actor
 CREATE INDEX IF NOT EXISTS idx_system_health_severity
   ON public.system_health_telemetry(severity, status, created_at DESC);
 
--- =============================================================================
 -- 8. Seasonal Demand Forecasts — Pharmacy AI dashboard
--- =============================================================================
 
 -- Forecasts per pharmacy entity (not yet acted upon)
 CREATE INDEX IF NOT EXISTS idx_seasonal_forecasts_pharmacy
   ON public.seasonal_demand_forecasts(pharmacy_entity_id, is_acted_upon, created_at DESC);
 
--- =============================================================================
 -- 9. Profiles — Auth & role resolution (called on every page load)
--- =============================================================================
 
 -- Entity-based profile lookup (multi-tenant staff listing)
 CREATE INDEX IF NOT EXISTS idx_profiles_entity
   ON public.profiles(entity_id)
   WHERE entity_id IS NOT NULL;
 
--- =============================================================================
 -- 10. Pods & Entities — Tenant management
--- =============================================================================
 
 -- Active entities per pod
 CREATE INDEX IF NOT EXISTS idx_entities_pod_active
@@ -189,9 +168,8 @@ CREATE INDEX IF NOT EXISTS idx_entities_pod_active
 CREATE INDEX IF NOT EXISTS idx_entities_status
   ON public.entities(status, entity_type, created_at DESC);
 
--- =============================================================================
 -- ANALYZE all indexed tables to update planner statistics
--- =============================================================================
+
 ANALYZE public.patient_registry;
 ANALYZE public.encounters;
 ANALYZE public.lab_requisitions;

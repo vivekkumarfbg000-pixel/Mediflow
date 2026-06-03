@@ -1,4 +1,4 @@
--- =============================================================================
+
 -- Mediflow Connected Care Ecosystem
 -- Migration: 20260531000001_pod_interconnect_views.sql
 --
@@ -10,14 +10,10 @@
 -- Depends on: combined_upgrade.sql (all base tables must exist)
 -- Run order:  After combined_upgrade.sql
 -- Safe to re-run: YES (all statements are idempotent)
--- =============================================================================
 
-
--- =============================================================================
 -- SECTION 1: Pod Entity Stats View
 -- Provides a real-time count of approved entities per pod (Doctor/Pharmacy/Lab).
 -- Used by: PodCommandCenter, PharmacyDashboard, LabDashboard Pod Network tabs.
--- =============================================================================
 
 CREATE OR REPLACE VIEW public.pod_daily_stats AS
 SELECT
@@ -35,13 +31,10 @@ COMMENT ON VIEW public.pod_daily_stats IS
 -- Grant read access to authenticated users only
 GRANT SELECT ON public.pod_daily_stats TO authenticated;
 
-
--- =============================================================================
 -- SECTION 2: get_pod_entities() — Cross-Entity Visibility RPC
 -- Returns all approved entities in the same pod as the caller.
 -- Security: SECURITY DEFINER so RLS is not applied inside the function body,
 -- but the caller must be authenticated (enforced by GRANT).
--- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.get_pod_entities(p_pod_id UUID)
 RETURNS SETOF public.entities AS $$
@@ -59,12 +52,9 @@ COMMENT ON FUNCTION public.get_pod_entities(UUID) IS
 REVOKE EXECUTE ON FUNCTION public.get_pod_entities(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.get_pod_entities(UUID) TO authenticated;
 
-
--- =============================================================================
 -- SECTION 3: get_my_pod_entities() — Caller-Scoped Shortcut RPC
 -- Convenience wrapper: automatically resolves the caller's own pod_id.
 -- Dashboards can call this without knowing their pod_id upfront.
--- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.get_my_pod_entities()
 RETURNS SETOF public.entities AS $$
@@ -82,8 +72,6 @@ COMMENT ON FUNCTION public.get_my_pod_entities() IS
 REVOKE EXECUTE ON FUNCTION public.get_my_pod_entities() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.get_my_pod_entities() TO authenticated;
 
-
--- =============================================================================
 -- SECTION 4: pod_operational_snapshot() — Live Pod Dashboard Feed
 -- Returns a single-row operational summary of the caller's pod.
 -- This is the data that feeds the "Pod Command Center" header metrics:
@@ -92,7 +80,6 @@ GRANT  EXECUTE ON FUNCTION public.get_my_pod_entities() TO authenticated;
 --   - Pending pharmacy holds
 --   - Total revenue today (paid invoices)
 --   - WhatsApp active sessions
--- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.pod_operational_snapshot()
 RETURNS TABLE (
@@ -174,13 +161,10 @@ COMMENT ON FUNCTION public.pod_operational_snapshot() IS
 REVOKE EXECUTE ON FUNCTION public.pod_operational_snapshot() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.pod_operational_snapshot() TO authenticated;
 
-
--- =============================================================================
 -- SECTION 5: pod_prescription_queue() — Pharmacy Cross-Entity View
 -- Used by the Pharmacy Pod Interconnect tab to display the doctor's
 -- active prescription queue without direct table access violations.
 -- Returns encounters with medications from the same pod.
--- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.pod_prescription_queue(p_pod_id UUID DEFAULT NULL)
 RETURNS TABLE (
@@ -228,11 +212,8 @@ COMMENT ON FUNCTION public.pod_prescription_queue(UUID) IS
 REVOKE EXECUTE ON FUNCTION public.pod_prescription_queue(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.pod_prescription_queue(UUID) TO authenticated;
 
-
--- =============================================================================
 -- SECTION 6: pod_lab_requisition_queue() — Lab Cross-Entity View
 -- Used by the Lab Pod Network tab to display doctor-ordered tests.
--- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.pod_lab_requisition_queue(p_pod_id UUID DEFAULT NULL)
 RETURNS TABLE (
@@ -275,12 +256,9 @@ COMMENT ON FUNCTION public.pod_lab_requisition_queue(UUID) IS
 REVOKE EXECUTE ON FUNCTION public.pod_lab_requisition_queue(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.pod_lab_requisition_queue(UUID) TO authenticated;
 
-
--- =============================================================================
 -- SECTION 7: pod_settlement_summary() — Settlement Overview Per Entity
 -- Used by Pharmacy and Lab "Settlements" tabs.
 -- Returns per-entity financial ledger summary for the authenticated user's pod.
--- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.pod_settlement_summary(p_entity_id UUID)
 RETURNS TABLE (
@@ -314,11 +292,8 @@ COMMENT ON FUNCTION public.pod_settlement_summary(UUID) IS
 REVOKE EXECUTE ON FUNCTION public.pod_settlement_summary(UUID) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.pod_settlement_summary(UUID) TO authenticated;
 
-
--- =============================================================================
 -- SECTION 8: Patient Consent Flag (ensure patient_consents table exists)
 -- Required by whatsapp-dispatch Edge Function consent gate.
--- =============================================================================
 
 CREATE TABLE IF NOT EXISTS public.patient_consents (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -358,10 +333,7 @@ END $$;
 GRANT SELECT, INSERT, UPDATE ON public.patient_consents TO authenticated;
 GRANT ALL ON public.patient_consents TO service_role;
 
-
--- =============================================================================
 -- SECTION 9: financial_ledgers settled_at column (required by settlement summary)
--- =============================================================================
 
 ALTER TABLE public.financial_ledgers
   ADD COLUMN IF NOT EXISTS settled_at TIMESTAMPTZ;
@@ -376,10 +348,7 @@ CREATE INDEX IF NOT EXISTS idx_financial_ledgers_dest_entity
 CREATE INDEX IF NOT EXISTS idx_financial_ledgers_pod_status
   ON public.financial_ledgers(pod_id, payment_status);
 
-
--- =============================================================================
 -- SECTION 10: unified_invoices — ensure payment_status column is consistent
--- =============================================================================
 
 ALTER TABLE public.unified_invoices
   ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'unpaid';
@@ -403,12 +372,9 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_unified_invoices_payment_status
   ON public.unified_invoices(payment_status);
 
-
--- =============================================================================
 -- SECTION 11: Realtime Publication — enable cross-entity live sync
 -- Adds the key tables to the Supabase Realtime publication so dashboards
 -- receive instant push updates without polling.
--- =============================================================================
 
 DO $$
 BEGIN
@@ -444,10 +410,7 @@ BEGIN
   END;
 END $$;
 
-
--- =============================================================================
 -- SECTION 12: Performance Indexes for Pod Interconnect Queries
--- =============================================================================
 
 -- Fast patient lookup by pod
 CREATE INDEX IF NOT EXISTS idx_patient_registry_pod_created
@@ -473,11 +436,8 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_pod_state
 CREATE INDEX IF NOT EXISTS idx_entities_pod_status_type
   ON public.entities(pod_id, status, entity_type);
 
-
--- =============================================================================
 -- SECTION 13: Verification Queries
 -- Uncomment and run to confirm migration applied successfully.
--- =============================================================================
 
 -- SELECT * FROM public.pod_daily_stats;
 -- SELECT * FROM public.get_my_pod_entities();
@@ -486,6 +446,4 @@ CREATE INDEX IF NOT EXISTS idx_entities_pod_status_type
 -- SELECT * FROM public.pod_lab_requisition_queue();
 -- SELECT public.check_rate_limit('127.0.0.1', 15, 60);
 
--- =============================================================================
 -- END OF MIGRATION: 20260531000001_pod_interconnect_views.sql
--- =============================================================================
