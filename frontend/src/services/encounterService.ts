@@ -20,6 +20,9 @@ export class EncounterService {
     encounters.push(newEncounter);
     save('encounters', encounters);
 
+    // Transition patient's local and database queue status to completed
+    PatientService.updatePatientQueueStatus(newEncounter.patientId, 'completed');
+
     // 1. Asynchronously insert clinical encounter to Supabase in 'active' status
     supabase.from('encounters').insert({
       id: encounterId,

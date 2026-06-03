@@ -855,7 +855,7 @@ class MediflowApiService {
     return PatientService.generateNextTokenNumber();
   }
 
-  registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'>): Patient {
+  registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     const isCircuitOpen = supabaseCircuit.isBlocking();
 

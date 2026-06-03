@@ -212,7 +212,7 @@ function AppContent({
       />
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
-      <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300`}>
+      <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300 dense-theme`}>
         <div className="animate-fade-in">
           <ErrorBoundary>
             <Suspense fallback={getSkeleton()}>
@@ -223,7 +223,7 @@ function AppContent({
       </main>
 
       {/* Premium Glassmorphic Toast Notifications Overlay */}
-      <div className="fixed top-24 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+      <div className="fixed top-24 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none dense-theme">
         {toasts.map(toast => {
           let icon = <Info className="h-5 w-5 text-blue-400" />;
           let borderClass = 'border-blue-500/30';

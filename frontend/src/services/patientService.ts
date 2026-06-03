@@ -108,14 +108,14 @@ export class PatientService {
     return `TK-${nextVal.toString().padStart(2, '0')}`;
   }
 
-  static registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'>): Patient {
+  static registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
     const patients = this.getPatients();
-    const newId = crypto.randomUUID();
+    const newId = patientData.id || `pat-${patientData.phone}`;
     const newPatient: Patient = {
       ...patientData,
       id: newId,
       createdAt: new Date().toISOString()
-    };
+    } as Patient;
     patients.push(newPatient);
     save('patients', patients);
 

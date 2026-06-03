@@ -749,3 +749,229 @@ body.dark {
   50%       { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
 }
 
+/* ==========================================================================
+   DENSE & COMPACT PROFESSIONAL LAYOUT (Short & Small Font Style)
+   ========================================================================== */
+.dense-theme {
+  font-size: 11px !important;
+}
+
+/* Scale down all heading and label styles system-wide */
+.dense-theme h1, 
+.dense-theme .dashboard-header,
+.dense-theme h1.text-lg,
+.dense-theme h1.text-xl,
+.dense-theme h1.text-2xl {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1.25 !important;
+}
+
+.dense-theme h2,
+.dense-theme h2.text-sm,
+.dense-theme h2.text-base,
+.dense-theme h2.text-lg {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.25 !important;
+}
+
+.dense-theme h3,
+.dense-theme .card-title,
+.dense-theme h3.text-sm,
+.dense-theme h3.text-base,
+.dense-theme h3.text-lg {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+}
+
+.dense-theme h4,
+.dense-theme h4.text-xs,
+.dense-theme h4.text-sm {
+  font-size: 10px !important;
+  font-weight: 650 !important;
+}
+
+.dense-theme h5,
+.dense-theme h5.text-xs {
+  font-size: 9.5px !important;
+  font-weight: 650 !important;
+}
+
+/* Condensed body data text and paragraph scaling */
+.dense-theme p,
+.dense-theme span,
+.dense-theme td,
+.dense-theme th,
+.dense-theme label,
+.dense-theme option,
+.dense-theme select,
+.dense-theme .body-data,
+.dense-theme input::placeholder,
+.dense-theme textarea::placeholder {
+  font-size: 10.5px !important;
+  line-height: 1.35 !important;
+}
+
+.dense-theme input,
+.dense-theme select,
+.dense-theme textarea {
+  font-size: 11px !important;
+}
+
+.dense-theme .meta-caption,
+.dense-theme .text-\[9px\],
+.dense-theme .text-\[10px\],
+.dense-theme .text-\[8px\] {
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+}
+
+/* Condense layout padding and gaps for a premium data-dense feel */
+.dense-theme .glass-panel,
+.dense-theme .p-6,
+.dense-theme .p-8 {
+  padding: 0.875rem !important; /* Condense general card padding */
+  border-radius: 0.75rem !important;
+}
+
+.dense-theme .p-4,
+.dense-theme .p-5 {
+  padding: 0.75rem !important;
+}
+
+.dense-theme .p-3 {
+  padding: 0.5rem !important;
+}
+
+.dense-theme .p-2 {
+  padding: 0.35rem !important;
+}
+
+.dense-theme .gap-4,
+.dense-theme .gap-6,
+.dense-theme .gap-8,
+.dense-theme .grid {
+  gap: 0.625rem !important; /* Compact grid/flex gaps */
+}
+
+.dense-theme .space-y-6 > * + *,
+.dense-theme .space-y-8 > * + * {
+  margin-top: 0.875rem !important;
+}
+
+.dense-theme .space-y-4 > * + * {
+  margin-top: 0.625rem !important;
+}
+
+.dense-theme .space-y-3 > * + * {
+  margin-top: 0.5rem !important;
+}
+
+.dense-theme .space-y-2 > * + * {
+  margin-top: 0.375rem !important;
+}
+
+.dense-theme .space-y-1\.5 > * + * {
+  margin-top: 0.25rem !important;
+}
+
+.dense-theme .mb-4,
+.dense-theme .pb-4,
+.dense-theme .py-4 {
+  margin-bottom: 0.625rem !important;
+  padding-bottom: 0.625rem !important;
+  padding-top: 0.625rem !important;
+}
+
+.dense-theme .mb-5,
+.dense-theme .pb-5,
+.dense-theme .py-5 {
+  margin-bottom: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+  padding-top: 0.75rem !important;
+}
+
+/* Condense form field inputs and dropdown controls */
+.dense-theme .input-field,
+.dense-theme .clinical-input,
+.dense-theme select,
+.dense-theme textarea {
+  padding: 0.375rem 0.625rem !important;
+  border-radius: 0.375rem !important;
+  min-height: auto !important;
+}
+
+/* Condense button elements */
+.dense-theme .btn-primary,
+.dense-theme .btn-secondary,
+.dense-theme .btn-ghost {
+  padding: 0.375rem 0.625rem !important;
+  font-size: 9.5px !important;
+  border-radius: 0.375rem !important;
+  font-weight: 600 !important;
+}
+
+.dense-theme .btn-icon {
+  padding: 0.2rem !important;
+}
+
+/* Condense components & heights */
+.dense-theme .h-12,
+.dense-theme .w-12 {
+  height: 2.25rem !important;
+  width: 2.25rem !important;
+}
+
+.dense-theme .h-9,
+.dense-theme .w-9 {
+  height: 1.75rem !important;
+  width: 1.75rem !important;
+}
+
+.dense-theme .h-10,
+.dense-theme .w-10 {
+  height: 2rem !important;
+  width: 2rem !important;
+}
+
+.dense-theme .text-lg {
+  font-size: 11px !important;
+}
+
+.dense-theme .text-3xl {
+  font-size: 1.35rem !important;
+}
+
+.dense-theme .text-xl {
+  font-size: 12px !important;
+}
+
+.dense-theme .py-2\.5 {
+  padding-top: 0.4rem !important;
+  padding-bottom: 0.4rem !important;
+}
+
+.dense-theme .px-5 {
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+}
+
+.dense-theme .py-3 {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+.dense-theme .px-4 {
+  padding-left: 0.625rem !important;
+  padding-right: 0.625rem !important;
+}
+
+.dense-theme .h-16 {
+  height: 3.5rem !important;
+}
+
+

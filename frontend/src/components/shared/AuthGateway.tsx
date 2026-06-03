@@ -947,9 +947,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                {demoUsers.map((user) => (
+                {demoUsers.map((user, idx) => (
                   <button
-                    key={user.id}
+                    key={`${user.id}-${idx}`}
                     type="button"
                     onClick={() => handleDemoSignIn(user)}
                     disabled={loading}
