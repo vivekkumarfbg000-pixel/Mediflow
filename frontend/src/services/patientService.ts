@@ -108,9 +108,15 @@ export class PatientService {
     return `TK-${nextVal.toString().padStart(2, '0')}`;
   }
 
+  private static isUUID(str?: string): boolean {
+    if (!str) return false;
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(str);
+  }
+
   static registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
     const patients = this.getPatients();
-    const newId = patientData.id || `pat-${patientData.phone}`;
+    const newId = this.isUUID(patientData.id) ? patientData.id! : crypto.randomUUID();
     const newPatient: Patient = {
       ...patientData,
       id: newId,
@@ -136,7 +142,7 @@ export class PatientService {
       registered_by: registeredBy,
       registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
     }).then(({ error }) => {
-      if (error) console.error('Error registering patient in Supabase:', error);
+      if (error) console.error('Error registering patient in Supabase:', JSON.stringify({ message: error.message, details: error.details, hint: error.hint, code: error.code }));
       else writeAuditLog('patient_registered', { 
         name: newPatient.name, 
         phone: newPatient.phone, 
