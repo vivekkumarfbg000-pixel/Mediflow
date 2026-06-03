@@ -11,6 +11,33 @@ export class PwaSyncManager {
         navigator.serviceWorker.register('/sw.js')
           .then((reg) => {
             console.log('[PWA-Client] Service Worker registered successfully! Scope:', reg.scope);
+            
+            // Check for updates periodically
+            setInterval(() => {
+              reg.update();
+            }, 30 * 1000); // Check every 30 seconds
+
+            // Auto-reload on updates to bypass stale-while-revalidate cache
+            reg.addEventListener('updatefound', () => {
+              const installing = reg.installing;
+              if (installing) {
+                installing.addEventListener('statechange', () => {
+                  if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA-Client] New content is available; auto-refreshing...');
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'System Update Active',
+                        message: 'Downloading latest enhancements and applying updates...',
+                        type: 'info'
+                      }
+                    }));
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
+                  }
+                });
+              }
+            });
           })
           .catch((err) => {
             console.error('[PWA-Client] Service Worker registration failed:', err);

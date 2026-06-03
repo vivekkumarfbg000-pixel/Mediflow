@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { activePod, activeEntity } = useClinic();
   const [isSyncing, setIsSyncing] = useState(api.isSyncing);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
