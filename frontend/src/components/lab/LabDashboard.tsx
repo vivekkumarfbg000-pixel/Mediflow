@@ -1776,52 +1776,60 @@ export const LabDashboard: React.FC = () => {
               </div>
 
               {/* Cylinder gauges */}
-              <div className="grid grid-cols-5 gap-2.5 bg-slate-100 p-4 rounded-2xl border border-slate-200 relative">
-                <div className="absolute left-2.5 top-4 bottom-4 flex flex-col justify-between text-[8px] text-slate-400 font-mono font-bold select-none h-[120px] pointer-events-none">
-                  <span>1000ml</span><span>750ml</span><span>500ml</span><span>250ml</span><span>0ml</span>
-                </div>
-                {reagents.map((reag, idx) => {
-                  const vol = reag.stockVolume;
-                  const pct = Math.min(100, Math.max(0, (vol / 1000) * 100));
-                  const isLow = vol < 100;
-                  const isWarn = vol < 200;
-                  let fluidColor = 'from-emerald-500/70 to-teal-500/80';
-                  let glowColor = 'shadow-[inset_0_0_12px_rgba(16,185,129,0.5)]';
-                  let badgeColor = 'text-emerald-400 bg-emerald-500/10';
-                  if (isLow) {
-                    fluidColor = 'from-rose-500/80 to-red-600/90 animate-pulse';
-                    glowColor = 'shadow-[inset_0_0_15px_rgba(239,68,68,0.7),0_0_10px_rgba(239,68,68,0.3)]';
-                    badgeColor = 'text-rose-400 bg-rose-500/10 border border-rose-500/20';
-                  } else if (isWarn) {
-                    fluidColor = 'from-amber-400/80 to-orange-500/80';
-                    glowColor = 'shadow-[inset_0_0_12px_rgba(245,158,11,0.6)]';
-                    badgeColor = 'text-amber-400 bg-amber-500/10 border border-amber-500/20';
-                  }
-                  return (
-                    <div key={idx} className="flex flex-col items-center group relative cursor-pointer" title={`${reag.reagentName}: ${vol}ml`}>
-                      <div className="w-6.5 h-[120px] bg-white/60 rounded-full border border-slate-200/60 relative overflow-hidden shadow-inner flex items-end">
-                        <div className="absolute top-0 bottom-0 left-[20%] w-[1.5px] bg-white/15 z-20 pointer-events-none" />
-                        <div className="absolute inset-0 flex flex-col justify-between py-1 z-10 opacity-30 select-none pointer-events-none">
-                          {[0,1,2,3,4].map(i => <div key={i} className="w-full h-[1px] bg-white/30" />)}
-                        </div>
-                        <div className="absolute bottom-[20%] left-0 right-0 h-[1px] border-b border-dashed border-cyan-400/40 z-10 pointer-events-none" title="Autopilot threshold (200ml)" />
-                        <div
-                          className={`w-full bg-gradient-to-t ${fluidColor} ${glowColor} transition-all duration-700 relative z-0`}
-                          style={{ height: `${pct}%` }}
-                        >
-                          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                            <span className="bubble absolute w-1 h-1 bg-white/40 rounded-full bottom-0 left-[20%]" style={{ animation: 'rise 3s infinite linear' }} />
-                            <span className="bubble absolute w-1.5 h-1.5 bg-white/35 rounded-full bottom-0 left-[50%]" style={{ animation: 'rise 2s infinite linear' }} />
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[7px] text-slate-500 text-center font-bold tracking-tight mt-2 line-clamp-2 leading-[8px] h-4">
-                        {reag.reagentName.replace(' Reagent', '').replace('Picrate B', 'Picrate')}
-                      </span>
-                      <span className={`text-[8px] font-mono font-bold mt-1 px-1.5 py-0.5 rounded ${badgeColor}`}>{vol}ml</span>
+              <div className="relative bg-slate-100 p-4 rounded-2xl border border-slate-200 min-h-[160px] flex items-center justify-center">
+                {reagents.length === 0 ? (
+                  <div className="text-xs text-slate-500 font-medium py-8">No reagents loaded.</div>
+                ) : (
+                  <>
+                    <div className="absolute left-2.5 top-4 flex flex-col justify-between text-[8px] text-slate-400 font-mono font-bold select-none h-[120px] pointer-events-none">
+                      <span>1000ml</span><span>750ml</span><span>500ml</span><span>250ml</span><span>0ml</span>
                     </div>
-                  );
-                })}
+                    <div className="grid grid-cols-5 gap-2.5 w-full pl-7">
+                      {reagents.map((reag, idx) => {
+                        const vol = reag.stockVolume;
+                        const pct = Math.min(100, Math.max(0, (vol / 1000) * 100));
+                        const isLow = vol < 100;
+                        const isWarn = vol < 200;
+                        let fluidColor = 'from-emerald-500/70 to-teal-500/80';
+                        let glowColor = 'shadow-[inset_0_0_12px_rgba(16,185,129,0.5)]';
+                        let badgeColor = 'text-emerald-400 bg-emerald-500/10';
+                        if (isLow) {
+                          fluidColor = 'from-rose-500/80 to-red-600/90 animate-pulse';
+                          glowColor = 'shadow-[inset_0_0_15px_rgba(239,68,68,0.7),0_0_10px_rgba(239,68,68,0.3)]';
+                          badgeColor = 'text-rose-400 bg-rose-500/10 border border-rose-500/20';
+                        } else if (isWarn) {
+                          fluidColor = 'from-amber-400/80 to-orange-500/80';
+                          glowColor = 'shadow-[inset_0_0_12px_rgba(245,158,11,0.6)]';
+                          badgeColor = 'text-amber-400 bg-amber-500/10 border border-amber-500/20';
+                        }
+                        return (
+                          <div key={idx} className="flex flex-col items-center group relative cursor-pointer" title={`${reag.reagentName}: ${vol}ml`}>
+                            <div className="w-7 h-[120px] bg-white/60 rounded-full border border-slate-200/60 relative overflow-hidden shadow-inner flex items-end">
+                              <div className="absolute top-0 bottom-0 left-[20%] w-[1.5px] bg-white/15 z-20 pointer-events-none" />
+                              <div className="absolute inset-0 flex flex-col justify-between py-1 z-10 opacity-30 select-none pointer-events-none">
+                                {[0,1,2,3,4].map(i => <div key={i} className="w-full h-[1px] bg-white/30" />)}
+                              </div>
+                              <div className="absolute bottom-[20%] left-0 right-0 h-[1px] border-b border-dashed border-cyan-400/40 z-10 pointer-events-none" title="Autopilot threshold (200ml)" />
+                              <div
+                                className={`w-full bg-gradient-to-t ${fluidColor} ${glowColor} transition-all duration-700 relative z-0`}
+                                style={{ height: `${pct}%` }}
+                              >
+                                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                                  <span className="bubble absolute w-1 h-1 bg-white/40 rounded-full bottom-0 left-[20%]" style={{ animation: 'rise 3s infinite linear' }} />
+                                  <span className="bubble absolute w-1.5 h-1.5 bg-white/35 rounded-full bottom-0 left-[50%]" style={{ animation: 'rise 2s infinite linear' }} />
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-[7px] text-slate-500 text-center font-bold tracking-tight mt-2 line-clamp-2 leading-[8px] h-4">
+                              {reag.reagentName.replace(' Reagent', '').replace('Picrate B', 'Picrate')}
+                            </span>
+                            <span className={`text-[8px] font-mono font-bold mt-1 px-1.5 py-0.5 rounded ${badgeColor}`}>{vol}ml</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
 
               <style>{`
