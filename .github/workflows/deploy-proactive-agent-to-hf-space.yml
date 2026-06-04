@@ -10,6 +10,7 @@ on:
       - "scratch/hf_space_app.py"
       - "scratch/hf_monitor_agent.py"
       - "scratch/requirements.txt"
+      - "scratch/upload_hf_space.py"
       - ".github/workflows/deploy-proactive-agent-to-hf-space.yml"
   workflow_dispatch:
 
@@ -35,7 +36,6 @@ jobs:
           rm -rf /tmp/hf-proactive-space
           mkdir -p /tmp/hf-proactive-space
 
-          # Copy files to root level of space bundle
           cp scratch/hf_space_app.py /tmp/hf-proactive-space/app.py
           cp scratch/requirements.txt /tmp/hf-proactive-space/requirements.txt
 
@@ -54,6 +54,15 @@ jobs:
             'Mediflow Autonomous Proactive Health & DevSecOps Monitoring Space.' \
             > /tmp/hf-proactive-space/README.md
 
+          echo "Bundle contents:"
+          ls -la /tmp/hf-proactive-space/
+
+      - name: Setup Python
+        if: env.SKIP_DEPLOY != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Push to Hugging Face Space
         if: env.SKIP_DEPLOY != 'true'
         env:
@@ -62,33 +71,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          CLEAN_TOKEN=$(echo -n "$HF_TOKEN" | tr -d '\r\n[:space:]')
-          CLEAN_REPO=$(echo -n "$HF_PROACTIVE_SPACE_REPO" | tr -d '\r\n[:space:]')
-
-          echo "Target space: $CLEAN_REPO"
-          echo "Token length: ${#CLEAN_TOKEN}"
-          ls -la /tmp/hf-proactive-space/
-
           pip install -q "huggingface_hub>=0.20.0"
-
-          python -c "
-import os, sys, traceback
-from huggingface_hub import HfApi
-try:
-    token = os.environ['HF_TOKEN'].strip()
-    repo_id = os.environ['HF_PROACTIVE_SPACE_REPO'].strip()
-    print(f'Uploading to: {repo_id}')
-    api = HfApi(token=token)
-    api.upload_folder(
-        folder_path='/tmp/hf-proactive-space',
-        repo_id=repo_id,
-        repo_type='space',
-        commit_message='Deploy Mediflow proactive monitoring agent',
-    )
-    print('Upload complete!')
-except Exception as e:
-    print(f'ERROR: {e}', file=sys.stderr)
-    traceback.print_exc()
-    sys.exit(1)
-"
+          python scratch/upload_hf_space.py
