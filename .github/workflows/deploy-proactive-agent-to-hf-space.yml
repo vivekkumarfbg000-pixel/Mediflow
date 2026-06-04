@@ -68,20 +68,20 @@ jobs:
 
           pip install -q huggingface_hub
 
-          python - <<PYEOF
-import os
-from huggingface_hub import HfApi
+          # Write Python uploader to a temp file (avoids heredoc-in-YAML issues)
+          printf '%s\n' \
+            'import os' \
+            'from huggingface_hub import HfApi' \
+            'api = HfApi(token=os.environ["HF_TOKEN"].strip())' \
+            'repo_id = os.environ["HF_PROACTIVE_SPACE_REPO"].strip()' \
+            'print(f"Uploading to space: {repo_id}")' \
+            'api.upload_folder(' \
+            '    folder_path="/tmp/hf-proactive-space",' \
+            '    repo_id=repo_id,' \
+            '    repo_type="space",' \
+            '    commit_message="Deploy Mediflow proactive monitoring agent",' \
+            ')' \
+            'print("Upload complete!")' \
+            > /tmp/upload_space.py
 
-api = HfApi(token=os.environ["HF_TOKEN"].strip())
-repo_id = os.environ["HF_PROACTIVE_SPACE_REPO"].strip()
-
-print(f"Uploading to space: {repo_id}")
-api.upload_folder(
-    folder_path="/tmp/hf-proactive-space",
-    repo_id=repo_id,
-    repo_type="space",
-    commit_message="Deploy Mediflow proactive monitoring agent",
-)
-print("Upload complete!")
-PYEOF
-
+          python /tmp/upload_space.py
