@@ -47,7 +47,7 @@ jobs:
             'title: Mediflow Proactive Monitor' \
             'emoji: 🛡️' \
             'colorFrom: green' \
-            'colorTo: teal' \
+            'colorTo: blue' \
             'sdk: gradio' \
             'sdk_version: 4.12.0' \
             'app_file: app.py' \
@@ -76,6 +76,17 @@ jobs:
           set -euo pipefail
           pip install -q "huggingface_hub>=0.20.0"
           python scratch/upload_hf_space.py 2>&1 | tee /tmp/upload.log
+
+      - name: Close Issue on Success
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          open_issues=$(gh issue list --search "Deployment Failure Log in:title" --json number -q '.[].number')
+          for issue_num in $open_issues; do
+            echo "Closing issue #$issue_num"
+            gh issue close "$issue_num" --comment "Resolved by successful deployment in run $GITHUB_RUN_ID."
+          done
 
       - name: Create Issue on Failure
         if: failure()
