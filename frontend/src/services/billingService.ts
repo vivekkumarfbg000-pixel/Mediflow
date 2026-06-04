@@ -63,7 +63,7 @@ export class BillingService {
         save('whatsapp_sessions', sessions);
 
         const dbRefLedger = {
-          invoice_id: invoiceId,
+          invoice_id: invoiceId.length === 36 ? invoiceId : null,
           source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'appointment_fee',
@@ -74,7 +74,7 @@ export class BillingService {
           settled_at: new Date().toISOString()
         };
         const dbPlatLedger = {
-          invoice_id: invoiceId,
+          invoice_id: invoiceId.length === 36 ? invoiceId : null,
           source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'platform_fee',
@@ -641,8 +641,33 @@ export class BillingService {
   }
 
   static saveClinicSops(sops: ClinicSop[]) {
+    const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    
+    const dbSops = sops.map(sop => {
+      const validId = isUUID(sop.id) ? sop.id : crypto.randomUUID();
+      if (validId !== sop.id) {
+        sop.id = validId;
+      }
+      return {
+        id: validId,
+        entity_id: sop.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+        sop_file_name: sop.sopFileName,
+        sop_text: sop.sopText,
+        extracted_config: sop.extractedConfig,
+        is_active: sop.isActive,
+        created_at: sop.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    });
+
     save('clinic_sops', sops);
     notify();
+
+    supabase.from('clinic_sops').upsert(dbSops, { onConflict: 'id' }).then(({ error }) => {
+      if (error) {
+        console.error('[Mediflow API] Error syncing clinic SOPs to Supabase:', error);
+      }
+    });
   }
 
   static getActiveSop(): ClinicSop | null {

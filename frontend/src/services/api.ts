@@ -559,6 +559,93 @@ class MediflowApiService {
         this.save('whatsapp_sessions', sessions);
       }
 
+      // Sync clinic SOPs from Supabase
+      const { data: dbSops } = await supabase.from('clinic_sops').select('*');
+      if (dbSops) {
+        const sops: ClinicSop[] = dbSops.map(s => ({
+          id: s.id,
+          entityId: s.entity_id,
+          sopFileName: s.sop_file_name || '',
+          sopText: s.sop_text || '',
+          extractedConfig: s.extracted_config || {},
+          isActive: s.is_active,
+          createdAt: s.created_at || new Date().toISOString()
+        }));
+        this.save('clinic_sops', sops);
+      }
+
+      // Sync medicine bills with line items from Supabase
+      const { data: dbBills } = await supabase.from('medicine_bills').select(`
+        id,
+        patient_id,
+        encounter_id,
+        subtotal,
+        loyalty_discount_percent,
+        loyalty_discount_amount,
+        item_discount_amount,
+        gst_amount,
+        total_amount,
+        payment_mode,
+        upi_qr_payload,
+        status,
+        source,
+        delivery_type,
+        delivery_address,
+        delivery_charge,
+        shiprocket_order_id,
+        created_at,
+        patient:patient_registry(name, phone),
+        medicine_bill_items(
+          inventory_item_id,
+          name,
+          batch_number,
+          expiry_date,
+          quantity,
+          mrp,
+          selling_price,
+          discount_percent,
+          gst_percent,
+          line_total
+        )
+      `);
+      if (dbBills) {
+        const bills = dbBills.map(b => ({
+          id: b.id,
+          patientId: b.patient_id,
+          patientName: (Array.isArray(b.patient) ? (b.patient[0] as any)?.name : (b.patient as any)?.name) || 'WhatsApp Patient',
+          patientPhone: (Array.isArray(b.patient) ? (b.patient[0] as any)?.phone : (b.patient as any)?.phone) || '',
+          encounterId: b.encounter_id || undefined,
+          subtotal: Number(b.subtotal),
+          loyaltyDiscountPercent: Number(b.loyalty_discount_percent),
+          loyaltyDiscountAmount: Number(b.loyalty_discount_amount),
+          itemDiscountAmount: Number(b.item_discount_amount),
+          gstAmount: Number(b.gst_amount),
+          totalAmount: Number(b.total_amount),
+          paymentMode: b.payment_mode,
+          upiQrPayload: b.upi_qr_payload || undefined,
+          status: b.status,
+          source: b.source,
+          deliveryType: b.delivery_type || undefined,
+          deliveryAddress: b.delivery_address || undefined,
+          deliveryCharge: b.delivery_charge ? Number(b.delivery_charge) : undefined,
+          shiprocketOrderId: b.shiprocket_order_id || undefined,
+          createdAt: b.created_at,
+          items: (b.medicine_bill_items || []).map(item => ({
+            inventoryItemId: item.inventory_item_id,
+            name: item.name,
+            batchNumber: item.batch_number,
+            expiryDate: item.expiry_date,
+            quantity: Number(item.quantity),
+            mrp: Number(item.mrp),
+            sellingPrice: Number(item.selling_price),
+            discountPercent: Number(item.discount_percent),
+            gstPercent: Number(item.gst_percent),
+            lineTotal: Number(item.line_total)
+          }))
+        }));
+        this.save('medicine_bills', bills);
+      }
+
       if (this.simulatedRole === 'pharmacist') {
         console.warn('[Mediflow DevSecOps] Security Block: Pharmacist role is strictly blocked from querying clinical encounter notes.');
         this.save('encounters', []);

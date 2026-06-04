@@ -276,6 +276,12 @@ export class PharmacyService {
   }
 
   static saveMedicineBill(bill: MedicineBill): MedicineBill {
+    const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    const validBillId = isUUID(bill.id) ? bill.id : crypto.randomUUID();
+    if (validBillId !== bill.id) {
+      bill.id = validBillId;
+    }
+
     const bills = this.getMedicineBills();
     const existsIndex = bills.findIndex(b => b.id === bill.id);
     if (existsIndex >= 0) {
@@ -305,9 +311,35 @@ export class PharmacyService {
         status: bill.status || 'draft',
         source: bill.source || 'counter'
       }).then(({ error }) => {
-        if (error) console.error('Error saving bill in Supabase:', error);
+        if (error) {
+          console.error('Error saving bill in Supabase:', error);
+        } else {
+          // Sync line items
+          supabase.from('medicine_bill_items').delete().eq('bill_id', bill.id).then(({ error: delErr }) => {
+            if (delErr) {
+              console.error('Error clearing old bill items in Supabase:', delErr);
+            }
+            if (bill.items && bill.items.length > 0) {
+              const dbItems = bill.items.map(item => ({
+                bill_id: bill.id,
+                inventory_item_id: item.inventoryItemId,
+                name: item.name,
+                batch_number: item.batchNumber,
+                expiry_date: item.expiryDate,
+                quantity: item.quantity,
+                mrp: item.mrp,
+                selling_price: item.sellingPrice,
+                discount_percent: item.discountPercent || 0,
+                gst_percent: item.gstPercent || 0,
+                line_total: item.lineTotal
+              }));
+              supabase.from('medicine_bill_items').insert(dbItems).then(({ error: insErr }) => {
+                if (insErr) console.error('Error inserting bill items in Supabase:', insErr);
+              });
+            }
+          });
+        }
       });
-
     }
 
     return bill;
@@ -355,6 +387,13 @@ export class PharmacyService {
       this.savePharmacyInventory(inventory);
       bills[billIndex] = bill;
       save('medicine_bills', bills);
+
+      // Sync status update to Supabase
+      supabase.from('medicine_bills').update({
+        status: 'paid'
+      }).eq('id', id).then(({ error }) => {
+        if (error) console.error('Error dispensing bill in Supabase:', error);
+      });
 
       // Record splits for pharmacy cash payments!
       const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);

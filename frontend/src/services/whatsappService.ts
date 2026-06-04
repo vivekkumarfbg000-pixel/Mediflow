@@ -357,7 +357,7 @@ export class WhatsAppService {
             save('financial_ledgers', ledgerEntries);
 
             const dbSplits = doorstepSplits.map(s => ({
-              invoice_id: s.invoiceId.includes('-') && s.invoiceId.length === 36 ? s.invoiceId : invoiceId,
+              invoice_id: s.invoiceId.includes('-') && s.invoiceId.length === 36 ? s.invoiceId : null,
               source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
               destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' : s.destinationEntityId,
               transaction_type: s.transactionType,
