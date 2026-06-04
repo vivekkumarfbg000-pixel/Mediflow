@@ -61,12 +61,6 @@ jobs:
           echo "Bundle contents:"
           ls -la /tmp/hf-proactive-space/
 
-      - name: Setup Python
-        if: env.SKIP_DEPLOY != 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Push to Hugging Face Space
         if: env.SKIP_DEPLOY != 'true'
         env:
@@ -75,8 +69,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pip install -q "huggingface_hub>=0.20.0"
-          python scratch/upload_hf_space.py 2>&1 | tee /tmp/upload.log
+          CLEAN_TOKEN=$(echo -n "$HF_TOKEN" | tr -d '\r\n[:space:]')
+          CLEAN_REPO=$(echo -n "$HF_PROACTIVE_SPACE_REPO" | tr -d '\r\n[:space:]')
+          HF_USERNAME=$(echo "$CLEAN_REPO" | cut -d'/' -f1)
+
+          cd /tmp/hf-proactive-space
+          git init
+          git config user.name "mediflow-bot"
+          git config user.email "mediflow-bot@users.noreply.github.com"
+          
+          git add .
+          git commit -m "Deploy Mediflow proactive monitoring agent"
+          
+          git push --force "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main 2>&1 | tee /tmp/upload.log
 
       - name: Close Issue on Success
         if: success()
