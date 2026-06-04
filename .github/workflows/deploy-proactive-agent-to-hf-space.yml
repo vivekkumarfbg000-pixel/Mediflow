@@ -63,24 +63,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Robustly trim any pasted spaces, carriage returns, or newlines from secrets
           CLEAN_TOKEN=$(echo -n "$HF_TOKEN" | tr -d '\r\n[:space:]')
           CLEAN_REPO=$(echo -n "$HF_PROACTIVE_SPACE_REPO" | tr -d '\r\n[:space:]')
 
-          # Extract HF username from repo path (format: username/space-name)
-          HF_USERNAME=$(echo "$CLEAN_REPO" | cut -d'/' -f1)
+          pip install -q huggingface_hub
 
-          # Install git-lfs (required by HF spaces)
-          git lfs install
+          python - <<PYEOF
+import os
+from huggingface_hub import HfApi
 
-          cd /tmp/hf-proactive-space
-          git init
-          git config user.name "mediflow-bot"
-          git config user.email "mediflow-bot@users.noreply.github.com"
+api = HfApi(token=os.environ["HF_TOKEN"].strip())
+repo_id = os.environ["HF_PROACTIVE_SPACE_REPO"].strip()
 
-          git add .
-          git commit -m "Deploy Mediflow proactive monitoring agent to Hugging Face Space"
-
-          # Push using actual HF username extracted from repo path (same pattern as backend)
-          git push --force "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main
+print(f"Uploading to space: {repo_id}")
+api.upload_folder(
+    folder_path="/tmp/hf-proactive-space",
+    repo_id=repo_id,
+    repo_type="space",
+    commit_message="Deploy Mediflow proactive monitoring agent",
+)
+print("Upload complete!")
+PYEOF
 
