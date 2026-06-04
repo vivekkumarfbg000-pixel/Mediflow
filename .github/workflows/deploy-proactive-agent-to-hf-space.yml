@@ -85,4 +85,4 @@ jobs:
           cp /tmp/upload.log logs/upload-failure.log
           git add logs/upload-failure.log
           git commit -m "chore: record deployment failure log [skip ci]"
-          git push origin HEAD:master
+          git push --force origin HEAD:deploy-logs
