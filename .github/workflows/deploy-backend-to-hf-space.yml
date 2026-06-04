@@ -65,6 +65,9 @@ jobs:
           CLEAN_TOKEN=$(echo -n "$HF_TOKEN" | tr -d '\r\n[:space:]')
           CLEAN_REPO=$(echo -n "$HF_SPACE_REPO" | tr -d '\r\n[:space:]')
 
+          # Extract HF username from repo path (format: username/space-name)
+          HF_USERNAME=$(echo "$CLEAN_REPO" | cut -d'/' -f1)
+
           cd /tmp/hf-space
           git init
           git config user.name "mediflow-bot"
@@ -73,7 +76,8 @@ jobs:
           git add .
           git commit -m "Deploy Mediflow backend to Hugging Face Space"
           
-          # Pushes directly to Hugging Face with user and clean write token
-          git push --force "https://user:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main
+          # Push using actual HF username extracted from repo path
+          git push --force "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main
+
 
 
