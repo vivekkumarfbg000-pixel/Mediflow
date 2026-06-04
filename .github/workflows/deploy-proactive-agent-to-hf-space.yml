@@ -26,9 +26,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${{ secrets.HF_PROACTIVE_SPACE_REPO }}" ]; then
-            echo "HF_PROACTIVE_SPACE_REPO secret is missing. Set it to your Hugging Face Space id, for example: username/space-name"
-            exit 1
+          if [ -z "${{ secrets.HF_PROACTIVE_SPACE_REPO }}" ] || [ -z "${{ secrets.HF_TOKEN }}" ]; then
+            echo "::warning::HF_PROACTIVE_SPACE_REPO or HF_TOKEN secret is missing. Skipping deployment."
+            echo "SKIP_DEPLOY=true" >> $GITHUB_ENV
+            exit 0
           fi
 
           rm -rf /tmp/hf-proactive-space
@@ -54,6 +55,7 @@ jobs:
           EOF
 
       - name: Push to Hugging Face Space
+        if: env.SKIP_DEPLOY != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_PROACTIVE_SPACE_REPO: ${{ secrets.HF_PROACTIVE_SPACE_REPO }}
