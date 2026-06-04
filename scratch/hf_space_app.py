@@ -9,12 +9,17 @@ import requests as http_requests
 from threading import Thread
 from datetime import datetime
 
+import traceback
+
 # Supabase Imports
 try:
     from supabase import create_client, Client
-except ImportError:
+    print("[INIT] Successfully imported create_client and Client from supabase")
+except Exception as e:
     create_client = None
     Client = None
+    print(f"[INIT] ERROR importing supabase: {str(e)}")
+    traceback.print_exc()
 
 # Environment configuration
 SUPABASE_URL = os.environ.get("SUPABASE_URL") or "https://kguupaybvbngyzyofjun.supabase.co"
@@ -178,6 +183,8 @@ if create_client:
         log_event("Connected to Supabase Database successfully.")
     except Exception as e:
         log_event(f"Error connecting to Supabase: {str(e)}")
+else:
+    log_event("create_client is None - cannot connect to Supabase.")
 
 
 # Proactive background monitoring daemon
