@@ -23,7 +23,7 @@ import {
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
 
-export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient';
+export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient' | 'saas_admin';
 
 interface NavbarProps {
   currentRole: UserRole;
