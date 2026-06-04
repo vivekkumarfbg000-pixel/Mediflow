@@ -66,22 +66,29 @@ jobs:
           CLEAN_TOKEN=$(echo -n "$HF_TOKEN" | tr -d '\r\n[:space:]')
           CLEAN_REPO=$(echo -n "$HF_PROACTIVE_SPACE_REPO" | tr -d '\r\n[:space:]')
 
-          pip install -q huggingface_hub
+          echo "Target space: $CLEAN_REPO"
+          echo "Token length: ${#CLEAN_TOKEN}"
+          ls -la /tmp/hf-proactive-space/
 
-          # Write Python uploader to a temp file (avoids heredoc-in-YAML issues)
-          printf '%s\n' \
-            'import os' \
-            'from huggingface_hub import HfApi' \
-            'api = HfApi(token=os.environ["HF_TOKEN"].strip())' \
-            'repo_id = os.environ["HF_PROACTIVE_SPACE_REPO"].strip()' \
-            'print(f"Uploading to space: {repo_id}")' \
-            'api.upload_folder(' \
-            '    folder_path="/tmp/hf-proactive-space",' \
-            '    repo_id=repo_id,' \
-            '    repo_type="space",' \
-            '    commit_message="Deploy Mediflow proactive monitoring agent",' \
-            ')' \
-            'print("Upload complete!")' \
-            > /tmp/upload_space.py
+          pip install -q "huggingface_hub>=0.20.0"
 
-          python /tmp/upload_space.py
+          python -c "
+import os, sys, traceback
+from huggingface_hub import HfApi
+try:
+    token = os.environ['HF_TOKEN'].strip()
+    repo_id = os.environ['HF_PROACTIVE_SPACE_REPO'].strip()
+    print(f'Uploading to: {repo_id}')
+    api = HfApi(token=token)
+    api.upload_folder(
+        folder_path='/tmp/hf-proactive-space',
+        repo_id=repo_id,
+        repo_type='space',
+        commit_message='Deploy Mediflow proactive monitoring agent',
+    )
+    print('Upload complete!')
+except Exception as e:
+    print(f'ERROR: {e}', file=sys.stderr)
+    traceback.print_exc()
+    sys.exit(1)
+"
