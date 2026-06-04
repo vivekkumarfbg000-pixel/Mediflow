@@ -201,9 +201,9 @@ serve(async (req) => {
           phone: patientPhone,
           message: messageText,
           humanOverride: isHumanOverride,
-          currentState: session.current_state
-        },
-        session_id: session.id
+          currentState: session.current_state,
+          session_id: session.id
+        }
       });
 
       if (isHumanOverride) {
