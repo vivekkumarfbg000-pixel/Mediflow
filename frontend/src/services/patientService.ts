@@ -318,6 +318,16 @@ export class PatientService {
         past_reports_summary: summary
       }).eq('id', patientId);
       if (error) throw error;
+
+      // Update local storage patients so it stays in sync
+      const patients = this.getPatients();
+      const idx = patients.findIndex(p => p.id === patientId);
+      if (idx !== -1) {
+        patients[idx].pastReportsSummary = summary;
+        save('patients', patients);
+      }
+      notify();
+
       await writeAuditLog('PATIENT_PAST_REPORTS_SUMMARY_UPDATED', { patientId, summary }, patientId);
     } catch (err) {
       console.error('[Mediflow] Failed to update past reports summary:', err);

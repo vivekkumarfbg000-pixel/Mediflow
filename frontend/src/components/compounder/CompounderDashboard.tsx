@@ -78,6 +78,8 @@ export const CompounderDashboard: React.FC = () => {
   // Active patient in care loop
   const [activePatient, setActivePatientState] = useState<Patient | null>(null);
   const [activePatientStage, setActivePatientStage] = useState<'registered' | 'diagnosing' | 'lab' | 'pharmacy' | 'settled'>('registered');
+  const [scannedSummary, setScannedSummary] = useState<string | null>(null);
+  const [isSavingSummary, setIsSavingSummary] = useState(false);
   const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
 
   // SaaS Gate States
@@ -290,11 +292,12 @@ export const CompounderDashboard: React.FC = () => {
     }
   }, [vitalsPatient, isOphthalmology]);
 
-  // Auto-focus active patient in Revisit Scheduler
+  // Auto-focus active patient in Revisit Scheduler & Reset draft report summary
   useEffect(() => {
     if (activePatient) {
       setRevisitPatientId(activePatient.id);
     }
+    setScannedSummary(null);
   }, [activePatient]);
 
   // Sync loyalty checkboxes when billing patient changes
@@ -944,7 +947,7 @@ export const CompounderDashboard: React.FC = () => {
       
       const summary = `Previous lab report shows elevated HbA1c at 7.8% and serum creatinine of 1.4 mg/dL, with mild anemia (Hb: 11.2 g/dL). Key risk of diabetic nephropathy progression noted.`;
       
-      await api.updatePatientPastReportsSummary(activePatient.id, summary);
+      setScannedSummary(summary);
       
       await new Promise(r => setTimeout(r, 400));
       setReportScanLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] SUCCESS: Longitudinal report mapped successfully! [OK]`]);
@@ -952,9 +955,9 @@ export const CompounderDashboard: React.FC = () => {
       
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          message: 'Previous report parsed by AI. Summary updated on patient profile!',
+          message: 'Previous report parsed by AI. Please review the draft summary below to save & submit.',
           type: 'success',
-          title: 'Longitudinal Summary Synced'
+          title: 'Longitudinal Summary Parsed'
         }
       }));
     };
@@ -1625,7 +1628,47 @@ export const CompounderDashboard: React.FC = () => {
                       </div>
                     )}
 
-                    {activePatient.pastReportsSummary ? (
+                    {scannedSummary ? (
+                      <div className="bg-indigo-50 border border-indigo-200/60 p-4 rounded-xl space-y-3 animate-fade-in text-slate-800">
+                        <span className="block text-[8px] font-black text-indigo-700 tracking-widest uppercase font-mono">AI Scanned Report Summary (Draft)</span>
+                        <textarea
+                          value={scannedSummary}
+                          onChange={(e) => setScannedSummary(e.target.value)}
+                          rows={3}
+                          className="w-full text-xs font-semibold leading-relaxed bg-white border border-slate-200 p-2 rounded-lg text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650"
+                        />
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setIsSavingSummary(true);
+                              try {
+                                await api.updatePatientPastReportsSummary(activePatient.id, scannedSummary);
+                                // Update active patient in state immediately
+                                setActivePatientState(prev => prev ? { ...prev, pastReportsSummary: scannedSummary } : null);
+                                setScannedSummary(null);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    message: 'Report summary successfully saved to patient profile database!',
+                                    type: 'success',
+                                    title: 'Summary Persisted'
+                                  }
+                                }));
+                              } catch (err) {
+                                console.error('Error saving summary:', err);
+                              } finally {
+                                setIsSavingSummary(false);
+                              }
+                            }}
+                            disabled={isSavingSummary}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer border-0 disabled:opacity-50 transition-all text-white-force"
+                          >
+                            <span className="material-symbols-outlined text-[13px] text-white-force">save</span>
+                            {isSavingSummary ? 'Saving...' : 'Save & Submit to Database'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : activePatient.pastReportsSummary ? (
                       <div className="bg-indigo-50 border border-indigo-200/60 p-4 rounded-xl space-y-2.5 animate-fade-in text-slate-800">
                         <span className="block text-[8px] font-black text-indigo-700 tracking-widest uppercase font-mono">AI — Longitudinal Report Summary</span>
                         <p className="text-xs font-semibold leading-relaxed italic">
