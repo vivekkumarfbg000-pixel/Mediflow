@@ -39,20 +39,20 @@ jobs:
           cp scratch/hf_space_app.py /tmp/hf-proactive-space/app.py
           cp scratch/requirements.txt /tmp/hf-proactive-space/requirements.txt
 
-          cat > /tmp/hf-proactive-space/README.md <<'EOF'
-          ---
-          title: Mediflow Proactive Monitor
-          emoji: 🛡️
-          colorFrom: green
-          colorTo: teal
-          sdk: gradio
-          sdk_version: 4.12.0
-          app_file: app.py
-          pinned: false
-          ---
-
-          Mediflow Autonomous Proactive Health & DevSecOps Monitoring Space.
-          EOF
+          printf '%s\n' \
+            '---' \
+            'title: Mediflow Proactive Monitor' \
+            'emoji: 🛡️' \
+            'colorFrom: green' \
+            'colorTo: teal' \
+            'sdk: gradio' \
+            'sdk_version: 4.12.0' \
+            'app_file: app.py' \
+            'pinned: false' \
+            '---' \
+            '' \
+            'Mediflow Autonomous Proactive Health & DevSecOps Monitoring Space.' \
+            > /tmp/hf-proactive-space/README.md
 
       - name: Push to Hugging Face Space
         if: env.SKIP_DEPLOY != 'true'
@@ -70,19 +70,17 @@ jobs:
           # Extract HF username from repo path (format: username/space-name)
           HF_USERNAME=$(echo "$CLEAN_REPO" | cut -d'/' -f1)
 
-          # Clone the existing HF space (handles both empty and populated spaces)
-          git clone "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" /tmp/hf-clone || \
-            git clone --depth=1 "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" /tmp/hf-clone
+          # Install git-lfs (required by HF spaces)
+          git lfs install
 
-          # Copy our prepared bundle into the cloned space
-          cp -r /tmp/hf-proactive-space/. /tmp/hf-clone/
-
-          cd /tmp/hf-clone
+          cd /tmp/hf-proactive-space
+          git init
           git config user.name "mediflow-bot"
           git config user.email "mediflow-bot@users.noreply.github.com"
 
-          git add -A
-          # Only commit if there are changes
-          git diff --cached --quiet || git commit -m "Deploy Mediflow proactive monitoring agent to Hugging Face Space"
+          git add .
+          git commit -m "Deploy Mediflow proactive monitoring agent to Hugging Face Space"
 
-          git push "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:main
+          # Push using actual HF username extracted from repo path (same pattern as backend)
+          git push --force "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main
+
