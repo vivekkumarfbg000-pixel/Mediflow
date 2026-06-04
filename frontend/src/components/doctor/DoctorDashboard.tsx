@@ -15,7 +15,6 @@ import { useSpecialization } from '../../context/SpecializationContext';
 import { OphthalmicRefractionGrid } from './OphthalmicRefractionGrid';
 import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, getAcuityRank, OPHTHALMIC_EYE_CARE_COPY, type RefractionRx } from '../../types/ophthalmic';
 
-import { SystemHealthCockpit } from '../admin/SystemHealthCockpit';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
 import { BiomarkerChart } from './BiomarkerChart';
 import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
@@ -29,7 +28,7 @@ const WhatsAppTab = React.lazy(() => import('./tabs/WhatsAppTab').then(m => ({ d
 const SopConfigTab = React.lazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
 
 export const DoctorDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'health'>('pod_view');
+  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -287,14 +286,13 @@ export const DoctorDashboard: React.FC = () => {
 
     // Must be horizontal swipe: deltaX magnitude must be much larger than deltaY to prevent vertical scroll conflicts
     if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
-      const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'health'> = [
+      const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
         'pod_view',
         'consultation', 
         'financials', 
         'patients',
         'whatsapp',
-        'sop',
-        'health'
+        'sop'
       ];
       const currentIdx = tabs.indexOf(activeTab);
       
@@ -1007,12 +1005,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   setSopActiveSubTab={setSopActiveSubTab}
                 />
               );
-            case 'health':
-              return (
-                <div className="py-2">
-                  <SystemHealthCockpit />
-                </div>
-              );
+
             default:
               return (
                 <PodCommandCenter 
@@ -1438,8 +1431,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
             { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
             { id: 'patients',      label: 'Patient Directory',   icon: 'group' },
-            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' },
-            { id: 'health',        label: 'System Health',       icon: 'shield' }
+            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' }
           ].map(tab => {
             const isActive = activeTab === tab.id;
             return (
@@ -1498,7 +1490,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
             { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
             { id: 'patients', label: 'Patients', icon: 'group' },
-            { id: 'health', label: 'Health', icon: 'shield' }
+            { id: 'whatsapp', label: 'WhatsApp', icon: 'chat' }
           ].map((item) => {
             const isActive = activeTab === item.id;
             return (

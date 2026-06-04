@@ -1,0 +1,179 @@
+# Teach Team Autonomous Escalation Pipeline
+# Triggered by the Hugging Face Proactive Agent via GitHub Repository Dispatch
+name: Teach Team — Autonomous Escalation Fix
+
+on:
+  repository_dispatch:
+    types: [teach-team-escalation]
+  workflow_dispatch:
+    inputs:
+      subsystem:
+        description: 'Subsystem that failed (database/backend/frontend/whatsapp_api/agentic_ai)'
+        required: true
+        default: 'frontend'
+      error_code:
+        description: 'Error code from telemetry'
+        required: true
+        default: 'UnknownError'
+      error_prompt:
+        description: 'Full error prompt for the Teach Team'
+        required: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─── Step 1: Architect Analysis ───────────────────────────────────────────────
+  architect-analysis:
+    name: 🏗️ Architect — Root Cause Analysis
+    runs-on: ubuntu-latest
+
+    outputs:
+      subsystem: ${{ steps.parse.outputs.subsystem }}
+      error_code: ${{ steps.parse.outputs.error_code }}
+      telemetry_id: ${{ steps.parse.outputs.telemetry_id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Parse escalation payload
+        id: parse
+        run: |
+          # From repository_dispatch event
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            echo "subsystem=${{ github.event.client_payload.subsystem }}" >> $GITHUB_OUTPUT
+            echo "error_code=${{ github.event.client_payload.error_code }}" >> $GITHUB_OUTPUT
+            echo "telemetry_id=${{ github.event.client_payload.telemetry_id }}" >> $GITHUB_OUTPUT
+            echo "::notice::Escalation from HF Agent — Subsystem: ${{ github.event.client_payload.subsystem }}"
+          else
+            # From manual workflow_dispatch
+            echo "subsystem=${{ github.event.inputs.subsystem }}" >> $GITHUB_OUTPUT
+            echo "error_code=${{ github.event.inputs.error_code }}" >> $GITHUB_OUTPUT
+            echo "telemetry_id=manual-$(date +%s)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log architect blueprint
+        run: |
+          echo "============================================================"
+          echo "🏗️ ARCHITECT ANALYSIS — TEACH TEAM PIPELINE"
+          echo "============================================================"
+          echo "Subsystem: ${{ steps.parse.outputs.subsystem }}"
+          echo "Error Code: ${{ steps.parse.outputs.error_code }}"
+          echo "Telemetry ID: ${{ steps.parse.outputs.telemetry_id }}"
+          echo ""
+          echo "Reading Teach Team protocols..."
+          cat Teach-team-main/roles/architect/*.md 2>/dev/null || echo "No architect protocol found."
+
+  # ─── Step 2: CTO Patch Compiler ──────────────────────────────────────────────
+  cto-patch:
+    name: 🔧 CTO — Surgical Patch Compiler
+    runs-on: ubuntu-latest
+    needs: architect-analysis
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run TypeScript type check (pre-patch baseline)
+        working-directory: frontend
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      - name: Log CTO protocol
+        run: |
+          echo "============================================================"
+          echo "🔧 CTO PATCH COMPILER"
+          echo "============================================================"
+          echo "Target subsystem: ${{ needs.architect-analysis.outputs.subsystem }}"
+          echo "Error code: ${{ needs.architect-analysis.outputs.error_code }}"
+          echo ""
+          cat Teach-team-main/roles/cto/cto_protocol.md 2>/dev/null || echo "No CTO protocol found."
+
+  # ─── Step 3: SecOps Audit ────────────────────────────────────────────────────
+  secops-audit:
+    name: 🔐 SecOps — Security & RLS Audit
+    runs-on: ubuntu-latest
+    needs: cto-patch
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run Static Taint & Injection Flow Audit
+        run: node Teach-team-main/scripts/security_taint_check.js
+
+      - name: Run DB Migration Sandbox Audit
+        run: node Teach-team-main/scripts/verify_db_sandbox.js
+
+      - name: Run security audit
+        working-directory: frontend
+        run: |
+          echo "============================================================"
+          echo "🔐 SECOPS AUDIT"
+          echo "============================================================"
+          npm audit --audit-level=high 2>/dev/null || echo "npm audit skipped (no package-lock.json found)"
+
+      - name: Check SQL migrations for destructive operations
+        run: |
+          echo "Scanning migrations for destructive operations..."
+          for f in supabase/migrations/*.sql; do
+            if grep -i "DROP TABLE[^I]" "$f" 2>/dev/null; then
+              echo "⚠️ DESTRUCTIVE OPERATION in $f"
+            fi
+          done
+          echo "✅ Migration scan complete."
+
+  # ─── Step 4: GitOps Deployment ──────────────────────────────────────────────
+  gitops-deploy:
+    name: 🚀 GitOps — Verification & Status Report
+    runs-on: ubuntu-latest
+    needs: [architect-analysis, secops-audit]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies (Root & Frontend)
+        run: |
+          npm ci
+          cd frontend && npm ci
+
+      - name: Compile and Run E2E Smoke & Chaos Tests
+        run: node Teach-team-main/scripts/verify_ui_e2e.js
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_USE_MOCK: 'false'
+
+      - name: Report status
+        run: |
+          echo "============================================================"
+          echo "📊 TEACH TEAM PIPELINE REPORT"
+          echo "============================================================"
+          echo "Telemetry ID: ${{ needs.architect-analysis.outputs.telemetry_id }}"
+          echo "Subsystem: ${{ needs.architect-analysis.outputs.subsystem }}"
+          echo "Error Code: ${{ needs.architect-analysis.outputs.error_code }}"
+          echo "Pipeline Status: COMPLETED"
+          echo "============================================================"

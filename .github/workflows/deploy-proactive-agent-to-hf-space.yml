@@ -1,0 +1,77 @@
+# Trigger deployment build - Mediflow Proactive Monitoring Agent to Hugging Face
+name: Deploy Mediflow Proactive Monitor to Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "scratch/hf_space_app.py"
+      - "scratch/hf_monitor_agent.py"
+      - "scratch/requirements.txt"
+      - ".github/workflows/deploy-proactive-agent-to-hf-space.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare deployment bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${{ secrets.HF_PROACTIVE_SPACE_REPO }}" ]; then
+            echo "HF_PROACTIVE_SPACE_REPO secret is missing. Set it to your Hugging Face Space id, for example: username/space-name"
+            exit 1
+          fi
+
+          rm -rf /tmp/hf-proactive-space
+          mkdir -p /tmp/hf-proactive-space
+
+          # Copy files to root level of space bundle
+          cp scratch/hf_space_app.py /tmp/hf-proactive-space/app.py
+          cp scratch/requirements.txt /tmp/hf-proactive-space/requirements.txt
+
+          cat > /tmp/hf-proactive-space/README.md <<'EOF'
+          ---
+          title: Mediflow Proactive Monitor
+          emoji: 🛡️
+          colorFrom: green
+          colorTo: teal
+          sdk: gradio
+          sdk_version: 4.12.0
+          app_file: app.py
+          pinned: false
+          ---
+
+          Mediflow Autonomous Proactive Health & DevSecOps Monitoring Space.
+          EOF
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_PROACTIVE_SPACE_REPO: ${{ secrets.HF_PROACTIVE_SPACE_REPO }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Robustly trim any pasted spaces, carriage returns, or newlines from secrets
+          CLEAN_TOKEN=$(echo -n "$HF_TOKEN" | tr -d '\r\n[:space:]')
+          CLEAN_REPO=$(echo -n "$HF_PROACTIVE_SPACE_REPO" | tr -d '\r\n[:space:]')
+
+          cd /tmp/hf-proactive-space
+          git init
+          git config user.name "mediflow-bot"
+          git config user.email "mediflow-bot@users.noreply.github.com"
+          
+          git add .
+          git commit -m "Deploy Mediflow proactive monitoring agent to Hugging Face Space"
+          
+          # Pushes directly to Hugging Face with user and clean write token
+          git push --force "https://user:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main

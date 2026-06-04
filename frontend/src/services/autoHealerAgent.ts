@@ -92,22 +92,55 @@ export class StateHealingEngine {
 
       console.log(`[Auto-Healer] Classifying anomaly → Subsystem: ${subsystem} | Severity: ${severity}`);
 
-      // 1. Log incident to system_health_telemetry
+      // 1. Log incident to system_health_telemetry (UPSERT: increment existing or insert new)
       let telemetryId = 'local-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       let telemetryLogged = false;
+      let currentHealingAttempts = 1;
+
+      // Resolve pod_id from global clinic context
+      const podId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || 'unknown';
 
       try {
-        const { data: telemetry, error: logErr } = await supabase
+        // Gap 1 Fix: Check for existing active incident matching this error+subsystem
+        const { data: existingIncident } = await supabase
           .from('system_health_telemetry')
-          .insert({ subsystem, severity, error_code: errName, error_stack: errStack, status: 'healing', healing_attempts: 1 })
-          .select()
-          .single();
+          .select('id, healing_attempts')
+          .eq('error_code', errName)
+          .eq('subsystem', subsystem)
+          .in('status', ['healing', 'unresolved'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        if (!logErr && telemetry) {
-          telemetryId = telemetry.id;
-          telemetryLogged = true;
+        if (existingIncident) {
+          // INCREMENT existing incident's healing_attempts counter
+          currentHealingAttempts = (existingIncident.healing_attempts || 0) + 1;
+          const { error: updateErr } = await supabase
+            .from('system_health_telemetry')
+            .update({ healing_attempts: currentHealingAttempts, status: 'healing', error_stack: errStack, updated_at: new Date().toISOString() })
+            .eq('id', existingIncident.id);
+
+          if (!updateErr) {
+            telemetryId = existingIncident.id;
+            telemetryLogged = true;
+            console.log(`[Auto-Healer] Incremented existing incident ${telemetryId} → attempt #${currentHealingAttempts}`);
+          } else {
+            console.warn('[Auto-Healer] Failed to increment existing incident:', updateErr.message);
+          }
         } else {
-          console.warn('[Auto-Healer] Central telemetry log skipped or failed (unauthenticated/offline):', logErr?.message || logErr);
+          // INSERT new incident row (first occurrence)
+          const { data: telemetry, error: logErr } = await supabase
+            .from('system_health_telemetry')
+            .insert({ pod_id: podId, subsystem, severity, error_code: errName, error_stack: errStack, status: 'healing', healing_attempts: 1 })
+            .select()
+            .single();
+
+          if (!logErr && telemetry) {
+            telemetryId = telemetry.id;
+            telemetryLogged = true;
+          } else {
+            console.warn('[Auto-Healer] Central telemetry log skipped or failed (unauthenticated/offline):', logErr?.message || logErr);
+          }
         }
       } catch (err: any) {
         console.warn('[Auto-Healer] Central telemetry logging encountered an exception:', err.message);
@@ -121,13 +154,32 @@ export class StateHealingEngine {
         healingSteps.push('🔍 Initiating autonomous database schema drift repair sequence...');
         healingSteps.push('📋 Scanning live schema against expected column manifest...');
 
-        const requiredColumns = [
-          { table: 'patient_registry',        column: 'vitals',           type: 'JSONB' },
-          { table: 'patient_registry',        column: 'token_number',     type: 'TEXT' },
-          { table: 'patient_registry',        column: 'queue_status',     type: "TEXT DEFAULT 'awaiting_vitals'" },
-          { table: 'whatsapp_sessions',       column: 'auto_healed_flag', type: 'BOOLEAN DEFAULT TRUE' },
-          { table: 'system_health_telemetry', column: 'updated_at',       type: 'TIMESTAMPTZ DEFAULT NOW()' },
+        // Gap 6 Fix: Load schema manifest dynamically, fall back to hardcoded baseline
+        const hardcodedBaseline = [
+          { table_name: 'patient_registry',        column_name: 'vitals',           column_type: 'JSONB' },
+          { table_name: 'patient_registry',        column_name: 'token_number',     column_type: 'TEXT' },
+          { table_name: 'patient_registry',        column_name: 'queue_status',     column_type: "TEXT DEFAULT 'awaiting_vitals'" },
+          { table_name: 'whatsapp_sessions',       column_name: 'auto_healed_flag', column_type: 'BOOLEAN DEFAULT TRUE' },
+          { table_name: 'system_health_telemetry', column_name: 'updated_at',       column_type: 'TIMESTAMPTZ DEFAULT NOW()' },
         ];
+
+        let requiredColumns: { table: string; column: string; type: string }[];
+        try {
+          const { data: manifest } = await supabase
+            .from('schema_manifest')
+            .select('table_name, column_name, column_type')
+            .eq('is_active', true);
+          if (manifest && manifest.length > 0) {
+            requiredColumns = manifest.map(m => ({ table: m.table_name, column: m.column_name, type: m.column_type }));
+            healingSteps.push(`📦 Loaded ${requiredColumns.length} columns from live schema_manifest.`);
+          } else {
+            requiredColumns = hardcodedBaseline.map(m => ({ table: m.table_name, column: m.column_name, type: m.column_type }));
+            healingSteps.push('📦 schema_manifest empty — using hardcoded baseline (5 columns).');
+          }
+        } catch {
+          requiredColumns = hardcodedBaseline.map(m => ({ table: m.table_name, column: m.column_name, type: m.column_type }));
+          healingSteps.push('⚠️ schema_manifest unavailable — falling back to hardcoded baseline.');
+        }
 
         let repairCount = 0;
         for (const col of requiredColumns) {
@@ -160,6 +212,9 @@ export class StateHealingEngine {
         try {
           await api.syncFromSupabase();
           healingSteps.push('✅ Frontend state hot-rejuvenation complete. UI restored in real-time.');
+          // Gap 7 Fix: Signal ErrorBoundary to auto-recover crashed component tree
+          window.dispatchEvent(new CustomEvent('mediflow-force-remount'));
+          healingSteps.push('🔄 Dispatched force-remount to recover crashed UI components.');
           healingSuccess = true;
         } catch (syncErr) {
           healingSteps.push(`❌ State re-sync failed: ${String(syncErr)}`);
@@ -170,14 +225,35 @@ export class StateHealingEngine {
         healingSteps.push('📡 Meta Graph API gateway congestion or HTTP 429 rate-limit detected.');
         healingSteps.push('⏳ Activating exponential backoff: 500ms → 1s → 2s retry sequence...');
 
-        // Simulated exponential backoff
+        // Gap 2 Fix: Real exponential backoff with actual health probe verification
+        const backendUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_BACKEND_URL) || 'http://localhost:8000';
+        let backendRecovered = false;
+
         for (let attempt = 1; attempt <= 3; attempt++) {
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-          healingSteps.push(`🔁 Retry attempt ${attempt}/3 — probing gateway availability...`);
+          const delayMs = 500 * Math.pow(2, attempt - 1); // 500ms, 1s, 2s
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          healingSteps.push(`🔁 Retry attempt ${attempt}/3 — probing backend after ${delayMs}ms backoff...`);
+
+          try {
+            const probeRes = await fetch(`${backendUrl}/health`, { signal: AbortSignal.timeout(5000) });
+            if (probeRes.ok) {
+              backendRecovered = true;
+              healingSteps.push(`✅ Backend health probe returned OK on attempt ${attempt}.`);
+              break;
+            }
+          } catch {
+            healingSteps.push(`⚠️ Probe attempt ${attempt} failed — service still unresponsive.`);
+          }
         }
-        healingSteps.push('🔀 Rolling over outbound queue to Secondary Deno edge pod standby.');
-        healingSteps.push('✅ API gateway rollover routing active 🟢 — traffic restored.');
-        healingSuccess = true;
+
+        if (backendRecovered) {
+          healingSteps.push('✅ API gateway recovered 🟢 — traffic restored.');
+          healingSuccess = true;
+        } else {
+          healingSteps.push('🔀 Rolling over outbound queue to Secondary Deno edge pod standby.');
+          healingSteps.push('❌ Backend remains down after 3 retry probes. Marking as FAILED for escalation.');
+          healingSuccess = false;
+        }
 
       } else if (subsystem === 'whatsapp_api') {
         healingSteps.push('📱 WABA webhook disruption detected. Auditing active session states...');

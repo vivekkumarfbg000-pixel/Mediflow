@@ -10,6 +10,7 @@ const DoctorDashboard = lazy(() => import('./components/doctor/DoctorDashboard')
 const LabDashboard = lazy(() => import('./components/lab/LabDashboard').then(m => ({ default: m.LabDashboard })));
 const PharmacyDashboard = lazy(() => import('./components/pharmacy/PharmacyDashboard').then(m => ({ default: m.PharmacyDashboard })));
 const BillingDashboard = lazy(() => import('./components/billing/BillingDashboard').then(m => ({ default: m.BillingDashboard })));
+const SaaSAdminPanel = lazy(() => import('./components/admin/SaaSAdminPanel').then(m => ({ default: m.SaaSAdminPanel })));
 
 import { AuthGateway } from './components/shared/AuthGateway';
 import { supabase } from './lib/supabaseClient';
@@ -121,6 +122,8 @@ function AppContent({
         );
       case 'billing':
         return <BillingDashboard />;
+      case 'saas_admin':
+        return <SaaSAdminPanel />;
       case 'patient':
         return <PatientMobileDashboard />;
       default:
@@ -422,7 +425,7 @@ export default function App() {
               else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
               else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
               else if (finalProfile.role === 'patient') defaultRole = 'patient';
-              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
+              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
               setCurrentRole(defaultRole);
             }
             setIsLoadingSession(false);
@@ -460,7 +463,7 @@ export default function App() {
               else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
               else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
               else if (finalProfile.role === 'patient') defaultRole = 'patient';
-              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
+              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
               setCurrentRole(defaultRole);
             }
             setIsLoadingSession(false);
@@ -527,7 +530,7 @@ export default function App() {
     else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
     else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
     else if (finalProfile.role === 'patient') defaultRole = 'patient';
-    else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'billing';
+    else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
     
     setCurrentRole(defaultRole);
 

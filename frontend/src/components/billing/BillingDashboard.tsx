@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import type { UnifiedInvoice, FinancialLedgerEntry } from '../../types';
+import { supabase } from '../../lib/supabaseClient';
 import { 
   QrCode, 
   Coins, 
@@ -19,6 +20,15 @@ export const BillingDashboard: React.FC = () => {
 
   // V2.0 Animated Split Payout Wheel Active Selection
   const [selectedNode, setSelectedNode] = useState<'escrow' | 'clinic' | 'lab' | 'pharmacy' | 'platform'>('escrow');
+  const [adminEmail, setAdminEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) {
+        setAdminEmail(session.user.email);
+      }
+    });
+  }, []);
 
   const calcSplits = (inv: UnifiedInvoice) => {
     // Convert Rupee fees to integer paise
@@ -840,6 +850,8 @@ export const BillingDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+
 
       {/* V2.0 DEDICATED HIGH-PRECISION PRINTABLE STATEMENT LAYER (VISUALLY ACCESSIBLE TO THE PRINTER BYPASS ONLY) */}
       {selectedInvoice && (

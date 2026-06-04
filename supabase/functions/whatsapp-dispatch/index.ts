@@ -51,6 +51,24 @@ serve(async (req) => {
 
     const { patientId, templateName, templateParams, podId } = validationResult.data;
 
+    // Cost Guard: Budget Enforce Check
+    const { data: withinBudget, error: budgetErr } = await supabase.rpc("check_pod_budget", {
+      p_pod_id: podId
+    });
+
+    if (budgetErr) {
+      console.error("[whatsapp-dispatch] Failed to check pod budget limits", budgetErr);
+    } else if (withinBudget === false) {
+      console.warn(`[whatsapp-dispatch] Cost Guard Block: Pod ${podId} has breached its daily spending cap.`);
+      return new Response(JSON.stringify({ 
+        error: "Daily spending budget exceeded for this clinic. Operations paused.", 
+        budgetExceeded: true 
+      }), {
+        status: 402, // 402 Payment Required
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 1. Consent Validation Gate (High-Priority Opt-out Check)
     const { data: consents, error: consentErr } = await supabase
       .from("patient_consents")

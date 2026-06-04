@@ -34,6 +34,23 @@ export class ErrorBoundary extends Component<Props, State> {
     }).catch(err => console.error('Failed to log crash to Supabase:', err));
   }
 
+  // Gap 7 Fix: Auto-healer sends 'mediflow-force-remount' after successful frontend heal.
+  // This listener clears the error boundary so the component tree re-mounts automatically.
+  private onForceRemount = () => {
+    if (this.state.hasError) {
+      console.log('[ErrorBoundary] Auto-healer requested force-remount. Recovering UI...');
+      this.setState({ hasError: false, error: null });
+    }
+  };
+
+  public componentDidMount() {
+    window.addEventListener('mediflow-force-remount', this.onForceRemount);
+  }
+
+  public componentWillUnmount() {
+    window.removeEventListener('mediflow-force-remount', this.onForceRemount);
+  }
+
   private handleReset = () => {
     this.setState({ hasError: false, error: null });
   };

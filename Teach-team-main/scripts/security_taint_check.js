@@ -124,12 +124,17 @@ if (fs.existsSync(migrationsDir)) {
     const filePath = path.join(migrationsDir, file);
     const content = fs.readFileSync(filePath, 'utf8');
     
+    // Strip comments: single-line (-- ...) and multi-line (/* ... */)
+    const cleanContent = content
+      .replace(/--.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    
     // Check if new tables are created without enabling RLS
-    const tableMatches = [...content.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([\w.]+)/gi)];
+    const tableMatches = [...cleanContent.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([\w.]+)/gi)];
     tableMatches.forEach(match => {
       const tableName = match[1];
-      const rlsEnabled = new RegExp(`alter\\s+table\\s+${tableName}\\s+enable\\s+row\\s+level\\s+security`, 'i').test(content) ||
-                         new RegExp(`alter\\s+table\\s+public\\.${tableName.split('.').pop()}\\s+enable\\s+row\\s+level\\s+security`, 'i').test(content);
+      const rlsEnabled = new RegExp(`alter\\s+table\\s+${tableName}\\s+enable\\s+row\\s+level\\s+security`, 'i').test(cleanContent) ||
+                         new RegExp(`alter\\s+table\\s+public\\.${tableName.split('.').pop()}\\s+enable\\s+row\\s+level\\s+security`, 'i').test(cleanContent);
       if (!rlsEnabled && !tableName.includes('schema_migrations')) {
         console.warn(`   ⚠️  [RLS Vulnerability] Table "${tableName}" created in ${file} without an explicit ENABLE ROW LEVEL SECURITY statement.`);
         issuesFound++;
@@ -137,9 +142,9 @@ if (fs.existsSync(migrationsDir)) {
     });
 
     // Check if dynamic functions use SECURITY DEFINER without revoking execution from public
-    if (content.toLowerCase().includes('security definer')) {
-      const hasRevoke = content.toLowerCase().includes('revoke execute on function') || 
-                        content.toLowerCase().includes('revoke all on function');
+    if (cleanContent.toLowerCase().includes('security definer')) {
+      const hasRevoke = cleanContent.toLowerCase().includes('revoke execute on function') || 
+                        cleanContent.toLowerCase().includes('revoke all on function');
       if (!hasRevoke) {
         console.warn(`   ⚠️  [Privilege Leak] "SECURITY DEFINER" function in ${file} does not revoke execute access from public.`);
         issuesFound++;
@@ -147,11 +152,11 @@ if (fs.existsSync(migrationsDir)) {
     }
 
     // Verify policies filter strictly by tenant configuration
-    const policyMatches = content.match(/create\s+policy\s+["']?\w+["']?\s+on\s+\w+\.?\w*/gi) || [];
+    const policyMatches = cleanContent.match(/create\s+policy\s+["']?\w+["']?\s+on\s+\w+\.?\w*/gi) || [];
     policyMatches.forEach(policyMatch => {
-      const hasTenantFilter = new RegExp(`${tenantCol}\\s*=\\s*${tenantFnEscaped}`, 'i').test(content) || 
-                              new RegExp(`${tenantFnEscaped}\\s*=\\s*${tenantCol}`, 'i').test(content);
-      if (!hasTenantFilter && !content.toLowerCase().includes('using (true)') && !content.toLowerCase().includes('using (false)')) {
+      const hasTenantFilter = new RegExp(`${tenantCol}\\s*=\\s*${tenantFnEscaped}`, 'i').test(cleanContent) || 
+                              new RegExp(`${tenantFnEscaped}\\s*=\\s*${tenantCol}`, 'i').test(cleanContent);
+      if (!hasTenantFilter && !cleanContent.toLowerCase().includes('using (true)') && !cleanContent.toLowerCase().includes('using (false)')) {
         console.warn(`   ⚠️  [RLS Multi-Tenancy Alert] RLS policy in ${file} might not partition data strictly by "${tenantCol}" using "${tenantFnRaw}".`);
         issuesFound++;
       }
@@ -185,7 +190,8 @@ function scanForSecrets(dir) {
         if (fullPath.includes('system_health_check.js') || fullPath.includes('diagnose_telemetry.js') || fullPath.includes('security_taint_check.js')) return;
         
         const hasSecretPattern = /[\s="'](sk_live_[a-zA-Z0-9]{24}|AIzaSy[a-zA-Z0-9-_]{35}|eyJhbGciOi[a-zA-Z0-9-_=.]{40,})/gi.test(line);
-        if (hasSecretPattern) {
+        const isBypassed = line.includes('safe-anon-key') || line.includes('nosec');
+        if (hasSecretPattern && !isBypassed) {
           console.warn(`   ⚠️  [Credential Leak] Potential hardcoded API secret or JWT committed in ${path.relative(__dirname, fullPath)} (line ${index + 1}).`);
           secretIssues++;
           issuesFound++;

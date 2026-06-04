@@ -1,0 +1,1270 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../../lib/supabaseClient';
+import { SystemHealthCockpit } from './SystemHealthCockpit';
+import { 
+  ShieldAlert, 
+  Lock, 
+  Mail, 
+  ArrowRight, 
+  Activity, 
+  Loader2,
+  Terminal,
+  Building,
+  Coins,
+  MessageSquare,
+  Users,
+  CheckCircle,
+  AlertCircle,
+  Database,
+  RefreshCw,
+  TrendingUp,
+  CreditCard,
+  Layers,
+  Cpu,
+  Globe,
+  Sliders,
+  Play,
+  Trash2,
+  LockKeyhole
+} from 'lucide-react';
+
+interface OnboardingStats {
+  total_pods: number;
+  total_entities: number;
+  clinics: number;
+  pharmacies: number;
+  labs: number;
+  total_profiles: number;
+}
+
+interface RevenueStats {
+  total_gmv: number;
+  platform_commission: number;
+  paid_invoices: number;
+  unpaid_invoices: number;
+}
+
+interface CostStats {
+  waba_msgs_sent: number;
+  waba_cost: number;
+  ai_tasks_run: number;
+  ai_cost: number;
+}
+
+interface PodInfo {
+  id: string;
+  name: string;
+  location: string;
+  clinic_code: string;
+  is_active: boolean;
+  created_at: string;
+  daily_cost_budget: number;
+  daily_spend: number;
+}
+
+interface RlsComplianceAudit {
+  table_name: string;
+  rls_enabled: boolean;
+  policy_count: number;
+  has_pod_isolation: boolean;
+  status: 'secure' | 'vulnerable';
+}
+
+interface FailedSettlement {
+  id: string;
+  invoice_id: string | null;
+  source_entity_name: string;
+  destination_entity_name: string;
+  transaction_type: string;
+  gross_amount: number;
+  commission_rate: number;
+  net_payout: number;
+  payment_status: string;
+  created_at: string;
+}
+
+interface BlacklistedIp {
+  ip: string;
+  reason: string;
+  created_at: string;
+}
+
+interface RateLimitRow {
+  ip: string;
+  request_count: number;
+  window_start: string;
+}
+
+type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
+
+export const SaaSAdminPanel: React.FC = () => {
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('saas_health');
+  
+  // Credentials & Login gate state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // SaaS Operations Metrics
+  const [onboardingStats, setOnboardingStats] = useState<OnboardingStats | null>(null);
+  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null);
+  const [costStats, setCostStats] = useState<CostStats | null>(null);
+  const [podsList, setPodsList] = useState<PodInfo[]>([]);
+  const [metricsLoading, setMetricsLoading] = useState<boolean>(false);
+
+  // Security Sentry: RLS compliance
+  const [complianceList, setComplianceList] = useState<RlsComplianceAudit[]>([]);
+  const [auditingRls, setAuditingRls] = useState<boolean>(false);
+
+  // CFO: Failed split payout ledger
+  const [failedSettlements, setFailedSettlements] = useState<FailedSettlement[]>([]);
+  const [loadingSettlements, setLoadingSettlements] = useState<boolean>(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+
+  // Cost Controller: Budget controls
+  const [updatingBudgetPodId, setUpdatingBudgetPodId] = useState<string | null>(null);
+  const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({});
+
+  // DevSecOps: Firewall Console
+  const [blacklistedIps, setBlacklistedIps] = useState<BlacklistedIp[]>([]);
+  const [rateLimits, setRateLimits] = useState<RateLimitRow[]>([]);
+  const [loadingFirewall, setLoadingFirewall] = useState<boolean>(false);
+  const [newIp, setNewIp] = useState<string>('');
+  const [newReason, setNewReason] = useState<string>('');
+  const [addingIp, setAddingIp] = useState<boolean>(false);
+  const [removingIp, setRemovingIp] = useState<string | null>(null);
+
+  // Check current profile role
+  const checkRole = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    } catch (err) {
+      console.error('[SaaS Admin] Failed to check role:', err);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, []);
+
+  // Fetch aggregated SaaS statistics from RPCs
+  const fetchSaaSMetrics = useCallback(async () => {
+    if (!isAdmin) return;
+    setMetricsLoading(true);
+    try {
+      const [
+        { data: onboarding }, 
+        { data: revenue }, 
+        { data: costs },
+        { data: pods }
+      ] = await Promise.all([
+        supabase.rpc('get_saas_onboarding_stats'),
+        supabase.rpc('get_saas_revenue_stats'),
+        supabase.rpc('get_saas_cost_stats'),
+        supabase.from('pods').select('*').order('created_at', { ascending: false }).limit(20)
+      ]);
+
+      if (onboarding) setOnboardingStats(onboarding as OnboardingStats);
+      if (revenue) setRevenueStats(revenue as RevenueStats);
+      if (costs) setCostStats(costs as CostStats);
+      
+      if (pods) {
+        // Enrich pods with cumulative daily spend values
+        const enriched = await Promise.all(pods.map(async (pod: any) => {
+          const { data: spend } = await supabase.rpc('get_pod_daily_spend', { p_pod_id: pod.id });
+          return {
+            ...pod,
+            daily_spend: spend || 0.00
+          };
+        }));
+        setPodsList(enriched as PodInfo[]);
+        
+        // Pre-populate budget inputs state
+        const inputs: Record<string, string> = {};
+        enriched.forEach((pod: any) => {
+          inputs[pod.id] = (pod.daily_cost_budget ?? 500.00).toString();
+        });
+        setBudgetInputs(inputs);
+      }
+    } catch (err) {
+      console.error('[SaaS Admin] Failed to fetch metrics aggregates:', err);
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, [isAdmin]);
+
+  // Security Scan Handler
+  const runRlsComplianceScan = async () => {
+    setAuditingRls(true);
+    try {
+      const { data, error } = await supabase.rpc('audit_rls_compliance');
+      if (error) throw error;
+      if (data) setComplianceList(data as RlsComplianceAudit[]);
+      
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Compliance Scan Completed 🛡️',
+          message: `Audited ${data.length} database tables.`,
+          type: 'success'
+        }
+      }));
+    } catch (err: any) {
+      console.error('[SaaS Admin] Compliance scan failed:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Scan Failed ⚠️',
+          message: err.message || 'Failed to audit database policies.',
+          type: 'error'
+        }
+      }));
+    } finally {
+      setAuditingRls(false);
+    }
+  };
+
+  // CFO Settlements Handler
+  const fetchFailedSettlements = async () => {
+    setLoadingSettlements(true);
+    try {
+      const { data, error } = await supabase.rpc('get_failed_settlements');
+      if (error) throw error;
+      if (data) setFailedSettlements(data as FailedSettlement[]);
+    } catch (err) {
+      console.error('[SaaS Admin] Failed to fetch failed settlements:', err);
+    } finally {
+      setLoadingSettlements(false);
+    }
+  };
+
+  const handleForceRetrySplit = async (ledgerId: string) => {
+    setRetryingId(ledgerId);
+    try {
+      const { data: success, error } = await supabase.rpc('retry_failed_settlement', { ledger_id: ledgerId });
+      if (error) throw error;
+      
+      if (success) {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Payout Force-Retried 💸',
+            message: 'Gateway retry triggered. Ledger state reverted to pending.',
+            type: 'success'
+          }
+        }));
+        fetchFailedSettlements();
+        fetchSaaSMetrics(); // refresh revenue metrics too
+      } else {
+        throw new Error('Settlement retry failed. Row not found or not in failed state.');
+      }
+    } catch (err: any) {
+      console.error('[SaaS Admin] Retry failed:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Retry Failed ⚠️',
+          message: err.message || 'Connection failure while resetting payout status.',
+          type: 'error'
+        }
+      }));
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  // Cost budgets Handler
+  const handleUpdatePodBudget = async (podId: string) => {
+    const inputValue = budgetInputs[podId];
+    const newBudget = parseFloat(inputValue);
+    if (isNaN(newBudget) || newBudget < 0) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Invalid Input ⚠️',
+          message: 'Please enter a positive numeric value for the clinic budget.',
+          type: 'error'
+        }
+      }));
+      return;
+    }
+
+    setUpdatingBudgetPodId(podId);
+    try {
+      const { error } = await supabase
+        .from('pods')
+        .update({ daily_cost_budget: newBudget })
+        .eq('id', podId);
+      
+      if (error) throw error;
+      
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Budget Threshold Updated 🎯',
+          message: `Clinic daily budget successfully capped at ₹${newBudget.toFixed(2)}.`,
+          type: 'success'
+        }
+      }));
+      
+      // Update local list
+      setPodsList(prev => prev.map(p => p.id === podId ? { ...p, daily_cost_budget: newBudget } : p));
+    } catch (err: any) {
+      console.error('[SaaS Admin] Failed to update budget:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Budget Save Failed ⚠️',
+          message: err.message || 'Failed to update cost limits.',
+          type: 'error'
+        }
+      }));
+    } finally {
+      setUpdatingBudgetPodId(null);
+    }
+  };
+
+  // DevSecOps Firewall Handlers
+  const fetchFirewallData = async () => {
+    setLoadingFirewall(true);
+    try {
+      const [
+        { data: blacklistData, error: err1 },
+        { data: rateLimitsData, error: err2 }
+      ] = await Promise.all([
+        supabase.from('blacklisted_ips').select('*').order('created_at', { ascending: false }),
+        supabase.from('rate_limits').select('*').order('window_start', { ascending: false }).limit(20)
+      ]);
+
+      if (err1) throw err1;
+      if (err2) throw err2;
+
+      if (blacklistData) setBlacklistedIps(blacklistData as BlacklistedIp[]);
+      if (rateLimitsData) setRateLimits(rateLimitsData as RateLimitRow[]);
+    } catch (err) {
+      console.error('[SaaS Admin] Failed to fetch firewall logs:', err);
+    } finally {
+      setLoadingFirewall(false);
+    }
+  };
+
+  const handleAddIpToBlacklist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIp) return;
+    setAddingIp(true);
+    try {
+      const { error } = await supabase.from('blacklisted_ips').insert({
+        ip: newIp.trim(),
+        reason: newReason.trim() || 'Manual blacklist via Platform Operations console.'
+      });
+
+      if (error) throw error;
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'IP Blacklisted Globally 🚫',
+          message: `Connections from ${newIp} are now blocked at the edge gateway.`,
+          type: 'success'
+        }
+      }));
+
+      setNewIp('');
+      setNewReason('');
+      fetchFirewallData();
+    } catch (err: any) {
+      console.error('[SaaS Admin] Add blacklist failed:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Blacklist Action Failed ⚠️',
+          message: err.message || 'Failed to blacklist IP address.',
+          type: 'error'
+        }
+      }));
+    } finally {
+      setAddingIp(false);
+    }
+  };
+
+  const handleRemoveIpFromBlacklist = async (ipAddress: string) => {
+    setRemovingIp(ipAddress);
+    try {
+      const { error } = await supabase.from('blacklisted_ips').delete().eq('ip', ipAddress);
+      if (error) throw error;
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'IP Firewall Rule Deleted ✅',
+          message: `IP ${ipAddress} was unblocked and allowed connection access.`,
+          type: 'success'
+        }
+      }));
+
+      fetchFirewallData();
+    } catch (err: any) {
+      console.error('[SaaS Admin] Remove blacklist failed:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Unblock Failed ⚠️',
+          message: err.message || 'Failed to remove firewall rule.',
+          type: 'error'
+        }
+      }));
+    } finally {
+      setRemovingIp(null);
+    }
+  };
+
+  // Auth synchronization
+  useEffect(() => {
+    checkRole();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      checkRole();
+    });
+    return () => subscription.unsubscribe();
+  }, [checkRole]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchSaaSMetrics();
+    }
+  }, [isAdmin, fetchSaaSMetrics]);
+
+  // Handle side effects when switching tabs
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (activeTab === 'onboarding' && complianceList.length === 0) {
+      runRlsComplianceScan();
+    } else if (activeTab === 'revenue') {
+      fetchFailedSettlements();
+    } else if (activeTab === 'firewall') {
+      fetchFirewallData();
+    }
+  }, [isAdmin, activeTab]);
+
+  const handleAdminSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    setAuthLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        const { data: profile, error: profileErr } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileErr) throw profileErr;
+
+        if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
+          setIsAdmin(true);
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: {
+              title: 'Owner Portal Initialized 🔑',
+              message: 'Access granted to Mediflow SaaS Operations Center.',
+              type: 'success'
+            }
+          }));
+        } else {
+          await supabase.auth.signOut();
+          setIsAdmin(false);
+          throw new Error('Access Denied: This account does not possess Platform Owner authorization.');
+        }
+      }
+    } catch (err: any) {
+      console.error('[SaaS Admin] Login failed:', err);
+      setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  if (loadingProfile) {
+    return (
+      <div className="min-h-[500px] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-10 w-10 text-cyan-500 animate-spin" />
+        <span className="text-xs text-slate-400 font-semibold tracking-wider uppercase">Loading security context...</span>
+      </div>
+    );
+  }
+
+  // Authorized Admin View
+  if (isAdmin) {
+    return (
+      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+        
+        {/* ── Top Header Control Bar ───────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200/25 pb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-cyan-400 shadow-md">
+              <Terminal className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                Mediflow Platform Operations
+                <span className="flex items-center gap-1 rounded-full bg-cyan-100 border border-cyan-200 px-2.5 py-0.5 text-[9px] font-bold text-cyan-700 tracking-wider uppercase animate-pulse">
+                  Platform Owner View
+                </span>
+              </h2>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-extrabold mt-0.5">
+                SaaS System Administration Control Panel
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={fetchSaaSMetrics}
+            disabled={metricsLoading}
+            className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${metricsLoading ? 'animate-spin' : ''}`} />
+            Sync Metrics
+          </button>
+        </div>
+
+        {/* ── Main Sub-Sidebar Split Panel ────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Sub-Sidebar Navigation (3 Columns) */}
+          <div className="lg:col-span-3 flex flex-col gap-2">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider pl-2 mb-1">
+              Virtual Operations Team
+            </span>
+            {[
+              { id: 'saas_health' as const, label: 'Health Auto Agent', desc: 'DevSecOps & Self-Healing', icon: Terminal },
+              { id: 'onboarding'  as const, label: 'Onboarding Agent', desc: 'Pod & RLS Compliance', icon: Building },
+              { id: 'revenue'     as const, label: 'CFO Finance Agent', desc: 'Split Retry & Ledger', icon: Coins },
+              { id: 'costs'       as const, label: 'Cost Controller',    desc: 'Daily Budget Checker', icon: MessageSquare },
+              { id: 'firewall'    as const, label: 'DevSecOps Sentry',   desc: 'IP Firewall & Blacklist', icon: ShieldAlert }
+            ].map(agent => {
+              const Icon = agent.icon;
+              const isActive = activeTab === agent.id;
+              return (
+                <button
+                  key={agent.id}
+                  type="button"
+                  onClick={() => setActiveTab(agent.id)}
+                  className={`w-full text-left p-3.5 rounded-2xl border transition-all duration-200 flex items-start gap-3 cursor-pointer ${
+                    isActive 
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-md' 
+                      : 'bg-white border-slate-200/80 text-slate-700 hover:scale-[1.01] hover:border-slate-350'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                  <div>
+                    <div className="text-xs font-black tracking-tight">{agent.label}</div>
+                    <div className={`text-[9px] mt-0.5 ${isActive ? 'text-slate-400' : 'text-slate-500'}`}>{agent.desc}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Workspace Screen (9 Columns) */}
+          <div className="lg:col-span-9 space-y-6">
+            
+            {/* TAB: Health Autonomous Agent */}
+            {activeTab === 'saas_health' && (
+              <div className="animate-fade-in space-y-4">
+                <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-3">
+                  <Activity className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">Health Autonomous Agent Enabled</h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      This agent runs 24/7 scanning for database drifts, API timeouts, and React runtime crashes. Click "Fault Injection Simulator" below to test self-healing loops safely.
+                    </p>
+                  </div>
+                </div>
+                <SystemHealthCockpit />
+              </div>
+            )}
+
+            {/* TAB: Onboarding Agent */}
+            {activeTab === 'onboarding' && onboardingStats && (
+              <div className="animate-fade-in space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Total Clinics (Pods)', value: onboardingStats.total_pods, desc: 'Active isolated tenant spaces', icon: Building, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                    { label: 'Total Storefronts', value: onboardingStats.total_entities, desc: 'Clinics, pharmacies, and labs', icon: Layers, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
+                    { label: 'Active User Accounts', value: onboardingStats.total_profiles, desc: 'Doctors, compounders, staff', icon: Users, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                  ].map(stat => {
+                    const Icon = stat.icon;
+                    return (
+                      <div key={stat.label} className={`p-5 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="mt-4">
+                          <h4 className="text-2xl font-black text-slate-800">{stat.value}</h4>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-none">{stat.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Subsystem breakdown */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <Users className="h-4.5 w-4.5 text-indigo-500" />
+                    Storefront Categories Allocation
+                  </h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: 'Connected Clinics', value: onboardingStats.clinics, bg: 'bg-indigo-500' },
+                      { label: 'Adjacent Pharmacies', value: onboardingStats.pharmacies, bg: 'bg-emerald-500' },
+                      { label: 'Referral Laboratories', value: onboardingStats.labs, bg: 'bg-blue-500' }
+                    ].map(type => (
+                      <div key={type.label} className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 text-center">
+                        <div className="text-lg font-extrabold text-slate-800">{type.value}</div>
+                        <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{type.label}</div>
+                        <div className="w-full h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                          <div className={`h-full ${type.bg}`} style={{ width: onboardingStats.total_entities > 0 ? `${(type.value / onboardingStats.total_entities) * 100}%` : '0%' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Security Sentry Auditor Panel */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <LockKeyhole className="h-5 w-5 text-indigo-600" />
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Security Sentry: RLS Policy Auditor</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">Verify schema Row-Level Security isolation across multi-tenant clinical pods.</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={runRlsComplianceScan}
+                      disabled={auditingRls}
+                      className="flex h-8 items-center gap-1.5 px-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-750 text-[10px] font-bold uppercase tracking-widest disabled:opacity-50 cursor-pointer shadow-sm transition-all"
+                    >
+                      {auditingRls ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Play className="h-3 w-3" />
+                      )}
+                      Scan Policies
+                    </button>
+                  </div>
+
+                  {complianceList.length > 0 ? (
+                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto">
+                      <table className="w-full text-left text-[11px] font-medium text-slate-600">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                            <th className="p-2.5 pl-3">Table Name</th>
+                            <th className="p-2.5">RLS Config</th>
+                            <th className="p-2.5 text-center">Policies</th>
+                            <th className="p-2.5">Pod Isolation</th>
+                            <th className="p-2.5 pr-3 text-right">Audit Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {complianceList.map(table => (
+                            <tr key={table.table_name} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                              <td className="p-2.5 pl-3 font-mono font-bold text-slate-750">{table.table_name}</td>
+                              <td className="p-2.5">
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                  table.rls_enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600 font-black animate-pulse'
+                                }`}>
+                                  {table.rls_enabled ? 'Active' : 'Missing RLS'}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-center font-bold">{table.policy_count}</td>
+                              <td className="p-2.5">
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                  table.has_pod_isolation ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'
+                                }`}>
+                                  {table.has_pod_isolation ? 'Isolated' : 'Cross-Pod'}
+                                </span>
+                              </td>
+                              <td className="p-2.5 pr-3 text-right">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                  table.status === 'secure' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                }`}>
+                                  {table.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[11px] font-semibold">
+                      Security policy metrics not loaded. Click "Scan Policies" to audit RLS configurations.
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Pods List */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Active Tenant Pods</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs font-medium text-slate-600">
+                      <thead>
+                        <tr className="border-b border-slate-200/60 text-[10px] uppercase text-slate-400 font-bold">
+                          <th className="pb-2">Clinic Code</th>
+                          <th className="pb-2">Name</th>
+                          <th className="pb-2">Location</th>
+                          <th className="pb-2">Status</th>
+                          <th className="pb-2">Onboarded At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {podsList.map(pod => (
+                          <tr key={pod.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                            <td className="py-3 font-mono font-bold text-indigo-600">{pod.clinic_code}</td>
+                            <td className="py-3 font-bold text-slate-800">{pod.name}</td>
+                            <td className="py-3 text-slate-550">{pod.location || 'Patna, Bihar'}</td>
+                            <td className="py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${pod.is_active ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500'}`}>
+                                {pod.is_active ? 'Active' : 'Halted'}
+                              </span>
+                            </td>
+                            <td className="py-3 text-slate-400 font-mono">{new Date(pod.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: CFO Revenue Agent */}
+            {activeTab === 'revenue' && revenueStats && (
+              <div className="animate-fade-in space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Ecosystem sales (GMV)', value: `₹${revenueStats.total_gmv}`, desc: 'Total sales from clinics + medicine', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                    { label: 'Platform Commissions', value: `₹${revenueStats.platform_commission}`, desc: 'Net flat ₹10 or 3% platform splits', icon: Coins, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                    { label: 'Settled Invoices', value: revenueStats.paid_invoices, desc: 'Unified invoice checkouts paid', icon: CheckCircle, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
+                  ].map(stat => {
+                    const Icon = stat.icon;
+                    return (
+                      <div key={stat.label} className={`p-5 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="mt-4">
+                          <h4 className="text-2xl font-black text-slate-800">{stat.value}</h4>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-none">{stat.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* CFO Financial Reconciler: Failed split payout retry ledger */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-indigo-600" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Financial Reconciler: Failed Split Payouts Ledger</h4>
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">Monitor split transaction settlements that failed Cashfree disbursement routines. Force a gateway settlement retry.</p>
+                    </div>
+                  </div>
+
+                  {loadingSettlements ? (
+                    <div className="min-h-[120px] flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+                    </div>
+                  ) : failedSettlements.length > 0 ? (
+                    <div className="border border-slate-100 rounded-xl overflow-hidden">
+                      <table className="w-full text-left text-[11px] font-medium text-slate-650">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                            <th className="p-2.5 pl-3">Source Clinic</th>
+                            <th className="p-2.5">Destination Partner</th>
+                            <th className="p-2.5">Type</th>
+                            <th className="p-2.5">Gross (₹)</th>
+                            <th className="p-2.5">Net (₹)</th>
+                            <th className="p-2.5">Fail Time</th>
+                            <th className="p-2.5 pr-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {failedSettlements.map(ledger => (
+                            <tr key={ledger.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                              <td className="p-2.5 pl-3 font-bold text-slate-750">{ledger.source_entity_name}</td>
+                              <td className="p-2.5 font-bold text-slate-700">{ledger.destination_entity_name}</td>
+                              <td className="p-2.5 font-mono text-slate-500">{ledger.transaction_type}</td>
+                              <td className="p-2.5 text-slate-800 font-bold">{ledger.gross_amount.toFixed(2)}</td>
+                              <td className="p-2.5 text-rose-600 font-extrabold">{ledger.net_payout.toFixed(2)}</td>
+                              <td className="p-2.5 text-slate-400 font-mono">{new Date(ledger.created_at).toLocaleString()}</td>
+                              <td className="p-2.5 pr-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleForceRetrySplit(ledger.id)}
+                                  disabled={retryingId === ledger.id}
+                                  className="h-7 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-1 inline-flex"
+                                >
+                                  {retryingId === ledger.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    'Force Retry'
+                                  )}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[11px] font-semibold">
+                      🎉 Operations cleared. No failed settlements found in payment split retry ledger.
+                    </div>
+                  )}
+                </div>
+
+                {/* Cashfree Webhook Status Indicator */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                      <CreditCard className="h-4.5 w-4.5 text-indigo-500" />
+                      Payment Gateway Integration Status
+                    </h4>
+                    <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Operational
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                    The platform's split payout logic distributes doctor fees, lab fees, and pharmacy fees synchronously. Cashfree Vendor splits are computed and routed directly from B2B clinic gateways on checkout.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl space-y-1">
+                      <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Commission Rate</span>
+                      <span className="block text-sm font-extrabold text-slate-850">3% per B2B split checkout</span>
+                    </div>
+                    <div className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl space-y-1">
+                      <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Split Limit Policy</span>
+                      <span className="block text-sm font-extrabold text-slate-850">Flat ₹10 low-value protection</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: Cost Controller Agent */}
+            {activeTab === 'costs' && costStats && (
+              <div className="animate-fade-in space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'WhatsApp Msg count', value: costStats.waba_msgs_sent, desc: 'Outbound templates sent', icon: MessageSquare, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                    { label: 'WABA message costs', value: `₹${parseFloat(costStats.waba_cost.toString()).toFixed(2)}`, desc: 'Meta conversation usage fees', icon: Coins, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+                    { label: 'AI Summaries run', value: costStats.ai_tasks_run, desc: 'Agent Scribe completions', icon: Cpu, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
+                    { label: 'Est. OpenAI/LLM cost', value: `₹${parseFloat(costStats.ai_cost.toString()).toFixed(2)}`, desc: '₹0.50 per clinical script execution', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                  ].map(stat => {
+                    const Icon = stat.icon;
+                    return (
+                      <div key={stat.label} className={`p-4 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 leading-none">{stat.label}</span>
+                          <Icon className="h-4.5 w-4.5 shrink-0" />
+                        </div>
+                        <div className="mt-4">
+                          <h4 className="text-xl font-black text-slate-850 leading-none">{stat.value}</h4>
+                          <p className="text-[9px] text-slate-500 mt-1 leading-none">{stat.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Clinic Daily Spending cap controller */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="h-5 w-5 text-indigo-600" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Cost Guard: Clinic Spending Threshold Controller</h4>
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">Enforce hard spending budget ceilings (AI processing + WhatsApp logs billing) dynamically per-clinic pod.</p>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-100 rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-[11px] font-medium text-slate-650">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                          <th className="p-2.5 pl-3">Clinic Code / Pod</th>
+                          <th className="p-2.5">Cumulative Spend Today</th>
+                          <th className="p-2.5">Daily Budget Progress</th>
+                          <th className="p-2.5 text-center">Threshold (₹)</th>
+                          <th className="p-2.5 pr-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {podsList.map(pod => {
+                          const budget = pod.daily_cost_budget ?? 500.00;
+                          const pct = Math.min((pod.daily_spend / budget) * 100, 100);
+                          const inputVal = budgetInputs[pod.id] || '';
+                          
+                          return (
+                            <tr key={pod.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                              <td className="p-2.5 pl-3">
+                                <div className="font-bold text-slate-850">{pod.name}</div>
+                                <div className="text-[9px] font-mono text-indigo-600 mt-0.5 font-bold">{pod.clinic_code}</div>
+                              </td>
+                              <td className="p-2.5 font-bold text-slate-750">
+                                ₹{pod.daily_spend.toFixed(2)}
+                              </td>
+                              <td className="p-2.5 w-1/3">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full rounded-full transition-all duration-300 ${
+                                        pct >= 90 ? 'bg-rose-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                                      }`}
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] font-bold text-slate-500">{pct.toFixed(0)}%</span>
+                                </div>
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="text"
+                                  value={inputVal}
+                                  onChange={(e) => setBudgetInputs(prev => ({ ...prev, [pod.id]: e.target.value }))}
+                                  className="w-20 px-2 py-1 bg-slate-50 border border-slate-200 focus:border-cyan-500/50 outline-none rounded text-center text-xs font-mono font-bold"
+                                />
+                              </td>
+                              <td className="p-2.5 pr-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdatePodBudget(pod.id)}
+                                  disabled={updatingBudgetPodId === pod.id}
+                                  className="h-7 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all disabled:opacity-50"
+                                >
+                                  {updatingBudgetPodId === pod.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    'Save'
+                                  )}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* API and consumption limit cards */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <Database className="h-4.5 w-4.5 text-indigo-500" />
+                    Infrastructure Usage & API Thresholds
+                  </h4>
+                  <div className="space-y-3.5">
+                    {[
+                      { name: 'Meta WhatsApp Business API limits', current: costStats.waba_msgs_sent, limit: 10000, color: 'bg-emerald-500' },
+                      { name: 'AI Scribe (OpenAI GPT-4o rate limits)', current: costStats.ai_tasks_run, limit: 5000, color: 'bg-cyan-500' },
+                      { name: 'Supabase DB Connection limit', current: 24, limit: 500, color: 'bg-indigo-500' },
+                    ].map(lim => {
+                      const pct = Math.min((lim.current / lim.limit) * 100, 100);
+                      return (
+                        <div key={lim.name} className="space-y-1">
+                          <div className="flex justify-between text-[11px] font-bold">
+                            <span className="text-slate-650">{lim.name}</span>
+                            <span className="text-slate-500">{lim.current} / {lim.limit}</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full ${lim.color} transition-all duration-500`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DevSecOps Sentry (Firewall Console) */}
+            {activeTab === 'firewall' && (
+              <div className="animate-fade-in space-y-6">
+                
+                {/* Intro module */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl flex items-center justify-center">
+                      <ShieldAlert className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Edge Sentry: IP Blacklist Firewall Console</h4>
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">Monitor real-time edge API request frequencies, identify rate-limit triggers, and blacklist malicious client IPs globally.</p>
+                    </div>
+                  </div>
+
+                  {/* Manual Blacklist Form */}
+                  <form onSubmit={handleAddIpToBlacklist} className="bg-slate-50 p-4 border border-slate-200/60 rounded-xl space-y-3">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-0.5">Blacklist Manual Rule Addition</div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={newIp}
+                          onChange={(e) => setNewIp(e.target.value)}
+                          placeholder="IP Address (e.g. 157.45.12.98)"
+                          className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-200 focus:border-cyan-500/50 outline-none rounded-lg"
+                          required
+                        />
+                      </div>
+                      <div className="flex-[2]">
+                        <input
+                          type="text"
+                          value={newReason}
+                          onChange={(e) => setNewReason(e.target.value)}
+                          placeholder="Reason (e.g. Malicious SQL Injection attempts)"
+                          className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-200 focus:border-cyan-500/50 outline-none rounded-lg"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={addingIp}
+                        className="h-9 px-4 bg-rose-600 hover:bg-rose-750 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-1 shrink-0"
+                      >
+                        {addingIp ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          'Block IP'
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Firewall status details - Two lists */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  
+                  {/* Left Column: Active Blacklist rules (7 columns) */}
+                  <div className="lg:col-span-7 p-5 rounded-3xl border border-slate-200 bg-white space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <Lock className="h-4 w-4 text-rose-500" />
+                        Active IP Firewall Blacklist
+                      </h4>
+                      <span className="text-[9px] font-bold text-slate-450 px-2 py-0.5 bg-slate-100 rounded-full">
+                        {blacklistedIps.length} blocked
+                      </span>
+                    </div>
+
+                    {loadingFirewall ? (
+                      <div className="min-h-[100px] flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
+                      </div>
+                    ) : blacklistedIps.length > 0 ? (
+                      <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto">
+                        <table className="w-full text-left text-[11px] font-medium text-slate-600">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                              <th className="p-2.5 pl-3">IP Address</th>
+                              <th className="p-2.5">Blocked Reason</th>
+                              <th className="p-2.5 pr-3 text-right">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {blacklistedIps.map(rule => (
+                              <tr key={rule.ip} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                <td className="p-2.5 pl-3 font-mono font-bold text-rose-600">{rule.ip}</td>
+                                <td className="p-2.5 text-slate-500 leading-normal">{rule.reason}</td>
+                                <td className="p-2.5 pr-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveIpFromBlacklist(rule.ip)}
+                                    disabled={removingIp === rule.ip}
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all cursor-pointer inline-flex"
+                                    title="Delete rule (Unblock IP)"
+                                  >
+                                    {removingIp === rule.ip ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[11px] font-semibold">
+                        No active firewall rules. All IP traffic allowed.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Rate Limiter Telemetry Logs (5 columns) */}
+                  <div className="lg:col-span-5 p-5 rounded-3xl border border-slate-200 bg-white space-y-3">
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Globe className="h-4 w-4 text-cyan-500" />
+                      Edge Rate Limiter Logs (Recent)
+                    </h4>
+
+                    {loadingFirewall ? (
+                      <div className="min-h-[100px] flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
+                      </div>
+                    ) : rateLimits.length > 0 ? (
+                      <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto">
+                        <table className="w-full text-left text-[11px] font-medium text-slate-600">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                              <th className="p-2.5 pl-3">Client IP</th>
+                              <th className="p-2.5 text-center">Requests</th>
+                              <th className="p-2.5 pr-3 text-right">Age</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rateLimits.map(log => {
+                              const ageSec = Math.max(0, Math.floor((Date.now() - new Date(log.window_start).getTime()) / 1000));
+                              return (
+                                <tr key={log.ip} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                  <td className="p-2.5 pl-3 font-mono text-slate-700">{log.ip}</td>
+                                  <td className="p-2.5 text-center font-bold font-mono">
+                                    <span className={log.request_count >= 15 ? 'text-amber-600 font-black animate-pulse' : 'text-slate-650'}>
+                                      {log.request_count}
+                                    </span>
+                                  </td>
+                                  <td className="p-2.5 pr-3 text-right text-slate-400 font-mono">
+                                    {ageSec < 60 ? `${ageSec}s ago` : `${Math.floor(ageSec / 60)}m ago`}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[11px] font-semibold">
+                        No active edge connection rate limits logged.
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  // Unauthorized Login Gate Screen
+  return (
+    <div className="min-h-[600px] flex items-center justify-center p-4">
+      <div className="w-full max-w-md relative">
+        <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-500 opacity-20 blur-xl pointer-events-none" />
+        
+        <div className="relative rounded-3xl border border-slate-200 bg-white p-8 shadow-xl flex flex-col space-y-6 text-slate-800">
+          <div className="flex flex-col items-center text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-cyan-600 shadow-sm animate-pulse-subtle">
+              <ShieldAlert className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-800 tracking-tight">Platform Owner Gateway</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                Restricted Operational Network
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-500 text-center leading-relaxed font-medium">
+            This dashboard contains real-time systems telemetry, database repair interfaces, and code compilation status. Access is restricted exclusively to Mediflow SaaS Platform Owners.
+          </p>
+
+          {errorMsg && (
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3.5 flex items-start gap-2.5">
+              <ShieldAlert className="h-4 w-4 text-rose-500 mt-0.5 shrink-0" />
+              <span className="text-xs text-rose-600 font-semibold leading-relaxed">{errorMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleAdminSignIn} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                Owner Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="owner@mediflow.com"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs font-semibold outline-none transition-all shadow-inner font-sans"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                Security Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs font-semibold outline-none transition-all shadow-inner font-sans"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={authLoading}
+              className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+            >
+              {authLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  Authenticate Owner <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};

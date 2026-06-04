@@ -142,16 +142,17 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'lab', name: nomenclature.labTitle, icon: Beaker, color: 'text-blue-500 bg-blue-500/10' },
     { id: 'pharmacy', name: nomenclature.pharmacyTitle, icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-500/10' },
     { id: 'billing', name: 'UPI Ledger', icon: QrCode, color: 'text-rose-500 bg-rose-500/10' },
+    { id: 'saas_admin', name: 'Platform Operations', icon: ShieldAlert, color: 'text-cyan-500 bg-cyan-500/10' },
   ];
 
   const allowedRolesMap: Record<string, string[]> = {
-    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient'],
+    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'saas_admin'],
     'compounder': ['compounder'],
     'lab_technician': ['lab'],
     'pharmacist': ['pharmacy'],
     'patient': ['patient'],
-    'admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient'],
-    'platform_admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient']
+    'admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient', 'saas_admin'],
+    'platform_admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient', 'saas_admin']
   };
 
   const activeUserRole = activeProfile?.role || 'compounder';
