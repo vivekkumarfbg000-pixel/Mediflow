@@ -76,13 +76,14 @@ jobs:
           pip install -q "huggingface_hub>=0.20.0"
           python scratch/upload_hf_space.py 2>&1 | tee /tmp/upload.log
 
-      - name: Commit Log on Failure
+      - name: Write Log to Summary on Failure
         if: failure()
         run: |
-          git config user.name "mediflow-bot"
-          git config user.email "mediflow-bot@users.noreply.github.com"
-          mkdir -p logs
-          cp /tmp/upload.log logs/upload-failure.log
-          git add logs/upload-failure.log
-          git commit -m "chore: record deployment failure log [skip ci]"
-          git push --force origin HEAD:deploy-logs
+          echo "### Deployment Failure Log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/upload.log ]; then
+            cat /tmp/upload.log >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No log file found at /tmp/upload.log" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo '```' >> $GITHUB_STEP_SUMMARY
