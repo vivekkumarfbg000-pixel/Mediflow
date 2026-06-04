@@ -70,13 +70,19 @@ jobs:
           # Extract HF username from repo path (format: username/space-name)
           HF_USERNAME=$(echo "$CLEAN_REPO" | cut -d'/' -f1)
 
-          cd /tmp/hf-proactive-space
-          git init
+          # Clone the existing HF space (handles both empty and populated spaces)
+          git clone "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" /tmp/hf-clone || \
+            git clone --depth=1 "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" /tmp/hf-clone
+
+          # Copy our prepared bundle into the cloned space
+          cp -r /tmp/hf-proactive-space/. /tmp/hf-clone/
+
+          cd /tmp/hf-clone
           git config user.name "mediflow-bot"
           git config user.email "mediflow-bot@users.noreply.github.com"
-          
-          git add .
-          git commit -m "Deploy Mediflow proactive monitoring agent to Hugging Face Space"
-          
-          # Push using actual HF username extracted from repo path
-          git push --force "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:refs/heads/main
+
+          git add -A
+          # Only commit if there are changes
+          git diff --cached --quiet || git commit -m "Deploy Mediflow proactive monitoring agent to Hugging Face Space"
+
+          git push "https://${HF_USERNAME}:${CLEAN_TOKEN}@huggingface.co/spaces/${CLEAN_REPO}" HEAD:main
