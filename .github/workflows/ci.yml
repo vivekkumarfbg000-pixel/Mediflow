@@ -160,8 +160,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check Vercel Credentials
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ] || [ -z "${{ secrets.VERCEL_ORG_ID }}" ] || [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "::warning::Vercel credentials missing. Skipping Vercel deployment."
+            echo "SKIP_DEPLOY=true" >> $GITHUB_ENV
+          else
+            echo "SKIP_DEPLOY=false" >> $GITHUB_ENV
+          fi
+
       - name: Deploy to Vercel
-        if: "secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != ''"
+        if: env.SKIP_DEPLOY != 'true'
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -169,3 +179,4 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
           working-directory: ./
+

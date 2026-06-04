@@ -84,7 +84,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Run TypeScript type check (pre-patch baseline)
         working-directory: frontend
@@ -157,8 +157,8 @@ jobs:
 
       - name: Install dependencies (Root & Frontend)
         run: |
-          npm ci
-          cd frontend && npm ci
+          npm install --legacy-peer-deps
+          cd frontend && npm install --legacy-peer-deps
 
       - name: Compile and Run E2E Smoke & Chaos Tests
         run: node Teach-team-main/scripts/verify_ui_e2e.js
