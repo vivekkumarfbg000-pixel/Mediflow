@@ -543,7 +543,12 @@ export default function App() {
     }]);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error during Supabase signout:', err);
+    }
     setSession(null);
     setActiveProfile(null);
     setCurrentRole('doctor');
