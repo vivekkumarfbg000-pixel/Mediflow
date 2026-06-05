@@ -34,7 +34,7 @@ async function deployRpcs() {
     BEGIN
         v_clinic_code := 'MF-' || upper(substring(gen_random_uuid()::text, 1, 4));
         
-        WHILE EXISTS (SELECT 1 FROM public.pods WHERE clinic_code = v_clinic_code) LOOP
+        WHILE EXISTS (SELECT 1 FROM public.pods WHERE pods.clinic_code = v_clinic_code) LOOP
             v_clinic_code := 'MF-' || upper(substring(gen_random_uuid()::text, 1, 4));
         END LOOP;
 
