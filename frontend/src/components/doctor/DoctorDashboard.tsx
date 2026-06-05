@@ -156,7 +156,7 @@ export const DoctorDashboard: React.FC = () => {
   // SaaS Doctor States
   const [hinglishSummary, setHinglishSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [comparativeTrend, setComparativeTrend] = useState('');
+  const [comparativeTrend, setComparativeTrend] = useState<any>(null);
   const [isGeneratingTrend, setIsGeneratingTrend] = useState(false);
 
   // In-Browser HTML5 Local Audio Recording States
@@ -786,8 +786,8 @@ Keep the tone professional, clinical, objective, and precise.`;
       let whatsAppMsg = '';
       if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
         whatsAppMsg = formatSpectacleCard(refractionRx, selectedPatient.name);
-        if (notes) {
-          whatsAppMsg += `\n\n👉 *Doctor's Advice (Hinglish):*\n_"${notes}"_`;
+        if (hinglishSummary || notes) {
+          whatsAppMsg += `\n\n👉 *Doctor's Advice (Hinglish):*\n_"${hinglishSummary || notes}"_`;
         }
         if (medications.length > 0) {
           whatsAppMsg += `\n\n💊 *Prescribed Medications:*\n`;
@@ -800,7 +800,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         whatsAppMsg += `Dear *${selectedPatient.name}*, Dr. Sharma has finalized your consultation record.\n\n`;
         
         // Add Hinglish clinical directions
-        whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${notes || "Continue active lifestyle management."}"_\n\n`;
+        whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${hinglishSummary || notes || "Continue active lifestyle management."}"_\n\n`;
         
         if (latestReport) {
           whatsAppMsg += `🧪 *Consolidated Lab Report (Date: ${latestReport.date}):*\n`;
@@ -820,6 +820,9 @@ Keep the tone professional, clinical, objective, and precise.`;
         whatsAppMsg += `Dhyan rakhein aur time par medicine lein! 🟢`;
       }
       
+      if (hinglishSummary) {
+        api.pushWhatsAppMessageFromBot(selectedPatient.phone, `🤖 *AI Hinglish Summary:*\n\n${hinglishSummary}`);
+      }
       api.pushWhatsAppMessageFromBot(selectedPatient.phone, whatsAppMsg);
     } catch (e) {
       console.error('[WhatsApp Auto-dispatch failed]:', e);
@@ -879,6 +882,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   selectedPatient={selectedPatient}
                   setSelectedPatient={setSelectedPatient}
                   medications={medications}
+                  setMedications={setMedications}
                   selectedTests={selectedTests}
                   notes={notes}
                   setNotes={setNotes}

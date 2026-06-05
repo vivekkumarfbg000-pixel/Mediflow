@@ -829,13 +829,26 @@ export const CompounderDashboard: React.FC = () => {
 
       // Format & push invoice message to patient WhatsApp sandbox!
       const invoiceText = api.generateMedicineInvoiceMessage(bill);
+
+      // Build dosage invoice text using getBilingualInstruction() for each item
+      let dosageInvoiceText = `📋 *दवाई की खुराक की जानकारी (Bilingual Dosage Slip)*\n\nनमस्ते, यहाँ आपकी दवाइयों की खुराक की जानकारी हिंदी/Hinglish में है:\n\n`;
+      bill.items.forEach((item, idx) => {
+        const instr = getBilingualInstruction(item.name, item.dosage);
+        dosageInvoiceText += `💊 *${item.name}* (${item.dosage || '1 Tab'})\n`;
+        dosageInvoiceText += `👉 *Directions:* ${instr.english}\n`;
+        dosageInvoiceText += `👉 *खुराक:* ${instr.hindi}\n\n`;
+      });
+      dosageInvoiceText += `Dhyan rakhein aur time par medicine lein! 🟢`;
+
+      api.pushWhatsAppMessageFromBot(billingPatient.phone, dosageInvoiceText);
+      api.pushWhatsAppMessageFromBot(billingPatient.phone, invoiceText);
       
       // Update session state to MEDICINE_AWAITING_PAYMENT
+      const updatedSessions = api.getWhatsAppSessions();
+      const updatedSession = updatedSessions.find(s => s.patientPhone === billingPatient.phone) || session;
+
       api.updateWhatsAppState(billingPatient.phone, 'MEDICINE_AWAITING_PAYMENT', {
-        chatHistory: [
-          ...(session.sessionData.chatHistory || []),
-          { sender: 'bot', text: invoiceText, time: new Date().toISOString() }
-        ],
+        chatHistory: updatedSession.sessionData.chatHistory || [],
         draftMedicineBill: bill
       });
 
@@ -844,7 +857,7 @@ export const CompounderDashboard: React.FC = () => {
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          message: `Invoice generated & pushed to +91 ${billingPatient.phone} on WhatsApp! Sandbox auto-focused.`,
+          message: `Invoice & bilingual dosage generated & pushed to +91 ${billingPatient.phone} on WhatsApp! Sandbox auto-focused.`,
           type: 'success',
           title: 'WhatsApp Invoice Sent'
         }
@@ -929,29 +942,47 @@ export const CompounderDashboard: React.FC = () => {
     setShowQuickReg(false);
   };
 
-  const handlePreviousReportScan = (file: File) => {
+  const handlePreviousReportScan = async (file: File) => {
     if (!activePatient) return;
     setIsReportScanning(true);
     setReportScanLogs([
       `[${new Date().toLocaleTimeString()}] Accessing previous health records archive...`,
-      `[${new Date().toLocaleTimeString()}] Querying Clinical Document parsing models...`
+      `[${new Date().toLocaleTimeString()}] Uploading file to Clinical OCR parser...`
     ]);
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      // Simulate real-time logs
-      await new Promise(r => setTimeout(r, 600));
-      setReportScanLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Found pathology report with date 2026-03-10`]);
-      await new Promise(r => setTimeout(r, 500));
-      setReportScanLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Running CDSS historical alignment algorithm...`]);
+    try {
+      // 1. Run live OCR scan via FastAPI backend
+      const ocrResult = await api.ocrScan(file);
+      setReportScanLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] OCR Success: Document text parsed.`,
+        `[${new Date().toLocaleTimeString()}] Structuring biomarkers...`,
+        `[${new Date().toLocaleTimeString()}] Dispatching biomarkers to Gemini CDSS comparative engine...`
+      ]);
+
+      // Parse biomarkers from OCR structured data
+      const hba1cStr = ocrResult.structured_data?.HbA1c || ocrResult.structured_data?.hba1c || '7.8';
+      const creatinineStr = ocrResult.structured_data?.Creatinine || ocrResult.structured_data?.creatinine || '1.4';
+      const hemoglobinStr = ocrResult.structured_data?.Hemoglobin || ocrResult.structured_data?.hemoglobin || '11.2';
       
-      const summary = `Previous lab report shows elevated HbA1c at 7.8% and serum creatinine of 1.4 mg/dL, with mild anemia (Hb: 11.2 g/dL). Key risk of diabetic nephropathy progression noted.`;
+      const current_data = {
+        age: activePatient.age.toString(),
+        gender: activePatient.gender,
+        HbA1c: parseFloat(hba1cStr.toString().replace(/[^0-9.]/g, '')) || 7.8,
+        creatinine: parseFloat(creatinineStr.toString().replace(/[^0-9.]/g, '')) || 1.4,
+        hemoglobin: parseFloat(hemoglobinStr.toString().replace(/[^0-9.]/g, '')) || 11.2
+      };
+
+      // 2. Query `/api/lab-trend` via the labTrend service
+      const trendResult = await api.labTrend({ current_data });
       
-      setScannedSummary(summary);
-      
-      await new Promise(r => setTimeout(r, 400));
-      setReportScanLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] SUCCESS: Longitudinal report mapped successfully! [OK]`]);
-      setIsReportScanning(false);
+      // Update scanned summary with analysis text
+      setScannedSummary(trendResult.analysis);
+
+      setReportScanLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] SUCCESS: Longitudinal report mapped successfully! [OK]`
+      ]);
       
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -960,8 +991,19 @@ export const CompounderDashboard: React.FC = () => {
           title: 'Longitudinal Summary Parsed'
         }
       }));
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error(err);
+      setReportScanLogs(prev => [...prev, `[ERROR] OCR/Analysis failed: ${err?.message || err}`]);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          message: 'Failed to scan and analyze previous report.',
+          type: 'error',
+          title: 'Scan Error'
+        }
+      }));
+    } finally {
+      setIsReportScanning(false);
+    }
   };
 
   return (
@@ -2584,13 +2626,15 @@ export const CompounderDashboard: React.FC = () => {
                         }
 
                         const payModeLabel = labPaymentMode === 'cash' ? 'Cash at Counter' : labPaymentMode === 'upi' ? 'UPI Dynamic QR' : 'WhatsApp Pay Link';
-                        const receiptMsg = `🧪 *MEDIFLOW PATHOLOGY LAB RECEIPT*\n----------------------------------------\nPatient Name: *${dispatchPatientName}*\nPhone: *+91 ${dispatchPatientPhone}*\nTest ordered: *${testName}* (LOINC: ${dispatchSelectedTestCode})\n\nOriginal Price: *₹${testPrice.toFixed(2)}*\nDiscount Applied: *${labDiscountPercent}%*\nTotal Paid: *₹${finalPrice.toFixed(2)}* (via ${payModeLabel})\nStatus: *PAID & routed to Pathology Lab*\n----------------------------------------\nThank you! Mediflow Pathology. 🟢`;
+                        const receiptMsg = `🧪 *MEDIFLOW PATHOLOGY LAB RECEIPT*\n----------------------------------------\nPatient Name: *${dispatchPatientName}*\nPhone: *+91 ${dispatchPatientPhone}*\nTest ordered: *${testName}* (LOINC: ${dispatchSelectedTestCode})\n\nOriginal Price: *₹${testPrice.toFixed(2)}*\nDiscount Applied: *${labDiscountPercent}%*\nTotal Paid: *₹${finalPrice.toFixed(2)}* (via ${payModeLabel})\nStatus: *PAID & routed to Pathology Lab*\n\n💳 Pay securely via mock UPI link below:\nupi://pay?pa=mediflow@icici&pn=Mediflow&am=${finalPrice.toFixed(2)}&cu=INR&tn=MF-LAB-${invoiceId.substring(4, 8)}\n----------------------------------------\nThank you! Mediflow Pathology. 🟢`;
                         
+                        api.pushWhatsAppMessageFromBot(dispatchPatientPhone, receiptMsg);
+
+                        const updatedSessions = api.getWhatsAppSessions();
+                        const updatedSession = updatedSessions.find(s => s.patientPhone === dispatchPatientPhone) || session;
+
                         api.updateWhatsAppState(dispatchPatientPhone, 'COMPLETED', {
-                          chatHistory: [
-                            ...(session.sessionData.chatHistory || []),
-                            { sender: 'bot', text: receiptMsg, time: new Date().toISOString() }
-                          ]
+                          chatHistory: updatedSession.sessionData.chatHistory || []
                         });
 
                         const finalPat = api.getPatients().find(p => p.id === patientId) || { id: patientId, name: dispatchPatientName, phone: dispatchPatientPhone, age: Number(dispatchPatientAge), gender: dispatchPatientGender };
@@ -2937,16 +2981,71 @@ export const CompounderDashboard: React.FC = () => {
 
                             {/* Revisit Scheduler inside report card */}
                             <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-3">
-                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Schedule Revisit Appointment</span>
+                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Schedule Revisit for Doctor's Final Advice</span>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
                                   <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Date</label>
-                                  <input 
-                                    type="date"
-                                    value={reportRevisitDates[reportId] || ''}
-                                    onChange={(e) => setReportRevisitDates(prev => ({ ...prev, [reportId]: e.target.value }))}
-                                    className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
-                                  />
+                                  <div className="flex gap-1">
+                                    <input 
+                                      type="date"
+                                      value={reportRevisitDates[reportId] || ''}
+                                      onChange={(e) => setReportRevisitDates(prev => ({ ...prev, [reportId]: e.target.value }))}
+                                      className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
+                                    />
+                                    <button
+                                      type="button"
+                                      title="AI Calculate Advice Revisit"
+                                      onClick={async () => {
+                                        try {
+                                          const patient = api.getPatients().find(p => p.id === report.patientId);
+                                          if (!patient) return;
+                                          const history = api.getPatientHistoricalBiomarkers(report.patientId);
+                                          const latestReport = history[history.length - 1];
+                                          const current_data = latestReport ? {
+                                            age: patient.age.toString(),
+                                            gender: patient.gender,
+                                            HbA1c: latestReport.HbA1c,
+                                            creatinine: latestReport.creatinine,
+                                            hemoglobin: latestReport.hemoglobin
+                                          } : {
+                                            age: patient.age.toString(),
+                                            gender: patient.gender,
+                                            HbA1c: 7.2,
+                                            creatinine: 1.1,
+                                            hemoglobin: 14.0
+                                          };
+                                          
+                                          const trendResult = await api.labTrend({ current_data });
+                                          
+                                          // Default to same day (today) evening according to token number
+                                          const dateString = new Date().toISOString().split('T')[0];
+                                          const tokenStr = patient.tokenNumber || '1';
+                                          const tokenNum = parseInt(tokenStr.replace(/\D/g, '')) || 1;
+                                          const totalMinutes = 16 * 60 + (tokenNum - 1) * 10; // 4:00 PM start, 10 min per token
+                                          const hours = Math.floor(totalMinutes / 60);
+                                          const minutes = totalMinutes % 60;
+                                          const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                          
+                                          setReportRevisitDates(prev => ({ ...prev, [reportId]: dateString }));
+                                          setReportRevisitTimes(prev => ({ ...prev, [reportId]: timeString }));
+                                          setReportRevisitNotes(prev => ({ ...prev, [reportId]: `Same-day evening final advice (Token #${tokenNum}). ${trendResult.trajectory ? `Report trajectory is ${trendResult.trajectory}.` : ''}` }));
+                                          
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: {
+                                              message: `AI scheduled final advice session for today evening at ${timeString} based on token #${tokenNum}!`,
+                                              type: 'success',
+                                              title: 'AI Advice Revisit Calculated'
+                                            }
+                                          }));
+                                        } catch (err) {
+                                          console.error('[AI Revisit error]:', err);
+                                        }
+                                      }}
+                                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-md text-[9px] cursor-pointer flex items-center justify-center shrink-0 border-0 text-white-force"
+                                    >
+                                      🤖 AI
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Time</label>
@@ -3076,7 +3175,7 @@ export const CompounderDashboard: React.FC = () => {
 
                             {report.revisitScheduledAt && (
                               <div className="p-2.5 bg-emerald-50 border border-emerald-150 rounded-lg text-[10px] text-emerald-800">
-                                <strong>Revisit Locked:</strong> {new Date(report.revisitScheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                <strong>Advice Revisit Locked:</strong> {new Date(report.revisitScheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                                 {report.revisitNote && <p className="mt-1 text-slate-650 font-medium">Note: {report.revisitNote}</p>}
                               </div>
                             )}
@@ -3088,15 +3187,15 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Revisit Scheduler Desk (Manual fallback) */}
+              {/* Doctor's Final Advice Appointment Desk (Manual Book) */}
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
                 <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-rose-600 text-base">calendar_month</span>
-                  Revisit Scheduler Desk (Manual Book)
+                  Doctor's Final Advice Appointment Desk (Manual Book)
                 </h2>
                 <p className="text-xs text-slate-500 mb-4">
-                  Manually schedule revisit appointments for patients without any linked lab reports.
+                  Manually schedule final advice appointments for patients without any linked lab reports.
                 </p>
 
                 <form 
@@ -3108,12 +3207,16 @@ export const CompounderDashboard: React.FC = () => {
                     }
                     const p = patients.find(pat => pat.id === revisitPatientId);
                     if (p) {
-                      api.pushWhatsAppMessageFromBot(p.phone, `📅 *Mediflow Revisit Lock!* \n\nHello ${p.name}, your doctor revisit schedule is confirmed on *${revisitDate}* at *${revisitTime}*. Please arrive on time.`);
+                      const msg = `📅 *Mediflow Revisit Lock!* 🏥\n\n` +
+                        `Hello *${p.name}*, aapka doctor se milkar *final advice* lene ka appointment lock ho gaya hai:\n` +
+                        `📅 *${revisitDate}* at *${revisitTime}*.\n\n` +
+                        `Time par clinic aakar doctor se final advice lein. Dhyan rakhein! 🟢`;
+                      api.pushWhatsAppMessageFromBot(p.phone, msg);
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                         detail: {
-                          message: `Revisit schedule locked on WhatsApp for ${p.name}!`,
+                          message: `Advice appointment locked on WhatsApp for ${p.name}!`,
                           type: 'success',
-                          title: 'Revisit Booked'
+                          title: 'Appointment Booked'
                         }
                       }));
                       setRevisitPatientId('');
@@ -3127,7 +3230,19 @@ export const CompounderDashboard: React.FC = () => {
                     <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient</label>
                     <select
                       value={revisitPatientId}
-                      onChange={(e) => setRevisitPatientId(e.target.value)}
+                      onChange={(e) => {
+                        const patId = e.target.value;
+                        setRevisitPatientId(patId);
+                        const pat = patients.find(p => p.id === patId);
+                        if (pat) {
+                          setRevisitDate(new Date().toISOString().split('T')[0]);
+                          const tokenNum = parseInt((pat.tokenNumber || '1').replace(/\D/g, '')) || 1;
+                          const totalMinutes = 16 * 60 + (tokenNum - 1) * 10; // 4:00 PM start, 10 min per token
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = totalMinutes % 60;
+                          setRevisitTime(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+                        }
+                      }}
                       className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
                       required
                     >
@@ -3166,7 +3281,7 @@ export const CompounderDashboard: React.FC = () => {
                     type="submit"
                     className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer"
                   >
-                    Lock Revisit &amp; Dispatch Bot Notification
+                    Lock Advice Appointment &amp; Dispatch Bot Notification
                   </button>
                 </form>
               </div>

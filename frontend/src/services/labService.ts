@@ -147,6 +147,34 @@ export class LabService {
           status: 'approved' // lab tech submit = auto-approved at technician level
         });
 
+        // AI extraction and summary update
+        try {
+          const history = PatientService.getPatientHistoricalBiomarkers(req.patientId);
+          let biomarkers: Record<string, any> = {};
+          try {
+            const parsed = JSON.parse(resultValue);
+            biomarkers = parsed.biomarkers || {};
+          } catch (e) {
+            console.warn("Failed to parse resultValue:", e);
+          }
+
+          const current_data: Record<string, any> = {
+            age: patient?.age?.toString() || '45',
+            gender: patient?.gender || 'Male'
+          };
+          if (biomarkers.HbA1c !== undefined) current_data.HbA1c = biomarkers.HbA1c.toString();
+          if (biomarkers.serumCreatinine !== undefined) current_data.creatinine = biomarkers.serumCreatinine.toString();
+          if (biomarkers.hemoglobin !== undefined) current_data.hemoglobin = biomarkers.hemoglobin.toString();
+
+          const { ForecastService } = await import('./forecastService');
+          const trendResult = await ForecastService.labTrend({ current_data, historical_data: history });
+          
+          if (trendResult && trendResult.analysis) {
+            await PatientService.updatePatientPastReportsSummary(req.patientId, trendResult.analysis);
+          }
+        } catch (aiErr) {
+          console.error('[AI Biomarker Extraction/Summary update failed]:', aiErr);
+        }
       });
     }
   }
@@ -521,10 +549,11 @@ export class LabService {
     const patient = PatientService.getPatients().find(p => p.id === report.patientId);
     if (patient) {
       const revisitMsg = revisitAt
-        ? `📅 Your next clinic visit has been scheduled for *${new Date(revisitAt).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} at ${revisitTime}*.`
+        ? `📅 Compounder ne aapko doctor se milkar *final advice* lene ke liye time allocate kiya hai: *${new Date(revisitAt).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} at ${revisitTime}*.`
         : '';
-      const noteMsg = revisitNote ? `\n📌 Note from compounder: "${revisitNote}"` : '';
-      const message = `✅ *Your Lab Report is Ready!*\n\nDear ${patient.name}, your *${report.biomarkerJson?.testName || 'lab test'}* report has been reviewed and approved by our clinical staff.${revisitMsg ? '\n\n' + revisitMsg : ''}${noteMsg}\n\nPlease carry this WhatsApp message as your appointment reference. 🏥`;
+      const noteMsg = revisitNote ? `\n📌 *Note from compounder:* "${revisitNote}"` : '';
+      const message = `✅ *Lab Report arrived at Doctor!* 🧪\n\nDear *${patient.name}*, aapka *${report.biomarkerJson?.testName || 'lab test'}* report doctor ke paas pahunch gaya hai. 🏥${revisitMsg ? '\n\n' + revisitMsg : ''}${noteMsg}\n\nKripya time par clinic aakar doctor se final advice lein. Dhyan rakhein! 🟢`;
+
       
       const sessions = load<any[]>('whatsapp_sessions', []);
       const existing = sessions.find(s => s.patientPhone === patient.phone);
@@ -543,6 +572,9 @@ export class LabService {
         }).eq('patient_phone', patient.phone);
       }
     }
+
+    // Allocate patient back to doctor consult queue for final advice
+    PatientService.updatePatientQueueStatus(report.patientId, 'awaiting_consultation');
 
     await writeAuditLog('LAB_REPORT_APPROVED', {
       reportId,

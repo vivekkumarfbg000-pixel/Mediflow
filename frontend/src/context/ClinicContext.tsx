@@ -28,6 +28,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       setActiveEntity(null);
       setPartnerStatus(null);
       setPodEntities([]);
+      if (typeof window !== 'undefined') {
+        delete (window as any).__mediflow_active_pod_id;
+      }
       return;
     }
 
@@ -82,6 +85,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
               isActive: podData.is_active ?? true,
               createdAt: podData.created_at
             });
+            if (typeof window !== 'undefined') {
+              (window as any).__mediflow_active_pod_id = podData.id;
+            }
           }
 
           // Fetch all entities in the same pod
@@ -111,6 +117,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         } else {
           setActivePod(null);
           setPodEntities([]);
+          if (typeof window !== 'undefined') {
+            delete (window as any).__mediflow_active_pod_id;
+          }
         }
       }
     } catch (err) {

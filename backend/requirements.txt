@@ -4,8 +4,8 @@ python-multipart
 aiofiles
 supabase
 
-# AI Engine — Gemini free tier integration
-google-generativeai>=0.8.0
+# AI Engine - Gemini (new SDK, replaces deprecated google-generativeai)
+google-genai>=1.0.0
 
 # Structured logging
 python-json-logger>=2.0.7

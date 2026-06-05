@@ -159,11 +159,11 @@ export class PatientService {
       r => r.patientId === patientId && r.status === 'completed' && r.quantitativeResult
     );
 
-    const dateMap = new Map<string, { HbA1c?: number; creatinine?: number; hemoglobin?: number }>();
+    const dateMap = new Map<string, Record<string, number>>();
 
     const baseline = [
-      { date: '2026-03-10', HbA1c: 7.8, creatinine: 0.9, hemoglobin: 13.5, temperature: '6/6', bloodPressure: '6/6', pulseRate: 15 },
-      { date: '2026-04-15', HbA1c: 7.4, creatinine: 1.1, hemoglobin: 13.1, temperature: '6/6', bloodPressure: '6/9', pulseRate: 18 }
+      { date: '2026-03-10', HbA1c: 7.8, creatinine: 0.9, hemoglobin: 13.5, alt: 35, ast: 30, ldl: 95, tsh: 2.1, temperature: '6/6', bloodPressure: '6/6', pulseRate: 15 },
+      { date: '2026-04-15', HbA1c: 7.4, creatinine: 1.1, hemoglobin: 13.1, alt: 42, ast: 38, ldl: 110, tsh: 5.2, temperature: '6/6', bloodPressure: '6/9', pulseRate: 18 }
     ];
 
     const historyList: any[] = [];
@@ -190,6 +190,13 @@ export class PatientService {
         } else if (r.testCode === '3024-7' && bio.hemoglobin !== undefined) {
           entry.hemoglobin = Number(bio.hemoglobin);
         }
+
+        if (bio.alt !== undefined) entry.alt = Number(bio.alt);
+        if (bio.sgpt !== undefined) entry.alt = Number(bio.sgpt);
+        if (bio.ast !== undefined) entry.ast = Number(bio.ast);
+        if (bio.sgot !== undefined) entry.ast = Number(bio.sgot);
+        if (bio.ldl !== undefined) entry.ldl = Number(bio.ldl);
+        if (bio.tsh !== undefined) entry.tsh = Number(bio.tsh);
       } catch (e) {
         // Ignored
       }
@@ -201,12 +208,20 @@ export class PatientService {
         if (entry.HbA1c !== undefined) existing.HbA1c = entry.HbA1c;
         if (entry.creatinine !== undefined) existing.creatinine = entry.creatinine;
         if (entry.hemoglobin !== undefined) existing.hemoglobin = entry.hemoglobin;
+        if (entry.alt !== undefined) existing.alt = entry.alt;
+        if (entry.ast !== undefined) existing.ast = entry.ast;
+        if (entry.ldl !== undefined) existing.ldl = entry.ldl;
+        if (entry.tsh !== undefined) existing.tsh = entry.tsh;
       } else {
         historyList.push({
           date,
           HbA1c: entry.HbA1c ?? 6.0,
           creatinine: entry.creatinine ?? 1.0,
-          hemoglobin: entry.hemoglobin ?? 14.0
+          hemoglobin: entry.hemoglobin ?? 14.0,
+          alt: entry.alt,
+          ast: entry.ast,
+          ldl: entry.ldl,
+          tsh: entry.tsh
         });
       }
     });

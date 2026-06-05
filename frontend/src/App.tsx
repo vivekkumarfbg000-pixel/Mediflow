@@ -363,7 +363,7 @@ export default function App() {
 
     const isOwner = authEmail === 'owner@mediflow.com' || authEmail === 'vivekkumarfbg000@gmail.com';
     const isOwnerRoleDiscrepancy = isOwner && profileRole !== 'platform_admin';
-    const isGeneralRoleDiscrepancy = metadataRole && profileRole !== metadataRole && !(metadataRole === 'admin' && profileRole === 'platform_admin') && !(metadataRole === 'platform_admin' && profileRole === 'platform_admin');
+    const isGeneralRoleDiscrepancy = !isOwner && metadataRole && profileRole !== metadataRole && !(metadataRole === 'admin' && profileRole === 'platform_admin') && !(metadataRole === 'platform_admin' && profileRole === 'platform_admin');
 
     if (isOwnerRoleDiscrepancy || isGeneralRoleDiscrepancy) {
       console.warn('[Loading Watchdog] Profile role discrepancy detected:', { authEmail, metadataRole, profileRole });

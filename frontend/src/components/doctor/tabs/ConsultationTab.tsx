@@ -16,6 +16,7 @@ interface ConsultationTabProps {
   selectedPatient: Patient | null;
   setSelectedPatient: (p: Patient | null) => void;
   medications: Omit<MedicationRequest, 'id'>[];
+  setMedications: React.Dispatch<React.SetStateAction<Omit<MedicationRequest, 'id'>[]>>;
   selectedTests: DiagnosticTest[];
   notes: string;
   setNotes: (n: string) => void;
@@ -48,8 +49,8 @@ interface ConsultationTabProps {
   setHinglishSummary: (s: string) => void;
   isGeneratingSummary: boolean;
   setIsGeneratingSummary: (b: boolean) => void;
-  comparativeTrend: string;
-  setComparativeTrend: (s: string) => void;
+  comparativeTrend: any;
+  setComparativeTrend: (s: any) => void;
   isGeneratingTrend: boolean;
   setIsGeneratingTrend: (b: boolean) => void;
   isRecording: boolean;
@@ -71,6 +72,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   selectedPatient,
   setSelectedPatient,
   medications,
+  setMedications,
   selectedTests,
   notes,
   setNotes,
@@ -123,6 +125,218 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const appointments: Appointment[] = api.getAppointments();
   const [virtualDateInput, setVirtualDateInput] = useState('');
   const [virtualTimeInput, setVirtualTimeInput] = useState('');
+  const [expandedCitationPmid, setExpandedCitationPmid] = useState<string | null>(null);
+  const [flashPrescriptionPanel, setFlashPrescriptionPanel] = useState(false);
+
+  const handlePrintClinicalReferral = () => {
+    if (!selectedPatient) return;
+    const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+    const recent = history.length > 0 ? history[history.length - 1] : null;
+    const baseline = history.length >= 2 ? history[history.length - 2] : null;
+
+    let calculatedGfr = 'N/A';
+    if (recent && recent.creatinine) {
+      const scr = recent.creatinine;
+      const ageVal = selectedPatient.age ?? 45;
+      const genderVal = selectedPatient.gender || 'Male';
+      const isFemale = genderVal.toLowerCase() === 'female';
+      const k = isFemale ? 0.7 : 0.9;
+      const alpha = isFemale ? -0.241 : -0.302;
+      const genderMult = isFemale ? 1.012 : 1.0;
+      const val = 142 * Math.pow(Math.min(scr / k, 1), alpha) * Math.pow(Math.max(scr / k, 1), -1.200) * Math.pow(0.9938, ageVal) * genderMult;
+      calculatedGfr = (Math.round(val * 10) / 10).toString() + ' mL/min/1.73m²';
+    }
+
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) return;
+
+    const medRows = medications.map(m => `
+      <tr>
+        <td><strong>${m.medicineName}</strong></td>
+        <td>${m.dosage}</td>
+        <td>${m.frequency}</td>
+        <td>${m.duration}</td>
+      </tr>
+    `).join('');
+
+    const citationRows = (comparativeTrend?.citations || []).map((c: any) => `
+      <tr>
+        <td>${c.title}</td>
+        <td>${c.journal} (${c.year})</td>
+        <td>PMID: ${c.pmid}</td>
+      </tr>
+    `).join('');
+
+    const suggestedRows = (comparativeTrend?.suggestedCompositions || []).map((s: any) => `
+      <tr>
+        <td><strong>${s.medicine_name}</strong> (${s.composition})</td>
+        <td>${s.suggested_dosage}</td>
+        <td>${s.justification}</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>AI Clinical Referral & Lab Analyzer Summary</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; }
+            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+            .header h1 { font-size: 24px; margin: 0; color: #e11d48; }
+            .header p { margin: 5px 0 0 0; font-size: 12px; color: #64748b; }
+            .section { margin-bottom: 30px; }
+            .section-title { font-size: 14px; font-weight: bold; text-transform: uppercase; color: #475569; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 12px; }
+            .grid { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+            th { background-color: #f8fafc; font-weight: bold; }
+            .badge { background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; display: inline-block; }
+            .footer { margin-top: 50px; font-size: 10px; text-align: center; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="text-align: right; margin-bottom: 20px;">
+            <button onclick="window.print()" style="background: #e11d48; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">Print Document</button>
+          </div>
+          <div class="header">
+            <h1>MEDIFLOW CLINICAL DECISION SUPPORT SYSTEM (CDSS)</h1>
+            <p>Automated Evidence-Based Clinical Referral Note & Diagnostic Lab Trend Summary</p>
+          </div>
+          
+          <div class="section">
+            <div class="section-title">Patient Demographics & Encounter Details</div>
+            <div class="grid">
+              <div>
+                <p><strong>Patient Name:</strong> ${selectedPatient?.name}</p>
+                <p><strong>ABHA ID:</strong> ${selectedPatient?.abhaId || 'N/A'}</p>
+                <p><strong>Age / Gender:</strong> ${selectedPatient?.age} Yrs / ${selectedPatient?.gender}</p>
+              </div>
+              <div>
+                <p><strong>Reference Date:</strong> ${new Date().toLocaleDateString('en-IN')}</p>
+                <p><strong>Clinic Entity:</strong> Mediflow Clinical Hub</p>
+                <p><strong>Chronic Conditions:</strong> ${selectedPatient?.chronicConditions.join(', ') || 'None'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Biomarker Trajectory Analysis (CKD-EPI Adjusted)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Biomarker</th>
+                  <th>Current Report (${recent?.date || 'N/A'})</th>
+                  <th>Baseline Report (${baseline?.date || 'N/A'})</th>
+                  <th>Clinical Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>HbA1c</td>
+                  <td>${recent?.HbA1c ? recent.HbA1c + '%' : 'N/A'}</td>
+                  <td>${baseline?.HbA1c ? baseline.HbA1c + '%' : 'N/A'}</td>
+                  <td><span class="badge">${recent?.HbA1c && recent.HbA1c > 6.5 ? 'Diabetic Glycemic' : 'Stable'}</span></td>
+                </tr>
+                <tr>
+                  <td>Serum Creatinine</td>
+                  <td>${recent?.creatinine ? recent.creatinine + ' mg/dL' : 'N/A'}</td>
+                  <td>${baseline?.creatinine ? baseline.creatinine + ' mg/dL' : 'N/A'}</td>
+                  <td><span class="badge">${recent?.creatinine && recent.creatinine > 1.2 ? 'Elevated Creatinine' : 'Normal'}</span></td>
+                </tr>
+                <tr>
+                  <td>Calculated eGFR (CKD-EPI)</td>
+                  <td>${calculatedGfr}</td>
+                  <td>N/A</td>
+                  <td><span class="badge">${recent?.creatinine && parseFloat(calculatedGfr) < 60 ? 'Reduced Renal Clearance' : 'Normal'}</span></td>
+                </tr>
+                <tr>
+                  <td>Total Hemoglobin</td>
+                  <td>${recent?.hemoglobin ? recent.hemoglobin + ' g/dL' : 'N/A'}</td>
+                  <td>${baseline?.hemoglobin ? baseline.hemoglobin + ' g/dL' : 'N/A'}</td>
+                  <td><span class="badge">${recent?.hemoglobin && recent.hemoglobin < 12.0 ? 'Anemia Warning' : 'Normal'}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          ${comparativeTrend?.summaryText ? `
+          <div class="section">
+            <div class="section-title">AI Summary & Recommendations</div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; font-size: 11px; white-space: pre-wrap;">
+              ${comparativeTrend.summaryText}
+            </div>
+          </div>
+          ` : ''}
+
+          ${medRows ? `
+          <div class="section">
+            <div class="section-title">Active Prescribed Medications (e-Rx)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Medicine Name</th>
+                  <th>Composition</th>
+                  <th>Dosage / Frequency</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${medRows}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          ${suggestedRows ? `
+          <div class="section">
+            <div class="section-title">CDSS Suggested Pharmaceutical Swaps & Compositions</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Suggested Agent</th>
+                  <th>Suggested Dosage</th>
+                  <th>Clinical Justification</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${suggestedRows}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          ${citationRows ? `
+          <div class="section">
+            <div class="section-title">PubMed Clinical Evidence Citations</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Paper Title</th>
+                  <th>Journal / Year</th>
+                  <th>Citation ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${citationRows}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          <div class="footer">
+            <p>This is a system-generated AI Clinical Decision Support Note. Final prescription authority remains with the attending physician.</p>
+            <p>&copy; 2026 Mediflow Ecosystem - Hospital SaaS Solutions</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
 
   useEffect(() => {
     if (selectedPatient) {
@@ -438,6 +652,19 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             
             if (!recent) return null;
 
+            let calculatedGfr: number | undefined = undefined;
+            if (recent && recent.creatinine) {
+              const scr = recent.creatinine;
+              const ageVal = selectedPatient.age ?? 45;
+              const genderVal = selectedPatient.gender || 'Male';
+              const isFemale = genderVal.toLowerCase() === 'female';
+              const k = isFemale ? 0.7 : 0.9;
+              const alpha = isFemale ? -0.241 : -0.302;
+              const genderMult = isFemale ? 1.012 : 1.0;
+              calculatedGfr = 142 * Math.pow(Math.min(scr / k, 1), alpha) * Math.pow(Math.max(scr / k, 1), -1.200) * Math.pow(0.9938, ageVal) * genderMult;
+              calculatedGfr = Math.round(calculatedGfr * 10) / 10;
+            }
+
             // Calculate trends locally for instant high-fidelity feedback
             const hba1cDiff = baseline ? recent.HbA1c - baseline.HbA1c : 0;
             const creatinineDiff = baseline ? recent.creatinine - baseline.creatinine : 0;
@@ -648,7 +875,15 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '4.0 - 5.6',
                       status: recent.HbA1c > 6.5 ? 'critical' : recent.HbA1c > 5.7 ? 'warning' : 'normal',
                       icon: 'water_drop',
-                      color: recent.HbA1c > 6.5 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : recent.HbA1c > 5.7 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
+                      color: recent.HbA1c > 6.5 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : recent.HbA1c > 5.7 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700',
+                      zones: [
+                        { start: 3.0, end: 5.7, color: 'bg-emerald-500' },
+                        { start: 5.7, end: 6.5, color: 'bg-amber-400' },
+                        { start: 6.5, end: 10.0, color: 'bg-rose-500' }
+                      ],
+                      min: 3.0,
+                      max: 10.0,
+                      numericVal: recent.HbA1c
                     },
                     {
                       name: 'Serum Creatinine',
@@ -659,8 +894,36 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '0.6 - 1.2',
                       status: recent.creatinine > 1.2 ? 'critical' : recent.creatinine > 1.0 ? 'warning' : 'normal',
                       icon: 'kidney',
-                      color: recent.creatinine > 1.2 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : recent.creatinine > 1.0 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
+                      color: recent.creatinine > 1.2 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : recent.creatinine > 1.0 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700',
+                      zones: [
+                        { start: 0.2, end: 1.2, color: 'bg-emerald-500' },
+                        { start: 1.2, end: 1.5, color: 'bg-amber-400' },
+                        { start: 1.5, end: 2.0, color: 'bg-rose-500' }
+                      ],
+                      min: 0.2,
+                      max: 2.0,
+                      numericVal: recent.creatinine
                     },
+                    ...(calculatedGfr ? [{
+                      name: 'Estimated GFR (CKD-EPI)',
+                      val: `${calculatedGfr} mL/min`,
+                      base: 'N/A',
+                      diff: 0,
+                      unit: 'mL/min',
+                      normal: '> 90',
+                      status: calculatedGfr < 30 ? 'critical' : calculatedGfr < 60 ? 'warning-severe' : calculatedGfr < 90 ? 'warning' : 'normal',
+                      icon: 'analytics',
+                      color: calculatedGfr < 60 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : calculatedGfr < 90 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700',
+                      zones: [
+                        { start: 10, end: 30, color: 'bg-rose-500' },
+                        { start: 30, end: 60, color: 'bg-orange-400' },
+                        { start: 60, end: 90, color: 'bg-amber-400' },
+                        { start: 90, end: 130, color: 'bg-emerald-500' }
+                      ],
+                      min: 10,
+                      max: 130,
+                      numericVal: calculatedGfr
+                    }] : []),
                     {
                       name: 'Total Hemoglobin',
                       val: `${recent.hemoglobin} g/dL`,
@@ -672,8 +935,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       icon: 'bloodtype',
                       color: recent.hemoglobin < 12.0 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
                     }
-                  ].map((item, idx) => (
-                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
+                  ].map((item: any, idx) => (
+                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2.5`}>
                       <div className="flex justify-between items-start">
                         <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{item.name}</span>
                         <span className="text-[9px] text-slate-600 font-mono">Normal: {item.normal}</span>
@@ -690,6 +953,33 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           </span>
                         )}
                       </div>
+
+                      {/* Visual Sparkline Range indicator */}
+                      {item.zones && item.min !== undefined && item.max !== undefined && item.numericVal !== undefined && (
+                        <div className="mt-1 pb-1">
+                          <div className="relative h-1.5 w-full bg-slate-200/50 rounded-full overflow-hidden flex">
+                            {item.zones.map((zone: any, zIdx: number) => {
+                              const zoneWidth = ((zone.end - zone.start) / (item.max! - item.min!)) * 100;
+                              return (
+                                <div
+                                  key={zIdx}
+                                  className={`${zone.color}`}
+                                  style={{ width: `${zoneWidth}%` }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="relative w-full h-1.5 mt-0.5">
+                            <div 
+                              className="absolute top-[-3px] -translate-x-1/2" 
+                              style={{ left: `${Math.min(100, Math.max(0, ((item.numericVal! - item.min!) / (item.max! - item.min!)) * 100))}%` }}
+                            >
+                              <div className="w-2 h-2 rounded-full bg-slate-855 border border-white shadow-sm" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="text-[9px] text-slate-600 pt-1 border-t border-slate-200/50 flex justify-between">
                         <span>Base: {item.base}</span>
                         <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
@@ -886,14 +1176,54 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   Compare current biomarkers with historical reports to analyze improvement metrics.
                 </p>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans my-2">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Baseline Report Date</label>
+                    <select
+                      value={baselineDate || ''}
+                      onChange={(e) => setBaselineDate(e.target.value || null)}
+                      className="w-full px-3.5 py-2 border border-slate-200 focus:border-indigo-500/50 rounded-xl outline-none bg-white text-slate-800"
+                    >
+                      <option value="">(Select Baseline Date)</option>
+                      {activeHistory.map((h: any) => (
+                        <option key={h.date} value={h.date}>{h.date}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Comparison Report Date</label>
+                    <select
+                      value={comparisonDate || ''}
+                      onChange={(e) => setComparisonDate(e.target.value || null)}
+                      className="w-full px-3.5 py-2 border border-slate-200 focus:border-indigo-500/50 rounded-xl outline-none bg-white text-slate-800"
+                    >
+                      <option value="">(Select Comparison Date)</option>
+                      {activeHistory.map((h: any) => (
+                        <option key={h.date} value={h.date}>{h.date}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="flex gap-3">
                   <button
                     onClick={async () => {
                       if (!compReport) return;
                       setIsGeneratingTrend(true);
                       try {
-                        const trend = await api.generateComparativeLabTrend(selectedPatient.id, 'HbA1c', compReport.HbA1c);
+                        const trend = await api.generateComparativeLabTrend(selectedPatient.id, baselineDate, comparisonDate);
                         setComparativeTrend(trend);
+                        
+                        api.writeAuditLog('CDSS_LAB_TREND_ANALYSIS', {
+                          patientId: selectedPatient.id,
+                          patientName: selectedPatient.name,
+                          baselineDate,
+                          comparisonDate,
+                          gfr: trend.gfr,
+                          citationsCount: trend.citations?.length || 0,
+                          suggestedCompositionsCount: trend.suggestedCompositions?.length || 0
+                        }, selectedPatient.id);
+
                         window.dispatchEvent(new CustomEvent('mediflow-toast', {
                           detail: {
                             title: 'Lab Trend Analyzed! 📊',
@@ -915,17 +1245,183 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 </div>
 
                 {comparativeTrend && (
-                  <div className="p-4 bg-rose-50 border border-rose-150 rounded-xl space-y-3 animate-fade-in text-left">
-                    <h4 className="font-bold text-[10px] text-rose-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-xs">trending_down</span>
-                      Biomarker Improvement Trend
-                    </h4>
-                    <p className="text-xs text-slate-700 leading-relaxed font-semibold italic">
-                      "{comparativeTrend}"
-                    </p>
+                  <div className="p-5 bg-gradient-to-br from-rose-50/70 to-indigo-50/50 border border-slate-200/80 rounded-2xl space-y-5 animate-fade-in text-left shadow-sm">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-[10px] text-rose-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-xs">analytics</span>
+                        Evidence-Based Comparative CDSS Report
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handlePrintClinicalReferral}
+                          className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded-lg border border-rose-200/50 flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[11px]">print</span>
+                          Print Referral Note
+                        </button>
+                        <span className="text-[9px] bg-indigo-500/10 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Active</span>
+                      </div>
+                    </div>
+
+                    {/* Summary Text */}
+                    <div className="bg-white/80 border border-white/40 p-4 rounded-xl space-y-2">
+                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium">
+                        {comparativeTrend.summaryText}
+                      </p>
+                    </div>
+
+                    {/* Suggested Compositions Grid */}
+                    {comparativeTrend.suggestedCompositions && comparativeTrend.suggestedCompositions.length > 0 && (
+                      <div className="space-y-2.5">
+                        <h5 className="font-extrabold text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs text-rose-600">medication</span>
+                          Suggested Medicine Compositions & Dosages
+                        </h5>
+                        <div className="grid grid-cols-1 gap-3">
+                          {comparativeTrend.suggestedCompositions.map((comp: any, idx: number) => (
+                            <div key={idx} className="p-3.5 bg-white/95 border border-slate-200/80 rounded-xl flex flex-col md:flex-row justify-between gap-3 shadow-xs hover:shadow-md transition-shadow">
+                              <div className="space-y-1.5 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <strong className="text-xs font-bold text-slate-800">{comp.medicine_name}</strong>
+                                  <span className="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200/40 font-mono">{comp.composition}</span>
+                                </div>
+                                <p className="text-[11px] text-indigo-700 font-semibold flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[10px]">schedule</span>
+                                  Dosage: {comp.suggested_dosage}
+                                </p>
+                                <p className="text-[10px] text-slate-500 leading-normal">
+                                  <span className="font-bold text-slate-600">Justification: </span>{comp.justification}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const alreadyAdded = medications.some(m => m.medicineName.toLowerCase() === comp.medicine_name.toLowerCase());
+                                  if (alreadyAdded) {
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: {
+                                        title: 'Already Added',
+                                        message: `${comp.medicine_name} is already in the prescription list.`,
+                                        type: 'warning'
+                                      }
+                                    }));
+                                    return;
+                                  }
+                                  setMedications([
+                                    ...medications,
+                                    {
+                                      medicineName: comp.medicine_name,
+                                      dosage: comp.composition,
+                                      frequency: comp.suggested_dosage,
+                                      duration: '30 Days'
+                                    }
+                                  ]);
+                                  
+                                  setTimeout(() => {
+                                    const panel = document.getElementById('prescription-panel');
+                                    if (panel) {
+                                      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                    setFlashPrescriptionPanel(true);
+                                    setTimeout(() => setFlashPrescriptionPanel(false), 1500);
+                                  }, 100);
+
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      title: 'e-Rx Appended 💊',
+                                      message: `Added ${comp.medicine_name} to prescription list.`,
+                                      type: 'success'
+                                    }
+                                  }));
+                                }}
+                                className="self-start md:self-center bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold px-3 py-1.5 rounded-lg border border-indigo-200/50 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+                              >
+                                <span className="material-symbols-outlined text-[11px]">add</span>
+                                Add to Rx
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* NCBI PubMed Reference Library */}
+                    {comparativeTrend.citations && comparativeTrend.citations.length > 0 && (
+                      <div className="space-y-2.5">
+                        <h5 className="font-extrabold text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs text-rose-600">library_books</span>
+                          NCBI PubMed Reference Library
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {comparativeTrend.citations.map((c: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="p-3.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-all flex flex-col justify-between text-left shadow-xs"
+                            >
+                              <div className="space-y-1">
+                                <h6 className="text-[11px] font-bold text-slate-800 leading-snug">
+                                  {c.title}
+                                </h6>
+                                <p className="text-[9px] text-slate-500 font-mono">
+                                  {c.journal} ({c.year})
+                                </p>
+                              </div>
+                              
+                              {c.abstract && (
+                                <div className="mt-2.5 pt-2 border-t border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setExpandedCitationPmid(expandedCitationPmid === c.pmid ? null : c.pmid);
+                                    }}
+                                    className="text-[9px] font-bold text-indigo-600 hover:text-indigo-850 flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
+                                  >
+                                    <span className="material-symbols-outlined text-[11px]">
+                                      {expandedCitationPmid === c.pmid ? 'keyboard_arrow_up' : 'quick_reference_all'}
+                                    </span>
+                                    {expandedCitationPmid === c.pmid ? 'Hide Abstract' : 'Quick Summary (Abstract)'}
+                                  </button>
+                                  {expandedCitationPmid === c.pmid && (
+                                    <p className="text-[10px] text-slate-600 mt-2 bg-slate-55 p-2.5 rounded-lg border border-slate-100 leading-relaxed transition-all animate-fade-in font-medium">
+                                      {c.abstract}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100">
+                                <span className="text-[9px] text-slate-500 font-bold font-mono">
+                                  PMID: {c.pmid}
+                                </span>
+                                <a
+                                  href={c.link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[9px] text-indigo-600 hover:text-indigo-850 font-bold flex items-center gap-0.5 no-underline"
+                                >
+                                  Full Paper <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CDSS Medical Disclaimer */}
+                    <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex gap-2.5">
+                      <span className="material-symbols-outlined text-rose-600 text-xs shrink-0 font-bold">gavel</span>
+                      <p className="text-[9px] text-rose-800/90 leading-relaxed">
+                        <strong>CDSS Legal Disclaimer:</strong> The suggested drug compositions, active compounds, target dosages, and medical literature citations are provided strictly for clinical decision support. They do not constitute formal prescription directives. The attending licensed practitioner retains full clinical responsibility and absolute prescribing authority.
+                      </p>
+                    </div>
+
+                    {/* WhatsApp Action Buttons */}
                     <button
                       onClick={() => {
-                        api.pushWhatsAppMessageFromBot(selectedPatient.phone, comparativeTrend);
+                        api.pushWhatsAppMessageFromBot(selectedPatient.phone, comparativeTrend.summaryText);
                         window.dispatchEvent(new CustomEvent('mediflow-toast', {
                           detail: {
                             title: 'Trend Sent! 📱',
@@ -934,7 +1430,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           }
                         }));
                       }}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
                     >
                       <span className="material-symbols-outlined text-xs text-white-force">send</span>
                       Push Trend report to Patient WhatsApp
@@ -946,11 +1442,98 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           </div>
 
           {/* Prescribe Medications */}
-          <div className="space-y-4 text-left border-t border-slate-100 pt-5">
+          <div 
+            id="prescription-panel" 
+            className={`space-y-4 text-left border-t border-slate-100 pt-5 transition-all duration-500 p-2.5 rounded-2xl ${
+              flashPrescriptionPanel ? 'bg-indigo-50/80 border border-indigo-200 ring-4 ring-indigo-500/20' : ''
+            }`}
+          >
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
               <span className="material-symbols-outlined text-xs text-primary font-bold">medication</span>
               Prescribe Medications (e-Rx)
             </label>
+
+            {/* Smart Drug Swap Banner */}
+            {(() => {
+              if (!selectedPatient) return null;
+              const hasNSAID = medications.some(m => {
+                const name = m.medicineName.toLowerCase();
+                return name.includes('ibuprofen') || 
+                       name.includes('diclofenac') || 
+                       name.includes('naproxen') || 
+                       name.includes('ketorolac') || 
+                       name.includes('mefenamic') || 
+                       name.includes('indomethacin') || 
+                       name.includes('meloxicam') || 
+                       name.includes('celecoxib') ||
+                       name.includes('nsaid');
+              });
+
+              if (!hasNSAID) return null;
+
+              const hist = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+              const recentReport = hist.length > 0 ? hist[hist.length - 1] : null;
+              const currentCreatinine = recentReport?.creatinine ?? 0.0;
+              
+              let currentGfr = 90;
+              if (recentReport && recentReport.creatinine) {
+                const scr = recentReport.creatinine;
+                const ageVal = selectedPatient.age ?? 45;
+                const genderVal = selectedPatient.gender || 'Male';
+                const isFemale = genderVal.toLowerCase() === 'female';
+                const k = isFemale ? 0.7 : 0.9;
+                const alpha = isFemale ? -0.241 : -0.302;
+                const genderMult = isFemale ? 1.012 : 1.0;
+                currentGfr = 142 * Math.pow(Math.min(scr / k, 1), alpha) * Math.pow(Math.max(scr / k, 1), -1.200) * Math.pow(0.9938, ageVal) * genderMult;
+              }
+
+              if (currentCreatinine > 1.2 || currentGfr < 60) {
+                return (
+                  <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 animate-fade-in shadow-xs">
+                    <div className="flex gap-2.5 items-start">
+                      <span className="material-symbols-outlined text-amber-600 text-base font-bold shrink-0">warning</span>
+                      <div className="space-y-1">
+                        <h5 className="font-extrabold text-[11px] text-amber-850 uppercase tracking-wide">Nephrotoxic NSAID Alert (Renal Risk)</h5>
+                        <p className="text-[10px] text-amber-700 leading-relaxed font-medium">
+                          Attending patient has elevated Serum Creatinine ({currentCreatinine} mg/dL) or GFR ({Math.round(currentGfr * 10) / 10} mL/min). Clinical decision guidelines suggest avoiding nephrotoxic NSAIDs to prevent acute renal failure.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updatedMeds = medications.map(m => {
+                          const name = m.medicineName.toLowerCase();
+                          if (name.includes('ibuprofen') || name.includes('diclofenac') || name.includes('naproxen') || name.includes('ketorolac') || name.includes('mefenamic') || name.includes('indomethacin') || name.includes('meloxicam') || name.includes('celecoxib') || name.includes('nsaid')) {
+                            return {
+                              ...m,
+                              medicineName: 'Paracetamol 500mg',
+                              dosage: 'Paracetamol IP 500mg',
+                              frequency: '1 tablet twice daily after meals as needed',
+                              duration: m.duration || '5 Days'
+                            };
+                          }
+                          return m;
+                        });
+                        setMedications(updatedMeds);
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'Renal-Safe Swap Applied 🔄',
+                            message: 'Substituted nephrotoxic NSAID with Paracetamol 500mg.',
+                            type: 'success'
+                          }
+                        }));
+                      }}
+                      className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg border-0 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap self-stretch md:self-auto text-center justify-center text-white-force"
+                    >
+                      <span className="material-symbols-outlined text-[11px]">swap_horiz</span>
+                      Swap with Paracetamol
+                    </button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* List of current medications */}
             {medications.length > 0 ? (

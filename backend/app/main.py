@@ -126,9 +126,29 @@ class OCRScanResponse(BaseModel):
     extracted_text: str
     structured_data: dict
 
+class MedicineComposition(BaseModel):
+    medicine_name: str
+    composition: str
+    suggested_dosage: str
+    justification: str
+
+class PubMedCitation(BaseModel):
+    pmid: str
+    title: str
+    journal: str
+    year: str
+    link: str
+    abstract: str | None = None
+
 class LabTrendResponse(BaseModel):
     analysis: str
     recommendations: list[str]
+    trajectory: str | None = None
+    risk_flags: list[str] | None = None
+    follow_up_days: int | None = None
+    citations: list[PubMedCitation] | None = None
+    suggested_compositions: list[MedicineComposition] | None = None
+    gfr: float | None = None
 
 class WhatsAppSendResponse(BaseModel):
     success: bool
@@ -151,10 +171,6 @@ async def parse_lab_results(text: str) -> dict:
     """Wrapper — delegates to ai_engine.structure_ocr_data."""
     return await structure_ocr_data(text)
 
-
-async def _analyze_trend(lab_data: dict) -> dict:
-    """Wrapper — delegates to ai_engine.analyze_lab_trends."""
-    return await analyze_lab_trends(lab_data)
 
 
 async def call_forecast_llm(prompt: str) -> str:
@@ -216,11 +232,27 @@ async def ocr_scan(file: UploadFile = File(...)):
 
 @app.post("/api/lab-trend", response_model=LabTrendResponse, tags=["AI"])
 @app.post("/api/v1/lab-trend", response_model=LabTrendResponse, tags=["AI"])
-async def lab_trend(lab_data: dict):
+async def lab_trend(request_data: dict):
     """Analyze biomarker trends with Gemini AI and evidence-based clinical recommendations."""
-    result = await _analyze_trend(lab_data)
-    logger.info(f"[lab-trend] Analyzed {len(lab_data)} biomarkers, trajectory={result.get('trajectory', 'unknown')}")
-    return LabTrendResponse(analysis=result["analysis"], recommendations=result["recommendations"])
+    if "current_data" in request_data:
+        current_data = request_data["current_data"]
+        historical_data = request_data.get("historical_data", [])
+    else:
+        current_data = request_data
+        historical_data = []
+
+    result = await analyze_lab_trends(current_data, historical_data)
+    logger.info(f"[lab-trend] Analyzed {len(current_data)} biomarkers, trajectory={result.get('trajectory', 'unknown')}")
+    return LabTrendResponse(
+        analysis=result.get("analysis", ""),
+        recommendations=result.get("recommendations", []),
+        trajectory=result.get("trajectory"),
+        risk_flags=result.get("risk_flags"),
+        follow_up_days=result.get("follow_up_days"),
+        citations=result.get("citations"),
+        suggested_compositions=result.get("suggested_compositions"),
+        gfr=result.get("gfr")
+    )
 
 
 @app.post("/api/whatsapp-send", response_model=WhatsAppSendResponse)

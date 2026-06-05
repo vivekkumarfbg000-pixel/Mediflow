@@ -197,7 +197,7 @@ export class StateHealingEngine {
       console.log(`[Auto-Healer] Classifying anomaly → Subsystem: ${subsystem} | Severity: ${severity}`);
 
       // 1. Log incident to system_health_telemetry (UPSERT: increment existing or insert new)
-      let telemetryId = 'local-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      let telemetryId = crypto.randomUUID();
       let telemetryLogged = false;
       let currentHealingAttempts = 1;
 
@@ -733,11 +733,22 @@ export class ProactiveHealthMonitor {
       if (!entries || entries.length === 0) return;
 
       console.log(`[Telemetry Replayer] Found ${entries.length} unsynced telemetry log(s). Replaying to database...`);
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
       for (const entry of entries) {
+        // Defensive validation: ensure ID is a valid UUID to prevent database type mismatch error
+        const entryId = uuidRegex.test(entry.id) ? entry.id : crypto.randomUUID();
+        
+        // Defensive validation: ensure pod_id is a valid UUID, fallback to active window pod or default
+        let entryPodId = entry.pod_id;
+        if (!entryPodId || !uuidRegex.test(entryPodId)) {
+          entryPodId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+        }
+
         // Reconstruct telemetry table first if missing (just in case)
         const { error } = await supabase.from('system_health_telemetry').insert({
-          id: entry.id,
-          pod_id: entry.pod_id,
+          id: entryId,
+          pod_id: entryPodId,
           subsystem: entry.subsystem,
           severity: entry.severity,
           error_code: entry.error_code,

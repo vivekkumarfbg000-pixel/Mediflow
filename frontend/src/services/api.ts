@@ -1534,7 +1534,16 @@ class MediflowApiService {
     }
   }
 
-  async labTrend(labData: Record<string, string>): Promise<{ analysis: string; recommendations: string[] }> {
+  async labTrend(labData: Record<string, any>): Promise<{
+    analysis: string;
+    recommendations: string[];
+    trajectory?: string;
+    risk_flags?: string[];
+    follow_up_days?: number;
+    citations?: Array<{ pmid: string; title: string; journal: string; year: string; link: string; abstract?: string }>;
+    suggested_compositions?: Array<{ medicine_name: string; composition: string; suggested_dosage: string; justification: string }>;
+    gfr?: number;
+  }> {
     this.isLabTrending = true;
     this.notify();
     try {
@@ -1549,8 +1558,17 @@ class MediflowApiService {
     return ForecastService.generateConsultHinglishSummary(patientId, suggestionsText);
   }
 
-  async generateComparativeLabTrend(patientId: string, newReportTest: string, newReportVal: number): Promise<string> {
-    return ForecastService.generateComparativeLabTrend(patientId, newReportTest, newReportVal);
+  async generateComparativeLabTrend(
+    patientId: string,
+    baselineDate: string | null,
+    comparisonDate: string | null
+  ): Promise<{
+    summaryText: string;
+    citations: Array<{ pmid: string; title: string; journal: string; year: string; link: string; abstract?: string }>;
+    suggestedCompositions: Array<{ medicine_name: string; composition: string; suggested_dosage: string; justification: string }>;
+    gfr?: number;
+  }> {
+    return ForecastService.generateComparativeLabTrend(patientId, baselineDate, comparisonDate);
   }
 
   async saveAgentTaskPipeline(pipeline: {
