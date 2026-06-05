@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabaseClient';
 
+if (typeof window !== 'undefined') {
+  (window as any).supabase = supabase;
+}
+
 export const state = {
   isSyncing: false,
   isVoiceScribing: false,

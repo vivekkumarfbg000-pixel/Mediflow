@@ -1622,4 +1622,7 @@ class MediflowApiService {
 }
 
 export const api = new MediflowApiService();
+if (typeof window !== 'undefined') {
+  (window as any).api = api;
+}
 export type { MediflowApiService };
