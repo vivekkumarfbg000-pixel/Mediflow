@@ -440,6 +440,9 @@ git diff HEAD~1 HEAD -- src/
 | WhatsApp tab shows 0 sessions | No sessions in localStorage + RLS blocking Supabase sync | Clear localStorage, reload, let auto-init run |
 | WABA connection shows disconnected | `waba_connections` RLS too strict | Apply migration `20260605000004_fix_waba_connections_rls.sql` |
 | HMR (hot reload) crashes | Multiple Supabase realtime channel subscriptions | Use `supabase.removeChannel()` before re-subscribing |
+| Clinic roles see "Platform Operations" | `allowedRolesMap` in `Navbar.tsx` maps `'saas_admin'` to `'doctor'` role | Remove `'saas_admin'` from `'doctor'`'s allowed list in `Navbar.tsx` and `App.tsx` |
+| SaaS Platform Owner sees clinic modules | `'admin'` / `'platform_admin'` allowed lists include clinic modules | Set allowed lists for `'admin'` and `'platform_admin'` to only `['saas_admin']` |
+| SaaS Platform Owner dashboard doesn't load | Owner profile's role in database was set to `'patient'` instead of `'platform_admin'` | Update database profiles table: run `UPDATE public.profiles SET role = 'platform_admin' WHERE id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317109';` |
 
 > ⚠️ **Circular import rule of thumb**: When breaking a circular dependency, check ALL usages of the removed import across the entire file. A simple `grep` for the variable name will show you if it's used in 1 place or 50 places.
 
@@ -484,6 +487,6 @@ supabase.getChannels().map(c => ({ name: c.topic, state: c.state }));
 ---
 
 > **Skill maintained by**: Mediflow Engineering Team
-> **Last updated**: June 2026 (updated with Level 2 Advanced Diagnostics & supabaseCircuit ReferenceError case)
-> **Real incidents this skill resolved**: Circular import crash (api.ts ↔ autoHealerAgent.ts), supabaseCircuit ReferenceError after partial import removal, RLS blocking WhatsApp sessions, WABA connection auth failures
+> **Last updated**: June 2026 (updated with Level 2 Advanced Diagnostics, sidebar role isolation, and SaaS owner login fix)
+> **Real incidents this skill resolved**: Circular import crash (api.ts ↔ autoHealerAgent.ts), supabaseCircuit ReferenceError after partial import removal, RLS blocking WhatsApp sessions, WABA connection auth failures, clinic/owner sidebar role leakage, owner login role mismatch
 

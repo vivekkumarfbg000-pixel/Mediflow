@@ -147,13 +147,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const allowedRolesMap: Record<string, string[]> = {
-    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'saas_admin'],
+    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient'],
     'compounder': ['compounder'],
     'lab_technician': ['lab'],
     'pharmacist': ['pharmacy'],
     'patient': ['patient'],
-    'admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient', 'saas_admin'],
-    'platform_admin': ['billing', 'compounder', 'doctor', 'lab', 'pharmacy', 'patient', 'saas_admin']
+    'admin': ['saas_admin'],
+    'platform_admin': ['saas_admin']
   };
 
   const activeUserRole = activeProfile?.role || 'compounder';
