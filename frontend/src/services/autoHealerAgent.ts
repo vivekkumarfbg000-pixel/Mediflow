@@ -30,6 +30,8 @@ function isOnCooldown(subsystem: string): boolean {
 // ─── State Healing Engine ───────────────────────────────────────────────────────
 export class StateHealingEngine {
   private static isInitialized = false;
+  private static recentHealingAttempts = 0;
+  private static lastHealingReset = Date.now();
 
   /** Initialize global runtime listener for absolute 24/7 uptime monitoring */
   static initGlobalListener() {
@@ -84,6 +86,18 @@ export class StateHealingEngine {
       const errMsg   = error.message || 'Unknown runtime anomaly';
       const errName  = error.name    || 'Error';
       const errStack = error.stack   || 'No stack trace available';
+
+      // 0. Infinite Loop Watchdog Protection (Circuit Breaker for healer loops)
+      const nowTime = Date.now();
+      if (nowTime - this.lastHealingReset > 10000) {
+        this.recentHealingAttempts = 0;
+        this.lastHealingReset = nowTime;
+      }
+      this.recentHealingAttempts++;
+      if (this.recentHealingAttempts > 3) {
+        console.error('[Auto-Healer] HEALING LOOP DETECTED. Aborting automatic state resets to prevent tab freezing.');
+        return false;
+      }
 
       const subsystem = this.classifySubsystem(errMsg);
       const severity: 'info' | 'warning' | 'critical' =
@@ -211,13 +225,63 @@ export class StateHealingEngine {
         keysToFlush.forEach(k => localStorage.removeItem(k));
         healingSteps.push(`🗑️ Cache flushed for local stores: [${keysToFlush.join(', ')}]`);
 
+        // Check if error is role or loading watchdog related to run RPC reconciliation
+        const isRoleOrLoading = errMsg.toLowerCase().includes('role') || 
+                                errMsg.toLowerCase().includes('loading') || 
+                                errMsg.toLowerCase().includes('watchdog') ||
+                                errName.toLowerCase().includes('rolemismatch');
+        
+        if (isRoleOrLoading) {
+          healingSteps.push('🛡️ Role discrepancy or loading watchdog triggered. Initiating Profile Role Reconciliation RPC...');
+          try {
+            const { data: reconciled, error: rpcErr } = await supabase.rpc('reconcile_profile_role');
+            if (rpcErr) {
+              healingSteps.push(`⚠️ Profile role reconciliation RPC failed: ${rpcErr.message}`);
+            } else if (reconciled) {
+              healingSteps.push('✅ Profile role successfully reconciled and updated in database! Role aligned with Auth Metadata.');
+              window.dispatchEvent(new CustomEvent('mediflow-profile-updated'));
+            } else {
+              healingSteps.push('✅ Profile role is already in sync with Auth Metadata. No DB changes needed.');
+            }
+          } catch (rpcEx) {
+            healingSteps.push(`⚠️ Profile role reconciliation exception: ${String(rpcEx)}`);
+          }
+        }
+
+        // Check if error is about realtime disconnect
+        const isRealtimeDisconnect = errMsg.toLowerCase().includes('realtime') || errMsg.toLowerCase().includes('disconnect');
+        if (isRealtimeDisconnect) {
+          healingSteps.push('🔌 Supabase Realtime channel error. Attempting channel reset...');
+          try {
+            const channels = supabase.getChannels();
+            for (const chan of channels) {
+              await supabase.removeChannel(chan);
+            }
+            const { api: apiModule } = await import('./api');
+            const newChan = supabase.channel('mediflow-pod-realtime');
+            newChan.on(
+              'postgres_changes',
+              { event: '*', schema: 'public' },
+              (payload) => {
+                console.log('[Mediflow Realtime] Rebuilt channel event:', payload.table, payload.eventType);
+                apiModule.syncFromSupabase();
+              }
+            ).subscribe((status) => {
+              console.log('[Mediflow Realtime] Rebuilt channel status:', status);
+            });
+            healingSteps.push('✅ Realtime channels cleared and subscription rebuilt successfully.');
+          } catch (realtimeErr) {
+            healingSteps.push(`❌ Realtime channel recovery failed: ${String(realtimeErr)}`);
+          }
+        }
+
         healingSteps.push('🔄 Hot-resynchronizing dashboard state from Supabase...');
         try {
           // Dynamic import used here to break the api ↔ autoHealerAgent circular dependency
           const { api: apiModule } = await import('./api');
           await apiModule.syncFromSupabase();
           healingSteps.push('✅ Frontend state hot-rejuvenation complete. UI restored in real-time.');
-          // Gap 7 Fix: Signal ErrorBoundary to auto-recover crashed component tree
+          // Signal ErrorBoundary to auto-recover crashed component tree
           window.dispatchEvent(new CustomEvent('mediflow-force-remount'));
           healingSteps.push('🔄 Dispatched force-remount to recover crashed UI components.');
           healingSuccess = true;

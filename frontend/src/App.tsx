@@ -311,6 +311,11 @@ export default function App() {
     PwaSyncManager.registerServiceWorker();
     StateHealingEngine.initGlobalListener();
     ProactiveHealthMonitor.start();
+    // Signal to Emergency Startup Shield that the React app successfully loaded and initialized
+    if (typeof window !== 'undefined') {
+      (window as any).__mediflow_startup_healthy = true;
+      console.log('[Mediflow App] Startup shield disarmed: application successfully initialized.');
+    }
   }, []);
 
   useEffect(() => {
@@ -322,6 +327,49 @@ export default function App() {
     else if (currentRole === 'patient') apiRole = 'patient';
     api.setSimulatedRole(apiRole);
   }, [currentRole]);
+
+  // Loading watchdog: If session exists but we are stuck loading for more than 4 seconds, trigger self-healing
+  useEffect(() => {
+    if (!session) return;
+    
+    const timer = setTimeout(() => {
+      const isStillLoading = isLoadingSession || isOnboarding || !activeProfile;
+      if (isStillLoading) {
+        console.warn('[Loading Watchdog] Stuck loading state detected for >4 seconds. Triggering State Healing Engine...');
+        StateHealingEngine.handleException(new Error('LoadingWatchdogException: Dashboard loading state hung or profiles query blocked'))
+          .then(healed => {
+            if (healed) {
+              console.log('[Loading Watchdog] State healed. Refreshing session...');
+              supabase.auth.getSession().then(({ data: { session: newSession } }) => {
+                if (newSession) {
+                  window.dispatchEvent(new CustomEvent('mediflow-profile-updated'));
+                }
+              });
+            }
+          });
+      }
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [session, isLoadingSession, isOnboarding, activeProfile]);
+
+  // Role Watchdog: Detect profile role discrepancies against auth metadata role and align them
+  useEffect(() => {
+    if (!session || !activeProfile) return;
+
+    const authEmail = session.user?.email;
+    const metadataRole = session.user?.user_metadata?.role;
+    const profileRole = activeProfile.role;
+
+    const isOwner = authEmail === 'owner@mediflow.com' || authEmail === 'vivekkumarfbg000@gmail.com';
+    const isOwnerRoleDiscrepancy = isOwner && profileRole !== 'platform_admin';
+    const isGeneralRoleDiscrepancy = metadataRole && profileRole !== metadataRole && !(metadataRole === 'admin' && profileRole === 'platform_admin') && !(metadataRole === 'platform_admin' && profileRole === 'platform_admin');
+
+    if (isOwnerRoleDiscrepancy || isGeneralRoleDiscrepancy) {
+      console.warn('[Loading Watchdog] Profile role discrepancy detected:', { authEmail, metadataRole, profileRole });
+      StateHealingEngine.handleException(new Error(`RoleMismatchException: Auth metadata role is ${metadataRole || 'unknown'} but DB profile role is ${profileRole}`));
+    }
+  }, [session, activeProfile]);
 
   // Deferred, self-healing onboarding router for email confirmation flows
   const checkAndCompleteOnboarding = async (currentSession: any, currentProfile: any): Promise<any> => {

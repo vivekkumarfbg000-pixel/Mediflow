@@ -2,6 +2,7 @@ import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
 import { api } from '../../services/api';
+import { StateHealingEngine } from '../../services/autoHealerAgent';
 
 interface Props {
   children?: ReactNode;
@@ -32,6 +33,11 @@ export class ErrorBoundary extends Component<Props, State> {
       component_stack: errorInfo.componentStack,
       timestamp: new Date().toISOString()
     }).catch(err => console.error('Failed to log crash to Supabase:', err));
+
+    // Invoke the Autonomous Healer to flush caches and auto-remount UI
+    StateHealingEngine.handleException(error).catch(err => 
+      console.error('Failed to invoke auto-healer for component crash:', err)
+    );
   }
 
   // Gap 7 Fix: Auto-healer sends 'mediflow-force-remount' after successful frontend heal.

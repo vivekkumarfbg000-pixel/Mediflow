@@ -13,6 +13,58 @@
         document.documentElement.classList.remove('dark');
         document.body?.classList.remove('dark');
       })();
+
+      // Emergency Startup Shield for catching early JS/Vite/Circular import crashes
+      window.__mediflow_startup_healthy = false;
+      window.addEventListener('error', function(event) {
+        if (!window.__mediflow_startup_healthy) {
+          console.error('[Startup Shield] Caught fatal initialization crash:', event.error || event.message);
+          var root = document.getElementById('root');
+          if (root) {
+            root.innerHTML = 
+              '<div style="font-family: \'Outfit\', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0b0f19; color: #e2e8f0; padding: 2rem; box-sizing: border-box; text-align: center;">' +
+                '<div style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 1.5rem; padding: 3rem; max-width: 550px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); box-sizing: border-box;">' +
+                  '<div style="display: inline-flex; align-items: center; justify-content: center; width: 4.5rem; height: 4.5rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 1.25rem; margin-bottom: 1.5rem; color: #ef4444; font-size: 2rem; font-weight: bold;">⚠️</div>' +
+                  '<h2 style="font-size: 1.75rem; font-weight: 800; color: #ffffff; margin: 0 0 0.75rem 0; letter-spacing: -0.025em;">Ecosystem Initialization Defect</h2>' +
+                  '<p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin: 0 0 1.5rem 0; font-weight: 500;">Mediflow failed to initialize its core application bundle. This is typically caused by a stale browser cache, circular module dependency, or a broken build compilation.</p>' +
+                  '<div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 1.25rem; border-radius: 1rem; text-align: left; margin: 0 0 2rem 0; box-sizing: border-box;">' +
+                    '<span style="font-size: 0.75rem; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">Console Telemetry Diagnostic</span>' +
+                    '<code style="font-family: monospace; font-size: 0.75rem; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; line-height: 1.4;">' + (event.message || 'Unhandled Runtime Exception during Bundle Execution') + '</code>' +
+                  '</div>' +
+                  '<div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">' +
+                    '<button onclick="localStorage.clear(); sessionStorage.clear(); location.reload(true);" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #ffffff; border: none; padding: 0.875rem 1.75rem; border-radius: 0.75rem; font-weight: 700; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);">Reset Cache & Hot-Reload</button>' +
+                    '<button onclick="location.reload(true);" style="background: rgba(255, 255, 255, 0.08); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.15); padding: 0.875rem 1.75rem; border-radius: 0.75rem; font-weight: 700; cursor: pointer; font-size: 0.875rem; transition: all 0.2s;">Retry Application Boot</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+          }
+        }
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        if (!window.__mediflow_startup_healthy) {
+          console.error('[Startup Shield] Caught fatal promise rejection:', event.reason);
+          var root = document.getElementById('root');
+          if (root) {
+            var reasonMessage = event.reason ? (event.reason.message || String(event.reason)) : 'Unhandled Promise Rejection';
+            root.innerHTML = 
+              '<div style="font-family: \'Outfit\', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0b0f19; color: #e2e8f0; padding: 2rem; box-sizing: border-box; text-align: center;">' +
+                '<div style="background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 1.5rem; padding: 3rem; max-width: 550px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); box-sizing: border-box;">' +
+                  '<div style="display: inline-flex; align-items: center; justify-content: center; width: 4.5rem; height: 4.5rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 1.25rem; margin-bottom: 1.5rem; color: #ef4444; font-size: 2rem; font-weight: bold;">⚠️</div>' +
+                  '<h2 style="font-size: 1.75rem; font-weight: 800; color: #ffffff; margin: 0 0 0.75rem 0; letter-spacing: -0.025em;">Ecosystem Promise Rejection</h2>' +
+                  '<p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin: 0 0 1.5rem 0; font-weight: 500;">Mediflow failed during startup execution due to an unhandled promise rejection.</p>' +
+                  '<div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 1.25rem; border-radius: 1rem; text-align: left; margin: 0 0 2rem 0; box-sizing: border-box;">' +
+                    '<span style="font-size: 0.75rem; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">Console Telemetry Diagnostic</span>' +
+                    '<code style="font-family: monospace; font-size: 0.75rem; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; line-height: 1.4;">' + reasonMessage + '</code>' +
+                  '</div>' +
+                  '<div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">' +
+                    '<button onclick="localStorage.clear(); sessionStorage.clear(); location.reload(true);" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #ffffff; border: none; padding: 0.875rem 1.75rem; border-radius: 0.75rem; font-weight: 700; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);">Reset Cache & Hot-Reload</button>' +
+                    '<button onclick="location.reload(true);" style="background: rgba(255, 255, 255, 0.08); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.15); padding: 0.875rem 1.75rem; border-radius: 0.75rem; font-weight: 700; cursor: pointer; font-size: 0.875rem; transition: all 0.2s;">Retry Application Boot</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>';
+          }
+        }
+      });
     </script>
     <title>Mediflow Care - Connected Care Network</title>
     <!-- Google Fonts & Material Symbols -->
