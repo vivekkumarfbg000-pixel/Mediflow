@@ -352,7 +352,54 @@ Vercel Dashboard → Deployments → Click a deployment → View build output.
 
 ---
 
-## 6. Emergency Recovery Checklist
+## 6. Level 2: Advanced Diagnostics — When the App is STILL Not Loading
+
+If you have executed the basic diagnostics, restarted the dev server, verified that `diagnose.js` reports all green, and the website **still** does not load (e.g., stuck on a blank screen, silent crash on certain user actions, or showing chunk loading failures), use this advanced diagnostic playbook.
+
+### 6A — Silent ReferenceErrors at Runtime
+* **Symptom:** The initial page renders, but clicking a tab or logging in causes a sudden blank screen. The browser console outputs a red error: `ReferenceError: <variable> is not defined`.
+* **Why it happens:** This occurs when an import statement was removed during code cleanup (such as when resolving circular dependencies), but the compiler didn't flag it because the variable is referenced deep inside a class body or runtime callback that only executes after user interaction.
+* **How to diagnose:**
+  1. Open the browser DevTools Console and click the line number in the stack trace (e.g. `api.ts:467`).
+  2. Perform a codebase-wide grep for that variable name.
+* **How to fix:**
+  - Restore the import, or rewrite the logic so the module is loaded dynamically (e.g., using `const { module } = await import(...)` inside the method) to keep circular dependency chains broken.
+  - Run `npx tsc --noEmit` before staging or pushing changes to let the TypeScript compiler perform static code analysis and flag missing references.
+
+### 6B — Dynamic Chunk Load Failure
+* **Symptom:** The console reports: `Failed to fetch dynamically imported module: http://localhost:5173/src/components/...`.
+* **Why it happens:** Vite's hot module replacement (HMR) or build bundler cache contains outdated references to code chunks that were renamed, deleted, or updated in another git branch.
+* **How to diagnose:** Check the DevTools **Network** tab. If dynamic modules show up as red `404 Not Found`, the browser is trying to load stale chunk files.
+* **How to fix:**
+  1. Terminate the dev server.
+  2. Clear Vite's cache directory:
+     ```powershell
+     Remove-Item -Recurse -Force "node_modules/.vite" -ErrorAction SilentlyContinue
+     ```
+  3. Perform a browser **hard refresh** (`Ctrl + Shift + R` or `Cmd + Shift + R`) to force clean JS cache reload.
+
+### 6C — Poisoned Local Storage Cache
+* **Symptom:** The dashboard loads and works perfectly in an Incognito/Private window, but displays a persistent blank screen or spinner in the user's regular browser.
+* **Why it happens:** The app caches clinical state (such as WhatsApp sessions, patient lists, or active pod settings) in the browser's `localStorage` to speed up page load. If database schemas or structures change, loading stale local JSON objects can throw uncaught exceptions during initialization.
+* **How to diagnose:** Run this command in the DevTools console:
+  ```javascript
+  localStorage.clear();
+  location.reload();
+  ```
+  If the page loads successfully after this, the local cache was corrupted.
+* **How to prevent:** Ensure code parsing local storage variables wraps `JSON.parse` inside safe `try-catch` blocks and falls back to default empty structures if corrupted.
+
+### 6D — Infinite Hook / Sync Loops
+* **Symptom:** The browser tab becomes completely frozen, CPU usage spikes to 100%, and the console repeatedly prints: `Maximum update depth exceeded. This can happen when a component repeatedly calls setState...`.
+* **Why it happens:** An effect hook updates state, which triggers a re-render, triggering the effect again. In Mediflow, this can happen if the real-time telemetry agent triggers a sync upon finding a minor error, and the sync callback encounters another error, creating a high-speed retry loop.
+* **How to diagnose:** Look at the call stack output in the console warning to identify which component is looping.
+* **How to fix:**
+  1. Inspect the dependency arrays on `useEffect` blocks. Ensure variables updated *inside* the effect are not included in the dependency array without conditional guards.
+  2. Implement debouncing or guard clauses to enforce minimum intervals between database sync actions.
+
+---
+
+## 7. Emergency Recovery Checklist
 
 Run this checklist in order when nothing else works:
 
@@ -381,7 +428,7 @@ git diff HEAD~1 HEAD -- src/
 
 ---
 
-## 7. Mediflow-Specific Known Issues & Solutions
+## 8. Mediflow-Specific Known Issues & Solutions
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
@@ -398,7 +445,7 @@ git diff HEAD~1 HEAD -- src/
 
 ---
 
-## 8. Useful DevTools Commands
+## 9. Useful DevTools Commands
 
 Paste these directly in the browser's DevTools console while on the app:
 
@@ -425,7 +472,7 @@ supabase.getChannels().map(c => ({ name: c.topic, state: c.state }));
 
 ---
 
-## 9. Who to Contact
+## 10. Who to Contact
 
 | Situation | Action |
 |-----------|--------|
@@ -437,6 +484,6 @@ supabase.getChannels().map(c => ({ name: c.topic, state: c.state }));
 ---
 
 > **Skill maintained by**: Mediflow Engineering Team
-> **Last updated**: June 2026 (updated with supabaseCircuit ReferenceError incident)
+> **Last updated**: June 2026 (updated with Level 2 Advanced Diagnostics & supabaseCircuit ReferenceError case)
 > **Real incidents this skill resolved**: Circular import crash (api.ts ↔ autoHealerAgent.ts), supabaseCircuit ReferenceError after partial import removal, RLS blocking WhatsApp sessions, WABA connection auth failures
 
