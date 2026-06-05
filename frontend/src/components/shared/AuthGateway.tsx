@@ -945,41 +945,56 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             </form>
           )}
 
-          {activeTab === 'signin' && (import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === 'true') && (
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between border-t border-clinical-800/80 pt-4">
-                <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">
-                  Enterprise Mock Profiles (E2E Telemetry)
-                </span>
-                <span className="text-[9px] font-bold text-cyan-400 bg-cyan-400/10 px-2.5 py-0.5 rounded-full border border-cyan-400/20">
-                  RLS Verification Active
-                </span>
-              </div>
+          {(() => {
+            const isDemoMode = 
+              import.meta.env.DEV || 
+              import.meta.env.VITE_USE_MOCK === 'true' || 
+              (typeof window !== 'undefined' && (
+                window.location.search.includes('mock=true') || 
+                window.location.search.includes('demo=true') ||
+                window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
+                window.location.hostname.endsWith('.gitpod.io')
+              ));
 
-              <div className="grid grid-cols-3 gap-2">
-                {demoUsers.map((user, idx) => (
-                  <button
-                    key={`${user.id}-${idx}`}
-                    type="button"
-                    onClick={() => handleDemoSignIn(user)}
-                    disabled={loading}
-                    className="bg-clinical-900/40 hover:bg-clinical-900/80 border border-clinical-800 hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col text-left space-y-1 cursor-pointer transition-all duration-300 group"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-[10px] font-black text-white group-hover:text-cyan-400 transition-colors truncate">
-                        {user.name.split(' ')[1] || user.name}
-                      </span>
-                      <span className="text-xs">{user.icon}</span>
-                    </div>
-                    <div className="text-[8px] font-extrabold uppercase tracking-wide leading-tight">
-                      <span className="text-cyan-500 group-hover:text-cyan-400 block truncate">{user.role.replace('_', ' ')}</span>
-                      <span className="text-clinical-400 truncate block mt-0.5">{user.entity.split(' ')[0]}</span>
-                    </div>
-                  </button>
-                ))}
+            if (activeTab !== 'signin' || !isDemoMode) return null;
+
+            return (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between border-t border-clinical-800/80 pt-4">
+                  <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">
+                    Enterprise Mock Profiles (E2E Telemetry)
+                  </span>
+                  <span className="text-[9px] font-bold text-cyan-400 bg-cyan-400/10 px-2.5 py-0.5 rounded-full border border-cyan-400/20">
+                    RLS Verification Active
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {demoUsers.map((user, idx) => (
+                    <button
+                      key={`${user.id}-${idx}`}
+                      type="button"
+                      onClick={() => handleDemoSignIn(user)}
+                      disabled={loading}
+                      className="bg-clinical-900/40 hover:bg-clinical-900/80 border border-clinical-800 hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col text-left space-y-1 cursor-pointer transition-all duration-300 group"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[10px] font-black text-white group-hover:text-cyan-400 transition-colors truncate">
+                          {user.name.split(' ')[1] || user.name}
+                        </span>
+                        <span className="text-xs">{user.icon}</span>
+                      </div>
+                      <div className="text-[8px] font-extrabold uppercase tracking-wide leading-tight">
+                        <span className="text-cyan-500 group-hover:text-cyan-400 block truncate">{user.role.replace('_', ' ')}</span>
+                        <span className="text-clinical-400 truncate block mt-0.5">{user.entity.split(' ')[0]}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       </div>
