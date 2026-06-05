@@ -404,10 +404,17 @@ export default function App() {
   useEffect(() => {
     let active = true;
 
+    // Safety timeout: If session loading takes more than 3.5 seconds (e.g. invalid refresh token fetch hangs), force loader removal
+    const safetyTimeout = setTimeout(() => {
+      if (active) {
+        console.warn('[Mediflow Auth] Session initialization timed out. Forcing loader removal.');
+        setIsLoadingSession(false);
+      }
+    }, 3500);
+
     // 1. Check existing Supabase session and load active profile
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!active) return;
-      setSession(session);
       if (session?.user) {
         supabase
           .from('profiles')
@@ -416,6 +423,8 @@ export default function App() {
           .single()
           .then(async ({ data: profile }) => {
             if (!active) return;
+            clearTimeout(safetyTimeout);
+            setSession(session);
             if (profile) {
               const finalProfile = await checkAndCompleteOnboarding(session, profile);
               setActiveProfile(finalProfile);
@@ -430,13 +439,22 @@ export default function App() {
             }
             setIsLoadingSession(false);
           }, () => {
-            if (active) setIsLoadingSession(false);
+            if (active) {
+              clearTimeout(safetyTimeout);
+              setSession(session);
+              setIsLoadingSession(false);
+            }
           });
       } else {
+        clearTimeout(safetyTimeout);
+        setSession(session);
         setIsLoadingSession(false);
       }
     }).catch(() => {
-      if (active) setIsLoadingSession(false);
+      if (active) {
+        clearTimeout(safetyTimeout);
+        setIsLoadingSession(false);
+      }
     });
 
     // 2. Setup auth state change listener

@@ -236,6 +236,15 @@ class MediflowApiService {
       (window as any).api = this;
       (window as any).supabase = supabase;
     }
+
+    // Dynamic sync on auth events
+    supabase.auth.onAuthStateChange((event) => {
+      console.log('[Mediflow API] Auth state changed event in API:', event);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        this.syncFromSupabase();
+      }
+    });
+
     this.syncFromSupabase();
 
     const activeChannel = supabase.channel('mediflow-pod-realtime');
@@ -463,6 +472,13 @@ class MediflowApiService {
   }
 
   public async syncFromSupabase(): Promise<void> {
+    // Prevent syncing if not authenticated (no active session keys in local storage)
+    const hasSession = typeof window !== 'undefined' && Object.keys(localStorage).some(k => k.includes('-auth-token'));
+    if (!hasSession) {
+      console.log('[Mediflow API] Sync skipped: No active session token found.');
+      return;
+    }
+
     this.isSyncing = true;
     this.notify();
     try {
