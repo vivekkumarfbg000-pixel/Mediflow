@@ -1,4 +1,3 @@
-import { api } from './api';
 import { supabase } from '../lib/supabaseClient';
 
 // ─── Telemetry Types ────────────────────────────────────────────────────────────
@@ -214,7 +213,9 @@ export class StateHealingEngine {
 
         healingSteps.push('🔄 Hot-resynchronizing dashboard state from Supabase...');
         try {
-          await api.syncFromSupabase();
+          // Dynamic import used here to break the api ↔ autoHealerAgent circular dependency
+          const { api: apiModule } = await import('./api');
+          await apiModule.syncFromSupabase();
           healingSteps.push('✅ Frontend state hot-rejuvenation complete. UI restored in real-time.');
           // Gap 7 Fix: Signal ErrorBoundary to auto-recover crashed component tree
           window.dispatchEvent(new CustomEvent('mediflow-force-remount'));

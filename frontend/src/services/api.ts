@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabaseClient';
-import { TelemetryService } from './telemetry';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService, INITIAL_PATIENTS } from './patientService';
 import { EncounterService } from './encounterService';
@@ -9,6 +8,7 @@ import { BillingService } from './billingService';
 import { WhatsAppService } from './whatsappService';
 import { ForecastService } from './forecastService';
 import { StaffService } from './staffService';
+// Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
 
 import type { 
@@ -237,6 +237,9 @@ class MediflowApiService {
       (window as any).supabase = supabase;
     }
     this.syncFromSupabase();
+
+    const activeChannel = supabase.channel('mediflow-pod-realtime');
+    supabase.removeChannel(activeChannel);
 
     supabase
       .channel('mediflow-pod-realtime')

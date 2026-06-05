@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 async function run() {
   console.log('Authenticating...');
   await supabase.auth.signInWithPassword({
-    email: 'owner@mediflow.com',
+    email: 'doctor@mediflow.com',
     password: 'password123'
   });
 

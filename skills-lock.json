@@ -12,6 +12,13 @@
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
       "computedHash": "38fb49d3b57c46cba18b07a44254bd42c4c93903fda1d8cb683429615d32fec4"
+    },
+    "resolve-website-not-loading": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/resolve-website-not-loading/SKILL.md",
+      "description": "Step-by-step diagnostic and fix playbook for when the Mediflow frontend fails to load — covers blank screens, React crashes, circular imports, Supabase auth issues, and dev server problems.",
+      "computedHash": "resolve-website-not-loading-v1-2026"
     }
   }
 }
