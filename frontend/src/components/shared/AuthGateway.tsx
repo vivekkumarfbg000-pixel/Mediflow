@@ -11,7 +11,7 @@ interface AuthGatewayProps {
 }
 
 export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'join'>('signin');
+  const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -345,6 +345,44 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     }
   };
 
+  const handleOpsSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        const { data: profile, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileErr) throw profileErr;
+        
+        if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
+          onAuthSuccess(data.session, profile);
+        } else {
+          await supabase.auth.signOut();
+          throw new Error('Access Denied: Restricted to Mediflow Operations Team.');
+        }
+      }
+    } catch (err: any) {
+      console.error('[Mediflow Auth] Ops login failed:', err);
+      setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDemoSignIn = async (user: typeof demoUsers[0]) => {
     setLoading(true);
     setErrorMsg(null);
@@ -547,15 +585,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
               {activeTab === 'signin' && 'Sign In to Mediflow'}
               {activeTab === 'register' && 'Register Your Clinic'}
               {activeTab === 'join' && 'Join Existing Clinic Network'}
+              {activeTab === 'ops' && 'SaaS Platform Operations'}
             </h3>
             <p className="text-xs text-clinical-400 mt-1 font-semibold">
               {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
               {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
               {activeTab === 'join' && 'Pharmacies and laboratories can request to link with a clinic.'}
+              {activeTab === 'ops' && 'Secure authentication for Mediflow systems administration team.'}
             </p>
           </div>
 
-          {/* Triple Sliding Tab Selector */}
+          {/* Quad Sliding Tab Selector */}
           <div className="flex bg-clinical-900/50 p-1 rounded-xl border border-clinical-800/80">
             <button
               type="button"
@@ -577,6 +617,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
               className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
             >
               Partner Join
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab('ops'); setErrorMsg(null); }}
+              className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === 'ops' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+            >
+              SaaS Ops
             </button>
           </div>
 
@@ -637,6 +684,60 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Workspace <ArrowRight className="h-4 w-4" /></>}
+              </button>
+            </form>
+          )}
+
+          {/* SAAS OPERATIONS LOGIN FLOW */}
+          {activeTab === 'ops' && (
+            <form onSubmit={handleOpsSignIn} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                  Operations Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="owner@mediflow.com"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                  Security Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-500 hover:text-white transition-all cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Authenticate Operations Console <ArrowRight className="h-4 w-4" /></>}
               </button>
             </form>
           )}
