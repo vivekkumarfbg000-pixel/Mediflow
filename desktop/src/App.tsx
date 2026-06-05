@@ -5,11 +5,11 @@ import {
   Terminal, 
   Mic, 
   ShieldCheck,
-  Zap,
-  Cpu
+  Zap
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
+import { BrandMark } from './BrandMark';
 
 // Safe check to determine if running inside Tauri runtime environment
 const isTauri = () => typeof window !== 'undefined' && (window as any).__TAURI_IPC__ !== undefined;
@@ -131,7 +131,7 @@ const App: React.FC = () => {
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Cpu className="h-6 w-6 text-indigo-600 animate-pulse" />
+            <BrandMark size={28} />
             Mediflow connected care desktop node
           </h1>
           <p className="text-xs text-slate-500 mt-1">

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
+import { BrandMark } from './BrandMark';
 
 export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient' | 'saas_admin';
 
@@ -192,10 +193,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Top: Brand Logo and Connected Info */}
         <div className={`space-y-3 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
-            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shrink-0 shadow-sm shadow-indigo-600/10">
-              <svg className="h-4.5 w-4.5 animate-pulse-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
+            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-white p-0.5 shrink-0 shadow-sm ring-1 ring-slate-200/80">
+              <BrandMark size={32} title="Mediflow Care logo" />
             </div>
             {!isSidebarCollapsed && (
               <div className="animate-fade-in flex flex-col">
@@ -920,4 +919,3 @@ export const Navbar: React.FC<NavbarProps> = ({
     </>
   );
 };
-

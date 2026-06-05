@@ -4,6 +4,7 @@ import {
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Building2, Key, Copy, Check, Sparkles
 } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 interface AuthGatewayProps {
   onAuthSuccess: (session: any, profile: any) => void;
@@ -86,6 +87,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       entity: 'Patna Optical Shop',
       icon: '👓',
       specialization: 'Ophthalmology'
+    },
+    {
+      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317109',
+      name: 'System Admin',
+      role: 'platform_admin',
+      entity: 'Mediflow HQ Operations',
+      icon: '🔑',
+      specialization: 'System Engineering'
     }
   ];
 
@@ -344,6 +353,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       if (user.role === 'doctor') authEmail = 'doctor@mediflow.com';
       else if (user.role === 'lab_technician') authEmail = 'labtech@mediflow.com';
       else if (user.role === 'pharmacist') authEmail = 'pharmacist@mediflow.com';
+      else if (user.role === 'platform_admin') authEmail = 'owner@mediflow.com';
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
@@ -492,8 +502,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         {/* Left Side: Brand Value Proposition */}
         <div className="md:col-span-5 flex flex-col justify-center text-left space-y-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Activity className="h-6 w-6 text-cyan-400 animate-pulse-subtle" />
+            <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-white p-1 shrink-0 shadow-lg ring-1 ring-slate-200/80">
+              <BrandMark size={44} title="Mediflow Care logo" />
             </div>
             <div>
               <h1 className="text-2xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-indigo-400 font-sans">

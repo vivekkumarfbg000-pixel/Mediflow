@@ -1014,12 +1014,12 @@ class MediflowApiService {
 
   async processIncomingWhatsAppMessage(phone: string, text: string): Promise<void> {
     await WhatsAppService.processIncomingWhatsAppMessage(phone, text);
-    this.notify();
+    await this.syncFromSupabase();
   }
 
   initiateWhatsAppSession(phone: string): WhatsAppSession {
     const res = WhatsAppService.initiateWhatsAppSession(phone);
-    this.notify();
+    this.syncFromSupabase();
     return res;
   }
 

@@ -3,6 +3,7 @@
 // Replaces spinner-only Suspense fallback with professional progressive loading UI
 
 import React from 'react';
+import { BrandMark } from './BrandMark';
 
 interface SkeletonProps {
   className?: string;
@@ -185,13 +186,11 @@ export function FullPageLoader({ message = 'Loading Mediflow...' }: { message?: 
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-6">
       {/* Animated Mediflow logo mark */}
       <div className="relative">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-          <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
+        <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-lg shadow-indigo-500/20 ring-1 ring-slate-200/70">
+          <BrandMark size={56} title="Mediflow loading mark" />
         </div>
         {/* Orbiting pulse ring */}
-        <div className="absolute inset-0 rounded-2xl border-2 border-indigo-400/40 animate-ping" />
+        <div className="absolute inset-0 rounded-2xl border-2 border-indigo-400/30 animate-ping" />
       </div>
 
       <div className="text-center space-y-2">
