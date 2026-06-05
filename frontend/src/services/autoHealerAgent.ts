@@ -14,6 +14,97 @@ export interface TelemetryLog {
   created_at: string;
 }
 
+export interface QueuedTelemetry {
+  id: string;
+  pod_id: string;
+  subsystem: string;
+  severity: string;
+  error_code: string;
+  error_stack: string;
+  status: string;
+  healing_attempts: number;
+  timestamp: string;
+}
+
+// ─── Telemetry Local Offline Queue (IndexedDB) ───────────────────────────────────
+class TelemetryIndexedDB {
+  private dbName = 'mediflow_telemetry_outbox_db';
+  private storeName = 'telemetry_outbox';
+  private version = 1;
+
+  private getDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') {
+        reject(new Error('IndexedDB is not available'));
+        return;
+      }
+      const request = indexedDB.open(this.dbName, this.version);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async addEntry(entry: QueuedTelemetry): Promise<void> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.add(entry);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      console.warn('[Telemetry IndexedDB] Fallback to localStorage queue:', e);
+      const memOutbox = JSON.parse(localStorage.getItem('telemetry_mem_outbox') || '[]');
+      memOutbox.push(entry);
+      localStorage.setItem('telemetry_mem_outbox', JSON.stringify(memOutbox));
+    }
+  }
+
+  async getUnsyncedEntries(): Promise<QueuedTelemetry[]> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readonly');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.getAll();
+        request.onsuccess = () => {
+          resolve(request.result as QueuedTelemetry[]);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      return JSON.parse(localStorage.getItem('telemetry_mem_outbox') || '[]');
+    }
+  }
+
+  async deleteEntry(id: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      const memOutbox = JSON.parse(localStorage.getItem('telemetry_mem_outbox') || '[]');
+      const filtered = memOutbox.filter((x: any) => x.id !== id);
+      localStorage.setItem('telemetry_mem_outbox', JSON.stringify(filtered));
+    }
+  }
+}
+
+export const telemetryDB = new TelemetryIndexedDB();
+
 // ─── Healing Rate Limiter ───────────────────────────────────────────────────────
 // Prevents healing storm: max 1 healing cycle per 5 seconds per subsystem
 
@@ -142,7 +233,7 @@ export class StateHealingEngine {
             telemetryLogged = true;
             console.log(`[Auto-Healer] Incremented existing incident ${telemetryId} → attempt #${currentHealingAttempts}`);
           } else {
-            console.warn('[Auto-Healer] Failed to increment existing incident:', updateErr.message);
+            throw updateErr;
           }
         } else {
           // INSERT new incident row (first occurrence)
@@ -156,11 +247,27 @@ export class StateHealingEngine {
             telemetryId = telemetry.id;
             telemetryLogged = true;
           } else {
-            console.warn('[Auto-Healer] Central telemetry log skipped or failed (unauthenticated/offline):', logErr?.message || logErr);
+            throw logErr || new Error('Insert returned null');
           }
         }
       } catch (err: any) {
-        console.warn('[Auto-Healer] Central telemetry logging encountered an exception:', err.message);
+        console.warn('[Auto-Healer] Database telemetry log skipped or failed (unauthenticated/offline). Queueing locally:', err.message || err);
+        try {
+          await telemetryDB.addEntry({
+            id: telemetryId,
+            pod_id: podId,
+            subsystem,
+            severity,
+            error_code: errName,
+            error_stack: errStack,
+            status: 'healing',
+            healing_attempts: currentHealingAttempts,
+            timestamp: new Date().toISOString()
+          });
+          console.log('[Auto-Healer] Incident successfully queued in TelemetryIndexedDB.');
+        } catch (queueErr: any) {
+          console.error('[Auto-Healer] Failed to queue offline telemetry:', queueErr.message);
+        }
       }
 
       const healingSteps: string[] = [];
@@ -524,6 +631,7 @@ export interface ServiceHealth {
 }
 
 // ─── Proactive Health Monitor ───────────────────────────────────────────────────
+// ─── Proactive Health Monitor ───────────────────────────────────────────────────
 export class ProactiveHealthMonitor {
   private static intervalId: ReturnType<typeof setInterval> | null = null;
   private static schemaIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -535,14 +643,21 @@ export class ProactiveHealthMonitor {
 
     console.log('[HealthMonitor] Proactive health checks started 🩺');
     ProactiveHealthMonitor.runChecks();
+    
+    // Proactive initial RLS scan
+    ProactiveHealthMonitor.runRLSScanner();
+
     ProactiveHealthMonitor.intervalId = setInterval(
       () => ProactiveHealthMonitor.runChecks(),
       ProactiveHealthMonitor.CHECK_INTERVAL_MS
     );
 
-    // Schema drift scan every 15 minutes
+    // Schema drift scan and RLS compliance scan every 15 minutes
     ProactiveHealthMonitor.schemaIntervalId = setInterval(
-      () => StateHealingEngine.runSchemaDriftScan(),
+      () => {
+        StateHealingEngine.runSchemaDriftScan();
+        ProactiveHealthMonitor.runRLSScanner();
+      },
       ProactiveHealthMonitor.SCHEMA_INTERVAL_MS
     );
   }
@@ -580,8 +695,69 @@ export class ProactiveHealthMonitor {
       }
     );
 
+    // Replay local offline telemetry if Supabase is healthy
+    const dbCheck = results.find(r => r.service === 'Supabase Database');
+    if (dbCheck && dbCheck.status === 'healthy') {
+      ProactiveHealthMonitor.replayTelemetryOutbox();
+    }
+
     window.dispatchEvent(new CustomEvent('mediflow-health-update', { detail: results }));
     return results;
+  }
+
+  /** Proactive RLS scanner: scans pg_policies and auto-heals public USING(true) leaks */
+  static async runRLSScanner(): Promise<void> {
+    try {
+      const isOnline = navigator.onLine;
+      if (!isOnline) return;
+
+      console.log('[HealthMonitor] Running proactive database RLS security compliance scan...');
+      const { data, error } = await supabase.rpc('scan_and_heal_leaky_policies');
+      if (error) {
+        console.warn('[HealthMonitor] RLS compliance scan failed or skipped:', error.message);
+      } else if (data && data.length > 0) {
+        console.warn(`[HealthMonitor] ⚠️ RLS compliance scanner automatically healed ${data.length} leaky policy/policies:`, data);
+      } else {
+        console.log('[HealthMonitor] RLS compliance scan complete: All transactional tables are secure.');
+      }
+    } catch (e: any) {
+      console.warn('[HealthMonitor] RLS compliance scan exception:', e.message);
+    }
+  }
+
+  /** Replays unsynced telemetry entries from IndexedDB queue to database */
+  static async replayTelemetryOutbox(): Promise<void> {
+    try {
+      if (!navigator.onLine) return;
+      const entries = await telemetryDB.getUnsyncedEntries();
+      if (!entries || entries.length === 0) return;
+
+      console.log(`[Telemetry Replayer] Found ${entries.length} unsynced telemetry log(s). Replaying to database...`);
+      for (const entry of entries) {
+        // Reconstruct telemetry table first if missing (just in case)
+        const { error } = await supabase.from('system_health_telemetry').insert({
+          id: entry.id,
+          pod_id: entry.pod_id,
+          subsystem: entry.subsystem,
+          severity: entry.severity,
+          error_code: entry.error_code,
+          error_stack: entry.error_stack,
+          status: entry.status,
+          healing_attempts: entry.healing_attempts,
+          created_at: entry.timestamp
+        });
+
+        if (!error || error.message?.includes('already exists') || error.code === '23505') {
+          await telemetryDB.deleteEntry(entry.id);
+          console.log(`[Telemetry Replayer] Synced and cleared local telemetry incident: ${entry.id}`);
+        } else {
+          console.warn(`[Telemetry Replayer] Replay failed for entry ${entry.id}:`, error.message);
+          break; // Stop replaying on database error
+        }
+      }
+    } catch (e: any) {
+      console.warn('[Telemetry Replayer] Replayer run interrupted:', e.message);
+    }
   }
 
   /** Proactive cache audit: scans and heals malformed or corrupted JSON keys in localStorage */
