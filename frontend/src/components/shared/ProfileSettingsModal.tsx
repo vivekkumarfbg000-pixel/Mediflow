@@ -13,7 +13,10 @@ import {
   AlertTriangle, 
   Loader2, 
   Building2, 
-  Globe 
+  Globe,
+  CheckCircle2,
+  XCircle,
+  Clock
 } from 'lucide-react';
 import type { Entity } from '../../types';
 
@@ -194,6 +197,37 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
       console.error('[ProfileSettingsModal] Save partner failed:', err);
       setErrorMsg(err.message || 'Failed to update partner.');
       showToast('Partner Save Failed', err.message || 'Failed to update partner details.', 'error');
+    } finally {
+      setIsSavingPartner(false);
+    }
+  };
+
+  const handleApprovePartner = async (partnerId: string, partnerName: string, newStatus: 'approved' | 'rejected') => {
+    setIsSavingPartner(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const { error } = await supabase
+        .from('entities')
+        .update({ status: newStatus })
+        .eq('id', partnerId);
+
+      if (error) throw error;
+
+      if (newStatus === 'approved') {
+        setSuccessMsg(`${partnerName} has been approved and connected to the clinic network!`);
+        showToast('Partner Approved! 🎉', `${partnerName} is now connected to your clinical ecosystem.`, 'success');
+      } else {
+        setSuccessMsg(`${partnerName} join request has been rejected.`);
+        showToast('Partner Rejected', `${partnerName} has been denied access to the clinic network.`, 'warning');
+      }
+
+      await refreshClinic();
+    } catch (err: any) {
+      console.error('[ProfileSettingsModal] Partner status update failed:', err);
+      setErrorMsg(err.message || 'Failed to update partner status.');
+      showToast('Status Update Failed', err.message || 'Failed to update partner approval.', 'error');
     } finally {
       setIsSavingPartner(false);
     }
@@ -507,6 +541,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
                   {podEntities.map((partner) => {
                     const isEditing = editingPartnerId === partner.id;
                     const isSelfNode = partner.id === activeProfile?.entity_id;
+                    const isPending = partner.status === 'pending';
 
                     return (
                       <div 
@@ -514,9 +549,18 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
                         className={`p-4 bg-white border rounded-xl transition-all ${
                           isSelfNode 
                             ? 'border-indigo-200 shadow-md shadow-indigo-100/50 bg-indigo-50/10' 
+                            : isPending
+                            ? 'border-amber-300 shadow-md shadow-amber-100/50 bg-amber-50/30'
                             : 'border-slate-200'
                         }`}
                       >
+                        {/* Pending approval banner */}
+                        {isPending && !isSelfNode && isUserPodAdmin && (
+                          <div className="flex items-center gap-2 mb-3 p-2 bg-amber-100 rounded-lg border border-amber-200">
+                            <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                            <span className="text-[10px] font-bold text-amber-800">New partner join request — awaiting your approval</span>
+                          </div>
+                        )}
                         {isEditing ? (
                           /* Editing Partner Form */
                           <div className="space-y-3.5">
@@ -655,8 +699,29 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
                             </div>
 
                             {/* Node settings controls (Admin only, can't remove self session node) */}
-                            {isUserPodAdmin && (
-                              <div className="flex gap-2.5 justify-end mt-3 pt-2.5 border-t border-slate-100/60">
+                             {isUserPodAdmin && (
+                              <div className="flex flex-wrap gap-2 justify-end mt-3 pt-2.5 border-t border-slate-100/60">
+                                {/* Quick Approve/Reject for pending partner requests */}
+                                {partner.status === 'pending' && !isSelfNode && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApprovePartner(partner.id, partner.name, 'approved')}
+                                      disabled={isSavingPartner}
+                                      className="text-[9.5px] font-bold text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-md cursor-pointer animate-fade-in shadow-sm"
+                                    >
+                                      {isSavingPartner ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleApprovePartner(partner.id, partner.name, 'rejected')}
+                                      disabled={isSavingPartner}
+                                      className="text-[9.5px] font-bold text-rose-600 hover:text-rose-700 transition-colors flex items-center gap-1 border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-md cursor-pointer animate-fade-in shadow-sm"
+                                    >
+                                      {isSavingPartner ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
                                 <button
                                   onClick={() => startEditPartner(partner)}
                                   className="text-[9.5px] font-bold text-slate-650 hover:text-indigo-600 transition-colors flex items-center gap-1 border border-slate-200 hover:border-indigo-100 hover:bg-indigo-50/20 px-2.5 py-1 rounded-md cursor-pointer"
