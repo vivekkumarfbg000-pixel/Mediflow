@@ -692,34 +692,30 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
               </div>
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
-                {groupedHolds.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400 text-xs italic">
-                    No active prescriptions today.
+                {groupedHolds.filter(g => g.status === 'held').length === 0 ? (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs text-center rounded-xl flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                    All prescriptions dispensed
                   </div>
                 ) : (
-                  groupedHolds.map((group, idx) => {
-                    const isPending = group.status === 'held';
-                    return (
-                      <div key={idx} className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-semibold text-slate-900 truncate max-w-[180px]">{group.patientName}</span>
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono ${
-                            isPending ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                          }`}>
-                            {isPending ? 'Held' : 'Dispensed'}
-                          </span>
-                        </div>
-                        <div className="text-[9px] text-slate-600 bg-white border border-slate-100 p-2 rounded-lg space-y-1">
-                          {group.medicines.map((m, mIdx) => (
-                            <div key={mIdx} className="flex justify-between items-center">
-                              <span className="truncate max-w-[160px] font-medium">{m.name}</span>
-                              <span className="text-[8px] text-slate-500 font-mono font-semibold">Qty: {m.qty}</span>
-                            </div>
-                          ))}
-                        </div>
+                  groupedHolds.filter(g => g.status === 'held').map((group, idx) => (
+                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-slate-900 truncate max-w-[180px]">{group.patientName}</span>
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 border-amber-200 text-amber-700">
+                          Held
+                        </span>
                       </div>
-                    );
-                  })
+                      <div className="text-[9px] text-slate-600 bg-white border border-slate-100 p-2 rounded-lg space-y-1">
+                        {group.medicines.map((m, mIdx) => (
+                          <div key={mIdx} className="flex justify-between items-center">
+                            <span className="truncate max-w-[160px] font-medium">{m.name}</span>
+                            <span className="text-[8px] text-slate-500 font-mono font-semibold">Qty: {m.qty}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
