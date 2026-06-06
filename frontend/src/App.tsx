@@ -449,6 +449,41 @@ export default function App() {
     return currentProfile;
   };
 
+  const loadOrHealProfile = async (session: any): Promise<any> => {
+    if (!session?.user) return null;
+    
+    // 1. Try to fetch profile
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id);
+      
+    let activeProfile = profiles && profiles.length > 0 ? profiles[0] : null;
+    
+    // 2. If profile is missing, trigger auto-healing RPC
+    if (!activeProfile) {
+      console.log('[Profile Loader] Profile missing. Triggering reconcile_profile_role...');
+      try {
+        await supabase.rpc('reconcile_profile_role');
+        // Re-query
+        const { data: healedProfiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id);
+        activeProfile = healedProfiles && healedProfiles.length > 0 ? healedProfiles[0] : null;
+      } catch (err) {
+        console.error('[Profile Loader] Profile reconciliation failed:', err);
+      }
+    }
+    
+    if (activeProfile) {
+      // 3. Complete onboarding if needed
+      return await checkAndCompleteOnboarding(session, activeProfile);
+    }
+    
+    return null;
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -461,41 +496,28 @@ export default function App() {
     }, 3500);
 
     // 1. Check existing Supabase session and load active profile
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!active) return;
+      setSession(session);
       if (session?.user) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(async ({ data: profile }) => {
-            if (!active) return;
-            clearTimeout(safetyTimeout);
-            setSession(session);
-            if (profile) {
-              const finalProfile = await checkAndCompleteOnboarding(session, profile);
-              setActiveProfile(finalProfile);
-              let defaultRole: UserRole = 'doctor';
-              if (finalProfile.role === 'doctor') defaultRole = 'doctor';
-              else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
-              else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
-              else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
-              else if (finalProfile.role === 'patient') defaultRole = 'patient';
-              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
-              setCurrentRole(defaultRole);
-            }
-            setIsLoadingSession(false);
-          }, () => {
-            if (active) {
-              clearTimeout(safetyTimeout);
-              setSession(session);
-              setIsLoadingSession(false);
-            }
-          });
+        const finalProfile = await loadOrHealProfile(session);
+        if (active) {
+          clearTimeout(safetyTimeout);
+          if (finalProfile) {
+            setActiveProfile(finalProfile);
+            let defaultRole: UserRole = 'doctor';
+            if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+            else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
+            else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
+            else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
+            else if (finalProfile.role === 'patient') defaultRole = 'patient';
+            else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
+            setCurrentRole(defaultRole);
+          }
+          setIsLoadingSession(false);
+        }
       } else {
         clearTimeout(safetyTimeout);
-        setSession(session);
         setIsLoadingSession(false);
       }
     }).catch(() => {
@@ -506,36 +528,28 @@ export default function App() {
     });
 
     // 2. Setup auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!active) return;
       setSession(session);
       if (!session) {
         setActiveProfile(null);
         setIsLoadingSession(false);
       } else {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(async ({ data: profile }) => {
-            if (!active) return;
-            if (profile) {
-              const finalProfile = await checkAndCompleteOnboarding(session, profile);
-              setActiveProfile(finalProfile);
-              let defaultRole: UserRole = 'doctor';
-              if (finalProfile.role === 'doctor') defaultRole = 'doctor';
-              else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
-              else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
-              else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
-              else if (finalProfile.role === 'patient') defaultRole = 'patient';
-              else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
-              setCurrentRole(defaultRole);
-            }
-            setIsLoadingSession(false);
-          }, () => {
-            if (active) setIsLoadingSession(false);
-          });
+        const finalProfile = await loadOrHealProfile(session);
+        if (active) {
+          if (finalProfile) {
+            setActiveProfile(finalProfile);
+            let defaultRole: UserRole = 'doctor';
+            if (finalProfile.role === 'doctor') defaultRole = 'doctor';
+            else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
+            else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
+            else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
+            else if (finalProfile.role === 'patient') defaultRole = 'patient';
+            else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
+            setCurrentRole(defaultRole);
+          }
+          setIsLoadingSession(false);
+        }
       }
     });
 
@@ -549,10 +563,10 @@ export default function App() {
       
       setToasts(prev => [...prev, newToast]);
       
-      // Auto dismiss after 4 seconds
+      // Auto dismiss after 1 second
       setTimeout(() => {
         setToasts(prev => prev.filter(t => t.id !== id));
-      }, 4000);
+      }, 1000);
     };
 
     window.addEventListener('mediflow-toast', handleToast);
@@ -600,13 +614,13 @@ export default function App() {
     
     setCurrentRole(defaultRole);
 
-    const id = crypto.randomUUID();
-    setToasts(prev => [...prev, {
-      id,
-      title: 'Professional Portal Initialized',
-      message: `Successfully authenticated as ${finalProfile.display_name}. Role: ${finalProfile.role.toUpperCase()}`,
-      type: 'success'
-    }]);
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Professional Portal Initialized',
+        message: `Successfully authenticated as ${finalProfile.display_name}. Role: ${finalProfile.role.toUpperCase()}`,
+        type: 'success'
+      }
+    }));
   };
 
   const handleSignOut = async () => {
@@ -619,26 +633,26 @@ export default function App() {
     setActiveProfile(null);
     setCurrentRole('doctor');
     
-    const id = crypto.randomUUID();
-    setToasts(prev => [...prev, {
-      id,
-      title: 'Workspace De-authenticated',
-      message: 'Logged out of Mediflow Clinical Connected Care.',
-      type: 'info'
-    }]);
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Workspace De-authenticated',
+        message: 'Logged out of Mediflow Clinical Connected Care.',
+        type: 'info'
+      }
+    }));
   };
 
   const handleToggleBypass = (bypass: boolean) => {
     setIsBypassMode(bypass);
-    const id = crypto.randomUUID();
-    setToasts(prev => [...prev, {
-      id,
-      title: bypass ? 'Bypass Mode Enabled' : 'Strict Mode Enforced',
-      message: bypass
-        ? 'Authorization checks bypassed. Dynamic switcher active for E2E testing.'
-        : 'Enterprise security constraints active. Dashboards locked to professional profile role.',
-      type: bypass ? 'warning' : 'success'
-    }]);
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: bypass ? 'Bypass Mode Enabled' : 'Strict Mode Enforced',
+        message: bypass
+          ? 'Authorization checks bypassed. Dynamic switcher active for E2E testing.'
+          : 'Enterprise security constraints active. Dashboards locked to professional profile role.',
+        type: bypass ? 'warning' : 'success'
+      }
+    }));
   };
 
   const handleRoleChange = (role: UserRole) => {
@@ -659,13 +673,13 @@ export default function App() {
       if (!allowed.includes(role)) {
         const errorMsg = `De-authorization: Account role (${userRole.replace('_', ' ')}) is not permitted to view the ${role.toUpperCase()} module under active compliance policy.`;
         
-        const id = crypto.randomUUID();
-        setToasts(prev => [...prev, {
-          id,
-          title: 'Access Restricted',
-          message: errorMsg,
-          type: 'error'
-        }]);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Access Restricted',
+            message: errorMsg,
+            type: 'error'
+          }
+        }));
 
         api.writeAuditLog('SECURITY_VIOLATION_ROUTING_ATTEMPT', {
           failedRoleSwitch: role,
