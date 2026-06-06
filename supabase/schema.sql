@@ -29,7 +29,9 @@ create table appointments (
     id uuid primary key default gen_random_uuid(),
     patient_id uuid references patients(id) on delete cascade,
     doctor_id uuid references staff(id) on delete set null,
-    status text check (status in ('pending_payment','ready_for_consult','completed')) default 'pending_payment',
+    status text check (status in ('pending_payment','ready_for_consult','completed','scheduled')) default 'pending_payment',
+    appointment_time timestamp with time zone,
+    end_time timestamp with time zone,
     created_at timestamp with time zone default now()
 );
 

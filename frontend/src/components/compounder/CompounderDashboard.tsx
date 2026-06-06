@@ -18,7 +18,8 @@ import type {
   CounterTransaction,
   LabReport,
   LabRequisition,
-  Appointment
+  Appointment,
+  EveningSlot
 } from '../../types';
 import InvoiceGenerator from './InvoiceGenerator';
 import { InvoiceCard } from '../InvoiceCard';
@@ -208,6 +209,10 @@ export const CompounderDashboard: React.FC = () => {
   const [apptCounterBooked, setApptCounterBooked] = useState(false);
   const [labCounterBooked, setLabCounterBooked] = useState(false);
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'shiprocket'>('pickup');
+
+  // ── Evening Slot States ──────────────────────────────────────────────────
+  const [eveningSlot, setEveningSlot] = useState<EveningSlot | null>(null);
+  const [isAllocatingSlot, setIsAllocatingSlot] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
 
   // Post-scan patient assignment & quick registration
@@ -839,6 +844,23 @@ export const CompounderDashboard: React.FC = () => {
         dosageInvoiceText += `👉 *खुराक:* ${instr.hindi}\n\n`;
       });
       dosageInvoiceText += `Dhyan rakhein aur time par medicine lein! 🟢`;
+
+      // ── Append same-day evening appointment info ────────────────────────
+      const apptSlot = eveningSlot || api.getAppointmentByPatient(billingPatient.id);
+      if (apptSlot) {
+        dosageInvoiceText += `\n\n🕒 *Doctor Follow-up (Aaj Shaam):*\nDr. Sharma aapko aaj *${apptSlot.startTime}* se *${apptSlot.endTime}* ke beech dekhenge.\nKrupaya 5 minute pehle clinic pahunchen.`;
+      } else {
+        // Auto-allocate slot for this patient if none exists
+        try {
+          const newSlot = await api.createEveningSlot(billingPatient.id, 'doc-1');
+          if (newSlot) {
+            setEveningSlot(newSlot);
+            dosageInvoiceText += `\n\n🕒 *Doctor Follow-up (Aaj Shaam):*\nDr. Sharma aapko aaj *${newSlot.startTime}* se *${newSlot.endTime}* ke beech dekhenge.\nKrupaya 5 minute pehle clinic pahunchen.`;
+          }
+        } catch (slotErr) {
+          console.warn('[EveningSlot] Compounder slot auto-allocation failed:', slotErr);
+        }
+      }
 
       api.pushWhatsAppMessageFromBot(billingPatient.phone, dosageInvoiceText);
       api.pushWhatsAppMessageFromBot(billingPatient.phone, invoiceText);
@@ -3680,6 +3702,67 @@ export const CompounderDashboard: React.FC = () => {
                     <span className="material-symbols-outlined text-[14px]">send_to_mobile</span>
                     Settle POS &amp; Send WhatsApp Receipt →
                   </button>
+
+                  {/* ── Allocate Evening Slot ──────────────────────────── */}
+                  {billingPatient && (
+                    <div className="mt-3 border border-indigo-100 rounded-xl p-3 bg-indigo-50/60 space-y-2">
+                      <p className="text-[9px] font-black text-indigo-600 tracking-widest uppercase flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">event_upcoming</span>
+                        Same-Day Evening Follow-up
+                      </p>
+
+                      {(eveningSlot || api.getAppointmentByPatient(billingPatient.id)) ? (
+                        <div className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                          Slot confirmed: {(eveningSlot || api.getAppointmentByPatient(billingPatient.id))?.startTime} – {(eveningSlot || api.getAppointmentByPatient(billingPatient.id))?.endTime}
+                        </div>
+                      ) : (
+                        <button
+                          id="btn-allocate-evening-slot"
+                          type="button"
+                          disabled={isAllocatingSlot}
+                          onClick={async () => {
+                            if (!billingPatient) return;
+                            setIsAllocatingSlot(true);
+                            try {
+                              const slot = await api.createEveningSlot(billingPatient.id, 'doc-1');
+                              if (slot) {
+                                setEveningSlot(slot);
+                                // Notify patient via WhatsApp
+                                api.pushWhatsAppMessageFromBot(
+                                  billingPatient.phone,
+                                  `🕒 *Dr. Sharma ka Evening Appointment (Aaj):*\n\nAapka evening follow-up slot confirm ho gaya hai:\n*${slot.startTime} – ${slot.endTime}*\nKrupaya 5 minute pehle clinic reception par pahunchen. 🏥`
+                                );
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    message: `Evening slot ${slot.startTime}–${slot.endTime} allocated & notified on WhatsApp!`,
+                                    type: 'success',
+                                    title: 'Evening Slot Confirmed 🕒'
+                                  }
+                                }));
+                              } else {
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: 'No evening slots available today (5 PM–8 PM full). Ask patient to call tomorrow.', type: 'warning', title: 'Slots Full' }
+                                }));
+                              }
+                            } catch (err) {
+                              console.error('[EveningSlot] Allocation error:', err);
+                            } finally {
+                              setIsAllocatingSlot(false);
+                            }
+                          }}
+                          className={`w-full py-2 text-[10px] font-bold rounded-lg uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                            isAllocatingSlot
+                              ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                              : 'bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 active:scale-95 shadow-sm'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[14px]">schedule</span>
+                          {isAllocatingSlot ? 'Allocating…' : 'Allocate Evening Slot for Patient'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

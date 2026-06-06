@@ -377,13 +377,25 @@ export interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
-  status: 'pending_payment' | 'ready_for_consult' | 'completed';
+  status: 'pending_payment' | 'ready_for_consult' | 'completed' | 'scheduled';
+  appointmentTime?: string;  // ISO datetime for same-day evening slot
+  endTime?: string;          // ISO datetime, 30 min after appointmentTime
   createdAt: string;
   isVirtual?: boolean;
   virtualDate?: string;
   virtualTime?: string;
   virtualMeetingUrl?: string;
   virtualTimeAllocated?: boolean;
+}
+
+export interface EveningSlot {
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  startTime: string;   // e.g. "5:30 PM"
+  endTime: string;     // e.g. "6:00 PM"
+  startISO: string;    // ISO datetime
+  endISO: string;      // ISO datetime
 }
 
 export interface Invoice {

@@ -748,7 +748,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     }
   };
 
-  const handleSaveEncounter = () => {
+  const handleSaveEncounter = async () => {
     if (!selectedPatient) return;
 
     const finalMedications = medications.map((m: Omit<MedicationRequest, 'id'>, idx: number) => ({ ...m, id: `med-${idx}` }));
@@ -823,7 +823,22 @@ Keep the tone professional, clinical, objective, and precise.`;
       if (hinglishSummary) {
         api.pushWhatsAppMessageFromBot(selectedPatient.phone, `🤖 *AI Hinglish Summary:*\n\n${hinglishSummary}`);
       }
-      api.pushWhatsAppMessageFromBot(selectedPatient.phone, whatsAppMsg);
+
+      // ── Same-Day Evening Slot Scheduling ──────────────────────────────────
+      let eveningSlotNote = '';
+      try {
+        const existingSlot = api.getAppointmentByPatient(selectedPatient.id);
+        const slot = existingSlot ?? await api.createEveningSlot(selectedPatient.id, 'doc-1');
+        if (slot) {
+          eveningSlotNote = `\n\n🕒 *Evening Follow-up Appointment:*\nDr. Sharma will see you today from *${slot.startTime}* to *${slot.endTime}*.\nPlease arrive 5 minutes early at the clinic reception.`;
+          await api.scheduleAppointment(slot);
+        }
+      } catch (slotErr) {
+        console.warn('[EveningSlot] Slot scheduling failed:', slotErr);
+      }
+
+      const finalMsg = whatsAppMsg + eveningSlotNote;
+      api.pushWhatsAppMessageFromBot(selectedPatient.phone, finalMsg);
     } catch (e) {
       console.error('[WhatsApp Auto-dispatch failed]:', e);
     }

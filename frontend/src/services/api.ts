@@ -36,6 +36,7 @@ import type {
   Invoice,
   Prescription,
   Appointment,
+  EveningSlot,
   LabReport,
   ReagentStock
 } from '../types';
@@ -1619,7 +1620,126 @@ class MediflowApiService {
     StaffService.setActiveStaffId(staffId);
     this.notify();
   }
+
+  // ── Evening Scheduling Methods ───────────────────────────────────────────────
+
+  /**
+   * Computes the next available 30-minute evening slot (17:00–20:00 IST)
+   * for a patient/doctor pair, persists it locally and to Supabase.
+   */
+  async createEveningSlot(patientId: string, doctorId: string): Promise<EveningSlot | null> {
+    try {
+      // Evening window: 17:00 – 20:00 in 30-minute increments
+      const SLOT_DURATION_MIN = 30;
+      const EVENING_START_HOUR = 17;
+      const EVENING_END_HOUR = 20;
+
+      const now = new Date();
+      const todayDateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Load existing scheduled slots for today
+      const existing: EveningSlot[] = this.load<EveningSlot[]>('evening_slots', []).filter(s => {
+        return s.startISO.startsWith(todayDateStr);
+      });
+      const bookedMinutes = existing.map(s => new Date(s.startISO).getHours() * 60 + new Date(s.startISO).getMinutes());
+
+      // Find first free slot
+      let slotStart: Date | null = null;
+      for (let hr = EVENING_START_HOUR; hr < EVENING_END_HOUR; hr++) {
+        for (let min = 0; min < 60; min += SLOT_DURATION_MIN) {
+          const candidate = hr * 60 + min;
+          if (!bookedMinutes.includes(candidate)) {
+            slotStart = new Date(now);
+            slotStart.setHours(hr, min, 0, 0);
+            break;
+          }
+        }
+        if (slotStart) break;
+      }
+
+      if (!slotStart) {
+        console.warn('[EveningSlot] No free slots available today between 5 PM – 8 PM.');
+        return null;
+      }
+
+      const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MIN * 60_000);
+
+      const formatTime12h = (d: Date) =>
+        d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      const slot: EveningSlot = {
+        appointmentId: crypto.randomUUID(),
+        patientId,
+        doctorId,
+        startTime: formatTime12h(slotStart),
+        endTime: formatTime12h(slotEnd),
+        startISO: slotStart.toISOString(),
+        endISO: slotEnd.toISOString()
+      };
+
+      // Persist locally
+      const allSlots = this.load<EveningSlot[]>('evening_slots', []);
+      allSlots.push(slot);
+      this.save('evening_slots', allSlots);
+
+      // Persist to Supabase appointments table (best-effort)
+      try {
+        await supabase.from('appointments').upsert({
+          id: slot.appointmentId,
+          patient_id: patientId,
+          doctor_id: doctorId === 'doc-1' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' : doctorId,
+          status: 'scheduled',
+          appointment_time: slot.startISO,
+          end_time: slot.endISO,
+          created_at: new Date().toISOString()
+        });
+      } catch (dbErr) {
+        console.warn('[EveningSlot] Supabase upsert failed (offline?), slot saved locally:', dbErr);
+      }
+
+      this.notify();
+      return slot;
+    } catch (err) {
+      console.error('[EveningSlot] createEveningSlot error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Saves a pre-computed EveningSlot (e.g., allocated by compounder) to local store + Supabase.
+   */
+  async scheduleAppointment(slot: EveningSlot): Promise<void> {
+    const allSlots = this.load<EveningSlot[]>('evening_slots', []);
+    const idx = allSlots.findIndex(s => s.appointmentId === slot.appointmentId);
+    if (idx >= 0) allSlots[idx] = slot; else allSlots.push(slot);
+    this.save('evening_slots', allSlots);
+
+    try {
+      await supabase.from('appointments').upsert({
+        id: slot.appointmentId,
+        patient_id: slot.patientId,
+        doctor_id: slot.doctorId === 'doc-1' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' : slot.doctorId,
+        status: 'scheduled',
+        appointment_time: slot.startISO,
+        end_time: slot.endISO
+      });
+    } catch (dbErr) {
+      console.warn('[EveningSlot] scheduleAppointment Supabase upsert failed:', dbErr);
+    }
+
+    this.notify();
+  }
+
+  /**
+   * Returns today's evening slot for a patient, or null if none exists.
+   */
+  getAppointmentByPatient(patientId: string): EveningSlot | null {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const allSlots = this.load<EveningSlot[]>('evening_slots', []);
+    return allSlots.find(s => s.patientId === patientId && s.startISO.startsWith(todayStr)) ?? null;
+  }
 }
+
 
 export const api = new MediflowApiService();
 if (typeof window !== 'undefined') {
