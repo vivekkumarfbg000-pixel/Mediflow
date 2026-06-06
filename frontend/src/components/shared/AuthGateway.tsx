@@ -12,6 +12,7 @@ interface AuthGatewayProps {
 
 export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
+  const [joinSubMode, setJoinSubMode] = useState<'signin' | 'register'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -147,20 +148,46 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       if (error) throw error;
 
-      if (data?.user) {
-        const { data: profile, error: profileErr } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profileErr) throw profileErr;
-        
-        onAuthSuccess(data.session, profile);
+      // ✅ FIX: Do NOT call onAuthSuccess here.
+      // App.tsx's onAuthStateChange listener handles profile loading and session setup
+      // automatically after signInWithPassword succeeds. Calling onAuthSuccess here
+      // causes a double-load race condition that hangs the spinner.
+      // setLoading will be cleared by onAuthStateChange via profile heal flow in App.tsx.
+      if (!data?.session) {
+        throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
+      // Auth state change will handle the rest - just leave loading as is briefly
+      // setLoading(false) is called in finally block below
     } catch (err: any) {
       console.error('[Mediflow Auth] Login failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Partner sign-in for existing registered partners
+  const handlePartnerSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+
+      if (!data?.session) {
+        throw new Error('Sign in succeeded but no session was returned. Please try again.');
+      }
+      // App.tsx onAuthStateChange handles profile loading automatically
+    } catch (err: any) {
+      console.error('[Mediflow Auth] Partner login failed:', err);
+      setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -613,7 +640,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             </button>
             <button
               type="button"
-              onClick={() => { setActiveTab('join'); setErrorMsg(null); }}
+              onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }}
               className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
             >
               Partner Join
@@ -650,6 +677,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     placeholder="name@mediflow.com"
                     className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
                     required
+                    autoComplete="email"
                   />
                 </div>
               </div>
@@ -667,6 +695,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     placeholder="••••••••••••"
                     className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
                     required
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
@@ -685,6 +714,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Workspace <ArrowRight className="h-4 w-4" /></>}
               </button>
+
+              <p className="text-center text-[10px] text-clinical-500 font-medium">
+                Are you a partner (pharmacist/lab)? Use the{' '}
+                <button type="button" onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                  Partner Sign In
+                </button>{' '}tab.
+              </p>
             </form>
           )}
 
@@ -888,163 +924,247 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             </form>
           )}
 
-          {/* PARTNER JOIN FLOW */}
+          {/* PARTNER JOIN / SIGN IN FLOW */}
           {activeTab === 'join' && (
-            <form onSubmit={handlePartnerJoin} className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1">
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Clinic Network Code (MF-XXXX)
-                </label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-500" />
-                  <input
-                    type="text"
-                    value={clinicCode}
-                    onChange={(e) => setClinicCode(e.target.value.toUpperCase())}
-                    placeholder="MF-A1B2"
-                    maxLength={10}
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 pl-10 pr-4 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-mono font-bold"
-                    required
-                  />
-                  {validatingCode && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-400 animate-spin" />}
-                </div>
-
-                {validatedClinicName ? (
-                  <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pl-1 mt-1">
-                    <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-clinical-100">{validatedClinicName}</strong>
-                  </span>
-                ) : clinicCode.length >= 7 && !validatingCode ? (
-                  <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1 pl-1 mt-1">
-                    Clinic code not found. Please double check.
-                  </span>
-                ) : null}
+            <div className="space-y-4">
+              {/* Sub-mode Toggle: Sign In vs Register */}
+              <div className="flex gap-1 p-1 bg-clinical-800/50 rounded-xl border border-clinical-700/50">
+                <button
+                  type="button"
+                  onClick={() => { setJoinSubMode('signin'); setErrorMsg(null); }}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  Partner Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setJoinSubMode('register'); setErrorMsg(null); }}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  New Registration
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Partner Entity Type
-                  </label>
-                  <select
-                    value={partnerType}
-                    onChange={(e) => setPartnerType(e.target.value as any)}
-                    className="w-full bg-clinical-900/90 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans"
+              {/* PARTNER SIGN IN */}
+              {joinSubMode === 'signin' && (
+                <form onSubmit={handlePartnerSignIn} className="space-y-4">
+                  <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-clinical-300">
+                    <span className="font-bold text-cyan-400">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Partner Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="pharmacist@yourshop.com"
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                        required
+                        autoComplete="email"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Security Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                        required
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-500 hover:text-white transition-all cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
                   >
-                    <option value="pharmacy" className="text-clinical-100 bg-clinical-800">Pharmacy POS</option>
-                    <option value="lab" className="text-clinical-100 bg-clinical-800">Pathology Lab</option>
-                    <option value="compounder" className="text-clinical-100 bg-clinical-800">Clinic Compounder</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Business Name
-                  </label>
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder={partnerType === 'pharmacy' ? 'Kankarbagh Smart Pharmacy' : 'Patna Pathology Lab'}
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-              </div>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Partner Workspace <ArrowRight className="h-4 w-4" /></>}
+                  </button>
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Contact Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="9999000003"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Physical Address
-                  </label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Opposite Clinic main gate, Patna"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Partner Login Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="pharmacist@mediflow.com"
-                  className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Security Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-              </div>
-
-              {password && (
-                <div className="space-y-1.5 p-2.5 bg-clinical-900/30 rounded-xl border border-clinical-800/40">
-                  <div className="flex justify-between text-[9px] font-bold">
-                    <span className="text-clinical-400">Password Strength:</span>
-                    <span className={pwdStrength.score === 1 ? 'text-rose-400' : pwdStrength.score === 2 ? 'text-amber-400' : 'text-emerald-400'}>
-                      {pwdStrength.label}
-                    </span>
-                  </div>
-                  <div className="w-full h-1 bg-clinical-800 rounded-full overflow-hidden">
-                    <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
-                  </div>
-                </div>
+                  <p className="text-center text-[10px] text-clinical-500 font-medium">
+                    First time?{' '}
+                    <button type="button" onClick={() => { setJoinSubMode('register'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                      Register your pharmacy or lab
+                    </button>
+                  </p>
+                </form>
               )}
 
-              <button
-                type="submit"
-                disabled={loading || !validatedClinicName}
-                className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Submit Join Request <ArrowRight className="h-4 w-4" /></>}
-              </button>
-            </form>
+              {/* PARTNER REGISTRATION */}
+              {joinSubMode === 'register' && (
+                <form onSubmit={handlePartnerJoin} className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Clinic Network Code (MF-XXXX)
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-500" />
+                      <input
+                        type="text"
+                        value={clinicCode}
+                        onChange={(e) => setClinicCode(e.target.value.toUpperCase())}
+                        placeholder="MF-A1B2"
+                        maxLength={10}
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 pl-10 pr-4 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-mono font-bold"
+                        required
+                      />
+                      {validatingCode && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-400 animate-spin" />}
+                    </div>
+
+                    {validatedClinicName ? (
+                      <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pl-1 mt-1">
+                        <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-clinical-100">{validatedClinicName}</strong>
+                      </span>
+                    ) : clinicCode.length >= 7 && !validatingCode ? (
+                      <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1 pl-1 mt-1">
+                        Clinic code not found. Please double check.
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Partner Entity Type
+                      </label>
+                      <select
+                        value={partnerType}
+                        onChange={(e) => setPartnerType(e.target.value as any)}
+                        className="w-full bg-clinical-900/90 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans"
+                      >
+                        <option value="pharmacy" className="text-clinical-100 bg-clinical-800">Pharmacy POS</option>
+                        <option value="lab" className="text-clinical-100 bg-clinical-800">Pathology Lab</option>
+                        <option value="compounder" className="text-clinical-100 bg-clinical-800">Clinic Compounder</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Business Name
+                      </label>
+                      <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder={partnerType === 'pharmacy' ? 'Kankarbagh Smart Pharmacy' : 'Patna Pathology Lab'}
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Contact Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="9999000003"
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Physical Address
+                      </label>
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Opposite Clinic main gate, Patna"
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Partner Login Email
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="pharmacist@mediflow.com"
+                      className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Security Password
+                      </label>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Confirm Password
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || !validatedClinicName}
+                    className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Submit Join Request <ArrowRight className="h-4 w-4" /></>}
+                  </button>
+
+                  <p className="text-center text-[10px] text-clinical-500 font-medium">
+                    Already registered?{' '}
+                    <button type="button" onClick={() => { setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                      Sign in here
+                    </button>
+                  </p>
+                </form>
+              )}
+            </div>
           )}
+
 
           {(() => {
             const isDemoMode = 

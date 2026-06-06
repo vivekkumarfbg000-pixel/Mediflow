@@ -601,6 +601,10 @@ export default function App() {
 
   const handleAuthSuccess = async (session: any, profile: any) => {
     const finalProfile = await checkAndCompleteOnboarding(session, profile);
+    if (!finalProfile) {
+      console.error('[Mediflow Auth] handleAuthSuccess: profile is null after onboarding check. Skipping state update.');
+      return;
+    }
     setSession(session);
     setActiveProfile(finalProfile);
     
@@ -622,6 +626,7 @@ export default function App() {
       }
     }));
   };
+
 
   const handleSignOut = async () => {
     try {
