@@ -331,6 +331,7 @@ export default function App() {
   // Loading watchdog: If session exists but we are stuck loading for more than 4 seconds, trigger self-healing
   useEffect(() => {
     if (!session) return;
+    if (typeof window !== 'undefined' && (window as any).__mediflow_registering) return;
     
     const timer = setTimeout(() => {
       const isStillLoading = isLoadingSession || isOnboarding || !activeProfile;
@@ -375,6 +376,11 @@ export default function App() {
   const checkAndCompleteOnboarding = async (currentSession: any, currentProfile: any): Promise<any> => {
     if (!currentSession?.user || !currentProfile) return currentProfile;
     
+    if (typeof window !== 'undefined' && (window as any).__mediflow_registering) {
+      console.log('[Mediflow Onboarding] Registration in progress inside AuthGateway. Deferring automatic onboarding.');
+      return currentProfile;
+    }
+    
     const metadata = currentSession.user.user_metadata;
     if (!currentProfile.entity_id && metadata?.pending_registration) {
       setIsOnboarding(true);
@@ -392,7 +398,8 @@ export default function App() {
           });
           
           if (rpcError) throw rpcError;
-          console.log('[Mediflow Onboarding] Clinic registered successfully. Code:', rpcData?.clinic_code);
+          const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
+          console.log('[Mediflow Onboarding] Clinic registered successfully. Code:', generatedCode);
         } else {
           // Partner (pharmacist, lab_technician, compounder)
           const { error: rpcError } = await supabase.rpc('join_clinic_network', {
@@ -535,6 +542,10 @@ export default function App() {
         setActiveProfile(null);
         setIsLoadingSession(false);
       } else {
+        if (typeof window !== 'undefined' && (window as any).__mediflow_registering) {
+          console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
+          return;
+        }
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
           if (finalProfile) {

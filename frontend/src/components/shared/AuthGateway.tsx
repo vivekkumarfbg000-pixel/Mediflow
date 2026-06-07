@@ -134,6 +134,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     return () => clearTimeout(delayDebounce);
   }, [clinicCode, activeTab]);
 
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+      }
+    };
+  }, []);
+
   const signInWithRealProfile = async (allowedRoles?: string[]) => {
     if (!email || !password) return;
     setLoading(true);
@@ -263,6 +271,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
     setLoading(true);
     setErrorMsg(null);
+    if (typeof window !== 'undefined') {
+      (window as any).__mediflow_registering = true;
+    }
 
     try {
       // 1. Perform auth signUp
@@ -310,7 +321,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       });
 
       // 4. Show registration success screen with generated clinic code!
-      setRegisteredClinicCode(rpcData.clinic_code);
+      const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
+      setRegisteredClinicCode(generatedCode);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -321,6 +333,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       }));
 
     } catch (err: any) {
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+      }
       console.error('[Mediflow Auth] Clinic registration failed:', err);
       setErrorMsg(err.message || 'Clinic registration failed.');
     } finally {
@@ -347,6 +362,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
     setLoading(true);
     setErrorMsg(null);
+    if (typeof window !== 'undefined') {
+      (window as any).__mediflow_registering = true;
+    }
 
     try {
       // 1. Perform auth signUp
@@ -416,6 +434,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       }));
 
     } catch (err: any) {
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+      }
       console.error('[Mediflow Auth] Partner join failed:', err);
       setErrorMsg(err.message || 'Partner registration failed.');
     } finally {
@@ -587,6 +608,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
           <button
             type="button"
             onClick={async () => {
+              if (typeof window !== 'undefined') {
+                (window as any).__mediflow_registering = false;
+              }
               const { data: { session } } = await supabase.auth.getSession();
               if (session?.user) {
                 const { data: profile } = await supabase
