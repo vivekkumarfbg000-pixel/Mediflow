@@ -225,7 +225,7 @@ export interface Pod {
 export interface Entity {
   id: string;
   podId: string;
-  entityType: 'clinic' | 'lab' | 'pharmacy';
+  entityType: 'clinic' | 'lab' | 'pharmacy' | 'compounder';
   name: string;
   address?: string;
   phone?: string;

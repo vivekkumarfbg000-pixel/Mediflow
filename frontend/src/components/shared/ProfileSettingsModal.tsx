@@ -46,7 +46,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
-  const [editType, setEditType] = useState<'clinic' | 'lab' | 'pharmacy'>('clinic');
+  const [editType, setEditType] = useState<'clinic' | 'lab' | 'pharmacy' | 'compounder'>('clinic');
   const [editStatus, setEditStatus] = useState<'pending' | 'approved' | 'rejected' | 'revoked'>('pending');
   const [isSavingPartner, setIsSavingPartner] = useState(false);
   
@@ -584,6 +584,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
                                   <option value="clinic">Clinic / Doctor</option>
                                   <option value="lab">Diagnostics Lab</option>
                                   <option value="pharmacy">Pharmacy POS</option>
+                                  <option value="compounder">Clinic Compounder</option>
                                 </select>
                               </div>
                             </div>

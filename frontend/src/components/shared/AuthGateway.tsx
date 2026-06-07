@@ -134,6 +134,57 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     return () => clearTimeout(delayDebounce);
   }, [clinicCode, activeTab]);
 
+  const signInWithRealProfile = async (allowedRoles?: string[]) => {
+    if (!email || !password) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+
+      if (!data?.session || !data?.user) {
+        throw new Error('Sign in succeeded but no session was returned. Please try again.');
+      }
+
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileErr || !profile) {
+        throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
+      }
+
+      if (allowedRoles && !allowedRoles.includes(profile.role)) {
+        await supabase.auth.signOut();
+        throw new Error('This account is not registered as a partner. Please use the main Sign In tab.');
+      }
+
+      await onAuthSuccess(data.session, profile);
+    } catch (err: any) {
+      console.error('[Mediflow Auth] Real login failed:', err);
+      setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRealEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await signInWithRealProfile();
+  };
+
+  const handleRealPartnerSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await signInWithRealProfile(['pharmacist', 'lab_technician', 'compounder']);
+  };
+
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -611,44 +662,44 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             <h3 className="text-xl font-extrabold text-clinical-50">
               {activeTab === 'signin' && 'Sign In to Mediflow'}
               {activeTab === 'register' && 'Register Your Clinic'}
-              {activeTab === 'join' && 'Join Existing Clinic Network'}
+              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Partner Sign In' : 'Join Existing Clinic Network')}
               {activeTab === 'ops' && 'SaaS Platform Operations'}
             </h3>
             <p className="text-xs text-clinical-400 mt-1 font-semibold">
               {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
               {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
-              {activeTab === 'join' && 'Pharmacies and laboratories can request to link with a clinic.'}
+              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Sign in to your partner pharmacy/laboratory workspace.' : 'Pharmacies and laboratories can request to link with a clinic.')}
               {activeTab === 'ops' && 'Secure authentication for Mediflow systems administration team.'}
             </p>
           </div>
 
           {/* Quad Sliding Tab Selector */}
-          <div className="flex bg-clinical-900/50 p-1 rounded-xl border border-clinical-800/80">
+          <div className="relative z-20 pointer-events-auto grid grid-cols-2 sm:grid-cols-4 gap-1 bg-clinical-900/50 p-1 rounded-xl border border-clinical-800/80">
             <button
               type="button"
               onClick={() => { setActiveTab('signin'); setErrorMsg(null); }}
-              className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
             >
               Sign In
             </button>
             <button
               type="button"
               onClick={() => { setActiveTab('register'); setErrorMsg(null); }}
-              className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
             >
               Doctor Signup
             </button>
             <button
               type="button"
               onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }}
-              className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
             >
-              Partner Join
+              Partner Sign In
             </button>
             <button
               type="button"
               onClick={() => { setActiveTab('ops'); setErrorMsg(null); }}
-              className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${activeTab === 'ops' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
             >
               SaaS Ops
             </button>
@@ -1168,14 +1219,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
           {(() => {
             const isDemoMode = 
-              import.meta.env.DEV || 
               import.meta.env.VITE_USE_MOCK === 'true' || 
               (typeof window !== 'undefined' && (
                 window.location.search.includes('mock=true') || 
-                window.location.search.includes('demo=true') ||
-                window.location.hostname === 'localhost' ||
-                window.location.hostname === '127.0.0.1' ||
-                window.location.hostname.endsWith('.gitpod.io')
+                window.location.search.includes('demo=true')
               ));
 
             if (activeTab !== 'signin' || !isDemoMode) return null;
