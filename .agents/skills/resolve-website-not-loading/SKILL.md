@@ -15,6 +15,8 @@ This skill teaches the Mediflow team how to **systematically diagnose and fix** 
 |---------|---------|
 | Blank white screen, no content | [Section 1 — React Crash](#1-blank-white-screen--react-crash) |
 | Login page shows but dashboard doesn't load | [Section 2 — Auth / Profile Issue](#2-login-shows-but-dashboard-blank) |
+| Login button hangs on spinner (stuck) | [Section 2A — Login Spinner Stuck](#2a--login-spinner-stuck--hanging-redirect-double-load-race) |
+| Partner sign-in/sign-up errors or blocked | [Section 2B — Partner Sign-In/Up](#2b--partner-sign-in-and-sign-up-issues) |
 | App loads but WhatsApp/feature not working | [Section 3 — Feature Not Responding](#3-specific-feature-not-working) |
 | Dev server won't start | [Section 4 — Dev Server Failure](#4-dev-server-wont-start) |
 | App works locally but not on Vercel | [Section 5 — Deployment Issues](#5-vercel-deployment-issues) |
@@ -211,8 +213,44 @@ WHERE tablename = 'profiles';
 ❌ "JWT expired"
    → User's session token expired. They need to log out and log back in.
    → The auto-healer session renewal should handle this. If not, manually run:
-      supabase.auth.refreshSession()
+       supabase.auth.refreshSession()
 ```
+
+---
+
+### 2A — Login Spinner Stuck / Hanging Redirect (Double-Load Race)
+
+**Symptom:** You enter your email and password, click "Enter Workspace", the button displays a spinner (`Loader2`), but it hangs indefinitely and never redirects to the dashboard. No console errors are displayed.
+
+**Why it happens:**
+This is caused by a double-load race condition in the React state. The `signInWithPassword` API triggers the global `onAuthStateChange` listener in `App.tsx` immediately upon success, which kicks off profile fetching/healing. If the login form handler also manually calls `onAuthSuccess(session, profile)` in parallel, both flows attempt to set the `session` and `activeProfile` states in `App.tsx` concurrently. This causes a deadlock/race that freezes the UI loading state.
+
+**How to fix:**
+1. Do **NOT** invoke the `onAuthSuccess` callback from the submit handler of your login forms.
+2. Rely entirely on `onAuthStateChange` to handle session updates and dashboard redirects.
+3. Replace the form submission handlers in the UI with non-blocking equivalents (e.g. use `handleEmailSignIn` instead of `handleRealEmailSignIn` inside `AuthGateway.tsx`).
+
+---
+
+### 2B — Partner Sign-In and Sign-Up Issues
+
+**Symptom:** Pharmacist or Lab Technician partners cannot log in (credentials are correct, but they get stuck or receive "Not registered as partner" errors), or the "Partner Sign In" tab is not responsive or not intuitive.
+
+**Why it happens:**
+1. **Wrong tab/labels:** The main authentication tab was historically labeled "Partner Join", which led existing partners to believe they could only register, not sign in.
+2. **Incorrect form submit handlers:** The partner sign-in form was using `handleRealPartnerSignIn` (which called `signInWithRealProfile` and deadlocked on the spinner due to `onAuthSuccess` race conditions).
+3. **Missing Partner signup fields:** When partners register, the clinic code (e.g. `MF-A1B2`) must be validated against the `pods` table. If the database schema or RPC functions are out of sync, registration will fail.
+
+**How to fix:**
+1. Ensure the tab button in the header is labeled **"Partner Sign In"** rather than "Partner Join".
+2. Ensure the partner login form uses the `handlePartnerSignIn` submit handler (which authenticates without manually triggering the `onAuthSuccess` callback).
+3. If registration fails:
+   - Check if the `join_clinic_network` RPC exists in Postgres.
+   - Verify that the entered Clinic Code matches the `clinic_code` in the `pods` table:
+     ```sql
+     SELECT id, name FROM public.pods WHERE clinic_code = 'MF-A1B2';
+     ```
+   - Make sure that the pending partner is approved by the doctor in the settings tab (Ecosystem Partners), which moves their entity status from `'pending'` to `'approved'` and triggers an instant dashboard loading transition via Realtime.
 
 ---
 
