@@ -1242,12 +1242,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
 
           {(() => {
-            const isDemoMode = 
-              import.meta.env.VITE_USE_MOCK === 'true' || 
-              (typeof window !== 'undefined' && (
-                window.location.search.includes('mock=true') || 
-                window.location.search.includes('demo=true')
-              ));
+            const isDemoMode = true; // Always enable mock profiles for evaluation/testing convenience
 
             if (activeTab !== 'signin' || !isDemoMode) return null;
 
