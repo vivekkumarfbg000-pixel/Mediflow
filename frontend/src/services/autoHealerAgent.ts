@@ -818,10 +818,32 @@ export class ProactiveHealthMonitor {
   private static async checkSupabase(): Promise<ServiceHealth> {
     const start = Date.now();
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // If there is no active session, we bypass the authenticated pods query.
+        // Successful retrieval of session details confirms Supabase Auth is reachable.
+        return { 
+          service: 'Supabase Database', 
+          status: 'healthy', 
+          latencyMs: Date.now() - start, 
+          lastChecked: new Date().toISOString(), 
+          circuitState: supabaseCircuit.getState() 
+        };
+      }
+
       const { error } = await supabase.from('pods').select('id').limit(1);
       const latencyMs = Date.now() - start;
-      const status = error ? 'degraded' : latencyMs > 3000 ? 'degraded' : 'healthy';
-      if (status === 'degraded') {
+      
+      // Only flag connection failure if it is a connectivity/fetch/network error.
+      // Auth errors like missing/invalid JWT or RLS blocks are not server outages.
+      const isNetworkError = error && (
+        error.message?.includes('fetch') || 
+        error.message?.includes('network') ||
+        error.message?.includes('Failed to fetch')
+      );
+      
+      const status = isNetworkError ? 'down' : error ? 'degraded' : latencyMs > 3000 ? 'degraded' : 'healthy';
+      if (status === 'down') {
         window.dispatchEvent(new CustomEvent('mediflow-realtime-disconnect', {}));
       }
       return { service: 'Supabase Database', status, latencyMs, lastChecked: new Date().toISOString(), circuitState: supabaseCircuit.getState() };

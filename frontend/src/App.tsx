@@ -334,7 +334,7 @@ export default function App() {
     if (typeof window !== 'undefined' && (window as any).__mediflow_registering) return;
     
     const timer = setTimeout(() => {
-      const isStillLoading = isLoadingSession || isOnboarding || !activeProfile;
+      const isStillLoading = isLoadingSession || isOnboarding;
       if (isStillLoading) {
         console.warn('[Loading Watchdog] Stuck loading state detected for >4 seconds. Triggering State Healing Engine...');
         StateHealingEngine.handleException(new Error('LoadingWatchdogException: Dashboard loading state hung or profiles query blocked'))
@@ -352,7 +352,7 @@ export default function App() {
     }, 4000);
 
     return () => clearTimeout(timer);
-  }, [session, isLoadingSession, isOnboarding, activeProfile]);
+  }, [session, isLoadingSession, isOnboarding]);
 
   // Role Watchdog: Detect profile role discrepancies against auth metadata role and align them
   useEffect(() => {
