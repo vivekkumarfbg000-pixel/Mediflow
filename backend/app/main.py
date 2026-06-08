@@ -426,3 +426,10 @@ async def generate_consult_room(req: ConsultRoomRequest):
 async def health_check():
     return JSONResponse(content={"status": "ok"})
 
+# Root check to handle UptimeRobot HEAD/GET requests
+@app.get("/")
+@app.head("/")
+async def root_check():
+    return JSONResponse(content={"status": "ok", "message": "Mediflow Backend is active"})
+
+

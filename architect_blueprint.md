@@ -5,8 +5,9 @@
 *   **TARGET_FILES_TO_EDIT:** 
     *   `frontend/src/components/shared/LandingPage.tsx` -> [NEW] Implement the new premium public landing website.
     *   `frontend/src/App.tsx` -> [MODIFY] Mount the `LandingPage` component for unauthenticated sessions.
+    *   `backend/app/main.py` -> [MODIFY] Add root route `/` handler to handle HEAD/GET requests and return 200 OK.
 *   **FORBIDDEN_FILES (NO-FLY ZONES):** 
-    *   All files under `supabase/migrations/` and `backend/` must remain untouched to prevent database schema regressions.
+    *   All files under `supabase/migrations/` must remain untouched to prevent database schema regressions.
     *   All other files under `frontend/src/` except `App.tsx` and `LandingPage.tsx` must remain untouched.
 
 ## 2. DATA CONTRACT & TYPE INTEGRITY
@@ -24,4 +25,5 @@
 *   The system is considered functional if and only if:
     1. **Type Safety & Build Gates**: Frontend code compiles with zero errors using `npm run build` or `npx tsc --noEmit` inside the frontend directory.
     2. **Telemetry & Integrity Scans**: Database tests `node scratch/test_null_entity_login.js` and `node scratch/test_partner_onboarding_and_approval.js` run and complete successfully.
-    3. **Functional Correctness**: Headless smoke E2E tests run successfully (`node Teach-team-main/scripts/verify_ui_e2e.js`) without console exceptions, verifying that the new landing page compiles and mounts.
+    3. **Functional Correctness**: Headless smoke E2E tests run successfully (`node Teach-team-main/scripts/verify_ui_e2e.js`) without console exceptions.
+    4. **Backend Route Verification**: The backend root URL (`/`) responds to `GET` and `HEAD` requests with `200 OK` and structured status JSON.
