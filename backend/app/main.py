@@ -423,6 +423,7 @@ async def generate_consult_room(req: ConsultRoomRequest):
 
 # Health check
 @app.get("/health")
+@app.head("/health")
 async def health_check():
     return JSONResponse(content={"status": "ok"})
 
