@@ -738,7 +738,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
           {/* SIGN IN FLOW */}
           {activeTab === 'signin' && (
-            <form onSubmit={handleEmailSignIn} className="space-y-4">
+            <form onSubmit={handleRealEmailSignIn} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
                   Professional Email Address
@@ -1022,7 +1022,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
               {/* PARTNER SIGN IN */}
               {joinSubMode === 'signin' && (
-                <form onSubmit={handlePartnerSignIn} className="space-y-4">
+                <form onSubmit={handleRealPartnerSignIn} className="space-y-4">
                   <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-clinical-300">
                     <span className="font-bold text-cyan-400">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
                   </div>
