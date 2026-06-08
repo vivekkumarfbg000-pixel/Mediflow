@@ -12,7 +12,7 @@ const PharmacyDashboard = lazy(() => import('./components/pharmacy/PharmacyDashb
 const BillingDashboard = lazy(() => import('./components/billing/BillingDashboard').then(m => ({ default: m.BillingDashboard })));
 const SaaSAdminPanel = lazy(() => import('./components/admin/SaaSAdminPanel').then(m => ({ default: m.SaaSAdminPanel })));
 
-import { AuthGateway } from './components/shared/AuthGateway';
+import { LandingPage } from './components/shared/LandingPage';
 import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
@@ -135,7 +135,7 @@ function AppContent({
   if (!session || !activeProfile) {
     return (
       <>
-        <AuthGateway onAuthSuccess={handleAuthSuccess} />
+        <LandingPage onAuthSuccess={handleAuthSuccess} />
         {/* Render fallback toast overlay for auth portal status info */}
         <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
           {toasts.map(t => (
