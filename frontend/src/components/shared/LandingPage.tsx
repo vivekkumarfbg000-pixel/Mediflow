@@ -11,7 +11,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   return (
-    <div className="min-h-screen bg-clinical-900 text-clinical-100 font-sans relative overflow-x-hidden">
+    <div className="dark min-h-screen bg-clinical-900 text-clinical-100 font-sans relative overflow-x-hidden">
       
       {/* Background Glow Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-cyan-500/10 blur-[150px] pointer-events-none animate-pulse-subtle"></div>

@@ -557,7 +557,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   // If a clinic was successfully registered, render the celebration screen!
   if (registeredClinicCode) {
     return (
-      <div className="min-h-screen bg-clinical-900 text-clinical-100 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="dark min-h-screen bg-clinical-900 text-clinical-100 flex items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
 
@@ -631,7 +631,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   }
 
   return (
-    <div className="min-h-screen bg-clinical-900 text-clinical-100 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="dark min-h-screen bg-clinical-900 text-clinical-100 flex items-center justify-center p-4 relative overflow-hidden">
       
       {/* Background Neon Glow Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
@@ -738,7 +738,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
           {/* SIGN IN FLOW */}
           {activeTab === 'signin' && (
-            <form onSubmit={handleRealEmailSignIn} className="space-y-4">
+            <form onSubmit={handleEmailSignIn} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
                   Professional Email Address
@@ -801,7 +801,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
           {/* SAAS OPERATIONS LOGIN FLOW */}
           {activeTab === 'ops' && (
-            <form onSubmit={handleOpsSignIn} className="space-y-4">
+            <form onSubmit={handleEmailSignIn} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
                   Operations Email Address
@@ -1022,7 +1022,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
               {/* PARTNER SIGN IN */}
               {joinSubMode === 'signin' && (
-                <form onSubmit={handleRealPartnerSignIn} className="space-y-4">
+                <form onSubmit={handleEmailSignIn} className="space-y-4">
                   <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-clinical-300">
                     <span className="font-bold text-cyan-400">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
                   </div>
