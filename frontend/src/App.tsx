@@ -535,7 +535,7 @@ export default function App() {
     });
 
     // 2. Setup auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!active) return;
       setSession(session);
       if (!session) {
@@ -546,6 +546,7 @@ export default function App() {
           console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
           return;
         }
+        // For SIGNED_IN and other events (TOKEN_REFRESHED, etc.), load profile
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
           if (finalProfile) {

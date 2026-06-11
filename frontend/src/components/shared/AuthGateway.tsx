@@ -159,6 +159,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
 
+      // Verify profile exists and role matches (but don't call onAuthSuccess - let onAuthStateChange handle it)
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
@@ -171,10 +172,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       if (allowedRoles && !allowedRoles.includes(profile.role)) {
         await supabase.auth.signOut();
-        throw new Error('This account is not registered as a partner. Please use the main Sign In tab.');
+        throw new Error('Access Denied: This account is not registered with the required role for this tab.');
       }
 
-      await onAuthSuccess(data.session, profile);
+      // Profile verified successfully - onAuthStateChange will handle the rest
     } catch (err: any) {
       console.error('[Mediflow Auth] Real login failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
@@ -207,16 +208,20 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       if (error) throw error;
 
-      // ✅ FIX: Do NOT call onAuthSuccess here.
-      // App.tsx's onAuthStateChange listener handles profile loading and session setup
-      // automatically after signInWithPassword succeeds. Calling onAuthSuccess here
-      // causes a double-load race condition that hangs the spinner.
-      // setLoading will be cleared by onAuthStateChange via profile heal flow in App.tsx.
       if (!data?.session) {
         throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
-      // Auth state change will handle the rest - just leave loading as is briefly
-      // setLoading(false) is called in finally block below
+      // onAuthStateChange listener in App.tsx handles profile loading and session setup
+      // Just verify profile exists to give immediate feedback on bad credentials
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileErr || !profile) {
+        throw new Error('Authenticated, but your Mediflow profile could not be loaded.');
+      }
     } catch (err: any) {
       console.error('[Mediflow Auth] Login failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
@@ -243,7 +248,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       if (!data?.session) {
         throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
-      // App.tsx onAuthStateChange handles profile loading automatically
+      // Verify profile exists and has partner role
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileErr || !profile) {
+        throw new Error('Authenticated, but your Mediflow profile could not be loaded.');
+      }
+
+      if (!['pharmacist', 'lab_technician', 'compounder'].includes(profile.role)) {
+        await supabase.auth.signOut();
+        throw new Error('Access Denied: This account is not registered as a partner.');
+      }
     } catch (err: any) {
       console.error('[Mediflow Auth] Partner login failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
@@ -457,22 +476,25 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       });
 
       if (error) throw error;
+      if (!data?.session || !data?.user) {
+        throw new Error('Sign in succeeded but no session was returned. Please try again.');
+      }
 
-      if (data?.user) {
-        const { data: profile, error: profileErr } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
 
-        if (profileErr) throw profileErr;
-        
-        if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
-          onAuthSuccess(data.session, profile);
-        } else {
-          await supabase.auth.signOut();
-          throw new Error('Access Denied: Restricted to Mediflow Operations Team.');
-        }
+      if (profileErr || !profile) {
+        throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
+      }
+      
+      if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
+        // Profile verified - onAuthStateChange will handle the rest
+      } else {
+        await supabase.auth.signOut();
+        throw new Error('Access Denied: Restricted to Mediflow Operations Team.');
       }
     } catch (err: any) {
       console.error('[Mediflow Auth] Ops login failed:', err);
@@ -738,7 +760,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
           {/* SIGN IN FLOW */}
           {activeTab === 'signin' && (
-            <form onSubmit={handleEmailSignIn} className="space-y-4">
+            <form onSubmit={handleRealEmailSignIn} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
                   Professional Email Address
@@ -801,7 +823,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
           {/* SAAS OPERATIONS LOGIN FLOW */}
           {activeTab === 'ops' && (
-            <form onSubmit={handleEmailSignIn} className="space-y-4">
+            <form onSubmit={handleOpsSignIn} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
                   Operations Email Address
@@ -1022,7 +1044,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
               {/* PARTNER SIGN IN */}
               {joinSubMode === 'signin' && (
-                <form onSubmit={handleEmailSignIn} className="space-y-4">
+                <form onSubmit={handleRealPartnerSignIn} className="space-y-4">
                   <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-clinical-300">
                     <span className="font-bold text-cyan-400">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
                   </div>
