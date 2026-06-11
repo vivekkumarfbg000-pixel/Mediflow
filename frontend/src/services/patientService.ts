@@ -129,7 +129,6 @@ export class PatientService {
     const activeStaffId = load<string | null>('active_staff_id', null);
     const activeStaff = staffList.find(s => s.id === activeStaffId);
 
-
     supabase.from('patient_registry').insert({
       id: newPatient.id,
       name: newPatient.name,
