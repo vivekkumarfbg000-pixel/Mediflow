@@ -542,11 +542,15 @@ export default function App() {
         setActiveProfile(null);
         setIsLoadingSession(false);
       } else {
+        if (event === 'SIGNED_IN') {
+          console.log('[Mediflow Auth] SIGNED_IN event detected. Deferring profile load to form handler.');
+          return;
+        }
         if (typeof window !== 'undefined' && (window as any).__mediflow_registering) {
           console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
           return;
         }
-        // For SIGNED_IN and other events (TOKEN_REFRESHED, etc.), load profile
+        // For TOKEN_REFRESHED, USER_UPDATED, etc., load profile
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
           if (finalProfile) {
