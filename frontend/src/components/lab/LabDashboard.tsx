@@ -137,7 +137,7 @@ export const LabDashboard: React.FC = () => {
   /* ─── Live JSON payload builder ──────────────────────────────── */
   useEffect(() => {
     if (!activeReq) return;
-    let data: Record<string, any> = {
+    const data: Record<string, any> = {
       testCode: activeReq.testCode,
       testName: activeReq.testName,
       patientId: activeReq.patientId,
@@ -391,7 +391,7 @@ export const LabDashboard: React.FC = () => {
         reportFileUrl = await api.uploadLabReportToStorage(directFile, reqId);
       }
 
-      let data: Record<string, any> = {
+      const data: Record<string, any> = {
         testCode: directTestCode,
         testName: testItem.name,
         patientId: directPatientId,

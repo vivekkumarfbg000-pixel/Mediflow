@@ -40,6 +40,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Pre-seeded Enterprise Demo Roles for E2E testing
+  // These IDs must match the auth.users IDs in Supabase (created via migrations)
   const demoUsers = [
     {
       id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
@@ -47,7 +48,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       role: 'doctor',
       entity: 'Kankarbagh Connected Clinic',
       icon: '🏥',
-      specialization: 'General Medicine'
+      specialization: 'General Medicine',
+      authEmail: 'doctor@mediflow.com'
     },
     {
       id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
@@ -55,7 +57,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       role: 'lab_technician',
       entity: 'Patna Central Pathology Lab',
       icon: '🧪',
-      specialization: 'General Medicine'
+      specialization: 'General Medicine',
+      authEmail: 'labtech@mediflow.com'
     },
     {
       id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317103',
@@ -63,31 +66,35 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       role: 'pharmacist',
       entity: 'Kankarbagh Smart Pharmacy',
       icon: '💊',
-      specialization: 'General Medicine'
+      specialization: 'General Medicine',
+      authEmail: 'pharmacist@mediflow.com'
     },
     {
-      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317104',
       name: 'Dr. Amit Arya',
       role: 'doctor',
       entity: 'Patna Eye Care Center',
       icon: '👁️',
-      specialization: 'Ophthalmology'
+      specialization: 'Ophthalmology',
+      authEmail: 'doctor@mediflow.com'
     },
     {
-      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317105',
       name: 'Karan Johar',
       role: 'lab_technician',
       entity: 'Patna Eye Diagnostics',
       icon: '🔬',
-      specialization: 'Ophthalmology'
+      specialization: 'Ophthalmology',
+      authEmail: 'labtech@mediflow.com'
     },
     {
-      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317103',
+      id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317106',
       name: 'Suresh Raina',
       role: 'pharmacist',
       entity: 'Patna Optical Shop',
       icon: '👓',
-      specialization: 'Ophthalmology'
+      specialization: 'Ophthalmology',
+      authEmail: 'pharmacist@mediflow.com'
     },
     {
       id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317109',
@@ -95,7 +102,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       role: 'platform_admin',
       entity: 'Mediflow HQ Operations',
       icon: '🔑',
-      specialization: 'System Engineering'
+      specialization: 'System Engineering',
+      authEmail: 'owner@mediflow.com'
     }
   ];
 
@@ -508,18 +516,24 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      let authEmail = '';
-      if (user.role === 'doctor') authEmail = 'doctor@mediflow.com';
-      else if (user.role === 'lab_technician') authEmail = 'labtech@mediflow.com';
-      else if (user.role === 'pharmacist') authEmail = 'pharmacist@mediflow.com';
-      else if (user.role === 'platform_admin') authEmail = 'owner@mediflow.com';
+      const authEmail = user.authEmail;
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password: 'password123'
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // If user doesn't exist, provide helpful error message
+        if (authError.message.includes('Invalid login credentials') || authError.message.includes('Email not confirmed')) {
+          throw new Error(`Demo user ${authEmail} not found in Supabase Auth. Please run the seed migrations or create the user in Supabase Dashboard with password 'password123'.`);
+        }
+        throw authError;
+      }
+
+      if (!authData?.session || !authData?.user) {
+        throw new Error('Sign in succeeded but no session was returned.');
+      }
 
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
@@ -527,7 +541,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         .eq('id', user.id)
         .single();
 
-      if (profileErr) throw profileErr;
+      if (profileErr || !profile) {
+        throw new Error('Authenticated, but profile could not be loaded. Ensure database migrations have run.');
+      }
 
       // Inject custom mock details for specialized clinic roles to enable correct nomenclature
       const modifiedProfile = {

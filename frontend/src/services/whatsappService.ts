@@ -45,7 +45,7 @@ export class WhatsAppService {
     try {
       const cleaned = text.trim().toLowerCase();
       const sessions = this.getWhatsAppSessions();
-      let sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+      const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
       
       if (sessionIndex === -1) {
         this.initiateWhatsAppSession(phone);

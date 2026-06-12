@@ -443,7 +443,7 @@ export const DoctorDashboard: React.FC = () => {
         }
 
         // Search matching guidelines for each topic
-        let guidelinesFound: any[] = [];
+        const guidelinesFound: any[] = [];
         for (const topic of topicsToSearch) {
           let normalizedTopic = topic;
           if (topic.toLowerCase().includes('diabetes')) normalizedTopic = 'Diabetes';
@@ -638,7 +638,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           topicsToSearch = selectedPatient.chronicConditions;
         }
 
-        let guidelinesFound: any[] = [];
+        const guidelinesFound: any[] = [];
         for (const topic of topicsToSearch) {
           let normalizedTopic = topic;
           if (topic.toLowerCase().includes('diabetes')) normalizedTopic = 'Diabetes';
@@ -1053,7 +1053,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
     let riskTier = "Low Risk";
     let riskReason = "All active biomarkers are within normal reference corridors.";
-    let complications: string[] = [];
+    const complications: string[] = [];
 
 
 

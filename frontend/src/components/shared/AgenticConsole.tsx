@@ -118,7 +118,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
     // Heuristic Extractor
     let targetDrug = 'Calpol 650';
     let targetDosage = '650mg';
-    let targetDuration = '5 days';
+    const targetDuration = '5 days';
     let testLoinc = '4544-3'; // HbA1c default
     let testName = 'HbA1c (Glycated Hemoglobin)';
 
