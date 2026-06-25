@@ -102,13 +102,24 @@ app.add_middleware(
 )
 
 # ── Supabase client setup ──────────────────────────────────────────────────
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("supabase_url")
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    or os.getenv("SUPABASE_KEY")
+    or os.getenv("Secret_keys")
+    or os.getenv("publishable_key")
+    or os.getenv("supabase_key")
+    or os.getenv("supabase_service_role_key")
+)
 
+supabase_client = None
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)")
-
-supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    print("⚠️ WARNING: Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)")
+else:
+    try:
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        print(f"❌ ERROR: Failed to initialize Supabase client: {e}")
 
 # Models
 class SeasonalForecastRequest(BaseModel):
@@ -270,6 +281,11 @@ async def whatsapp_send(payload: dict):
 
 @app.post("/api/generate-seasonal-forecast", response_model=SeasonalForecastResponse)
 async def generate_seasonal_forecast(req: SeasonalForecastRequest):
+    if not supabase_client:
+        raise HTTPException(
+            status_code=503,
+            detail="Supabase client is not initialized. Please verify SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables."
+        )
     try:
         # 1. Fetch recent encounters within the Pod to analyze localized demand
         enc_res = supabase_client.table("encounters").select("id").eq("pod_id", req.pod_id).execute()
