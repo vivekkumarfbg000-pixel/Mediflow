@@ -557,7 +557,7 @@ export class CircuitBreaker {
     };
   }
 
-  async execute<T>(operation: () => Promise<T>, fallback: () => T): Promise<T> {
+  async execute<T>(operation: () => Promise<T>, fallback?: () => T): Promise<T> {
     if (this.state === 'OPEN') {
       const elapsed = Date.now() - this.lastFailureTime;
       if (elapsed >= this.config.recoveryTimeout) {
@@ -566,7 +566,8 @@ export class CircuitBreaker {
         console.log(`[CircuitBreaker:${this.name}] → HALF_OPEN. Probing service...`);
       } else {
         console.warn(`[CircuitBreaker:${this.name}] OPEN — rejecting. Recovery in ${Math.round((this.config.recoveryTimeout - elapsed) / 1000)}s`);
-        return fallback();
+        if (fallback) return fallback();
+        throw new Error(`CircuitBreaker ${this.name} is OPEN`);
       }
     }
 
@@ -576,7 +577,8 @@ export class CircuitBreaker {
       return result;
     } catch (err) {
       this._onFailure(err);
-      return fallback();
+      if (fallback) return fallback();
+      throw err;
     }
   }
 
