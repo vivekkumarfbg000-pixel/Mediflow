@@ -12,3 +12,5 @@ export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-anon-key'
 );
+
+export const isMissingEnv = !import.meta.env.VITE_SUPABASE_ANON_KEY;

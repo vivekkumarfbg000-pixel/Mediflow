@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, isMissingEnv } from '../../lib/supabaseClient';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Building2, Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
   Users
 } from 'lucide-react';
 import { BrandMark } from './BrandMark';
+import { supabaseCircuit } from '../../services/autoHealerAgent';
 
 interface LoginAttempt {
   email: string;
@@ -23,35 +24,60 @@ interface ErrorDetails {
 }
 
 const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
+  ERR_INVALID_CREDENTIALS: {
+    code: 'ERR_INVALID_CREDENTIALS',
+    message: 'Invalid Credentials',
+    description: 'The email address or security password entered does not match any clinician account.',
+    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+  },
+  ERR_RATE_LIMIT_EXCEEDED: {
+    code: 'ERR_RATE_LIMIT_EXCEEDED',
+    message: 'Rate Limit Exceeded',
+    description: 'Too many login attempts. Please try again in 1 minute.',
+    diagnostic: 'A maximum of 5 login attempts within a 1-minute time frame is allowed.'
+  },
+  ERR_ACCOUNT_LOCKED: {
+    code: 'ERR_ACCOUNT_LOCKED',
+    message: 'Account Lockout Active',
+    description: 'This clinician node is temporarily locked due to 5 consecutive failed login attempts. Locked for 30 minutes.',
+    diagnostic: 'Wait 30 minutes before trying again, or contact support to manually unlock the account.'
+  },
+  ERR_NETWORK_FAILURE: {
+    code: 'ERR_NETWORK_FAILURE',
+    message: 'Network Connectivity Failure',
+    description: 'Could not establish connection to the Mediflow clinical authentication servers.',
+    diagnostic: 'Verify local internet connection, check DNS resolution, and retry.'
+  },
+  ERR_SERVER_ERROR: {
+    code: 'ERR_SERVER_ERROR',
+    message: 'Clinical Pod Server Error',
+    description: 'An unexpected exception occurred on the database engine or auth microservice.',
+    diagnostic: 'Ensure database migrations have run and Supabase schema is up to date.'
+  },
+  // Legacy compatibility:
   ERR_AUTH_INVALID_CREDENTIALS: {
     code: 'ERR_AUTH_INVALID_CREDENTIALS',
     message: 'Invalid Credentials',
     description: 'The email address or security password entered does not match any clinician account.',
-    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+    diagnostic: 'Double-check email spelling or request a password reset.'
   },
   ERR_AUTH_ACCOUNT_LOCKOUT: {
     code: 'ERR_AUTH_ACCOUNT_LOCKOUT',
     message: 'Account Lockout Active',
     description: 'This clinician node is temporarily locked due to 5 consecutive failed login attempts.',
-    diagnostic: 'Wait 60 seconds before trying again, or contact support to verify provider registration status.'
+    diagnostic: 'Wait 60 seconds before trying again.'
   },
   ERR_AUTH_NETWORK_OFFLINE: {
     code: 'ERR_AUTH_NETWORK_OFFLINE',
     message: 'Network Connectivity Failure',
     description: 'Could not establish connection to the Mediflow clinical authentication servers.',
-    diagnostic: 'Verify local internet connection, check DNS resolution, or check if the local Supabase/bridge server is running.'
+    diagnostic: 'Verify local internet connection.'
   },
   ERR_AUTH_SERVER_ERROR: {
     code: 'ERR_AUTH_SERVER_ERROR',
     message: 'Clinical Pod Server Error',
-    description: 'An unexpected exception occurred on the database engine or auth microservice.',
-    diagnostic: 'Check server logs in Docker/Kubernetes. Ensure database migrations have run and Supabase schema is up to date.'
-  },
-  ERR_AUTH_SESSION_EXPIRED: {
-    code: 'ERR_AUTH_SESSION_EXPIRED',
-    message: 'Session Expired or Invalid',
-    description: 'The authentication cookies or session token has expired or was revoked.',
-    diagnostic: 'Clear browser storage or sign in again to obtain a new secure clinical token.'
+    description: 'An unexpected exception occurred on the database engine.',
+    diagnostic: 'Check server logs.'
   }
 };
 
@@ -104,6 +130,87 @@ const checkLockout = (email: string): { locked: boolean; remainingSeconds: numbe
     return { locked: true, remainingSeconds: lockoutPeriod - diffSeconds };
   }
   return { locked: false, remainingSeconds: 0 };
+};
+
+// Retry mechanism for transient network issues (max 3 retries)
+const retryRequest = async <T extends unknown>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
+  try {
+    return await fn();
+  } catch (err: any) {
+    const isTransient = !navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0;
+    if (isTransient && retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryRequest(fn, retries - 1, delay * 2);
+    }
+    throw err;
+  }
+};
+
+// Check lockout and rate limit via database sentry
+const verifyLoginAllowed = async (emailToVerify: string): Promise<{ allowed: boolean; errorCode?: string; msg?: string }> => {
+  try {
+    const data = await supabaseCircuit.execute(async () => {
+      const { data: res, error } = await retryRequest(async () => {
+        return await supabase.rpc('check_login_sentry', {
+          p_email: emailToVerify.trim(),
+          p_ip: null
+        });
+      });
+      if (error) throw error;
+      return res;
+    });
+
+    if (data && !data.allowed) {
+      return {
+        allowed: false,
+        errorCode: data.error_code,
+        msg: data.message
+      };
+    }
+    return { allowed: true };
+  } catch (err: any) {
+    console.error('[Mediflow Auth] Sentry check failed or circuit open, falling back to local client-side guard:', err);
+    const localLockout = checkLockout(emailToVerify);
+    if (localLockout.locked) {
+      return {
+        allowed: false,
+        errorCode: 'ERR_ACCOUNT_LOCKED',
+        msg: `This clinician node is temporarily locked due to consecutive failed login attempts. Please try again in ${localLockout.remainingSeconds}s.`
+      };
+    }
+    return { allowed: true };
+  }
+};
+
+// Log attempt to database audit trail
+const logAttemptToDatabase = async (
+  attemptEmail: string,
+  success: boolean,
+  errorCode?: string,
+  userId?: string
+) => {
+  try {
+    let resolvedCode = errorCode;
+    if (!success && !resolvedCode) {
+      resolvedCode = 'ERR_SERVER_ERROR';
+    }
+
+    await supabaseCircuit.execute(async () => {
+      const { error } = await retryRequest(async () => {
+        return await supabase.rpc('log_login_attempt', {
+          p_email: attemptEmail.trim(),
+          p_ip: null,
+          p_user_agent: navigator.userAgent,
+          p_status: success ? 'success' : 'failure',
+          p_error_code: resolvedCode || null,
+          p_user_id: userId || null
+        });
+      });
+      if (error) throw error;
+    });
+  } catch (err) {
+    console.error('[Mediflow Auth] Failed to log login attempt to database or circuit open:', err);
+  }
 };
 
 interface AuthGatewayProps {
@@ -173,14 +280,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
     if (!success && err) {
       msg = err.message || 'Authentication failed';
-      if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
-        code = 'ERR_AUTH_NETWORK_OFFLINE';
+      if (err.code) {
+        code = err.code;
+      } else if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
+        code = 'ERR_NETWORK_FAILURE';
       } else if (err.message?.includes('lockout') || err.message?.includes('Locked')) {
-        code = 'ERR_AUTH_ACCOUNT_LOCKOUT';
+        code = 'ERR_ACCOUNT_LOCKED';
       } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('not match') || err.message?.includes('Access Denied')) {
-        code = 'ERR_AUTH_INVALID_CREDENTIALS';
+        code = 'ERR_INVALID_CREDENTIALS';
       } else {
-        code = 'ERR_AUTH_SERVER_ERROR';
+        code = 'ERR_SERVER_ERROR';
       }
     }
 
@@ -193,6 +302,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     };
 
     saveLoginAttempt(newAttempt);
+    
+    // Log to database asynchronously
+    logAttemptToDatabase(attemptEmail, success, code, err?.user_id);
+
     if (code) {
       setActiveErrorCode(code);
     }
@@ -314,6 +427,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isMissingEnv) {
+      setErrorMsg('VITE_SUPABASE_ANON_KEY environment variable is not configured. Please add it in Vercel settings and trigger a redeploy.');
+      setActiveErrorCode('ERR_AUTH_SERVER_ERROR');
+    }
+  }, []);
+
   const signInWithRealProfile = async (allowedRoles?: string[]) => {
     if (!email || !password) return;
     setLoading(true);
@@ -370,48 +490,78 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     e.preventDefault();
     if (!email || !password) return;
 
-    // Check lockout first
-    const lockoutStatus = checkLockout(email);
-    if (lockoutStatus.locked) {
-      setErrorMsg(`This clinician node is temporarily locked due to consecutive failed login attempts. Please try again in ${lockoutStatus.remainingSeconds}s.`);
-      setActiveErrorCode('ERR_AUTH_ACCOUNT_LOCKOUT');
-      return;
-    }
-
     setLoading(true);
     setErrorMsg(null);
     setActiveErrorCode(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      // 1. Verify lockout and rate limit via database sentry
+      const check = await verifyLoginAllowed(email);
+      if (!check.allowed) {
+        setErrorMsg(check.msg || 'Login is temporarily blocked.');
+        if (check.errorCode) {
+          setActiveErrorCode(check.errorCode);
+          // Log the blocked attempt to database
+          await logAttemptToDatabase(email, false, check.errorCode);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // 2. Perform authentication with retry mechanism (up to 3 retries for transient issues)
+      const { data, error } = await retryRequest(async () => {
+        return await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('Invalid login credentials')) {
+          const authErr = new Error('Invalid email or password.');
+          (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
+          throw authErr;
+        }
+        throw error;
+      }
 
       if (!data?.session) {
         throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
-      // onAuthStateChange listener in App.tsx handles profile loading and session setup
-      // Just verify profile exists to give immediate feedback on bad credentials
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+
+      // 3. Verify profile exists
+      const { data: profile, error: profileErr } = await retryRequest(async () => {
+        return await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+      });
 
       if (profileErr || !profile) {
         throw new Error('Authenticated, but your Mediflow profile could not be loaded.');
       }
 
       // Record successful attempt
-      recordAttempt(email, true);
+      recordAttempt(email, true, { user_id: data.user.id });
     } catch (err: any) {
       console.error('[Mediflow Auth] Login failed:', err);
-      const code = recordAttempt(email, false, err);
-      if (code && ERROR_DICTIONARY[code]) {
-        setErrorMsg(ERROR_DICTIONARY[code].description);
+      let mappedCode = err.code;
+      if (!mappedCode) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
+          mappedCode = 'ERR_NETWORK_FAILURE';
+        } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('invalid') || err.status === 400) {
+          mappedCode = 'ERR_INVALID_CREDENTIALS';
+        } else {
+          mappedCode = 'ERR_SERVER_ERROR';
+        }
+      }
+      
+      recordAttempt(email, false, { ...err, code: mappedCode });
+      
+      if (mappedCode && ERROR_DICTIONARY[mappedCode]) {
+        setErrorMsg(ERROR_DICTIONARY[mappedCode].description);
+        setActiveErrorCode(mappedCode);
       } else {
         setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
       }
@@ -425,35 +575,53 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     e.preventDefault();
     if (!email || !password) return;
 
-    // Check lockout first
-    const lockoutStatus = checkLockout(email);
-    if (lockoutStatus.locked) {
-      setErrorMsg(`This clinician node is temporarily locked due to consecutive failed login attempts. Please try again in ${lockoutStatus.remainingSeconds}s.`);
-      setActiveErrorCode('ERR_AUTH_ACCOUNT_LOCKOUT');
-      return;
-    }
-
     setLoading(true);
     setErrorMsg(null);
     setActiveErrorCode(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      // 1. Verify lockout and rate limit via database sentry
+      const check = await verifyLoginAllowed(email);
+      if (!check.allowed) {
+        setErrorMsg(check.msg || 'Login is temporarily blocked.');
+        if (check.errorCode) {
+          setActiveErrorCode(check.errorCode);
+          // Log the blocked attempt to database
+          await logAttemptToDatabase(email, false, check.errorCode);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // 2. Perform authentication with retry mechanism (up to 3 retries for transient issues)
+      const { data, error } = await retryRequest(async () => {
+        return await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('Invalid login credentials')) {
+          const authErr = new Error('Invalid email or password.');
+          (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
+          throw authErr;
+        }
+        throw error;
+      }
 
       if (!data?.session) {
         throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
-      // Verify profile exists and has partner role
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+
+      // 3. Verify profile and role
+      const { data: profile, error: profileErr } = await retryRequest(async () => {
+        return await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+      });
 
       if (profileErr || !profile) {
         throw new Error('Authenticated, but your Mediflow profile could not be loaded.');
@@ -461,16 +629,31 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       if (!['pharmacist', 'lab_technician', 'compounder'].includes(profile.role)) {
         await supabase.auth.signOut();
-        throw new Error('Access Denied: This account is not registered as a partner.');
+        const accessErr = new Error('Access Denied: This account is not registered as a partner.');
+        (accessErr as any).code = 'ERR_INVALID_CREDENTIALS'; // Treat as invalid credential access attempt
+        throw accessErr;
       }
 
       // Record successful attempt
-      recordAttempt(email, true);
+      recordAttempt(email, true, { user_id: data.user.id });
     } catch (err: any) {
       console.error('[Mediflow Auth] Partner login failed:', err);
-      const code = recordAttempt(email, false, err);
-      if (code && ERROR_DICTIONARY[code]) {
-        setErrorMsg(ERROR_DICTIONARY[code].description);
+      let mappedCode = err.code;
+      if (!mappedCode) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
+          mappedCode = 'ERR_NETWORK_FAILURE';
+        } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('invalid') || err.status === 400) {
+          mappedCode = 'ERR_INVALID_CREDENTIALS';
+        } else {
+          mappedCode = 'ERR_SERVER_ERROR';
+        }
+      }
+
+      recordAttempt(email, false, { ...err, code: mappedCode });
+
+      if (mappedCode && ERROR_DICTIONARY[mappedCode]) {
+        setErrorMsg(ERROR_DICTIONARY[mappedCode].description);
+        setActiveErrorCode(mappedCode);
       } else {
         setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
       }
@@ -764,34 +947,53 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     e.preventDefault();
     if (!email || !password) return;
 
-    // Check lockout first
-    const lockoutStatus = checkLockout(email);
-    if (lockoutStatus.locked) {
-      setErrorMsg(`This clinician node is temporarily locked due to consecutive failed login attempts. Please try again in ${lockoutStatus.remainingSeconds}s.`);
-      setActiveErrorCode('ERR_AUTH_ACCOUNT_LOCKOUT');
-      return;
-    }
-
     setLoading(true);
     setErrorMsg(null);
     setActiveErrorCode(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      // 1. Verify lockout and rate limit via database sentry
+      const check = await verifyLoginAllowed(email);
+      if (!check.allowed) {
+        setErrorMsg(check.msg || 'Login is temporarily blocked.');
+        if (check.errorCode) {
+          setActiveErrorCode(check.errorCode);
+          // Log the blocked attempt to database
+          await logAttemptToDatabase(email, false, check.errorCode);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // 2. Perform authentication with retry mechanism (up to 3 retries for transient issues)
+      const { data, error } = await retryRequest(async () => {
+        return await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('Invalid login credentials')) {
+          const authErr = new Error('Invalid email or password.');
+          (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
+          throw authErr;
+        }
+        throw error;
+      }
+
       if (!data?.session || !data?.user) {
         throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
 
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+      // 3. Verify profile exists and is admin
+      const { data: profile, error: profileErr } = await retryRequest(async () => {
+        return await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+      });
 
       if (profileErr || !profile) {
         throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
@@ -801,16 +1003,31 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         // Profile verified - onAuthStateChange will handle the rest
       } else {
         await supabase.auth.signOut();
-        throw new Error('Access Denied: Restricted to Mediflow Operations Team.');
+        const accessErr = new Error('Access Denied: Restricted to Mediflow Operations Team.');
+        (accessErr as any).code = 'ERR_INVALID_CREDENTIALS'; // Treat as invalid credential access attempt
+        throw accessErr;
       }
 
       // Record successful attempt
-      recordAttempt(email, true);
+      recordAttempt(email, true, { user_id: data.user.id });
     } catch (err: any) {
       console.error('[Mediflow Auth] Ops login failed:', err);
-      const code = recordAttempt(email, false, err);
-      if (code && ERROR_DICTIONARY[code]) {
-        setErrorMsg(ERROR_DICTIONARY[code].description);
+      let mappedCode = err.code;
+      if (!mappedCode) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
+          mappedCode = 'ERR_NETWORK_FAILURE';
+        } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('invalid') || err.status === 400) {
+          mappedCode = 'ERR_INVALID_CREDENTIALS';
+        } else {
+          mappedCode = 'ERR_SERVER_ERROR';
+        }
+      }
+
+      recordAttempt(email, false, { ...err, code: mappedCode });
+
+      if (mappedCode && ERROR_DICTIONARY[mappedCode]) {
+        setErrorMsg(ERROR_DICTIONARY[mappedCode].description);
+        setActiveErrorCode(mappedCode);
       } else {
         setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
       }
@@ -1026,7 +1243,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             onClick={() => handleTabSelect('join')}
             className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
           >
-            Partner Join
+            Partner Sign In
           </button>
           <button
             type="button"
@@ -1423,11 +1640,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                       onChange={(e) => {
                         setTosAccepted(e.target.checked);
                         if (validationErrors.tos) {
-                          setValidationErrors(prev => {
-                            const copy = { ...prev };
-                            delete copy.tos;
-                            return copy;
-                          });
+                          const newErrors = { ...validationErrors };
+                          delete newErrors.tos;
+                          setValidationErrors(newErrors);
                         }
                       }}
                       className="mt-0.5 h-3.5 w-3.5 accent-cyan-500 rounded border-clinical-500 bg-clinical-950"
@@ -1884,11 +2099,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           onChange={(e) => {
                             setTosAccepted(e.target.checked);
                             if (validationErrors.tos) {
-                              setValidationErrors(prev => {
-                                const copy = { ...prev };
-                                delete copy.tos;
-                                return copy;
-                              });
+                              const newErrors = { ...validationErrors };
+                              delete newErrors.tos;
+                              setValidationErrors(newErrors);
                             }
                           }}
                           className="mt-0.5 h-3.5 w-3.5 accent-cyan-500 rounded border-clinical-500 bg-clinical-950"
