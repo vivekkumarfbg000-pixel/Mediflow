@@ -10,10 +10,41 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const https = require('https');
 
 // Load environment variables / secrets
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const TELEMETRY_PAYLOAD = process.env.TELEMETRY_PAYLOAD; // JSON String
+
+// Helper to make HTTP POST requests in environment-agnostic way (compatible with older Node.js versions)
+function postRequest(url, headers, body) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'POST',
+      headers: headers
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          json: async () => JSON.parse(data),
+          text: async () => data
+        });
+      });
+    });
+
+    req.on('error', (e) => { reject(e); });
+    req.write(body);
+    req.end();
+  });
+}
 
 async function executeSelfHealing() {
   if (!GROQ_API_KEY) {
@@ -26,8 +57,15 @@ async function executeSelfHealing() {
     process.exit(1);
   }
 
+  let telemetry;
   try {
-    const telemetry = JSON.parse(TELEMETRY_PAYLOAD);
+    telemetry = JSON.parse(TELEMETRY_PAYLOAD);
+  } catch (parseErr) {
+    console.error("❌ Failed to parse TELEMETRY_PAYLOAD as JSON:", parseErr.message);
+    process.exit(1);
+  }
+
+  try {
     const { id, subsystem, error_code, error_stack } = telemetry;
     console.log(`\n🤖 [Autonomous Healer] Starting healing session for Anomaly ${id} (${subsystem})`);
     
@@ -66,18 +104,16 @@ Do NOT include any explanations, markdown notes, markdown code block backticks, 
 Your output must be 100% clean valid code that directly drops into ${targetFile}.
 `;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "llama3-70b-8192",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.1
-      })
+    const requestBody = JSON.stringify({
+      model: "llama3-70b-8192",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.1
     });
+
+    const response = await postRequest("https://api.groq.com/openai/v1/chat/completions", {
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    }, requestBody);
 
     const result = await response.json();
     if (!result.choices || result.choices.length === 0) {

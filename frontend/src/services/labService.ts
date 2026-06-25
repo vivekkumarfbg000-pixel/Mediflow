@@ -371,8 +371,8 @@ export class LabService {
     }
   }
 
-  static async uploadPrescriptionToStorage(file: File): Promise<string> {
-    const fileName = `rx_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  static async uploadPrescriptionToStorage(file: File, patientId: string): Promise<string> {
+    const fileName = `rx_${patientId}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const { data, error } = await supabase.storage
       .from('prescriptions')
       .upload(fileName, file, { upsert: false, contentType: file.type });

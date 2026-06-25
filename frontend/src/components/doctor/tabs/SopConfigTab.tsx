@@ -298,7 +298,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
           {/* Paste text directly */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-505 uppercase tracking-wider">Or Paste SOP Text Directly</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Or Paste SOP Text Directly</label>
             <textarea
               value={sopText}
               onChange={e => setSopText(e.target.value)}
@@ -456,7 +456,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   </div>
                   <ul className="space-y-1.5">
                     {extractedConfig.guidelines.map((g: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-amber-850">
+                      <li key={i} className="flex items-start gap-2 text-xs text-amber-800">
                         <span className="material-symbols-outlined text-amber-500 text-sm mt-0.5 flex-shrink-0">arrow_right</span>
                         {g}
                       </li>
@@ -506,20 +506,22 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 </div>
               </div>
 
-              {/* Fee & Split Dashboard */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig.doctor_fee}`, icon: 'stethoscope', color: 'blue' },
-                  { label: 'Doctor Split', value: `${activeSop.extractedConfig.splits.doctor}%`, icon: 'person', color: 'indigo' },
-                  { label: 'Platform Split', value: `${activeSop.extractedConfig.splits.platform}%`, icon: 'hub', color: 'violet' },
-                  { label: 'Lab Split', value: `${activeSop.extractedConfig.splits.lab}%`, icon: 'emerald', color: 'emerald' },
-                ].map(stat => (
-                  <div key={stat.label} className={`p-4 rounded-2xl bg-${stat.color}-50 border border-${stat.color}-100 text-center`}>
-                    <span className={`material-symbols-outlined text-${stat.color}-500 text-xl`}>{stat.icon}</span>
-                    <p className={`text-lg font-extrabold text-${stat.color}-700 mt-1`}>{stat.value}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{stat.label}</p>
-                  </div>
-                ))}
+                  { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig.doctor_fee}`, icon: 'stethoscope', colorClasses: 'bg-blue-50 border-blue-100 text-blue-500 text-blue-700' },
+                  { label: 'Doctor Split', value: `${activeSop.extractedConfig.splits.doctor}%`, icon: 'person', colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-500 text-indigo-700' },
+                  { label: 'Platform Split', value: `${activeSop.extractedConfig.splits.platform}%`, icon: 'hub', colorClasses: 'bg-violet-50 border-violet-100 text-violet-500 text-violet-700' },
+                  { label: 'Lab Split', value: `${activeSop.extractedConfig.splits.lab}%`, icon: 'emerald', colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-500 text-emerald-700' },
+                ].map((stat: any) => {
+                  const [bg, border, iconColor, textColor] = stat.colorClasses.split(' ');
+                  return (
+                    <div key={stat.label} className={`p-4 rounded-2xl ${bg} border ${border} text-center`}>
+                      <span className={`material-symbols-outlined ${iconColor} text-xl`}>{stat.icon}</span>
+                      <p className={`text-lg font-extrabold ${textColor} mt-1`}>{stat.value}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{stat.label}</p>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Lab Test Prices */}
@@ -587,7 +589,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                               detail: { title: 'SOP Restored!', message: `"${s.sopFileName}" is now the active SOP.`, type: 'info' }
                             }));
                           }}
-                          className="text-xs text-violet-600 font-bold hover:text-violet-850 cursor-pointer border-0 bg-transparent">
+                          className="text-xs text-violet-600 font-bold hover:text-violet-800 cursor-pointer border-0 bg-transparent">
                           Restore
                         </button>
                       </div>

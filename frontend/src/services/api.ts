@@ -242,11 +242,11 @@ class MediflowApiService {
     supabase.auth.onAuthStateChange((event) => {
       console.log('[Mediflow API] Auth state changed event in API:', event);
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        this.syncFromSupabase();
+        this.syncFromSupabase().catch(err => console.error('[Mediflow API] Auth-triggered sync failed:', err));
       }
     });
 
-    this.syncFromSupabase();
+    this.syncFromSupabase().catch(err => console.error('[Mediflow API] Initial sync failed:', err));
 
     const activeChannel = supabase.channel('mediflow-pod-realtime');
     supabase.removeChannel(activeChannel);
@@ -258,7 +258,7 @@ class MediflowApiService {
         { event: '*', schema: 'public' },
         (payload) => {
           console.log('[Mediflow Realtime] Event received:', payload.table, payload.eventType);
-          this.syncFromSupabase();
+          this.syncFromSupabase().catch(err => console.error('[Mediflow API] Realtime-triggered sync failed:', err));
         }
       )
       .subscribe((status) => {
@@ -289,7 +289,7 @@ class MediflowApiService {
       });
 
       // Probe WAL replay initially
-      setTimeout(() => this.replayWALOutbox(), 1000);
+      setTimeout(() => this.replayWALOutbox().catch(err => console.error('[Mediflow WAL] Initial replay failed:', err)), 1000);
     }
   }
 
@@ -1205,8 +1205,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  async uploadPrescriptionToStorage(file: File): Promise<string> {
-    return LabService.uploadPrescriptionToStorage(file);
+  async uploadPrescriptionToStorage(file: File, patientId: string): Promise<string> {
+    return LabService.uploadPrescriptionToStorage(file, patientId);
   }
 
   createLabRequisitionFromPrescription(patientId: string, testCode: string, testName: string, prescriptionFileUrl: string): LabRequisition {

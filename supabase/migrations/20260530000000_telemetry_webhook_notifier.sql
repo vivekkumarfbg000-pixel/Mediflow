@@ -52,7 +52,7 @@ BEGIN
     END;
 
     -- Non-blocking async HTTP POST via pg_net
-    PERFORM extensions.http_post(
+    PERFORM net.http_post(
         url     := v_edge_url,
         body    := v_payload::TEXT,
         headers := jsonb_build_object(

@@ -2635,7 +2635,7 @@ export const CompounderDashboard: React.FC = () => {
                           createdAt: new Date().toISOString()
                         });
 
-                        const fileUrl = await api.uploadPrescriptionToStorage(dispatchFile);
+                        const fileUrl = await api.uploadPrescriptionToStorage(dispatchFile, patientId);
                         const testName = testItem?.name || 'Lab Test';
                         
                         // Push to Lab technician queue

@@ -2,9 +2,109 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
-  Building2, Key, Copy, Check, Sparkles
+  Building2, Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
+  Users
 } from 'lucide-react';
 import { BrandMark } from './BrandMark';
+
+interface LoginAttempt {
+  email: string;
+  timestamp: string;
+  success: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+interface ErrorDetails {
+  code: string;
+  message: string;
+  description: string;
+  diagnostic: string;
+}
+
+const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
+  ERR_AUTH_INVALID_CREDENTIALS: {
+    code: 'ERR_AUTH_INVALID_CREDENTIALS',
+    message: 'Invalid Credentials',
+    description: 'The email address or security password entered does not match any clinician account.',
+    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+  },
+  ERR_AUTH_ACCOUNT_LOCKOUT: {
+    code: 'ERR_AUTH_ACCOUNT_LOCKOUT',
+    message: 'Account Lockout Active',
+    description: 'This clinician node is temporarily locked due to 5 consecutive failed login attempts.',
+    diagnostic: 'Wait 60 seconds before trying again, or contact support to verify provider registration status.'
+  },
+  ERR_AUTH_NETWORK_OFFLINE: {
+    code: 'ERR_AUTH_NETWORK_OFFLINE',
+    message: 'Network Connectivity Failure',
+    description: 'Could not establish connection to the Mediflow clinical authentication servers.',
+    diagnostic: 'Verify local internet connection, check DNS resolution, or check if the local Supabase/bridge server is running.'
+  },
+  ERR_AUTH_SERVER_ERROR: {
+    code: 'ERR_AUTH_SERVER_ERROR',
+    message: 'Clinical Pod Server Error',
+    description: 'An unexpected exception occurred on the database engine or auth microservice.',
+    diagnostic: 'Check server logs in Docker/Kubernetes. Ensure database migrations have run and Supabase schema is up to date.'
+  },
+  ERR_AUTH_SESSION_EXPIRED: {
+    code: 'ERR_AUTH_SESSION_EXPIRED',
+    message: 'Session Expired or Invalid',
+    description: 'The authentication cookies or session token has expired or was revoked.',
+    diagnostic: 'Clear browser storage or sign in again to obtain a new secure clinical token.'
+  }
+};
+
+const getLoginAttempts = (): LoginAttempt[] => {
+  try {
+    const raw = localStorage.getItem('mediflow_login_attempts');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveLoginAttempt = (attempt: LoginAttempt) => {
+  try {
+    const attempts = getLoginAttempts();
+    attempts.unshift(attempt);
+    localStorage.setItem('mediflow_login_attempts', JSON.stringify(attempts.slice(0, 20)));
+  } catch (err) {
+    console.error('Failed to save login attempt log:', err);
+  }
+};
+
+const getConsecutiveFailures = (email: string): number => {
+  const attempts = getLoginAttempts();
+  let count = 0;
+  for (const attempt of attempts) {
+    if (attempt.email.trim().toLowerCase() === email.trim().toLowerCase()) {
+      if (attempt.success) {
+        break;
+      }
+      count++;
+    }
+  }
+  return count;
+};
+
+const checkLockout = (email: string): { locked: boolean; remainingSeconds: number } => {
+  const failures = getConsecutiveFailures(email);
+  if (failures < 5) return { locked: false, remainingSeconds: 0 };
+  
+  const attempts = getLoginAttempts().filter(a => a.email.trim().toLowerCase() === email.trim().toLowerCase());
+  if (attempts.length === 0) return { locked: false, remainingSeconds: 0 };
+  
+  const lastFailureTime = new Date(attempts[0].timestamp).getTime();
+  const now = new Date().getTime();
+  const diffSeconds = Math.floor((now - lastFailureTime) / 1000);
+  const lockoutPeriod = 60; // 60 seconds
+  
+  if (diffSeconds < lockoutPeriod) {
+    return { locked: true, remainingSeconds: lockoutPeriod - diffSeconds };
+  }
+  return { locked: false, remainingSeconds: 0 };
+};
 
 interface AuthGatewayProps {
   onAuthSuccess: (session: any, profile: any) => void;
@@ -18,10 +118,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activeErrorCode, setActiveErrorCode] = useState<string | null>(null);
 
-  // Common Registration states
+  // New Redesigned Sign-up States
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [registrationStep, setRegistrationStep] = useState(1);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  // Common Registration states (compat)
   const [displayName, setDisplayName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
   // Clinic Registration specific states
   const [clinicName, setClinicName] = useState('');
@@ -34,6 +145,59 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const [partnerType, setPartnerType] = useState<'pharmacy' | 'lab' | 'compounder'>('pharmacy');
   const [validatingCode, setValidatingCode] = useState(false);
   const [validatedClinicName, setValidatedClinicName] = useState<string | null>(null);
+
+  // Clear form errors and states when switching context
+  const handleTabSelect = (tab: 'signin' | 'register' | 'join' | 'ops') => {
+    setActiveTab(tab);
+    setEmail('');
+    setPassword('');
+    setErrorMsg(null);
+    setActiveErrorCode(null);
+    setValidationErrors({});
+    setRegistrationStep(1);
+    setTosAccepted(false);
+  };
+
+  const handleJoinSubModeSelect = (mode: 'signin' | 'register') => {
+    setJoinSubMode(mode);
+    setErrorMsg(null);
+    setActiveErrorCode(null);
+    setValidationErrors({});
+    setRegistrationStep(1);
+    setTosAccepted(false);
+  };
+
+  const recordAttempt = (attemptEmail: string, success: boolean, err?: any) => {
+    let code: string | undefined = undefined;
+    let msg: string | undefined = undefined;
+
+    if (!success && err) {
+      msg = err.message || 'Authentication failed';
+      if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
+        code = 'ERR_AUTH_NETWORK_OFFLINE';
+      } else if (err.message?.includes('lockout') || err.message?.includes('Locked')) {
+        code = 'ERR_AUTH_ACCOUNT_LOCKOUT';
+      } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('not match') || err.message?.includes('Access Denied')) {
+        code = 'ERR_AUTH_INVALID_CREDENTIALS';
+      } else {
+        code = 'ERR_AUTH_SERVER_ERROR';
+      }
+    }
+
+    const newAttempt: LoginAttempt = {
+      email: attemptEmail,
+      timestamp: new Date().toISOString(),
+      success,
+      errorCode: code,
+      errorMessage: msg
+    };
+
+    saveLoginAttempt(newAttempt);
+    if (code) {
+      setActiveErrorCode(code);
+    }
+    return code;
+  };
 
   // Success States
   const [registeredClinicCode, setRegisteredClinicCode] = useState<string | null>(null);
@@ -205,8 +369,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
+
+    // Check lockout first
+    const lockoutStatus = checkLockout(email);
+    if (lockoutStatus.locked) {
+      setErrorMsg(`This clinician node is temporarily locked due to consecutive failed login attempts. Please try again in ${lockoutStatus.remainingSeconds}s.`);
+      setActiveErrorCode('ERR_AUTH_ACCOUNT_LOCKOUT');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
+    setActiveErrorCode(null);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -230,9 +404,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       if (profileErr || !profile) {
         throw new Error('Authenticated, but your Mediflow profile could not be loaded.');
       }
+
+      // Record successful attempt
+      recordAttempt(email, true);
     } catch (err: any) {
       console.error('[Mediflow Auth] Login failed:', err);
-      setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+      const code = recordAttempt(email, false, err);
+      if (code && ERROR_DICTIONARY[code]) {
+        setErrorMsg(ERROR_DICTIONARY[code].description);
+      } else {
+        setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -242,8 +424,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const handlePartnerSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
+
+    // Check lockout first
+    const lockoutStatus = checkLockout(email);
+    if (lockoutStatus.locked) {
+      setErrorMsg(`This clinician node is temporarily locked due to consecutive failed login attempts. Please try again in ${lockoutStatus.remainingSeconds}s.`);
+      setActiveErrorCode('ERR_AUTH_ACCOUNT_LOCKOUT');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
+    setActiveErrorCode(null);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -271,28 +463,89 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         await supabase.auth.signOut();
         throw new Error('Access Denied: This account is not registered as a partner.');
       }
+
+      // Record successful attempt
+      recordAttempt(email, true);
     } catch (err: any) {
       console.error('[Mediflow Auth] Partner login failed:', err);
-      setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
+      const code = recordAttempt(email, false, err);
+      if (code && ERROR_DICTIONARY[code]) {
+        setErrorMsg(ERROR_DICTIONARY[code].description);
+      } else {
+        setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const validateStep1 = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!firstName.trim()) {
+      errors.firstName = 'First name is required';
+    } else if (firstName.trim().length < 2) {
+      errors.firstName = 'Must be at least 2 characters';
+    }
+
+    if (!lastName.trim()) {
+      errors.lastName = 'Last name is required';
+    } else if (lastName.trim().length < 2) {
+      errors.lastName = 'Must be at least 2 characters';
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      errors.email = 'Email address is required';
+    } else if (!emailRegex.test(email.trim())) {
+      errors.email = 'Enter a valid email address';
+    }
+
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 6) {
+      errors.password = 'Must be at least 6 characters';
+    }
+
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Confirmation is required';
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (!tosAccepted) {
+      errors.tos = 'You must accept the Terms and Privacy Policy';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateDoctorStep2 = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!clinicName.trim()) {
+      errors.clinicName = 'Clinic business name is required';
+    }
+    
+    if (!phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^\d{10,}$/.test(phone.trim().replace(/[-+() ]/g, ''))) {
+      errors.phone = 'Enter a valid phone number (at least 10 digits)';
+    }
+
+    if (!address.trim()) {
+      errors.address = 'Clinic physical address is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleClinicRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !confirmPassword || !displayName || !clinicName || !phone || !address) {
-      setErrorMsg('Please populate all clinic registration fields.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match.');
-      return;
-    }
-
-    if (password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters.');
+    
+    if (!validateDoctorStep2()) {
       return;
     }
 
@@ -302,14 +555,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       (window as any).__mediflow_registering = true;
     }
 
+    const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
+
     try {
-      // 1. Perform auth signUp
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Perform auth signUp with timeout protection
+      const signUpPromise = supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           data: {
-            display_name: displayName,
+            display_name: finalDisplayName,
             role: 'doctor',
             clinic_name: clinicName.trim(),
             clinic_phone: phone.trim(),
@@ -320,13 +575,20 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         }
       });
 
-      if (authError) throw authError;
-      if (!authData?.user) {
-        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
-      }
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Network request timed out. Please check your connectivity and try again.')), 12000)
+      );
 
-      if (!authData.session) {
-        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
+      const { data: authData, error: authError } = await Promise.race([signUpPromise, timeoutPromise]) as any;
+
+      if (authError) {
+        if (authError.message?.toLowerCase().includes('already registered') || authError.message?.toLowerCase().includes('use')) {
+          throw new Error('This email address is already in use. If you already have an account, please sign in.');
+        }
+        throw authError;
+      }
+      if (!authData?.user || !authData.session) {
+        throw new Error('SignUp completed, but email confirmation is required. Please check your email or verify auth configs.');
       }
 
       // 2. Wait a split second to allow on_auth_user_created trigger to run
@@ -354,7 +616,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Clinic Registered successfully! 🎉',
-          message: `Welcome ${displayName}! Your clinical network code is active.`,
+          message: `Welcome ${finalDisplayName}! Your clinical network code is active.`,
           type: 'success'
         }
       }));
@@ -370,20 +632,37 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
     }
   };
 
+  const validatePartnerStep2 = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!clinicCode.trim()) {
+      errors.clinicCode = 'Clinic network code is required';
+    } else if (!validatedClinicName) {
+      errors.clinicCode = 'A valid clinic network code is required';
+    }
+
+    if (!displayName.trim()) {
+      errors.displayName = 'Business name is required';
+    }
+
+    if (!phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^\d{10,}$/.test(phone.trim().replace(/[-+() ]/g, ''))) {
+      errors.phone = 'Enter a valid phone number (at least 10 digits)';
+    }
+
+    if (!address.trim()) {
+      errors.address = 'Physical address is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handlePartnerJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !confirmPassword || !displayName || !clinicCode || !phone || !address) {
-      setErrorMsg('Please populate all partner registration fields.');
-      return;
-    }
-
-    if (!validatedClinicName) {
-      setErrorMsg('Please enter a valid Clinic Network Code before proceeding.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match.');
+    
+    if (!validatePartnerStep2()) {
       return;
     }
 
@@ -393,15 +672,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       (window as any).__mediflow_registering = true;
     }
 
+    const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
+
     try {
-      // 1. Perform auth signUp
+      // 1. Perform auth signUp with timeout
       const userRole = partnerType === 'pharmacy' ? 'pharmacist' : partnerType === 'lab' ? 'lab_technician' : 'compounder';
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      
+      const signUpPromise = supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           data: {
-            display_name: displayName,
+            display_name: finalDisplayName,
             role: userRole,
             clinic_code: clinicCode.trim().toUpperCase(),
             partner_type: partnerType,
@@ -412,13 +694,20 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         }
       });
 
-      if (authError) throw authError;
-      if (!authData?.user) {
-        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
-      }
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Network request timed out. Please check your connectivity and try again.')), 12000)
+      );
 
-      if (!authData.session) {
-        throw new Error('SignUp completed, but email confirmation is required. Please check your email or ensure that "Confirm email" is disabled in your Supabase Auth settings under Providers -> Email.');
+      const { data: authData, error: authError } = await Promise.race([signUpPromise, timeoutPromise]) as any;
+
+      if (authError) {
+        if (authError.message?.toLowerCase().includes('already registered') || authError.message?.toLowerCase().includes('use')) {
+          throw new Error('This email address is already in use. If you already have an account, please sign in.');
+        }
+        throw authError;
+      }
+      if (!authData?.user || !authData.session) {
+        throw new Error('SignUp completed, but email confirmation is required. Please check your email.');
       }
 
       // 2. Wait a split second to allow handle_new_user trigger to execute
@@ -474,8 +763,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const handleOpsSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
+
+    // Check lockout first
+    const lockoutStatus = checkLockout(email);
+    if (lockoutStatus.locked) {
+      setErrorMsg(`This clinician node is temporarily locked due to consecutive failed login attempts. Please try again in ${lockoutStatus.remainingSeconds}s.`);
+      setActiveErrorCode('ERR_AUTH_ACCOUNT_LOCKOUT');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
+    setActiveErrorCode(null);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -504,9 +803,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         await supabase.auth.signOut();
         throw new Error('Access Denied: Restricted to Mediflow Operations Team.');
       }
+
+      // Record successful attempt
+      recordAttempt(email, true);
     } catch (err: any) {
       console.error('[Mediflow Auth] Ops login failed:', err);
-      setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+      const code = recordAttempt(email, false, err);
+      if (code && ERROR_DICTIONARY[code]) {
+        setErrorMsg(ERROR_DICTIONARY[code].description);
+      } else {
+        setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -515,6 +822,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const handleDemoSignIn = async (user: typeof demoUsers[0]) => {
     setLoading(true);
     setErrorMsg(null);
+    setActiveErrorCode(null);
     try {
       const authEmail = user.authEmail;
 
@@ -563,9 +871,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         }
       };
 
+      // Record successful attempt
+      recordAttempt(authEmail, true);
       onAuthSuccess(authData.session, modifiedProfile);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Demo profile loading failed.');
+      console.error('[Mediflow Auth] Demo login failed:', err);
+      const code = recordAttempt(user.authEmail, false, err);
+      if (code && ERROR_DICTIONARY[code]) {
+        setErrorMsg(ERROR_DICTIONARY[code].description);
+      } else {
+        setErrorMsg(err.message || 'Demo profile loading failed.');
+      }
     } finally {
       setLoading(false);
     }
@@ -591,55 +907,53 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   };
 
   const pwdStrength = getPasswordStrength(password);
-
-  // If a clinic was successfully registered, render the celebration screen!
   if (registeredClinicCode) {
     return (
-      <div className="dark min-h-screen bg-clinical-900 text-clinical-100 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
+      <div className="dark w-full bg-clinical-900 text-clinical-100 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-cyan-500/10 blur-[80px] pointer-events-none animate-pulse-subtle"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full bg-indigo-500/10 blur-[80px] pointer-events-none animate-pulse-subtle"></div>
 
-        <div className="w-full max-w-lg glass-panel p-8 shadow-xl flex flex-col space-y-6 text-center z-10 animate-fade-in">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Sparkles className="h-8 w-8 text-cyan-400 animate-pulse-subtle" />
+        <div className="z-10 flex flex-col space-y-5 text-center animate-fade-in">
+          <div className="mx-auto w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <Sparkles className="h-6 w-6 text-cyan-400 animate-pulse-subtle" />
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-2xl font-extrabold text-white">Clinic Network Registered!</h3>
-            <p className="text-sm text-clinical-300">
-              Your multi-tenant workspace clinic node is now live. Share the unique code below with your partner pharmacy and laboratory to link them.
+            <h3 className="text-xl font-extrabold text-white">Clinic Registered!</h3>
+            <p className="text-xs text-clinical-300 leading-relaxed font-medium">
+              Your clinic node is now live. Share the unique code below with your partner pharmacy and lab.
             </p>
           </div>
 
-          <div className="bg-clinical-900/80 border border-clinical-800 rounded-2xl p-6 space-y-4">
-            <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest block">
+          <div className="bg-clinical-950/80 border border-clinical-800 rounded-2xl p-5 space-y-3">
+            <span className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest block">
               Unique Clinic Network Code
             </span>
             <div className="flex items-center justify-center gap-3">
-              <span className="text-4xl font-black tracking-wider text-white font-mono bg-slate-800/40 px-6 py-2.5 rounded-xl border border-clinical-800">
+              <span className="text-2xl font-black tracking-wider text-white font-mono bg-slate-950/50 px-4 py-2 rounded-xl border border-clinical-800">
                 {registeredClinicCode}
               </span>
               <button
                 type="button"
                 onClick={handleCopyCode}
-                className="p-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 rounded-xl transition-all hover:scale-105 cursor-pointer"
+                className="p-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 rounded-xl transition-all hover:scale-105 cursor-pointer"
                 title="Copy Clinic Code"
               >
-                {copiedCode ? <Check className="h-5 w-5 text-emerald-400" /> : <Copy className="h-5 w-5" />}
+                {copiedCode ? <Check className="h-4.5 w-4.5 text-emerald-400" /> : <Copy className="h-4.5 w-4.5" />}
               </button>
             </div>
-            {copiedCode && <span className="text-xs text-emerald-400 font-bold block animate-fade-in">Copied to clipboard!</span>}
+            {copiedCode && <span className="text-[10px] text-emerald-400 font-bold block animate-fade-in">Copied to clipboard!</span>}
           </div>
 
-          <div className="text-left bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-4 space-y-2.5">
-            <h4 className="text-xs font-bold text-cyan-400 flex items-center gap-2">
-              <Shield className="h-4 w-4" /> Next Onboarding Steps:
+          <div className="text-left bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3.5 space-y-2">
+            <h4 className="text-[10px] font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+              <Shield className="h-3.5 w-3.5" /> Next Steps:
             </h4>
-            <ul className="text-xs text-clinical-300 space-y-1.5 list-decimal list-inside pl-1 leading-relaxed">
-              <li>Copy the unique code above: <strong className="text-white">{registeredClinicCode}</strong></li>
+            <ul className="text-[10px] text-clinical-300 space-y-1 list-decimal list-inside pl-1 leading-relaxed font-medium">
+              <li>Copy the unique code above</li>
               <li>Share it with your partner Pharmacy and Lab staff</li>
-              <li>When they register using this code, approve their requests in your clinic dashboard</li>
-              <li>Your unified, split-billing digital care loop will immediately link together</li>
+              <li>When they register using this code, approve their requests in your clinic dashboard settings</li>
+              <li>Your unified care loop will link together immediately</li>
             </ul>
           </div>
 
@@ -659,7 +973,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 if (profile) onAuthSuccess(session, profile);
               }
             }}
-            className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+            className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
           >
             Enter Doctor Dashboard <ArrowRight className="h-4 w-4" />
           </button>
@@ -669,660 +983,1234 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   }
 
   return (
-    <div className="dark min-h-screen bg-clinical-900 text-clinical-100 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="dark w-full bg-clinical-900 text-clinical-100 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden">
       
       {/* Background Neon Glow Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
 
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-8 items-center z-10">
-        
-        {/* Left Side: Brand Value Proposition */}
-        <div className="md:col-span-5 flex flex-col justify-center text-left space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-white p-1 shrink-0 shadow-lg ring-1 ring-slate-200/80">
-              <BrandMark size={44} title="Mediflow Care logo" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-indigo-400 font-sans">
-                MEDIFLOW
-              </h1>
-              <p className="text-[10px] tracking-[0.2em] font-extrabold text-cyan-500 uppercase">
-                MULTI-TENANT SAAS PLATFORM
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-3xl font-extrabold tracking-tight text-clinical-50 leading-tight">
-              Clinical Care Networks, Re-imagined.
-            </h2>
-            <p className="text-sm text-clinical-300 leading-relaxed font-medium">
-              A state-of-the-art multi-tenant ecosystem connecting independent clinics, adjacent pharmacies, and referral pathology labs under one secure, split-billed digital workflow.
-            </p>
-          </div>
-
-          <div className="space-y-3.5 border-l-2 border-cyan-500/30 pl-4 py-1 text-xs text-clinical-400 font-medium leading-relaxed">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-              <span>Hardened multi-tenant Row-Level Security isolation</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Key className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-              <span>Safe Clinic network generation & manual partner approvals</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-              <span>One Clinic = One Pharmacy + One Lab clinical pod grouping</span>
-            </div>
-          </div>
+      <div className="z-10 flex flex-col space-y-5">
+        <div>
+          <h3 className="text-xl font-extrabold text-clinical-50">
+            {activeTab === 'signin' && 'Sign In to Mediflow'}
+            {activeTab === 'register' && 'Register Your Clinic'}
+            {activeTab === 'join' && (joinSubMode === 'signin' ? 'Partner Sign In' : 'Join Existing Clinic Network')}
+            {activeTab === 'ops' && 'SaaS Platform Operations'}
+          </h3>
+          <p className="text-xs text-clinical-400 mt-1 font-semibold">
+            {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
+            {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
+            {activeTab === 'join' && (joinSubMode === 'signin' ? 'Sign in to your partner pharmacy/laboratory workspace.' : 'Pharmacies and laboratories can request to link with a clinic.')}
+            {activeTab === 'ops' && 'Secure authentication for Mediflow systems administration team.'}
+          </p>
         </div>
 
-        {/* Right Side: Authentication/Onboarding Panel */}
-        <div className="md:col-span-7 glass-panel p-8 shadow-xl flex flex-col space-y-5">
-          <div>
-            <h3 className="text-xl font-extrabold text-clinical-50">
-              {activeTab === 'signin' && 'Sign In to Mediflow'}
-              {activeTab === 'register' && 'Register Your Clinic'}
-              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Partner Sign In' : 'Join Existing Clinic Network')}
-              {activeTab === 'ops' && 'SaaS Platform Operations'}
-            </h3>
-            <p className="text-xs text-clinical-400 mt-1 font-semibold">
-              {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
-              {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
-              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Sign in to your partner pharmacy/laboratory workspace.' : 'Pharmacies and laboratories can request to link with a clinic.')}
-              {activeTab === 'ops' && 'Secure authentication for Mediflow systems administration team.'}
-            </p>
-          </div>
+        {/* Quad Sliding Tab Selector */}
+        <div className="relative z-20 pointer-events-auto grid grid-cols-2 sm:grid-cols-4 gap-1 bg-clinical-950/50 p-1 rounded-xl border border-clinical-800/80">
+          <button
+            type="button"
+            onClick={() => handleTabSelect('signin')}
+            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('register')}
+            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+          >
+            Doctor Signup
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('join')}
+            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+          >
+            Partner Join
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('ops')}
+            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+          >
+            SaaS Ops
+          </button>
+        </div>
 
-          {/* Quad Sliding Tab Selector */}
-          <div className="relative z-20 pointer-events-auto grid grid-cols-2 sm:grid-cols-4 gap-1 bg-clinical-900/50 p-1 rounded-xl border border-clinical-800/80">
-            <button
-              type="button"
-              onClick={() => { setActiveTab('signin'); setErrorMsg(null); }}
-              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab('register'); setErrorMsg(null); }}
-              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-            >
-              Doctor Signup
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }}
-              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-            >
-              Partner Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveTab('ops'); setErrorMsg(null); }}
-              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-            >
-              SaaS Ops
-            </button>
-          </div>
-
-          {errorMsg && (
-            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3.5 flex items-start gap-3 animate-shake">
+        {errorMsg && (
+          <div className="space-y-3 animate-shake">
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3.5 flex items-start gap-3">
               <Shield className="h-5 w-5 text-rose-400 mt-0.5 flex-shrink-0" />
               <div className="text-xs font-semibold text-rose-300 leading-relaxed">{errorMsg}</div>
             </div>
-          )}
 
-          {/* SIGN IN FLOW */}
-          {activeTab === 'signin' && (
-            <form onSubmit={handleRealEmailSignIn} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Professional Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@mediflow.com"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
-                    required
-                    autoComplete="email"
-                  />
+            {/* Premium Diagnostics Panel */}
+            {activeErrorCode && ERROR_DICTIONARY[activeErrorCode] && (
+              <div className="bg-clinical-950/90 border border-cyan-500/20 rounded-2xl p-4 space-y-3.5 shadow-xl shadow-cyan-950/20 text-clinical-100 font-sans">
+                <div className="flex items-center justify-between border-b border-clinical-800/80 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-cyan-400 animate-pulse-subtle" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                      Diagnostic telemetry active
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20 font-mono">
+                    {ERROR_DICTIONARY[activeErrorCode].code}
+                  </span>
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Security Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
-                    required
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-500 hover:text-white transition-all cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Workspace <ArrowRight className="h-4 w-4" /></>}
-              </button>
-
-              <p className="text-center text-[10px] text-clinical-500 font-medium">
-                Are you a partner (pharmacist/lab)? Use the{' '}
-                <button type="button" onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
-                  Partner Sign In
-                </button>{' '}tab.
-              </p>
-            </form>
-          )}
-
-          {/* SAAS OPERATIONS LOGIN FLOW */}
-          {activeTab === 'ops' && (
-            <form onSubmit={handleOpsSignIn} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Operations Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="owner@mediflow.com"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Security Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-500 hover:text-white transition-all cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Authenticate Operations Console <ArrowRight className="h-4 w-4" /></>}
-              </button>
-            </form>
-          )}
-
-          {/* DOCTOR REGISTRATION FLOW */}
-          {activeTab === 'register' && (
-            <form onSubmit={handleClinicRegister} className="space-y-3.5 max-h-[380px] overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 gap-3.5">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Doctor Display Name
-                  </label>
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Dr. Vivek Kumar"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
+                  <h4 className="text-xs font-bold text-white">{ERROR_DICTIONARY[activeErrorCode].message}</h4>
+                  <p className="text-[10px] text-clinical-300 leading-relaxed">
+                    {ERROR_DICTIONARY[activeErrorCode].description}
+                  </p>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Clinic Business Name
-                  </label>
-                  <input
-                    type="text"
-                    value={clinicName}
-                    onChange={(e) => setClinicName(e.target.value)}
-                    placeholder="Kankarbagh Connected Clinic"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
+
+                <div className="bg-clinical-900/50 rounded-xl p-2.5 border border-clinical-800/40 text-[10px] leading-relaxed">
+                  <span className="font-bold text-cyan-400 block mb-0.5">💡 Troubleshooting Recommendation:</span>
+                  <span className="text-clinical-300">{ERROR_DICTIONARY[activeErrorCode].diagnostic}</span>
+                </div>
+
+                {/* Recent Telemetry Logs */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[9px] font-bold text-clinical-400 uppercase tracking-wider">
+                    <span>Recent Login Activity</span>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        localStorage.removeItem('mediflow_login_attempts');
+                        setActiveErrorCode(null);
+                        setErrorMsg(null);
+                      }} 
+                      className="text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
+                    >
+                      Clear logs
+                    </button>
+                  </div>
+                  <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                    {getLoginAttempts().slice(0, 3).map((attempt, index) => (
+                      <div key={index} className="flex justify-between items-center bg-clinical-900/20 border border-clinical-800/20 p-2 rounded-lg text-[9px]">
+                        <div className="flex flex-col text-left">
+                          <span className="text-clinical-200 font-bold font-mono truncate max-w-[150px]">{attempt.email}</span>
+                          <span className="text-clinical-500 text-[8px]">{new Date(attempt.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[7px] border ${
+                          attempt.success 
+                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' 
+                            : 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+                        }`}>
+                          {attempt.success ? 'Success' : attempt.errorCode?.replace('ERR_AUTH_', '') || 'Failed'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
+        )}
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Clinical Specialization
-                  </label>
-                  <select
-                    value={specialization}
-                    onChange={(e) => setSpecialization(e.target.value)}
-                    className="w-full bg-clinical-900/90 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans"
-                  >
-                    <option value="General Medicine" className="text-clinical-100 bg-clinical-800">General Medicine</option>
-                    <option value="Pediatrics" className="text-clinical-100 bg-clinical-800">Pediatrics</option>
-                    <option value="Ophthalmology" className="text-clinical-100 bg-clinical-800">Ophthalmology</option>
-                    <option value="Cardiology" className="text-clinical-100 bg-clinical-800">Cardiology</option>
-                    <option value="Dermatology" className="text-clinical-100 bg-clinical-800">Dermatology</option>
-                    <option value="Gynecology" className="text-clinical-100 bg-clinical-800">Gynecology</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Contact Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="9999000001"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Clinic Physical Address
-                </label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Main Road, Kankarbagh, Patna, Bihar"
-                  className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                  Doctor Login Email
-                </label>
+        {/* SIGN IN FLOW */}
+        {activeTab === 'signin' && (
+          <form onSubmit={handleEmailSignIn} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                Professional Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="doctor@mediflow.com"
-                  className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                  placeholder="name@mediflow.com"
+                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                Security Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Workspace <ArrowRight className="h-4 w-4" /></>}
+            </button>
+
+            <p className="text-center text-[10px] text-clinical-500 font-medium">
+              Are you a partner (pharmacist/lab)? Use the{' '}
+              <button type="button" onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                Partner Sign In
+              </button>{' '}tab.
+            </p>
+          </form>
+        )}
+
+        {/* SAAS OPERATIONS LOGIN FLOW */}
+        {activeTab === 'ops' && (
+          <form onSubmit={handleOpsSignIn} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                Operations Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="owner@mediflow.com"
+                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
                   required
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Security Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                    required
-                  />
-                </div>
-              </div>
-
-              {password && (
-                <div className="space-y-1.5 p-2.5 bg-clinical-900/30 rounded-xl border border-clinical-800/40">
-                  <div className="flex justify-between text-[9px] font-bold">
-                    <span className="text-clinical-400">Password Strength:</span>
-                    <span className={pwdStrength.score === 1 ? 'text-rose-400' : pwdStrength.score === 2 ? 'text-amber-400' : 'text-emerald-400'}>
-                      {pwdStrength.label}
-                    </span>
-                  </div>
-                  <div className="w-full h-1 bg-clinical-800 rounded-full overflow-hidden">
-                    <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Register Clinic Network <ArrowRight className="h-4 w-4" /></>}
-              </button>
-            </form>
-          )}
-
-          {/* PARTNER JOIN / SIGN IN FLOW */}
-          {activeTab === 'join' && (
-            <div className="space-y-4">
-              {/* Sub-mode Toggle: Sign In vs Register */}
-              <div className="flex gap-1 p-1 bg-clinical-800/50 rounded-xl border border-clinical-700/50">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                Security Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                  required
+                />
                 <button
                   type="button"
-                  onClick={() => { setJoinSubMode('signin'); setErrorMsg(null); }}
-                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
                 >
-                  Partner Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setJoinSubMode('register'); setErrorMsg(null); }}
-                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  New Registration
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </div>
 
-              {/* PARTNER SIGN IN */}
-              {joinSubMode === 'signin' && (
-                <form onSubmit={handleRealPartnerSignIn} className="space-y-4">
-                  <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-clinical-300">
-                    <span className="font-bold text-cyan-400">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
-                  </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Authenticate Operations Console <ArrowRight className="h-4 w-4" /></>}
+            </button>
+          </form>
+        )}
 
-                  <div className="space-y-1.5">
+        {/* DOCTOR REGISTRATION FLOW */}
+        {activeTab === 'register' && (
+          <div className="space-y-3.5">
+            {registrationStep === 1 ? (
+              <div className="space-y-3.5 animate-fade-in">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                      Partner Email Address
+                      First Name
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
+                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
                       <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="pharmacist@yourshop.com"
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
-                        required
-                        autoComplete="email"
+                        type="text"
+                        value={firstName}
+                        onChange={(e) => {
+                          setFirstName(e.target.value);
+                          if (validationErrors.firstName) {
+                            setValidationErrors(prev => {
+                              const copy = { ...prev };
+                              delete copy.firstName;
+                              return copy;
+                            });
+                          }
+                        }}
+                        placeholder="First Name"
+                        className={`w-full bg-clinical-950 border ${validationErrors.firstName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
                       />
                     </div>
+                    {validationErrors.firstName && (
+                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.firstName}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Last Name
+                    </label>
+                    <div className="relative">
+                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                      <input
+                        type="text"
+                        value={lastName}
+                        onChange={(e) => {
+                          setLastName(e.target.value);
+                          if (validationErrors.lastName) {
+                            setValidationErrors(prev => {
+                              const copy = { ...prev };
+                              delete copy.lastName;
+                              return copy;
+                            });
+                          }
+                        }}
+                        placeholder="Last Name"
+                        className={`w-full bg-clinical-950 border ${validationErrors.lastName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                      />
+                    </div>
+                    {validationErrors.lastName && (
+                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.lastName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    Professional Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (validationErrors.email) {
+                          setValidationErrors(prev => {
+                            const copy = { ...prev };
+                            delete copy.email;
+                            return copy;
+                          });
+                        }
+                      }}
+                      placeholder="john.doe@mediflow.com"
+                      className={`w-full bg-clinical-950 border ${validationErrors.email ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                    />
+                  </div>
+                  {validationErrors.email && (
+                    <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.email}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
                       Security Password
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-500" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
                       <input
-                        type={showPassword ? 'text' : 'password'}
+                        type={showRegPassword ? 'text' : 'password'}
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
-                        required
-                        autoComplete="current-password"
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (validationErrors.password) {
+                            setValidationErrors(prev => {
+                              const copy = { ...prev };
+                              delete copy.password;
+                              return copy;
+                            });
+                          }
+                        }}
+                        placeholder="••••••••"
+                        className={`w-full bg-clinical-950 border ${validationErrors.password ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-500 hover:text-white transition-all cursor-pointer"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showRegPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
+                    {validationErrors.password && (
+                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.password}
+                      </span>
+                    )}
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
-                  >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Partner Workspace <ArrowRight className="h-4 w-4" /></>}
-                  </button>
-
-                  <p className="text-center text-[10px] text-clinical-500 font-medium">
-                    First time?{' '}
-                    <button type="button" onClick={() => { setJoinSubMode('register'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
-                      Register your pharmacy or lab
-                    </button>
-                  </p>
-                </form>
-              )}
-
-              {/* PARTNER REGISTRATION */}
-              {joinSubMode === 'register' && (
-                <form onSubmit={handlePartnerJoin} className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                      Clinic Network Code (MF-XXXX)
+                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Confirm Password
                     </label>
                     <div className="relative">
-                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-500" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
                       <input
-                        type="text"
-                        value={clinicCode}
-                        onChange={(e) => setClinicCode(e.target.value.toUpperCase())}
-                        placeholder="MF-A1B2"
-                        maxLength={10}
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 pl-10 pr-4 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-mono font-bold"
-                        required
+                        type={showRegConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          if (validationErrors.confirmPassword) {
+                            setValidationErrors(prev => {
+                              const copy = { ...prev };
+                              delete copy.confirmPassword;
+                              return copy;
+                            });
+                          }
+                        }}
+                        placeholder="••••••••"
+                        className={`w-full bg-clinical-950 border ${validationErrors.confirmPassword ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
                       />
-                      {validatingCode && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-400 animate-spin" />}
-                    </div>
-
-                    {validatedClinicName ? (
-                      <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pl-1 mt-1">
-                        <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-clinical-100">{validatedClinicName}</strong>
-                      </span>
-                    ) : clinicCode.length >= 7 && !validatingCode ? (
-                      <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1 pl-1 mt-1">
-                        Clinic code not found. Please double check.
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                        Partner Entity Type
-                      </label>
-                      <select
-                        value={partnerType}
-                        onChange={(e) => setPartnerType(e.target.value as any)}
-                        className="w-full bg-clinical-900/90 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans"
+                      <button
+                        type="button"
+                        onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
                       >
-                        <option value="pharmacy" className="text-clinical-100 bg-clinical-800">Pharmacy POS</option>
-                        <option value="lab" className="text-clinical-100 bg-clinical-800">Pathology Lab</option>
-                        <option value="compounder" className="text-clinical-100 bg-clinical-800">Clinic Compounder</option>
-                      </select>
+                        {showRegConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                        Business Name
-                      </label>
-                      <input
-                        type="text"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder={partnerType === 'pharmacy' ? 'Kankarbagh Smart Pharmacy' : 'Patna Pathology Lab'}
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                        required
-                      />
+                    {validationErrors.confirmPassword && (
+                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.confirmPassword}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {password && (
+                  <div className="space-y-1.5 p-2.5 bg-clinical-950/50 rounded-xl border border-clinical-800/40">
+                    <div className="flex justify-between text-[9px] font-bold">
+                      <span className="text-clinical-400">Password Strength:</span>
+                      <span className={pwdStrength.score === 1 ? 'text-rose-400' : pwdStrength.score === 2 ? 'text-amber-400' : 'text-emerald-400'}>
+                        {pwdStrength.label}
+                      </span>
+                    </div>
+                    <div className="w-full h-1 bg-clinical-800 rounded-full overflow-hidden">
+                      <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                        Contact Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="9999000003"
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                        Physical Address
-                      </label>
-                      <input
-                        type="text"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Opposite Clinic main gate, Patna"
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                        required
-                      />
-                    </div>
-                  </div>
+                {/* Terms & Privacy acceptance */}
+                <div className="space-y-1 mt-2">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={tosAccepted}
+                      onChange={(e) => {
+                        setTosAccepted(e.target.checked);
+                        if (validationErrors.tos) {
+                          setValidationErrors(prev => {
+                            const copy = { ...prev };
+                            delete copy.tos;
+                            return copy;
+                          });
+                        }
+                      }}
+                      className="mt-0.5 h-3.5 w-3.5 accent-cyan-500 rounded border-clinical-500 bg-clinical-950"
+                    />
+                    <span className="text-[11px] text-clinical-300 font-medium leading-tight">
+                      I accept the{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowTermsModal(true)}
+                        className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                      >
+                        Terms of Service
+                      </button>{' '}
+                      and{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowTermsModal(true)}
+                        className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                      >
+                        Privacy Policy
+                      </button>.
+                    </span>
+                  </label>
+                  {validationErrors.tos && (
+                    <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.tos}
+                    </span>
+                  )}
+                </div>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (validateStep1()) {
+                      setRegistrationStep(2);
+                    }
+                  }}
+                  className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+                >
+                  Next: Clinic Setup <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleClinicRegister} className="space-y-3.5 animate-fade-in">
+                <div className="flex items-center gap-2 text-clinical-300 pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setRegistrationStep(1)}
+                    className="p-1 hover:bg-white/5 rounded-lg text-clinical-400 hover:text-white transition-colors"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs font-bold uppercase tracking-wider">Step 2: Workspace Setup</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
                   <div className="space-y-1">
                     <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                      Partner Login Email
+                      Clinic Business Name
                     </label>
+                    <input
+                      type="text"
+                      value={clinicName}
+                      onChange={(e) => {
+                        setClinicName(e.target.value);
+                        if (validationErrors.clinicName) {
+                          setValidationErrors(prev => {
+                            const copy = { ...prev };
+                            delete copy.clinicName;
+                            return copy;
+                          });
+                        }
+                      }}
+                      placeholder="Kankarbagh Connected Clinic"
+                      className={`w-full bg-clinical-950 border ${validationErrors.clinicName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                      required
+                    />
+                    {validationErrors.clinicName && (
+                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.clinicName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Clinical Specialization
+                    </label>
+                    <select
+                      value={specialization}
+                      onChange={(e) => setSpecialization(e.target.value)}
+                      className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans cursor-pointer"
+                    >
+                      <option value="General Medicine" className="text-clinical-100 bg-clinical-950">General Medicine</option>
+                      <option value="Pediatrics" className="text-clinical-100 bg-clinical-950">Pediatrics</option>
+                      <option value="Ophthalmology" className="text-clinical-100 bg-clinical-950">Ophthalmology</option>
+                      <option value="Cardiology" className="text-clinical-100 bg-clinical-950">Cardiology</option>
+                      <option value="Dermatology" className="text-clinical-100 bg-clinical-950">Dermatology</option>
+                      <option value="Gynecology" className="text-clinical-100 bg-clinical-950">Gynecology</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3.5">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      Contact Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        if (validationErrors.phone) {
+                          setValidationErrors(prev => {
+                            const copy = { ...prev };
+                            delete copy.phone;
+                            return copy;
+                          });
+                        }
+                      }}
+                      placeholder="9999000001"
+                      className={`w-full bg-clinical-950 border ${validationErrors.phone ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                      required
+                    />
+                    {validationErrors.phone && (
+                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.phone}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    Clinic Physical Address
+                  </label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => {
+                      setAddress(e.target.value);
+                      if (validationErrors.address) {
+                        setValidationErrors(prev => {
+                          const copy = { ...prev };
+                          delete copy.address;
+                          return copy;
+                        });
+                      }
+                    }}
+                    placeholder="Main Road, Kankarbagh, Patna, Bihar"
+                    className={`w-full bg-clinical-950 border ${validationErrors.address ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                    required
+                  />
+                  {validationErrors.address && (
+                    <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.address}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Register Clinic Network <ArrowRight className="h-4 w-4" /></>}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* PARTNER JOIN / SIGN IN FLOW */}
+        {activeTab === 'join' && (
+          <div className="space-y-4">
+            {/* Sub-mode Toggle: Sign In vs Register */}
+            <div className="flex gap-1 p-1 bg-clinical-950/50 rounded-xl border border-clinical-800/80">
+              <button
+                type="button"
+                onClick={() => handleJoinSubModeSelect('signin')}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+              >
+                Partner Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => handleJoinSubModeSelect('register')}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+              >
+                New Registration
+              </button>
+            </div>
+
+            {/* PARTNER SIGN IN */}
+            {joinSubMode === 'signin' && (
+              <form onSubmit={handlePartnerSignIn} className="space-y-4">
+                <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-clinical-300 leading-relaxed font-medium">
+                  <span className="font-bold text-cyan-400">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    Partner Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="pharmacist@mediflow.com"
-                      className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
+                      placeholder="pharmacist@yourshop.com"
+                      className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
                       required
+                      autoComplete="email"
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                        Security Password
-                      </label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
-                        Confirm Password
-                      </label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full bg-clinical-900/50 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading || !validatedClinicName}
-                    className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
-                  >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Submit Join Request <ArrowRight className="h-4 w-4" /></>}
-                  </button>
-
-                  <p className="text-center text-[10px] text-clinical-500 font-medium">
-                    Already registered?{' '}
-                    <button type="button" onClick={() => { setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
-                      Sign in here
-                    </button>
-                  </p>
-                </form>
-              )}
-            </div>
-          )}
-
-
-          {(() => {
-            const isDemoMode = true; // Always enable mock profiles for evaluation/testing convenience
-
-            if (activeTab !== 'signin' || !isDemoMode) return null;
-
-            return (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between border-t border-clinical-800/80 pt-4">
-                  <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">
-                    Enterprise Mock Profiles (E2E Telemetry)
-                  </span>
-                  <span className="text-[9px] font-bold text-cyan-400 bg-cyan-400/10 px-2.5 py-0.5 rounded-full border border-cyan-400/20">
-                    RLS Verification Active
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  {demoUsers.map((user, idx) => (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    Security Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                      required
+                      autoComplete="current-password"
+                    />
                     <button
-                      key={`${user.id}-${idx}`}
                       type="button"
-                      onClick={() => handleDemoSignIn(user)}
-                      disabled={loading}
-                      className="bg-clinical-900/40 hover:bg-clinical-900/80 border border-clinical-800 hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col text-left space-y-1 cursor-pointer transition-all duration-300 group"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
                     >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-[10px] font-black text-white group-hover:text-cyan-400 transition-colors truncate">
-                          {user.name.split(' ')[1] || user.name}
-                        </span>
-                        <span className="text-xs">{user.icon}</span>
-                      </div>
-                      <div className="text-[8px] font-extrabold uppercase tracking-wide leading-tight">
-                        <span className="text-cyan-500 group-hover:text-cyan-400 block truncate">{user.role.replace('_', ' ')}</span>
-                        <span className="text-clinical-400 truncate block mt-0.5">{user.entity.split(' ')[0]}</span>
-                      </div>
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
 
-        </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Partner Workspace <ArrowRight className="h-4 w-4" /></>}
+                </button>
+
+                <p className="text-center text-[10px] text-clinical-500 font-medium">
+                  First time?{' '}
+                  <button type="button" onClick={() => { setJoinSubMode('register'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                    Register your pharmacy or lab
+                  </button>
+                </p>
+              </form>
+            )}
+
+            {/* PARTNER REGISTRATION */}
+            {joinSubMode === 'register' && (
+              <div className="space-y-3.5">
+                {registrationStep === 1 ? (
+                  <div className="space-y-3.5 animate-fade-in">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          First Name
+                        </label>
+                        <div className="relative">
+                          <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <input
+                            type="text"
+                            value={firstName}
+                            onChange={(e) => {
+                              setFirstName(e.target.value);
+                              if (validationErrors.firstName) {
+                                setValidationErrors(prev => {
+                                  const copy = { ...prev };
+                                  delete copy.firstName;
+                                  return copy;
+                                });
+                              }
+                            }}
+                            placeholder="First Name"
+                            className={`w-full bg-clinical-950 border ${validationErrors.firstName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          />
+                        </div>
+                        {validationErrors.firstName && (
+                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.firstName}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          Last Name
+                        </label>
+                        <div className="relative">
+                          <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <input
+                            type="text"
+                            value={lastName}
+                            onChange={(e) => {
+                              setLastName(e.target.value);
+                              if (validationErrors.lastName) {
+                                setValidationErrors(prev => {
+                                  const copy = { ...prev };
+                                  delete copy.lastName;
+                                  return copy;
+                                });
+                              }
+                            }}
+                            placeholder="Last Name"
+                            className={`w-full bg-clinical-950 border ${validationErrors.lastName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          />
+                        </div>
+                        {validationErrors.lastName && (
+                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.lastName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Partner Email Address
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (validationErrors.email) {
+                              setValidationErrors(prev => {
+                                const copy = { ...prev };
+                                delete copy.email;
+                                return copy;
+                              });
+                            }
+                          }}
+                          placeholder="pharmacist@yourshop.com"
+                          className={`w-full bg-clinical-950 border ${validationErrors.email ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                        />
+                      </div>
+                      {validationErrors.email && (
+                        <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                          <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.email}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          Security Password
+                        </label>
+                        <div className="relative">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <input
+                            type={showRegPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => {
+                              setPassword(e.target.value);
+                              if (validationErrors.password) {
+                                setValidationErrors(prev => {
+                                  const copy = { ...prev };
+                                  delete copy.password;
+                                  return copy;
+                                });
+                              }
+                            }}
+                            placeholder="••••••••"
+                            className={`w-full bg-clinical-950 border ${validationErrors.password ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowRegPassword(!showRegPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                          >
+                            {showRegPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                        {validationErrors.password && (
+                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.password}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          Confirm Password
+                        </label>
+                        <div className="relative">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <input
+                            type={showRegConfirmPassword ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => {
+                              setConfirmPassword(e.target.value);
+                              if (validationErrors.confirmPassword) {
+                                setValidationErrors(prev => {
+                                  const copy = { ...prev };
+                                  delete copy.confirmPassword;
+                                  return copy;
+                                });
+                              }
+                            }}
+                            placeholder="••••••••"
+                            className={`w-full bg-clinical-950 border ${validationErrors.confirmPassword ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                          >
+                            {showRegConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                        {validationErrors.confirmPassword && (
+                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.confirmPassword}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {password && (
+                      <div className="space-y-1.5 p-2.5 bg-clinical-950/50 rounded-xl border border-clinical-800/40">
+                        <div className="flex justify-between text-[9px] font-bold">
+                          <span className="text-clinical-400">Password Strength:</span>
+                          <span className={pwdStrength.score === 1 ? 'text-rose-400' : pwdStrength.score === 2 ? 'text-amber-400' : 'text-emerald-400'}>
+                            {pwdStrength.label}
+                          </span>
+                        </div>
+                        <div className="w-full h-1 bg-clinical-800 rounded-full overflow-hidden">
+                          <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Terms & Privacy acceptance */}
+                    <div className="space-y-1 mt-2">
+                      <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={tosAccepted}
+                          onChange={(e) => {
+                            setTosAccepted(e.target.checked);
+                            if (validationErrors.tos) {
+                              setValidationErrors(prev => {
+                                const copy = { ...prev };
+                                delete copy.tos;
+                                return copy;
+                              });
+                            }
+                          }}
+                          className="mt-0.5 h-3.5 w-3.5 accent-cyan-500 rounded border-clinical-500 bg-clinical-950"
+                        />
+                        <span className="text-[11px] text-clinical-300 font-medium leading-tight">
+                          I accept the{' '}
+                          <button
+                            type="button"
+                            onClick={() => setShowTermsModal(true)}
+                            className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                          >
+                            Terms of Service
+                          </button>{' '}
+                          and{' '}
+                          <button
+                            type="button"
+                            onClick={() => setShowTermsModal(true)}
+                            className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                          >
+                            Privacy Policy
+                          </button>.
+                        </span>
+                      </label>
+                      {validationErrors.tos && (
+                        <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                          <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.tos}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (validateStep1()) {
+                          setRegistrationStep(2);
+                        }
+                      }}
+                      className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+                    >
+                      Next: Partner Details <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handlePartnerJoin} className="space-y-3.5 animate-fade-in">
+                    <div className="flex items-center gap-2 text-clinical-300 pb-1">
+                      <button
+                        type="button"
+                        onClick={() => setRegistrationStep(1)}
+                        className="p-1 hover:bg-white/5 rounded-lg text-clinical-400 hover:text-white transition-colors"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </button>
+                      <span className="text-xs font-bold uppercase tracking-wider">Step 2: Partner Workspace Setup</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        Clinic Network Code (MF-XXXX)
+                      </label>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-500" />
+                        <input
+                          type="text"
+                          value={clinicCode}
+                          onChange={(e) => {
+                            setClinicCode(e.target.value.toUpperCase());
+                            if (validationErrors.clinicCode) {
+                              setValidationErrors(prev => {
+                                const copy = { ...prev };
+                                delete copy.clinicCode;
+                                return copy;
+                              });
+                            }
+                          }}
+                          placeholder="MF-A1B2"
+                          maxLength={10}
+                          className={`w-full bg-clinical-950 border ${validationErrors.clinicCode ? 'border-rose-500' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-4 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-mono font-bold`}
+                          required
+                        />
+                        {validatingCode && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-400 animate-spin" />}
+                      </div>
+
+                      {validatedClinicName ? (
+                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pl-1 mt-1">
+                          <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-clinical-100">{validatedClinicName}</strong>
+                        </span>
+                      ) : clinicCode.length >= 7 && !validatingCode ? (
+                        <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1 pl-1 mt-1">
+                          Clinic code not found. Please double check.
+                        </span>
+                      ) : validationErrors.clinicCode ? (
+                        <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                          <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.clinicCode}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          Partner Entity Type
+                        </label>
+                        <select
+                          value={partnerType}
+                          onChange={(e) => setPartnerType(e.target.value as any)}
+                          className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans cursor-pointer"
+                        >
+                          <option value="pharmacy" className="text-clinical-100 bg-clinical-950">Pharmacy POS</option>
+                          <option value="lab" className="text-clinical-100 bg-clinical-950">Pathology Lab</option>
+                          <option value="compounder" className="text-clinical-100 bg-clinical-950">Clinic Compounder</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          Business Name
+                        </label>
+                        <input
+                          type="text"
+                          value={displayName}
+                          onChange={(e) => {
+                            setDisplayName(e.target.value);
+                            if (validationErrors.displayName) {
+                              setValidationErrors(prev => {
+                                const copy = { ...prev };
+                                delete copy.displayName;
+                                return copy;
+                              });
+                            }
+                          }}
+                          placeholder={partnerType === 'pharmacy' ? 'Kankarbagh Smart Pharmacy' : 'Patna Pathology Lab'}
+                          className={`w-full bg-clinical-950 border ${validationErrors.displayName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          required
+                        />
+                        {validationErrors.displayName && (
+                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.displayName}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          Contact Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => {
+                            setPhone(e.target.value);
+                            if (validationErrors.phone) {
+                              setValidationErrors(prev => {
+                                const copy = { ...prev };
+                                delete copy.phone;
+                                return copy;
+                              });
+                            }
+                          }}
+                          placeholder="9999000003"
+                          className={`w-full bg-clinical-950 border ${validationErrors.phone ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          required
+                        />
+                        {validationErrors.phone && (
+                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.phone}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                          Physical Address
+                        </label>
+                        <input
+                          type="text"
+                          value={address}
+                          onChange={(e) => {
+                            setAddress(e.target.value);
+                            if (validationErrors.address) {
+                              setValidationErrors(prev => {
+                                const copy = { ...prev };
+                                delete copy.address;
+                                return copy;
+                              });
+                            }
+                          }}
+                          placeholder="Opposite Clinic main gate, Patna"
+                          className={`w-full bg-clinical-950 border ${validationErrors.address ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          required
+                        />
+                        {validationErrors.address && (
+                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.address}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || !validatedClinicName}
+                      className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                    >
+                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Submit Join Request <ArrowRight className="h-4 w-4" /></>}
+                    </button>
+
+                    <p className="text-center text-[10px] text-clinical-500 font-medium">
+                      Already registered?{' '}
+                      <button type="button" onClick={() => handleJoinSubModeSelect('signin')} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                        Sign in here
+                      </button>
+                    </p>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {(() => {
+        const isDemoMode = true; // Always enable mock profiles for evaluation/testing convenience
+
+        if (activeTab !== 'signin' || !isDemoMode) return null;
+
+        return (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between border-t border-clinical-800/80 pt-4">
+              <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">
+                Enterprise Mock Profiles (E2E Telemetry)
+              </span>
+              <span className="text-[9px] font-bold text-cyan-400 bg-cyan-400/10 px-2.5 py-0.5 rounded-full border border-cyan-400/20">
+                RLS Verification Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {demoUsers.map((user, idx) => (
+                <button
+                  key={`${user.id}-${idx}`}
+                  type="button"
+                  onClick={() => handleDemoSignIn(user)}
+                  disabled={loading}
+                  className="bg-clinical-950/40 hover:bg-clinical-950/80 border border-clinical-800 hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col text-left space-y-1 cursor-pointer transition-all duration-300 group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] font-black text-white group-hover:text-cyan-400 transition-colors truncate">
+                      {user.name.split(' ')[1] || user.name}
+                    </span>
+                    <span className="text-xs">{user.icon}</span>
+                  </div>
+                  <div className="text-[8px] font-extrabold uppercase tracking-wide leading-tight">
+                    <span className="text-cyan-500 group-hover:text-cyan-400 block truncate">{user.role.replace('_', ' ')}</span>
+                    <span className="text-clinical-400 truncate block mt-0.5">{user.entity.split(' ')[0]}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Terms of Service & Privacy Policy Modal */}
+      {showTermsModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in text-clinical-100 font-sans">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-clinical-950 border border-clinical-800 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-6">
+            <button
+              onClick={() => setShowTermsModal(false)}
+              className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-xl text-clinical-400 hover:text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-2xl">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-extrabold text-white">Terms of Service & Privacy Policy</h3>
+                <p className="text-xs text-clinical-400">Effective Date: June 24, 2026</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs text-clinical-300 leading-relaxed overflow-y-auto pr-2">
+              <section className="space-y-2">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wide">1. HIPAA & Data Isolation Compliance</h4>
+                <p>
+                  Mediflow operates under strict tenant-specific isolation standards. Every medical clinical pod (grouped doctor, pharmacist, and pathology clinic nodes) maintains dedicated PostgreSQL row-level security (RLS). Cross-tenant queries are blocked at the database engine layer.
+                </p>
+              </section>
+
+              <section className="space-y-2">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wide">2. Clinical Loop Connectivity</h4>
+                <p>
+                  By generating a unique Clinic Network Code, doctors can authorize referral labs and pharmacy units to query appointments, prescriptions, and lab result workflows. All linkages require manual approval by the registered doctor profile under the pod admin dashboard.
+                </p>
+              </section>
+
+              <section className="space-y-2">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wide">3. Privacy Policy & Audit Logs</h4>
+                <p>
+                  We securely store provider accounts, emails, patient demographic details, and clinical data models. Every system insertion or update is logged to a write-only audit trail in compliance with standard clinical guidelines. We do not sell or lease clinician details to third parties.
+                </p>
+              </section>
+
+              <section className="space-y-2">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wide">4. System Telemetry & Self-Healing</h4>
+                <p>
+                  Our system runs automated background operations health agents to detect failed data syncs, transaction anomalies, and connectivity drops. Transaction data remains encrypted at-rest using standard cryptographic algorithms.
+                </p>
+              </section>
+            </div>
+
+            <button
+              onClick={() => setShowTermsModal(false)}
+              className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl text-xs uppercase tracking-widest transition-all cursor-pointer shadow-md"
+            >
+              I Understand & Agree
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -32,3 +32,7 @@ Thumbs.db
 *.secrets.sh
 deploy-supabase.local.ps1
 .env.secrets
+
+# Scratch scripts
+scratch/
+

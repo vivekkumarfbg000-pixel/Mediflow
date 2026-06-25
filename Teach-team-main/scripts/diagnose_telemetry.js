@@ -127,7 +127,9 @@ if (liveQueryCheckedFiles === 0) {
 
 // 4. Audit Database Schema Drift
 console.log('\n📂 4. Auditing Database Schema Drift & Connectivity...');
-const envFilePath = path.resolve(__dirname, '../.env');
+const envFilePath = fs.existsSync(path.resolve(__dirname, '../../backend/.env'))
+  ? path.resolve(__dirname, '../../backend/.env')
+  : path.resolve(__dirname, '../../.env');
 if (fs.existsSync(envFilePath)) {
   const envContent = fs.readFileSync(envFilePath, 'utf8');
   const sbUrlMatch = envContent.match(/VITE_SUPABASE_URL\s*=\s*["']([^"']+)["']/);

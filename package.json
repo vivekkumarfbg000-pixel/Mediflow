@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "dev": "npm run dev --prefix frontend"
+  },
   "devDependencies": {
     "puppeteer": "^25.1.0"
   },
