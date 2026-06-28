@@ -25,6 +25,7 @@ import { PatientMobileDashboard } from './components/shared/PatientMobileDashboa
 import { CommandBar } from './components/shared/CommandBar';
 import { PwaSyncManager } from './pwa';
 import { ToastProvider } from './components/shared/ToastProvider';
+import { resolvePodContext, clearPodContext } from './services/podContext';
 import {
   DashboardSkeleton,
   DoctorDashboardSkeleton,
@@ -541,16 +542,21 @@ export default function App() {
       if (!session) {
         setActiveProfile(null);
         setIsLoadingSession(false);
+        // Clear pod context so next user gets fresh real IDs
+        clearPodContext();
       } else {
         if (event === 'SIGNED_IN') {
           console.log('[Mediflow Auth] SIGNED_IN event detected. Deferring profile load to form handler.');
+          // Eagerly resolve pod context in background on sign-in
+          resolvePodContext().catch(() => {});
           return;
         }
         if (typeof window !== 'undefined' && (window as any).__mediflow_registering) {
           console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
           return;
         }
-        // For TOKEN_REFRESHED, USER_UPDATED, etc., load profile
+        // For TOKEN_REFRESHED, USER_UPDATED, etc., load profile and refresh pod context
+        resolvePodContext().catch(() => {});
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
           if (finalProfile) {

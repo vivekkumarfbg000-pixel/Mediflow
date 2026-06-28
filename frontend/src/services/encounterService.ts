@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
+import { getPodContext, resolvePodContext, FALLBACK_DOCTOR_ID } from './podContext';
 import { PatientService } from './patientService';
 import type { Encounter, HistoricalBiomarker, LabRequisition } from '../types';
 
@@ -23,15 +24,18 @@ export class EncounterService {
     // Transition patient's local and database queue status to completed
     PatientService.updatePatientQueueStatus(newEncounter.patientId, 'completed');
 
-    // 1. Asynchronously insert clinical encounter to Supabase in 'active' status
-    supabase.from('encounters').insert({
-      id: encounterId,
-      patient_id: newEncounter.patientId,
-      doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101', // Doctor Vivek
-      entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Clinic entity
-      clinical_notes: newEncounter.clinicalNotes,
-      status: 'active'
-    }).then(async ({ error }) => {
+    // Asynchronously resolve real IDs then insert to Supabase
+    (async () => {
+      const ctx = await resolvePodContext();
+      const doctorId = ctx.doctorId || FALLBACK_DOCTOR_ID;
+      const { error } = await supabase.from('encounters').insert({
+        id: encounterId,
+        patient_id: newEncounter.patientId,
+        doctor_id: doctorId,
+        entity_id: ctx.entityId,
+        clinical_notes: newEncounter.clinicalNotes,
+        status: 'active'
+      });
       if (error) {
         console.error('Error inserting encounter into Supabase:', error);
         return;

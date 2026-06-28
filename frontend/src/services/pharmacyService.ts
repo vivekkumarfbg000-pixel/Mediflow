@@ -13,7 +13,14 @@ import type {
 } from '../types';
 
 export class PharmacyService {
-  private static AI_BASE = 'http://localhost:8000';
+  private static readonly AI_BASE = (() => {
+    const configured = import.meta.env.VITE_AI_BACKEND_URL;
+    if (!configured && import.meta.env.PROD) {
+      console.error('[Mediflow Pharmacy] CRITICAL: VITE_AI_BACKEND_URL not set. AI features will fail in production.');
+    }
+    return (configured || 'http://localhost:8000').replace(/\/$/, '');
+  })();
+
 
   static getPharmacyInventory(): PharmacyInventoryItem[] {
     const defaultItems: PharmacyInventoryItem[] = [

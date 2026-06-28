@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { StateHealingEngine } from './autoHealerAgent';
+import { getPodContext } from './podContext';
 
 // Premium production-grade Sentry and Mixpanel Telemetry Connector
 // Designed according to Azeem's elite software engineering principles.
@@ -51,7 +52,7 @@ class TelemetryServiceClass {
       console.groupCollapsed('%c[Sentry Trace Log]', 'color: #ff3333; font-weight: bold;');
       console.error('Stack:', err.stack);
       console.log('Telemetry Tags Context:', {
-        pod_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        pod_id: getPodContext().podId,
         environment: 'production',
         ...context
       });
@@ -75,7 +76,7 @@ class TelemetryServiceClass {
       event: eventName,
       timestamp: new Date().toISOString(),
       distinct_id: 'Lalit-Prasad-Compounder',
-      pod_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+      pod_id: getPodContext().podId,
       ...properties
     };
 

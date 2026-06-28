@@ -457,3 +457,43 @@ export interface SyntheticProfile {
   isSynthetic: true;
 }
 
+// ── WhatsApp / Messaging Types ────────────────────────────────────────────────
+
+export interface WhatsAppChatEntry {
+  sender: 'bot' | 'user' | string;
+  text: string;
+  time: string;
+  timestamp?: string;
+}
+
+export interface WhatsAppReferral {
+  referralCode?: string;
+  referralCommissionAmt?: number;
+  referredBy?: string;
+}
+
+export interface WhatsAppSessionData {
+  referral?: WhatsAppReferral | null;
+  chatHistory?: WhatsAppChatEntry[];
+  language?: string;
+  lastIntent?: string;
+  [key: string]: unknown;
+}
+
+export interface WhatsAppSession {
+  patientPhone: string;
+  sessionData: WhatsAppSessionData;
+  lastInteraction?: string;
+  isActive?: boolean;
+}
+
+// ── WABA (WhatsApp Business Account) Connection ───────────────────────────────
+
+export interface WabaConnection {
+  id: string;
+  phoneNumberId: string;
+  businessAccountId: string;
+  displayName: string;
+  status: 'active' | 'inactive' | 'pending';
+  connectedAt: string;
+}

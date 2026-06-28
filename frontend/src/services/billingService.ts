@@ -1,8 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
-import { LabService, MASTER_TEST_CATALOG } from './labService';
-import { PharmacyService } from './pharmacyService';
+import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop } from '../types';
 
 export class BillingService {

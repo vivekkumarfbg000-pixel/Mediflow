@@ -3,8 +3,6 @@ import { api } from '../../services/api';
 import type { Patient, LabRequisition, InventoryHold, FinancialLedgerEntry, WhatsAppSession, PathologyReport } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
 import { ProactiveHealthMonitor } from '../../services/autoHealerAgent';
-import { LabService } from '../../services/labService';
-import { PharmacyService } from '../../services/pharmacyService';
 import { PatientService } from '../../services/patientService';
 import { WhatsAppService } from '../../services/whatsappService';
 

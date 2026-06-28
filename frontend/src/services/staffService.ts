@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
+import { resolvePodContext } from './podContext';
 import type { ClinicStaff } from '../types';
 
 export class StaffService {
@@ -10,7 +11,7 @@ export class StaffService {
   static registerClinicStaff(name: string, role: 'compounder' | 'receptionist' | 'admin'): void {
     const newStaff: ClinicStaff = {
       id: crypto.randomUUID(),
-      entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      entityId: '', // resolved asynchronously below
       staffName: name,
       role,
       isActive: true,
@@ -21,19 +22,20 @@ export class StaffService {
     save('clinic_staff', staffList);
     notify();
 
-    supabase.from('clinic_staff').insert({
-      id: newStaff.id,
-      entity_id: newStaff.entityId,
-      staff_name: newStaff.staffName,
-      role: newStaff.role,
-      is_active: newStaff.isActive,
-      created_at: newStaff.createdAt
-    }).then(({ error }) => {
+    (async () => {
+      const ctx = await resolvePodContext();
+      newStaff.entityId = ctx.entityId;
+      const { error } = await supabase.from('clinic_staff').insert({
+        id: newStaff.id,
+        entity_id: ctx.entityId,
+        staff_name: newStaff.staffName,
+        role: newStaff.role,
+        is_active: newStaff.isActive,
+        created_at: newStaff.createdAt
+      });
       if (error) console.error('Error inserting clinic staff into Supabase:', error);
-      else {
-        writeAuditLog('clinic_staff_registered', { staffId: newStaff.id, name, role }, newStaff.id);
-      }
-    });
+      else writeAuditLog('clinic_staff_registered', { staffId: newStaff.id, name, role }, newStaff.id);
+    })();
   }
 
   static toggleStaffActive(staffId: string, isActive: boolean): void {
