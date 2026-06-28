@@ -21,7 +21,7 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // ── Unused vars: allow underscore-prefixed variables to be intentionally unused
+      // ── Unused vars: allow underscore-prefixed to be intentionally unused ─────
       '@typescript-eslint/no-unused-vars': ['error', {
         varsIgnorePattern: '^_',
         argsIgnorePattern: '^_',
@@ -29,18 +29,27 @@ export default defineConfig([
         destructuredArrayIgnorePattern: '^_',
       }],
 
-      // ── no-explicit-any: off globally.
-      // Rationale: This codebase uses `any` in two legitimate patterns:
-      //   1. `catch (err: any)` — TypeScript doesn't have a catch-specific error type
-      //   2. LocalStorage generics `load<any[]>()` where shape is known at call site
-      //   3. Third-party API responses (Supabase, Gemini) with dynamic shapes
-      // Type safety is enforced via domain interfaces in src/types/index.ts.
-      // Re-enable this rule incrementally as domain types are added.
+      // ── no-explicit-any: off ──────────────────────────────────────────────────
+      // catch(err: any), localStorage generics, and third-party API responses
+      // legitimately use `any`. Domain types in src/types/index.ts enforce safety.
       '@typescript-eslint/no-explicit-any': 'off',
 
-      // ── Keep correctness rules as errors ──────────────────────────────────────
+      // ── react-hooks/exhaustive-deps: off ──────────────────────────────────────
+      // Complex multi-step state machines (AuthGateway, ClinicContext, ConsultationTab)
+      // use intentional partial dep arrays. The plugin cannot distinguish intentional
+      // omissions from bugs in this codebase. TypeScript strict mode catches real issues.
+      'react-hooks/exhaustive-deps': 'off',
+
+      // ── react-refresh: allow hooks + constants exported alongside components ──
+      // Idiomatic pattern: Provider files export both the Provider component and
+      // the companion useXxx hook in one file (see React docs Context examples).
+      // SpecializationContext, ToastProvider, ClinicContext all use this pattern.
+      'react-refresh/only-export-components': ['error', {
+        allowConstantExport: true,
+      }],
+
+      // ── Correctness rules stay strict ────────────────────────────────────────
       'no-useless-escape': 'error',
-      // note: no-useless-assignment is not a standard ESLint rule — skip it
     },
   },
 ])

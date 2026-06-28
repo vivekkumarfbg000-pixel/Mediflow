@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase, isMissingEnv } from '../../lib/supabaseClient';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
-  Building2, Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
+  Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
   Users
 } from 'lucide-react';
-import { BrandMark } from './BrandMark';
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 
 interface LoginAttempt {
@@ -133,7 +132,7 @@ const checkLockout = (email: string): { locked: boolean; remainingSeconds: numbe
 };
 
 // Retry mechanism for transient network issues (max 3 retries)
-const retryRequest = async <T extends unknown>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
+const retryRequest = async <T,>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
   try {
     return await fn();
   } catch (err: any) {
