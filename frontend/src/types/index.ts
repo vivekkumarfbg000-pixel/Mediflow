@@ -51,9 +51,12 @@ export interface ChatMessage {
 }
 
 export interface WhatsAppSessionData {
-  chatHistory?: ChatMessage[];
+  chatHistory?: (ChatMessage | WhatsAppChatEntry)[];
   consentGranted?: boolean;
   consentTime?: string | null;
+  referral?: WhatsAppReferral | null;
+  language?: string;
+  lastIntent?: string;
   [key: string]: any;
 }
 
@@ -74,6 +77,7 @@ export interface WhatsAppSession {
     | 'AWAITING_WELCOME_ACK';
   lastInteraction: string;
   sessionData: WhatsAppSessionData;
+  isActive?: boolean;
 }
 
 export interface MedicationRequest {
@@ -472,21 +476,6 @@ export interface WhatsAppReferral {
   referredBy?: string;
 }
 
-export interface WhatsAppSessionData {
-  referral?: WhatsAppReferral | null;
-  chatHistory?: WhatsAppChatEntry[];
-  language?: string;
-  lastIntent?: string;
-  [key: string]: unknown;
-}
-
-export interface WhatsAppSession {
-  patientPhone: string;
-  sessionData: WhatsAppSessionData;
-  lastInteraction?: string;
-  isActive?: boolean;
-}
-
 // ── WABA (WhatsApp Business Account) Connection ───────────────────────────────
 
 export interface WabaConnection {
@@ -497,3 +486,4 @@ export interface WabaConnection {
   status: 'active' | 'inactive' | 'pending';
   connectedAt: string;
 }
+

@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabaseClient';
 import { ProactiveHealthMonitor } from '../../services/autoHealerAgent';
 import { PatientService } from '../../services/patientService';
 import { WhatsAppService } from '../../services/whatsappService';
+import { LabService } from '../../services/labService';
+import { PharmacyService } from '../../services/pharmacyService';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PodCommandCenter.tsx — Mediflow B2B Glassmorphic Matrix Console

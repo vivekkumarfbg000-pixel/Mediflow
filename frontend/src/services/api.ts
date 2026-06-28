@@ -1024,26 +1024,6 @@ class MediflowApiService {
     return PatientService.generateAIPatientSummary(patientId);
   }
 
-  getSyntheticProfiles(): any[] {
-    return PatientService.getSyntheticProfiles();
-  }
-
-  generateSyntheticProfiles(count: number): any[] {
-    const res = PatientService.generateSyntheticProfiles(count);
-    this.notify();
-    return res;
-  }
-
-  deleteSyntheticProfile(id: string): void {
-    PatientService.deleteSyntheticProfile(id);
-    this.notify();
-  }
-
-  clearAllSyntheticProfiles(): void {
-    PatientService.clearAllSyntheticProfiles();
-    this.notify();
-  }
-
   // WhatsApp conversational state machine Delegators
   getWhatsAppSessions(): WhatsAppSession[] {
     return WhatsAppService.getWhatsAppSessions();
