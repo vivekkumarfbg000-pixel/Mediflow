@@ -62,7 +62,13 @@ class TelemetryIndexedDB {
       });
     } catch (e) {
       console.warn('[Telemetry IndexedDB] Fallback to localStorage queue:', e);
-      const memOutbox = JSON.parse(localStorage.getItem('telemetry_mem_outbox') || '[]');
+      let memOutbox: QueuedTelemetry[] = [];
+      try {
+        const raw = localStorage.getItem('telemetry_mem_outbox');
+        if (raw) memOutbox = JSON.parse(raw);
+      } catch {
+        memOutbox = [];
+      }
       memOutbox.push(entry);
       localStorage.setItem('telemetry_mem_outbox', JSON.stringify(memOutbox));
     }
@@ -81,7 +87,12 @@ class TelemetryIndexedDB {
         request.onerror = () => reject(request.error);
       });
     } catch (e) {
-      return JSON.parse(localStorage.getItem('telemetry_mem_outbox') || '[]');
+      try {
+        const raw = localStorage.getItem('telemetry_mem_outbox');
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
     }
   }
 
@@ -96,7 +107,13 @@ class TelemetryIndexedDB {
         request.onerror = () => reject(request.error);
       });
     } catch (e) {
-      const memOutbox = JSON.parse(localStorage.getItem('telemetry_mem_outbox') || '[]');
+      let memOutbox: QueuedTelemetry[] = [];
+      try {
+        const raw = localStorage.getItem('telemetry_mem_outbox');
+        if (raw) memOutbox = JSON.parse(raw);
+      } catch {
+        memOutbox = [];
+      }
       const filtered = memOutbox.filter((x: any) => x.id !== id);
       localStorage.setItem('telemetry_mem_outbox', JSON.stringify(filtered));
     }

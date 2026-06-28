@@ -8,6 +8,7 @@ import { BillingService } from './billingService';
 import { WhatsAppService } from './whatsappService';
 import { ForecastService } from './forecastService';
 import { StaffService } from './staffService';
+import { AIService, type AIResult } from './aiService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
 
@@ -488,21 +489,38 @@ class MediflowApiService {
         const { data, error } = await supabase
           .from('patient_consents')
           .select('*')
-          .is('revoked_at', null);
+          .eq('data_sharing_consent', true);
         if (error) throw error;
         return data;
       }, () => {
         const cachedConsentIds = this.load<string[]>('active_consent_ids', []);
-        return cachedConsentIds.map(id => ({ patient_id: id, granted_at: new Date().toISOString() }));
+        return cachedConsentIds.map(id => ({ patient_id: id, consented_at: new Date().toISOString() }));
       });
 
       const activePatientIds = new Set<string>();
+
+      // Load local consents first so offline modifications persist
+      const localConsentTimestamps = this.load<Record<string, string>>('local_consent_timestamps', {});
+      Object.entries(localConsentTimestamps).forEach(([patientId, grantedAtStr]) => {
+        const grantedDate = new Date(grantedAtStr);
+        const diffDays = (new Date().getTime() - grantedDate.getTime()) / (1000 * 3600 * 24);
+        if (diffDays <= 30) {
+          activePatientIds.add(patientId);
+        } else {
+          delete localConsentTimestamps[patientId];
+        }
+      });
+      this.save('local_consent_timestamps', localConsentTimestamps);
+
       if (dbConsents) {
         dbConsents.forEach(c => {
-          const grantedDate = new Date(c.granted_at);
-          const diffDays = (new Date().getTime() - grantedDate.getTime()) / (1000 * 3600 * 24);
-          if (diffDays <= 30) {
-            activePatientIds.add(c.patient_id);
+          const dateStr = c.consented_at || c.granted_at || c.created_at;
+          if (dateStr) {
+            const grantedDate = new Date(dateStr);
+            const diffDays = (new Date().getTime() - grantedDate.getTime()) / (1000 * 3600 * 24);
+            if (diffDays <= 30) {
+              activePatientIds.add(c.patient_id);
+            }
           }
         });
       }
@@ -1013,6 +1031,28 @@ class MediflowApiService {
   async grantInPersonConsent(patientId: string): Promise<void> {
     await PatientService.grantInPersonConsent(patientId);
     this.notify();
+  }
+
+  getPhysicalConsents(patientId: string): any[] {
+    return PatientService.getPhysicalConsents(patientId);
+  }
+
+  async recordPhysicalConsent(params: {
+    patientId: string;
+    purpose: string;
+    details?: string;
+  }): Promise<void> {
+    await PatientService.recordPhysicalConsent(params);
+    this.notify();
+  }
+
+  async revokePhysicalConsent(consentId: string): Promise<void> {
+    await PatientService.revokePhysicalConsent(consentId);
+    this.notify();
+  }
+
+  checkAndExpirePhysicalConsents(): void {
+    PatientService.checkAndExpirePhysicalConsents();
   }
 
   async updatePatientPastReportsSummary(patientId: string, summary: string): Promise<void> {
@@ -1596,6 +1636,19 @@ class MediflowApiService {
 
   async processOCR(imageBase64: string): Promise<{ extractedMedicines?: any[]; extractedTests?: any[] }> {
     return ForecastService.processOCR(imageBase64);
+  }
+
+  // AIService Delegators
+  getAIResults(patientId?: string): AIResult[] {
+    return AIService.getAIResults(patientId);
+  }
+
+  getAIResultByTaskId(taskId: string): AIResult | null {
+    return AIService.getAIResultByTaskId(taskId);
+  }
+
+  async saveAIResult(result: AIResult): Promise<void> {
+    await AIService.saveAIResult(result);
   }
 
   // Clinic Staff Operations Delegators

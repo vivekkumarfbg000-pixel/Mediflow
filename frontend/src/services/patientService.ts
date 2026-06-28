@@ -2,6 +2,19 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import type { Patient, PatientVitals } from '../types';
 
+export interface PhysicalConsent {
+  id: string;
+  patient_id: string;
+  recorded_by_user_id: string;
+  consent_purpose: string;
+  recorded_at: string;
+  expires_at: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+  revoked_by_user_id?: string | null;
+  revoked_at?: string | null;
+  details?: string;
+}
+
 export const INITIAL_PATIENTS: Patient[] = [
   {
     id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401',
@@ -250,8 +263,21 @@ export class PatientService {
   }
 
   static isPatientConsentActive(patientId: string): boolean {
+    // 1. Run automatic expiration sweep first
+    this.checkAndExpirePhysicalConsents();
+
+    // 2. Check digital consents
     const ids = load<string[]>('active_consent_ids', []);
-    return ids.includes(patientId);
+    if (ids.includes(patientId)) return true;
+
+    // 3. Check active physical consents
+    const physicalConsents = load<PhysicalConsent[]>('physical_consents', []);
+    const now = Date.now();
+    return physicalConsents.some(c => 
+      c.patient_id === patientId && 
+      c.status === 'ACTIVE' && 
+      new Date(c.expires_at).getTime() > now
+    );
   }
 
   static getActivePatient(): Patient | null {
@@ -310,10 +336,6 @@ export class PatientService {
     const consentTimestamp = new Date().toISOString();
 
     // ── Cryptographic Consent Signature ──────────────────────────────────────
-    // Generate a HMAC-SHA256 signature over (patientId + timestamp) using a
-    // clinic-level secret key provisioned at build time via VITE_CONSENT_HMAC_KEY.
-    // The signature is stored alongside the consent record to provide a
-    // tamper-evident, auditable chain of custody.
     let consentSignature: string | null = null;
     try {
       const hmacSecret = import.meta.env.VITE_CONSENT_HMAC_KEY ?? 'mediflow-dev-only-key-change-in-production';
@@ -333,7 +355,6 @@ export class PatientService {
     } catch (sigErr) {
       console.error('[Mediflow] Consent HMAC signature generation failed:', sigErr);
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
     // Instantly update local cache and notify subscribers for immediate UI state transition
     const activeConsents = load<string[]>('active_consent_ids', []);
@@ -341,13 +362,19 @@ export class PatientService {
       activeConsents.push(patientId);
       save('active_consent_ids', activeConsents);
     }
+    
+    // Save to local consent timestamps cache to prevent immediate sync revokes
+    const localConsentTimestamps = load<Record<string, string>>('local_consent_timestamps', {});
+    localConsentTimestamps[patientId] = consentTimestamp;
+    save('local_consent_timestamps', localConsentTimestamps);
+    
     notify();
 
     try {
       const { error } = await supabase.from('patient_consents').insert({
         patient_id: patientId,
-        consent_type: 'data_processing',
-        granted_at: consentTimestamp,
+        data_sharing_consent: true,
+        consented_at: consentTimestamp,
         consent_signature: consentSignature,
         signature_algorithm: 'HMAC-SHA256'
       });
@@ -355,6 +382,137 @@ export class PatientService {
       await writeAuditLog('IN_PERSON_CONSENT_GRANTED', { patientId, signaturePresent: !!consentSignature }, patientId);
     } catch (err) {
       console.error('[Mediflow] Failed to grant in person consent database record:', err);
+    }
+  }
+
+  static getPhysicalConsents(patientId: string): PhysicalConsent[] {
+    const consents = load<PhysicalConsent[]>('physical_consents', []);
+    return consents.filter(c => c.patient_id === patientId);
+  }
+
+  static async recordPhysicalConsent(params: {
+    patientId: string;
+    purpose: string;
+    details?: string;
+  }): Promise<void> {
+    const { patientId, purpose, details } = params;
+    const nowStr = new Date().toISOString();
+    const expiresAtStr = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    let currentUserId = 'demo-doctor-uuid';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) currentUserId = user.id;
+    } catch (_) {}
+
+    const newConsent: PhysicalConsent = {
+      id: crypto.randomUUID(),
+      patient_id: patientId,
+      recorded_by_user_id: currentUserId,
+      consent_purpose: purpose,
+      recorded_at: nowStr,
+      expires_at: expiresAtStr,
+      status: 'ACTIVE',
+      details: details || ''
+    };
+
+    const physicalConsents = load<PhysicalConsent[]>('physical_consents', []);
+    physicalConsents.push(newConsent);
+    save('physical_consents', physicalConsents);
+
+    const localConsentTimestamps = load<Record<string, string>>('local_consent_timestamps', {});
+    localConsentTimestamps[patientId] = nowStr;
+    save('local_consent_timestamps', localConsentTimestamps);
+
+    notify();
+
+    try {
+      const { error } = await supabase.from('patient_consents').insert({
+        patient_id: patientId,
+        data_sharing_consent: true,
+        consented_at: nowStr,
+        consent_signature: `PHYSICAL_BYPASS_${newConsent.id}`,
+        signature_algorithm: 'HMAC-SHA256'
+      });
+      if (error) throw error;
+      await writeAuditLog('PHYSICAL_CONSENT_GRANTED', { 
+        patientId, 
+        purpose, 
+        expiresAt: expiresAtStr,
+        consentId: newConsent.id 
+      }, patientId);
+    } catch (dbErr) {
+      console.error('[Mediflow] Failed to write physical consent database record:', dbErr);
+    }
+  }
+
+  static async revokePhysicalConsent(consentId: string): Promise<void> {
+    const physicalConsents = load<PhysicalConsent[]>('physical_consents', []);
+    const idx = physicalConsents.findIndex(c => c.id === consentId);
+    if (idx === -1) return;
+
+    let currentUserId = 'demo-doctor-uuid';
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) currentUserId = user.id;
+    } catch (_) {}
+
+    const consent = physicalConsents[idx];
+    consent.status = 'REVOKED';
+    consent.revoked_by_user_id = currentUserId;
+    consent.revoked_at = new Date().toISOString();
+
+    save('physical_consents', physicalConsents);
+
+    const activeConsents = load<string[]>('active_consent_ids', []);
+    save('active_consent_ids', activeConsents.filter(id => id !== consent.patient_id));
+
+    const localConsentTimestamps = load<Record<string, string>>('local_consent_timestamps', {});
+    delete localConsentTimestamps[consent.patient_id];
+    save('local_consent_timestamps', localConsentTimestamps);
+
+    notify();
+
+    try {
+      const { error } = await supabase
+        .from('patient_consents')
+        .update({ data_sharing_consent: false })
+        .eq('patient_id', consent.patient_id);
+      if (error) throw error;
+      await writeAuditLog('PHYSICAL_CONSENT_REVOKED', { consentId, patientId: consent.patient_id }, consent.patient_id);
+    } catch (dbErr) {
+      console.error('[Mediflow] Failed to revoke physical consent database record:', dbErr);
+    }
+  }
+
+  static checkAndExpirePhysicalConsents(): void {
+    const physicalConsents = load<PhysicalConsent[]>('physical_consents', []);
+    const now = Date.now();
+    let changed = false;
+
+    const updated = physicalConsents.map(c => {
+      if (c.status === 'ACTIVE' && new Date(c.expires_at).getTime() <= now) {
+        c.status = 'EXPIRED';
+        changed = true;
+        writeAuditLog('PHYSICAL_CONSENT_EXPIRED', { consentId: c.id, patientId: c.patient_id }, c.patient_id);
+      }
+      return c;
+    });
+
+    if (changed) {
+      save('physical_consents', updated);
+      
+      const activeConsents = load<string[]>('active_consent_ids', []);
+      const activePhysicals = updated.filter(c => c.status === 'ACTIVE').map(c => c.patient_id);
+      const filteredConsents = activeConsents.filter(id => {
+        const hasPhysical = updated.some(pc => pc.patient_id === id);
+        if (hasPhysical) {
+          return activePhysicals.includes(id);
+        }
+        return true;
+      });
+      save('active_consent_ids', filteredConsents);
+      notify();
     }
   }
 

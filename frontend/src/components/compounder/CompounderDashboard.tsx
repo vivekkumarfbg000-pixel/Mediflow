@@ -153,7 +153,14 @@ export const CompounderDashboard: React.FC = () => {
 
   // Chat simulator input & scroll states
   const [replyInput, setReplyInput] = useState('');
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    setIsAtBottom(distanceFromBottom <= 30);
+  };
 
   // Clinic Staff State
   const [staffList, setStaffList] = useState<ClinicStaff[]>([]);
@@ -264,10 +271,22 @@ export const CompounderDashboard: React.FC = () => {
   }, [syncData]);
 
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    const container = chatContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+      setIsAtBottom(true);
     }
-  }, [activeSession?.sessionData?.chatHistory]);
+  }, [activeSession?.patientPhone]);
+
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (container && isAtBottom) {
+      const scrollTimer = setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 50);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [activeSession?.sessionData?.chatHistory, isAtBottom]);
 
   // Auto-focus active patient in vitals intake form if they do not have vitals recorded yet
   useEffect(() => {
@@ -303,7 +322,7 @@ export const CompounderDashboard: React.FC = () => {
       setRevisitPatientId(activePatient.id);
     }
     setScannedSummary(null);
-  }, [activePatient]);
+  }, [activePatient?.id]);
 
   // Sync loyalty checkboxes when billing patient changes
   useEffect(() => {
@@ -3977,7 +3996,11 @@ export const CompounderDashboard: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex-1 bg-[#efeae2] p-4 overflow-y-auto space-y-4 font-sans text-xs">
+            <div 
+              ref={chatContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 bg-[#efeae2] p-4 overflow-y-auto space-y-4 font-sans text-xs"
+            >
               {activeSession ? (
                 <div className="space-y-4">
                   <div className="text-center select-none">
@@ -4039,7 +4062,7 @@ export const CompounderDashboard: React.FC = () => {
                       );
                     });
                   })()}
-                  <div ref={chatEndRef} />
+
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 select-none">

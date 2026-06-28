@@ -30,13 +30,38 @@ export function getStorageKey(key: string): string {
   return `mediflow_${key}`;
 }
 
+const storageCache = new Map<string, any>();
+
+export function clearStorageCache(key?: string) {
+  if (key) {
+    storageCache.delete(key);
+  } else {
+    storageCache.clear();
+  }
+}
+
 export function load<T>(key: string, defaultValue: T): T {
+  if (storageCache.has(key)) {
+    return storageCache.get(key) as T;
+  }
   const data = localStorage.getItem(getStorageKey(key));
-  return data ? JSON.parse(data) : defaultValue;
+  let parsed = defaultValue;
+  if (data) {
+    try {
+      parsed = JSON.parse(data);
+    } catch (e) {
+      console.warn(`[Mediflow Cache] Failed parsing corrupted key "${key}":`, e);
+      // Automatically self-heal by writing defaultValue back to storage
+      localStorage.setItem(getStorageKey(key), JSON.stringify(defaultValue));
+    }
+  }
+  storageCache.set(key, parsed);
+  return parsed;
 }
 
 export function save<T>(key: string, value: T): void {
   localStorage.setItem(getStorageKey(key), JSON.stringify(value));
+  storageCache.set(key, value);
 }
 
 export async function writeAuditLog(

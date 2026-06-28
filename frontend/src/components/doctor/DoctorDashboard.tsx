@@ -357,14 +357,39 @@ export const DoctorDashboard: React.FC = () => {
     return api.subscribe(syncDashboardData);
   }, [activePod?.id]);
 
-  // Reset selectors when patient changes
+  // Reset selectors and load cached AI results when patient changes
   useEffect(() => {
     setBaselineDate(null);
     setComparisonDate(null);
     setCdssAnomalies([]);
-    setAiInsight('');
     setAiError(null);
     setRefractionRx(EMPTY_REFRACTION_RX);
+
+    if (selectedPatient?.id) {
+      // 1. Preload RAG clinical insight
+      const cachedRag = api.getAIResults(selectedPatient.id).find(r => r.output_type === 'RAG_CLINICAL_ADVISORY');
+      setAiInsight(cachedRag && cachedRag.status === 'SUCCESS' ? cachedRag.output_data : '');
+
+      // 2. Preload Hinglish summary
+      const cachedHinglish = api.getAIResults(selectedPatient.id).find(r => r.output_type === 'HINGLISH_SUMMARY');
+      setHinglishSummary(cachedHinglish && cachedHinglish.status === 'SUCCESS' ? cachedHinglish.output_data : '');
+
+      // 3. Preload comparative trend
+      const cachedTrend = api.getAIResults(selectedPatient.id).find(r => r.output_type === 'COMPARATIVE_TREND');
+      if (cachedTrend && cachedTrend.status === 'SUCCESS') {
+        setComparativeTrend({
+          summaryText: cachedTrend.output_data,
+          citations: [],
+          suggestedCompositions: []
+        });
+      } else {
+        setComparativeTrend(null);
+      }
+    } else {
+      setAiInsight('');
+      setHinglishSummary('');
+      setComparativeTrend(null);
+    }
   }, [selectedPatient?.id]);
 
 
@@ -428,12 +453,33 @@ export const DoctorDashboard: React.FC = () => {
 
     // Asynchronous RAG clinical insight pipeline with 5s timeout & containment
     const fetchRAGInsights = async () => {
-      setIsAiLoading(true);
+      // Check for cached RAG result first to prevent flicker
+      const cached = api.getAIResults(selectedPatient.id).find(r => r.output_type === 'RAG_CLINICAL_ADVISORY');
+      if (!cached) {
+        setIsAiLoading(true);
+        setAiInsight('');
+      }
       setAiError(null);
-      setAiInsight('');
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const persistRAGResult = (insight: string, model: string) => {
+        const taskId = `task-rag-${selectedPatient.id}-${Date.now()}`;
+        api.saveAIResult({
+          id: crypto.randomUUID(),
+          user_id: 'demo-doctor-uuid',
+          task_id: taskId,
+          patient_id: selectedPatient.id,
+          input_data: `RAG Clinical Advisory fetch: baseDate=${baselineDate || 'None'}, compDate=${comparisonDate || 'None'}`,
+          output_data: insight,
+          output_type: 'RAG_CLINICAL_ADVISORY',
+          status: 'SUCCESS',
+          created_at: new Date().toISOString(),
+          model_used: model,
+          duration_ms: 2000
+        });
+      };
 
       try {
         // Query the database using pgvector fallback keyword match
@@ -525,6 +571,7 @@ export const DoctorDashboard: React.FC = () => {
         if (!mistralApiKey) {
           setAiInsight(defaultInsight);
           clearTimeout(timeoutId);
+          persistRAGResult(defaultInsight, 'static-fallback');
           return;
         }
 
@@ -572,6 +619,7 @@ Structure it with sections:
 Keep the tone professional, clinical, objective, and precise.`;
 
         let synthesizedInsight = '';
+        let modelUsed = 'mistral-large-latest';
         try {
           const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
             method: 'POST',
@@ -598,6 +646,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           console.warn("[Mistral Live RAG Synthesis failed, initiating backup failover to Groq Llama-3.3-70B]:", mistralErr);
           const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
           if (groqApiKey) {
+            modelUsed = 'llama-3.3-70b-versatile';
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
               method: 'POST',
               headers: {
@@ -628,6 +677,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
         clearTimeout(timeoutId);
         setAiInsight(synthesizedInsight);
+        persistRAGResult(synthesizedInsight, modelUsed);
 
       } catch (err: any) {
         console.warn("[Mistral Live RAG Synthesis Failed, falling back to static]:", err);
@@ -690,6 +740,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         }
 
         setAiInsight(fallbackInsight);
+        persistRAGResult(fallbackInsight, 'static-fallback');
       } finally {
         setIsAiLoading(false);
       }

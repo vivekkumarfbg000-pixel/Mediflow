@@ -13,6 +13,8 @@
 | `frontend/src/components/admin/SystemHealthCockpit.tsx` | ✅ PATCHED | Fault Injection panel removed; stale telemetry auto-cleanup on mount |
 | `frontend/src/services/api.ts` | ✅ PATCHED | Added `generateSyntheticProfiles`, `getSyntheticProfiles`, `deleteSyntheticProfile`, `clearAllSyntheticProfiles` |
 | `frontend/src/types/index.ts` | ✅ PATCHED | Added `SyntheticProfile` interface |
+| `frontend/src/components/shared/PatientWhatsAppSimulator.tsx` | ✅ REPAIRED | Fixed persistent auto-scrolling by switching to bounded container scroll |
+| `frontend/src/components/compounder/CompounderDashboard.tsx` | ✅ REPAIRED | Fixed persistent auto-scrolling by switching to bounded container scroll |
 
 ### FORBIDDEN_FILES (NO-FLY ZONES)
 - All files under `supabase/migrations/` — **MUST REMAIN UNTOUCHED**
@@ -64,8 +66,8 @@ None for frontend theme changes.
 
 | # | Gate | Status |
 |---|---|---|
-| 1 | Vite Dev Server — zero error overlay on `http://localhost:5173` | ✅ PASSING |
-| 2 | TypeScript — `npx tsc --noEmit` inside `/frontend` returns exit code 0 | 🔲 Pending |
+| 1 | Vite Dev Server — zero error overlay on `http://localhost:5173` | ✅ PASSING (Repaired syntax error in BillingDashboard.tsx line 499) |
+| 2 | TypeScript — `npx tsc --noEmit` inside `/frontend` returns exit code 0 | ✅ VERIFIED |
 | 3 | Contrast — All body text ≥ 4.5:1 on #FFFFFF canvas | ✅ Verified |
 | 4 | AuthGateway — All flows render light-themed with white inputs | ✅ Verified |
 | 5 | BillingDashboard — No `text-clinical-*` or `bg-surface-container*` tokens remain | ✅ Fixed |

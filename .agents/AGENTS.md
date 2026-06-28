@@ -31,3 +31,17 @@ Whenever debugging, resolving errors, or fixing bugs, adopt the mindset and stru
    - Validate that the fix resolves the reported error.
    - Confirm that existing/related features remain fully functional.
 
+## 🧠 Post-Resolution Learnings & Persistent Rules
+
+### 1. Database Schema Alignment & Resilience
+- **Strict Query Alignment**: If a table's schema in the database does not match the frontend's expected properties, always query and insert using the actual database column names (e.g., using `consented_at` instead of `granted_at`; `data_sharing_consent` instead of `consent_type`).
+- **Query Hardening**: Never include query filters (like `.is('revoked_at', null)`) targeting columns that do not exist in the database schema, as this throws errors that trigger circuit-breaker fallbacks.
+
+### 2. Local-First Synchronization Safeguards
+- **Local State Preservation**: To prevent background database synchronization routines from overwriting active local/mock states with empty datasets (e.g. due to unauthenticated JWTs, RLS restrictions, or offline mock sessions), always maintain a local timestamp cache (e.g., `local_consent_timestamps`).
+- **Cache Merging**: Merge local cache entries with database sync results before saving the final active lists, filtering out expired items locally.
+
+### 3. Non-Intrusive Viewport Scrolling
+- **Bounded Container Scroll**: To avoid unsolicited page-level scrolling, never use `scrollIntoView()` on container children. Manipulate the container's `scrollTop` directly (`container.scrollTop = container.scrollHeight`).
+- **User Scroll Detection**: Always implement scroll detectors (`onScroll`) to trace when a user scrolls up. Suppress programmatic scrolls if the user is actively reading earlier content.
+- **Visibility Checks**: Verify container visibility (`isOpen === true` or equivalent) before applying scrolls to prevent layout shifts.

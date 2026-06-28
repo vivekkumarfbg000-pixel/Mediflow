@@ -340,12 +340,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onChangeRole(r.id as UserRole);
                     }
                   }}
-                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-200 relative group cursor-pointer ${
+                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
                     isActive
-                      ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+                      ? 'bg-indigo-50/80 text-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.08)] border border-indigo-100/40'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
                   }`}
-                  title={r.name}
+                  title={isSidebarCollapsed ? undefined : r.name}
                 >
                   {/* Left accent indicator line on active */}
                   {isActive && (
@@ -361,6 +361,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {!isSidebarCollapsed && (
                     <span className="flex-1 text-left animate-fade-in">{r.name}</span>
                   )}
+
+                  {/* Collapsed Tooltip Overlay */}
+                  {isSidebarCollapsed && (
+                    <div className="absolute left-16 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
+                      {r.name}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -374,12 +381,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }
                   window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'sop' }));
                 }}
-                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-200 relative group cursor-pointer ${
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
                   activeDoctorTab === 'sop'
-                    ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+                    ? 'bg-indigo-50/80 text-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.08)] border border-indigo-100/40'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
                 }`}
-                title="Clinic SOP"
+                title={isSidebarCollapsed ? undefined : "Clinic SOP"}
               >
                 {/* Left accent indicator line on active */}
                 {activeDoctorTab === 'sop' && (
@@ -395,6 +402,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {!isSidebarCollapsed && (
                   <span className="flex-1 text-left animate-fade-in">Clinic SOP</span>
                 )}
+
+                {/* Collapsed Tooltip Overlay */}
+                {isSidebarCollapsed && (
+                  <div className="absolute left-16 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
+                    Clinic SOP
+                  </div>
+                )}
               </button>
             )}
           </div>
@@ -407,19 +421,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex flex-col items-center gap-3 w-full">
                 {/* Collapsed Profile Avatar */}
                 <div 
-                  className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                  title={`Active Profile: ${activeProfile.display_name} (${activeProfile.role})`}
+                  className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative group hover:scale-105 transition-all duration-200"
                 >
                   {activeProfile.display_name.charAt(0)}
+                  <div className="absolute left-12 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
+                    {activeProfile.display_name} ({displayRole(activeProfile.role)})
+                  </div>
                 </div>
 
                 {/* Collapsed Settings Trigger */}
                 <button
                   onClick={handleCollapsedSettingsClick}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-600 transition-all duration-250 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                  title="Open Settings"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-700 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative group hover:scale-105 active:scale-95"
                 >
                   <Settings className="h-4 w-4" />
+                  <div className="absolute left-12 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
+                    Open Settings
+                  </div>
                 </button>
               </div>
             ) : (

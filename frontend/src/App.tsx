@@ -1,5 +1,5 @@
 // Mediflow Connected Care Ecosystem - Premium Dashboard v1.0.0
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, startTransition } from 'react';
 import { Navbar } from './components/shared/Navbar';
 import type { UserRole } from './components/shared/Navbar';
 import { api } from './services/api';
@@ -73,6 +73,18 @@ function AppContent({
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
+  const [activeDoctorTab, setActiveDoctorTab] = useState('pod_view');
+
+  useEffect(() => {
+    const handleDoctorTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveDoctorTab(customEvent.detail);
+      }
+    };
+    window.addEventListener('mediflow-doctor-tab-changed', handleDoctorTabChange);
+    return () => window.removeEventListener('mediflow-doctor-tab-changed', handleDoctorTabChange);
+  }, []);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -95,40 +107,94 @@ function AppContent({
     }
   };
 
+  const getBreadcrumbs = () => {
+    const items = [{ label: 'Ecosystem' }];
+    
+    const roleNames: Record<UserRole, string> = {
+      doctor: 'Doctor Console',
+      compounder: 'Compounder Operations',
+      lab: 'Pathology Lab',
+      pharmacy: 'Pharmacy POS',
+      billing: 'UPI Ledger',
+      saas_admin: 'Platform Admin',
+      patient: 'Patient Portal'
+    };
+
+    items.push({ label: roleNames[currentRole] || currentRole });
+
+    if (currentRole === 'doctor') {
+      const tabNames: Record<string, string> = {
+        pod_view: 'Pod Workspace',
+        consultation: 'Patient Consultation',
+        patients: 'Directory',
+        financials: 'Financial Reports',
+        whatsapp: 'WhatsApp Integration',
+        sop: 'Clinic SOP'
+      };
+      items.push({ label: tabNames[activeDoctorTab] || 'Workspace' });
+    }
+
+    return items;
+  };
+
   const renderDashboard = () => {
     switch (currentRole) {
       case 'compounder':
         return (
-          <RequireRole allowedRoles={['compounder']} role={currentRole} bypass={isBypassMode}>
-            <CompounderDashboard />
-          </RequireRole>
+          <ErrorBoundary fallbackTitle="Compounder Dashboard">
+            <RequireRole allowedRoles={['compounder']} role={currentRole} bypass={isBypassMode}>
+              <CompounderDashboard />
+            </RequireRole>
+          </ErrorBoundary>
         );
       case 'doctor':
         return (
-          <RequireRole allowedRoles={['doctor']} role={currentRole} bypass={isBypassMode}>
-            <DoctorDashboard />
-          </RequireRole>
+          <ErrorBoundary fallbackTitle="Doctor Consultation Dashboard">
+            <RequireRole allowedRoles={['doctor']} role={currentRole} bypass={isBypassMode}>
+              <DoctorDashboard />
+            </RequireRole>
+          </ErrorBoundary>
         );
       case 'lab':
         return (
-          <RequireRole allowedRoles={['lab']} role={currentRole} bypass={isBypassMode}>
-            <LabDashboard />
-          </RequireRole>
+          <ErrorBoundary fallbackTitle="Laboratory Diagnostic Console">
+            <RequireRole allowedRoles={['lab']} role={currentRole} bypass={isBypassMode}>
+              <LabDashboard />
+            </RequireRole>
+          </ErrorBoundary>
         );
       case 'pharmacy':
         return (
-          <RequireRole allowedRoles={['pharmacy']} role={currentRole} bypass={isBypassMode}>
-            <PharmacyDashboard />
-          </RequireRole>
+          <ErrorBoundary fallbackTitle="Pharmacy Inventory & POS Dashboard">
+            <RequireRole allowedRoles={['pharmacy']} role={currentRole} bypass={isBypassMode}>
+              <PharmacyDashboard />
+            </RequireRole>
+          </ErrorBoundary>
         );
       case 'billing':
-        return <BillingDashboard />;
+        return (
+          <ErrorBoundary fallbackTitle="Billing & Ledgers Module">
+            <BillingDashboard />
+          </ErrorBoundary>
+        );
       case 'saas_admin':
-        return <SaaSAdminPanel />;
+        return (
+          <ErrorBoundary fallbackTitle="SaaS Platform Operations Panel">
+            <SaaSAdminPanel />
+          </ErrorBoundary>
+        );
       case 'patient':
-        return <PatientMobileDashboard />;
+        return (
+          <ErrorBoundary fallbackTitle="Patient Companion Viewport">
+            <PatientMobileDashboard />
+          </ErrorBoundary>
+        );
       default:
-        return <CompounderDashboard />;
+        return (
+          <ErrorBoundary fallbackTitle="Compounder Dashboard">
+            <CompounderDashboard />
+          </ErrorBoundary>
+        );
     }
   };
 
@@ -216,8 +282,26 @@ function AppContent({
       />
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
-      <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300 dense-theme`}>
-        <div className="animate-fade-in">
+      <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300 dense-theme flex flex-col`}>
+        {/* Premium Breadcrumb Navigator Bar */}
+        <div className="bg-slate-50/80 backdrop-blur-md border-b border-slate-200/40 px-6 py-3 flex items-center justify-between shrink-0 select-none">
+          <nav className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+            {getBreadcrumbs().map((item, idx, arr) => (
+              <span key={idx} className="flex items-center gap-1.5">
+                {idx > 0 && <span className="text-slate-300">/</span>}
+                <span className={idx === arr.length - 1 ? 'text-indigo-600 font-extrabold' : 'text-slate-650 hover:text-slate-900 transition-colors'}>
+                  {item.label}
+                </span>
+              </span>
+            ))}
+          </nav>
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[9px] font-bold text-emerald-600 font-mono uppercase tracking-wider">Sync Active</span>
+          </div>
+        </div>
+
+        <div className="animate-fade-in flex-1">
           <ErrorBoundary>
             <Suspense fallback={getSkeleton()}>
               {renderDashboard()}
@@ -716,7 +800,9 @@ export default function App() {
         return;
       }
     }
-    setCurrentRole(role);
+    startTransition(() => {
+      setCurrentRole(role);
+    });
   };
 
   if (isLoadingSession) {

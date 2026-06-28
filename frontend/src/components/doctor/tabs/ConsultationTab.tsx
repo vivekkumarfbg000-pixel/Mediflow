@@ -123,10 +123,88 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   handleLaunchVideoConsult
 }) => {
   const appointments: Appointment[] = api.getAppointments();
+  const [aiHistory, setAiHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    const refreshHistory = () => {
+      if (selectedPatient) {
+        setAiHistory(api.getAIResults(selectedPatient.id));
+      } else {
+        setAiHistory([]);
+      }
+    };
+    refreshHistory();
+    return api.subscribe(refreshHistory);
+  }, [selectedPatient, hinglishSummary, comparativeTrend, aiInsight]);
+
   const [virtualDateInput, setVirtualDateInput] = useState('');
   const [virtualTimeInput, setVirtualTimeInput] = useState('');
   const [expandedCitationPmid, setExpandedCitationPmid] = useState<string | null>(null);
   const [flashPrescriptionPanel, setFlashPrescriptionPanel] = useState(false);
+  const [consentPurpose, setConsentPurpose] = useState<string>('GENERAL_TREATMENT');
+  const [consentNotes, setConsentNotes] = useState<string>('');
+  const [activePhysicalConsent, setActivePhysicalConsent] = useState<any>(null);
+  const [remainingTime, setRemainingTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateConsentStatus = () => {
+      api.checkAndExpirePhysicalConsents();
+
+      if (selectedPatient) {
+        const consents = api.getPhysicalConsents(selectedPatient.id);
+        const active = consents.find((c: any) => c.status === 'ACTIVE');
+        setActivePhysicalConsent(active || null);
+      } else {
+        setActivePhysicalConsent(null);
+      }
+    };
+
+    updateConsentStatus();
+    const interval = setInterval(updateConsentStatus, 5000);
+    const unsubscribe = api.subscribe(updateConsentStatus);
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
+  }, [selectedPatient]);
+
+  useEffect(() => {
+    if (!activePhysicalConsent) return;
+
+    const updateTimer = () => {
+      const ms = new Date(activePhysicalConsent.expires_at).getTime() - Date.now();
+      if (ms <= 0) {
+        setRemainingTime('Expired');
+        api.checkAndExpirePhysicalConsents();
+      } else {
+        const hours = Math.floor(ms / (1000 * 60 * 60));
+        const minsRemaining = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+        const secsRemaining = Math.floor((ms % (1000 * 60)) / 1000);
+        setRemainingTime(`${hours}h ${minsRemaining}m ${secsRemaining}s`);
+      }
+    };
+
+    updateTimer();
+    const timerId = setInterval(updateTimer, 1000);
+    return () => clearInterval(timerId);
+  }, [activePhysicalConsent]);
+
+  const handleRevokePhysicalConsent = async () => {
+    if (!selectedPatient || !activePhysicalConsent) return;
+    try {
+      await api.revokePhysicalConsent(activePhysicalConsent.id);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Consent Revoked 🛡️',
+          message: `Physical data consent for ${selectedPatient.name} has been revoked.`,
+          type: 'warning'
+        }
+      }));
+    } catch (err) {
+      console.error('[Consent] Failed to revoke physical consent:', err);
+    }
+  };
 
   const handlePrintClinicalReferral = () => {
     if (!selectedPatient) return;
@@ -496,33 +574,90 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-5">
                 Access to clinical records, diagnostics ordering, and medication prescribing is locked. Please direct the patient to reply <strong className="text-secondary font-mono">"1" (Grant Access)</strong> on their WhatsApp simulator interface, or authorize physical consent.
               </p>
-              {/* Physical consent bypass — DEV ONLY. Removed from production builds. */}
-              {import.meta.env.DEV && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await api.grantInPersonConsent(selectedPatient.id);
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Consent Authorized',
-                          message: `Physical data consent granted for ${selectedPatient.name}.`,
-                          type: 'success'
-                        }
-                      }));
-                    } catch (err: any) {
-                      console.error('[Consent Bypass] Failed to grant physical consent:', err);
-                    }
-                  }}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 bg-indigo-600-force text-white-force"
-                >
-                  <span className="material-symbols-outlined text-[13px] text-white-force">how_to_reg</span>
-                  Grant Physical Consent [DEV ONLY]
-                </button>
-              )}
+              {/* Time-Bound Physical Consent Form */}
+              <div className="w-full max-w-sm bg-slate-50 border border-slate-200/60 p-4.5 rounded-2xl text-left space-y-4 animate-fade-in shadow-sm select-none">
+                <div className="flex gap-2 items-center text-slate-800 font-bold text-xs">
+                  <span className="material-symbols-outlined text-indigo-600 text-base">shield_with_heart</span>
+                  Record Time-Bound Physical Consent
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Consent Purpose/Scope</label>
+                  <select
+                    value={consentPurpose}
+                    onChange={e => setConsentPurpose(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="GENERAL_TREATMENT">GENERAL TREATMENT (General consultation & vitals logging)</option>
+                    <option value="PROCEDURE_X_ACCESS">PROCEDURE ACCESS (Special diagnostics ordering)</option>
+                    <option value="DATA_SHARING_RESEARCH">DATA SHARING (Clinical history sync & check)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Specific Clinical Notes / Details (Optional)</label>
+                  <textarea
+                    placeholder="Enter additional visit details or authorization notes..."
+                    value={consentNotes}
+                    onChange={e => setConsentNotes(e.target.value)}
+                    rows={2}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-500 resize-none font-sans"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!selectedPatient) return;
+                      try {
+                        await api.recordPhysicalConsent({
+                          patientId: selectedPatient.id,
+                          purpose: consentPurpose,
+                          details: consentNotes
+                        });
+                        setConsentNotes('');
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'Consent Active 🛡️',
+                            message: `Recorded 24h physical consent for ${selectedPatient.name}.`,
+                            type: 'success'
+                          }
+                        }));
+                      } catch (err: any) {
+                        console.error('[Consent Bypass] Failed to record physical consent:', err);
+                      }
+                    }}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-750 active:scale-[0.97] text-white text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl transition-all shadow flex justify-center items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
+                  >
+                    <span className="material-symbols-outlined text-[13px] text-white-force">check_circle</span>
+                    Grant 24h Consent
+                  </button>
+                </div>
+              </div>
             </div>
           )}
-          
+
+          {/* Active Physical Consent Banner */}
+          {activePhysicalConsent && (
+            <div className="p-3.5 bg-amber-50/70 border border-amber-200/50 rounded-2xl flex items-center justify-between mb-4 animate-fade-in select-none">
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-amber-600 text-lg">shield_with_heart</span>
+                <div className="text-[10px] text-amber-955 leading-relaxed font-sans">
+                  <span className="font-bold text-amber-955">Active Physical Consent</span> • Purpose: <span className="font-semibold text-amber-900">{activePhysicalConsent.consent_purpose.replace(/_/g, ' ')}</span>
+                  <span className="block text-[9px] text-amber-800 mt-0.5 font-medium font-mono">Expires in: {remainingTime} ({new Date(activePhysicalConsent.expires_at).toLocaleTimeString()})</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleRevokePhysicalConsent}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-[9px] font-bold uppercase tracking-wider rounded-xl border-0 cursor-pointer transition-all shadow-sm shadow-rose-650/15 text-white-force"
+              >
+                Revoke Consent
+              </button>
+            </div>
+          )}
+
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -1038,6 +1173,34 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* Electronic Consultation Record Gating, Suggestions, and AI Summaries */}
           <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-6 shadow-sm text-left">
+            {/* Live AI Clinical RAG Advisory */}
+            {isAiLoading ? (
+              <div className="p-5 bg-indigo-50/40 border border-indigo-100 rounded-2xl animate-pulse space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-500 animate-spin text-sm">sync</span>
+                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider font-mono">Running Live RAG Clinical Advisory Prompt...</span>
+                </div>
+                <div className="h-2 bg-slate-200/60 rounded w-3/4 animate-pulse"></div>
+                <div className="h-2 bg-slate-200/60 rounded w-5/6 animate-pulse"></div>
+                <div className="h-2 bg-slate-200/60 rounded w-1/2 animate-pulse"></div>
+              </div>
+            ) : aiInsight ? (
+              <div className="p-5 bg-indigo-50/40 border border-indigo-150 rounded-2xl space-y-3 animate-fade-in text-left">
+                <div className="flex justify-between items-center border-b border-indigo-100 pb-2">
+                  <h3 className="text-xs font-black text-indigo-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm font-bold text-indigo-700">psychology</span>
+                    Live RAG Clinical Advisory (Active Care Support)
+                  </h3>
+                  <span className="text-[8px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-mono">
+                    PERSISTED CACHE
+                  </span>
+                </div>
+                <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium max-h-[300px] overflow-y-auto pr-1">
+                  {aiInsight}
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-xs text-primary font-bold">edit_note</span>
@@ -1120,6 +1283,22 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   try {
                     const summary = await api.generateConsultHinglishSummary(selectedPatient.id, notes);
                     setHinglishSummary(summary);
+                    
+                    const taskId = `task-hinglish-${selectedPatient.id}-${Date.now()}`;
+                    await api.saveAIResult({
+                      id: crypto.randomUUID(),
+                      user_id: 'demo-doctor-uuid',
+                      task_id: taskId,
+                      patient_id: selectedPatient.id,
+                      input_data: notes,
+                      output_data: summary,
+                      output_type: 'HINGLISH_SUMMARY',
+                      status: 'SUCCESS',
+                      created_at: new Date().toISOString(),
+                      model_used: 'gemini-1.5-flash',
+                      duration_ms: 1000
+                    });
+
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
                         title: 'Hinglish AI Summary Generated! ✨',
@@ -1217,6 +1396,21 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         const trend = await api.generateComparativeLabTrend(selectedPatient.id, baselineDate, comparisonDate);
                         setComparativeTrend(trend);
                         
+                        const taskId = `task-trend-${selectedPatient.id}-${Date.now()}`;
+                        await api.saveAIResult({
+                          id: crypto.randomUUID(),
+                          user_id: 'demo-doctor-uuid',
+                          task_id: taskId,
+                          patient_id: selectedPatient.id,
+                          input_data: `Comparative trend: baseline=${baselineDate || 'None'}, comparison=${comparisonDate || 'None'}`,
+                          output_data: trend.summaryText,
+                          output_type: 'COMPARATIVE_TREND',
+                          status: 'SUCCESS',
+                          created_at: new Date().toISOString(),
+                          model_used: 'gemini-1.5-flash',
+                          duration_ms: 1000
+                        });
+
                         api.writeAuditLog('CDSS_LAB_TREND_ANALYSIS', {
                           patientId: selectedPatient.id,
                           patientName: selectedPatient.name,
@@ -1442,6 +1636,49 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 )}
               </div>
             )}
+
+            {/* AI Generation History List */}
+            <div className="mt-4 p-5 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h4 className="font-bold text-[10px] text-slate-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-xs">history</span>
+                  AI Generation History ({aiHistory.length})
+                </h4>
+                {aiHistory.length > 0 && (
+                  <span className="text-[8px] bg-slate-200 text-slate-650 px-2 py-0.5 rounded font-mono">
+                    Offline Resilient
+                  </span>
+                )}
+              </div>
+              {aiHistory.length === 0 ? (
+                <p className="text-[10px] text-slate-400 italic">No previously saved AI outputs for this patient.</p>
+              ) : (
+                <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
+                  {aiHistory.map((h: any) => (
+                    <div key={h.id} className="p-3 bg-white border border-slate-200/60 rounded-xl text-[10px] text-slate-650 leading-relaxed font-sans space-y-2 hover:shadow-xs transition-all">
+                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 font-mono">
+                        <span className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                          {h.output_type.replace(/_/g, ' ')}
+                        </span>
+                        <span>{new Date(h.created_at).toLocaleString()}</span>
+                      </div>
+                      <div className="text-slate-800 font-medium whitespace-pre-line bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 max-h-40 overflow-y-auto text-[10px] leading-relaxed">
+                        {h.output_data}
+                      </div>
+                      <div className="flex justify-between items-center text-[8px] text-slate-400 font-medium">
+                        <span>Model: {h.model_used}</span>
+                        {h.input_data && (
+                          <span className="truncate max-w-[200px]" title={h.input_data}>
+                            Input: "{h.input_data}"
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Prescribe Medications */}

@@ -83,8 +83,8 @@ export class WhatsAppService {
             if (patient) {
               await supabase.from('patient_consents').insert({
                 patient_id: patient.id,
-                consent_type: 'data_processing',
-                granted_at: new Date().toISOString()
+                data_sharing_consent: true,
+                consented_at: new Date().toISOString()
               });
             }
 

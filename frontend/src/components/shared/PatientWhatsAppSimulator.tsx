@@ -15,7 +15,14 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
   const [invoices, setInvoices] = useState<any[]>([]);
   const [typedMessage, setTypedMessage] = useState<string>('');
   
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    setIsAtBottom(distanceFromBottom <= 30);
+  };
 
   useEffect(() => {
     const syncData = () => {
@@ -39,9 +46,24 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
   }, [selectedPhone]);
 
   useEffect(() => {
-    // Scroll chats to bottom when history shifts
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [sessions, selectedPhone]);
+    if (isOpen && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      setIsAtBottom(true);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    if (isAtBottom) {
+      const scrollTimer = setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 50);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [sessions, selectedPhone, isOpen, isAtBottom]);
 
   const activePatient = patients.find(p => p.phone === selectedPhone) || patients[0];
   const activeSession = sessions.find(s => s.patientPhone === selectedPhone);
@@ -131,6 +153,8 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
 
           {/* WhatsApp Chat messages feed background */}
           <div 
+            ref={chatContainerRef}
+            onScroll={handleScroll}
             className="flex-1 px-3 py-4 overflow-y-auto space-y-3 flex flex-col"
             style={{ 
               backgroundColor: '#e5ddd5', 
@@ -249,7 +273,6 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
               </div>
             )}
 
-            <div ref={chatEndRef} />
           </div>
 
           {/* WhatsApp bottom message input bar */}
