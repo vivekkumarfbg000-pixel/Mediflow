@@ -38,7 +38,8 @@ import type {
   Appointment,
   EveningSlot,
   LabReport,
-  ReagentStock
+  ReagentStock,
+  SyntheticProfile
 } from '../types';
 
 export { MASTER_TEST_CATALOG, OPHTHALMIC_TEST_CATALOG };
@@ -1023,6 +1024,26 @@ class MediflowApiService {
     return PatientService.generateAIPatientSummary(patientId);
   }
 
+  getSyntheticProfiles(): any[] {
+    return PatientService.getSyntheticProfiles();
+  }
+
+  generateSyntheticProfiles(count: number): any[] {
+    const res = PatientService.generateSyntheticProfiles(count);
+    this.notify();
+    return res;
+  }
+
+  deleteSyntheticProfile(id: string): void {
+    PatientService.deleteSyntheticProfile(id);
+    this.notify();
+  }
+
+  clearAllSyntheticProfiles(): void {
+    PatientService.clearAllSyntheticProfiles();
+    this.notify();
+  }
+
   // WhatsApp conversational state machine Delegators
   getWhatsAppSessions(): WhatsAppSession[] {
     return WhatsAppService.getWhatsAppSessions();
@@ -1738,7 +1759,67 @@ class MediflowApiService {
     const allSlots = this.load<EveningSlot[]>('evening_slots', []);
     return allSlots.find(s => s.patientId === patientId && s.startISO.startsWith(todayStr)) ?? null;
   }
+
+  // ── Synthetic Profile Manager ─────────────────────────────────────────────
+
+  /**
+   * Returns the current list of synthetic/mock profiles stored in localStorage.
+   */
+  getSyntheticProfiles(): SyntheticProfile[] {
+    return this.load<SyntheticProfile[]>('synthetic_profiles', []);
+  }
+
+  /**
+   * Generates `count` synthetic profiles with realistic names, roles, and activity metrics.
+   * Profiles are persisted to localStorage and subscribers are notified.
+   */
+  generateSyntheticProfiles(count: number): void {
+    const roles = ['doctor', 'compounder', 'pharmacist', 'lab_tech', 'admin'] as const;
+    const firstNames = ['Priya', 'Ravi', 'Anita', 'Suresh', 'Meena', 'Arun', 'Kavita', 'Deepak', 'Sunita', 'Vijay', 'Pooja', 'Rahul', 'Seema', 'Manoj', 'Neha'];
+    const lastNames  = ['Sharma', 'Verma', 'Singh', 'Kumar', 'Gupta', 'Patel', 'Yadav', 'Jha', 'Mishra', 'Tiwari', 'Pandey', 'Rao', 'Nair', 'Pillai', 'Reddy'];
+
+    const existing = this.getSyntheticProfiles();
+    const newProfiles: SyntheticProfile[] = Array.from({ length: count }, (_, i) => {
+      const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const role = roles[Math.floor(Math.random() * roles.length)];
+      const now = Date.now();
+      return {
+        id: `synth-${now}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+        name: `${fn} ${ln}`,
+        role,
+        email: `${fn.toLowerCase()}.${ln.toLowerCase()}${i}@mediflow-demo.in`,
+        associatedActivityMetric: {
+          interactionsCount: Math.floor(Math.random() * 200) + 5,
+          lastActive: new Date(now - Math.floor(Math.random() * 3_600_000)).toISOString(),
+        },
+        createdAt: new Date().toISOString(),
+        isSynthetic: true,
+      };
+    });
+
+    this.save('synthetic_profiles', [...existing, ...newProfiles]);
+    this.notify();
+  }
+
+  /**
+   * Deletes a single synthetic profile by ID.
+   */
+  deleteSyntheticProfile(id: string): void {
+    const profiles = this.getSyntheticProfiles().filter(p => p.id !== id);
+    this.save('synthetic_profiles', profiles);
+    this.notify();
+  }
+
+  /**
+   * Clears ALL synthetic profiles from localStorage.
+   */
+  clearAllSyntheticProfiles(): void {
+    this.save('synthetic_profiles', []);
+    this.notify();
+  }
 }
+
 
 
 export const api = new MediflowApiService();

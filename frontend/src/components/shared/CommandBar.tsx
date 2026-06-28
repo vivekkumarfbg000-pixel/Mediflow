@@ -40,9 +40,12 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     { id: 'role_pharmacy', title: 'Switch to Pharmacy POS Desk', category: 'Roles / Modules', icon: ShoppingBag, action: () => onChangeRole('pharmacy') },
     { id: 'role_billing', title: 'Switch to UPI Split Ledger Portal', category: 'Roles / Modules', icon: QrCode, action: () => onChangeRole('billing') },
     
-    // Security/Developer bypass
-    { id: 'toggle_bypass', title: isBypassMode ? 'Deactivate Developer Bypass (Enforce Strict RLS)' : 'Activate Developer Bypass (E2E Testing Mode)', category: 'Security & DevTools', icon: Shield, action: () => onToggleBypass(!isBypassMode) },
+    // Security/Developer bypass — DEV ONLY, excluded from production command palette
+    ...(import.meta.env.DEV ? [
+      { id: 'toggle_bypass', title: isBypassMode ? 'Deactivate Developer Bypass (Enforce Strict RLS)' : 'Activate Developer Bypass (E2E Testing Mode)', category: 'Security & DevTools [DEV]', icon: Shield, action: () => onToggleBypass(!isBypassMode) },
+    ] : []),
   ];
+
 
   // Dynamic patient results from registry API
   const dbPatients = api.getPatients();

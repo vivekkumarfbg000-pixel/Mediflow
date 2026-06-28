@@ -1029,7 +1029,12 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-8 md:p-8 space-y-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-8 md:p-8 space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen rounded-xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.5)] border border-slate-200/50 dark:border-white/5 relative overflow-hidden transition-colors duration-300">
+      {/* Ambient Background Glow for visual hierarchy */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-cyan-500/10 blur-[120px]" />
+      </div>
+
       <style>{`
         @keyframes sweep {
           0% { top: 0%; opacity: 0.3; }
@@ -1041,44 +1046,49 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* DASHBOARD HEADER — integrated tabs */}
-      <div className="border-b border-slate-200 pb-0">
+      {/* DASHBOARD HEADER — integrated tabs & glassmorphism */}
+      <div className="border-b border-slate-200/50 dark:border-white/5 pb-0 bg-white/60 dark:bg-clinical-900/40 backdrop-blur-xl p-5 rounded-2xl shadow-sm mb-6 z-10 relative">
         {/* Top row: title + status */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pb-4">
-          <div>
-            <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-indigo-600 text-slate-800 shadow-sm">
-                <span className="material-symbols-outlined text-[20px]">medical_services</span>
-              </span>
-              Compounder Operations Desk
-              <span className={`text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full border uppercase tracking-widest ${
-                isOnline
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-600 animate-pulse'
-                  : 'bg-rose-50 border-rose-200 text-rose-600'
-              }`}>
-                {isOnline ? 'Online' : 'Offline'}
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1 ml-12">
-              Clinical checkup hub — appointments, medicine billing, pathology scans &amp; Shiprocket dispatches.
-            </p>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6">
+          <div className="flex items-start gap-4">
+            <span className="flex-shrink-0 inline-flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20">
+              <span className="material-symbols-outlined text-[24px]">medical_services</span>
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Compounder Operations Desk
+                </h1>
+                <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-widest ${
+                  isOnline
+                    ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 animate-pulse'
+                    : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400'
+                }`}>
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Clinical checkup hub — appointments, medicine billing, pathology scans &amp; Shiprocket dispatches.
+              </p>
+            </div>
           </div>
-          <div className="ml-12 md:ml-0 flex items-center gap-2 shrink-0 flex-wrap">
-            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider font-mono">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap lg:self-center">
+            <span className="inline-flex items-center gap-1.5 text-[10px] bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 px-3.5 py-2 rounded-full font-semibold uppercase tracking-wider font-mono shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
               {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} · Checked-In
             </span>
             <button
               type="button"
               onClick={() => setIsInvoiceGeneratorOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-clinical-800/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-clinical-700/50 hover:shadow-md transition-all cursor-pointer"
             >
-              <Printer className="h-4 w-4" />
+              <Printer className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               Invoice Generator
             </button>
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-100 transition cursor-pointer"
             >
               <LogOut className="h-4 w-4 text-rose-600" />
               Sign Out
@@ -1087,7 +1097,7 @@ export const CompounderDashboard: React.FC = () => {
         </div>
 
         {/* Integrated Tab Switcher — lives in header */}
-        <div className="hidden md:flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
+        <div className="flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
           <button
             onClick={() => setActiveTab('intake')}
             className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
@@ -1318,6 +1328,8 @@ export const CompounderDashboard: React.FC = () => {
                 );
               })()}
 
+
+              {/* Compounder Physical Presence Verification — valid clinical action in all environments */}
               {!api.isPatientConsentActive(activePatient.id) && (
                 <button
                   type="button"
@@ -1327,17 +1339,18 @@ export const CompounderDashboard: React.FC = () => {
                       detail: {
                         message: `In-Person presence verified! Patient records unlocked for consultation.`,
                         type: 'success',
-                        title: 'Ecosystem Lock Bypassed'
+                        title: 'Presence Verified'
                       }
                     }));
                   }}
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-slate-800 text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 active:scale-95 flex items-center gap-1.5 shadow-md shadow-rose-600/10 text-slate-800-force"
                   title="Verify patient presence to grant clinical file access to the Doctor"
                 >
-                  <span className="material-symbols-outlined text-sm font-bold text-slate-800-force">lock_open</span>
+                  <span className="material-symbols-outlined text-sm font-bold text-slate-800-force">how_to_reg</span>
                   Verify Presence
                 </button>
               )}
+
 
               {/* Dismiss patient from HUD */}
               <button

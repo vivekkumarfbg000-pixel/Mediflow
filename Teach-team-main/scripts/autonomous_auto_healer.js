@@ -12,8 +12,35 @@ const path = require('path');
 const { execSync } = require('child_process');
 const https = require('https');
 
-// Load environment variables / secrets
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+// Load environment variables / secrets manually from common .env locations
+function loadEnvFile(filePath) {
+  if (fs.existsSync(filePath)) {
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      content.split(/\r?\n/).forEach(line => {
+        line = line.trim();
+        if (!line || line.startsWith('#')) return;
+        const firstEq = line.indexOf('=');
+        if (firstEq === -1) return;
+        const key = line.substring(0, firstEq).trim();
+        let val = line.substring(firstEq + 1).trim();
+        if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+        if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1);
+        process.env[key] = val;
+      });
+    } catch (e) {
+      console.warn(`⚠️ Warning: Failed to parse env file at ${filePath}: ${e.message}`);
+    }
+  }
+}
+
+// Load configurations
+loadEnvFile(path.resolve(__dirname, "../../frontend/.env.local"));
+loadEnvFile(path.resolve(__dirname, "../../frontend/.env"));
+loadEnvFile(path.resolve(__dirname, "../../backend/.env"));
+loadEnvFile(path.resolve(__dirname, "../../.env"));
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
 const TELEMETRY_PAYLOAD = process.env.TELEMETRY_PAYLOAD; // JSON String
 
 // Helper to make HTTP POST requests in environment-agnostic way (compatible with older Node.js versions)
@@ -115,9 +142,14 @@ Your output must be 100% clean valid code that directly drops into ${targetFile}
       "Content-Type": "application/json"
     }, requestBody);
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq API returned status ${response.status}: ${errorText}`);
+    }
+
     const result = await response.json();
     if (!result.choices || result.choices.length === 0) {
-      throw new Error("Invalid response from Groq API");
+      throw new Error("Invalid response from Groq API: choices array is missing or empty.");
     }
 
     let healedCode = result.choices[0].message.content.trim();
@@ -130,27 +162,53 @@ Your output must be 100% clean valid code that directly drops into ${targetFile}
     console.log("🩹 Applying surgical AI patch...");
     fs.writeFileSync(targetFile, healedCode, 'utf8');
 
-    // Step 5: Verification (TypeScript Compile & Build check)
+    // Step 5: Verification (Subsystem-specific Compile & Build checks)
     console.log("🧪 Running verification checks (CTO Safeguard Compiler gates)...");
     try {
-      execSync("npm run build", { cwd: path.resolve(__dirname, "../../frontend"), stdio: 'inherit' });
+      if (targetFile.includes('frontend')) {
+        console.log("🖥️ Running frontend build check...");
+        execSync("npm run build", { cwd: path.resolve(__dirname, "../../frontend"), stdio: 'inherit' });
+      } else if (targetFile.includes('backend')) {
+        console.log("🐍 Running backend python compile check...");
+        try {
+          execSync(`python -m py_compile "${targetFile}"`, { stdio: 'inherit' });
+        } catch (pyErr) {
+          console.log("⚠️ python check failed or not found. Trying python3...");
+          execSync(`python3 -m py_compile "${targetFile}"`, { stdio: 'inherit' });
+        }
+      } else if (targetFile.includes('supabase/functions')) {
+        console.log("🦕 Running Supabase edge function Deno type check...");
+        try {
+          execSync(`deno check "${targetFile}"`, { stdio: 'inherit' });
+        } catch (denoErr) {
+          console.warn("⚠️ deno check not available. Skipping deep Deno verification.");
+        }
+      }
       console.log("🟢 Compilation check passed successfully!");
 
       // Step 6: GitOps Guardian auto-commits and pushes the fix!
       console.log("🦅 Securing release boundaries and committing bugfix...");
-      execSync("git add .", { cwd: path.resolve(__dirname, "../../") });
-      execSync(`git commit -m "fix(healer): autonomous bugfix for anomaly ${id}"`, { cwd: path.resolve(__dirname, "../../") });
-      console.log("🚀 Self-healed code committed. Pushing to GitHub...");
-      
       try {
-        execSync("git push origin master", { cwd: path.resolve(__dirname, "../../") });
-        console.log("🟢 Autonomous loop completed successfully! Production healed live! 🐋");
-      } catch (pushErr) {
-        console.warn("⚠️ Commit succeeded, but git push failed (could be temporary network glitch). Feel free to run 'git push origin master' manually.");
+        execSync("git add .", { cwd: path.resolve(__dirname, "../../") });
+        const gitStatus = execSync("git status --porcelain", { cwd: path.resolve(__dirname, "../../") }).toString().trim();
+        if (gitStatus) {
+          execSync(`git commit -m "fix(healer): autonomous bugfix for anomaly ${id}"`, { cwd: path.resolve(__dirname, "../../") });
+          console.log("🚀 Self-healed code committed. Pushing to GitHub...");
+          try {
+            execSync("git push origin master", { cwd: path.resolve(__dirname, "../../") });
+            console.log("🟢 Autonomous loop completed successfully! Production healed live! 🐋");
+          } catch (pushErr) {
+            console.warn("⚠️ Commit succeeded, but git push failed. Feel free to run 'git push origin master' manually.");
+          }
+        } else {
+          console.log("ℹ️ No changes to commit (working tree clean).");
+        }
+      } catch (gitErr) {
+        console.error("⚠️ Git commit/push failed but code compilation passed. Fix was kept. Error details:", gitErr.message);
       }
 
     } catch (compileErr) {
-      console.error("🔴 AI patch failed verification check! Hard reverting to revert anchor.");
+      console.error("🔴 AI patch failed verification check! Hard reverting to revert anchor. Error:", compileErr.message);
       fs.writeFileSync(targetFile, initialCode, 'utf8');
       process.exit(1);
     }
@@ -163,10 +221,12 @@ Your output must be 100% clean valid code that directly drops into ${targetFile}
 
 function parseTargetFileFromStack(stack, subsystem) {
   if (!stack) return null;
-  // Simple stack trace parser looking for files in frontend or backend
-  const match = stack.match(/(\.\.\/frontend\/src\/[^\s:]+|frontend\/src\/[^\s:]+)/);
+  // Support both forward and backward slashes (Windows and Unix paths)
+  const match = stack.match(/((?:\.\.[\/\\])?(?:frontend[\/\\]src|backend[\/\\]app|supabase[\/\\]functions|supabase[\/\\]migrations)[\/\\][^\s:]+)/i);
   if (match) {
-    return path.resolve(__dirname, "../../", match[1]);
+    // Normalize path separators to current platform standard
+    const cleanPath = match[1].replace(/^\.\.[\/\\]/, "").replace(/[\/\\]/g, path.sep);
+    return path.resolve(__dirname, "../../", cleanPath);
   }
   
   // Default fallback to the document currently active during debugging

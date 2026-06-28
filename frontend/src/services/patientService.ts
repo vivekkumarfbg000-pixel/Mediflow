@@ -307,22 +307,54 @@ export class PatientService {
   }
 
   static async grantInPersonConsent(patientId: string): Promise<void> {
+    const consentTimestamp = new Date().toISOString();
+
+    // ── Cryptographic Consent Signature ──────────────────────────────────────
+    // Generate a HMAC-SHA256 signature over (patientId + timestamp) using a
+    // clinic-level secret key provisioned at build time via VITE_CONSENT_HMAC_KEY.
+    // The signature is stored alongside the consent record to provide a
+    // tamper-evident, auditable chain of custody.
+    let consentSignature: string | null = null;
+    try {
+      const hmacSecret = import.meta.env.VITE_CONSENT_HMAC_KEY ?? 'mediflow-dev-only-key-change-in-production';
+      const encoder = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(hmacSecret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const payload = encoder.encode(`${patientId}::${consentTimestamp}`);
+      const signatureBuffer = await crypto.subtle.sign('HMAC', keyMaterial, payload);
+      consentSignature = Array.from(new Uint8Array(signatureBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    } catch (sigErr) {
+      console.error('[Mediflow] Consent HMAC signature generation failed:', sigErr);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Instantly update local cache and notify subscribers for immediate UI state transition
+    const activeConsents = load<string[]>('active_consent_ids', []);
+    if (!activeConsents.includes(patientId)) {
+      activeConsents.push(patientId);
+      save('active_consent_ids', activeConsents);
+    }
+    notify();
+
     try {
       const { error } = await supabase.from('patient_consents').insert({
         patient_id: patientId,
         consent_type: 'data_processing',
-        granted_at: new Date().toISOString()
+        granted_at: consentTimestamp,
+        consent_signature: consentSignature,
+        signature_algorithm: 'HMAC-SHA256'
       });
       if (error) throw error;
-      await writeAuditLog('IN_PERSON_CONSENT_GRANTED', { patientId }, patientId);
+      await writeAuditLog('IN_PERSON_CONSENT_GRANTED', { patientId, signaturePresent: !!consentSignature }, patientId);
     } catch (err) {
-      console.error('[Mediflow] Failed to grant in person consent:', err);
-      const activeConsents = load<string[]>('active_consent_ids', []);
-      if (!activeConsents.includes(patientId)) {
-        activeConsents.push(patientId);
-        save('active_consent_ids', activeConsents);
-      }
-      notify();
+      console.error('[Mediflow] Failed to grant in person consent database record:', err);
     }
   }
 
@@ -361,6 +393,58 @@ export class PatientService {
     if (!patient) return 'No patient data resolved.';
 
     return `Patient ${patient.name} (${patient.age}y, ${patient.gender}) presents active chronic management for ${patient.chronicConditions.join(', ') || 'general complaints'}. Overall wellness score: 84/100. CDSS recommends continuous monitoring of blood pressure, bi-weekly capillary blood glucose, and strict avoidance of documented allergy triggers (${patient.allergies.join(', ') || 'NKDA'}).`;
+  }
+
+  static getSyntheticProfiles(): any[] {
+    return load<any[]>('synthetic_profiles', []);
+  }
+
+  static generateSyntheticProfiles(count: number): any[] {
+    const isMockMode = import.meta.env.VITE_USE_MOCK === 'true';
+    if (!isMockMode) {
+      throw new Error('Access Denied: Synthetic profile generation is disabled in production environments.');
+    }
+
+    const firstNames = ['Aarav', 'Priyanka', 'Rohan', 'Sneha', 'Kabir', 'Aditi', 'Amit', 'Neha', 'Vikram', 'Anjali', 'Deepak', 'Meera', 'Rahul', 'Kiran', 'Sanjay', 'Pooja'];
+    const lastNames = ['Sharma', 'Verma', 'Kumar', 'Singh', 'Gupta', 'Patel', 'Yadav', 'Joshi', 'Mehta', 'Roy', 'Sen', 'Das', 'Nair', 'Pillai', 'Rao', 'Reddy'];
+    const roles = ['doctor', 'compounder', 'patient', 'admin'] as const;
+
+    const currentProfiles = this.getSyntheticProfiles();
+    const newProfiles: any[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const fName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const role = roles[Math.floor(Math.random() * roles.length)];
+      
+      newProfiles.push({
+        id: crypto.randomUUID(),
+        name: `${fName} ${lName}`,
+        role: role,
+        isSynthetic: true,
+        associatedActivityMetric: {
+          lastActive: new Date().toISOString(),
+          interactionsCount: Math.floor(Math.random() * 50) + 1
+        }
+      });
+    }
+
+    const updated = [...currentProfiles, ...newProfiles];
+    save('synthetic_profiles', updated);
+    notify();
+    return newProfiles;
+  }
+
+  static deleteSyntheticProfile(id: string): void {
+    const current = this.getSyntheticProfiles();
+    const filtered = current.filter((p: any) => p.id !== id);
+    save('synthetic_profiles', filtered);
+    notify();
+  }
+
+  static clearAllSyntheticProfiles(): void {
+    save('synthetic_profiles', []);
+    notify();
   }
 }
 

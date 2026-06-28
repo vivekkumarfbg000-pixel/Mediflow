@@ -455,27 +455,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {isSettingsOpen && (
                     <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
 
-                      {/* Dev Bypass Trigger */}
-                      <button 
-                        onClick={() => onToggleBypass(!isBypassMode)}
-                        className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                          isBypassMode 
-                            ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
-                            : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
-                        }`}
-                      >
-                        {isBypassMode ? (
-                          <>
-                            <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
-                            Bypass Active
-                          </>
-                        ) : (
-                          <>
-                            <ShieldCheck className="h-3 w-3 text-slate-600" />
-                            Secure Mode
-                          </>
-                        )}
-                      </button>
+                      {/* Dev Bypass Trigger — DEV ONLY, hidden in production builds */}
+                      {import.meta.env.DEV && (
+                        <button 
+                          onClick={() => onToggleBypass(!isBypassMode)}
+                          className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                            isBypassMode 
+                              ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
+                              : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
+                          }`}
+                        >
+                          {isBypassMode ? (
+                            <>
+                              <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
+                              Bypass Active
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-3 w-3 text-slate-600" />
+                              Secure Mode [DEV]
+                            </>
+                          )}
+                        </button>
+                      )}
 
                       {/* Profile & Partners settings button */}
                       <button
@@ -520,10 +522,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex flex-col min-w-0">
                 <h1 className="font-bold text-[9px] uppercase tracking-wider text-slate-700 truncate flex items-center gap-1 leading-none">
                   {activeProfile?.display_name 
-                    ? (activeProfile.display_name.toLowerCase().startsWith('dr.') 
-                        ? `${activeProfile.display_name}'s Care Dashboard` 
-                        : `Dr. ${activeProfile.display_name}'s Care Dashboard`)
-                    : 'Doctor Dashboard'}
+                    ? (activeProfile.role === 'doctor' && !activeProfile.display_name.toLowerCase().startsWith('dr.')
+                        ? `Dr. ${activeProfile.display_name}`
+                        : activeProfile.display_name)
+                    : 'Mediflow Care'}
+                  {' · '}
+                  {currentRole === 'doctor' ? 'Doctor Dashboard' :
+                   currentRole === 'compounder' ? 'Compounder Operations' :
+                   currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
+                   currentRole === 'pharmacy' ? (isOphthalmology ? 'Optician' : 'Pharmacy POS') :
+                   currentRole === 'billing' ? 'UPI Ledger' :
+                   currentRole === 'saas_admin' ? 'Platform Admin' : 'Care Dashboard'}
                   <span className={`flex items-center gap-0.5 text-[7px] font-mono px-1 py-0.2 rounded border transition-all duration-300 shrink-0 ${
                     isSyncing 
                       ? 'bg-primary/10 text-primary border-primary/25'
@@ -544,17 +553,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Actions */}
             <div className="flex items-center gap-1.5">
 
-              <button 
-                onClick={() => onToggleBypass(!isBypassMode)}
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                  isBypassMode 
-                    ? 'bg-amber-50 border-amber-200 text-amber-600' 
-                    : 'bg-white border-slate-200 text-slate-600'
-                }`}
-              >
-                {isBypassMode ? <ShieldAlert className="h-2.5 w-2.5" /> : <ShieldCheck className="h-2.5 w-2.5" />}
-                Bypass
-              </button>
+              {import.meta.env.DEV && (
+                <button 
+                  onClick={() => onToggleBypass(!isBypassMode)}
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                    isBypassMode 
+                      ? 'bg-amber-50 border-amber-200 text-amber-600' 
+                      : 'bg-white border-slate-200 text-slate-600'
+                  }`}
+                >
+                  {isBypassMode ? <ShieldAlert className="h-2.5 w-2.5" /> : <ShieldCheck className="h-2.5 w-2.5" />}
+                  Bypass
+                </button>
+              )}
             </div>
           </div>
 
@@ -801,30 +812,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {isSettingsOpen && (
                       <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
 
-                        {/* Dev Bypass Trigger */}
-                        <button 
-                          onClick={() => {
-                            onToggleBypass(!isBypassMode);
-                            setIsMobileDrawerOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                            isBypassMode 
-                              ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
-                              : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
-                          }`}
-                        >
-                          {isBypassMode ? (
-                            <>
-                              <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
-                              Bypass Active
-                            </>
-                          ) : (
-                            <>
-                              <ShieldCheck className="h-3 w-3 text-slate-600" />
-                              Secure Mode
-                            </>
-                          )}
-                        </button>
+                        {/* Dev Bypass Trigger — DEV ONLY, hidden in production builds */}
+                        {import.meta.env.DEV && (
+                          <button 
+                            onClick={() => {
+                              onToggleBypass(!isBypassMode);
+                              setIsMobileDrawerOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                              isBypassMode 
+                                ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
+                                : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
+                            }`}
+                          >
+                            {isBypassMode ? (
+                              <>
+                                <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
+                                Bypass Active
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="h-3 w-3 text-slate-600" />
+                                Secure Mode [DEV]
+                              </>
+                            )}
+                          </button>
+                        )}
 
                         {/* Profile & Partners settings button */}
                         <button
@@ -862,7 +875,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
-      {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && (
+      {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && currentRole !== 'saas_admin' && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/50 dark:border-slate-800 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
           <div className="flex items-center justify-around h-16">
             {visibleRoles.map((r) => {

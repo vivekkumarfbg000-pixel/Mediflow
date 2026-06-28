@@ -656,7 +656,7 @@ export const PharmacyDashboard: React.FC = () => {
       </div>
 
       {/* HORIZONTAL TAB SWITCHER */}
-      <div className="hidden md:flex border-b border-slate-200 overflow-x-auto gap-2 pb-0.5 no-scrollbar">
+      <div className="flex border-b border-slate-200 overflow-x-auto gap-2 pb-0.5 no-scrollbar select-none">
         <button
           onClick={() => setActiveTab('prescription_queue')}
           className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${

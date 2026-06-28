@@ -26,7 +26,7 @@ let issuesFound = 0;
 // 1. Audit Migration File Sequencing
 const migrationsDir = config.database?.migrationsDirectory 
   ? path.resolve(__dirname, '..', config.database.migrationsDirectory) 
-  : path.resolve(__dirname, '../supabase/migrations');
+  : path.resolve(__dirname, '../../supabase/migrations');
 if (fs.existsSync(migrationsDir)) {
   console.log('📂 1. Auditing Supabase Migration Files Sequence...');
   const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql'));
@@ -49,7 +49,7 @@ if (fs.existsSync(migrationsDir)) {
 }
 
 // 2. Audit Client-Side DB schema structures
-const dbFilePath = path.resolve(__dirname, '../src/db/db.ts');
+const dbFilePath = path.resolve(__dirname, '..', config.frontend?.srcDirectory || '../../frontend/src', 'db/db.ts');
 if (fs.existsSync(dbFilePath)) {
   console.log('\n📂 2. Auditing IndexedDB (Dexie) Configuration...');
   const content = fs.readFileSync(dbFilePath, 'utf8');
@@ -118,7 +118,7 @@ function scanLiveQueries(dir) {
   });
 }
 
-scanLiveQueries(path.resolve(__dirname, '../src'));
+scanLiveQueries(path.resolve(__dirname, '..', config.frontend?.srcDirectory || '../../frontend/src'));
 if (liveQueryCheckedFiles === 0) {
   console.log('   ✅ No live queries detected in src files.');
 } else if (liveQueryIssues === 0) {

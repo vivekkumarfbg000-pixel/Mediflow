@@ -488,7 +488,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       {selectedPatient && (
         <div className="lg:col-span-8 glass-panel p-6 border-slate-200/80 shadow-sm space-y-6 relative overflow-hidden bg-white">
           {!isConsentActive && (
-            <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-white/95 border border-rose-500/20 p-8 text-center animate-fade-in">
+                <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-white/95 border border-rose-500/20 p-8 text-center animate-fade-in">
               <div className="w-14 h-14 rounded-full bg-rose-50/50 border border-rose-500/20 flex items-center justify-center mb-4 text-rose-500 animate-pulse">
                 <span className="material-symbols-outlined text-2xl">lock</span>
               </div>
@@ -496,27 +496,30 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-5">
                 Access to clinical records, diagnostics ordering, and medication prescribing is locked. Please direct the patient to reply <strong className="text-secondary font-mono">"1" (Grant Access)</strong> on their WhatsApp simulator interface, or authorize physical consent.
               </p>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await api.grantInPersonConsent(selectedPatient.id);
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Consent Authorized',
-                        message: `Physical data consent granted for ${selectedPatient.name}.`,
-                        type: 'success'
-                      }
-                    }));
-                  } catch (err: any) {
-                    console.error('[Consent Bypass] Failed to grant physical consent:', err);
-                  }
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 bg-indigo-600-force text-white-force"
-              >
-                <span className="material-symbols-outlined text-[13px] text-white-force">how_to_reg</span>
-                Grant Physical Consent (Bypass)
-              </button>
+              {/* Physical consent bypass — DEV ONLY. Removed from production builds. */}
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.grantInPersonConsent(selectedPatient.id);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Consent Authorized',
+                          message: `Physical data consent granted for ${selectedPatient.name}.`,
+                          type: 'success'
+                        }
+                      }));
+                    } catch (err: any) {
+                      console.error('[Consent Bypass] Failed to grant physical consent:', err);
+                    }
+                  }}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 bg-indigo-600-force text-white-force"
+                >
+                  <span className="material-symbols-outlined text-[13px] text-white-force">how_to_reg</span>
+                  Grant Physical Consent [DEV ONLY]
+                </button>
+              )}
             </div>
           )}
           

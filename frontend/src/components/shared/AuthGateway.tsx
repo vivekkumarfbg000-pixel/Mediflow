@@ -215,11 +215,39 @@ const logAttemptToDatabase = async (
 
 interface AuthGatewayProps {
   onAuthSuccess: (session: any, profile: any) => void;
+  allowSignup?: boolean;
+  initialSignupTab?: 'signin' | 'register' | 'join' | 'ops';
 }
 
-export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
+export const AuthGateway: React.FC<AuthGatewayProps> = ({ 
+  onAuthSuccess,
+  allowSignup = false,
+  initialSignupTab = 'signin'
+}) => {
   const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
   const [joinSubMode, setJoinSubMode] = useState<'signin' | 'register'>('signin');
+
+  // Handle updates to initialSignupTab from LandingPage
+  useEffect(() => {
+    if (initialSignupTab) {
+      setActiveTab(initialSignupTab);
+      if (initialSignupTab === 'join') {
+        setJoinSubMode('register');
+      }
+    }
+  }, [initialSignupTab]);
+
+  // Gating safety guard: reset signup tabs if allowSignup becomes false
+  useEffect(() => {
+    if (!allowSignup) {
+      if (activeTab === 'register') {
+        setActiveTab('signin');
+      }
+      if (activeTab === 'join' && joinSubMode === 'register') {
+        setJoinSubMode('signin');
+      }
+    }
+  }, [activeTab, joinSubMode, allowSignup]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -255,6 +283,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
   // Clear form errors and states when switching context
   const handleTabSelect = (tab: 'signin' | 'register' | 'join' | 'ops') => {
+    if (!allowSignup && tab === 'register') {
+      return;
+    }
     setActiveTab(tab);
     setEmail('');
     setPassword('');
@@ -266,6 +297,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   };
 
   const handleJoinSubModeSelect = (mode: 'signin' | 'register') => {
+    if (!allowSignup && mode === 'register') {
+      return;
+    }
     setJoinSubMode(mode);
     setErrorMsg(null);
     setActiveErrorCode(null);
@@ -467,7 +501,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         throw new Error('Access Denied: This account is not registered with the required role for this tab.');
       }
 
-      // Profile verified successfully - onAuthStateChange will handle the rest
+      // Profile verified successfully - call onAuthSuccess
+      onAuthSuccess(data.session, profile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Real login failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
@@ -544,6 +579,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       // Record successful attempt
       recordAttempt(email, true, { user_id: data.user.id });
+      onAuthSuccess(data.session, profile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Login failed:', err);
       let mappedCode = err.code;
@@ -636,6 +672,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       // Record successful attempt
       recordAttempt(email, true, { user_id: data.user.id });
+      onAuthSuccess(data.session, profile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Partner login failed:', err);
       let mappedCode = err.code;
@@ -1000,7 +1037,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
       }
       
       if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
-        // Profile verified - onAuthStateChange will handle the rest
+        // Profile verified - call onAuthSuccess
       } else {
         await supabase.auth.signOut();
         const accessErr = new Error('Access Denied: Restricted to Mediflow Operations Team.');
@@ -1010,6 +1047,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       // Record successful attempt
       recordAttempt(email, true, { user_id: data.user.id });
+      onAuthSuccess(data.session, profile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Ops login failed:', err);
       let mappedCode = err.code;
@@ -1126,44 +1164,44 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   const pwdStrength = getPasswordStrength(password);
   if (registeredClinicCode) {
     return (
-      <div className="dark w-full bg-clinical-900 text-clinical-100 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden">
+      <div className="w-full bg-clinical-900 text-clinical-100 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-cyan-500/10 blur-[80px] pointer-events-none animate-pulse-subtle"></div>
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full bg-indigo-500/10 blur-[80px] pointer-events-none animate-pulse-subtle"></div>
 
         <div className="z-10 flex flex-col space-y-5 text-center animate-fade-in">
           <div className="mx-auto w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Sparkles className="h-6 w-6 text-cyan-400 animate-pulse-subtle" />
+            <Sparkles className="h-6 w-6 text-cyan-500 animate-pulse-subtle" />
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-xl font-extrabold text-white">Clinic Registered!</h3>
+            <h3 className="text-xl font-extrabold text-slate-900">Clinic Registered!</h3>
             <p className="text-xs text-clinical-300 leading-relaxed font-medium">
               Your clinic node is now live. Share the unique code below with your partner pharmacy and lab.
             </p>
           </div>
 
-          <div className="bg-clinical-950/80 border border-clinical-800 rounded-2xl p-5 space-y-3">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
             <span className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest block">
               Unique Clinic Network Code
             </span>
             <div className="flex items-center justify-center gap-3">
-              <span className="text-2xl font-black tracking-wider text-white font-mono bg-slate-950/50 px-4 py-2 rounded-xl border border-clinical-800">
+              <span className="text-2xl font-black tracking-wider text-slate-800 font-mono bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
                 {registeredClinicCode}
               </span>
               <button
                 type="button"
                 onClick={handleCopyCode}
-                className="p-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 rounded-xl transition-all hover:scale-105 cursor-pointer"
+                className="p-2.5 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 text-cyan-600 rounded-xl transition-all hover:scale-105 cursor-pointer"
                 title="Copy Clinic Code"
               >
-                {copiedCode ? <Check className="h-4.5 w-4.5 text-emerald-400" /> : <Copy className="h-4.5 w-4.5" />}
+                {copiedCode ? <Check className="h-4.5 w-4.5 text-emerald-600" /> : <Copy className="h-4.5 w-4.5" />}
               </button>
             </div>
-            {copiedCode && <span className="text-[10px] text-emerald-400 font-bold block animate-fade-in">Copied to clipboard!</span>}
+            {copiedCode && <span className="text-[10px] text-emerald-600 font-bold block animate-fade-in">Copied to clipboard!</span>}
           </div>
 
-          <div className="text-left bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3.5 space-y-2">
-            <h4 className="text-[10px] font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+          <div className="text-left bg-cyan-50 border border-cyan-200 rounded-xl p-3.5 space-y-2">
+            <h4 className="text-[10px] font-bold text-cyan-600 flex items-center gap-2 uppercase tracking-wider">
               <Shield className="h-3.5 w-3.5" /> Next Steps:
             </h4>
             <ul className="text-[10px] text-clinical-300 space-y-1 list-decimal list-inside pl-1 leading-relaxed font-medium">
@@ -1190,7 +1228,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 if (profile) onAuthSuccess(session, profile);
               }
             }}
-            className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+            className="w-full py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
           >
             Enter Doctor Dashboard <ArrowRight className="h-4 w-4" />
           </button>
@@ -1200,21 +1238,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
   }
 
   return (
-    <div className="dark w-full bg-clinical-900 text-clinical-100 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden">
+    <div className="w-full bg-white text-slate-800 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden border border-slate-200 rounded-3xl shadow-xl">
       
       {/* Background Neon Glow Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/5 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
 
       <div className="z-10 flex flex-col space-y-5">
         <div>
-          <h3 className="text-xl font-extrabold text-clinical-50">
+          <h3 className="text-xl font-extrabold text-slate-900">
             {activeTab === 'signin' && 'Sign In to Mediflow'}
             {activeTab === 'register' && 'Register Your Clinic'}
             {activeTab === 'join' && (joinSubMode === 'signin' ? 'Partner Sign In' : 'Join Existing Clinic Network')}
             {activeTab === 'ops' && 'SaaS Platform Operations'}
           </h3>
-          <p className="text-xs text-clinical-400 mt-1 font-semibold">
+          <p className="text-xs text-slate-500 mt-1 font-semibold">
             {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
             {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
             {activeTab === 'join' && (joinSubMode === 'signin' ? 'Sign in to your partner pharmacy/laboratory workspace.' : 'Pharmacies and laboratories can request to link with a clinic.')}
@@ -1222,33 +1260,37 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
           </p>
         </div>
 
-        {/* Quad Sliding Tab Selector */}
-        <div className="relative z-20 pointer-events-auto grid grid-cols-2 sm:grid-cols-4 gap-1 bg-clinical-950/50 p-1 rounded-xl border border-clinical-800/80">
+        {/* Sliding Tab Selector */}
+        <div className={`relative z-20 pointer-events-auto grid gap-1 bg-slate-200/50 p-1 rounded-xl border border-slate-200/80 ${
+          allowSignup ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
+        }`}>
           <button
             type="button"
             onClick={() => handleTabSelect('signin')}
-            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'signin' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
           >
             Sign In
           </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('register')}
-            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-          >
-            Doctor Signup
-          </button>
+          {allowSignup && (
+            <button
+              type="button"
+              onClick={() => handleTabSelect('register')}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+            >
+              Doctor Signup
+            </button>
+          )}
           <button
             type="button"
             onClick={() => handleTabSelect('join')}
-            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
           >
             Partner Sign In
           </button>
           <button
             type="button"
             onClick={() => handleTabSelect('ops')}
-            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
+            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
           >
             SaaS Ops
           </button>
@@ -1331,17 +1373,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         {activeTab === 'signin' && (
           <form onSubmit={handleEmailSignIn} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Professional Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@mediflow.com"
-                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                   required
                   autoComplete="email"
                 />
@@ -1349,24 +1391,24 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Security Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-12 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                   required
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 transition-all cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -1376,14 +1418,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+              className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Workspace <ArrowRight className="h-4 w-4" /></>}
             </button>
 
-            <p className="text-center text-[10px] text-clinical-500 font-medium">
+            <p className="text-center text-[10px] text-slate-500 font-medium">
               Are you a partner (pharmacist/lab)? Use the{' '}
-              <button type="button" onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+              <button type="button" onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-600 hover:text-cyan-800 font-bold underline cursor-pointer">
                 Partner Sign In
               </button>{' '}tab.
             </p>
@@ -1394,40 +1436,40 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         {activeTab === 'ops' && (
           <form onSubmit={handleOpsSignIn} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Operations Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="owner@mediflow.com"
-                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Security Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-12 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 transition-all cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -1437,7 +1479,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+              className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Authenticate Operations Console <ArrowRight className="h-4 w-4" /></>}
             </button>
@@ -1451,11 +1493,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
               <div className="space-y-3.5 animate-fade-in">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                       First Name
                     </label>
                     <div className="relative">
-                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       <input
                         type="text"
                         value={firstName}
@@ -1470,22 +1512,22 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           }
                         }}
                         placeholder="First Name"
-                        className={`w-full bg-clinical-950 border ${validationErrors.firstName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                        className={`w-full bg-white border ${validationErrors.firstName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                       />
                     </div>
                     {validationErrors.firstName && (
-                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                         <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.firstName}
                       </span>
                     )}
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                       Last Name
                     </label>
                     <div className="relative">
-                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       <input
                         type="text"
                         value={lastName}
@@ -1500,11 +1542,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           }
                         }}
                         placeholder="Last Name"
-                        className={`w-full bg-clinical-950 border ${validationErrors.lastName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                        className={`w-full bg-white border ${validationErrors.lastName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                       />
                     </div>
                     {validationErrors.lastName && (
-                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                         <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.lastName}
                       </span>
                     )}
@@ -1512,11 +1554,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                     Professional Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                     <input
                       type="email"
                       value={email}
@@ -1531,11 +1573,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                         }
                       }}
                       placeholder="john.doe@mediflow.com"
-                      className={`w-full bg-clinical-950 border ${validationErrors.email ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                      className={`w-full bg-white border ${validationErrors.email ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                     />
                   </div>
                   {validationErrors.email && (
-                    <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                    <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                       <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.email}
                     </span>
                   )}
@@ -1543,11 +1585,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                       Security Password
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       <input
                         type={showRegPassword ? 'text' : 'password'}
                         value={password}
@@ -1562,29 +1604,29 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           }
                         }}
                         placeholder="••••••••"
-                        className={`w-full bg-clinical-950 border ${validationErrors.password ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                        className={`w-full bg-white border ${validationErrors.password ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowRegPassword(!showRegPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
                       >
                         {showRegPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                     {validationErrors.password && (
-                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                         <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.password}
                       </span>
                     )}
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                       Confirm Password
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       <input
                         type={showRegConfirmPassword ? 'text' : 'password'}
                         value={confirmPassword}
@@ -1599,18 +1641,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           }
                         }}
                         placeholder="••••••••"
-                        className={`w-full bg-clinical-950 border ${validationErrors.confirmPassword ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                        className={`w-full bg-white border ${validationErrors.confirmPassword ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
                       >
                         {showRegConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                     {validationErrors.confirmPassword && (
-                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                         <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.confirmPassword}
                       </span>
                     )}
@@ -1618,14 +1660,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 </div>
 
                 {password && (
-                  <div className="space-y-1.5 p-2.5 bg-clinical-950/50 rounded-xl border border-clinical-800/40">
+                  <div className="space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
                     <div className="flex justify-between text-[9px] font-bold">
-                      <span className="text-clinical-400">Password Strength:</span>
-                      <span className={pwdStrength.score === 1 ? 'text-rose-400' : pwdStrength.score === 2 ? 'text-amber-400' : 'text-emerald-400'}>
+                      <span className="text-slate-500">Password Strength:</span>
+                      <span className={pwdStrength.score === 1 ? 'text-rose-600' : pwdStrength.score === 2 ? 'text-amber-600' : 'text-emerald-600'}>
                         {pwdStrength.label}
                       </span>
                     </div>
-                    <div className="w-full h-1 bg-clinical-800 rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
                       <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
                     </div>
                   </div>
@@ -1645,14 +1687,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           setValidationErrors(newErrors);
                         }
                       }}
-                      className="mt-0.5 h-3.5 w-3.5 accent-cyan-500 rounded border-clinical-500 bg-clinical-950"
+                      className="mt-0.5 h-3.5 w-3.5 accent-cyan-600 rounded border-slate-300 bg-white"
                     />
-                    <span className="text-[11px] text-clinical-300 font-medium leading-tight">
+                    <span className="text-[11px] text-slate-600 font-medium leading-tight">
                       I accept the{' '}
                       <button
                         type="button"
                         onClick={() => setShowTermsModal(true)}
-                        className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                        className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                       >
                         Terms of Service
                       </button>{' '}
@@ -1660,14 +1702,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                       <button
                         type="button"
                         onClick={() => setShowTermsModal(true)}
-                        className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                        className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                       >
                         Privacy Policy
                       </button>.
                     </span>
                   </label>
                   {validationErrors.tos && (
-                    <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                    <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                       <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.tos}
                     </span>
                   )}
@@ -1680,27 +1722,27 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                       setRegistrationStep(2);
                     }
                   }}
-                  className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+                  className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
                 >
                   Next: Clinic Setup <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             ) : (
               <form onSubmit={handleClinicRegister} className="space-y-3.5 animate-fade-in">
-                <div className="flex items-center gap-2 text-clinical-300 pb-1">
+                <div className="flex items-center gap-2 text-slate-500 pb-1">
                   <button
                     type="button"
                     onClick={() => setRegistrationStep(1)}
-                    className="p-1 hover:bg-white/5 rounded-lg text-clinical-400 hover:text-white transition-colors"
+                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-650 transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </button>
-                  <span className="text-xs font-bold uppercase tracking-wider">Step 2: Workspace Setup</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Step 2: Workspace Setup</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3.5">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                       Clinic Business Name
                     </label>
                     <input
@@ -1717,37 +1759,37 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                         }
                       }}
                       placeholder="Kankarbagh Connected Clinic"
-                      className={`w-full bg-clinical-950 border ${validationErrors.clinicName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                      className={`w-full bg-white border ${validationErrors.clinicName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                       required
                     />
                     {validationErrors.clinicName && (
-                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                         <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.clinicName}
                       </span>
                     )}
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                       Clinical Specialization
                     </label>
                     <select
                       value={specialization}
                       onChange={(e) => setSpecialization(e.target.value)}
-                      className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans cursor-pointer"
+                      className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2.5 px-3.5 text-xs text-slate-800 outline-none transition-all duration-300 font-medium font-sans cursor-pointer"
                     >
-                      <option value="General Medicine" className="text-clinical-100 bg-clinical-950">General Medicine</option>
-                      <option value="Pediatrics" className="text-clinical-100 bg-clinical-950">Pediatrics</option>
-                      <option value="Ophthalmology" className="text-clinical-100 bg-clinical-950">Ophthalmology</option>
-                      <option value="Cardiology" className="text-clinical-100 bg-clinical-950">Cardiology</option>
-                      <option value="Dermatology" className="text-clinical-100 bg-clinical-950">Dermatology</option>
-                      <option value="Gynecology" className="text-clinical-100 bg-clinical-950">Gynecology</option>
+                      <option value="General Medicine" className="text-slate-800 bg-white">General Medicine</option>
+                      <option value="Pediatrics" className="text-slate-800 bg-white">Pediatrics</option>
+                      <option value="Ophthalmology" className="text-slate-800 bg-white">Ophthalmology</option>
+                      <option value="Cardiology" className="text-slate-800 bg-white">Cardiology</option>
+                      <option value="Dermatology" className="text-slate-800 bg-white">Dermatology</option>
+                      <option value="Gynecology" className="text-slate-800 bg-white">Gynecology</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3.5">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                       Contact Phone Number
                     </label>
                     <input
@@ -1764,11 +1806,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                         }
                       }}
                       placeholder="9999000001"
-                      className={`w-full bg-clinical-950 border ${validationErrors.phone ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                      className={`w-full bg-white border ${validationErrors.phone ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                       required
                     />
                     {validationErrors.phone && (
-                      <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                      <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                         <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.phone}
                       </span>
                     )}
@@ -1776,7 +1818,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                     Clinic Physical Address
                   </label>
                   <input
@@ -1793,11 +1835,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                       }
                     }}
                     placeholder="Main Road, Kankarbagh, Patna, Bihar"
-                    className={`w-full bg-clinical-950 border ${validationErrors.address ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                    className={`w-full bg-white border ${validationErrors.address ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                     required
                   />
                   {validationErrors.address && (
-                    <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                    <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                       <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.address}
                     </span>
                   )}
@@ -1806,7 +1848,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                  className="w-full py-3 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Register Clinic Network <ArrowRight className="h-4 w-4" /></>}
                 </button>
@@ -1819,42 +1861,44 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
         {activeTab === 'join' && (
           <div className="space-y-4">
             {/* Sub-mode Toggle: Sign In vs Register */}
-            <div className="flex gap-1 p-1 bg-clinical-950/50 rounded-xl border border-clinical-800/80">
-              <button
-                type="button"
-                onClick={() => handleJoinSubModeSelect('signin')}
-                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'signin' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-              >
-                Partner Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => handleJoinSubModeSelect('register')}
-                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'register' ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md' : 'text-clinical-400 hover:text-white hover:bg-white/5'}`}
-              >
-                New Registration
-              </button>
-            </div>
+            {allowSignup && (
+              <div className="flex gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleJoinSubModeSelect('signin')}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'signin' ? 'bg-gradient-to-r from-cyan-600 to-indigo-650 text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+                >
+                  Partner Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleJoinSubModeSelect('register')}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${joinSubMode === 'register' ? 'bg-gradient-to-r from-cyan-600 to-indigo-650 text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+                >
+                  New Registration
+                </button>
+              </div>
+            )}
 
             {/* PARTNER SIGN IN */}
             {joinSubMode === 'signin' && (
               <form onSubmit={handlePartnerSignIn} className="space-y-4">
-                <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-[10px] text-clinical-300 leading-relaxed font-medium">
-                  <span className="font-bold text-cyan-400">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
+                <div className="bg-cyan-50 border border-cyan-100 rounded-xl p-3 text-[10px] text-slate-655 leading-relaxed font-medium">
+                  <span className="font-bold text-cyan-700">Already registered?</span> Sign in with the email and password you used when joining your clinic network.
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                     Partner Email Address
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="pharmacist@yourshop.com"
-                      className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-4 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                      className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                       required
                       autoComplete="email"
                     />
@@ -1862,24 +1906,24 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                     Security Password
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-clinical-400" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
-                      className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-3.5 pl-11 pr-12 text-sm text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 shadow-inner font-medium font-sans"
+                      className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-12 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                       required
                       autoComplete="current-password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 transition-all cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -1889,14 +1933,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                  className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Partner Workspace <ArrowRight className="h-4 w-4" /></>}
                 </button>
 
-                <p className="text-center text-[10px] text-clinical-500 font-medium">
+                <p className="text-center text-[10px] text-slate-500 font-medium">
                   First time?{' '}
-                  <button type="button" onClick={() => { setJoinSubMode('register'); setErrorMsg(null); }} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                  <button type="button" onClick={() => { setJoinSubMode('register'); setErrorMsg(null); }} className="text-cyan-600 hover:text-cyan-800 font-bold underline cursor-pointer">
                     Register your pharmacy or lab
                   </button>
                 </p>
@@ -1910,11 +1954,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   <div className="space-y-3.5 animate-fade-in">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           First Name
                         </label>
                         <div className="relative">
-                          <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                           <input
                             type="text"
                             value={firstName}
@@ -1929,22 +1973,22 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                               }
                             }}
                             placeholder="First Name"
-                            className={`w-full bg-clinical-950 border ${validationErrors.firstName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                            className={`w-full bg-white border ${validationErrors.firstName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           />
                         </div>
                         {validationErrors.firstName && (
-                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                          <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.firstName}
                           </span>
                         )}
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           Last Name
                         </label>
                         <div className="relative">
-                          <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                           <input
                             type="text"
                             value={lastName}
@@ -1959,11 +2003,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                               }
                             }}
                             placeholder="Last Name"
-                            className={`w-full bg-clinical-950 border ${validationErrors.lastName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                            className={`w-full bg-white border ${validationErrors.lastName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           />
                         </div>
                         {validationErrors.lastName && (
-                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                          <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.lastName}
                           </span>
                         )}
@@ -1971,11 +2015,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                         Partner Email Address
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                         <input
                           type="email"
                           value={email}
@@ -1990,11 +2034,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                             }
                           }}
                           placeholder="pharmacist@yourshop.com"
-                          className={`w-full bg-clinical-950 border ${validationErrors.email ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          className={`w-full bg-white border ${validationErrors.email ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                         />
                       </div>
                       {validationErrors.email && (
-                        <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                           <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.email}
                         </span>
                       )}
@@ -2002,11 +2046,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           Security Password
                         </label>
                         <div className="relative">
-                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                           <input
                             type={showRegPassword ? 'text' : 'password'}
                             value={password}
@@ -2021,29 +2065,29 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                               }
                             }}
                             placeholder="••••••••"
-                            className={`w-full bg-clinical-950 border ${validationErrors.password ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                            className={`w-full bg-white border ${validationErrors.password ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           />
                           <button
                             type="button"
                             onClick={() => setShowRegPassword(!showRegPassword)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 transition-all cursor-pointer"
                           >
                             {showRegPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                           </button>
                         </div>
                         {validationErrors.password && (
-                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                          <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.password}
                           </span>
                         )}
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           Confirm Password
                         </label>
                         <div className="relative">
-                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-400" />
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                           <input
                             type={showRegConfirmPassword ? 'text' : 'password'}
                             value={confirmPassword}
@@ -2058,18 +2102,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                               }
                             }}
                             placeholder="••••••••"
-                            className={`w-full bg-clinical-950 border ${validationErrors.confirmPassword ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                            className={`w-full bg-white border ${validationErrors.confirmPassword ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-12 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           />
                           <button
                             type="button"
                             onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-clinical-400 hover:text-white transition-all cursor-pointer"
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 transition-all cursor-pointer"
                           >
                             {showRegConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                           </button>
                         </div>
                         {validationErrors.confirmPassword && (
-                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                          <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.confirmPassword}
                           </span>
                         )}
@@ -2077,14 +2121,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     </div>
 
                     {password && (
-                      <div className="space-y-1.5 p-2.5 bg-clinical-950/50 rounded-xl border border-clinical-800/40">
+                      <div className="space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
                         <div className="flex justify-between text-[9px] font-bold">
-                          <span className="text-clinical-400">Password Strength:</span>
-                          <span className={pwdStrength.score === 1 ? 'text-rose-400' : pwdStrength.score === 2 ? 'text-amber-400' : 'text-emerald-400'}>
+                          <span className="text-slate-500">Password Strength:</span>
+                          <span className={pwdStrength.score === 1 ? 'text-rose-600' : pwdStrength.score === 2 ? 'text-amber-600' : 'text-emerald-600'}>
                             {pwdStrength.label}
                           </span>
                         </div>
-                        <div className="w-full h-1 bg-clinical-800 rounded-full overflow-hidden">
+                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
                           <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
                         </div>
                       </div>
@@ -2104,14 +2148,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                               setValidationErrors(newErrors);
                             }
                           }}
-                          className="mt-0.5 h-3.5 w-3.5 accent-cyan-500 rounded border-clinical-500 bg-clinical-950"
+                          className="mt-0.5 h-3.5 w-3.5 accent-cyan-600 rounded border-slate-300 bg-white"
                         />
-                        <span className="text-[11px] text-clinical-300 font-medium leading-tight">
+                        <span className="text-[11px] text-slate-600 font-medium leading-tight">
                           I accept the{' '}
                           <button
                             type="button"
                             onClick={() => setShowTermsModal(true)}
-                            className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                            className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                           >
                             Terms of Service
                           </button>{' '}
@@ -2119,14 +2163,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           <button
                             type="button"
                             onClick={() => setShowTermsModal(true)}
-                            className="text-cyan-400 hover:text-cyan-300 underline font-bold"
+                            className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                           >
                             Privacy Policy
                           </button>.
                         </span>
                       </label>
                       {validationErrors.tos && (
-                        <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
+                        <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1 animate-fade-in">
                           <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.tos}
                         </span>
                       )}
@@ -2139,30 +2183,30 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           setRegistrationStep(2);
                         }
                       }}
-                      className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+                      className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
                     >
                       Next: Partner Details <ArrowRight className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
                   <form onSubmit={handlePartnerJoin} className="space-y-3.5 animate-fade-in">
-                    <div className="flex items-center gap-2 text-clinical-300 pb-1">
+                    <div className="flex items-center gap-2 text-slate-500 pb-1">
                       <button
                         type="button"
                         onClick={() => setRegistrationStep(1)}
-                        className="p-1 hover:bg-white/5 rounded-lg text-clinical-400 hover:text-white transition-colors"
+                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
                       >
                         <ArrowLeft className="h-4 w-4" />
                       </button>
-                      <span className="text-xs font-bold uppercase tracking-wider">Step 2: Partner Workspace Setup</span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Step 2: Partner Workspace Setup</span>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                         Clinic Network Code (MF-XXXX)
                       </label>
                       <div className="relative">
-                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-clinical-500" />
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                         <input
                           type="text"
                           value={clinicCode}
@@ -2178,22 +2222,22 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                           }}
                           placeholder="MF-A1B2"
                           maxLength={10}
-                          className={`w-full bg-clinical-950 border ${validationErrors.clinicCode ? 'border-rose-500' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 pl-10 pr-4 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-mono font-bold`}
+                          className={`w-full bg-white border ${validationErrors.clinicCode ? 'border-rose-500' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-mono font-bold`}
                           required
                         />
-                        {validatingCode && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-400 animate-spin" />}
+                        {validatingCode && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-600 animate-spin" />}
                       </div>
 
                       {validatedClinicName ? (
-                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pl-1 mt-1">
-                          <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-clinical-100">{validatedClinicName}</strong>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-100 flex items-center gap-1 pl-2 mt-1">
+                          <Check className="h-3 w-3" /> Valid Clinic: <strong className="text-slate-900">{validatedClinicName}</strong>
                         </span>
                       ) : clinicCode.length >= 7 && !validatingCode ? (
-                        <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1 pl-1 mt-1">
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded border border-rose-100 flex items-center gap-1 pl-2 mt-1">
                           Clinic code not found. Please double check.
                         </span>
                       ) : validationErrors.clinicCode ? (
-                        <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                        <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1">
                           <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.clinicCode}
                         </span>
                       ) : null}
@@ -2201,21 +2245,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
                     <div className="grid grid-cols-2 gap-3.5">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           Partner Entity Type
                         </label>
                         <select
                           value={partnerType}
                           onChange={(e) => setPartnerType(e.target.value as any)}
-                          className="w-full bg-clinical-950 border border-clinical-500 focus:border-cyan-500/50 rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 outline-none transition-all duration-300 font-medium font-sans cursor-pointer"
+                          className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2.5 px-3.5 text-xs text-slate-800 outline-none transition-all duration-300 font-medium font-sans cursor-pointer"
                         >
-                          <option value="pharmacy" className="text-clinical-100 bg-clinical-950">Pharmacy POS</option>
-                          <option value="lab" className="text-clinical-100 bg-clinical-950">Pathology Lab</option>
-                          <option value="compounder" className="text-clinical-100 bg-clinical-950">Clinic Compounder</option>
+                          <option value="pharmacy" className="text-slate-800 bg-white">Pharmacy POS</option>
+                          <option value="lab" className="text-slate-800 bg-white">Pathology Lab</option>
+                          <option value="compounder" className="text-slate-800 bg-white">Clinic Compounder</option>
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           Business Name
                         </label>
                         <input
@@ -2232,11 +2276,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                             }
                           }}
                           placeholder={partnerType === 'pharmacy' ? 'Kankarbagh Smart Pharmacy' : 'Patna Pathology Lab'}
-                          className={`w-full bg-clinical-950 border ${validationErrors.displayName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          className={`w-full bg-white border ${validationErrors.displayName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           required
                         />
                         {validationErrors.displayName && (
-                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                          <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.displayName}
                           </span>
                         )}
@@ -2245,7 +2289,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
                     <div className="grid grid-cols-2 gap-3.5">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           Contact Phone Number
                         </label>
                         <input
@@ -2262,17 +2306,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                             }
                           }}
                           placeholder="9999000003"
-                          className={`w-full bg-clinical-950 border ${validationErrors.phone ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          className={`w-full bg-white border ${validationErrors.phone ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           required
                         />
                         {validationErrors.phone && (
-                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                          <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.phone}
                           </span>
                         )}
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest pl-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                           Physical Address
                         </label>
                         <input
@@ -2289,11 +2333,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                             }
                           }}
                           placeholder="Opposite Clinic main gate, Patna"
-                          className={`w-full bg-clinical-950 border ${validationErrors.address ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-clinical-500 focus:border-cyan-500/50'} rounded-xl py-2.5 px-3.5 text-xs text-clinical-100 placeholder-clinical-400 outline-none transition-all duration-300 font-medium font-sans`}
+                          className={`w-full bg-white border ${validationErrors.address ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           required
                         />
                         {validationErrors.address && (
-                          <span className="text-[10px] text-rose-400 font-semibold flex items-center gap-1 mt-1 pl-1">
+                          <span className="text-[10px] text-rose-600 font-semibold flex items-center gap-1 mt-1 pl-1">
                             <AlertCircle className="h-3 w-3 shrink-0" /> {validationErrors.address}
                           </span>
                         )}
@@ -2303,14 +2347,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                     <button
                       type="submit"
                       disabled={loading || !validatedClinicName}
-                      className="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                      className="w-full py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
                     >
                       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Submit Join Request <ArrowRight className="h-4 w-4" /></>}
                     </button>
 
-                    <p className="text-center text-[10px] text-clinical-500 font-medium">
+                    <p className="text-center text-[10px] text-slate-500 font-medium">
                       Already registered?{' '}
-                      <button type="button" onClick={() => handleJoinSubModeSelect('signin')} className="text-cyan-400 hover:text-cyan-300 font-bold underline cursor-pointer">
+                      <button type="button" onClick={() => handleJoinSubModeSelect('signin')} className="text-cyan-600 hover:text-cyan-800 font-bold underline cursor-pointer">
                         Sign in here
                       </button>
                     </p>
@@ -2329,11 +2373,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
         return (
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between border-t border-clinical-800/80 pt-4">
-              <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">
+            <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Enterprise Mock Profiles (E2E Telemetry)
               </span>
-              <span className="text-[9px] font-bold text-cyan-400 bg-cyan-400/10 px-2.5 py-0.5 rounded-full border border-cyan-400/20">
+              <span className="text-[9px] font-bold text-cyan-600 bg-cyan-50 px-2.5 py-0.5 rounded-full border border-cyan-200">
                 RLS Verification Active
               </span>
             </div>
@@ -2345,17 +2389,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
                   type="button"
                   onClick={() => handleDemoSignIn(user)}
                   disabled={loading}
-                  className="bg-clinical-950/40 hover:bg-clinical-950/80 border border-clinical-800 hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col text-left space-y-1 cursor-pointer transition-all duration-300 group"
+                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col text-left space-y-1 cursor-pointer transition-all duration-300 group"
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="text-[10px] font-black text-white group-hover:text-cyan-400 transition-colors truncate">
+                    <span className="text-[10px] font-black text-slate-800 group-hover:text-cyan-600 transition-colors truncate">
                       {user.name.split(' ')[1] || user.name}
                     </span>
                     <span className="text-xs">{user.icon}</span>
                   </div>
                   <div className="text-[8px] font-extrabold uppercase tracking-wide leading-tight">
-                    <span className="text-cyan-500 group-hover:text-cyan-400 block truncate">{user.role.replace('_', ' ')}</span>
-                    <span className="text-clinical-400 truncate block mt-0.5">{user.entity.split(' ')[0]}</span>
+                    <span className="text-cyan-600 group-hover:text-cyan-700 block truncate">{user.role.replace('_', ' ')}</span>
+                    <span className="text-slate-500 truncate block mt-0.5">{user.entity.split(' ')[0]}</span>
                   </div>
                 </button>
               ))}
@@ -2366,49 +2410,49 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({ onAuthSuccess }) => {
 
       {/* Terms of Service & Privacy Policy Modal */}
       {showTermsModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in text-clinical-100 font-sans">
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-clinical-950 border border-clinical-800 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-6">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in text-slate-800 font-sans">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-6">
             <button
               onClick={() => setShowTermsModal(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-white/5 rounded-xl text-clinical-400 hover:text-white transition-colors"
+              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-2xl">
+              <div className="p-3 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded-2xl">
                 <FileText className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-xl font-extrabold text-white">Terms of Service & Privacy Policy</h3>
-                <p className="text-xs text-clinical-400">Effective Date: June 24, 2026</p>
+                <h3 className="text-xl font-extrabold text-slate-900">Terms of Service & Privacy Policy</h3>
+                <p className="text-xs text-slate-500">Effective Date: June 24, 2026</p>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs text-clinical-300 leading-relaxed overflow-y-auto pr-2">
+            <div className="space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto pr-2">
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wide">1. HIPAA & Data Isolation Compliance</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">1. HIPAA & Data Isolation Compliance</h4>
                 <p>
                   Mediflow operates under strict tenant-specific isolation standards. Every medical clinical pod (grouped doctor, pharmacist, and pathology clinic nodes) maintains dedicated PostgreSQL row-level security (RLS). Cross-tenant queries are blocked at the database engine layer.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wide">2. Clinical Loop Connectivity</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">2. Clinical Loop Connectivity</h4>
                 <p>
                   By generating a unique Clinic Network Code, doctors can authorize referral labs and pharmacy units to query appointments, prescriptions, and lab result workflows. All linkages require manual approval by the registered doctor profile under the pod admin dashboard.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wide">3. Privacy Policy & Audit Logs</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">3. Privacy Policy & Audit Logs</h4>
                 <p>
                   We securely store provider accounts, emails, patient demographic details, and clinical data models. Every system insertion or update is logged to a write-only audit trail in compliance with standard clinical guidelines. We do not sell or lease clinician details to third parties.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wide">4. System Telemetry & Self-Healing</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">4. System Telemetry & Self-Healing</h4>
                 <p>
                   Our system runs automated background operations health agents to detect failed data syncs, transaction anomalies, and connectivity drops. Transaction data remains encrypted at-rest using standard cryptographic algorithms.
                 </p>

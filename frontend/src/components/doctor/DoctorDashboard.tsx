@@ -1478,28 +1478,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         {renderTabContent()}
       </div>
 
-      {/* Contextual Floating Action Button (FAB) for Mobile Viewports */}
-      <div className="lg:hidden fixed bottom-20 right-6 z-[80] transition-all duration-300">
-
-        
-        {activeTab === 'pod_view' && (
-          <button
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                detail: {
-                  title: 'Ecosystem CDSS Scan 🛡️',
-                  message: 'Automated telemetry & passive CDSS scanning triggered.',
-                  type: 'info'
-                }
-              }));
-            }}
-            className="bg-gradient-to-tr from-secondary-600 to-primary-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300 border border-secondary/25 text-white-force cursor-pointer"
-            title="Scan Health Alerts"
-          >
-            <span className="material-symbols-outlined text-2xl font-bold text-white-force">shield_alert</span>
-          </button>
-        )}
-      </div>
+      {/* Contextual Floating Action Button (FAB) for Mobile Viewports - Removed */}
 
       {/* Premium Mobile Bottom Tab Bar Navigation for Doctor Dashboard */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">

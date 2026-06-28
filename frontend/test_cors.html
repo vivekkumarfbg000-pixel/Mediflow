@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div id="result">Running search...</div>
+<script>
+setTimeout(() => {
+  fetch('http://localhost:9000/run-cmd', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-promptguard-request': 'true'
+    },
+    body: JSON.stringify({
+      command: 'npx node scratch/search_vdb_ui.js'
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById('result').innerText = 'Diagnostics completed: ' + JSON.stringify(data);
+  })
+  .catch(err => {
+    document.getElementById('result').innerText = 'CORS/Fetch error: ' + err.message;
+  });
+}, 500);
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { SystemHealthCockpit } from './SystemHealthCockpit';
+import { api } from '../../services/api';
 import { 
   ShieldAlert, 
   Lock, 
@@ -136,6 +137,24 @@ export const SaaSAdminPanel: React.FC = () => {
   const [newReason, setNewReason] = useState<string>('');
   const [addingIp, setAddingIp] = useState<boolean>(false);
   const [removingIp, setRemovingIp] = useState<string | null>(null);
+
+  // Synthetic Profile Manager state
+  const [syntheticProfiles, setSyntheticProfiles] = useState<any[]>([]);
+  const [genCount, setGenCount] = useState<number>(10);
+
+  // Sync synthetic profiles
+  useEffect(() => {
+    if (isAdmin) {
+      setSyntheticProfiles(api.getSyntheticProfiles());
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    const syncProfiles = () => {
+      setSyntheticProfiles(api.getSyntheticProfiles());
+    };
+    return api.subscribe(syncProfiles);
+  }, []);
 
   // Check current profile role
   const checkRole = useCallback(async () => {
@@ -507,6 +526,14 @@ export const SaaSAdminPanel: React.FC = () => {
 
   // Authorized Admin View
   if (isAdmin) {
+    const agents = [
+      { id: 'saas_health' as const, label: 'Health Auto Agent', desc: 'DevSecOps & Self-Healing', icon: Terminal },
+      { id: 'onboarding'  as const, label: 'Onboarding Agent', desc: 'Pod & RLS Compliance', icon: Building },
+      { id: 'revenue'     as const, label: 'CFO Finance Agent', desc: 'Split Retry & Ledger', icon: Coins },
+      { id: 'costs'       as const, label: 'Cost Controller',    desc: 'Daily Budget Checker', icon: MessageSquare },
+      { id: 'firewall'    as const, label: 'DevSecOps Sentry',   desc: 'IP Firewall & Blacklist', icon: ShieldAlert }
+    ];
+
     return (
       <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
         
@@ -539,21 +566,13 @@ export const SaaSAdminPanel: React.FC = () => {
           </button>
         </div>
 
-        {/* ── Main Sub-Sidebar Split Panel ────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* Sub-Sidebar Navigation (3 Columns) */}
-          <div className="lg:col-span-3 flex flex-col gap-2">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider pl-2 mb-1">
-              Virtual Operations Team
-            </span>
-            {[
-              { id: 'saas_health' as const, label: 'Health Auto Agent', desc: 'DevSecOps & Self-Healing', icon: Terminal },
-              { id: 'onboarding'  as const, label: 'Onboarding Agent', desc: 'Pod & RLS Compliance', icon: Building },
-              { id: 'revenue'     as const, label: 'CFO Finance Agent', desc: 'Split Retry & Ledger', icon: Coins },
-              { id: 'costs'       as const, label: 'Cost Controller',    desc: 'Daily Budget Checker', icon: MessageSquare },
-              { id: 'firewall'    as const, label: 'DevSecOps Sentry',   desc: 'IP Firewall & Blacklist', icon: ShieldAlert }
-            ].map(agent => {
+        {/* ── Virtual Operations Team Navigation (Laptop Header) ───────────────── */}
+        <div className="hidden lg:flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/10 p-2.5 rounded-2xl border border-slate-200/60 dark:border-white/5 mb-6 flex-wrap">
+          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-2 mr-2">
+            Virtual Operations Team:
+          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {agents.map(agent => {
               const Icon = agent.icon;
               const isActive = activeTab === agent.id;
               return (
@@ -561,66 +580,65 @@ export const SaaSAdminPanel: React.FC = () => {
                   key={agent.id}
                   type="button"
                   onClick={() => setActiveTab(agent.id)}
-                  className={`w-full text-left p-3.5 rounded-2xl border transition-all duration-200 flex items-start gap-3 cursor-pointer ${
+                  className={`flex items-center gap-2 py-2 px-3.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${
                     isActive 
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-md' 
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10' 
                       : 'bg-white border-slate-200/80 text-slate-700 hover:scale-[1.01] hover:border-slate-350'
                   }`}
                 >
-                  <Icon className={`h-5 w-5 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
-                  <div>
-                    <div className="text-xs font-black tracking-tight">{agent.label}</div>
-                    <div className={`text-[9px] mt-0.5 ${isActive ? 'text-slate-400' : 'text-slate-500'}`}>{agent.desc}</div>
-                  </div>
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                  <span>{agent.label}</span>
                 </button>
               );
             })}
           </div>
+        </div>
 
-          {/* Active Workspace Screen (9 Columns) */}
-          <div className="lg:col-span-9 space-y-6">
-            
-            {/* TAB: Health Autonomous Agent */}
-            {activeTab === 'saas_health' && (
-              <div className="animate-fade-in space-y-4">
-                <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-3">
-                  <Activity className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800">Health Autonomous Agent Enabled</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                      This agent runs 24/7 scanning for database drifts, API timeouts, and React runtime crashes. Click "Fault Injection Simulator" below to test self-healing loops safely.
-                    </p>
-                  </div>
+        {/* ── Active Workspace Screen ─────────────────────────────────────────── */}
+        <div className="space-y-6 pb-20 lg:pb-0">
+
+          {/* TAB: Health Autonomous Agent */}
+          {activeTab === 'saas_health' && (
+            <div className="animate-fade-in space-y-4">
+              <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-start gap-3">
+                <Activity className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">Health Autonomous Agent Enabled</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                    This agent runs 24/7 scanning for database drifts, API timeouts, and React runtime crashes to guarantee system uptime.
+                  </p>
                 </div>
-                <SystemHealthCockpit />
               </div>
-            )}
+              <SystemHealthCockpit />
+            </div>
+          )}
 
-            {/* TAB: Onboarding Agent */}
-            {activeTab === 'onboarding' && onboardingStats && (
-              <div className="animate-fade-in space-y-6">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Total Clinics (Pods)', value: onboardingStats.total_pods, desc: 'Active isolated tenant spaces', icon: Building, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-                    { label: 'Total Storefronts', value: onboardingStats.total_entities, desc: 'Clinics, pharmacies, and labs', icon: Layers, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
-                    { label: 'Active User Accounts', value: onboardingStats.total_profiles, desc: 'Doctors, compounders, staff', icon: Users, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-                  ].map(stat => {
-                    const Icon = stat.icon;
-                    return (
-                      <div key={stat.label} className={`p-5 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="mt-4">
-                          <h4 className="text-2xl font-black text-slate-800">{stat.value}</h4>
-                          <p className="text-[10px] text-slate-500 mt-0.5 leading-none">{stat.desc}</p>
-                        </div>
+          {/* TAB: Onboarding Agent */}
+          {activeTab === 'onboarding' && onboardingStats && (
+            <div className="animate-fade-in space-y-6">
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: 'Total Clinics (Pods)', value: onboardingStats.total_pods, desc: 'Active isolated tenant spaces', icon: Building, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                  { label: 'Total Storefronts', value: onboardingStats.total_entities, desc: 'Clinics, pharmacies, and labs', icon: Layers, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
+                  { label: 'Active User Accounts', value: onboardingStats.total_profiles, desc: 'Doctors, compounders, staff', icon: Users, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                ].map(stat => {
+                  const Icon = stat.icon;
+                  return (
+                    <div key={stat.label} className={`p-5 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
+                        <Icon className="h-4 w-4" />
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="mt-4">
+                        <h4 className="text-2xl font-black text-slate-800">{stat.value}</h4>
+                        <p className="text-[10px] text-slate-500 mt-0.5 leading-none">{stat.desc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
                 {/* Subsystem breakdown */}
                 <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
@@ -752,6 +770,121 @@ export const SaaSAdminPanel: React.FC = () => {
                     </table>
                   </div>
                 </div>
+
+                {/* Synthetic User Profile Generation Control Panel */}
+                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-indigo-600" />
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Synthetic Profile Manager</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">Generate and manage synthetic/mock profiles for product demonstrations.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={genCount}
+                        onChange={(e) => setGenCount(parseInt(e.target.value))}
+                        className="h-8 rounded-lg border border-slate-200 px-2 text-xs font-bold text-slate-700 outline-none cursor-pointer bg-white"
+                      >
+                        {[5, 10, 20, 50, 100].map(c => (
+                          <option key={c} value={c}>{c} Profiles</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            api.generateSyntheticProfiles(genCount);
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Profiles Generated',
+                                message: `Successfully generated ${genCount} synthetic profiles.`,
+                                type: 'success'
+                              }
+                            }));
+                          } catch (err: any) {
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Generation Failed',
+                                message: err.message,
+                                type: 'error'
+                              }
+                            }));
+                          }
+                        }}
+                        className="flex h-8 items-center gap-1 px-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-750 text-[10px] font-bold uppercase tracking-widest cursor-pointer shadow-sm transition-all"
+                      >
+                        Generate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          api.clearAllSyntheticProfiles();
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Profiles Cleared',
+                              message: 'Cleared all synthetic profiles.',
+                              type: 'info'
+                            }
+                          }));
+                        }}
+                        className="flex h-8 items-center gap-1 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest cursor-pointer shadow-sm transition-all"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  {syntheticProfiles.length > 0 ? (
+                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto">
+                      <table className="w-full text-left text-[11px] font-medium text-slate-655">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                            <th className="p-2.5 pl-3">Profile Name</th>
+                            <th className="p-2.5">Assigned Role</th>
+                            <th className="p-2.5 text-center">Interactions</th>
+                            <th className="p-2.5">Last Active</th>
+                            <th className="p-2.5">Visual Label</th>
+                            <th className="p-2.5 pr-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {syntheticProfiles.map(profile => (
+                            <tr key={profile.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                              <td className="p-2.5 pl-3 font-bold text-slate-750">{profile.name}</td>
+                              <td className="p-2.5">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-650">
+                                  {profile.role}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-center font-bold font-mono">{profile.associatedActivityMetric.interactionsCount}</td>
+                              <td className="p-2.5 text-slate-400 font-mono">{new Date(profile.associatedActivityMetric.lastActive).toLocaleTimeString()}</td>
+                              <td className="p-2.5">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 border border-amber-500/25 animate-pulse">
+                                  MOCK DATA
+                                </span>
+                              </td>
+                              <td className="p-2.5 pr-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => api.deleteSyntheticProfile(profile.id)}
+                                  className="text-rose-600 hover:text-rose-800 font-bold text-[10px] uppercase cursor-pointer"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[11px] font-semibold">
+                      No synthetic profiles created yet. Generate them using the control bar above.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -815,8 +948,8 @@ export const SaaSAdminPanel: React.FC = () => {
                               <td className="p-2.5 pl-3 font-bold text-slate-750">{ledger.source_entity_name}</td>
                               <td className="p-2.5 font-bold text-slate-700">{ledger.destination_entity_name}</td>
                               <td className="p-2.5 font-mono text-slate-500">{ledger.transaction_type}</td>
-                              <td className="p-2.5 text-slate-800 font-bold">{ledger.gross_amount.toFixed(2)}</td>
-                              <td className="p-2.5 text-rose-600 font-extrabold">{ledger.net_payout.toFixed(2)}</td>
+                              <td className="p-2.5 text-slate-800 font-bold">{Number(ledger.gross_amount).toFixed(2)}</td>
+                              <td className="p-2.5 text-rose-600 font-extrabold">{Number(ledger.net_payout).toFixed(2)}</td>
                               <td className="p-2.5 text-slate-400 font-mono">{new Date(ledger.created_at).toLocaleString()}</td>
                               <td className="p-2.5 pr-3 text-right">
                                 <button
@@ -933,7 +1066,7 @@ export const SaaSAdminPanel: React.FC = () => {
                                 <div className="text-[9px] font-mono text-indigo-600 mt-0.5 font-bold">{pod.clinic_code}</div>
                               </td>
                               <td className="p-2.5 font-bold text-slate-750">
-                                ₹{pod.daily_spend.toFixed(2)}
+                                ₹{Number(pod.daily_spend).toFixed(2)}
                               </td>
                               <td className="p-2.5 w-1/3">
                                 <div className="flex items-center gap-2">
@@ -1175,9 +1308,39 @@ export const SaaSAdminPanel: React.FC = () => {
 
               </div>
             )}
+        </div>
 
+        {/* ── Virtual Operations Team Navigation (Mobile Footer) ───────────────── */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/50 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+          <div className="flex justify-around items-center h-16 max-w-md mx-auto">
+            {agents.map(agent => {
+              const Icon = agent.icon;
+              const isActive = activeTab === agent.id;
+              
+              const shortLabels: Record<string, string> = {
+                saas_health: 'Health',
+                onboarding: 'Onboard',
+                revenue: 'Finance',
+                costs: 'Costs',
+                firewall: 'Sentry'
+              };
+              const shortLabel = shortLabels[agent.id] || agent.label;
+
+              return (
+                <button
+                  key={agent.id}
+                  type="button"
+                  onClick={() => setActiveTab(agent.id)}
+                  className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all cursor-pointer ${
+                    isActive ? 'text-slate-900 font-extrabold scale-105' : 'text-slate-400 font-semibold'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 mb-0.5 ${isActive ? 'text-slate-900' : 'text-slate-400'}`} />
+                  <span className="text-[9px] uppercase tracking-wider">{shortLabel}</span>
+                </button>
+              );
+            })}
           </div>
-
         </div>
 
       </div>

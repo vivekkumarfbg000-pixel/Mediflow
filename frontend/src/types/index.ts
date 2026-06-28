@@ -442,3 +442,18 @@ export interface ReagentStock {
   stockVolume: number;
   unit: string;
 }
+
+/** Synthetic/mock user profile generated for product demonstration purposes */
+export interface SyntheticProfile {
+  id: string;
+  name: string;
+  role: 'doctor' | 'compounder' | 'pharmacist' | 'lab_tech' | 'admin';
+  email: string;
+  associatedActivityMetric: {
+    interactionsCount: number;
+    lastActive: string; // ISO date string
+  };
+  createdAt: string; // ISO date string
+  isSynthetic: true;
+}
+

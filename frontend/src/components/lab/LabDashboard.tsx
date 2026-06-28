@@ -666,12 +666,12 @@ export const LabDashboard: React.FC = () => {
       </div>
 
       {/* ── TAB NAV ───────────────────────────────────────────── */}
-      <div className="hidden md:flex gap-2 flex-wrap">
+      <div className="flex overflow-x-auto gap-2 pb-1.5 no-scrollbar select-none -mb-px">
         {tabItems.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer relative ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer relative whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-indigo-50 border-indigo-300 text-indigo-600 shadow-[0_0_12px_rgba(var(--primary-rgb),0.15)]'
                 : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800'

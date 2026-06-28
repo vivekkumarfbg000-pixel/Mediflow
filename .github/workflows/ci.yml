@@ -4,7 +4,7 @@ on:
   push:
     branches: [master, develop]
   pull_request:
-    branches: [master]
+    branches: [master, develop]
 
 env:
   NODE_VERSION: '22'
@@ -39,7 +39,7 @@ jobs:
 
       - name: ESLint code quality
         run: npx eslint . --ext .ts,.tsx --max-warnings 0
-        continue-on-error: true
+        continue-on-error: false
 
   # ─── Job 2: Frontend Build ────────────────────────────────────────────────────
   frontend-build:
@@ -72,9 +72,10 @@ jobs:
           VITE_MISTRAL_API_KEY: ${{ secrets.VITE_MISTRAL_API_KEY }}
           VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
-          VITE_AI_BACKEND_URL: ${{ secrets.VITE_AI_BACKEND_URL }}
+          VITE_BACKEND_URL: https://vivek1916-mediflow-backend.hf.space
+          VITE_AI_BACKEND_URL: https://vivek1916-mediflow-backend.hf.space
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_CONSENT_HMAC_KEY: ${{ secrets.VITE_CONSENT_HMAC_KEY }}
           VITE_USE_MOCK: 'false'
 
       - name: Upload build artifact
@@ -141,19 +142,76 @@ jobs:
 
       - name: Validate SQL migrations
         run: |
-          echo "Checking SQL migrations..."
+          echo "=== Mediflow SQL Migration Safety Check ==="
+          FAIL=0
           for f in supabase/migrations/*.sql; do
-            if grep -i "DROP TABLE[^I]" "$f" 2>/dev/null; then
-              echo "WARNING: Potentially destructive operation in $f"
+            # Check for destructive unguarded DROP TABLE
+            if grep -iE "DROP TABLE[[:space:]]+(?!IF EXISTS)" "$f" 2>/dev/null; then
+              echo "::error file=$f::DESTRUCTIVE: DROP TABLE without IF EXISTS guard in $f"
+              FAIL=1
             fi
-            echo "OK: $f"
+            # Check for TRUNCATE statements
+            if grep -iE "^[[:space:]]*TRUNCATE" "$f" 2>/dev/null; then
+              echo "::error file=$f::DESTRUCTIVE: TRUNCATE statement found in $f"
+              FAIL=1
+            fi
+            # Check for DELETE without WHERE clause
+            if grep -iE "DELETE FROM[^;]+;" "$f" 2>/dev/null | grep -ivE "WHERE|CASCADE" 2>/dev/null; then
+              echo "::warning file=$f::CAUTION: DELETE without WHERE clause detected in $f — verify this is intentional."
+            fi
+            echo "✅ OK: $f"
           done
+          if [ $FAIL -eq 1 ]; then
+            echo "::error::One or more SQL migrations contain destructive operations. Review before merging."
+            exit 1
+          fi
+          echo "=== All migrations passed safety check ==="
 
-  # ─── Job 6: Deploy to Vercel ─────────────────────────────────────────────────
+  # ─── Job 6: Secrets Verification ────────────────────────────────────────────
+  secrets-verification:
+    name: 🔑 Pre-flight — Required Secrets Check
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
+    steps:
+      - name: Verify required production secrets are configured
+        shell: bash
+        env:
+          S_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          S_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          S_GEMINI_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          S_CONSENT_KEY: ${{ secrets.VITE_CONSENT_HMAC_KEY }}
+          S_SENTRY: ${{ secrets.VITE_SENTRY_DSN }}
+          S_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
+        run: |
+          echo "=== Mediflow Production Secrets Pre-flight Check ==="
+          MISSING=0
+
+          check_secret() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              echo "::warning::SECRET MISSING: $name is not set in repository secrets. Production features depending on this will be degraded."
+              MISSING=$((MISSING + 1))
+            else
+              echo "✅ $name — present"
+            fi
+          }
+
+          check_secret "VITE_SUPABASE_URL"       "$S_SUPABASE_URL"
+          check_secret "VITE_SUPABASE_ANON_KEY"  "$S_SUPABASE_KEY"
+          check_secret "VITE_GEMINI_API_KEY"     "$S_GEMINI_KEY"
+          check_secret "VITE_CONSENT_HMAC_KEY"   "$S_CONSENT_KEY"
+          check_secret "VITE_SENTRY_DSN"         "$S_SENTRY"
+          check_secret "VITE_BACKEND_URL"        "$S_BACKEND_URL"
+
+          echo "=== Pre-flight complete: $MISSING missing secret(s) ==="
+
+  # ─── Job 7: Deploy to Vercel ─────────────────────────────────────────────────
   deploy-production:
     name: 🚀 Deploy — Vercel Production
     runs-on: ubuntu-latest
-    needs: [frontend-build, security-audit]
+    needs: [frontend-build, security-audit, secrets-verification]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
@@ -179,4 +237,3 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
           working-directory: ./
-

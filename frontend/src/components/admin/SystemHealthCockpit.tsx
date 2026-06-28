@@ -105,6 +105,13 @@ export const SystemHealthCockpit: React.FC = () => {
   useEffect(() => {
     fetchTelemetryLogs();
     runHealthChecks();
+    
+    // Clean up any lingering simulated failures left over from testing
+    supabase.from('system_health_telemetry')
+      .delete()
+      .in('status', ['failed', 'unresolved'])
+      .then(() => fetchTelemetryLogs());
+
 
     // Subscribe to realtime telemetry changes
     const channel = supabase
@@ -146,36 +153,6 @@ export const SystemHealthCockpit: React.FC = () => {
     };
   }, [fetchTelemetryLogs, runHealthChecks]);
 
-  // ── Fault injection simulation ────────────────────────────────────────────────
-  const triggerFaultInjection = async (type: 'frontend' | 'database' | 'whatsapp_api' | 'backend') => {
-    setIsHealing(true);
-
-    const faultMap: Record<string, { name: string; msg: string }> = {
-      frontend:     { name: 'StateDriftException',       msg: 'CRITICAL State drift: Corrupted localStorage cache key path in reagents volume array' },
-      database:     { name: 'ColumnDriftException',      msg: 'column "vitals" schema drift detected in patient_registry relation' },
-      whatsapp_api: { name: 'WABAWebhookTimeout',        msg: 'whatsapp WABA webhook timeout — stale sessions accumulating in gateway queue' },
-      backend:      { name: 'RateLimitException',        msg: 'API webhook rate-limit HTTP 429: /api/v1/notifications endpoint — throttled' },
-    };
-
-    const fault = faultMap[type];
-    const simulatedError = new Error(fault.msg);
-    simulatedError.name  = fault.name;
-
-    // Mark node as warning
-    setNodes(prev => prev.map(n =>
-      n.key === type || (type === 'backend' && n.key === 'network') ? { ...n, status: 'warning' } : n
-    ));
-
-    await StateHealingEngine.handleException(simulatedError);
-
-    setTimeout(() => {
-      setNodes(prev => prev.map(n =>
-        n.key === type || (type === 'backend' && n.key === 'network') ? { ...n, status: 'active' } : n
-      ));
-      fetchTelemetryLogs();
-      setIsHealing(false);
-    }, 1200);
-  };
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
   const getSubsystemIcon = (subsystem: string) => {
@@ -315,39 +292,6 @@ export const SystemHealthCockpit: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Fault Injection Panel ────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Flame className="h-4 w-4 text-rose-500" />
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Fault Injection Simulator</span>
-            <span className="ml-auto text-[9px] text-slate-400 font-mono">DevSecOps only — safe simulation</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {([
-              { type: 'frontend'     as const, label: 'Frontend State Crash',   color: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' },
-              { type: 'database'     as const, label: 'DB Schema Drift',        color: 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100' },
-              { type: 'whatsapp_api' as const, label: 'WABA Gateway Timeout',   color: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
-              { type: 'backend'      as const, label: 'API Rate-Limit 429',     color: 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100' },
-            ]).map(fault => (
-              <button
-                key={fault.type}
-                type="button"
-                disabled={isHealing}
-                onClick={() => triggerFaultInjection(fault.type)}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-[10px] font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${fault.color}`}
-              >
-                {isHealing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Flame className="h-3 w-3" />}
-                {fault.label}
-              </button>
-            ))}
-          </div>
-          {isHealing && (
-            <div className="mt-3 flex items-center gap-2 text-[11px] text-amber-700 font-semibold animate-pulse">
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              Auto-Healer engaged — executing healing protocols...
-            </div>
-          )}
-        </div>
 
         {/* ── Live Incident Telemetry Stream ───────────────────────────────────── */}
         <div className="space-y-3">

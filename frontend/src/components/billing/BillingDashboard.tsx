@@ -177,20 +177,20 @@ export const BillingDashboard: React.FC = () => {
         {/* Invoice Pipeline */}
         <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-primary opacity-50" />
-          <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-rose-400 text-[16px]">account_balance_wallet</span>
+          <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-rose-500 text-[16px]">account_balance_wallet</span>
             Unified Bill Ledger
           </h2>
 
           <div className="space-y-5">
             {/* Pending Invoices */}
             <div>
-              <h3 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <h3 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                 Pending Payments ({pendingInvoices.length})
               </h3>
               {pendingInvoices.length === 0 ? (
-                <div className="p-4 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center text-xs text-clinical-500">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500 font-semibold">
                   All accounts settled.
                 </div>
               ) : (
@@ -203,20 +203,20 @@ export const BillingDashboard: React.FC = () => {
                         onClick={() => handleSelectInvoice(inv)}
                         className={`w-full text-left p-4 rounded-xl border transition-all duration-300 relative group overflow-hidden cursor-pointer ${
                           isSelected 
-                            ? 'bg-surface-container border-rose-500/80 shadow-md' 
-                            : 'bg-surface-container-lowest border-outline-variant hover:border-outline hover:bg-surface-container-low'
+                            ? 'bg-slate-50 border-rose-500/80 shadow-md' 
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
                         {isSelected && (
                           <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-rose-500" />
                         )}
                         <div className="flex justify-between items-start gap-2">
-                          <span className="font-bold text-white text-xs group-hover:text-rose-400 transition-colors">{inv.patientName}</span>
-                          <span className="font-bold text-white text-xs flex items-center font-mono">
+                          <span className="font-bold text-slate-800 text-xs group-hover:text-rose-600 transition-colors">{inv.patientName}</span>
+                          <span className="font-bold text-slate-800 text-xs flex items-center font-mono">
                             INR {inv.totalAmount}.00
                           </span>
                         </div>
-                        <p className="text-[9px] text-clinical-400 mt-2 font-mono tracking-wider uppercase bg-surface-container-high px-1.5 py-0.5 rounded w-max">
+                        <p className="text-[9px] text-slate-500 mt-2 font-mono tracking-wider uppercase bg-slate-100 px-1.5 py-0.5 rounded w-max">
                           ID: {inv.id.toUpperCase()}
                         </p>
                       </button>
@@ -227,13 +227,13 @@ export const BillingDashboard: React.FC = () => {
             </div>
 
             {/* Cleared Invoices */}
-            <div className="border-t border-outline-variant pt-4">
-              <h3 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <div className="border-t border-slate-200 pt-4">
+              <h3 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 Cleared Invoices ({clearedInvoices.length})
               </h3>
               {clearedInvoices.length === 0 ? (
-                <div className="text-center py-6 text-clinical-500 text-xs">No settled invoices recorded today.</div>
+                <div className="text-center py-6 text-slate-500 font-semibold text-xs">No settled invoices recorded today.</div>
               ) : (
                 <div className="space-y-2">
                   {clearedInvoices.map(inv => {
@@ -244,20 +244,20 @@ export const BillingDashboard: React.FC = () => {
                         onClick={() => handleSelectInvoice(inv)}
                         className={`w-full text-left p-4 rounded-xl border transition-all duration-300 relative group overflow-hidden cursor-pointer ${
                           isSelected 
-                            ? 'bg-surface-container border-emerald-500/80 text-white' 
-                            : 'bg-surface-container-lowest border-outline-variant hover:border-outline hover:bg-surface-container-low'
+                            ? 'bg-slate-50 border-emerald-500/80 text-slate-800' 
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                         }`}
                       >
                         {isSelected && (
                           <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-emerald-500" />
                         )}
                         <div className="flex justify-between items-start gap-2">
-                          <span className="font-bold text-clinical-300 text-xs group-hover:text-emerald-400 transition-colors">{inv.patientName}</span>
-                          <span className="font-bold text-emerald-400 text-xs flex items-center font-mono">
+                          <span className="font-bold text-slate-600 text-xs group-hover:text-emerald-600 transition-colors">{inv.patientName}</span>
+                          <span className="font-bold text-emerald-600 text-xs flex items-center font-mono">
                             INR {inv.totalAmount}.00
                           </span>
                         </div>
-                        <p className="text-[9px] text-emerald-400 font-bold uppercase mt-2 tracking-wider flex items-center gap-1">
+                        <p className="text-[9px] text-emerald-600 font-bold uppercase mt-2 tracking-wider flex items-center gap-1">
                           <span className="material-symbols-outlined text-[10px]">check_circle</span>
                           Cleared
                         </p>
@@ -275,48 +275,48 @@ export const BillingDashboard: React.FC = () => {
       {/* RIGHT COLUMN: Split breakdown & Simulated UPI QR Code */}
       <div className="lg:col-span-8 print-hidden">
         {selectedInvoice ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary via-secondary to-rose-500 opacity-50" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-6 border border-slate-200 shadow-xl relative overflow-hidden rounded-xl">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 via-cyan-600 to-rose-500 opacity-50" />
             
             {/* Split breakdown details */}
             <div className="space-y-6">
-              <div className="border-b border-slate-200/60 pb-4">
+              <div className="border-b border-slate-200 pb-4">
                 <div className="flex justify-between items-start">
                   <span className={`text-[9px] font-bold px-3 py-1 rounded-full border uppercase tracking-widest font-mono ${
                     selectedInvoice.paymentStatus === 'pending'
-                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      ? 'bg-rose-50 text-rose-600 border-rose-200'
+                      : 'bg-emerald-50 text-emerald-600 border-emerald-200'
                   }`}>
                     Invoice {selectedInvoice.paymentStatus}
                   </span>
                   {selectedInvoice.paymentStatus === 'cleared' && (
                     <button
                       onClick={handlePrintLedger}
-                      className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold bg-surface-container hover:bg-surface-container-highest border border-outline-variant text-clinical-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-800 rounded-lg transition-colors cursor-pointer"
                     >
                       <Printer className="h-3.5 w-3.5" /> Print Ledger Statement
                     </button>
                   )}
                 </div>
-                <h3 className="font-semibold text-white text-sm mt-3 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-primary text-[16px]">account_balance</span>
+                <h3 className="font-semibold text-slate-850 text-sm mt-3 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-indigo-600 text-[16px]">account_balance</span>
                   Unified Split-Bill
-                  <span className="text-clinical-400 font-medium text-xs font-mono uppercase bg-surface-container-high px-2 py-0.5 rounded ml-1">
+                  <span className="text-slate-500 font-medium text-xs font-mono uppercase bg-slate-100 px-2 py-0.5 rounded ml-1">
                     ({selectedInvoice.id.substring(0, 8)}...)
                   </span>
                 </h3>
-                <p className="text-xs text-clinical-400 mt-1.5">Patient: <strong className="text-white font-semibold">{selectedInvoice.patientName}</strong> (+91 {selectedInvoice.patientPhone})</p>
+                <p className="text-xs text-slate-500 mt-1.5">Patient: <strong className="text-slate-800 font-semibold">{selectedInvoice.patientName}</strong> (+91 {selectedInvoice.patientPhone})</p>
               </div>
 
               {/* Tab Selector */}
-              <div className="flex bg-surface-container-lowest/80 border border-outline-variant/60 p-1.5 rounded-xl gap-1">
+              <div className="flex bg-slate-100 border border-slate-200 p-1.5 rounded-xl gap-1">
                 <button
                   type="button"
                   onClick={() => setActiveTab('invoice')}
                   className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     activeTab === 'invoice'
-                      ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-md'
-                      : 'text-clinical-400 hover:text-white hover:bg-surface-container/30'
+                      ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
                   }`}
                 >
                   <span className="material-symbols-outlined text-sm font-bold">receipt</span>
@@ -327,8 +327,8 @@ export const BillingDashboard: React.FC = () => {
                   onClick={() => setActiveTab('ledger')}
                   className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     activeTab === 'ledger'
-                      ? 'bg-gradient-to-r from-secondary to-rose-500 text-white shadow-md'
-                      : 'text-clinical-400 hover:text-white hover:bg-surface-container/30'
+                      ? 'bg-gradient-to-r from-cyan-600 to-rose-500 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
                   }`}
                 >
                   <span className="material-symbols-outlined text-sm font-bold">account_tree</span>
@@ -340,7 +340,7 @@ export const BillingDashboard: React.FC = () => {
                   className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     activeTab === 'analytics'
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
-                      : 'text-clinical-400 hover:text-white hover:bg-surface-container/30'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
                   }`}
                 >
                   <span className="material-symbols-outlined text-sm font-bold">bar_chart</span>
@@ -352,27 +352,27 @@ export const BillingDashboard: React.FC = () => {
                 <>
                   {/* Bill Split visual catalog */}
                   <div className="space-y-3">
-                    <h4 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest font-mono">Multi-Vendor Ledger Allocation</h4>
+                    <h4 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest font-mono">Multi-Vendor Ledger Allocation</h4>
                     
                     {/* 1. Doctor consultation cut */}
                     <div 
                       onClick={() => setSelectedNode('clinic')}
                       className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${
                         selectedNode === 'clinic' 
-                          ? 'bg-primary/10 border-primary shadow-lg scale-[1.01]' 
-                          : 'bg-surface-container-lowest/80 border-outline-variant hover:border-outline/30'
+                          ? 'bg-indigo-50 border-indigo-400 shadow-lg scale-[1.01]' 
+                          : 'bg-white border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-3 text-xs">
-                        <div className="p-2 bg-primary/10 border border-primary/20 text-primary rounded-lg">
+                        <div className="p-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg">
                           <User className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="font-bold block text-white text-xs">Clinic Consultation Fee</span>
-                          <span className="text-[9px] text-clinical-400 mt-0.5 font-mono">DR_CLINIC_WALLET_01</span>
+                          <span className="font-bold block text-slate-800 text-xs">Clinic Consultation Fee</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">DR_CLINIC_WALLET_01</span>
                         </div>
                       </div>
-                      <span className="font-bold text-xs text-white flex items-center font-mono">
+                      <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
                         INR {selectedInvoice.doctorFee}.00
                       </span>
                     </div>
@@ -382,20 +382,20 @@ export const BillingDashboard: React.FC = () => {
                       onClick={() => setSelectedNode('lab')}
                       className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${
                         selectedNode === 'lab' 
-                          ? 'bg-secondary/10 border-secondary shadow-lg scale-[1.01]' 
-                          : 'bg-surface-container-lowest/80 border-outline-variant hover:border-outline/30'
+                          ? 'bg-cyan-50 border-cyan-400 shadow-lg scale-[1.01]' 
+                          : 'bg-white border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-3 text-xs">
-                        <div className="p-2 bg-secondary/10 border border-secondary/20 text-secondary rounded-lg">
+                        <div className="p-2 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded-lg">
                           <Building className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="font-bold block text-white text-xs">Diagnostic Pathology Charge</span>
-                          <span className="text-[9px] text-clinical-400 mt-0.5 font-mono">LAB_PARTNER_WALLET_02</span>
+                          <span className="font-bold block text-slate-800 text-xs">Diagnostic Pathology Charge</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">LAB_PARTNER_WALLET_02</span>
                         </div>
                       </div>
-                      <span className="font-bold text-xs text-white flex items-center font-mono">
+                      <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
                         INR {selectedInvoice.labFee}.00
                       </span>
                     </div>
@@ -405,20 +405,20 @@ export const BillingDashboard: React.FC = () => {
                       onClick={() => setSelectedNode('pharmacy')}
                       className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${
                         selectedNode === 'pharmacy' 
-                          ? 'bg-emerald-500/10 border-emerald-500/20 shadow-lg scale-[1.01]' 
-                          : 'bg-surface-container-lowest/80 border-outline-variant hover:border-outline/30'
+                          ? 'bg-emerald-50 border-emerald-400 shadow-lg scale-[1.01]' 
+                          : 'bg-white border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-3 text-xs">
-                        <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">
+                        <div className="p-2 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg">
                           <Building className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="font-bold block text-white text-xs">Pharmacy Medicine Holds Fee</span>
-                          <span className="text-[9px] text-clinical-400 mt-0.5 font-mono">PHARMACY_PARTNER_WALLET_03</span>
+                          <span className="font-bold block text-slate-800 text-xs">Pharmacy Medicine Holds Fee</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">PHARMACY_PARTNER_WALLET_03</span>
                         </div>
                       </div>
-                      <span className="font-bold text-xs text-white flex items-center font-mono">
+                      <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
                         INR {selectedInvoice.pharmacyFee}.00
                       </span>
                     </div>
@@ -428,20 +428,20 @@ export const BillingDashboard: React.FC = () => {
                       onClick={() => setSelectedNode('platform')}
                       className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${
                         selectedNode === 'platform' 
-                          ? 'bg-rose-500/10 border-rose-500/25 shadow-lg scale-[1.01]' 
-                          : 'bg-surface-container-lowest/80 border-outline-variant hover:border-outline/30'
+                          ? 'bg-rose-50 border-rose-400 shadow-lg scale-[1.01]' 
+                          : 'bg-white border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-3 text-xs">
-                        <div className="p-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg">
+                        <div className="p-2 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg">
                           <Coins className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="font-bold block text-white text-xs">Mediflow SaaS Platform Fee</span>
-                          <span className="text-[9px] text-clinical-400 mt-0.5 font-mono">SYSTEM_ESCROW_PROTECT</span>
+                          <span className="font-bold block text-slate-800 text-xs">Mediflow SaaS Platform Fee</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">SYSTEM_ESCROW_PROTECT</span>
                         </div>
                       </div>
-                      <span className="font-bold text-xs text-white flex items-center font-mono">
+                      <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
                         INR {selectedInvoice.platformFee}.00
                       </span>
                     </div>
@@ -449,9 +449,9 @@ export const BillingDashboard: React.FC = () => {
                   </div>
 
                   {/* Total Aggregate Sum */}
-                  <div className="p-4 bg-surface-container border border-outline-variant rounded-xl flex items-center justify-between shadow-inner">
-                    <span className="font-bold text-xs text-clinical-300 uppercase tracking-widest font-mono">Total Invoice Amount</span>
-                    <span className="font-bold text-white text-base flex items-center font-mono">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-inner">
+                    <span className="font-bold text-xs text-slate-600 uppercase tracking-widest font-mono">Total Invoice Amount</span>
+                    <span className="font-bold text-slate-800 text-base flex items-center font-mono">
                       INR {selectedInvoice.totalAmount}.00
                     </span>
                   </div>
@@ -462,56 +462,56 @@ export const BillingDashboard: React.FC = () => {
                 /* Tab 2: Inter-Entity Commission Ledger — Live from financial_ledgers */
                 <div className="space-y-4 animate-fade-in text-xs">
                   {/* Summary Box */}
-                  <div className="bg-surface-container-lowest/80 p-3.5 border border-outline-variant rounded-xl space-y-2">
-                    <div className="flex justify-between items-center border-b border-outline-variant/60 pb-2">
-                      <span className="text-[10px] text-clinical-300 font-bold uppercase tracking-wider font-mono">UPI Escrow Settlement</span>
+                  <div className="bg-slate-50 p-3.5 border border-slate-200 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                      <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider font-mono">UPI Escrow Settlement</span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded font-mono border ${
                         selectedInvoice.paymentStatus === 'pending'
-                          ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                          : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                          ? 'text-amber-600 bg-amber-50 border-amber-200'
+                          : 'text-emerald-600 bg-emerald-50 border-emerald-200'
                       }`}>
                         {selectedInvoice.paymentStatus === 'pending' ? 'HELD_IN_ESCROW' : 'SETTLED_TO_WALLETS'}
                       </span>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
-                      <div className="p-2 bg-surface-container/40 rounded-lg">
-                        <span className="text-clinical-400 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Gross Escrow</span>
-                        <strong className="text-white font-mono">INR {selectedInvoice.totalAmount}.00</strong>
+                      <div className="p-2 bg-white border border-slate-100 rounded-lg">
+                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Gross Escrow</span>
+                        <strong className="text-slate-800 font-mono">INR {selectedInvoice.totalAmount}.00</strong>
                       </div>
-                      <div className="p-2 bg-surface-container/40 rounded-lg">
-                        <span className="text-clinical-400 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Platform Take (5%)</span>
-                        <strong className="text-rose-400 font-mono">INR {selectedInvoice.platformFee}.00</strong>
+                      <div className="p-2 bg-white border border-slate-100 rounded-lg">
+                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Platform Take (5%)</span>
+                        <strong className="text-rose-600 font-mono">INR {selectedInvoice.platformFee}.00</strong>
                       </div>
-                      <div className="p-2 bg-surface-container/40 rounded-lg">
-                        <span className="text-clinical-400 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">TDS Reserved (10%)</span>
-                        <strong className="text-amber-400 font-mono">INR {calcSplits(selectedInvoice).totalTds}.00</strong>
+                      <div className="p-2 bg-white border border-slate-100 rounded-lg">
+                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">TDS Reserved (10%)</span>
+                        <strong className="text-amber-600 font-mono">INR {calcSplits(selectedInvoice).totalTds}.00</strong>
                       </div>
-                      <div className="p-2 bg-surface-container/40 rounded-lg">
-                        <span className="text-clinical-400 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Est. GST Pool (18%)</span>
-                        <strong className="text-secondary font-mono">INR {calcSplits(selectedInvoice).totalGst}.00</strong>
+                      <div className="p-2 bg-white border border-slate-100 rounded-lg">
+                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Est. GST Pool (18%)</span>
+                        <strong className="text-cyan-700 font-mono">INR {calcSplits(selectedInvoice).totalGst}.00</strong>
                       </div>
                     </div>
                   </div>
 
                   {/* Live Ledger Rows from financial_ledgers table */}
-                  <h4 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
+                  <h4 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                     Live Inter-Entity Payout Records
                   </h4>
 
                   {(() => {
                     const invoiceLedgers = ledgerEntries.filter(l => l.invoiceId === selectedInvoice.id);
                     return invoiceLedgers.length === 0 ? (
-                      <div className="p-5 bg-surface-container-lowest/40 border border-outline-variant rounded-xl text-center">
-                        <span className="material-symbols-outlined text-xl text-clinical-600 block mb-2">receipt_long</span>
-                        <p className="text-[11px] text-clinical-500">No ledger rows yet. Trigger UPI callback to generate splits.</p>
-                        <p className="text-[10px] text-clinical-600 mt-1 font-mono">DB trigger <code>trg_payment_cleared</code> populates rows on payment clearance.</p>
+                      <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                        <span className="material-symbols-outlined text-xl text-slate-400 block mb-2">receipt_long</span>
+                        <p className="text-[11px] text-slate-500">No ledger rows yet. Trigger UPI callback to generate splits.</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-mono">DB trigger <code>trg_payment_cleared</code> populates rows on payment clearance.</p>
                       </div>
                     ) : (
-                      <div className="border border-outline-variant rounded-xl overflow-hidden">
+                      <div className="border border-slate-200 rounded-xl overflow-hidden">
                         <table className="w-full text-[10px]">
-                          <thead className="bg-surface-container text-clinical-400 border-b border-outline-variant font-bold uppercase tracking-wider font-mono text-[8px]">
+                          <thead className="bg-slate-100 text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider font-mono text-[8px]">
                             <tr>
                               <th className="p-2.5">Type</th>
                               <th className="p-2.5">Gross</th>
@@ -520,23 +520,23 @@ export const BillingDashboard: React.FC = () => {
                               <th className="p-2.5 text-right">Status</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-outline-variant/40 bg-surface-container-lowest/20">
+                          <tbody className="divide-y divide-slate-100 bg-white">
                             {invoiceLedgers.map(entry => (
-                              <tr key={entry.id} className="hover:bg-surface-container/30 transition-colors">
+                              <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="p-2.5">
-                                  <span className="capitalize font-semibold text-white">{entry.transactionType.replace(/_/g, ' ')}</span>
-                                  <div className="text-[9px] text-clinical-500 font-mono mt-0.5 truncate max-w-[80px]">{entry.destinationEntityId.substring(0, 12)}...</div>
+                                  <span className="capitalize font-semibold text-slate-800">{entry.transactionType.replace(/_/g, ' ')}</span>
+                                  <div className="text-[9px] text-slate-400 font-mono mt-0.5 truncate max-w-[80px]">{entry.destinationEntityId.substring(0, 12)}...</div>
                                 </td>
-                                <td className="p-2.5 font-mono text-clinical-200">₹{entry.grossAmount}</td>
-                                <td className="p-2.5 font-mono text-clinical-400">{(entry.commissionRate * 100).toFixed(0)}%</td>
-                                <td className="p-2.5 font-mono font-bold text-emerald-400">₹{entry.netPayout}</td>
+                                <td className="p-2.5 font-mono text-slate-700">₹{entry.grossAmount}</td>
+                                <td className="p-2.5 font-mono text-slate-500">{(entry.commissionRate * 100).toFixed(0)}%</td>
+                                <td className="p-2.5 font-mono font-bold text-emerald-600">₹{entry.netPayout}</td>
                                 <td className="p-2.5 text-right">
                                   <span className={`text-[9px] font-bold tracking-wider px-2 py-0.5 rounded border font-mono uppercase ${
                                     entry.paymentStatus === 'cleared'
-                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                       : entry.paymentStatus === 'disputed'
-                                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                        : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
                                   }`}>
                                     {entry.paymentStatus}
                                   </span>
@@ -550,14 +550,14 @@ export const BillingDashboard: React.FC = () => {
                   })()}
 
                   {/* Gateway References */}
-                  <div className="p-3.5 bg-surface-container/60 border border-outline-variant rounded-xl text-[10px] font-mono leading-relaxed space-y-1 text-clinical-400">
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-mono leading-relaxed space-y-1 text-slate-500">
                     <div className="flex justify-between">
                       <span>Gateway Escrow Channel:</span>
-                      <span className="text-white">DIRECT_BANK_UPI_SPLIT_ROUTING</span>
+                      <span className="text-slate-800 font-semibold">DIRECT_BANK_UPI_SPLIT_ROUTING</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Bank Settlement Route ID:</span>
-                      <span className="text-white uppercase font-bold">TXN_UPI_SPLIT_REF_{selectedInvoice.id.substring(0, 8).toUpperCase()}</span>
+                      <span className="text-slate-800 font-mono uppercase font-bold">TXN_UPI_SPLIT_REF_{selectedInvoice.id.substring(0, 8).toUpperCase()}</span>
                     </div>
                   </div>
                 </div>
@@ -567,9 +567,9 @@ export const BillingDashboard: React.FC = () => {
                 /* Tab 3: Executive Analytics */
                 <div className="space-y-6 animate-fade-in text-xs select-none">
                   {/* Revenue Splits 3D Cylinder Grouped Bars */}
-                  <div className="glass-panel p-5 border-slate-200/60 shadow-lg relative overflow-hidden bg-slate-800/35 rounded-2xl border border-white/5">
-                    <h4 className="font-extrabold text-white text-xs uppercase tracking-widest font-mono mb-4 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-emerald-400 text-sm animate-pulse">analytics</span>
+                  <div className="p-5 border border-slate-200 shadow-lg relative overflow-hidden bg-slate-50/50 rounded-2xl">
+                    <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-widest font-mono mb-4 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-emerald-600 text-sm animate-pulse">analytics</span>
                       Executive Clinic Revenue Splits & SaaS Commission
                     </h4>
 
@@ -581,14 +581,14 @@ export const BillingDashboard: React.FC = () => {
                         { label: 'Mediflow SaaS Platform fee (5%)', val: selectedInvoice.platformFee, color: 'from-rose-500 to-red-600', pct: Math.round((Number(selectedInvoice.platformFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 }
                       ].map((item, i) => (
                         <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-bold text-clinical-300">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-600">
                             <span>{item.label}</span>
-                            <span className="font-mono text-white">₹{item.val}.00 ({item.pct}%)</span>
+                            <span className="font-mono text-slate-800">₹{item.val}.00 ({item.pct}%)</span>
                           </div>
                           {/* 3D horizontal cylinder bar */}
-                          <div className="h-4 w-full bg-white/60 rounded-full border border-white/5 overflow-hidden shadow-inner p-[1px]">
+                          <div className="h-4 w-full bg-slate-100 rounded-full border border-slate-200/60 overflow-hidden shadow-inner p-[1px]">
                             <div 
-                              className={`h-full rounded-full bg-gradient-to-r ${item.color} transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.05)]`}
+                              className={`h-full rounded-full bg-gradient-to-r ${item.color} transition-all duration-1000`}
                               style={{ width: `${item.pct}%` }}
                             />
                           </div>
@@ -599,34 +599,34 @@ export const BillingDashboard: React.FC = () => {
 
                   {/* Expiry and Swapper Savings */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="glass-panel p-4 border-slate-200/60 bg-slate-800/25 rounded-2xl space-y-3 border border-white/5">
-                      <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-amber-400 text-sm">schedule</span>
+                    <div className="p-4 border border-slate-200 bg-slate-50/50 rounded-2xl space-y-3">
+                      <h5 className="font-extrabold text-slate-800 text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-amber-600 text-sm">schedule</span>
                         FEFO Expiry Burn Velocity
                       </h5>
                       <div className="flex items-center gap-4">
                         {/* CSS circular meter */}
-                        <div className="relative w-12 h-12 rounded-full border-4 border-dashed border-emerald-500/30 flex items-center justify-center font-mono font-extrabold text-xs text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.1)]">
+                        <div className="relative w-12 h-12 rounded-full border-4 border-dashed border-emerald-500/30 flex items-center justify-center font-mono font-extrabold text-xs text-emerald-600">
                           94%
                         </div>
-                        <div className="text-[10px] leading-relaxed text-clinical-400">
-                          <div className="text-white font-bold">FEFO Safety Clearance</div>
+                        <div className="text-[10px] leading-relaxed text-slate-500">
+                          <div className="text-slate-800 font-bold">FEFO Safety Clearance</div>
                           <div className="mt-0.5">94% of unexpired inventory batches safely rotated.</div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="glass-panel p-4 border-slate-200/60 bg-slate-800/25 rounded-2xl space-y-3 border border-white/5">
-                      <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-rose-400 text-sm">swap_horiz</span>
+                    <div className="p-4 border border-slate-200 bg-slate-50/50 rounded-2xl space-y-3">
+                      <h5 className="font-extrabold text-slate-800 text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-rose-500 text-sm">swap_horiz</span>
                         Generic Brand Cost Savings
                       </h5>
                       <div className="flex items-center gap-4">
-                        <div className="relative w-12 h-12 rounded-full border-4 border-dashed border-rose-500/30 flex items-center justify-center font-mono font-extrabold text-xs text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.1)]">
+                        <div className="relative w-12 h-12 rounded-full border-4 border-dashed border-rose-500/30 flex items-center justify-center font-mono font-extrabold text-xs text-rose-600">
                           ₹420
                         </div>
-                        <div className="text-[10px] leading-relaxed text-clinical-400">
-                          <div className="text-white font-bold">Total Patient Savings</div>
+                        <div className="text-[10px] leading-relaxed text-slate-500">
+                          <div className="text-slate-800 font-bold">Total Patient Savings</div>
                           <div className="mt-0.5">₹420 saved by swapping generic brands.</div>
                         </div>
                       </div>
@@ -634,16 +634,16 @@ export const BillingDashboard: React.FC = () => {
                   </div>
 
                   {/* Reagent Deduction Burn velocity & Speed */}
-                  <div className="glass-panel p-4 border-slate-200/60 bg-slate-800/25 rounded-2xl space-y-3 border border-white/5">
-                    <h5 className="font-extrabold text-white text-[10px] uppercase tracking-widest font-mono">Reagent & Wait Time Analytics</h5>
+                  <div className="p-4 border border-slate-200 bg-slate-50/50 rounded-2xl space-y-3">
+                    <h5 className="font-extrabold text-slate-800 text-[10px] uppercase tracking-widest font-mono">Reagent & Wait Time Analytics</h5>
                     <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="p-3 bg-clinical-950/60 rounded-xl border border-white/5">
-                        <span className="text-clinical-400 block text-[9px] font-mono uppercase tracking-wider">Avg Lab Wait Time</span>
-                        <strong className="text-white text-base font-mono">1.8 Min</strong>
+                      <div className="p-3 bg-slate-100 rounded-xl border border-slate-200/60">
+                        <span className="text-slate-500 block text-[9px] font-mono uppercase tracking-wider">Avg Lab Wait Time</span>
+                        <strong className="text-slate-850 text-base font-mono">1.8 Min</strong>
                       </div>
-                      <div className="p-3 bg-clinical-950/60 rounded-xl border border-white/5">
-                        <span className="text-clinical-400 block text-[9px] font-mono uppercase tracking-wider">Reagents Ded. Volume</span>
-                        <strong className="text-secondary text-base font-mono">1.2 Litres</strong>
+                      <div className="p-3 bg-slate-100 rounded-xl border border-slate-200/60">
+                        <span className="text-slate-500 block text-[9px] font-mono uppercase tracking-wider">Reagents Ded. Volume</span>
+                        <strong className="text-cyan-600 text-base font-mono">1.2 Litres</strong>
                       </div>
                     </div>
                   </div>
@@ -652,17 +652,17 @@ export const BillingDashboard: React.FC = () => {
             </div>
 
             {/* UPI Dynamic QR Code / Split Payout Wheel Simulator */}
-            <div className="flex flex-col items-center justify-center p-6 border-t md:border-t-0 md:border-l border-slate-200/60 space-y-6 relative">
+            <div className="flex flex-col items-center justify-center p-6 border-t md:border-t-0 md:border-l border-slate-200 space-y-6 relative">
               
               {selectedInvoice.paymentStatus === 'pending' ? (
                 <>
-                  <h4 className="font-bold text-[10px] text-clinical-300 uppercase tracking-widest font-mono text-center flex items-center gap-1 justify-center">
-                    <span className="material-symbols-outlined text-xs animate-pulse text-rose-400">qr_code_2</span>
+                  <h4 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest font-mono text-center flex items-center gap-1 justify-center">
+                    <span className="material-symbols-outlined text-xs animate-pulse text-rose-500">qr_code_2</span>
                     UNIFIED UPI SPLIT-WALLET ROUTER
                   </h4>
                   
                   {/* Dynamic Mock QR Code design */}
-                  <div className="scanner-container bg-white p-5 rounded-3xl border border-clinical-200 shadow-2xl w-48 h-48 flex items-center justify-center relative overflow-hidden group">
+                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xl w-48 h-48 flex items-center justify-center relative overflow-hidden group">
                     
                     {/* Simulated scanning laser overlays */}
                     <div className="absolute left-0 w-full h-[2px] bg-rose-500 shadow-[0_0_12px_#ef4444] laser-line z-10" />
@@ -670,54 +670,54 @@ export const BillingDashboard: React.FC = () => {
                     {/* Dynamic styled visual QR code representation */}
                     <div className="w-full h-full relative grid grid-cols-5 grid-rows-5 gap-1.5 select-none">
                       {/* Anchor square TL */}
-                      <div className="col-span-2 row-span-2 bg-clinical-950 rounded-lg p-[3px]">
+                      <div className="col-span-2 row-span-2 bg-slate-900 rounded-lg p-[3px]">
                         <div className="w-full h-full bg-white rounded-md p-[3px]">
-                          <div className="w-full h-full bg-clinical-950 rounded-sm"></div>
+                           <div className="w-full h-full bg-slate-900 rounded-sm"></div>
                         </div>
                       </div>
                       {/* Pattern dots */}
-                      <div className="bg-clinical-950 rounded-sm"></div>
+                      <div className="bg-slate-900 rounded-sm"></div>
                       {/* Anchor square TR */}
-                      <div className="col-span-2 row-span-2 col-start-4 bg-clinical-950 rounded-lg p-[3px]">
+                      <div className="col-span-2 row-span-2 col-start-4 bg-slate-900 rounded-lg p-[3px]">
                         <div className="w-full h-full bg-white rounded-md p-[3px]">
-                          <div className="w-full h-full bg-clinical-950 rounded-sm"></div>
+                           <div className="w-full h-full bg-slate-900 rounded-sm"></div>
                         </div>
                       </div>
-                      <div className="bg-clinical-950 rounded-sm col-start-3 row-start-2"></div>
+                      <div className="bg-slate-900 rounded-sm col-start-3 row-start-2"></div>
                       {/* Middle dots pattern */}
-                      <div className="bg-clinical-950 rounded-sm row-start-3 col-start-1"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-3 col-start-2"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-3 col-start-3"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-3 col-start-4"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-3 col-start-5"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-1"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-2"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-3"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-4"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-5"></div>
                       {/* Anchor square BL */}
-                      <div className="col-span-2 row-span-2 row-start-4 bg-clinical-950 rounded-lg p-[3px]">
+                      <div className="col-span-2 row-span-2 row-start-4 bg-slate-900 rounded-lg p-[3px]">
                         <div className="w-full h-full bg-white rounded-md p-[3px]">
-                          <div className="w-full h-full bg-clinical-950 rounded-sm"></div>
+                           <div className="w-full h-full bg-slate-900 rounded-sm"></div>
                         </div>
                       </div>
-                      <div className="bg-clinical-950 rounded-sm row-start-4 col-start-3"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-4 col-start-4"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-4 col-start-5"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-5 col-start-3"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-5 col-start-4"></div>
-                      <div className="bg-clinical-950 rounded-sm row-start-5 col-start-5"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-4 col-start-3"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-4 col-start-4"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-4 col-start-5"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-5 col-start-3"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-5 col-start-4"></div>
+                      <div className="bg-slate-900 rounded-sm row-start-5 col-start-5"></div>
                       
                       {/* Tiny center branding */}
-                      <div className="absolute inset-0 m-auto w-9 h-9 rounded-lg bg-white border border-clinical-200 shadow-md flex items-center justify-center font-black text-[8px] text-primary-600 tracking-tighter">
+                      <div className="absolute inset-0 m-auto w-9 h-9 rounded-lg bg-white border border-slate-200 shadow-md flex items-center justify-center font-black text-[8px] text-indigo-600 tracking-tighter">
                         M-FLOW
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-[10px] text-clinical-400 font-medium text-center leading-relaxed">
+                  <p className="text-[10px] text-slate-500 font-medium text-center leading-relaxed">
                     Scan with any UPI application (BHIM, GooglePay, PhonePe, Paytm). Payment splits dynamically inside bank routers.
                   </p>
 
                   <button
                     onClick={() => handleSimulatePayment(selectedInvoice.id)}
                     disabled={isSimulatingPayment}
-                    className="w-full btn-primary font-bold flex items-center justify-center gap-1.5 active:scale-95 shadow cursor-pointer bg-gradient-to-r from-rose-500 to-primary text-xs py-3"
+                    className="w-full font-bold flex items-center justify-center gap-1.5 active:scale-95 shadow cursor-pointer bg-gradient-to-r from-rose-500 to-indigo-600 text-white text-xs py-3 rounded-lg"
                   >
                     {isSimulatingPayment ? (
                       <>
@@ -735,17 +735,17 @@ export const BillingDashboard: React.FC = () => {
                 /* V2.0 INTERACTIVE SVG SPLIT PAYOUT WHEEL */
                 <div className="text-center space-y-4 py-1 animate-fade-in w-full">
                   <div>
-                    <h4 className="font-bold text-white text-xs uppercase tracking-widest font-mono mb-2">B2B Split Routing Wheel</h4>
-                    <p className="text-[10px] text-clinical-400">Interactive live payout map. Click any wallet node to audit.</p>
+                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-widest font-mono mb-2">B2B Split Routing Wheel</h4>
+                    <p className="text-[10px] text-slate-500">Interactive live payout map. Click any wallet node to audit.</p>
                   </div>
 
-                  <div className="relative bg-slate-800/40 rounded-2xl border border-white/5 p-4">
+                  <div className="relative bg-slate-50 rounded-2xl border border-slate-200/60 p-4">
                     <svg className="w-full max-w-[280px] h-[280px] mx-auto overflow-visible select-none" viewBox="0 0 300 300">
                       {/* Connections with flowing dot animation */}
-                      <path d="M 150 150 L 150 45" stroke={selectedNode === 'clinic' ? '#a855f7' : '#ffffff20'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-primary" style={{ animationDuration: '1s' }} />
-                      <path d="M 150 150 L 255 150" stroke={selectedNode === 'lab' ? '#3b82f6' : '#ffffff20'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-secondary" style={{ animationDuration: '1.4s' }} />
-                      <path d="M 150 150 L 150 255" stroke={selectedNode === 'pharmacy' ? '#10b981' : '#ffffff20'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-emerald-500" style={{ animationDuration: '1.2s' }} />
-                      <path d="M 150 150 L 45 150" stroke={selectedNode === 'platform' ? '#f43f5e' : '#ffffff20'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-rose-500" style={{ animationDuration: '1.6s' }} />
+                      <path d="M 150 150 L 150 45" stroke={selectedNode === 'clinic' ? '#a855f7' : 'rgba(79, 70, 229, 0.15)'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-indigo-600" style={{ animationDuration: '1s' }} />
+                      <path d="M 150 150 L 255 150" stroke={selectedNode === 'lab' ? '#3b82f6' : 'rgba(79, 70, 229, 0.15)'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-cyan-600" style={{ animationDuration: '1.4s' }} />
+                      <path d="M 150 150 L 150 255" stroke={selectedNode === 'pharmacy' ? '#10b981' : 'rgba(79, 70, 229, 0.15)'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-emerald-500" style={{ animationDuration: '1.2s' }} />
+                      <path d="M 150 150 L 45 150" stroke={selectedNode === 'platform' ? '#f43f5e' : 'rgba(79, 70, 229, 0.15)'} strokeWidth="2.5" strokeDasharray="6 6" className="flowing-line text-rose-500" style={{ animationDuration: '1.6s' }} />
 
                       {/* Outer Nodes */}
                       {/* 1. Clinic (Top) */}
@@ -778,7 +778,7 @@ export const BillingDashboard: React.FC = () => {
 
                       {/* Center Escrow Node */}
                       <g onClick={() => setSelectedNode('escrow')} className="cursor-pointer">
-                        <circle cx="150" cy="150" r="34" fill="#18181b" stroke={selectedNode === 'escrow' ? '#e4e4e7' : '#ffffff20'} strokeWidth="3" />
+                        <circle cx="150" cy="150" r="34" fill="#18181b" stroke={selectedNode === 'escrow' ? '#4f46e5' : 'rgba(79, 70, 229, 0.15)'} strokeWidth="3" />
                         <circle cx="150" cy="150" r="30" fill="url(#escrowGrad)" />
                         <text x="150" y="146" textAnchor="middle" fill="#ffffff" className="text-[9px] font-black font-sans uppercase tracking-tighter">Escrow</text>
                         <text x="150" y="157" textAnchor="middle" fill="#ffffffef" className="text-[8px] font-black font-mono">₹{selectedInvoice.totalAmount}</text>
@@ -794,43 +794,43 @@ export const BillingDashboard: React.FC = () => {
                     </svg>
 
                     {/* Interactive Node Description Panel */}
-                    <div className="mt-4 p-3 bg-surface-container rounded-xl text-left border border-white/5 text-[10px]">
+                    <div className="mt-4 p-3 bg-white rounded-xl text-left border border-slate-200 text-[10px]">
                       {selectedNode === 'escrow' && (
                         <div className="animate-fade-in">
-                          <strong className="text-white block font-bold">Central Bank Escrow (Gross Amount)</strong>
-                          <p className="text-clinical-400 mt-1 leading-normal">
+                          <strong className="text-slate-800 block font-bold">Central Bank Escrow (Gross Amount)</strong>
+                          <p className="text-slate-500 mt-1 leading-normal">
                             Aggregate amount ₹{selectedInvoice.totalAmount}.00 is currently held securely in banks UPI clearing channel awaiting final settlement to distributed wallets.
                           </p>
                         </div>
                       )}
                       {selectedNode === 'clinic' && (
                         <div className="animate-fade-in">
-                          <strong className="text-primary block font-bold">DR_CLINIC_WALLET_01 (Consultation Cut)</strong>
-                          <p className="text-clinical-400 mt-1 leading-normal">
+                          <strong className="text-indigo-700 block font-bold">DR_CLINIC_WALLET_01 (Consultation Cut)</strong>
+                          <p className="text-slate-500 mt-1 leading-normal">
                             Doctor Consultation share: Gross amount ₹{selectedInvoice.doctorFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).docNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).docTds}.00 reserved).
                           </p>
                         </div>
                       )}
                       {selectedNode === 'lab' && (
                         <div className="animate-fade-in">
-                          <strong className="text-secondary block font-bold">LAB_PARTNER_WALLET_02 (Pathology Cut)</strong>
-                          <p className="text-clinical-400 mt-1 leading-normal">
+                          <strong className="text-cyan-700 block font-bold">LAB_PARTNER_WALLET_02 (Pathology Cut)</strong>
+                          <p className="text-slate-500 mt-1 leading-normal">
                             Pathology Test share: Gross amount ₹{selectedInvoice.labFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).labNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).labTds}.00 reserved).
                           </p>
                         </div>
                       )}
                       {selectedNode === 'pharmacy' && (
                         <div className="animate-fade-in">
-                          <strong className="text-emerald-400 block font-bold">PHARMACY_PARTNER_WALLET_03 (POS Cut)</strong>
-                          <p className="text-clinical-400 mt-1 leading-normal">
+                          <strong className="text-emerald-600 block font-bold">PHARMACY_PARTNER_WALLET_03 (POS Cut)</strong>
+                          <p className="text-slate-500 mt-1 leading-normal">
                             Pharmacy Medicine share: Gross amount ₹{selectedInvoice.pharmacyFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).pharmaNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).pharmaTds}.00 reserved).
                           </p>
                         </div>
                       )}
                       {selectedNode === 'platform' && (
                         <div className="animate-fade-in">
-                          <strong className="text-rose-400 block font-bold">SYSTEM_ESCROW_PROTECT (Platform SaaS Fee)</strong>
-                          <p className="text-clinical-400 mt-1 leading-normal">
+                          <strong className="text-rose-600 block font-bold">SYSTEM_ESCROW_PROTECT (Platform SaaS Fee)</strong>
+                          <p className="text-slate-500 mt-1 leading-normal">
                             Mediflow SaaS standard B2B routing fee: ₹{selectedInvoice.platformFee}.00. Settled instantly to system admin account. GST compliance pool updated.
                           </p>
                         </div>
@@ -844,8 +844,8 @@ export const BillingDashboard: React.FC = () => {
 
           </div>
         ) : (
-          <div className="glass-panel p-8 text-center text-clinical-500 text-sm h-64 flex flex-col items-center justify-center border-slate-200/60 shadow-xl print-hidden">
-            <AlertCircle className="h-10 w-10 text-clinical-600 mb-2" />
+          <div className="bg-white p-8 text-center text-slate-500 font-semibold text-sm h-64 flex flex-col items-center justify-center border border-slate-200 shadow-xl rounded-xl print-hidden">
+            <AlertCircle className="h-10 w-10 text-slate-400 mb-2" />
             No active billing invoice generated in ecosystem queue yet.
           </div>
         )}

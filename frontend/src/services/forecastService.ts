@@ -7,11 +7,51 @@ import { MASTER_TEST_CATALOG } from './labService';
 import type { SeasonalForecast, DiagnosticTest } from '../types';
 
 export class ForecastService {
-  private static readonly AI_BASE = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000';
+  /**
+   * AI Backend URL Resolution
+   * - Dev:        falls back to localhost:8000 (run `uvicorn app.main:app` in /backend)
+   * - Production: VITE_AI_BACKEND_URL must be set to the HF Space URL
+   *   e.g. https://vivekkumarfbg000-mediflow-backend.hf.space
+   */
+  private static readonly AI_BASE = (() => {
+    const configured = import.meta.env.VITE_AI_BACKEND_URL;
+    if (!configured) {
+      if (import.meta.env.PROD) {
+        console.error('[Mediflow AI] CRITICAL: VITE_AI_BACKEND_URL is not set in production build. AI features will fall back to local cache. Set this variable in .env.production or GitHub Secrets.');
+      }
+      return 'http://localhost:8000';
+    }
+    return configured.replace(/\/$/, ''); // strip trailing slash
+  })();
+
 
   static getSeasonalForecasts(): SeasonalForecast[] {
     return load<SeasonalForecast[]>('seasonal_forecasts', []);
   }
+
+  /**
+   * Ping the FastAPI AI backend /health endpoint.
+   * Returns { online: true, url } when reachable, { online: false, error } otherwise.
+   * Used by the UI to show a live "AI Engine: Online/Offline" status badge.
+   */
+  static async checkBackendHealth(): Promise<{ online: boolean; url: string; latencyMs?: number; error?: string }> {
+    const url = this.AI_BASE;
+    const start = performance.now();
+    try {
+      const res = await fetch(`${url}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000), // 5-second timeout
+      });
+      const latencyMs = Math.round(performance.now() - start);
+      if (res.ok) {
+        return { online: true, url, latencyMs };
+      }
+      return { online: false, url, latencyMs, error: `HTTP ${res.status}` };
+    } catch (err: any) {
+      return { online: false, url, error: err?.message || 'Network error' };
+    }
+  }
+
 
   static actOnSeasonalForecast(forecastId: string): void {
     const forecasts = this.getSeasonalForecasts();
