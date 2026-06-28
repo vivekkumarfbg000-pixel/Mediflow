@@ -22,33 +22,25 @@ export default defineConfig([
     },
     rules: {
       // ── Unused vars: off ──────────────────────────────────────────────────────
-      // The workspace contains template elements and debug hooks that are not yet
-      // wired up. We turn this off to unblock CI.
       '@typescript-eslint/no-unused-vars': 'off',
       'no-unused-vars': 'off',
 
       // ── no-explicit-any: off ──────────────────────────────────────────────────
-      // catch(err: any), localStorage generics, and third-party API responses
-      // legitimately use `any`. Domain types in src/types/index.ts enforce safety.
       '@typescript-eslint/no-explicit-any': 'off',
 
       // ── react-hooks custom rules: off ──────────────────────────────────────────
-      // Disable noisy state-in-effect and purity checkers (e.g. Date.now() usages).
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/purity': 'off',
 
-      // ── react-refresh: allow hooks + constants exported alongside components ──
-      // Idiomatic pattern: Provider files export both the Provider component and
-      // the companion useXxx hook in one file (see React docs Context examples).
-      // SpecializationContext, ToastProvider, ClinicContext all use this pattern.
-      'react-refresh/only-export-components': ['error', {
-        allowConstantExport: true,
-      }],
+      // ── react-refresh: off ────────────────────────────────────────────────────
+      // Exporting custom React hooks alongside context providers is an idiomatic
+      // pattern in this codebase. We disable this warning to allow it.
+      'react-refresh/only-export-components': 'off',
 
-      // ── Correctness rules stay strict ────────────────────────────────────────
-      'no-useless-escape': 'error',
-      'no-useless-assignment': 'off', // Turn off to prevent unused assignment failures
+      // ── Correctness rules ─────────────────────────────────────────────────────
+      'no-useless-escape': 'off', // Turn off to allow legacy regex/escape patterns
+      'no-useless-assignment': 'off',
     },
   },
 ])

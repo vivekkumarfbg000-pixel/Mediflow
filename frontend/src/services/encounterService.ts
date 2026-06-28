@@ -105,7 +105,7 @@ export class EncounterService {
           await writeAuditLog('WHATSAPP_STATE_TRANSITION', { phone: patient.phone, newState: 'AWAITING_PAYMENT' }, existing.id);
         }
       }
-    });
+    })();
 
     return newEncounter;
   }
