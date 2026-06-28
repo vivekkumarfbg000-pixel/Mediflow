@@ -44,14 +44,14 @@ export interface HistoricalBiomarker {
 }
 
 export interface ChatMessage {
-  sender: 'bot' | 'patient';
+  sender: string;
   text: string;
   timestamp?: string;
   time?: string;
 }
 
 export interface WhatsAppSessionData {
-  chatHistory?: (ChatMessage | WhatsAppChatEntry)[];
+  chatHistory?: ChatMessage[];
   consentGranted?: boolean;
   consentTime?: string | null;
   referral?: WhatsAppReferral | null;
