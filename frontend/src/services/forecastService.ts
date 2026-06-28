@@ -1,9 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
-import { PharmacyService } from './pharmacyService';
-import { PatientService } from './patientService';
-import { TelemetryService } from './telemetry';
-import { MASTER_TEST_CATALOG } from './labService';
 import type { SeasonalForecast, DiagnosticTest } from '../types';
 
 export class ForecastService {

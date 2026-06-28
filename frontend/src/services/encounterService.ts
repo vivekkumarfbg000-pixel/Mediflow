@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
-import { getPodContext, resolvePodContext, FALLBACK_DOCTOR_ID } from './podContext';
+import { resolvePodContext, FALLBACK_DOCTOR_ID } from './podContext';
 import { PatientService } from './patientService';
 import type { Encounter, HistoricalBiomarker, LabRequisition } from '../types';
 
