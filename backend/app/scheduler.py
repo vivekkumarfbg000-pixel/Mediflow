@@ -11,7 +11,7 @@ supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def trigger_ai_forecast():
     print("──────────────────────────────────────────────────────────────────")
-    print("⏰  MEDIFLOW CRON SCHEDULER: TRIGGERING SEASONAL AI FORECASTS")
+    print("⏰  VITALSYNC CRON SCHEDULER: TRIGGERING SEASONAL AI FORECASTS")
     print("──────────────────────────────────────────────────────────────────\n")
     
     # 1. Fetch parameters from environments or use local enterprise demo defaults
@@ -20,7 +20,7 @@ def trigger_ai_forecast():
     current_month = os.getenv("CURRENT_MONTH", "May")
     weather_alert = os.getenv("REGIONAL_WEATHER", "Pre-monsoon rainfall and high humidity levels")
     
-    api_url = os.getenv("MEDIFLOW_API_URL", "http://localhost:8000/api/generate-seasonal-forecast")
+    api_url = os.getenv("VITALSYNC_API_URL") or os.getenv("MEDIFLOW_API_URL") or "http://localhost:8000/api/generate-seasonal-forecast"
     
     payload = {
         "pharmacy_entity_id": pharmacy_id,
@@ -58,7 +58,7 @@ def trigger_ai_forecast():
                 sys.exit(1)
                 
     except urllib.error.URLError as e:
-        print(f"❌  [URL Error] Failed to connect to Mediflow API: {e.reason}")
+        print(f"❌  [URL Error] Failed to connect to VitalSync API: {e.reason}")
         print("    Ensure your FastAPI app is running on http://localhost:8000")
         sys.exit(1)
     except Exception as e:
@@ -67,11 +67,11 @@ def trigger_ai_forecast():
 
 def trigger_chronic_refills():
     print("──────────────────────────────────────────────────────────────────")
-    print("⏰  MEDIFLOW CRON SCHEDULER: DISPATCHING CHRONIC WHATSAPP REFILLS")
+    print("⏰  VITALSYNC CRON SCHEDULER: DISPATCHING CHRONIC WHATSAPP REFILLS")
     print("──────────────────────────────────────────────────────────────────\n")
     
     # 1. Setup API parameters
-    api_url = os.getenv("MEDIFLOW_API_URL", "http://localhost:8000/api/whatsapp-send")
+    api_url = os.getenv("VITALSYNC_API_URL") or os.getenv("MEDIFLOW_API_URL") or "http://localhost:8000/api/whatsapp-send"
     
     # 2. Query active patient chronic holds from Supabase
     try:
@@ -112,7 +112,7 @@ def trigger_chronic_refills():
                     payload = {
                         "phone": phone,
                         "message": (
-                            f"🔔 *Mediflow Refill Alert* {icon}\n\n"
+                            f"🔔 *VitalSync Refill Alert* {icon}\n\n"
                             f"Namaste. Aapki {med_type} *{medicine}* agle 3 dino me khatam hone wali hai.\n\n"
                             f"Kya aap next month ka batch (*{qty_unit}*) order karna chahte hain? "
                             f"Clinic Pharmacy counter par dynamic 10% discount secure karne ke liye please replies me *REORDER* likhein. "
