@@ -568,14 +568,34 @@ export default function App() {
         console.error('[Profile Loader] Profile reconciliation failed:', err);
       }
     }
+
+    // 3. JWT Metadata fallback for admin/ops accounts.
+    //    Admin users created directly in the Supabase Dashboard may not have a
+    //    row in the profiles table. Read role from JWT claims so they can still
+    //    reach admin.vitalsync.in without being bounced to the login form.
+    if (!activeProfile) {
+      const jwtRole: string | undefined =
+        session.user?.user_metadata?.role ||
+        session.user?.app_metadata?.role;
+      if (jwtRole === 'admin' || jwtRole === 'platform_admin') {
+        console.log('[Profile Loader] No DB profile found but JWT role is admin. Synthesizing minimal ops profile.');
+        activeProfile = {
+          id: session.user.id,
+          role: jwtRole,
+          display_name: session.user?.user_metadata?.display_name || session.user?.email?.split('@')[0] || 'Admin',
+          email: session.user.email,
+        };
+      }
+    }
     
     if (activeProfile) {
-      // 3. Complete onboarding if needed
+      // 4. Complete onboarding if needed
       return await checkAndCompleteOnboarding(session, activeProfile);
     }
     
     return null;
   };
+
 
   useEffect(() => {
     let active = true;
@@ -823,6 +843,12 @@ export default function App() {
 
   // 2. Super Admin Dashboard Subdomain Routing
   if (hostname === 'admin.vitalsync.in') {
+    // Session exists but profile hasn't loaded yet (e.g. arriving via ops-modal redirect).
+    // Show a loader instead of the login form to give loadOrHealProfile time to finish.
+    if (session && !activeProfile) {
+      return <FullPageLoader message="Verifying operations credentials..." />;
+    }
+
     if (!session || !activeProfile) {
       return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden text-slate-100 font-sans">
