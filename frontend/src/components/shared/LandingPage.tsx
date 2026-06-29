@@ -224,6 +224,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
     if (!opsEmail.trim() || !opsPassword) return;
     setOpsLoading(true);
     setOpsError(null);
+
+    // Set global flag BEFORE calling signInWithPassword.
+    // App.tsx's onAuthStateChange SIGNED_IN handler checks this flag and
+    // stands down, preventing it from loading the profile and re-rendering
+    // AppContent (which would unmount this LandingPage mid-execution).
+    if (typeof window !== 'undefined') {
+      (window as any).__vitalsync_ops_redirect = true;
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: opsEmail.trim(),
@@ -231,28 +240,48 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       });
       if (error) throw error;
       if (!data?.session || !data?.user) throw new Error('Sign in succeeded but no session was returned.');
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-      if (profileErr || !profile) throw new Error('Profile could not be loaded.');
-      if (profile.role !== 'admin' && profile.role !== 'platform_admin') {
+
+      // --- Role Verification ---
+      // First try JWT metadata (instant, no DB round-trip, immune to RLS).
+      // Supabase stores custom user_metadata on the JWT. If the admin account
+      // was created with role metadata this resolves in microseconds.
+      const jwtRole: string | undefined =
+        data.user?.user_metadata?.role ||
+        data.user?.app_metadata?.role;
+
+      let resolvedRole: string | undefined = jwtRole;
+
+      // Fallback: fetch from profiles table if JWT metadata has no role.
+      if (!resolvedRole || (resolvedRole !== 'admin' && resolvedRole !== 'platform_admin')) {
+        const { data: profile, error: profileErr } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+        if (profileErr || !profile) throw new Error('Profile could not be loaded. Ensure the admin profile exists in the profiles table.');
+        resolvedRole = profile.role;
+      }
+
+      if (resolvedRole !== 'admin' && resolvedRole !== 'platform_admin') {
         await supabase.auth.signOut();
         throw new Error('Access Denied: This account does not have operations privileges.');
       }
-      // Redirect immediately — do NOT use setTimeout here.
-      // When signInWithPassword succeeds it fires SIGNED_IN on App.tsx's onAuthStateChange,
-      // which will re-render AppContent and unmount this LandingPage before a delayed
-      // callback can run. Redirect synchronously so the browser navigates first.
+
+      // Role verified — navigate immediately. The global flag ensures App.tsx
+      // does not race us by unmounting LandingPage before this line runs.
       setOpsSuccess(true);
       window.location.replace('https://admin.vitalsync.in');
     } catch (err: any) {
+      // Clear the flag on failure so normal auth state handling resumes.
+      if (typeof window !== 'undefined') {
+        (window as any).__vitalsync_ops_redirect = false;
+      }
       setOpsError(err.message || 'Authentication failed.');
     } finally {
       setOpsLoading(false);
     }
   };
+
 
   const handleDemoSignUpInstant = async () => {
     setIsSigningInDemo(true);

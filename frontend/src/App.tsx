@@ -640,6 +640,10 @@ export default function App() {
           console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
           return;
         }
+        if (typeof window !== 'undefined' && (window as any).__vitalsync_ops_redirect) {
+          console.log('[VitalSync Auth] Ops redirect in progress. Standing down — LandingPage will handle navigation.');
+          return;
+        }
         // For TOKEN_REFRESHED, USER_UPDATED, etc., load profile and refresh pod context
         resolvePodContext().catch(() => {});
         const finalProfile = await loadOrHealProfile(session);
