@@ -1260,40 +1260,46 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         </div>
 
         {/* Sliding Tab Selector */}
-        <div className={`relative z-20 pointer-events-auto grid gap-1 bg-slate-200/50 p-1 rounded-xl border border-slate-200/80 ${
-          allowSignup ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
-        }`}>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('signin')}
-            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'signin' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
-          >
-            Sign In
-          </button>
-          {allowSignup && (
+        {initialSignupTab !== 'ops' && (
+          <div className={`relative z-20 pointer-events-auto grid gap-1 bg-slate-200/50 p-1 rounded-xl border border-slate-200/80 ${
+            window.location.hostname === 'app.vitalsync.in'
+              ? (allowSignup ? 'grid-cols-3' : 'grid-cols-2')
+              : (allowSignup ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3')
+          }`}>
             <button
               type="button"
-              onClick={() => handleTabSelect('register')}
-              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+              onClick={() => handleTabSelect('signin')}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'signin' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
             >
-              Doctor Signup
+              Sign In
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => handleTabSelect('join')}
-            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
-          >
-            Partner Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('ops')}
-            className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
-          >
-            SaaS Ops
-          </button>
-        </div>
+            {allowSignup && (
+              <button
+                type="button"
+                onClick={() => handleTabSelect('register')}
+                className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+              >
+                Doctor Signup
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleTabSelect('join')}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+            >
+              Partner Sign In
+            </button>
+            {window.location.hostname !== 'app.vitalsync.in' && (
+              <button
+                type="button"
+                onClick={() => handleTabSelect('ops')}
+                className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+              >
+                SaaS Ops
+              </button>
+            )}
+          </div>
+        )}
 
         {errorMsg && (
           <div className="space-y-3 animate-shake">
