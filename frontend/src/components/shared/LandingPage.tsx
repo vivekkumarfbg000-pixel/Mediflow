@@ -241,10 +241,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         await supabase.auth.signOut();
         throw new Error('Access Denied: This account does not have operations privileges.');
       }
+      // Redirect immediately — do NOT use setTimeout here.
+      // When signInWithPassword succeeds it fires SIGNED_IN on App.tsx's onAuthStateChange,
+      // which will re-render AppContent and unmount this LandingPage before a delayed
+      // callback can run. Redirect synchronously so the browser navigates first.
       setOpsSuccess(true);
-      setTimeout(() => {
-        window.location.href = 'https://admin.vitalsync.in';
-      }, 1200);
+      window.location.replace('https://admin.vitalsync.in');
     } catch (err: any) {
       setOpsError(err.message || 'Authentication failed.');
     } finally {
