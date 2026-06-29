@@ -203,6 +203,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [isSigningInDemo, setIsSigningInDemo] = useState(false);
 
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    if (showAuthGate && (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in')) {
+      setShowAuthGate(false);
+      window.location.href = 'https://app.vitalsync.in';
+    }
+  }, [showAuthGate]);
+
   const handleDemoSignUpInstant = async () => {
     setIsSigningInDemo(true);
     try {

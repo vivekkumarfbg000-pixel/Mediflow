@@ -13,8 +13,9 @@ const BillingDashboard = lazy(() => import('./components/billing/BillingDashboar
 const SaaSAdminPanel = lazy(() => import('./components/admin/SaaSAdminPanel').then(m => ({ default: m.SaaSAdminPanel })));
 
 import { LandingPage } from './components/shared/LandingPage';
+import { AuthGateway } from './components/shared/AuthGateway';
 import { supabase } from './lib/supabaseClient';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { ClinicProvider, useClinic } from './context/ClinicContext';
@@ -629,8 +630,8 @@ export default function App() {
         // Clear pod context so next user gets fresh real IDs
         clearPodContext();
       } else {
-        if (event === 'SIGNED_IN') {
-          console.log('[Mediflow Auth] SIGNED_IN event detected. Deferring profile load to form handler.');
+        if (event === 'SIGNED_IN' && activeProfile) {
+          console.log('[Mediflow Auth] SIGNED_IN event detected with active profile. Deferring profile load to form handler.');
           // Eagerly resolve pod context in background on sign-in
           resolvePodContext().catch(() => {});
           return;
@@ -805,8 +806,74 @@ export default function App() {
     });
   };
 
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+
+  // 1. Landing Page Domain Routing
+  if (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') {
+    return <LandingPage onAuthSuccess={handleAuthSuccess} />;
+  }
+
   if (isLoadingSession) {
     return <FullPageLoader message="Initializing clinical session..." />;
+  }
+
+  // 2. Super Admin Dashboard Subdomain Routing
+  if (hostname === 'admin.vitalsync.in') {
+    if (!session || !activeProfile) {
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden text-slate-100 font-sans">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+          
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+            <div className="flex flex-col items-center space-y-2 text-center">
+              <div className="p-3.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-2xl">
+                <Shield className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-extrabold text-white">VitalSync Super Admin</h3>
+              <p className="text-xs text-slate-400">Secure Operations Management Console</p>
+            </div>
+            
+            <AuthGateway 
+              onAuthSuccess={handleAuthSuccess} 
+              allowSignup={false} 
+              initialSignupTab="ops"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    const userRole = activeProfile?.role;
+    if (userRole !== 'admin' && userRole !== 'platform_admin') {
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-slate-100 font-sans">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl text-center space-y-6">
+            <AlertCircle className="h-16 w-16 text-rose-500 mx-auto" />
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-white">Access Denied</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Your profile role ({userRole || 'None'}) does not have permission to access the VitalSync operations console.
+              </p>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <ToastProvider>
+        <Suspense fallback={<FullPageLoader message="Loading Admin Workspace..." />}>
+          <SaaSAdminPanel />
+        </Suspense>
+      </ToastProvider>
+    );
   }
 
   if (isOnboarding) {
