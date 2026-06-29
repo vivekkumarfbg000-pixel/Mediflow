@@ -212,7 +212,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
             </span>
           </div>
           <span className="text-[9px] font-extrabold tracking-wider text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-full uppercase">
-            Mediflow Core OS v1.0.0
+            VitalSync Core OS v1.0.0
           </span>
         </div>
       </div>

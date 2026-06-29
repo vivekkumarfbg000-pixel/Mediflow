@@ -96,21 +96,21 @@ serve(async (req) => {
     // ── Discord ─────────────────────────────────────────────────────────────
     if (discordWebhookUrl) {
       const discordBody = {
-        username: "Mediflow Sentinel 🛡️",
+        username: "VitalSync Sentinel 🛡️",
         embeds: [
           {
             title: `🚨 CRITICAL ANOMALY — ${label}`,
             color: 0xe74c3c, // Red
             fields: [
               { name: "🆔 Telemetry ID",      value: `\`${id}\``,                       inline: true  },
-              { name: "🏥 Pod / Tenant",       value: `\`${pod_id}\``,                  inline: true  },
+              { name: "🏥 Pod / Tenant",       value: `\`${pod_id}\` `,                  inline: true  },
               { name: "❗ Error Code",         value: `\`${error_code ?? "N/A"}\``,     inline: true  },
               { name: "♻️ Healing Attempts",  value: `${healing_attempts}`,              inline: true  },
               { name: "📊 Status",             value: `\`${status.toUpperCase()}\``,     inline: true  },
               { name: "🕐 Detected (IST)",     value: timestamp,                         inline: true  },
               { name: "📋 Stack Trace",        value: `\`\`\`js\n${cleanStack}\n\`\`\`` },
             ],
-            footer: { text: "Mediflow Autonomous Recovery System" },
+            footer: { text: "VitalSync Autonomous Recovery System" },
           },
         ],
       };

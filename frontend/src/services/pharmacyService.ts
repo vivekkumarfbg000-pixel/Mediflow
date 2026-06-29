@@ -528,7 +528,7 @@ export class PharmacyService {
 
     const gstinText = bill.pharmacyGstin ? `\nPharmacy GSTIN: *${bill.pharmacyGstin}*` : '';
 
-    return `🏥 *MEDIFLOW PHARMACY INVOICE*
+    return `🏥 *VITALSYNC PHARMACY INVOICE*
 ----------------------------------------
 Patient Name: *${bill.patientName}*
 Invoice Ref: #${bill.id.substring(4, 10).toUpperCase()}
@@ -543,12 +543,12 @@ GST (Tax): ₹${bill.gstAmount.toFixed(2)}${deliveryText}
 *TOTAL AMOUNT PAYABLE: ₹${bill.totalAmount.toFixed(2)}*
 
 📱 Pay securely via UPI link below:
-${bill.upiQrPayload || `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${bill.totalAmount.toFixed(2)}&cu=INR&tn=MF-BILL-${bill.id.substring(4, 8)}`}
+${bill.upiQrPayload || `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${bill.totalAmount.toFixed(2)}&cu=INR&tn=VS-BILL-${bill.id.substring(4, 8)}`}
 
 ${bill.deliveryType === 'shiprocket' 
   ? '📍 Your order will be dispatched via Shiprocket once payment is cleared!' 
   : '👉 Show this invoice screen at the clinic pharmacy counter to collect your medicines.'}
-Thank you for choosing Mediflow! 🟢`;
+Thank you for choosing VitalSync! 🟢`;
   }
 
   private static base64ToBlob(base64: string, mimeType: string): Blob {

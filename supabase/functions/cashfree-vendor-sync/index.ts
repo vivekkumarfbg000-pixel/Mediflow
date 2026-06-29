@@ -72,7 +72,7 @@ serve(async (req) => {
     const body = {
       vendor_id: vendorId,
       name: holderName,
-      email: email ?? "vendor@mediflow.in",
+      email: email ?? "vendor@vitalsync.in",
       phone: phone ?? "9999999999",
       bank_details: {
         account_number: accountNumber,

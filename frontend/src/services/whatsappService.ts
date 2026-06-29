@@ -67,9 +67,9 @@ export class WhatsAppService {
         case 'AWAITING_WELCOME':
           if (cleaned === '1' || cleaned.includes('start') || cleaned.includes('yes') || cleaned.includes('ok')) {
             nextState = 'AWAITING_CONSENT';
-            replyMessage = `📋 *Clinical Data Sync Consent Request* \n\nMediflow digital ecosystem ko clinical records sync karne ki permission dene ke liye please **CONSENT** reply kijiye. \n\nIsse aapke e-prescriptions, pharmacy bill invoices aur lab reports automatically is WhatsApp chat par aane lagenge.`;
+            replyMessage = `📋 *Clinical Data Sync Consent Request* \n\nVitalSync digital ecosystem ko clinical records sync karne ki permission dene ke liye please **CONSENT** reply kijiye. \n\nIsse aapke e-prescriptions, pharmacy bill invoices aur lab reports automatically is WhatsApp chat par aane lagenge.`;
           } else {
-            replyMessage = "Namaste! Mediflow Automated Assistant online. Shuru karne ke liye **1** or **START** type kijiye.";
+            replyMessage = "Namaste! VitalSync Automated Assistant online. Shuru karne ke liye **1** or **START** type kijiye.";
           }
           break;
 
@@ -145,7 +145,7 @@ export class WhatsAppService {
                 draftBill.deliveryType = 'pickup';
                 draftBill.deliveryCharge = 0;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount;
-                draftBill.upiQrPayload = `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=MF-PHARMA-${draftBill.id.substring(4, 8)}`;
+                draftBill.upiQrPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-PHARMA-${draftBill.id.substring(4, 8)}`;
                 
                 sessionData.medicineOrderStage = 'INITIAL';
                 nextState = 'MEDICINE_AWAITING_PAYMENT';
@@ -157,7 +157,7 @@ export class WhatsAppService {
                 draftBill.deliveryType = 'shiprocket';
                 draftBill.deliveryCharge = 45;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount + 45;
-                draftBill.upiQrPayload = `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=MF-DELIVERY-${draftBill.id.substring(4, 8)}`;
+                draftBill.upiQrPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-DELIVERY-${draftBill.id.substring(4, 8)}`;
                 
                 sessionData.medicineOrderStage = 'AWAITING_ADDRESS';
                 
@@ -255,7 +255,7 @@ export class WhatsAppService {
                 if (draftBill.deliveryType === 'shiprocket') {
                   nextState = 'COMPLETED';
                   const shipId = `SR-${Math.floor(100000 + Math.random() * 900000)}`;
-                  replyMessage = `🟢 *Payment Cleared!* \n\nShiprocket logistics partner se order arrange kar diya hai. \n🚀 *Tracking ID: ${shipId}*\n\nMedicines 24-48 hours mein deliver ho jayengi. Mediflow digital ecosystem choose karne ke liye shukriya! 📦`;
+                  replyMessage = `🟢 *Payment Cleared!* \n\nShiprocket logistics partner se order arrange kar diya hai. \n🚀 *Tracking ID: ${shipId}*\n\nMedicines 24-48 hours mein deliver ho jayengi. VitalSync digital ecosystem choose karne ke liye shukriya! 📦`;
                 } else {
                   nextState = 'MEDICINE_READY_FOR_PICKUP';
                   replyMessage = `🟢 *Payment Cleared!* \n\nMedicines counter collection ke liye packing department mein bhej di gayi hain. \n\nShow this invoice ref to compounder at clinic counter: \n🔖 *Ref ID: #${draftBill.id.substring(4, 10).toUpperCase()}*`;
@@ -417,7 +417,7 @@ export class WhatsAppService {
             const hasPaidInLastWeek = lastPaidInvoice && new Date(lastPaidInvoice.createdAt) >= oneWeekAgo;
 
             if (!hasPaidInLastWeek) {
-              replyMessage = `*Mediflow AI Support Restricted* 🤖\n\nClinical AI Advice general health queries and RAG advisory are only accessible for **1 week (7 days)** after clearing your consultation/care fees. \n\n*Note*: Operational transactional features (such as booking appointments, virtual slot bookings, and medicine refills) remain **always active** for your profile. Please clear your recent dues or consult to unlock another week of rich clinical AI advice! 🟢`;
+              replyMessage = `*VitalSync AI Support Restricted* 🤖\n\nClinical AI Advice general health queries and RAG advisory are only accessible for **1 week (7 days)** after clearing your consultation/care fees. \n\n*Note*: Operational transactional features (such as booking appointments, virtual slot bookings, and medicine refills) remain **always active** for your profile. Please clear your recent dues or consult to unlock another week of rich clinical AI advice! 🟢`;
             } else {
               let chronicAdvice = "";
               if (currentPat?.chronicConditions.some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar'))) {
@@ -426,7 +426,7 @@ export class WhatsAppService {
                 chronicAdvice = "\n\n*RAG Clinical Guidelines Note*: Paani khoob pijiye, low-sodium diet lijiye, aur rozana apna checkup logs maintain kijiye.";
               }
 
-              replyMessage = `*Mediflow AI-RAG support team* 🤖\n\nAapke query '${text}' ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
+              replyMessage = `*VitalSync AI-RAG support team* 🤖\n\nAapke query '${text}' ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
             }
           }
         }
@@ -456,7 +456,7 @@ export class WhatsAppService {
                 isVirtual: true,
                 virtualDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0], // Tomorrow
                 virtualTime: selectedSlotText,
-                virtualMeetingUrl: `https://meet.jit.si/mediflow-consult-${apptId}`,
+                virtualMeetingUrl: `https://meet.jit.si/vitalsync-consult-${apptId}`,
                 virtualTimeAllocated: false
               };
               BillingService.saveAppointment(newAppt);
@@ -494,7 +494,7 @@ export class WhatsAppService {
           break;
 
         default:
-          replyMessage = "Namaste! Mediflow Automated Assistant online. Main aapki kya sahayata kar sakta hoon?";
+          replyMessage = "Namaste! VitalSync Automated Assistant online. Main aapki kya sahayata kar sakta hoon?";
           break;
       }
 
@@ -522,7 +522,7 @@ export class WhatsAppService {
   static initiateWhatsAppSession(phone: string): WhatsAppSession {
     const sessions = this.getWhatsAppSessions();
     const existing = sessions.find(s => s.patientPhone === phone);
-    const welcomeText = "Hello! Welcome to Mediflow Healthcare. 🏥 To securely synchronize your clinical e-prescriptions, lab report cards, and invoices, please grant permission.";
+    const welcomeText = "Hello! Welcome to VitalSync Healthcare. 🏥 To securely synchronize your clinical e-prescriptions, lab report cards, and invoices, please grant permission.";
     
     const initialChat: ChatMessage[] = [
       {
@@ -639,11 +639,11 @@ export class WhatsAppService {
 
     let message = '';
     if (offerType === 'discount_30') {
-      message = `*Mediflow Patient Care Loyalty:* Dear ${patient.name}, as part of your ongoing care pod benefits, here is a special coupon for **30% Off on your next medicine refill** at our adjacent Pharmacy. Code: **MF-LOYAL30**`;
+      message = `*VitalSync Patient Care Loyalty:* Dear ${patient.name}, as part of your ongoing care pod benefits, here is a special coupon for **30% Off on your next medicine refill** at our adjacent Pharmacy. Code: **MF-LOYAL30**`;
     } else if (offerType === 'virtual_appointment') {
-      message = `*Mediflow Care Loyalty:* Dear ${patient.name}, thank you for your recent visit. To support your clinical path, a **Free Virtual Follow-up Appointment with the Doctor** is unlocked for you in 10 days. Book directly via this chat.`;
+      message = `*VitalSync Care Loyalty:* Dear ${patient.name}, thank you for your recent visit. To support your clinical path, a **Free Virtual Follow-up Appointment with the Doctor** is unlocked for you in 10 days. Book directly via this chat.`;
     } else {
-      message = `*Mediflow Connect:* Quick Portal Link enabled for Patient ${patient.name} to view invoices and schedule pathology sample collection.`;
+      message = `*VitalSync Connect:* Quick Portal Link enabled for Patient ${patient.name} to view invoices and schedule pathology sample collection.`;
     }
 
     writeAuditLog('LOYALTY_OFFER_DISPATCHED', {

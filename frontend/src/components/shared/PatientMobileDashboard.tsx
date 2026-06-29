@@ -594,7 +594,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         <div key={inv.id} className="bg-zinc-900 p-3.5 rounded-2xl border border-white/5 space-y-3.5">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h4 className="font-extrabold text-white text-[11px]">Mediflow Pod Invoice</h4>
+                              <h4 className="font-extrabold text-white text-[11px]">VitalSync Pod Invoice</h4>
                               <span className="text-[8px] text-zinc-500 block font-mono mt-0.5">ID: {inv.id.substring(0, 8)}...</span>
                             </div>
                             <span className={`text-[8.5px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
@@ -805,7 +805,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         window.dispatchEvent(new CustomEvent('mediflow-toast', {
                           detail: {
                             title: 'PWA Connected successfully! 📱',
-                            message: 'Mediflow Care shortcut committed to smartphone home screen.',
+                            message: 'VitalSync Care shortcut committed to smartphone home screen.',
                             type: 'success'
                           }
                         }));
@@ -867,7 +867,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         <div className="flex justify-between"><span>🧪 Lab Pathology (350/test):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.labFee}.00</span></div>
                         <div className="flex justify-between"><span>💊 Pharmacy POS (150/hold):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.pharmacyFee}.00</span></div>
                         <div className="flex justify-between border-t border-white/5 pt-1.5 font-bold text-white text-[10px]">
-                          <span>🛡️ Mediflow Fee (flat ₹10 min):</span>
+                          <span>🛡️ VitalSync Fee (flat ₹10 min):</span>
                           <span className="font-mono text-cyan-400">₹{activeUpiInvoice.platformFee}.00</span>
                         </div>
                       </div>

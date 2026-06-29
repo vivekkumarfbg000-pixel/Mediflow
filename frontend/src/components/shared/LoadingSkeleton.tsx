@@ -181,13 +181,13 @@ export function PharmacyDashboardSkeleton() {
 }
 
 // Full-page loading spinner (for initial auth check)
-export function FullPageLoader({ message = 'Loading Mediflow...' }: { message?: string }) {
+export function FullPageLoader({ message = 'Loading VitalSync...' }: { message?: string }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-6">
-      {/* Animated Mediflow logo mark */}
+      {/* Animated VitalSync logo mark */}
       <div className="relative">
         <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-lg shadow-indigo-500/20 ring-1 ring-slate-200/70">
-          <BrandMark size={56} title="Mediflow loading mark" />
+          <BrandMark size={56} title="VitalSync loading mark" />
         </div>
         {/* Orbiting pulse ring */}
         <div className="absolute inset-0 rounded-2xl border-2 border-indigo-400/30 animate-ping" />

@@ -50,7 +50,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
           </div>
           <div>
             <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none font-mono">
-              Mediflow Pod Active
+              VitalSync Pod Active
             </h4>
             <span className="text-[8px] text-zinc-500 font-semibold block mt-0.5">
               Secure multi-tenant sync

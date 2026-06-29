@@ -284,7 +284,7 @@ async function triggerBotReplyPipeline(ctx: {
     if (hasRevoked && !["1", "grant access", "yes", "approve", "grant"].includes(cleaned)) {
       console.warn(`[Meta Webhook] Consent Block: Patient ${patient.id} has revoked consent. Restricting RAG bot replies.`);
       
-      replyText = "Namaste! Aapne Mediflow digital data processing consent ko revoke kiya hua hai. AI assistant replies aur clinical logs sync disabled hain. Wapas active karne ke liye, please *1* reply kijiye. 🟢";
+      replyText = "Namaste! Aapne VitalSync digital data processing consent ko revoke kiya hua hai. AI assistant replies aur clinical logs sync disabled hain. Wapas active karne ke liye, please *1* reply kijiye. 🟢";
       nextState = "AWAITING_WELCOME";
 
       const currentTime = new Date().toISOString();
@@ -361,7 +361,7 @@ async function triggerBotReplyPipeline(ctx: {
         }
       } else if (cleaned.includes("book") || cleaned === "2") {
         nextState = "BOOKING_VIRTUAL";
-        replyText = "Ji bilkul! Mediflow scheduling shuru ho gayi hai. Kya aap Virtual Video Call par consult karna chahte hain ya Physical clinic aakar?\n\nProceed karne ke liye please **VIRTUAL** ya **PHYSICAL** reply kijiye.";
+        replyText = "Ji bilkul! VitalSync scheduling shuru ho gayi hai. Kya aap Virtual Video Call par consult karna chahte hain ya Physical clinic aakar?\n\nProceed karne ke liye please **VIRTUAL** ya **PHYSICAL** reply kijiye.";
       } else if (["1", "grant access", "yes"].includes(cleaned)) {
         replyText = "Aapka clinical consent pehle se hi active aur registered hai! Appointment book karne ke liye **BOOK** reply kijiye.";
       } else {
@@ -374,7 +374,7 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "AWAITING_PAYMENT";
         const isVirtual = cleaned.includes("virtual");
         const fee = isVirtual ? 400 : 500;
-        const upiPayload = `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${fee}.00&cu=INR&tn=MEDIFLOW-APPT-${patientPhone.substring(5)}`;
+        const upiPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${fee}.00&cu=INR&tn=VITALSYNC-APPT-${patientPhone.substring(5)}`;
 
         replyText = `Doctor Vivek ke liye slot lock kar diya gaya hai. Total Appointment Fee: ₹${fee}.00.\n\nSecure booking ke liye please is UPI link ka use kijiye ya QR code scan kijiye:\n\n${upiPayload}\n\nPayment karne ke baad please **PAY** reply kijiye, hum turant meeting link bhej denge! 🧾`;
       } else {
@@ -398,7 +398,7 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (pendingInv) {
-          replyText = `Aapka outstanding invoice pending hai. Please ₹${pendingInv.total_amount}.00 clear karne ke liye is direct payment link ka use kijiye:\n\n${pendingInv.upi_qr_payload || "upi://pay?pa=mediflow@icici&pn=Mediflow&am=" + pendingInv.total_amount}\n\nPayment confirm hote hi aapki booking active ho jayegi!`;
+          replyText = `Aapka outstanding invoice pending hai. Please ₹${pendingInv.total_amount}.00 clear karne ke liye is direct payment link ka use kijiye:\n\n${pendingInv.upi_qr_payload || "upi://pay?pa=vitalsync@icici&pn=VitalSync&am=" + pendingInv.total_amount}\n\nPayment confirm hote hi aapki booking active ho jayegi!`;
         } else {
           nextState = "COMPLETED";
           replyText = "Payment confirm ho gaya hai! 🟢 Aapka physical/virtual checkup active hai. We look forward to seeing you!";
@@ -479,7 +479,7 @@ async function triggerBotReplyPipeline(ctx: {
           chronicAdvice = "\n\n*RAG Clinical Guidelines Note*: Paani khoob pijiye, low-sodium diet lijiye, aur rozana apna checkup logs maintain kijiye.";
         }
 
-        replyText = `*Mediflow AI-RAG support team* 🤖\n\nAapke query \"${incomingText}\" ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
+        replyText = `*VitalSync AI-RAG support team* 🤖\n\nAapke query \"${incomingText}\" ke liye niche advice di gayi hai:\n\n*Advice*: Aaram kijiye, hydration maintain rakhein, aur daily BP/sugar monitor kijiye. Bina doctor ke pooche koi brand-name dawa mat lijiye. Agar tabiyat jyada kharab ho toh turant consult kijiye!${chronicAdvice}\n\n_Disclaimer: Yeh RAG advisory clinical guidelines (ADA/KDIGO) par based hai. Please checkup se pehle doctor se salah zaroor lein._`;
       }
       break;
 
@@ -491,7 +491,7 @@ async function triggerBotReplyPipeline(ctx: {
       break;
 
     default:
-      replyText = "Namaste! Mediflow Automated Assistant online. Main aapki kya sahayata kar sakta hoon?";
+      replyText = "Namaste! VitalSync Automated Assistant online. Main aapki kya sahayata kar sakta hoon?";
       break;
   }
 

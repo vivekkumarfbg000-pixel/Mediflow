@@ -137,7 +137,7 @@ serve(async (req) => {
       ? "https://api.cashfree.com/pg/orders"
       : "https://sandbox.cashfree.com/pg/orders";
 
-    const orderId = `MEDIF-${invoiceId.substring(0, 8).toUpperCase()}-${Date.now().toString().slice(-5)}`;
+    const orderId = `VITAL-${invoiceId.substring(0, 8).toUpperCase()}-${Date.now().toString().slice(-5)}`;
 
     const body: Record<string, any> = {
       order_amount:   amount,
@@ -145,12 +145,12 @@ serve(async (req) => {
       order_id:       orderId,
       customer_details: {
         customer_id:    patient?.id   ?? `GEN-${Date.now()}`,
-        customer_name:  patient?.name ?? "Mediflow Patient",
-        customer_email: patient?.email ?? "patient@mediflow.in",
+        customer_name:  patient?.name ?? "VitalSync Patient",
+        customer_email: patient?.email ?? "patient@vitalsync.in",
         customer_phone: patient?.phone ?? "9999999999",
       },
       order_meta: {
-        return_url:      returnUrl ?? "https://mediflow.vercel.app/payment/callback?order_id={order_id}",
+        return_url:      returnUrl ?? "https://app.vitalsync.in/payment/callback?order_id={order_id}",
         payment_methods: "cc,dc,upi,nb,app",
       },
       order_tags: {

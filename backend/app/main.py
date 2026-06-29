@@ -24,8 +24,8 @@ logger = logging.getLogger("mediflow.api")
 
 # Define FastAPI application
 app = FastAPI(
-    title="Mediflow Backend",
-    description="Ecosystem API engine for Mediflow Connected Care Platform",
+    title="VitalSync Backend",
+    description="Ecosystem API engine for VitalSync Connected Care Platform",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -413,18 +413,18 @@ class ConsultRoomResponse(BaseModel):
 async def generate_consult_room(req: ConsultRoomRequest):
     try:
         # Generate secure zero-install Jitsi Meet room link
-        room_url = f"https://meet.jit.si/mediflow-consult-{req.appointment_id}"
+        room_url = f"https://meet.jit.si/vitalsync-consult-{req.appointment_id}"
         
         # Simulate dispatching invitations via WhatsApp
         patient_message = (
-            f"🎥 *Mediflow Virtual Clinic* 🏥\n\n"
+            f"🎥 *VitalSync Virtual Clinic* 🏥\n\n"
             f"Namaste. {req.doctor_name} ke saath aapka video consultation link ready hai.\n\n"
             f"Niche diye gaye link par click karke direct video consult join karein (No installation required):\n"
             f"🔗 {room_url}\n\n"
             f"Dhyan rakhein aur time par join karein! 🟢"
         )
         doctor_message = (
-            f"🎥 *Mediflow Doctor Alert* 🩺\n\n"
+            f"🎥 *VitalSync Doctor Alert* 🩺\n\n"
             f"Appointment ID {req.appointment_id} ke liye virtual clinic room generated:\n"
             f"🔗 {room_url}\n\n"
             f"Patient is being notified on WhatsApp."
@@ -451,6 +451,6 @@ async def health_check():
 @app.get("/")
 @app.head("/")
 async def root_check():
-    return JSONResponse(content={"status": "ok", "message": "Mediflow Backend is active"})
+    return JSONResponse(content={"status": "ok", "message": "VitalSync Backend is active"})
 
 

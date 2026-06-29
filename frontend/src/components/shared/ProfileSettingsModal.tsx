@@ -291,7 +291,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 leading-tight">Settings & Workspace Control</h2>
-              <span className="text-[10px] text-slate-600 uppercase tracking-widest font-semibold">Mediflow Care Network</span>
+              <span className="text-[10px] text-slate-600 uppercase tracking-widest font-semibold">VitalSync Care Network</span>
             </div>
           </div>
           <button 

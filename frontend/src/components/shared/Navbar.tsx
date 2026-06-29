@@ -193,13 +193,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Top: Brand Logo and Connected Info */}
         <div className={`space-y-3 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
-            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-white p-0.5 shrink-0 shadow-sm ring-1 ring-slate-200/80">
-              <BrandMark size={32} title="Mediflow Care logo" />
+            <div className="flex items-center justify-center h-9 w-9 shrink-0">
+              <BrandMark size={32} title="VitalSync logo" />
             </div>
             {!isSidebarCollapsed && (
               <div className="animate-fade-in flex flex-col">
-                <h1 className="text-base font-semibold tracking-tight text-slate-900 leading-none">
-                  Mediflow Care
+                <h1 className="text-base font-black tracking-tight leading-none font-sans">
+                  <span className="text-[#1A7B8F]">Vital</span>
+                  <span className="text-[#7AC47F]">Sync</span>
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="flex items-center gap-1 text-[9px] font-semibold text-emerald-600">
@@ -543,7 +544,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? (activeProfile.role === 'doctor' && !activeProfile.display_name.toLowerCase().startsWith('dr.')
                         ? `Dr. ${activeProfile.display_name}`
                         : activeProfile.display_name)
-                    : 'Mediflow Care'}
+                    : 'VitalSync'}
                   {' · '}
                   {currentRole === 'doctor' ? 'Doctor Dashboard' :
                    currentRole === 'compounder' ? 'Compounder Operations' :
@@ -662,13 +663,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Header inside drawer */}
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center h-8.5 w-8.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shrink-0 shadow-sm">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                    </svg>
+                  <div className="flex items-center justify-center h-9 w-9 shrink-0">
+                    <BrandMark size={32} title="VitalSync logo" />
                   </div>
                   <div>
-                    <h2 className="font-semibold text-sm tracking-tight text-slate-900 leading-none">Mediflow Care</h2>
+                    <h2 className="font-black text-sm tracking-tight leading-none font-sans">
+                      <span className="text-[#1A7B8F]">Vital</span>
+                      <span className="text-[#7AC47F]">Sync</span>
+                    </h2>
                     <span className="text-[9px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Live

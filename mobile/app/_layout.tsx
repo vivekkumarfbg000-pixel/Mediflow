@@ -18,7 +18,7 @@ export default function RootLayout() {
           headerShadowVisible: false,
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'Mediflow Care Companion' }} />
+        <Stack.Screen name="index" options={{ title: 'VitalSync Care Companion' }} />
       </Stack>
     </>
   );

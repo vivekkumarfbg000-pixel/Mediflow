@@ -125,7 +125,7 @@ serve(async (req) => {
     const amountVal = templateParams?.amount || "0";
     const invoiceNum = templateParams?.invoice_id || "N/A";
     
-    const plainTextMessage = `Namaste ${patientDisplayName}! Aapka payment of ₹${amountVal} successful raha for Invoice #${invoiceNum}. Mediflow healthcare app checkup slots configure ho rahe hain. We look forward to serving you! 🟢`;
+    const plainTextMessage = `Namaste ${patientDisplayName}! Aapka payment of ₹${amountVal} successful raha for Invoice #${invoiceNum}. VitalSync healthcare app checkup slots configure ho rahe hain. We look forward to serving you! 🟢`;
 
     if (wabaConn) {
       try {

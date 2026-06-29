@@ -35,7 +35,7 @@ export async function generatePdfInvoice(data: {
   drawText(`Date: ${data.date}`, height - 140);
 
   // Footer
-  page.drawText('Thank you for choosing Mediflow!', {
+  page.drawText('Thank you for choosing VitalSync!', {
     x: 30,
     y: 30,
     size: 10,
@@ -83,7 +83,7 @@ export async function generateSpectaclePdfCard(data: {
     color: rgb(0.2, 0.4, 0.8), // Medical Blue banner
   });
 
-  page.drawText('MEDIFLOW CONNECTED OPTICALS', {
+  page.drawText('VITALSYNC CONNECTED OPTICALS', {
     x: 30,
     y: height - 42,
     size: 16,
@@ -208,7 +208,7 @@ export async function generateSpectaclePdfCard(data: {
   }
 
   // Footer branding
-  page.drawText('Powered by Mediflow Connected Care Platform', {
+  page.drawText('Powered by VitalSync Connected Care Platform', {
     x: 30,
     y: 25,
     size: 7,

@@ -378,12 +378,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 overflow-hidden shadow-md shadow-indigo-500/20">
-              <BrandMark size={34} title="Mediflow logo" />
+            <div className="flex items-center justify-center h-10 w-10 shrink-0">
+              <BrandMark size={38} title="VitalSync logo" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-sm font-black text-slate-900 tracking-wide uppercase">Mediflow</span>
-              <span className="text-[9px] text-indigo-600 font-mono font-bold mt-0.5">care loop v1.0.0-stable</span>
+              <span className="text-lg font-black tracking-tight font-sans">
+                <span className="text-[#1A7B8F]">Vital</span>
+                <span className="text-[#7AC47F]">Sync</span>
+              </span>
+              <span className="text-[8.5px] text-slate-500 font-semibold tracking-wide mt-0.5">Integrated Clinical Network</span>
             </div>
           </div>
 
@@ -422,23 +425,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         {/* Left Column: Information, Branding & CTAs */}
         <div className="lg:col-span-6 flex flex-col space-y-8 mt-4 text-left">
           
-          <div className="inline-flex items-center gap-2.5 self-start py-1 px-3.5 rounded-full border border-indigo-150 bg-indigo-50/80 backdrop-blur-md">
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse" />
-            <span className="text-[10px] text-indigo-600 font-mono font-extrabold uppercase tracking-widest">
-              Distributed Care Network Loop
+          <div className="inline-flex items-center gap-2.5 self-start py-1 px-3.5 rounded-full border border-cyan-200 bg-cyan-50/60 backdrop-blur-md">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-600 animate-pulse" />
+            <span className="text-[10px] text-cyan-700 font-mono font-extrabold uppercase tracking-widest">
+              Integrated Clinical Network
             </span>
           </div>
 
           <div className="space-y-4">
             <h1 className="text-4xl lg:text-5xl font-black text-slate-900 leading-[1.1] tracking-tight">
               Clinical software for<br />
-              <span className="bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent italic font-extrabold font-serif">
+              <span className="bg-gradient-to-r from-cyan-600 to-emerald-600 bg-clip-text text-transparent italic font-extrabold font-serif">
                 small clinic networks
               </span>
             </h1>
 
             <p className="text-sm lg:text-base text-slate-650 leading-relaxed max-w-lg font-medium">
-              Mediflow connects your clinic, pharmacy, and pathology lab under a single secure care loop. 
+              VitalSync connects your clinic, pharmacy, and pathology lab under a single secure care loop. 
               Prescriptions flow directly to the pharmacist. Lab reports land in the doctor's queue. 
               Billing split calculations resolve instantly.
             </p>
@@ -502,7 +505,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-800/10 to-transparent opacity-85 pointer-events-none z-10" />
             <img
               src={heroImageSrc}
-              alt="Mediflow Care Network Connected Loop Illustration"
+              alt="VitalSync Care Network Connected Loop Illustration"
               width={800}
               height={500}
               loading="lazy"
@@ -529,7 +532,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             >
               <div className="text-center space-y-2 px-4">
                 <Sparkles className="h-8 w-8 text-cyan-500 mx-auto animate-pulse" />
-                <p className="uppercase tracking-widest font-black text-white">Mediflow Care Ecosystem</p>
+                <p className="uppercase tracking-widest font-black text-white">VitalSync Care Ecosystem</p>
               </div>
             </div>
             
@@ -724,9 +727,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       {/* Footer */}
       <footer className="py-8 px-6 relative z-10 bg-white border-t border-slate-200 text-slate-500">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold">
-          <span>© 2026 Mediflow Care Connected Ecosystem</span>
+          <span>© 2026 VitalSync Care Connected Ecosystem</span>
           <div className="flex items-center gap-4">
-            <span className="text-indigo-600 font-semibold italic">Connected Care Loop</span>
+            <span className="text-cyan-700 font-semibold italic">Integrated Clinical Network</span>
             <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
             <span className="font-mono">v1.0.0-stable</span>
           </div>
@@ -833,7 +836,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     type="email"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="proposed-email@mediflow.com"
+                    placeholder="proposed-email@vitalsync.in"
                     className="w-full bg-white border border-slate-200 focus:border-indigo-500/50 rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-sans"
                     required
                   />

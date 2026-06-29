@@ -94,7 +94,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
         <div className="flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-emerald-400 animate-pulse" />
           <div>
-            <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">Mediflow Patient Sandbox</h2>
+            <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">VitalSync Patient Sandbox</h2>
             <p className="text-[10px] text-slate-400 mt-0.5">Dual-Screen Conversational Simulator</p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
               </div>
               <div>
                 <div className="text-xs font-bold flex items-center gap-1">
-                  Mediflow Assistant
+                  VitalSync Assistant
                   <Check className="h-3 w-3 bg-emerald-400 text-[#075e54] rounded-full p-0.5" />
                 </div>
                 <span className="text-[8px] text-emerald-300 font-medium">Online • पटना केयर पॉड</span>

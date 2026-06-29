@@ -116,7 +116,7 @@ Convert the following doctor's voice note or clinical transcript into a clear, s
 WhatsApp message in Hinglish (mix of Hindi + English) suitable for sending to a patient.
 
 Use this exact format:
-🏥 *Mediflow Clinical Summary*
+🏥 *VitalSync Clinical Summary*
 
 👤 *Patient Update*:
 [2-3 sentence clinical summary in Hinglish]
@@ -142,7 +142,7 @@ Output only the formatted message. No extra commentary."""
     except Exception as e:
         logger.warning(f"[AI Engine] Gemini voice scribe failed: {e}. Using fallback.")
         return (
-            "🏥 *Mediflow Clinical Summary*\n\n"
+            "🏥 *VitalSync Clinical Summary*\n\n"
             "👤 *Patient Update*:\n"
             "Namaste Aarav ji. Aapka HbA1c 7.2% hai jo ki diabetic range mein hai. "
             "Pichli baar se levels mein improvement hai par strict diet aur medicines regular rakhna hai.\n\n"
@@ -312,7 +312,7 @@ MOCK_LIBRARY = {
 }
 
 def sync_pubmed_query(url: str, timeout: float = 3.0) -> bytes:
-    headers = {"User-Agent": "MediflowCDSS/1.0 (mailto:care@mediflow.in)"}
+    headers = {"User-Agent": "VitalSyncCDSS/1.0 (mailto:care@vitalsync.in)"}
     req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as response:
         return response.read()

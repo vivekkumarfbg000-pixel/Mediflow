@@ -44,7 +44,7 @@ const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
   ERR_NETWORK_FAILURE: {
     code: 'ERR_NETWORK_FAILURE',
     message: 'Network Connectivity Failure',
-    description: 'Could not establish connection to the Mediflow clinical authentication servers.',
+    description: 'Could not establish connection to the VitalSync clinical authentication servers.',
     diagnostic: 'Verify local internet connection, check DNS resolution, and retry.'
   },
   ERR_SERVER_ERROR: {
@@ -69,7 +69,7 @@ const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
   ERR_AUTH_NETWORK_OFFLINE: {
     code: 'ERR_AUTH_NETWORK_OFFLINE',
     message: 'Network Connectivity Failure',
-    description: 'Could not establish connection to the Mediflow clinical authentication servers.',
+    description: 'Could not establish connection to the VitalSync clinical authentication servers.',
     diagnostic: 'Verify local internet connection.'
   },
   ERR_AUTH_SERVER_ERROR: {
@@ -410,7 +410,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317109',
       name: 'System Admin',
       role: 'platform_admin',
-      entity: 'Mediflow HQ Operations',
+      entity: 'VitalSync HQ Operations',
       icon: '🔑',
       specialization: 'System Engineering',
       authEmail: 'owner@mediflow.com'
@@ -2413,7 +2413,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-6">
             <button
               onClick={() => setShowTermsModal(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors"
+              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -2423,37 +2423,37 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 <FileText className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-xl font-extrabold text-slate-900">Terms of Service & Privacy Policy</h3>
-                <p className="text-xs text-slate-500">Effective Date: June 24, 2026</p>
+                <h3 className="text-xl font-extrabold text-slate-900">VitalSync Terms & Privacy</h3>
+                <p className="text-xs text-slate-500">Effective Date: June 2026</p>
               </div>
             </div>
 
             <div className="space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto pr-2">
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">1. HIPAA & Data Isolation Compliance</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">1. Nature of Service & Operational Tools</h4>
                 <p>
-                  Mediflow operates under strict tenant-specific isolation standards. Every medical clinical pod (grouped doctor, pharmacist, and pathology clinic nodes) maintains dedicated PostgreSQL row-level security (RLS). Cross-tenant queries are blocked at the database engine layer.
+                  VitalSync provides digital infrastructure coordinating e-prescriptions, laboratory requests, adjacent pharmacy inventory holds, and split-billing ledger calculations. The Platform does not practice medicine, provide clinical diagnoses, or offer medical advice.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">2. Clinical Loop Connectivity</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">2. Clinical Responsibility & Malpractice Waiver</h4>
                 <p>
-                  By generating a unique Clinic Network Code, doctors can authorize referral labs and pharmacy units to query appointments, prescriptions, and lab result workflows. All linkages require manual approval by the registered doctor profile under the pod admin dashboard.
+                  The registered medical practitioner is solely responsible for all patient diagnoses, drug selections, dosages, drug-to-drug interactions, and clinical actions. VitalSync and its operators hold zero liability for medical negligence, misdiagnosis, or adverse patient outcomes resulting from Platform usage. The Clinic agrees to defend and indemnify VitalSync against any malpractice claims.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">3. Privacy Policy & Audit Logs</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">3. DPDP Act 2023 & Patient Consent</h4>
                 <p>
-                  We securely store provider accounts, emails, patient demographic details, and clinical data models. Every system insertion or update is logged to a write-only audit trail in compliance with standard clinical guidelines. We do not sell or lease clinician details to third parties.
+                  The Clinic acts as the Data Fiduciary and VitalSync acts as the Data Processor. The Clinic warrants it has obtained necessary lawful consent from patients before logging clinical details. VitalSync uses Row-Level Security (RLS) to isolate database records and enforces WhatsApp-based patient consent validation before data dispatch.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">4. System Telemetry & Self-Healing</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">4. Limitation of Liability & Jurisdiction</h4>
                 <p>
-                  Our system runs automated background operations health agents to detect failed data syncs, transaction anomalies, and connectivity drops. Transaction data remains encrypted at-rest using standard cryptographic algorithms.
+                  The Platform is provided "as-is". VitalSync's cumulative financial liability for server outages, database errors, or contract claims is strictly capped at the subscription fees paid by the Clinic in the preceding three (3) months. Disputes are subject to the exclusive jurisdiction of the courts of Patna, Bihar, India.
                 </p>
               </section>
             </div>

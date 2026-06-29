@@ -174,7 +174,7 @@ BEGIN
         (encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total_amount, upi_qr_payload)
     VALUES
         (NEW.id, NEW.patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total,
-         'upi://pay?pa=mediflow@icici&pn=Mediflow&am=' || total || '&cu=INR&tn=Mediflow-' || NEW.id);
+         'upi://pay?pa=vitalsync@icici&pn=VitalSync&am=' || total || '&cu=INR&tn=VitalSync-' || NEW.id);
 
     -- Update WhatsApp session
     UPDATE public.whatsapp_sessions

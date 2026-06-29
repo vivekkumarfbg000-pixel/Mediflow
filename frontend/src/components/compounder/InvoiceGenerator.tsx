@@ -65,10 +65,10 @@ const InvoiceGenerator: React.FC = () => {
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>Mediflow Invoice</title>
+  <title>VitalSync Invoice</title>
   <style>
     body { font-family: 'Inter', sans-serif; margin: 40px; color: #0f172a; }
-    h1 { color: #4f46e5; margin-bottom: 4px; }
+    h1 { color: #106675; margin-bottom: 4px; }
     .meta { color: #94a3b8; font-size: 13px; margin-bottom: 24px; }
     table { width: 100%; border-collapse: collapse; }
     th { text-align: left; padding: 8px 12px; background: #f1f5f9; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
@@ -76,14 +76,14 @@ const InvoiceGenerator: React.FC = () => {
   </style>
 </head>
 <body>
-  <h1>🏥 Mediflow Clinic</h1>
-  <p class="meta">Invoice generated on ${new Date().toLocaleString('en-IN')} | Powered by Mediflow AI OCR</p>
+  <h1>🏥 VitalSync Clinic</h1>
+  <p class="meta">Invoice generated on ${new Date().toLocaleString('en-IN')} | Powered by VitalSync AI OCR</p>
   <table>
     <thead><tr><th>Field</th><th>Value</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div class="raw-ocr" style="margin-top:24px;padding:12px;background:#f8fafc;border-radius:8px;font-size:12px;color:#64748b;white-space:pre-wrap">${extracted.raw}</div>
-  <div class="footer">This is a computer-generated invoice. For queries contact Mediflow Support.</div>
+  <div class="footer">This is a computer-generated invoice. For queries contact VitalSync Support.</div>
 </body>
 </html>`;
       const blob = new Blob([html], { type: 'text/html' });

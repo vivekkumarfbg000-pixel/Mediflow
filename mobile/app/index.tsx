@@ -118,7 +118,7 @@ export default function AppIndex() {
         <View style={styles.header}>
           <Text style={styles.subtitle}>OFFLINE-FIRST CLINICAL COMPANION</Text>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Mediflow Care Dashboard</Text>
+            <Text style={styles.title}>VitalSync Care Dashboard</Text>
             <View style={styles.onlineBadge}>
               <View style={styles.pulseDot} />
               <Text style={styles.onlineText}>SYNCED</Text>
