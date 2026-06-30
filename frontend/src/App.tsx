@@ -909,31 +909,26 @@ export default function App() {
     );
   }
 
-  // 3. Redirect operations accounts logged in on app.vitalsync.in to admin.vitalsync.in
-  if (hostname === 'app.vitalsync.in' && session && activeProfile) {
+  // 3. Redirect operations accounts logged in on any non-admin subdomain to admin.vitalsync.in
+  const isNonAdminSubdomain = !isAdminSubdomain;
+  if (isNonAdminSubdomain && session && activeProfile) {
     const userRole = activeProfile.role;
     if (userRole === 'admin' || userRole === 'platform_admin') {
+      const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+        ? `http://admin.localhost:${window.location.port || '5173'}`
+        : 'https://admin.vitalsync.in';
+      // Auto-redirect immediately — do not leave admin session on wrong origin
+      window.location.replace(adminUrl);
       return (
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-slate-100 font-sans">
           <div className="w-full max-w-md bg-slate-950 border border-slate-800 p-8 rounded-3xl text-center space-y-6 animate-fade-in shadow-2xl">
-            <Shield className="h-16 w-16 text-cyan-450 mx-auto animate-pulse" />
+            <Shield className="h-10 w-10 text-cyan-400 mx-auto animate-pulse" />
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-white">Operations Session Detected</h3>
-              <p className="text-xs text-slate-450 leading-relaxed">
-                Your account ({activeProfile.display_name}) is an Operations Administrator. All administration tasks must be performed on the secure admin console.
+              <h3 className="text-lg font-bold text-white">Redirecting to Admin Console</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Sending you to admin.vitalsync.in where your session will work correctly...
               </p>
             </div>
-            <button
-              onClick={() => {
-                const adminUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                  ? `http://admin.localhost:${window.location.port || '5173'}`
-                  : 'https://admin.vitalsync.in';
-                window.location.href = adminUrl;
-              }}
-              className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-cyan-600/20"
-            >
-              Go to admin.vitalsync.in
-            </button>
           </div>
         </div>
       );

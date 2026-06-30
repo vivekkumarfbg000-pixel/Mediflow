@@ -512,117 +512,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
   const handleRealEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signInWithRealProfile();
-  };
-
-  const handleRealPartnerSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await signInWithRealProfile(['pharmacist', 'lab_technician', 'compounder']);
-  };
-
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-
-    setLoading(true);
-    setErrorMsg(null);
-    setActiveErrorCode(null);
-
-    try {
-      // 1. Verify lockout and rate limit via database sentry
-      const check = await verifyLoginAllowed(email);
-      if (!check.allowed) {
-        setErrorMsg(check.msg || 'Login is temporarily blocked.');
-        if (check.errorCode) {
-          setActiveErrorCode(check.errorCode);
-          await logAttemptToDatabase(email, false, check.errorCode);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // 2. Perform authentication
-      const { data, error } = await retryRequest(async () => {
-        return await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-      });
-
-      if (error) {
-        if (error.message?.includes('Invalid login credentials')) {
-          const authErr = new Error('Invalid email or password.');
-          (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
-          throw authErr;
-        }
-        throw error;
-      }
-
-      if (!data?.session) {
-        throw new Error('Sign in succeeded but no session was returned. Please try again.');
-      }
-
-      // 3. Verify profile exists and is clinician
-      let { data: profile, error: profileErr } = await retryRequest(async () => {
-        return await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-      });
-
-      if (profileErr || !profile) {
-        const jwtRole = data.user?.user_metadata?.role || data.user?.app_metadata?.role;
-        if (jwtRole === 'doctor' || jwtRole === 'admin' || jwtRole === 'platform_admin') {
-          console.log('[Mediflow Auth] No DB profile — synthesizing from JWT metadata.');
-          profile = {
-            id: data.user.id,
-            role: jwtRole,
-            display_name: data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'Clinician',
-            email: data.user.email,
-          };
-        } else {
-          throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
-        }
-      }
-
-      if (profile?.role === 'doctor' || profile?.role === 'admin' || profile?.role === 'platform_admin') {
-        // Role verified
-      } else {
-        await supabase.auth.signOut();
-        const accessErr = new Error('Access Denied: Restricted to Doctors and Platform Admin.');
-        (accessErr as any).code = 'ERR_INVALID_CREDENTIALS';
-        throw accessErr;
-      }
-
-      recordAttempt(email, true, { user_id: data.user.id });
-      onAuthSuccess(data.session, profile);
-    } catch (err: any) {
-      console.error('[Mediflow Auth] Login failed:', err);
-      let mappedCode = err.code;
-      if (!mappedCode) {
-        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
-          mappedCode = 'ERR_NETWORK_FAILURE';
-        } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('invalid') || err.status === 400) {
-          mappedCode = 'ERR_INVALID_CREDENTIALS';
-        } else {
-          mappedCode = 'ERR_SERVER_ERROR';
-        }
-      }
-      recordAttempt(email, false, { ...err, code: mappedCode });
-      if (mappedCode && ERROR_DICTIONARY[mappedCode]) {
-        setErrorMsg(ERROR_DICTIONARY[mappedCode].description);
-        setActiveErrorCode(mappedCode);
-      } else {
-        setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Partner sign-in for existing registered partners
-  const handlePartnerSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
@@ -1061,17 +950,35 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }
       
-      if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
-        // Profile verified
+      if (profile?.role === 'doctor' || profile?.role === 'admin' || profile?.role === 'platform_admin') {
+        // Role verified
       } else {
         await supabase.auth.signOut();
-        const accessErr = new Error('Access Denied: Restricted to Mediflow Operations Team.');
-        (accessErr as any).code = 'ERR_INVALID_CREDENTIALS'; // Treat as invalid credential access attempt
+        const accessErr = new Error('Access Denied: Restricted to Doctors and Platform Admin.');
+        (accessErr as any).code = 'ERR_INVALID_CREDENTIALS';
         throw accessErr;
       }
 
-      // Record successful attempt
+      // Cross-origin guard: admin accounts must ONLY authenticate on admin.vitalsync.in.
+      // If an admin logs in on vitalsync.in / app.vitalsync.in, the session is stored in
+      // that origin's localStorage and will be invisible to admin.vitalsync.in.
+      // Sign out here and redirect so they can log in on the correct origin.
+      if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+        const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
+        if (!isAdminSubdomain) {
+          await supabase.auth.signOut();
+          const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+            ? `http://admin.localhost:${window.location.port || '5173'}`
+            : 'https://admin.vitalsync.in';
+          console.log('[Mediflow Auth] Admin account detected on wrong origin. Redirecting to:', adminUrl);
+          window.location.href = adminUrl;
+          return;
+        }
+      }
+
       recordAttempt(email, true, { user_id: data.user.id });
+      onAuthSuccess(data.session, profile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Ops login failed:', err);
       let mappedCode = err.code;

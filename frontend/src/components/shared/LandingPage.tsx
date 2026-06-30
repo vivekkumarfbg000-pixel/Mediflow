@@ -203,23 +203,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [isSigningInDemo, setIsSigningInDemo] = useState(false);
 
-  // ─── Ops Modal State ──────────────────────────────────────────────────────
-  // NOTE: We do NOT authenticate here. Logging in on vitalsync.in stores the
-  // session in vitalsync.in's localStorage, which admin.vitalsync.in cannot
-  // read (different origin). The modal is a pure redirect to admin.vitalsync.in
-  // where the user logs in with their credentials on the correct origin.
-  const [showOpsModal, setShowOpsModal] = useState(false);
-
-  const getAdminUrl = () =>
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? `http://admin.localhost:${window.location.port || '5173'}`
-      : 'https://admin.vitalsync.in';
-
-  const handleOpsRedirect = (e: React.FormEvent) => {
-    e.preventDefault();
-    window.location.href = getAdminUrl();
-  };
-
 
   const handleDemoSignUpInstant = async () => {
     setIsSigningInDemo(true);
@@ -946,64 +929,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <p className="text-xs text-slate-500 max-w-sm">
                 Signing you in automatically as <span className="text-indigo-600 font-bold">Dr. Vivek Kumar</span> to showcase the clinical dashboard...
               </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Ops Redirect Modal ──────────────────────────────────────────────── */}
-      {showOpsModal && (
-        <div
-          onClick={() => setShowOpsModal(false)}
-          className="fixed inset-0 z-[99998] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in font-sans"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col space-y-6"
-          >
-            {/* Close */}
-            <button
-              type="button"
-              onClick={() => setShowOpsModal(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-200 transition-colors cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            {/* Header */}
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-2xl shrink-0">
-                <Shield className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-white tracking-wide">Operations Console</h3>
-                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest mt-0.5">VitalSync Platform Administration</p>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="space-y-3 text-center">
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Admin login is handled on the secure operations subdomain. Your credentials are never entered on the public site.
-              </p>
-              <p className="text-[11px] font-bold text-cyan-500 tracking-wide">
-                admin.vitalsync.in
-              </p>
-            </div>
-
-            {/* Redirect Button */}
-            <form onSubmit={handleOpsRedirect}>
-              <button
-                type="submit"
-                className="w-full py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                Go to Admin Console <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
-
-            <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-600 font-bold text-center">
-              <Lock className="h-2.5 w-2.5" />
-              <span>Isolated Origin · Admin Access Only</span>
             </div>
           </div>
         </div>
