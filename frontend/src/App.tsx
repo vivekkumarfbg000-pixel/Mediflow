@@ -831,6 +831,7 @@ export default function App() {
   };
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
 
   // 1. Landing Page Domain Routing
   if (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') {
@@ -842,10 +843,10 @@ export default function App() {
   }
 
   // 2. Super Admin Dashboard Subdomain Routing
-  if (hostname === 'admin.vitalsync.in') {
+  if (isAdminSubdomain) {
     // Session exists but profile hasn't loaded yet (e.g. arriving via ops-modal redirect).
     // Show a loader instead of the login form to give loadOrHealProfile time to finish.
-    if (session && !activeProfile) {
+    if (session && !activeProfile && isLoadingSession) {
       return <FullPageLoader message="Verifying operations credentials..." />;
     }
 
