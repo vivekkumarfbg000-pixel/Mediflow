@@ -128,8 +128,8 @@ BEGIN
   SELECT * INTO v_consent
   FROM public.patient_consents
   WHERE patient_id = p_patient_id
-    AND consent_type = 'data_processing'
-  ORDER BY granted_at DESC
+    AND data_sharing_consent = true
+  ORDER BY consented_at DESC
   LIMIT 1;
 
   IF NOT FOUND THEN
@@ -143,8 +143,8 @@ BEGIN
 
   RETURN json_build_object(
     'consented',            TRUE,
-    'granted_at',           v_consent.granted_at,
-    'consent_type',         v_consent.consent_type,
+    'granted_at',           v_consent.consented_at,
+    'consent_type',         'data_sharing_consent',
     'signature_present',    v_consent.consent_signature IS NOT NULL,
     'signature_algorithm',  v_consent.signature_algorithm,
     'verification_status',  CASE WHEN v_consent.consent_signature IS NOT NULL THEN 'SIGNED' ELSE 'UNSIGNED' END,
