@@ -3,9 +3,9 @@ import { AuthGateway } from './AuthGateway';
 import { BrandMark } from './BrandMark';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, Check, AlertCircle, FileText, Mail, Loader2
+  X, FileText, Loader2
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
+
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
 
@@ -204,82 +204,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [isSigningInDemo, setIsSigningInDemo] = useState(false);
 
   // ─── Ops Modal State ──────────────────────────────────────────────────────
+  // NOTE: We do NOT authenticate here. Logging in on vitalsync.in stores the
+  // session in vitalsync.in's localStorage, which admin.vitalsync.in cannot
+  // read (different origin). The modal is a pure redirect to admin.vitalsync.in
+  // where the user logs in with their credentials on the correct origin.
   const [showOpsModal, setShowOpsModal] = useState(false);
-  const [opsEmail, setOpsEmail] = useState('');
-  const [opsPassword, setOpsPassword] = useState('');
-  const [opsError, setOpsError] = useState<string | null>(null);
-  const [opsLoading, setOpsLoading] = useState(false);
-  const [opsSuccess, setOpsSuccess] = useState(false);
 
-  useEffect(() => {
-    const hostname = window.location.hostname;
-    if (showAuthGate && (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in')) {
-      setShowAuthGate(false);
-      window.location.href = 'https://app.vitalsync.in';
-    }
-  }, [showAuthGate]);
+  const getAdminUrl = () =>
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? `http://admin.localhost:${window.location.port || '5173'}`
+      : 'https://admin.vitalsync.in';
 
-  const handleOpsLogin = async (e: React.FormEvent) => {
+  const handleOpsRedirect = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!opsEmail.trim() || !opsPassword) return;
-    setOpsLoading(true);
-    setOpsError(null);
-
-    // Set global flag BEFORE calling signInWithPassword.
-    // App.tsx's onAuthStateChange SIGNED_IN handler checks this flag and
-    // stands down, preventing it from loading the profile and re-rendering
-    // AppContent (which would unmount this LandingPage mid-execution).
-    if (typeof window !== 'undefined') {
-      (window as any).__vitalsync_ops_redirect = true;
-    }
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: opsEmail.trim(),
-        password: opsPassword,
-      });
-      if (error) throw error;
-      if (!data?.session || !data?.user) throw new Error('Sign in succeeded but no session was returned.');
-
-      // --- Role Verification ---
-      // First try JWT metadata (instant, no DB round-trip, immune to RLS).
-      // Supabase stores custom user_metadata on the JWT. If the admin account
-      // was created with role metadata this resolves in microseconds.
-      const jwtRole: string | undefined =
-        data.user?.user_metadata?.role ||
-        data.user?.app_metadata?.role;
-
-      let resolvedRole: string | undefined = jwtRole;
-
-      // Fallback: fetch from profiles table if JWT metadata has no role.
-      if (!resolvedRole || (resolvedRole !== 'admin' && resolvedRole !== 'platform_admin')) {
-        const { data: profile, error: profileErr } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
-        if (profileErr || !profile) throw new Error('Profile could not be loaded. Ensure the admin profile exists in the profiles table.');
-        resolvedRole = profile.role;
-      }
-
-      if (resolvedRole !== 'admin' && resolvedRole !== 'platform_admin') {
-        await supabase.auth.signOut();
-        throw new Error('Access Denied: This account does not have operations privileges.');
-      }
-
-      // Role verified — navigate immediately. The global flag ensures App.tsx
-      // does not race us by unmounting LandingPage before this line runs.
-      setOpsSuccess(true);
-      window.location.replace('https://admin.vitalsync.in');
-    } catch (err: any) {
-      // Clear the flag on failure so normal auth state handling resumes.
-      if (typeof window !== 'undefined') {
-        (window as any).__vitalsync_ops_redirect = false;
-      }
-      setOpsError(err.message || 'Authentication failed.');
-    } finally {
-      setOpsLoading(false);
-    }
+    window.location.href = getAdminUrl();
   };
 
 
@@ -822,6 +760,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 window.location.href = adminUrl;
               }}
               className="text-slate-400 hover:text-slate-600 transition-colors font-mono text-[10px] tracking-widest uppercase cursor-pointer select-none"
+              title="Go to admin.vitalsync.in"
             >
               Platform Operations
             </button>
@@ -1012,10 +951,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       )}
 
-      {/* ─── Ops Login Modal ────────────────────────────────────────────────── */}
+      {/* ─── Ops Redirect Modal ──────────────────────────────────────────────── */}
       {showOpsModal && (
         <div
-          onClick={() => { if (!opsLoading && !opsSuccess) setShowOpsModal(false); }}
+          onClick={() => setShowOpsModal(false)}
           className="fixed inset-0 z-[99998] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in font-sans"
         >
           <div
@@ -1023,15 +962,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             className="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col space-y-6"
           >
             {/* Close */}
-            {!opsLoading && !opsSuccess && (
-              <button
-                type="button"
-                onClick={() => setShowOpsModal(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-200 transition-colors cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowOpsModal(false)}
+              className="absolute top-4 right-4 p-2 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
 
             {/* Header */}
             <div className="flex items-center gap-4">
@@ -1044,85 +981,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
             </div>
 
-            {/* Success state */}
-            {opsSuccess ? (
-              <div className="flex flex-col items-center space-y-4 py-4 text-center">
-                <div className="h-12 w-12 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                  <Check className="h-6 w-6 text-cyan-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">Authentication Verified</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Redirecting to admin.vitalsync.in...</p>
-                </div>
-                <Loader2 className="h-5 w-5 text-cyan-500 animate-spin" />
-              </div>
-            ) : (
-              <form onSubmit={handleOpsLogin} className="space-y-4">
-                {/* Error */}
-                {opsError && (
-                  <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2.5">
-                    <AlertCircle className="h-4 w-4 text-rose-400 mt-0.5 shrink-0" />
-                    <span className="text-[11px] font-semibold text-rose-300 leading-relaxed">{opsError}</span>
-                  </div>
-                )}
+            {/* Body */}
+            <div className="space-y-3 text-center">
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Admin login is handled on the secure operations subdomain. Your credentials are never entered on the public site.
+              </p>
+              <p className="text-[11px] font-bold text-cyan-500 tracking-wide">
+                admin.vitalsync.in
+              </p>
+            </div>
 
-                {/* Email */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                    Operations Email
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-                    <input
-                      type="email"
-                      value={opsEmail}
-                      onChange={(e) => setOpsEmail(e.target.value)}
-                      placeholder="ops@vitalsync.in"
-                      required
-                      autoComplete="username"
-                      className="w-full bg-slate-800 border border-slate-700 focus:border-cyan-500/50 rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all duration-300"
-                    />
-                  </div>
-                </div>
+            {/* Redirect Button */}
+            <form onSubmit={handleOpsRedirect}>
+              <button
+                type="submit"
+                className="w-full py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Go to Admin Console <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
 
-                {/* Password */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                    Security Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-                    <input
-                      type="password"
-                      value={opsPassword}
-                      onChange={(e) => setOpsPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      required
-                      autoComplete="current-password"
-                      className="w-full bg-slate-800 border border-slate-700 focus:border-cyan-500/50 rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition-all duration-300"
-                    />
-                  </div>
-                </div>
-
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={opsLoading}
-                  className="w-full py-3 mt-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {opsLoading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Authenticating...</>
-                  ) : (
-                    <>Authenticate <ArrowRight className="h-4 w-4" /></>
-                  )}
-                </button>
-
-                <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-600 font-bold text-center pt-1">
-                  <Lock className="h-2.5 w-2.5" />
-                  <span>End-to-End Encrypted · Admin Access Only</span>
-                </div>
-              </form>
-            )}
+            <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-600 font-bold text-center">
+              <Lock className="h-2.5 w-2.5" />
+              <span>Isolated Origin · Admin Access Only</span>
+            </div>
           </div>
         </div>
       )}
