@@ -135,7 +135,7 @@ const checkLockout = (email: string): { locked: boolean; remainingSeconds: numbe
 const retryRequest = async <T,>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
   try {
     return await fn();
-  } catch (err: any) {
+  } catch (err) {
     const isTransient = !navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0;
     if (isTransient && retries > 0) {
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -167,7 +167,7 @@ const verifyLoginAllowed = async (emailToVerify: string): Promise<{ allowed: boo
       };
     }
     return { allowed: true };
-  } catch (err: any) {
+  } catch (err) {
     console.error('[Mediflow Auth] Sentry check failed or circuit open, falling back to local client-side guard:', err);
     const localLockout = checkLockout(emailToVerify);
     if (localLockout.locked) {
@@ -501,7 +501,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // Profile verified successfully - call onAuthSuccess
       onAuthSuccess(data.session, profile);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Mediflow Auth] Real login failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
     } finally {
@@ -602,7 +602,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // Record successful attempt
       recordAttempt(email, true, { user_id: data.user.id });
       onAuthSuccess(data.session, profile);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Mediflow Auth] Login failed:', err);
       let mappedCode = err.code;
       if (!mappedCode) {
@@ -692,7 +692,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       recordAttempt(email, true, { user_id: data.user.id });
       onAuthSuccess(data.session, profile);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Mediflow Auth] Partner login failed:', err);
       let mappedCode = err.code;
       if (!mappedCode) {
@@ -860,7 +860,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }));
 
-    } catch (err: any) {
+    } catch (err) {
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
       }
@@ -988,7 +988,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }));
 
-    } catch (err: any) {
+    } catch (err) {
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
       }
@@ -1095,7 +1095,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       recordAttempt(email, true, { user_id: data.user.id });
       onAuthSuccess(data.session, profile);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Mediflow Auth] Ops login failed:', err);
       let mappedCode = err.code;
       if (!mappedCode) {
@@ -1176,7 +1176,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // Record successful attempt
       recordAttempt(authEmail, true);
       onAuthSuccess(authData.session, modifiedProfile);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Mediflow Auth] Demo login failed:', err);
       const code = recordAttempt(user.authEmail, false, err);
       if (code && ERROR_DICTIONARY[code]) {
