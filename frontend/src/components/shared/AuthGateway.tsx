@@ -563,22 +563,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         throw new Error('Sign in succeeded but no session was returned. Please try again.');
       }
 
-      // 3. Verify profile exists
-      const { data: profile, error: profileErr } = await retryRequest(async () => {
-        return await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-      });
-
-      if (profileErr || !profile) {
-        throw new Error('Authenticated, but your Mediflow profile could not be loaded.');
-      }
-
-      // Record successful attempt
-      recordAttempt(email, true, { user_id: data.user.id });
-      onAuthSuccess(data.session, profile);
+      // 3. Verify profile exists and is admin.
+      // First try the DB (retried for transient network issues).
+            role: jwtRole,
+            display_name: data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'Admin',
+      onAuthSuccess(data.session, resolvedProfile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Login failed:', err);
       let mappedCode = err.code;
@@ -671,7 +660,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // Record successful attempt
       recordAttempt(email, true, { user_id: data.user.id });
-      onAuthSuccess(data.session, profile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Partner login failed:', err);
       let mappedCode = err.code;
@@ -1023,7 +1011,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       // 3. Verify profile exists and is admin
-      const { data: profile, error: profileErr } = await retryRequest(async () => {
+      let { data: profile, error: profileErr } = await retryRequest(async () => {
         return await supabase
           .from('profiles')
           .select('*')
@@ -1032,11 +1020,22 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       });
 
       if (profileErr || !profile) {
-        throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
+        const jwtRole = data.user?.user_metadata?.role || data.user?.app_metadata?.role;
+        if (jwtRole === 'admin' || jwtRole === 'platform_admin') {
+          console.log('[Mediflow Auth] No DB profile for ops user — synthesizing from JWT metadata.');
+          profile = {
+            id: data.user.id,
+            role: jwtRole,
+            display_name: data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'Admin',
+            email: data.user.email,
+          };
+        } else {
+          throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
+        }
       }
       
       if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
-        // Profile verified - call onAuthSuccess
+        // Profile verified
       } else {
         await supabase.auth.signOut();
         const accessErr = new Error('Access Denied: Restricted to Mediflow Operations Team.');
@@ -1046,7 +1045,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // Record successful attempt
       recordAttempt(email, true, { user_id: data.user.id });
-      onAuthSuccess(data.session, profile);
     } catch (err: any) {
       console.error('[Mediflow Auth] Ops login failed:', err);
       let mappedCode = err.code;
@@ -1068,6 +1066,134 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       } else {
         setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validatePartnerStep2 = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!clinicCode.trim()) {
+      errors.clinicCode = 'Clinic network code is required';
+    } else if (!validatedClinicName) {
+      errors.clinicCode = 'A valid clinic network code is required';
+    }
+
+    if (!displayName.trim()) {
+      errors.displayName = 'Business name is required';
+    }
+
+    if (!phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^\d{10,}$/.test(phone.trim().replace(/[-+() ]/g, ''))) {
+      errors.phone = 'Enter a valid phone number (at least 10 digits)';
+    }
+
+    if (!address.trim()) {
+      errors.address = 'Physical address is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handlePartnerJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validatePartnerStep2()) {
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+    if (typeof window !== 'undefined') {
+      (window as any).__mediflow_registering = true;
+    }
+
+    const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
+
+    try {
+      // 1. Perform auth signUp with timeout
+      const userRole = partnerType === 'pharmacy' ? 'pharmacist' : partnerType === 'lab' ? 'lab_technician' : 'compounder';
+      
+      const signUpPromise = supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            display_name: finalDisplayName,
+            role: userRole,
+            clinic_code: clinicCode.trim().toUpperCase(),
+            partner_type: partnerType,
+            partner_phone: phone.trim(),
+            partner_address: address.trim(),
+            pending_registration: true
+          }
+        }
+      });
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Network request timed out. Please check your connectivity and try again.')), 12000)
+      );
+
+      const { data: authData, error: authError } = await Promise.race([signUpPromise, timeoutPromise]) as any;
+
+      if (authError) {
+        if (authError.message?.toLowerCase().includes('already registered') || authError.message?.toLowerCase().includes('use')) {
+          throw new Error('This email address is already in use. If you already have an account, please sign in.');
+        }
+        throw authError;
+      }
+      if (!authData?.user || !authData.session) {
+        throw new Error('SignUp completed, but email confirmation is required. Please check your email.');
+      }
+
+      // 2. Wait a split second to allow handle_new_user trigger to execute
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // 3. Call the join_clinic_network RPC function
+      const { error: rpcError } = await supabase.rpc('join_clinic_network', {
+        p_clinic_code: clinicCode.trim().toUpperCase(),
+        p_partner_type: partnerType,
+        p_partner_name: displayName.trim(),
+        p_partner_phone: phone.trim(),
+        p_partner_address: address.trim()
+      });
+
+      if (rpcError) throw rpcError;
+
+      // Clear the pending registration flag since we successfully onboarding synchronously
+      await supabase.auth.updateUser({
+        data: { pending_registration: false }
+      });
+
+      // 4. Fetch profile to pass to Auth success
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileErr) throw profileErr;
+
+      // 5. Notify app of authentication success!
+      onAuthSuccess(authData.session, profile);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Join Request Submitted! ⏳',
+          message: 'Your registration was successful. Waiting for doctor approval.',
+          type: 'success'
+        }
+      }));
+
+    } catch (err: any) {
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+      }
+      console.error('[Mediflow Auth] Partner join failed:', err);
+      setErrorMsg(err.message || 'Partner registration failed.');
     } finally {
       setLoading(false);
     }

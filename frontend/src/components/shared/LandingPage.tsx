@@ -815,7 +815,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
             <button
               type="button"
-              onClick={() => { setShowOpsModal(true); setOpsError(null); setOpsEmail(''); setOpsPassword(''); setOpsSuccess(false); }}
+              onClick={() => {
+                const adminUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                  ? `http://admin.localhost:${window.location.port || '5173'}`
+                  : 'https://admin.vitalsync.in';
+                window.location.href = adminUrl;
+              }}
               className="text-slate-400 hover:text-slate-600 transition-colors font-mono text-[10px] tracking-widest uppercase cursor-pointer select-none"
             >
               Platform Operations

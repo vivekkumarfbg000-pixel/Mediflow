@@ -899,9 +899,11 @@ export default function App() {
 
     return (
       <ToastProvider>
-        <Suspense fallback={<FullPageLoader message="Loading Admin Workspace..." />}>
-          <SaaSAdminPanel />
-        </Suspense>
+        <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans select-none">
+          <Suspense fallback={<FullPageLoader message="Loading Admin Workspace..." />}>
+            <SaaSAdminPanel />
+          </Suspense>
+        </div>
       </ToastProvider>
     );
   }
@@ -921,7 +923,12 @@ export default function App() {
               </p>
             </div>
             <button
-              onClick={() => { window.location.href = 'https://admin.vitalsync.in'; }}
+              onClick={() => {
+                const adminUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                  ? `http://admin.localhost:${window.location.port || '5173'}`
+                  : 'https://admin.vitalsync.in';
+                window.location.href = adminUrl;
+              }}
               className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer shadow-lg shadow-cyan-600/20"
             >
               Go to admin.vitalsync.in

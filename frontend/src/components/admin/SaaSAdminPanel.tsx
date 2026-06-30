@@ -538,19 +538,19 @@ export const SaaSAdminPanel: React.FC = () => {
       <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
         
         {/* ── Top Header Control Bar ───────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200/25 pb-5">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200/10 pb-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-cyan-400 shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
               <Terminal className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
                 Mediflow Platform Operations
-                <span className="flex items-center gap-1 rounded-full bg-cyan-100 border border-cyan-200 px-2.5 py-0.5 text-[9px] font-bold text-cyan-700 tracking-wider uppercase animate-pulse">
+                <span className="flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 text-[9px] font-bold text-indigo-700 tracking-wider uppercase animate-pulse">
                   Platform Owner View
                 </span>
               </h2>
-              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-extrabold mt-0.5">
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-extrabold mt-0.5">
                 SaaS System Administration Control Panel
               </p>
             </div>
@@ -559,16 +559,16 @@ export const SaaSAdminPanel: React.FC = () => {
             type="button"
             onClick={fetchSaaSMetrics}
             disabled={metricsLoading}
-            className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+            className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 text-xs font-semibold disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-xs"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${metricsLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 text-indigo-550 ${metricsLoading ? 'animate-spin' : ''}`} />
             Sync Metrics
           </button>
         </div>
 
         {/* ── Virtual Operations Team Navigation (Laptop Header) ───────────────── */}
-        <div className="hidden lg:flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/10 p-2.5 rounded-2xl border border-slate-200/60 dark:border-white/5 mb-6 flex-wrap">
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-2 mr-2">
+        <div className="hidden lg:flex items-center gap-3 bg-slate-50/50 p-2.5 rounded-2xl border border-slate-200/60 mb-6 flex-wrap">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 mr-2">
             Virtual Operations Team:
           </span>
           <div className="flex items-center gap-2 flex-wrap">
@@ -582,11 +582,11 @@ export const SaaSAdminPanel: React.FC = () => {
                   onClick={() => setActiveTab(agent.id)}
                   className={`flex items-center gap-2 py-2 px-3.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${
                     isActive 
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10' 
-                      : 'bg-white border-slate-200/80 text-slate-700 hover:scale-[1.01] hover:border-slate-350'
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/15 hover:bg-indigo-700 hover:border-indigo-700' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:scale-[1.01] hover:border-slate-350'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                   <span>{agent.label}</span>
                 </button>
               );
