@@ -403,7 +403,9 @@ export class PatientService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.id) currentUserId = user.id;
-    } catch (_) {}
+    } catch (e) {
+      console.warn('[PatientService] Could not resolve current user:', e);
+    }
 
     const newConsent: PhysicalConsent = {
       id: crypto.randomUUID(),
@@ -455,7 +457,9 @@ export class PatientService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.id) currentUserId = user.id;
-    } catch (_) {}
+    } catch (e) {
+      console.warn('[PatientService] Could not resolve current user for revocation:', e);
+    }
 
     const consent = physicalConsents[idx];
     consent.status = 'REVOKED';

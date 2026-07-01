@@ -558,13 +558,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       // 3. Verify profile and role
-      let { data: profile, error: profileErr } = await retryRequest(async () => {
+      const { data: profileData, error: profileErr } = await retryRequest(async () => {
         return await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
       });
+      let profile = profileData;
 
       if (profileErr || !profile) {
         const jwtRole = data.user?.user_metadata?.role || data.user?.app_metadata?.role;
@@ -1065,13 +1066,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       // 3. Verify profile exists and is admin
-      let { data: profile, error: profileErr } = await retryRequest(async () => {
+      const { data: profileData, error: profileErr } = await retryRequest(async () => {
         return await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
       });
+      let profile = profileData;
 
       if (profileErr || !profile) {
         const jwtRole = data.user?.user_metadata?.role || data.user?.app_metadata?.role;
@@ -1141,6 +1143,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
     } finally {
       if (typeof window !== 'undefined') {
+        // eslint-disable-next-line react-hooks/immutability
         (window as any).__mediflow_registering = false;
       }
       setLoading(false);
@@ -1152,6 +1155,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setErrorMsg(null);
     setActiveErrorCode(null);
     if (typeof window !== 'undefined') {
+      // eslint-disable-next-line react-hooks/immutability
       (window as any).__mediflow_registering = true;
     }
     try {
