@@ -527,7 +527,8 @@ export default function App() {
         }));
         
         return updatedProfile;
-      } catch (err: any) {
+      } catch (_err) {
+        const err = _err as any;
         console.error('[Mediflow Onboarding] Onboarding process failed:', err);
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
