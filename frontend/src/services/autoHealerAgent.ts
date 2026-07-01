@@ -267,7 +267,8 @@ export class StateHealingEngine {
             throw logErr || new Error('Insert returned null');
           }
         }
-      } catch (err: any) {
+      } catch (_err) {
+        const err = _err as any;
         console.warn('[Auto-Healer] Database telemetry log skipped or failed (unauthenticated/offline). Queueing locally:', err.message || err);
         try {
           await telemetryDB.addEntry({
@@ -282,7 +283,8 @@ export class StateHealingEngine {
             timestamp: new Date().toISOString()
           });
           console.log('[Auto-Healer] Incident successfully queued in TelemetryIndexedDB.');
-        } catch (queueErr: any) {
+        } catch (_queueErr) {
+          const queueErr = _queueErr as any;
           console.error('[Auto-Healer] Failed to queue offline telemetry:', queueErr.message);
         }
       }
@@ -306,10 +308,13 @@ export class StateHealingEngine {
 
         let requiredColumns: { table: string; column: string; type: string }[];
         try {
-          const { data: manifest } = await supabase
+          const { data: manifest, error: manifestErr } = await supabase
             .from('schema_manifest')
             .select('table_name, column_name, column_type')
             .eq('is_active', true);
+          if (manifestErr) {
+            throw manifestErr;
+          }
           if (manifest && manifest.length > 0) {
             requiredColumns = manifest.map(m => ({ table: m.table_name, column: m.column_name, type: m.column_type }));
             healingSteps.push(`📦 Loaded ${requiredColumns.length} columns from live schema_manifest.`);
@@ -350,13 +355,16 @@ export class StateHealingEngine {
         healingSteps.push(`🗑️ Cache flushed for local stores: [${keysToFlush.join(', ')}]`);
 
         // Check if error is role or loading watchdog related to run RPC reconciliation
-        const isRoleOrLoading = errMsg.toLowerCase().includes('role') || 
-                                errMsg.toLowerCase().includes('loading') || 
-                                errMsg.toLowerCase().includes('watchdog') ||
-                                errName.toLowerCase().includes('rolemismatch');
+        const isRoleMismatch = errMsg.toLowerCase().includes('role') || 
+                               errName.toLowerCase().includes('rolemismatch');
         
-        if (isRoleOrLoading) {
-          healingSteps.push('🛡️ Role discrepancy or loading watchdog triggered. Initiating Profile Role Reconciliation RPC...');
+        const isWatchdog = errMsg.toLowerCase().includes('loading') || 
+                           errMsg.toLowerCase().includes('watchdog');
+
+        if (isRoleMismatch) {
+          healingSteps.push('🛡️ Role discrepancy detected. Reconciling profile role in database...');
+          
+          // Reconcile FIRST while user is still authenticated (so auth.uid() works in RPC)
           try {
             const { data: reconciled, error: rpcErr } = await supabase.rpc('reconcile_profile_role');
             if (rpcErr) {
@@ -369,6 +377,37 @@ export class StateHealingEngine {
             }
           } catch (rpcEx) {
             healingSteps.push(`⚠️ Profile role reconciliation exception: ${String(rpcEx)}`);
+          }
+
+          // Clean up local session and sign out to force refresh
+          healingSteps.push('🛡️ Clearing stale auth sessions to refresh JWT claims...');
+          const projectRef = 'kguupaybvbngyzyofjun';
+          localStorage.removeItem(`sb-${projectRef}-auth-token`);
+          sessionStorage.clear();
+          try {
+            await supabase.auth.signOut();
+            healingSteps.push('✅ Supabase auth session successfully signed out and reset.');
+          } catch (signOutEx) {
+            healingSteps.push(`⚠️ Supabase signOut failed (expected if offline): ${String(signOutEx)}`);
+          }
+        }
+
+        if (isWatchdog && !isRoleMismatch) {
+          healingSteps.push('⏳ Loading watchdog triggered. Proactively refreshing session token...');
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              const { error: refreshErr } = await supabase.auth.refreshSession();
+              if (refreshErr) {
+                healingSteps.push(`⚠️ Session refresh failed: ${refreshErr.message}`);
+              } else {
+                healingSteps.push('✅ Session token successfully refreshed.');
+              }
+            } else {
+              healingSteps.push('⚠️ No active session found to refresh.');
+            }
+          } catch (sessionEx) {
+            healingSteps.push(`⚠️ Session check/refresh exception: ${String(sessionEx)}`);
           }
         }
 
@@ -744,7 +783,8 @@ export class ProactiveHealthMonitor {
       } else {
         console.log('[HealthMonitor] RLS compliance scan complete: All transactional tables are secure.');
       }
-    } catch (e: any) {
+    } catch (_e) {
+      const e = _e as any;
       console.warn('[HealthMonitor] RLS compliance scan exception:', e.message);
     }
   }
@@ -790,7 +830,8 @@ export class ProactiveHealthMonitor {
           break; // Stop replaying on database error
         }
       }
-    } catch (e: any) {
+    } catch (_e) {
+      const e = _e as any;
       console.warn('[Telemetry Replayer] Replayer run interrupted:', e.message);
     }
   }
@@ -834,7 +875,8 @@ export class ProactiveHealthMonitor {
           console.log('[Auto-Healer] Proactive Scan: Session successfully renewed.');
         }
       }
-    } catch (e: any) {
+    } catch (_e) {
+      const e = _e as any;
       console.warn('[Auto-Healer] Proactive session renewal probe failed:', e.message);
     }
   }

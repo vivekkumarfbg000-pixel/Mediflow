@@ -431,10 +431,32 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_system_health_telemetry_pod_id ON public.system_health_telemetry(pod_id);
 CREATE INDEX IF NOT EXISTS idx_system_health_telemetry_subsystem ON public.system_health_telemetry(subsystem);
 
--- Create the autonomous database repair RPC function
 CREATE OR REPLACE FUNCTION public.execute_autonomous_db_repair(p_table TEXT, p_column TEXT, p_type TEXT)
 RETURNS BOOLEAN AS $$
+DECLARE
+    v_clean_type TEXT;
+    v_is_whitelisted BOOLEAN := FALSE;
 BEGIN
+    -- Normalize the column type for comparison by removing whitespace, quotes, and converting to lowercase
+    v_clean_type := lower(replace(replace(replace(p_type, ' ', ''), '''', ''), '"', ''));
+
+    -- Whitelist validation to prevent arbitrary SQL/DDL injections
+    IF (lower(p_table) = 'patient_registry' AND lower(p_column) = 'vitals' AND v_clean_type = 'jsonb') THEN
+        v_is_whitelisted := TRUE;
+    ELSIF (lower(p_table) = 'patient_registry' AND lower(p_column) = 'token_number' AND v_clean_type = 'text') THEN
+        v_is_whitelisted := TRUE;
+    ELSIF (lower(p_table) = 'patient_registry' AND lower(p_column) = 'queue_status' AND (v_clean_type = 'textdefaultawaiting_vitals' OR v_clean_type = 'textdefaultawaiting_vitals::text')) THEN
+        v_is_whitelisted := TRUE;
+    ELSIF (lower(p_table) = 'whatsapp_sessions' AND lower(p_column) = 'auto_healed_flag' AND v_clean_type = 'booleandefaulttrue') THEN
+        v_is_whitelisted := TRUE;
+    ELSIF (lower(p_table) = 'system_health_telemetry' AND lower(p_column) = 'updated_at' AND (v_clean_type = 'timestamptzdefaultnow()' OR v_clean_type = 'timestamptzdefaultcurrent_timestamp')) THEN
+        v_is_whitelisted := TRUE;
+    END IF;
+
+    IF NOT v_is_whitelisted THEN
+        RAISE EXCEPTION 'Security Threat Blocked: Unauthorized database repair parameters: table=%, column=%, type=%. Parameters do not match safe schema manifest whitelists.', p_table, p_column, p_type;
+    END IF;
+
     -- Verify the table exists in public schema
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = p_table AND table_schema = 'public') THEN
         -- Add the missing column if it does not exist
