@@ -195,6 +195,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
   const handleDemoSignUpInstant = async () => {
     setIsSigningInDemo(true);
+    if (typeof window !== 'undefined') {
+      (window as any).__vitalsync_ops_redirect = true;
+    }
     try {
       const authEmail = 'doctor@mediflow.com';
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -241,7 +244,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       };
 
       onAuthSuccess(authData.session, modifiedProfile);
-    } catch (err: any) {
+    } catch (_err) {
+      const err = _err as any;
       console.error('[LandingPage] Instant demo login failed:', err);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -251,6 +255,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         }
       }));
     } finally {
+      if (typeof window !== 'undefined') {
+        (window as any).__vitalsync_ops_redirect = false;
+      }
       setIsSigningInDemo(false);
     }
   };
