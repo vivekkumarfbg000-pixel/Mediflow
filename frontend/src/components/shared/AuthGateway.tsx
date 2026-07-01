@@ -1143,7 +1143,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
     } finally {
       if (typeof window !== 'undefined') {
-        // eslint-disable-next-line react-hooks/immutability
         (window as any).__mediflow_registering = false;
       }
       setLoading(false);
