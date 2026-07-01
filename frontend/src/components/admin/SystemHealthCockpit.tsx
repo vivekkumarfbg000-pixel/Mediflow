@@ -27,6 +27,7 @@ interface IncidentLog {
   error_code: string;
   status: string;
   created_at: string;
+  updated_at?: string;
   execution_logs?: {
     action_taken: string;
     outcome: string;
@@ -67,10 +68,10 @@ export const SystemHealthCockpit: React.FC = () => {
       const { data: dbLogs } = await supabase
         .from('system_health_telemetry')
         .select(`
-          id, subsystem, severity, error_code, status, created_at,
+          id, subsystem, severity, error_code, status, created_at, updated_at,
           execution_logs:self_healing_execution_logs(action_taken, outcome)
         `)
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(10);
 
       if (dbLogs) setIncidents(dbLogs as IncidentLog[]);
@@ -334,7 +335,7 @@ export const SystemHealthCockpit: React.FC = () => {
                             <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="font-extrabold text-xs text-slate-800">{log.error_code}</h4>
                               <span className="text-[9px] font-mono text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded">
-                                {new Date(log.created_at).toLocaleString()}
+                                {new Date(log.updated_at || log.created_at).toLocaleString()}
                               </span>
                             </div>
                             <p className="text-[10px] text-slate-500 font-semibold mt-0.5 uppercase tracking-wide">
