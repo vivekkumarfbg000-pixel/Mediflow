@@ -3,7 +3,7 @@ import { AuthGateway } from './AuthGateway';
 import { BrandMark } from './BrandMark';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, FileText, Loader2, AlertCircle, Mail
+  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -164,7 +164,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [preselectedSignupTab, setPreselectedSignupTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [isSigningInDemo, setIsSigningInDemo] = useState(false);
-
+  const [showBenefitsTour, setShowBenefitsTour] = useState(false);
+  const [tourSlide, setTourSlide] = useState(0);
+  const [calcPatients, setCalcPatients] = useState(25);
+  const [calcFee, setCalcFee] = useState(500);
   // Mouse coordinates state for background parallax effect
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -524,6 +527,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-violet-500/20 cursor-pointer flex items-center gap-2"
             >
               Console Login <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => {
+                setShowBenefitsTour(true);
+                setTourSlide(0);
+              }}
+              className="px-6 py-3.5 rounded-xl bg-white hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] text-slate-800 border border-slate-200/80 font-extrabold text-xs uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-2"
+            >
+              <Presentation className="h-4 w-4 text-indigo-500" /> Interactive Pitch Tour
             </button>
           </div>
 
@@ -990,6 +1002,343 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 Signing you in automatically as <span className="text-indigo-600 font-bold">Dr. Vivek Kumar</span> to showcase the clinical dashboard...
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showBenefitsTour && (
+        <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-lg animate-fade-in text-slate-800 font-sans">
+          {/* Glassmorphic Presentation Container */}
+          <div className="relative w-full max-w-4xl bg-white border border-slate-200/80 rounded-3xl shadow-2xl flex flex-col md:flex-row min-h-[550px] max-h-[90vh] overflow-hidden animate-scale-up">
+            
+            {/* Left Column: Visuals & Illustrations (Cyan-to-Indigo Gradient Background) */}
+            <div className="md:w-5/12 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-white p-8 flex flex-col justify-between relative overflow-hidden shrink-0">
+              <div className="absolute top-[-20%] left-[-20%] w-64 h-64 rounded-full bg-cyan-500/10 blur-[80px] pointer-events-none" />
+              <div className="absolute bottom-[-20%] right-[-20%] w-64 h-64 rounded-full bg-indigo-500/10 blur-[80px] pointer-events-none" />
+              
+              {/* Slide Counter Header */}
+              <div className="z-10 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400">VitalSync Tour</span>
+                <span className="text-xs font-bold font-mono text-slate-400">Slide {tourSlide + 1} of 6</span>
+              </div>
+
+              {/* Dynamic Left Column Graphics based on tourSlide */}
+              <div className="z-10 py-6 my-auto flex flex-col items-center text-center space-y-6">
+                {tourSlide === 0 && (
+                  <>
+                    <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-3xl">
+                      <Layers className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-lg font-extrabold text-white">The Connected Care Loop</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">Connecting your private clinic to local pharmacy and laboratory channels instantly.</p>
+                    </div>
+                  </>
+                )}
+                {tourSlide === 1 && (
+                  <>
+                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-3xl">
+                      <Activity className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-lg font-extrabold text-white">Automated Data Flows</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">Prescriptions route directly to the POS queue, and lab PDF reports embed straight into patient medical history.</p>
+                    </div>
+                  </>
+                )}
+                {tourSlide === 2 && (
+                  <>
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-3xl">
+                      <TrendingUp className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-lg font-extrabold text-white">Dynamic Practice ROI</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">Eliminate referral leakage, increase prescription fulfillment rates, and capture lost revenue automatically.</p>
+                    </div>
+                  </>
+                )}
+                {tourSlide === 3 && (
+                  <>
+                    <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-3xl">
+                      <Award className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-lg font-extrabold text-white">Competitive Superiority</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">Unlike outdated standalone systems, VitalSync is built for collaborative clinical ecosystems.</p>
+                    </div>
+                  </>
+                )}
+                {tourSlide === 4 && (
+                  <>
+                    <div className="p-4 bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded-3xl">
+                      <Shield className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-lg font-extrabold text-white">Postgres Row Isolation</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">Physical-like database isolation rules protect patient records. Fully compliant, ultra-secure.</p>
+                    </div>
+                  </>
+                )}
+                {tourSlide === 5 && (
+                  <>
+                    <div className="p-4 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-3xl animate-pulse">
+                      <Sparkles className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-lg font-extrabold text-white">Ready in 5 Minutes</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">Join the care network today and immediately activate secure connected clinics.</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Progress Tracker dots */}
+              <div className="z-10 flex justify-center gap-1.5 pt-2">
+                {[0, 1, 2, 3, 4, 5].map((idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setTourSlide(idx)}
+                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${tourSlide === idx ? 'w-6 bg-cyan-400' : 'w-1.5 bg-slate-700 hover:bg-slate-500'}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Slide Text, Interactive UI and Nav Buttons */}
+            <div className="md:w-7/12 p-8 flex flex-col justify-between overflow-y-auto max-h-[60vh] md:max-h-full">
+              
+              {/* Close Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Benefits Presentation</span>
+                <button
+                  onClick={() => setShowBenefitsTour(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Dynamic Slides Body */}
+              <div className="my-auto py-6 space-y-5">
+                
+                {tourSlide === 0 && (
+                  <div className="space-y-4 animate-fade-in text-left">
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Eliminate Administrative Friction</h3>
+                    <p className="text-xs text-slate-650 leading-relaxed">
+                      Healthcare is collaborative, but clinic software is typically isolated. VitalSync securely connects your clinic to local pharmacies and laboratories. Prescriptions flow instantly, lab reports deliver straight to your screen, and patient communication is completely automated.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl">
+                        <span className="text-xs font-bold text-indigo-700 block">Seamless Loop</span>
+                        <span className="text-[10px] text-slate-500 mt-1 block">Prescriptions, diagnostics, and bills resolve automatically.</span>
+                      </div>
+                      <div className="p-3.5 bg-cyan-50/50 border border-cyan-100 rounded-2xl">
+                        <span className="text-xs font-bold text-cyan-700 block">Staff Delegation</span>
+                        <span className="text-[10px] text-slate-500 mt-1 block">Custom interfaces allow assistants to handle data entry.</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {tourSlide === 1 && (
+                  <div className="space-y-4 animate-fade-in text-left">
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Zero-Time Prescribing (The Compounder Handoff)</h3>
+                    <p className="text-xs text-slate-650 leading-relaxed">
+                      Doctors don't have time to act as data-entry clerks during a busy OPD. With VitalSync, you do not have to change how you work:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="h-5 w-5 rounded-full bg-cyan-100 text-cyan-700 font-extrabold text-xs flex items-center justify-center shrink-0">A</div>
+                        <div>
+                          <span className="text-xs text-slate-800 font-bold block">The Assistant Handoff</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block">You consult and write or dictate exactly as you always have. Your clinic assistant or compounder enters the details in 30 seconds.</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 font-extrabold text-xs flex items-center justify-center shrink-0">B</div>
+                        <div>
+                          <span className="text-xs text-slate-800 font-bold block">One-Click Clinical Templates</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block">If you prefer typing, use pre-made dosage templates (e.g. "Standard Follow-up") to prescribe in a single click.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {tourSlide === 2 && (
+                  <div className="space-y-4 animate-fade-in text-left">
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Stop Patient & Referral Leakage</h3>
+                    <p className="text-xs text-slate-650 leading-relaxed">
+                      Currently, up to 40% of patients take your paper prescriptions or lab slips to unaligned, random entities, breaking their care continuity and leading to revenue loss.
+                    </p>
+                    <div className="space-y-3">
+                      <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-3">
+                        <Mail className="h-4.5 w-4.5 text-indigo-600 mt-0.5 shrink-0" />
+                        <div>
+                          <span className="text-xs font-bold text-indigo-800">Instant WhatsApp Delivery</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Before the patient even leaves your desk, their digital prescription and lab orders land directly on their WhatsApp.</span>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-xl flex items-start gap-3">
+                        <Sparkles className="h-4.5 w-4.5 text-cyan-600 mt-0.5 shrink-0" />
+                        <div>
+                          <span className="text-xs font-bold text-cyan-800">Direct Partner Pickup Options</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">The patient's WhatsApp message guides them: *"Your medications are prepared at [Your Partner Pharmacy]. Tap to confirm pickup or delivery."* They choose convenience.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {tourSlide === 3 && (
+                  <div className="space-y-4 animate-fade-in text-left">
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Practice ROI & Revenue Calculator</h3>
+                    <p className="text-xs text-slate-650 leading-relaxed">
+                      Slide patient volumes and consultation fees below to see how much referral pharmacy and diagnostic laboratory revenue is automatically recovered.
+                    </p>
+                    
+                    {/* Live Interactive Sliders */}
+                    <div className="space-y-4 bg-slate-50 p-4.5 rounded-2xl border border-slate-200/80">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-slate-700">
+                          <span>Patient Volume / Day</span>
+                          <span className="text-indigo-600">{calcPatients} patients</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="5"
+                          max="80"
+                          step="5"
+                          value={calcPatients}
+                          onChange={(e) => setCalcPatients(Number(e.target.value))}
+                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-slate-700">
+                          <span>Avg Consultation Fee</span>
+                          <span className="text-indigo-600">Rs {calcFee}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="100"
+                          max="2000"
+                          step="50"
+                          value={calcFee}
+                          onChange={(e) => setCalcFee(Number(e.target.value))}
+                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Calculations Display */}
+                      <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-500 block">Est. Revenue Recovered</span>
+                          <span className="text-xs text-slate-600 font-medium">Fulfillment + Referral Gains</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-lg font-black text-emerald-600 block">
+                            +Rs {Math.round(calcPatients * 26 * ((600 * 0.10 * 0.20) + (800 * 0.15 * 0.25)) + (calcPatients * calcFee * 26 * 0.05)).toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[9px] font-bold text-slate-400 block">Per Month Growth</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {tourSlide === 4 && (
+                  <div className="space-y-4 animate-fade-in text-left">
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Mutual Benefits for Pharmacy & Lab Partners</h3>
+                    <p className="text-xs text-slate-650 leading-relaxed">
+                      Your local partners will eagerly onboard with you. The network delivers massive efficiency upgrades for them:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
+                        <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-lg mt-0.5">
+                          <Building2 className="h-4.5 w-4.5" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-800">For Your Partner Pharmacy</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Prescriptions land digitally. No handwriting to decipher. Auto stock-alerts let them prepare alternatives if items are low.</span>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
+                        <div className="p-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 rounded-lg mt-0.5">
+                          <FileText className="h-4.5 w-4.5" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-800">For Your Partner Laboratory</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Technicians drag-and-drop the PDF report. It instantly populates in your doctor screen, eliminating patients carrying physical chits.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {tourSlide === 5 && (
+                  <div className="space-y-4 animate-fade-in text-left">
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Absolute Data Privacy & Security</h3>
+                    <p className="text-xs text-slate-650 leading-relaxed">
+                      Patient medical confidentiality is paramount. VitalSync uses database-level security to ensure your practice remains private and compliant:
+                    </p>
+                    <div className="space-y-3">
+                      <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3">
+                        <Shield className="h-4.5 w-4.5 text-emerald-600 mt-0.5 shrink-0" />
+                        <div>
+                          <span className="text-xs font-bold text-emerald-800">Walled Patient Databases</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Each clinic's patient records are strictly walled off from other practices using database row-isolation rules.</span>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-xl flex items-start gap-3">
+                        <Lock className="h-4.5 w-4.5 text-cyan-600 mt-0.5 shrink-0" />
+                        <div>
+                          <span className="text-xs font-bold text-cyan-800">HIPAA Compliant Transfer</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">All clinical transmissions and uploads are encrypted end-to-end to protect confidentiality.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Navigation Footer */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTourSlide(prev => Math.max(0, prev - 1))}
+                  disabled={tourSlide === 0}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Prev
+                </button>
+                
+                {tourSlide < 5 ? (
+                  <button
+                    type="button"
+                    onClick={() => setTourSlide(prev => Math.min(5, prev + 1))}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-650 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-indigo-500/10 cursor-pointer flex items-center gap-1 shrink-0"
+                  >
+                    Next <ChevronRight className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBenefitsTour(false);
+                      handleGetStartedClick(null as any);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer flex items-center gap-1.5 shrink-0"
+                  >
+                    Get Started <CheckCircle2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}
