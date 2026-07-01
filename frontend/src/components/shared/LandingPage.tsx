@@ -168,6 +168,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [tourSlide, setTourSlide] = useState(0);
   const [calcPatients, setCalcPatients] = useState(25);
   const [calcFee, setCalcFee] = useState(500);
+  const [calcLabFee, setCalcLabFee] = useState(800);
+  const [calcMedSale, setCalcMedSale] = useState(600);
   // Mouse coordinates state for background parallax effect
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1231,6 +1233,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                         />
                       </div>
 
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-slate-700">
+                          <span>Avg Lab Fee / Test</span>
+                          <span className="text-indigo-600">Rs {calcLabFee}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="100"
+                          max="3000"
+                          step="50"
+                          value={calcLabFee}
+                          onChange={(e) => setCalcLabFee(Number(e.target.value))}
+                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-slate-700">
+                          <span>Avg Medicine Sale / Prescription</span>
+                          <span className="text-indigo-600">Rs {calcMedSale}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="100"
+                          max="2500"
+                          step="50"
+                          value={calcMedSale}
+                          onChange={(e) => setCalcMedSale(Number(e.target.value))}
+                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                        />
+                      </div>
+
                       {/* Calculations Display */}
                       <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
                         <div>
@@ -1239,7 +1273,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                         </div>
                         <div className="text-right">
                           <span className="text-lg font-black text-emerald-600 block">
-                            +Rs {Math.round(calcPatients * 26 * ((600 * 0.10 * 0.20) + (800 * 0.15 * 0.25)) + (calcPatients * calcFee * 26 * 0.05)).toLocaleString('en-IN')}
+                            +Rs {Math.round(calcPatients * 26 * ((calcMedSale * 0.10 * 0.20) + (calcLabFee * 0.15 * 0.25)) + (calcPatients * calcFee * 26 * 0.05)).toLocaleString('en-IN')}
                           </span>
                           <span className="text-[9px] font-bold text-slate-400 block">Per Month Growth</span>
                         </div>
