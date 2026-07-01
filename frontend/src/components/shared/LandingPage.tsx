@@ -6,6 +6,7 @@ import {
   X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { StateHealingEngine } from '../../services/autoHealerAgent';
 
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
@@ -203,12 +204,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
     if (typeof window !== 'undefined') {
       (window as any).__vitalsync_ops_redirect = true;
     }
+
+    const safetyTimeout = setTimeout(() => {
+      setIsSigningInDemo(false);
+      if (typeof window !== 'undefined') {
+        (window as any).__vitalsync_ops_redirect = false;
+      }
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Demo Connection Timeout ⚠️',
+          message: 'The connection to Supabase timed out. Initiating auto-healing...',
+          type: 'error'
+        }
+      }));
+      StateHealingEngine.handleException(
+        new Error('LoadingWatchdogException: Public login/handshake request timed out after 6 seconds')
+      );
+    }, 6000);
+
     try {
       const authEmail = 'doctor@mediflow.com';
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password: 'password123'
       });
+
+      clearTimeout(safetyTimeout);
 
       if (authError) {
         if (authError.message.includes('Invalid login credentials') || authError.message.includes('Email not confirmed')) {
@@ -250,6 +271,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
       onAuthSuccess(authData.session, modifiedProfile);
     } catch (_err) {
+      clearTimeout(safetyTimeout);
       const err = _err as any;
       console.error('[LandingPage] Instant demo login failed:', err);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
