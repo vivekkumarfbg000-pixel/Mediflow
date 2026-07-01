@@ -285,22 +285,24 @@ function AppContent({
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
       <main className={`flex-1 pb-32 md:pb-16 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-all duration-300 dense-theme flex flex-col`}>
         {/* Premium Breadcrumb Navigator Bar */}
-        <div className="bg-slate-50/80 backdrop-blur-md border-b border-slate-200/40 px-6 py-3 flex items-center justify-between shrink-0 select-none">
-          <nav className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
-            {getBreadcrumbs().map((item, idx, arr) => (
-              <span key={idx} className="flex items-center gap-1.5">
-                {idx > 0 && <span className="text-slate-300">/</span>}
-                <span className={idx === arr.length - 1 ? 'text-indigo-600 font-extrabold' : 'text-slate-650 hover:text-slate-900 transition-colors'}>
-                  {item.label}
+        {currentRole !== 'doctor' && (
+          <div className="bg-slate-50/80 backdrop-blur-md border-b border-slate-200/40 px-6 py-3 flex items-center justify-between shrink-0 select-none">
+            <nav className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+              {getBreadcrumbs().map((item, idx, arr) => (
+                <span key={idx} className="flex items-center gap-1.5">
+                  {idx > 0 && <span className="text-slate-300">/</span>}
+                  <span className={idx === arr.length - 1 ? 'text-indigo-600 font-extrabold' : 'text-slate-650 hover:text-slate-900 transition-colors'}>
+                    {item.label}
+                  </span>
                 </span>
-              </span>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[9px] font-bold text-emerald-600 font-mono uppercase tracking-wider">Sync Active</span>
+              ))}
+            </nav>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] font-bold text-emerald-600 font-mono uppercase tracking-wider">Sync Active</span>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="animate-fade-in flex-1">
           <ErrorBoundary>

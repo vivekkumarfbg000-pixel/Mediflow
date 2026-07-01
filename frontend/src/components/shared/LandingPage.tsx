@@ -9,6 +9,8 @@ import { supabase } from '../../lib/supabaseClient';
 
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
+import background3DSrc from '../../assets/3d_background.png';
+import backgroundLeftSrc from '../../assets/3d_background_left.png';
 
 interface LandingPageProps {
   onAuthSuccess: (session: any, profile: any) => void;
@@ -79,48 +81,7 @@ const InteractivePlexus3D: React.FC = () => {
     const render = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Pristine bright-white canvas with very subtle radial transition
-      const bgGrad = ctx.createRadialGradient(
-        width * 0.5,
-        height * 0.4,
-        10,
-        width * 0.5,
-        height * 0.5,
-        Math.max(width, height) * 0.7
-      );
-      bgGrad.addColorStop(0, '#ffffff');
-      bgGrad.addColorStop(0.6, '#f8fafc'); // Slate-50 variant
-      bgGrad.addColorStop(1, '#f1f5f9'); // Slate-100 variant
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, width, height);
-
-      // Ambient soft Indigo/Violet radial glow
-      const glow1 = ctx.createRadialGradient(
-        width * 0.15,
-        height * 0.25,
-        0,
-        width * 0.15,
-        height * 0.25,
-        Math.min(width, height) * 0.35
-      );
-      glow1.addColorStop(0, 'rgba(99, 102, 241, 0.05)');
-      glow1.addColorStop(1, 'rgba(99, 102, 241, 0)');
-      ctx.fillStyle = glow1;
-      ctx.fillRect(0, 0, width, height);
-
-      // Ambient soft Cyan radial glow
-      const glow2 = ctx.createRadialGradient(
-        width * 0.85,
-        height * 0.75,
-        0,
-        width * 0.85,
-        height * 0.75,
-        Math.min(width, height) * 0.45
-      );
-      glow2.addColorStop(0, 'rgba(6, 182, 212, 0.04)');
-      glow2.addColorStop(1, 'rgba(6, 182, 212, 0)');
-      ctx.fillStyle = glow2;
-      ctx.fillRect(0, 0, width, height);
+      // Plexus background is transparent to let the CSS Parallax 3D background show through underneath
 
       // Render particle plexus
       particles.forEach((p, idx) => {
@@ -203,6 +164,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [preselectedSignupTab, setPreselectedSignupTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [isSigningInDemo, setIsSigningInDemo] = useState(false);
+
+  // Mouse coordinates state for background parallax effect
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // Normalize values between -0.5 and 0.5
+      const x = (e.clientX / window.innerWidth) - 0.5;
+      const y = (e.clientY / window.innerHeight) - 0.5;
+      setMousePos({ x, y });
+
+      // Update CSS variables for the mouse follow glow spotlight
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const pxX = e.clientX - rect.left;
+        const pxY = e.clientY - rect.top;
+        containerRef.current.style.setProperty('--mouse-x', `${pxX}px`);
+        containerRef.current.style.setProperty('--mouse-y', `${pxY}px`);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
 
 
   const handleDemoSignUpInstant = async () => {
@@ -370,8 +358,56 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen text-slate-800 font-sans relative overflow-x-hidden select-none bg-white">
+    <div ref={containerRef} className="min-h-screen text-slate-800 font-sans relative overflow-x-hidden select-none bg-slate-50">
       
+      {/* 3D Parallax Background Layer */}
+      <div 
+        className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden transition-all duration-300"
+        style={{
+          backgroundImage: `radial-gradient(circle at 50% 40%, #ffffff 0%, #f8fafc 60%, #f1f5f9 100%)`
+        }}
+      >
+        {/* Cursor-following ambient spotlight glow */}
+        <div 
+          className="absolute inset-0 w-full h-full pointer-events-none opacity-80"
+          style={{
+            background: `radial-gradient(circle 450px at var(--mouse-x, 0px) var(--mouse-y, 0px), rgba(99, 102, 241, 0.05) 0%, rgba(6, 182, 212, 0.02) 50%, transparent 100%)`
+          }}
+        />
+
+        {/* Glow elements */}
+        <div className="absolute top-1/4 left-0 w-96 h-96 bg-indigo-500/5 rounded-full filter blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-cyan-500/5 rounded-full filter blur-3xl pointer-events-none" />
+
+        {/* Left Visual Asset with OPPOSITE Mouse Parallax and slow float */}
+        <div 
+          className="absolute left-[-15%] top-[10%] w-[65%] h-[90%] opacity-20 mix-blend-multiply transition-transform duration-700 ease-out pointer-events-none hidden lg:block"
+          style={{
+            transform: `translate3d(${mousePos.x * -18}px, ${mousePos.y * -18}px, 0)`,
+          }}
+        >
+          <img 
+            src={backgroundLeftSrc} 
+            alt="Mediflow 3D Left Ambient Visual Background"
+            className="w-full h-full object-contain object-left-center animate-float-drift-slow"
+          />
+        </div>
+
+        {/* Right Visual Asset with Mouse Parallax and CSS drift */}
+        <div 
+          className="absolute right-[-10%] top-[-5%] w-[75%] h-[110%] opacity-40 mix-blend-multiply transition-transform duration-700 ease-out pointer-events-none hidden lg:block"
+          style={{
+            transform: `translate3d(${mousePos.x * 30}px, ${mousePos.y * 30}px, 0)`,
+          }}
+        >
+          <img 
+            src={background3DSrc} 
+            alt="Mediflow 3D Connected Care Visual Background"
+            className="w-full h-full object-contain object-right-top animate-float-drift"
+          />
+        </div>
+      </div>
+
       {/* 3D Plexus interactive network loop background */}
       <InteractivePlexus3D />
 
@@ -418,6 +454,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         .animate-pulse-flow-delay {
           animation: pulse-flow 2.5s infinite linear;
           animation-delay: 1.25s;
+        }
+        @keyframes float-drift {
+          0% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(1.5deg); }
+          100% { transform: translateY(0px) rotate(0deg); }
+        }
+        .animate-float-drift {
+          animation: float-drift 12s ease-in-out infinite;
+        }
+        @keyframes float-drift-slow {
+          0% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(12px) rotate(-1.2deg); }
+          100% { transform: translateY(0px) rotate(0deg); }
+        }
+        .animate-float-drift-slow {
+          animation: float-drift-slow 16s ease-in-out infinite;
         }
       `}</style>
 
@@ -608,8 +660,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 hover:border-slate-350 hover:shadow-lg transition-all group text-left">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-indigo-400/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
                 <Activity className="h-5 w-5 text-indigo-650" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Doctor Console</h3>
@@ -618,8 +670,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </p>
             </div>
 
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 hover:border-slate-350 hover:shadow-lg transition-all group text-left mt-2 lg:mt-6">
-              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-cyan-400/40 hover:shadow-[0_0_30px_rgba(6,182,212,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left mt-2 lg:mt-6">
+              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
                 <Layers className="h-5 w-5 text-cyan-650" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pathology Lab</h3>
@@ -628,8 +680,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </p>
             </div>
 
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 hover:border-slate-350 hover:shadow-lg transition-all group text-left lg:mt-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-indigo-400/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left lg:mt-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
                 <Users className="h-5 w-5 text-indigo-650" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pharmacy POS</h3>
@@ -638,8 +690,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </p>
             </div>
 
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 hover:border-slate-350 hover:shadow-lg transition-all group text-left mt-1 lg:mt-8">
-              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-cyan-400/40 hover:shadow-[0_0_30px_rgba(6,182,212,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left mt-1 lg:mt-8">
+              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
                 <Terminal className="h-5 w-5 text-cyan-650" />
               </div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Autonomous Healer</h3>

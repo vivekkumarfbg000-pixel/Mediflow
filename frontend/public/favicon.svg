@@ -13,49 +13,22 @@
       <stop offset="1" stop-color="#1E293B" />
     </linearGradient>
 
-    {/* Cyan 3D Sphere Radial Gradient */}
-    <radialGradient id="mediflow-favicon-cyan-grad" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#E0F7FA" />
-      <stop offset="30%" stop-color="#26C6DA" />
-      <stop offset="70%" stop-color="#0097A7" />
-      <stop offset="100%" stop-color="#006064" />
-    </radialGradient>
+    {/* VitalSync Brand Teal Gradient */}
+    <linearGradient id="mediflow-brand-teal-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0EA5E9" />
+      <stop offset="100%" stop-color="#0D9488" />
+    </linearGradient>
 
-    {/* Gold 3D Sphere Radial Gradient */}
-    <radialGradient id="mediflow-favicon-gold-grad" cx="35%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#FFFDE7" />
-      <stop offset="35%" stop-color="#FFD54F" />
-      <stop offset="75%" stop-color="#FF8F00" />
-      <stop offset="100%" stop-color="#E65100" />
-    </radialGradient>
+    {/* VitalSync Brand Green Gradient */}
+    <linearGradient id="mediflow-brand-green-grad" x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
 
-    {/* Glowing filters for the spheres */}
-    <filter id="mediflow-favicon-cyan-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="3.5" result="blur1" />
-      <feColorMatrix type="matrix" values="
-        0 0 0 0.08 0
-        0 0 0 0.82 0
-        0 0 0 0.88 0
-        0 0 0 0.90 0
-      " in="blur1" result="colorBlur" />
-      <feMerge>
-        <feMergeNode in="colorBlur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-
-    <filter id="mediflow-favicon-gold-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.5" result="blur1" />
-      <feColorMatrix type="matrix" values="
-        0 0 0 0.98 0
-        0 0 0 0.70 0
-        0 0 0 0.08 0
-        0 0 0 0.80 0
-      " in="blur1" result="colorBlur" />
-      <feMerge>
-        <feMergeNode in="colorBlur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
+    {/* Glowing filter for the ECG and Care Loop */}
+    <filter id="mediflow-brand-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
@@ -63,96 +36,37 @@
   <rect x="2" y="2" width="96" height="96" rx="28" fill="url(#mediflow-favicon-bg)" stroke="#1E293B" stroke-width="1.5" />
   <rect x="3" y="3" width="94" height="94" rx="27" fill="white" fill-opacity="0.02" />
 
-  {/* NEON GLOW BACKING PATHS (renders underneath white lines) */}
-  <path
-    d="M 40 82 L 40 68 Q 40 60 32 60 L 28 60 A 10 10 0 0 1 28 40 L 32 40 Q 40 40 40 32 L 40 28 A 10 10 0 0 1 60 28 L 60 32 Q 60 40 68 40 L 72 40 A 10 10 0 0 1 72 60 L 68 60 Q 60 60 60 68 L 60 82"
-    stroke="#06B6D4"
-    stroke-width="6"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-opacity="0.3"
-    filter="url(#mediflow-favicon-cyan-glow)"
-  />
-  <path
-    d="M 50 18 L 50 38 Q 50 50 42 50 L 36 50 L 34 44 L 32 56 L 30 50 L 18 50"
-    stroke="#06B6D4"
-    stroke-width="5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-opacity="0.25"
-    filter="url(#mediflow-favicon-cyan-glow)"
-  />
-  <path
-    d="M 82 50 L 70 50 L 68 44 L 66 56 L 64 50 L 58 50 Q 50 50 50 62 L 50 82"
-    stroke="#06B6D4"
-    stroke-width="5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-opacity="0.25"
-    filter="url(#mediflow-favicon-cyan-glow)"
-  />
+  {/* ── GEOMETRICALLY BALANCED EMBLEM INSIDE CONTAINER ── */}
+  <g transform="translate(10, 8) scale(0.8)">
+    {/* Left Shield Half (Green Gradient) */}
+    <path
+      d="M 50 84 C 26 80 18 55 18 35 L 18 18 C 30 18 42 22 50 24 L 50 84 Z"
+      fill="url(#mediflow-brand-green-grad)"
+    />
 
-  {/* Curved outer medical cross outline */}
-  <path
-    d="M 40 82 L 40 68 Q 40 60 32 60 L 28 60 A 10 10 0 0 1 28 40 L 32 40 Q 40 40 40 32 L 40 28 A 10 10 0 0 1 60 28 L 60 32 Q 60 40 68 40 L 72 40 A 10 10 0 0 1 72 60 L 68 60 Q 60 60 60 68 L 60 82"
-    stroke="#FFFFFF"
-    stroke-width="3.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-opacity="0.95"
-  />
+    {/* Right Shield Half (Teal Gradient) */}
+    <path
+      d="M 50 84 C 74 80 82 55 82 35 L 82 18 C 70 18 58 22 50 24 L 50 84 Z"
+      fill="url(#mediflow-brand-teal-grad)"
+    />
 
-  {/* Path 1: Top-to-Left ECG Connection */}
-  <path
-    d="M 50 18 L 50 38 Q 50 50 42 50 L 36 50 L 34 44 L 32 56 L 30 50 L 18 50"
-    stroke="#FFFFFF"
-    stroke-width="2.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-
-  {/* Path 2: Right-to-Bottom ECG Connection */}
-  <path
-    d="M 82 50 L 70 50 L 68 44 L 66 56 L 64 50 L 58 50 Q 50 50 50 62 L 50 82"
-    stroke="#FFFFFF"
-    stroke-width="2.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-
-  {/* Glowing Cyan Sphere: Top Peak */}
-  <circle
-    cx="50"
-    cy="18"
-    r="4.5"
-    fill="url(#mediflow-favicon-cyan-grad)"
-    filter="url(#mediflow-favicon-cyan-glow)"
-  />
-
-  {/* Glowing Cyan Sphere: Left Peak */}
-  <circle
-    cx="18"
-    cy="50"
-    r="4.5"
-    fill="url(#mediflow-favicon-cyan-grad)"
-    filter="url(#mediflow-favicon-cyan-glow)"
-  />
-
-  {/* Glowing Cyan Sphere: Right Peak */}
-  <circle
-    cx="82"
-    cy="50"
-    r="4.5"
-    fill="url(#mediflow-favicon-cyan-grad)"
-    filter="url(#mediflow-favicon-cyan-glow)"
-  />
-
-  {/* Glowing Gold Sphere: Central Node */}
-  <circle
-    cx="50"
-    cy="50"
-    r="3.5"
-    fill="url(#mediflow-favicon-gold-grad)"
-    filter="url(#mediflow-favicon-gold-glow)"
-  />
+    {/* Center: ECG heartbeat pulse running from x=14 to x=86, protruding slightly without nodes */}
+    {/* Glow shadow layer */}
+    <path
+      d="M 14 52 L 36 52 L 40 66 L 45 22 L 51 80 L 56 36 L 60 56 L 64 52 L 86 52"
+      stroke="#0EA5E9"
+      stroke-width="8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      opacity="0.15"
+      filter="url(#mediflow-brand-glow)"
+    />
+    <path
+      d="M 14 52 L 36 52 L 40 66 L 45 22 L 51 80 L 56 36 L 60 56 L 64 52 L 86 52"
+      stroke="#FFFFFF"
+      stroke-width="3.2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
 </svg>

@@ -10,7 +10,7 @@ export function BrandMark({ size = 40, className = '', title = 'VitalSync' }: Br
   const instanceId = useId().replace(/:/g, '');
   const tealGradId = `vitalsync-brand-teal-grad-${instanceId}`;
   const greenGradId = `vitalsync-brand-green-grad-${instanceId}`;
-  const maskId = `vitalsync-brand-mask-${instanceId}`;
+  const shadowId = `vitalsync-brand-shadow-${instanceId}`;
 
   return (
     <svg
@@ -27,85 +27,45 @@ export function BrandMark({ size = 40, className = '', title = 'VitalSync' }: Br
       <defs>
         {/* VitalSync Brand Teal Gradient (Teal to Deep Teal) */}
         <linearGradient id={tealGradId} x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1E8C9E" />
-          <stop offset="100%" stopColor="#106675" />
+          <stop offset="0%" stopColor="#0EA5E9" />
+          <stop offset="100%" stopColor="#0D9488" />
         </linearGradient>
 
         {/* VitalSync Brand Green Gradient (Light Green to Leaf Green) */}
         <linearGradient id={greenGradId} x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#7AD38D" />
-          <stop offset="100%" stopColor="#4CAF50" />
+          <stop offset="0%" stopColor="#34D399" />
+          <stop offset="100%" stopColor="#059669" />
         </linearGradient>
 
-        {/* Premium Mask to create a transparent cut-out leaf vein */}
-        <mask id={maskId}>
-          {/* Base white color keeps everything visible */}
-          <rect x="0" y="0" width="100" height="100" fill="#FFFFFF" />
-          {/* Black stroke cuts out the leaf vein path cleanly down the leaf's center line */}
-          <path
-            d="M 20 78 C 19 58 19 38 20 20"
-            stroke="#000000"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            fill="none"
-          />
-        </mask>
+        {/* Premium Drop Shadow for the ECG Line */}
+        <filter id={shadowId} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2.5" stdDeviation="1.8" floodColor="#0F172A" floodOpacity="0.22" />
+        </filter>
       </defs>
 
-      {/* ── MATHEMatically CENTERED VECTOR EMBLEM (LEAF + ECG + ARROWS) ── */}
+      {/* ── GEOMETRICALLY BALANCED VECTOR EMBLEM (SOLID HERALDIC SHIELD + ECG) ── */}
       <g transform="translate(1, 1) scale(0.98)">
-        
-        {/* Left Side: Symmetrical, elegant leaf shape with centered cut-out vein */}
+        {/* Left Shield Half (Green Gradient) */}
         <path
-          d="M 20 80 C 4 60 4 38 20 18 C 28 38 28 60 20 80 Z"
+          d="M 50 84 C 26 80 18 55 18 35 L 18 18 C 30 18 42 22 50 24 L 50 84 Z"
           fill={`url(#${greenGradId})`}
-          mask={`url(#${maskId})`}
         />
 
-        {/* Center: Clean integrated ECG heartbeat pulse, starting inside leaf body */}
+        {/* Right Shield Half (Teal Gradient) */}
         <path
-          d="M 22 50 L 30 50 L 34 26 L 39 72 L 44 34 L 49 58 L 53 44 L 57 48 L 65 48"
-          stroke={`url(#${tealGradId})`}
-          strokeWidth="4.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          d="M 50 84 C 74 80 82 55 82 35 L 82 18 C 70 18 58 22 50 24 L 50 84 Z"
+          fill={`url(#${tealGradId})`}
         />
 
-        {/* Concentric Sweeps at the bottom-right forming the unified care loop */}
-        {/* Swoosh 1 (Inner Teal Curve) */}
+        {/* Center: ECG heartbeat pulse running from x=14 to x=86, protruding slightly without nodes */}
+        {/* Active White ECG Line with Drop Shadow */}
         <path
-          d="M 20 80 C 34 94 58 92 68 76 C 74 68 76 58 76 48"
-          stroke={`url(#${tealGradId})`}
-          strokeWidth="4.8"
-          strokeLinecap="round"
-          fill="none"
-        />
-        {/* Arrow head 1 (Teal) - Aligned up-right with the curve tangent */}
-        <path
-          d="M 69 52 L 76 48 L 79 56"
-          stroke={`url(#${tealGradId})`}
-          strokeWidth="3.8"
+          d="M 14 52 L 36 52 L 40 66 L 45 22 L 51 80 L 56 36 L 60 56 L 64 52 L 86 52"
+          stroke="#FFFFFF"
+          strokeWidth="3.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          fill="none"
-        />
-
-        {/* Swoosh 2 (Outer Green Curve) */}
-        <path
-          d="M 16 84 C 32 102 64 100 78 82 C 85 73 87 62 87 52"
-          stroke={`url(#${greenGradId})`}
-          strokeWidth="4.8"
-          strokeLinecap="round"
-          fill="none"
-        />
-        {/* Arrow head 2 (Green) - Aligned up-right with the curve tangent */}
-        <path
-          d="M 80 56 L 87 52 L 90 60"
-          stroke={`url(#${greenGradId})`}
-          strokeWidth="3.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
+          filter={`url(#${shadowId})`}
         />
       </g>
     </svg>
