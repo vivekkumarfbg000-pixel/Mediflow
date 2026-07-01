@@ -836,7 +836,7 @@ export default function App() {
   const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
 
   // 1. Landing Page Domain Routing
-  if (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') {
+  if ((hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') && !session) {
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
