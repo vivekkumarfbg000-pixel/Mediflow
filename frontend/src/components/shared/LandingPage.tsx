@@ -1021,9 +1021,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           <div className="flex flex-col items-center space-y-6 text-center">
             <Loader2 className="h-12 w-12 text-indigo-500 animate-spin" />
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-slate-800 tracking-wide">Initializing Demo Sandbox</h3>
-              <p className="text-xs text-slate-500 max-w-sm">
-                Signing you in automatically as <span className="text-indigo-600 font-bold">Dr. Vivek Kumar</span> to showcase the clinical dashboard...
+              <h3 className="text-lg font-bold text-slate-100 tracking-wide">Initializing Demo Sandbox</h3>
+              <p className="text-xs text-slate-300 max-w-sm">
+                Signing you in automatically as <span className="text-indigo-450 font-extrabold">Dr. Vivek Kumar</span> to showcase the clinical dashboard...
               </p>
             </div>
           </div>
