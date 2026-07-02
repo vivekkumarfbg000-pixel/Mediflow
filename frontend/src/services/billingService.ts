@@ -3,17 +3,19 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop } from '../types';
+import { getPodContext } from './podContext';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
     return load<UnifiedInvoice[]>('unified_invoices', []);
   }
 
-  static clearInvoice(invoiceId: string): void {
+  static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): void {
     const invoices = this.getUnifiedInvoices();
     const idx = invoices.findIndex(i => i.id === invoiceId);
     if (idx !== -1) {
       invoices[idx].paymentStatus = 'cleared';
+      invoices[idx].paymentMethod = paymentMethod;
       save('unified_invoices', invoices);
 
       const inv = invoices[idx];
@@ -158,11 +160,15 @@ export class BillingService {
     };
     this.saveAppointment(newAppt);
 
+    // Fetch dynamic consultation fee from active SOP config (default: 450)
+    const activeSop = this.getActiveSop();
+    const consultFee = activeSop?.extractedConfig?.doctor_fee ?? 450;
+
     const newInvoice: Invoice = {
       id: crypto.randomUUID(),
       appointmentId: apptId,
       type: 'consult',
-      amount: 450,
+      amount: consultFee,
       status: 'unpaid',
       createdAt: new Date().toISOString()
     };
@@ -174,7 +180,7 @@ export class BillingService {
       const sessions = load<any[]>('whatsapp_sessions', []);
       const existing = sessions.find(s => s.patientPhone === patient.phone);
       if (existing) {
-        const text = `🟢 *Welcome to Mediflow Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹450* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=mediflow@icici&pn=Mediflow&am=450.00_`;
+        const text = `🟢 *Welcome to VitalSync Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹${consultFee}* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${consultFee}.00_`;
         const currentHistory = existing.sessionData.chatHistory || [];
         currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
         existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
@@ -187,17 +193,34 @@ export class BillingService {
     }
   }
 
-  static settleSaaSInvoice(invoiceId: string): void {
-    this.recordInvoicePayment(invoiceId);
+  static async settleSaaSInvoice(invoiceId: string): Promise<void> {
+    await this.recordInvoicePayment(invoiceId);
     notify();
   }
 
-  static createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number): void {
+  static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     
     // Check if splits already exist for this invoiceId
     const exists = ledgerEntries.some(l => l.invoiceId === invoiceId);
     if (exists) return;
+
+    // Fetch platform_fee_percent for this pod from Supabase
+    let platformFeePercent = 2.50; // Default fallback
+    const ctx = getPodContext();
+    const podId = ctx.podId;
+    try {
+      const { data: podData } = await supabase
+        .from('pods')
+        .select('platform_fee_percent')
+        .eq('id', podId)
+        .single();
+      if (podData && podData.platform_fee_percent !== null && podData.platform_fee_percent !== undefined) {
+        platformFeePercent = parseFloat(podData.platform_fee_percent.toString());
+      }
+    } catch (e) {
+      console.warn('[BillingService] Failed to load pod fee, using 2.5% default fallback:', e);
+    }
 
     // Fetch active SOP or use defaults for doctor/lab splits
     const activeSop = this.getActiveSop();
@@ -205,11 +228,13 @@ export class BillingService {
     const splitLab = activeSop?.extractedConfig?.splits?.lab ?? 57;
 
     const listToSave: FinancialLedgerEntry[] = [];
+    let platformAmt = 0;
+    const isCash = paymentMethod === 'cash';
 
     if (type === 'consult') {
-      const splitPlat = 3; // Hardcoded platform fee split (3%)
-      const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-      const docAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
+      const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
+      platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
+      const docAmt = parseFloat((amount - platformAmt).toFixed(2));
 
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
@@ -240,10 +265,12 @@ export class BillingService {
       };
       listToSave.push(platformLedger, docLedger);
     } else if (type === 'lab') {
-      const splitPlat = 5; // Hardcoded platform fee split (5%)
-      const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-      const docAmt = parseFloat((amount * (splitDoc / 100)).toFixed(2));
-      const labAmt = parseFloat((amount * (splitLab / 100)).toFixed(2));
+      const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
+      platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
+      
+      const remainingAmt = amount - platformAmt;
+      const docAmt = parseFloat((remainingAmt * (splitDoc / (splitDoc + splitLab))).toFixed(2));
+      const labAmt = parseFloat((remainingAmt - docAmt).toFixed(2));
 
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
@@ -288,9 +315,9 @@ export class BillingService {
       };
       listToSave.push(platformLedger, docLedger, labLedger);
     } else if (type === 'pharmacy') {
-      const splitPlat = 5; // Hardcoded platform fee split (5%)
-      const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-      const pharmaAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
+      const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
+      platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
+      const pharmaAmt = parseFloat((amount - platformAmt).toFixed(2));
 
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
@@ -326,7 +353,7 @@ export class BillingService {
       ledgerEntries.unshift(...listToSave);
       save('financial_ledgers', ledgerEntries);
 
-      // Sync splits to Supabase
+      // Sync splits to Supabase with the new database columns
       const dbEntries = listToSave.map(s => ({
         invoice_id: s.invoiceId.length === 36 ? s.invoiceId : null,
         source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
@@ -338,16 +365,32 @@ export class BillingService {
         commission_rate: Math.round(s.commissionRate * 100),
         net_payout: s.netPayout,
         payment_status: 'cleared',
-        settled_at: new Date().toISOString()
+        settled_at: new Date().toISOString(),
+        platform_fee_deducted: platformAmt,
+        gateway_disbursed_net: isCash ? 0.00 : s.netPayout,
+        payment_method: paymentMethod
       }));
 
       supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {
         if (error) console.error('Error inserting cash ledger splits in Supabase:', error);
       });
+
+      // Update platform fee and payment method in unified_invoices in Supabase
+      supabase.from('unified_invoices').update({
+        platform_fee: platformAmt,
+        payment_method: paymentMethod
+      }).eq('id', invoiceId).then(({ error }) => {
+        if (error) console.error('Error updating platform_fee in unified_invoices:', error);
+      });
+
+      // Update lifetime revenue for this pod in Supabase
+      supabase.rpc('accumulate_platform_revenue', { p_pod_id: podId, p_amount: platformAmt, p_is_cash: isCash }).then(({ error }) => {
+        if (error) console.error('Error updating pod platform revenue in Supabase:', error);
+      });
     }
   }
 
-  static recordInvoicePayment(invoiceId: string): void {
+  static async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
     const saasInvoices = this.getInvoices();
     const saasInv = saasInvoices.find(i => i.id === invoiceId);
     
@@ -486,22 +529,22 @@ export class BillingService {
     }
 
     if (resolvedInvoice) {
-      this.createLedgerSplitsForInvoiceFields(invoiceId, apptId, type, amount);
+      await this.createLedgerSplitsForInvoiceFields(invoiceId, apptId, type, amount, paymentMethod);
     }
   }
 
-  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true): Promise<void> {
+  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
     const { error } = await supabase.from('unified_invoices')
-      .update({ payment_status: 'paid' })
+      .update({ payment_status: 'paid', payment_method: paymentMethod })
       .eq('id', invoiceId);
     if (error) {
       console.error('[Mediflow API] markInvoicePaid error:', error);
       throw error;
     }
-    writeAuditLog('INVOICE_PAID', { invoiceId }, invoiceId);
+    writeAuditLog('INVOICE_PAID', { invoiceId, paymentMethod }, invoiceId);
     
     // Process local status transitions and create ledger splits
-    this.recordInvoicePayment(invoiceId);
+    await this.recordInvoicePayment(invoiceId, paymentMethod);
 
     if (sendWhatsApp) {
       const { data: inv } = await supabase.from('unified_invoices')
@@ -549,11 +592,25 @@ export class BillingService {
     };
     this.savePrescription(rx);
     
+    // Sum prices of extracted tests dynamically from the doctor's active SOP config
+    const activeSop = this.getActiveSop();
+    const testPrices = activeSop?.extractedConfig?.test_prices || {};
+    let labTotal = 0;
+    
+    if (rx.extractedTests) {
+      rx.extractedTests.forEach(testName => {
+        const loinc = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase() === testName.toLowerCase())?.loincCode || 'unknown';
+        const price = testPrices[loinc] ?? testPrices[testName] ?? 300; // default to 300 if not specified
+        labTotal += Number(price);
+      });
+    }
+    if (labTotal === 0) labTotal = 600; // fallback default if no tests
+    
     const labInvoice: Invoice = {
       id: crypto.randomUUID(),
       appointmentId,
       type: 'lab',
-      amount: 600,
+      amount: labTotal,
       status: 'unpaid',
       createdAt: new Date().toISOString()
     };

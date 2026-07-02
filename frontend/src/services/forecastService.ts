@@ -4,6 +4,7 @@ import { PharmacyService } from './pharmacyService';
 import { PatientService } from './patientService';
 import { TelemetryService } from './telemetry';
 import { MASTER_TEST_CATALOG } from './labService';
+import { getPodContext } from './podContext';
 import type { SeasonalForecast, DiagnosticTest } from '../types';
 
 export class ForecastService {
@@ -662,6 +663,44 @@ Dhyan rakhein aur time par medicine lein!`;
       };
     }
 
+    // Fetch active pod parameters for budget enforcement
+    let isVerified = false;
+    let dailySpend = 0;
+    let dailyBudget = 500;
+    const ctx = getPodContext();
+    const podId = ctx.podId;
+    
+    try {
+      const { data: podData } = await supabase
+        .from('pods')
+        .select('is_verified_for_billing, daily_spend, daily_cost_budget')
+        .eq('id', podId)
+        .single();
+      if (podData) {
+        isVerified = !!podData.is_verified_for_billing;
+        dailySpend = Number(podData.daily_spend || 0);
+        dailyBudget = Number(podData.daily_cost_budget ?? 500);
+      }
+    } catch (e) {
+      console.warn('[ForecastService] Failed to load pod verification, using defaults:', e);
+    }
+
+    // Cost limits only apply to unverified accounts
+    if (!isVerified) {
+      if (dailySpend >= dailyBudget) {
+        throw new Error('AI Scribing daily budget exceeded for unverified account. Please contact SaaS Administrator to activate payment splits.');
+      }
+    }
+
+    // Select dynamic model based on verification status and cost levels
+    let model = 'gemini-2.5-pro';
+    const pct = (dailySpend / dailyBudget) * 100;
+    if (!isVerified) {
+      if (pct >= 85) {
+        model = 'gemini-2.5-flash'; // graceful degradation
+      }
+    }
+
     try {
       let base64Data = '';
       let mimeType = 'image/png';
@@ -729,7 +768,7 @@ If no prescription image could be loaded or fetched, generate a highly realistic
         });
       }
 
-      const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

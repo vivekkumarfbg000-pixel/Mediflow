@@ -1447,8 +1447,8 @@ class MediflowApiService {
     return BillingService.getUnifiedInvoices();
   }
 
-  clearInvoice(invoiceId: string): void {
-    BillingService.clearInvoice(invoiceId);
+  clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): void {
+    BillingService.clearInvoice(invoiceId, paymentMethod);
     this.notify();
   }
 

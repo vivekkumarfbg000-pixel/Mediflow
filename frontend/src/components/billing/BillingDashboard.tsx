@@ -437,7 +437,7 @@ export const BillingDashboard: React.FC = () => {
                           <Coins className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="font-bold block text-slate-800 text-xs">Mediflow SaaS Platform Fee</span>
+                          <span className="font-bold block text-slate-800 text-xs">VitalSync SaaS Platform Fee</span>
                           <span className="text-[9px] text-slate-400 mt-0.5 font-mono">SYSTEM_ESCROW_PROTECT</span>
                         </div>
                       </div>
@@ -578,7 +578,7 @@ export const BillingDashboard: React.FC = () => {
                         { label: 'Doctor Consulting share', val: selectedInvoice.doctorFee, color: 'from-purple-500 to-indigo-600', pct: Math.round((Number(selectedInvoice.doctorFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
                         { label: 'Pathology Lab testing share', val: selectedInvoice.labFee, color: 'from-blue-500 to-cyan-600', pct: Math.round((Number(selectedInvoice.labFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
                         { label: 'Pharmacy Medicine checkout share', val: selectedInvoice.pharmacyFee, color: 'from-emerald-500 to-teal-600', pct: Math.round((Number(selectedInvoice.pharmacyFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
-                        { label: 'Mediflow SaaS Platform fee (5%)', val: selectedInvoice.platformFee, color: 'from-rose-500 to-red-600', pct: Math.round((Number(selectedInvoice.platformFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 }
+                        { label: 'VitalSync SaaS Platform Fee', val: selectedInvoice.platformFee, color: 'from-rose-500 to-red-600', pct: Math.round((Number(selectedInvoice.platformFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 }
                       ].map((item, i) => (
                         <div key={i} className="space-y-1">
                           <div className="flex justify-between text-[10px] font-bold text-slate-600">
@@ -705,7 +705,7 @@ export const BillingDashboard: React.FC = () => {
                       
                       {/* Tiny center branding */}
                       <div className="absolute inset-0 m-auto w-9 h-9 rounded-lg bg-white border border-slate-200 shadow-md flex items-center justify-center font-black text-[8px] text-indigo-600 tracking-tighter">
-                        M-FLOW
+                        V-SYNC
                       </div>
                     </div>
                   </div>

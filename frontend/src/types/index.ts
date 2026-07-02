@@ -189,6 +189,7 @@ export interface UnifiedInvoice {
   totalAmount: number;
   upiQrPayload: string;
   paymentStatus: 'pending' | 'cleared' | 'disputed';
+  paymentMethod?: string;
   createdAt: string;
 }
 

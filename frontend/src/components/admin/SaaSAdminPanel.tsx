@@ -61,6 +61,10 @@ interface PodInfo {
   created_at: string;
   daily_cost_budget: number;
   daily_spend: number;
+  platform_fee_percent?: number;
+  lifetime_platform_revenue?: number;
+  pending_cash_balance?: number;
+  is_verified_for_billing?: boolean;
 }
 
 interface RlsComplianceAudit {
@@ -349,6 +353,144 @@ export const SaaSAdminPanel: React.FC = () => {
       }));
     } finally {
       setUpdatingBudgetPodId(null);
+    }
+  };
+
+  // Toggle Pod Billing Verification
+  const togglePodBillingVerification = async (podId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    try {
+      const { error } = await supabase
+        .from('pods')
+        .update({ is_verified_for_billing: newStatus })
+        .eq('id', podId);
+      
+      if (error) throw error;
+      
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: newStatus ? 'Clinic Billing Active 💸' : 'Clinic Billing Suspended 🛑',
+          message: newStatus ? 'Clinic has been verified and revenue split routing is live.' : 'Revenue splits halted. Clinic transactions suspended.',
+          type: 'success'
+        }
+      }));
+      
+      // Refresh metrics list
+      fetchSaaSMetrics();
+    } catch (err: any) {
+      console.error('[SaaS Admin] Failed to toggle billing status:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Operation Failed ⚠️',
+          message: err.message || 'Failed to update billing verification status.',
+          type: 'error'
+        }
+      }));
+    }
+  };
+
+  // Update Pod Platform Fee Percent
+  const updatePodPlatformFee = async (podId: string, currentFee: number) => {
+    const feeStr = prompt('Enter new platform revenue share percentage (e.g. 2.5):', currentFee.toString());
+    if (feeStr === null) return; // User cancelled
+    
+    const newFee = parseFloat(feeStr);
+    if (isNaN(newFee) || newFee < 0 || newFee > 100) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Invalid Percentage ⚠️',
+          message: 'Please enter a percentage value between 0 and 100.',
+          type: 'error'
+        }
+      }));
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('pods')
+        .update({ platform_fee_percent: newFee })
+        .eq('id', podId);
+      
+      if (error) throw error;
+      
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Platform Fee Updated 🎯',
+          message: `Revenue share set to ${newFee}% for this clinic pod.`,
+          type: 'success'
+        }
+      }));
+      
+      // Refresh metrics list
+      fetchSaaSMetrics();
+    } catch (err: any) {
+      console.error('[SaaS Admin] Failed to update platform fee:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Fee Save Failed ⚠️',
+          message: err.message || 'Failed to update platform fee percentage.',
+          type: 'error'
+        }
+      }));
+    }
+  };
+
+  // Send WhatsApp Billing Reminder for Cash Balance
+  const sendCashBillingReminder = async (podId: string, clinicName: string, pendingCash: number) => {
+    if (pendingCash <= 0) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'No Balance Due',
+          message: `${clinicName} has ₹0.00 outstanding cash balance.`,
+          type: 'info'
+        }
+      }));
+      return;
+    }
+
+    // Simulate sending WhatsApp billing reminder to clinic owner via messaging system
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Billing Reminder Sent 💬',
+        message: `Sent WhatsApp invoice reminder for ₹${pendingCash.toFixed(2)} to ${clinicName} owner.`,
+        type: 'success'
+      }
+    }));
+  };
+
+  // Settle Outstanding Cash Balance
+  const settleCashBalance = async (podId: string, clinicName: string) => {
+    const confirmSettle = window.confirm(`Are you sure you want to settle the outstanding cash balance for ${clinicName}?`);
+    if (!confirmSettle) return;
+
+    try {
+      const { error } = await supabase
+        .from('pods')
+        .update({ pending_cash_balance: 0.00 })
+        .eq('id', podId);
+      
+      if (error) throw error;
+      
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Cash Balance Cleared 🤝',
+          message: `Outstanding platform fee balance cleared for ${clinicName}.`,
+          type: 'success'
+        }
+      }));
+
+      // Refresh metrics list
+      fetchSaaSMetrics();
+    } catch (err: any) {
+      console.error('[SaaS Admin] Failed to settle cash balance:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Settlement Failed ⚠️',
+          message: err.message || 'Failed to clear outstanding cash balance.',
+          type: 'error'
+        }
+      }));
     }
   };
 
@@ -740,7 +882,7 @@ export const SaaSAdminPanel: React.FC = () => {
 
                 {/* Active Pods List */}
                 <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-3">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Active Tenant Pods</h4>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Active Tenant Pods (Revenue Share Configuration)</h4>
                   <div className="overflow-x-auto responsive-table-container">
                     <table className="w-full text-left text-xs font-medium text-slate-600">
                       <thead>
@@ -748,8 +890,12 @@ export const SaaSAdminPanel: React.FC = () => {
                           <th className="pb-2">Clinic Code</th>
                           <th className="pb-2">Name</th>
                           <th className="pb-2">Location</th>
-                          <th className="pb-2">Status</th>
-                          <th className="pb-2">Onboarded At</th>
+                          <th className="pb-2">Platform Fee</th>
+                          <th className="pb-2">Lifetime Rev</th>
+                          <th className="pb-2">Pending Cash</th>
+                          <th className="pb-2">Billing Status</th>
+                          <th className="pb-2">Onboarded</th>
+                          <th className="pb-2 pr-3 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -758,12 +904,61 @@ export const SaaSAdminPanel: React.FC = () => {
                             <td className="py-3 font-mono font-bold text-indigo-600">{pod.clinic_code}</td>
                             <td className="py-3 font-bold text-slate-800">{pod.name}</td>
                             <td className="py-3 text-slate-550">{pod.location || 'Patna, Bihar'}</td>
+                            <td className="py-3 font-mono font-bold text-slate-700">
+                              {pod.platform_fee_percent !== undefined ? `${pod.platform_fee_percent}%` : '2.5%'}
+                            </td>
+                            <td className="py-3 font-mono font-bold text-emerald-600">
+                              ₹{pod.lifetime_platform_revenue !== undefined ? Number(pod.lifetime_platform_revenue).toFixed(2) : '0.00'}
+                            </td>
+                            <td className="py-3 font-mono font-bold text-rose-600">
+                              ₹{pod.pending_cash_balance !== undefined ? Number(pod.pending_cash_balance).toFixed(2) : '0.00'}
+                            </td>
                             <td className="py-3">
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${pod.is_active ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-500'}`}>
-                                {pod.is_active ? 'Active' : 'Halted'}
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                pod.is_verified_for_billing 
+                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                                  : 'bg-rose-50 text-rose-600 border border-rose-100 animate-pulse'
+                              }`}>
+                                {pod.is_verified_for_billing ? 'Verified' : 'Pending Verification'}
                               </span>
                             </td>
                             <td className="py-3 text-slate-400 font-mono">{new Date(pod.created_at).toLocaleDateString()}</td>
+                            <td className="py-3 pr-3 text-right space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => togglePodBillingVerification(pod.id, !!pod.is_verified_for_billing)}
+                                className={`text-[10px] font-black uppercase cursor-pointer ${
+                                  pod.is_verified_for_billing ? 'text-rose-600 hover:text-rose-800' : 'text-emerald-600 hover:text-emerald-800'
+                                }`}
+                              >
+                                {pod.is_verified_for_billing ? 'Deactivate' : 'Verify Billing'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updatePodPlatformFee(pod.id, pod.platform_fee_percent || 2.5)}
+                                className="text-[10px] font-black text-slate-500 hover:text-slate-700 uppercase cursor-pointer"
+                              >
+                                Set Fee
+                              </button>
+                              {pod.pending_cash_balance && Number(pod.pending_cash_balance) > 0 ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => sendCashBillingReminder(pod.id, pod.name, Number(pod.pending_cash_balance))}
+                                    className="text-[10px] font-black text-amber-600 hover:text-amber-800 uppercase cursor-pointer"
+                                  >
+                                    Remind
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => settleCashBalance(pod.id, pod.name)}
+                                    className="text-[10px] font-black text-indigo-650 hover:text-indigo-850 uppercase cursor-pointer"
+                                  >
+                                    Settle
+                                  </button>
+                                </>
+                              ) : null}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -895,7 +1090,7 @@ export const SaaSAdminPanel: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
                     { label: 'Ecosystem sales (GMV)', value: `₹${revenueStats.total_gmv}`, desc: 'Total sales from clinics + medicine', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-                    { label: 'Platform Commissions', value: `₹${revenueStats.platform_commission}`, desc: 'Net flat ₹10 or 3% platform splits', icon: Coins, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                    { label: 'Platform Commissions', value: `₹${revenueStats.platform_commission}`, desc: 'Dynamic transaction-based revenue splits', icon: Coins, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
                     { label: 'Settled Invoices', value: revenueStats.paid_invoices, desc: 'Unified invoice checkouts paid', icon: CheckCircle, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
                   ].map(stat => {
                     const Icon = stat.icon;
@@ -1048,6 +1243,7 @@ export const SaaSAdminPanel: React.FC = () => {
                         <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
                           <th className="p-2.5 pl-3">Clinic Code / Pod</th>
                           <th className="p-2.5">Cumulative Spend Today</th>
+                          <th className="p-2.5">Active AI Tier</th>
                           <th className="p-2.5">Daily Budget Progress</th>
                           <th className="p-2.5 text-center">Threshold (₹)</th>
                           <th className="p-2.5 pr-3 text-right">Actions</th>
@@ -1068,7 +1264,18 @@ export const SaaSAdminPanel: React.FC = () => {
                               <td className="p-2.5 font-bold text-slate-750">
                                 ₹{Number(pod.daily_spend).toFixed(2)}
                               </td>
-                              <td className="p-2.5 w-1/3">
+                              <td className="p-2.5">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                  pct >= 100 
+                                    ? 'bg-rose-50 text-rose-600 border border-rose-100' 
+                                    : pct >= 85 
+                                      ? 'bg-amber-50 text-amber-600 border border-amber-100' 
+                                      : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                }`}>
+                                  {pct >= 100 ? 'Paused (Cap)' : pct >= 85 ? 'Gemini Flash' : 'Gemini Pro'}
+                                </span>
+                              </td>
+                              <td className="p-2.5 w-1/4">
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                                     <div 
