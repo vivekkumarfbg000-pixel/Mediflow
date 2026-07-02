@@ -19,6 +19,14 @@ export const OPHTHALMIC_TEST_CATALOG: DiagnosticTest[] = [
   { loincCode: '79896-1', name: 'A-Scan Biometry (IOL)', category: 'Cataract Pre-op', normalRange: 'N/A', unit: 'mm', price: 1000 },
 ];
 
+export const DENTAL_TEST_CATALOG: DiagnosticTest[] = [
+  { loincCode: '79897-9', name: 'Panoramic Radiograph (OPG)', category: 'Dental Imaging', normalRange: 'N/A', unit: 'film', price: 800 },
+  { loincCode: '79898-7', name: 'Intraoral Periapical X-Ray (IOPA)', category: 'Dental Imaging', normalRange: 'N/A', unit: 'film', price: 250 },
+  { loincCode: '79899-5', name: 'CBCT 3D Scan', category: 'Dental Imaging', normalRange: 'N/A', unit: 'scan', price: 2500 },
+  { loincCode: '79900-1', name: 'Dental Prophylaxis (Cleaning)', category: 'Preventive Care', normalRange: 'N/A', unit: 'proc', price: 1500 },
+  { loincCode: '79901-9', name: 'Fluoride Therapy', category: 'Preventive Care', normalRange: 'N/A', unit: 'proc', price: 600 }
+];
+
 export const DEFAULT_REAGENT_STOCKS: ReagentStock[] = [
   { reagentName: 'HbA1c Enzyme Reagent A', stockVolume: 500, unit: 'ml' },
   { reagentName: 'Creatinine Alkaline Picrate B', stockVolume: 1000, unit: 'ml' },

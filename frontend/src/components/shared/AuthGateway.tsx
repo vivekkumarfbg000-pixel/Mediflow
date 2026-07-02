@@ -1869,6 +1869,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       <option value="General Medicine" className="text-slate-800 bg-white">General Medicine</option>
                       <option value="Pediatrics" className="text-slate-800 bg-white">Pediatrics</option>
                       <option value="Ophthalmology" className="text-slate-800 bg-white">Ophthalmology</option>
+                      <option value="Dentistry" className="text-slate-800 bg-white">Dentistry / Dental Care</option>
                       <option value="Cardiology" className="text-slate-800 bg-white">Cardiology</option>
                       <option value="Dermatology" className="text-slate-800 bg-white">Dermatology</option>
                       <option value="Gynecology" className="text-slate-800 bg-white">Gynecology</option>

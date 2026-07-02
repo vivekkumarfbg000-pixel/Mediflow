@@ -3,7 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService, INITIAL_PATIENTS } from './patientService';
 import { EncounterService } from './encounterService';
 import { PharmacyService } from './pharmacyService';
-import { LabService, MASTER_TEST_CATALOG, OPHTHALMIC_TEST_CATALOG } from './labService';
+import { LabService, MASTER_TEST_CATALOG, OPHTHALMIC_TEST_CATALOG, DENTAL_TEST_CATALOG } from './labService';
 import { BillingService } from './billingService';
 import { WhatsAppService } from './whatsappService';
 import { ForecastService } from './forecastService';
@@ -43,7 +43,7 @@ import type {
   SyntheticProfile
 } from '../types';
 
-export { MASTER_TEST_CATALOG, OPHTHALMIC_TEST_CATALOG };
+export { MASTER_TEST_CATALOG, OPHTHALMIC_TEST_CATALOG, DENTAL_TEST_CATALOG };
 export type { ReagentStock };
 
 export interface DBEncounterMedication {
