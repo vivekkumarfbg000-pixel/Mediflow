@@ -26,7 +26,8 @@ import {
   Sliders,
   Play,
   Trash2,
-  LockKeyhole
+  LockKeyhole,
+  LogOut
 } from 'lucide-react';
 
 interface OnboardingStats {
@@ -103,7 +104,12 @@ interface RateLimitRow {
 type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
 
 export const SaaSAdminPanel: React.FC = () => {
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('vitalsync_admin_logged_in') === 'true';
+    }
+    return false;
+  });
   const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('saas_health');
   
@@ -171,13 +177,22 @@ export const SaaSAdminPanel: React.FC = () => {
           .eq('id', session.user.id)
           .single();
         
-        if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
+        const isProfileAdmin = profile?.role === 'admin' || profile?.role === 'platform_admin';
+        const isMetadataAdmin = session.user?.app_metadata?.role === 'admin' || 
+                                session.user?.app_metadata?.role === 'platform_admin' ||
+                                session.user?.user_metadata?.role === 'admin' ||
+                                session.user?.user_metadata?.role === 'platform_admin';
+                                
+        if (isProfileAdmin || isMetadataAdmin) {
           setIsAdmin(true);
+          localStorage.setItem('vitalsync_admin_logged_in', 'true');
         } else {
           setIsAdmin(false);
+          localStorage.removeItem('vitalsync_admin_logged_in');
         }
       } else {
         setIsAdmin(false);
+        localStorage.removeItem('vitalsync_admin_logged_in');
       }
     } catch (err) {
       console.error('[SaaS Admin] Failed to check role:', err);
@@ -611,6 +626,23 @@ export const SaaSAdminPanel: React.FC = () => {
     }
   }, [isAdmin, activeTab]);
 
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      localStorage.removeItem('vitalsync_admin_logged_in');
+      setIsAdmin(false);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Signed Out Successfully 👋',
+          message: 'Logged out from VitalSync SaaS Operations Panel.',
+          type: 'info'
+        }
+      }));
+    } catch (err) {
+      console.error('Error during admin signout:', err);
+    }
+  };
+
   const handleAdminSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -697,15 +729,25 @@ export const SaaSAdminPanel: React.FC = () => {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={fetchSaaSMetrics}
-            disabled={metricsLoading}
-            className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 text-xs font-semibold disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-xs"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 text-indigo-550 ${metricsLoading ? 'animate-spin' : ''}`} />
-            Sync Metrics
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchSaaSMetrics}
+              disabled={metricsLoading}
+              className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 text-xs font-semibold disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-xs"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-indigo-550 ${metricsLoading ? 'animate-spin' : ''}`} />
+              Sync Metrics
+            </button>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-xs"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {/* ── Virtual Operations Team Navigation (Laptop Header) ───────────────── */}
