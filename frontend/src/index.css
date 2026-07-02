@@ -78,8 +78,17 @@
   --animate-pulse-subtle: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
-  @apply bg-[#0b0f1a] text-on-surface font-sans antialiased overflow-x-hidden;
+  @apply bg-[#0b0f1a] text-on-surface font-sans antialiased;
 }
 
 /* Organic / Human-made textures */
@@ -986,6 +995,93 @@ body.dark {
 
 .dense-theme .h-16 {
   height: 3.5rem !important;
+}
+
+/* ==========================================================================
+   MOBILE VIEW & RESPONSIVE DASHBOARD OPTIMIZATIONS
+   ========================================================================== */
+.responsive-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-bottom: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.responsive-table-container::-webkit-scrollbar {
+  height: 4px;
+  background: transparent;
+}
+
+.responsive-table-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .responsive-table-container table {
+    min-width: 650px; /* Forces enough width on mobile to enable smooth swipe scrolling */
+  }
+  
+  /* Ensure tap targets on mobile are accessible without fat-fingering */
+  .dense-theme .btn-primary,
+  .dense-theme .btn-secondary,
+  .dense-theme select,
+  .dense-theme input {
+    min-height: 38px !important;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* ==========================================================================
+   PREMIUM DESIGN & GLOW EFFECTS
+   ========================================================================== */
+@keyframes ambient-float {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.05); }
+  100% { transform: translate(-15px, 25px) scale(0.98); }
+}
+
+.animate-ambient-float-1 {
+  animation: ambient-float 22s infinite alternate ease-in-out;
+}
+
+.animate-ambient-float-2 {
+  animation: ambient-float 28s infinite alternate-reverse ease-in-out;
+}
+
+/* Premium Glass Card with subtle white inner glow and soft shadow */
+.premium-glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.03),
+              0 1px 3px 0 rgba(15, 23, 42, 0.01),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  border-radius: 1.25rem;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-glass-card:hover {
+  background-color: rgba(255, 255, 255, 0.88);
+  border-color: rgba(79, 70, 229, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -15px rgba(79, 70, 229, 0.06),
+              0 1px 3px 0 rgba(15, 23, 42, 0.02),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Premium tab pill design (Springy iOS-style active state) */
+.premium-nav-pill-active {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(0, 125, 112, 0.04) 100%) !important;
+  border-color: rgba(79, 70, 229, 0.25) !important;
+  color: #4f46e5 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.06),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 

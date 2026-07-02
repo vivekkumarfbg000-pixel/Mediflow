@@ -656,117 +656,41 @@ export const PharmacyDashboard: React.FC = () => {
       </div>
 
       {/* HORIZONTAL TAB SWITCHER */}
-      <div className="flex border-b border-slate-200 overflow-x-auto gap-2 pb-0.5 no-scrollbar select-none">
-        <button
-          onClick={() => setActiveTab('prescription_queue')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'prescription_queue'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">inventory_2</span>
-          Prescription Queue
-          {activeHoldsCount > 0 && (
-            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-indigo-600 text-white font-bold animate-pulse">
-              {activeHoldsCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('inventory_catalog')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'inventory_catalog'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">database</span>
-          Inventory Catalog
-        </button>
-
-        <button
-          onClick={() => setActiveTab('stock_alerts')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'stock_alerts'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">warning</span>
-          Stock Alerts
-          {criticalStockCount > 0 && (
-            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-rose-500 text-white font-bold animate-bounce">
-              {criticalStockCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('expiry_tracker')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'expiry_tracker'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">event_busy</span>
-          Expiry Tracker
-          {criticalExpiryCount > 0 && (
-            <span className="ml-1 px-2 py-0.5 text-[10px] rounded-full bg-amber-500 text-black font-bold">
-              {criticalExpiryCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('ai_demand')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'ai_demand'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">psychology</span>
-          Gemini Demand AI
-        </button>
-
-        <button
-          onClick={() => setActiveTab('settlements')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'settlements'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">account_balance</span>
-          Settlements
-        </button>
-
-        <button
-          onClick={() => setActiveTab('pod_connect')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'pod_connect'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">hub</span>
-          Pod Interconnect
-        </button>
-
-        <button
-          onClick={() => setActiveTab('profile_settings')}
-          className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer ${
-            activeTab === 'profile_settings'
-              ? 'border-indigo-600 text-indigo-600 font-extrabold bg-indigo-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">settings</span>
-          Profile & GSTIN
-        </button>
+      <div className="flex overflow-x-auto gap-2 pb-2.5 no-scrollbar select-none -mb-px">
+        {[
+          { id: 'prescription_queue', label: 'Prescription Queue', icon: 'inventory_2', badge: activeHoldsCount },
+          { id: 'inventory_catalog', label: 'Inventory Catalog', icon: 'database' },
+          { id: 'stock_alerts', label: 'Stock Alerts', icon: 'warning', badge: criticalStockCount, alert: true },
+          { id: 'expiry_tracker', label: 'Expiry Tracker', icon: 'event_busy', badge: criticalExpiryCount, warning: true },
+          { id: 'ai_demand', label: 'Gemini Demand AI', icon: 'psychology' },
+          { id: 'settlements', label: 'Settlements', icon: 'account_balance' },
+          { id: 'pod_connect', label: 'Pod Interconnect', icon: 'hub' },
+          { id: 'profile_settings', label: 'Profile & GSTIN', icon: 'settings' }
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer relative whitespace-nowrap ${
+                isActive
+                  ? 'premium-nav-pill-active'
+                  : 'bg-slate-50 border-slate-200/60 text-slate-650 hover:border-slate-300 hover:text-slate-850 hover:bg-slate-100/50'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
+              {tab.label}
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`ml-1 px-1.5 py-0.5 text-[9px] rounded-full font-bold text-white ${
+                  tab.alert ? 'bg-rose-500 animate-bounce' :
+                  tab.warning ? 'bg-amber-500 text-black' : 'bg-indigo-600'
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* TAB CONTENT AREAS */}
@@ -1074,7 +998,7 @@ export const PharmacyDashboard: React.FC = () => {
 
             {/* Inventory table */}
             <div className="border border-slate-200 rounded-xl overflow-hidden glass-panel-inner">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto responsive-table-container">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
                     <tr>
@@ -1293,7 +1217,7 @@ export const PharmacyDashboard: React.FC = () => {
               <p className="text-sm text-slate-400 text-center py-6">No matching expiring batches found in facility.</p>
             ) : (
               <div className="border border-slate-200 rounded-xl overflow-hidden glass-panel-inner">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto responsive-table-container">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
                       <tr>
@@ -2050,7 +1974,7 @@ export const PharmacyDashboard: React.FC = () => {
             {csvPreview.length > 0 && (
               <div className="space-y-2 select-none">
                 <h4 className="font-bold text-[10px] text-slate-600 uppercase tracking-widest font-mono">CSV Import Preview ({csvPreview.length} rows)</h4>
-                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto overflow-x-auto responsive-table-container">
                   <table className="w-full text-[10px] text-left">
                     <thead className="bg-white text-slate-600 font-mono uppercase font-bold sticky top-0">
                       <tr>
@@ -2183,7 +2107,7 @@ export const PharmacyDashboard: React.FC = () => {
             {ocrResults.length > 0 && (
               <div className="space-y-2 select-none border-t border-slate-100 pt-4">
                 <h4 className="font-bold text-[10px] text-slate-600 uppercase tracking-widest font-mono">Extracted Medicines Preview</h4>
-                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto overflow-x-auto responsive-table-container">
                   <table className="w-full text-[10px] text-left">
                     <thead className="bg-white text-slate-600 font-mono uppercase font-bold sticky top-0">
                       <tr>

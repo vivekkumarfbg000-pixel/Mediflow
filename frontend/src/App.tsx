@@ -269,7 +269,11 @@ function AppContent({
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-50 text-slate-800 dark:text-slate-100 flex flex-col font-sans select-none">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none relative overflow-hidden">
+      {/* Ambient Glowing Blobs for Premium SaaS Aesthetic */}
+      <div className="fixed top-[-15%] left-[-15%] w-[450px] h-[450px] rounded-full bg-indigo-400/8 blur-[120px] pointer-events-none z-0 animate-ambient-float-1" />
+      <div className="fixed bottom-[-15%] right-[-15%] w-[550px] h-[550px] rounded-full bg-teal-400/8 blur-[130px] pointer-events-none z-0 animate-ambient-float-2" />
+      
       {/* Shared Ecosystem Navigation Header */}
       <Navbar 
         currentRole={currentRole} 

@@ -509,7 +509,7 @@ export const BillingDashboard: React.FC = () => {
                         <p className="text-[10px] text-slate-400 mt-1 font-mono">DB trigger <code>trg_payment_cleared</code> populates rows on payment clearance.</p>
                       </div>
                     ) : (
-                      <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
                         <table className="w-full text-[10px]">
                           <thead className="bg-slate-100 text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider font-mono text-[8px]">
                             <tr>
@@ -884,7 +884,8 @@ export const BillingDashboard: React.FC = () => {
 
           <div className="space-y-3">
             <h3 className="font-extrabold uppercase text-[10px] tracking-wider">Multi-Vendor Ledger Splits Allocation</h3>
-            <table className="w-full text-[11px] border-collapse border border-black/30">
+            <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
+              <table className="w-full text-[11px] border-collapse border border-black/30">
               <thead>
                 <tr className="bg-slate-800/5 text-[10px] font-bold border-b border-black">
                   <th className="p-2 border-r border-black/30 text-left">Destination Wallet ID</th>
@@ -931,6 +932,7 @@ export const BillingDashboard: React.FC = () => {
                 </tr>
               </tbody>
             </table>
+          </div>
           </div>
 
           <div className="grid grid-cols-2 gap-8 text-[10px] pt-8">

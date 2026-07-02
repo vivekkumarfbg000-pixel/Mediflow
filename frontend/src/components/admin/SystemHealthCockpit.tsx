@@ -206,7 +206,7 @@ export const SystemHealthCockpit: React.FC = () => {
             </div>
             <div>
               <h3 className="font-extrabold text-slate-800 text-sm tracking-tight flex items-center gap-2">
-                Mediflow Auto-Healer Agent
+                VitalSync Auto-Healer Agent
                 <span className="flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-[9px] font-bold text-emerald-700 tracking-wider uppercase animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                   Live 24/7
@@ -311,7 +311,7 @@ export const SystemHealthCockpit: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-700">All systems nominal</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">No operational anomalies detected. Mediflow is running at 100% stable.</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">No operational anomalies detected. VitalSync is running at 100% stable.</p>
               </div>
             </div>
           ) : (

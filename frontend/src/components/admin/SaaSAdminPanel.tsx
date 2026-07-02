@@ -497,7 +497,7 @@ export const SaaSAdminPanel: React.FC = () => {
           window.dispatchEvent(new CustomEvent('mediflow-toast', {
             detail: {
               title: 'Owner Portal Initialized 🔑',
-              message: 'Access granted to Mediflow SaaS Operations Center.',
+              message: 'Access granted to VitalSync SaaS Operations Center.',
               type: 'success'
             }
           }));
@@ -545,7 +545,7 @@ export const SaaSAdminPanel: React.FC = () => {
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
-                Mediflow Platform Operations
+                VitalSync Platform Operations
                 <span className="flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 text-[9px] font-bold text-indigo-700 tracking-wider uppercase animate-pulse">
                   Platform Owner View
                 </span>
@@ -689,7 +689,7 @@ export const SaaSAdminPanel: React.FC = () => {
                   </div>
 
                   {complianceList.length > 0 ? (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto">
+                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto overflow-x-auto responsive-table-container">
                       <table className="w-full text-left text-[11px] font-medium text-slate-600">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
@@ -741,7 +741,7 @@ export const SaaSAdminPanel: React.FC = () => {
                 {/* Active Pods List */}
                 <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-3">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Active Tenant Pods</h4>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto responsive-table-container">
                     <table className="w-full text-left text-xs font-medium text-slate-600">
                       <thead>
                         <tr className="border-b border-slate-200/60 text-[10px] uppercase text-slate-400 font-bold">
@@ -837,7 +837,7 @@ export const SaaSAdminPanel: React.FC = () => {
                   </div>
 
                   {syntheticProfiles.length > 0 ? (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto">
+                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto overflow-x-auto responsive-table-container">
                       <table className="w-full text-left text-[11px] font-medium text-slate-655">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
@@ -929,8 +929,8 @@ export const SaaSAdminPanel: React.FC = () => {
                       <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
                     </div>
                   ) : failedSettlements.length > 0 ? (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden">
-                      <table className="w-full text-left text-[11px] font-medium text-slate-650">
+                    <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
+                      <table className="w-full text-left text-[11px] font-medium text-slate-655">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
                             <th className="p-2.5 pl-3">Source Clinic</th>
@@ -1042,7 +1042,7 @@ export const SaaSAdminPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="border border-slate-100 rounded-xl overflow-hidden">
+                  <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
                     <table className="w-full text-left text-[11px] font-medium text-slate-650">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
@@ -1215,7 +1215,7 @@ export const SaaSAdminPanel: React.FC = () => {
                         <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
                       </div>
                     ) : blacklistedIps.length > 0 ? (
-                      <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto">
+                      <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto overflow-x-auto responsive-table-container">
                         <table className="w-full text-left text-[11px] font-medium text-slate-600">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
@@ -1268,7 +1268,7 @@ export const SaaSAdminPanel: React.FC = () => {
                         <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
                       </div>
                     ) : rateLimits.length > 0 ? (
-                      <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto">
+                      <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto overflow-x-auto responsive-table-container">
                         <table className="w-full text-left text-[11px] font-medium text-slate-600">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
@@ -1367,7 +1367,7 @@ export const SaaSAdminPanel: React.FC = () => {
           </div>
 
           <p className="text-xs text-slate-500 text-center leading-relaxed font-medium">
-            This dashboard contains real-time systems telemetry, database repair interfaces, and code compilation status. Access is restricted exclusively to Mediflow SaaS Platform Owners.
+            This dashboard contains real-time systems telemetry, database repair interfaces, and code compilation status. Access is restricted exclusively to VitalSync SaaS Platform Owners.
           </p>
 
           {errorMsg && (
@@ -1388,7 +1388,7 @@ export const SaaSAdminPanel: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="owner@mediflow.com"
+                  placeholder="owner@vitalsync.com"
                   className="w-full bg-slate-50 border border-slate-200 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs font-semibold outline-none transition-all shadow-inner font-sans"
                   required
                 />

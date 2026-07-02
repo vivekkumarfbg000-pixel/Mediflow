@@ -8,11 +8,11 @@ interface ClinicPlacardGeneratorProps {
 
 export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
   activeWabaNumber = '+91 90000 00000',
-  clinicName = 'Mediflow Smart Clinic'
+  clinicName = 'VitalSync Smart Clinic'
 }) => {
   const [phoneNumber, setPhoneNumber] = useState(activeWabaNumber.replace(/[^0-9+]/g, '') || '+919000000000');
   const [customClinicName, setCustomClinicName] = useState(clinicName);
-  const [welcomeText, setWelcomeText] = useState('Hello Mediflow, I would like to check-in and register for my consultation. Please guide me through my ABHA onboarding.');
+  const [welcomeText, setWelcomeText] = useState('Hello VitalSync, I would like to check-in and register for my consultation. Please guide me through my ABHA onboarding.');
   const [themeColor, setThemeColor] = useState<'emerald' | 'blue' | 'indigo' | 'violet'>('emerald');
   const [showSettings, setShowSettings] = useState(false);
   const placardRef = useRef<HTMLDivElement>(null);
@@ -154,7 +154,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
                   value={customClinicName}
                   onChange={(e) => setCustomClinicName(e.target.value)}
                   className="w-full input-field py-1.5 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:ring-emerald-500/20 focus:ring-1 outline-none"
-                  placeholder="e.g. Mediflow Prime Clinic"
+                  placeholder="e.g. VitalSync Prime Clinic"
                 />
               </div>
 
@@ -282,7 +282,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
                 </div>
                 <div>
                   <h5 className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide">Clinical AI Queue Sync</h5>
-                  <p className="text-[9px] text-slate-600 font-sans mt-0.5 leading-relaxed">The WhatsApp bot auto-syncs your details with Mediflow. You are placed in the Doctor's Queue!</p>
+                  <p className="text-[9px] text-slate-600 font-sans mt-0.5 leading-relaxed">The WhatsApp bot auto-syncs your details with VitalSync. You are placed in the Doctor's Queue!</p>
                 </div>
               </div>
             </div>
@@ -290,7 +290,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
             {/* Footer */}
             <div className="mt-8 flex items-center gap-1.5 text-[8px] font-mono font-extrabold uppercase text-slate-600 tracking-wider">
               <Smartphone className="h-3 w-3 text-slate-600 shrink-0" />
-              Powered by Mediflow Clinical AI Scribe
+              Powered by VitalSync Clinical AI Scribe
             </div>
           </div>
         </div>

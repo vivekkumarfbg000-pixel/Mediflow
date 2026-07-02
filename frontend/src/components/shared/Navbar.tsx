@@ -525,17 +525,17 @@ export const Navbar: React.FC<NavbarProps> = ({
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="md:hidden border-b border-slate-200/50 dark:border-slate-800 bg-white/90 dark:bg-slate-50/90 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
+      <nav className="md:hidden border-b border-slate-200/50 dark:border-slate-800 bg-white/95 dark:bg-slate-50/95 backdrop-blur-xl sticky top-0 z-50 px-3 py-2.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
         <div className="max-w-7xl mx-auto flex flex-col gap-2">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2 min-w-0">
               {/* Mobile Sidebar Drawer Hamburger Trigger */}
               <button 
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="p-1 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-md text-slate-500 hover:text-slate-800 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer"
+                className="p-2 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-lg text-slate-550 hover:text-slate-800 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
                 aria-label="Open Sidebar Drawer"
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-5 w-5" />
               </button>
 
               <div className="flex flex-col min-w-0">
@@ -680,9 +680,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 <button 
                   onClick={() => setIsMobileDrawerOpen(false)}
-                  className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 hover:text-slate-600 transition-colors cursor-pointer"
+                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-550 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
                 >
-                  <X className="h-4.5 w-4.5" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
