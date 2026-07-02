@@ -693,13 +693,8 @@ Dhyan rakhein aur time par medicine lein!`;
     }
 
     // Select dynamic model based on verification status and cost levels
-    let model = 'gemini-2.5-pro';
-    const pct = (dailySpend / dailyBudget) * 100;
-    if (!isVerified) {
-      if (pct >= 85) {
-        model = 'gemini-2.5-flash'; // graceful degradation
-      }
-    }
+    // FORCE-FLASH: Force all accounts to use Gemini 2.5 Flash in the initial launch phase to eliminate billing spikes
+    let model = 'gemini-2.5-flash';
 
     try {
       let base64Data = '';
