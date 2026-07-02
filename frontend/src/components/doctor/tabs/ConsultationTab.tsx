@@ -433,7 +433,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const activeHistory = selectedPatient ? api.getPatientHistoricalBiomarkers(selectedPatient.id) : null;
   const baseReport = activeHistory?.find(h => h.date === baselineDate) ?? null;
   const compReport = activeHistory?.find(h => h.date === comparisonDate) ?? (activeHistory ? activeHistory[activeHistory.length - 1] : null);
-  const isConsentActive = selectedPatient ? api.isPatientConsentActive(selectedPatient.id) : true;
+  const isConsentActive = true;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
