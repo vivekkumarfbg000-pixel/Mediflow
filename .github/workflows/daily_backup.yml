@@ -38,4 +38,4 @@ jobs:
       - name: Upload Backup to S3
         run: |
           TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
-          aws s3 cp backup.sql.gz s3://${{ secrets.AWS_S3_BUCKET }}/backups/supabase_backup_$TIMESTAMP.sql.gz
+          aws s3 cp backup.sql.gz "s3://${{ secrets.AWS_S3_BUCKET }}/backups/supabase_backup_$TIMESTAMP.sql.gz"
