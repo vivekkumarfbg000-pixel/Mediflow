@@ -22,7 +22,10 @@ jobs:
         run: |
           # Trim trailing whitespaces/newlines from the secret URL
           CLEANED_URL=$(echo "${{ secrets.SUPABASE_DB_URL }}" | xargs)
-          pg_dump "$CLEANED_URL" -F c -b -v -f backup.sql
+          
+          # Force the absolute path to pg_dump version 17
+          /usr/lib/postgresql/17/bin/pg_dump "$CLEANED_URL" -F c -b -v -f backup.sql
+          
           gzip -f backup.sql
 
       - name: Configure AWS Credentials
