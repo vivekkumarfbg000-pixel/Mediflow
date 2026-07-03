@@ -6,54 +6,56 @@
   fill="none"
 >
   <defs>
-    <!-- Background Slate Gradient -->
-    <linearGradient id="vitalsync-bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+    <!-- Rounded dark background gradient -->
+    <linearGradient id="vs-bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
       <stop stop-color="#090D1A" />
       <stop offset="0.5" stop-color="#0F172A" />
       <stop offset="1" stop-color="#1E293B" />
     </linearGradient>
 
-    <!-- VitalSync Indigo-Teal Glow Gradient -->
-    <linearGradient id="vitalsync-primary-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#4F46E5" />
+    <!-- Left shield half — green gradient -->
+    <linearGradient id="vs-green" x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+
+    <!-- Right shield half — teal gradient -->
+    <linearGradient id="vs-teal" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0EA5E9" />
       <stop offset="100%" stop-color="#0D9488" />
     </linearGradient>
 
-    <!-- Neon Glow Filter -->
-    <filter id="vitalsync-glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="4.5" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    <!-- ECG line drop shadow -->
+    <filter id="vs-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.35" />
     </filter>
   </defs>
 
-  <!-- Rounded Slate Container with subtle border -->
-  <rect x="2" y="2" width="96" height="96" rx="28" fill="url(#vitalsync-bg)" stroke="#1E293B" stroke-width="1.5" />
-  <rect x="3" y="3" width="94" height="94" rx="27" fill="white" fill-opacity="0.02" />
+  <!-- Dark rounded square background -->
+  <rect x="2" y="2" width="96" height="96" rx="24" fill="url(#vs-bg)" />
 
-  <!-- VitalSync Emblem: Double Intersecting Nodes forming a 'V' + Heartbeat Sync -->
+  <!-- Shield emblem, inset and scaled inside the tile -->
   <g transform="translate(10, 10) scale(0.8)">
-    <!-- Main Glowing Loop Connection -->
+    <!-- Left half of shield — green -->
     <path
-      d="M 20 40 C 20 20, 50 20, 50 50 C 50 80, 80 80, 80 60 C 80 40, 50 40, 50 50 C 50 60, 20 60, 20 40 Z"
-      stroke="url(#vitalsync-primary-grad)"
-      stroke-width="5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      fill="none"
-      filter="url(#vitalsync-glow)"
+      d="M 50 84 C 26 80 18 55 18 35 L 18 18 C 30 18 42 22 50 24 L 50 84 Z"
+      fill="url(#vs-green)"
     />
-    
-    <!-- Outer Sync Ring -->
-    <circle cx="50" cy="50" r="36" stroke="#4F46E5" stroke-width="1.5" stroke-dasharray="6 8" opacity="0.4" />
-    
-    <!-- Central Pulse Heartbeat Node -->
+
+    <!-- Right half of shield — teal -->
     <path
-      d="M 38 50 L 44 50 L 47 62 L 50 35 L 53 65 L 56 46 L 59 52 L 62 50 L 68 50"
-      stroke="#ffffff"
-      stroke-width="4.5"
+      d="M 50 84 C 74 80 82 55 82 35 L 82 18 C 70 18 58 22 50 24 L 50 84 Z"
+      fill="url(#vs-teal)"
+    />
+
+    <!-- ECG heartbeat line — white across shield center -->
+    <path
+      d="M 14 52 L 36 52 L 40 66 L 45 22 L 51 80 L 56 36 L 60 56 L 64 52 L 86 52"
+      stroke="#FFFFFF"
+      stroke-width="3.2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      fill="none"
+      filter="url(#vs-shadow)"
     />
   </g>
 </svg>
