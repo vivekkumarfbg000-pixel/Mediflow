@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AuthGateway } from './AuthGateway';
 import { BrandMark } from './BrandMark';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
@@ -159,11 +158,9 @@ const InteractivePlexus3D: React.FC = () => {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block pointer-events-none z-0" />;
 };
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuthSuccess }) => {
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [isSignupUnlocked, setIsSignupUnlocked] = useState(false);
-  const [preselectedSignupTab, setPreselectedSignupTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
-  const [showAuthGate, setShowAuthGate] = useState(false);
   const [isSigningInDemo, setIsSigningInDemo] = useState(false);
   const [showBenefitsTour, setShowBenefitsTour] = useState(false);
   const [tourSlide, setTourSlide] = useState(0);
@@ -215,17 +212,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [registrationType, setRegistrationType] = useState<'doctor' | 'partner'>('doctor');
   const [eligibilityError, setEligibilityError] = useState<string | null>(null);
 
-  // Smooth scroll helper for landing CTAs
+  // Redirect to app subdomain for sign-in (auth lives on app.vitalsync.in, not the landing page)
   const scrollToGate = (e: React.MouseEvent) => {
     e.preventDefault();
-    setShowAuthGate(true);
-    setPreselectedSignupTab('signin');
-    setTimeout(() => {
-      const gate = document.getElementById('gate');
-      if (gate) {
-        gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 50);
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+      ? `http://app.localhost:${window.location.port || '5173'}`
+      : 'https://app.vitalsync.in';
+    window.location.href = dashboardUrl;
   };
 
   const handleGetStartedClick = (e: React.MouseEvent) => {
@@ -772,31 +766,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </footer>
 
-      {showAuthGate && (
-        <div 
-          onClick={() => setShowAuthGate(false)}
-          className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in text-slate-800 font-sans cursor-default"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-5 max-h-[90vh] overflow-y-auto"
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setShowAuthGate(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors cursor-pointer z-50"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <AuthGateway 
-              onAuthSuccess={onAuthSuccess} 
-              allowSignup={isSignupUnlocked}
-              initialSignupTab={preselectedSignupTab}
-            />
-          </div>
-        </div>
-      )}
+      {/* Auth happens on app.vitalsync.in — no inline auth modal on the landing page */}
 
       {showEligibilityModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in text-slate-800 font-sans">
