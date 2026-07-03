@@ -887,29 +887,12 @@ export default function App() {
   }
 
   // 2. Landing Page Domain Routing
+  // vitalsync.in always shows the landing page — on ALL devices (desktop and mobile).
+  // Users reach app.vitalsync.in via the "Console Login" or "Get Started" buttons.
   if (isLandingPageDomain) {
-    // If running as an installed PWA (standalone mode) on the landing page domain, redirect to dashboard/admin subdomains
-    const isStandalone = typeof window !== 'undefined' && (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone ||
-      document.referrer.includes('android-app://')
-    );
-
-    if (isStandalone) {
-      const userRole = activeProfile?.role;
-      const targetSubdomain = (userRole === 'admin' || userRole === 'platform_admin') ? 'admin' : 'app';
-      
-      const targetUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-        ? `http://${targetSubdomain}.localhost:${window.location.port || '5173'}`
-        : `https://${targetSubdomain}.vitalsync.in`;
-        
-      window.location.replace(targetUrl);
-      return <FullPageLoader message="Opening VitalSync app..." />;
-    }
-
-    // Otherwise, normal browser visitors on landing page domain ALWAYS see the landing page
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
+
 
   // 3. Super Admin Dashboard Subdomain Routing
   if (isAdminSubdomain) {
