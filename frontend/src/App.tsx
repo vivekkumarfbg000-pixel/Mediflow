@@ -199,25 +199,9 @@ function AppContent({
     }
   };
 
-  // Block viewport rendering if not securely authenticated
+  // Block viewport rendering if not securely authenticated (fallback)
   if (!session || !activeProfile) {
-    return (
-      <>
-        <LandingPage onAuthSuccess={handleAuthSuccess} />
-        {/* Render fallback toast overlay for auth portal status info */}
-        <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
-          {toasts.map(t => (
-            <div key={t.id} className="pointer-events-auto flex items-start gap-3 p-4 rounded-2xl bg-clinical-950/80 backdrop-blur-xl border border-rose-500/20 shadow-lg shadow-rose-500/10 transition-all duration-300 animate-slide-in">
-              <AlertCircle className="h-5 w-5 text-rose-400 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-bold text-white tracking-wide">{t.title}</h4>
-                <p className="text-xs text-clinical-300 mt-1">{t.message}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </>
-    );
+    return null;
   }
 
   // Intercept and show pending approval screen if partner registration is pending
@@ -398,6 +382,46 @@ export default function App() {
   const [isBypassMode, setIsBypassMode] = useState<boolean>(false); // Production default (bypass mode disabled)
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
+  const [initialSignupTab, setInitialSignupTab] = useState<'signin' | 'register' | 'join'>('signin');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam === 'register' || tabParam === 'join') {
+      setInitialSignupTab(tabParam);
+    }
+
+    if (params.get('demo') === 'true') {
+      // Clear demo query param
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+
+      // Trigger demo login
+      setIsLoadingSession(true);
+
+      const doDemoLogin = async () => {
+        try {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: 'doctor@mediflow.com',
+            password: 'password123'
+          });
+          if (error) throw error;
+        } catch (err) {
+          console.error('[Demo Auth] Automatic demo login failed:', err);
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: {
+              title: 'Demo Authentication Failed ⚠️',
+              message: 'Failed to auto-sign in as demo doctor. Please sign in manually.',
+              type: 'error'
+            }
+          }));
+          setIsLoadingSession(false);
+        }
+      };
+
+      doDemoLogin();
+    }
+  }, []);
 
   useEffect(() => {
     PwaSyncManager.registerServiceWorker();
@@ -593,6 +617,20 @@ export default function App() {
           email: session.user.email,
         };
       }
+    }
+
+    // 3a. Demo Doctor Profile Overrides for sandbox consistency
+    if (activeProfile && (activeProfile.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' || session.user?.email === 'doctor@mediflow.com')) {
+      activeProfile = {
+        ...activeProfile,
+        display_name: 'Dr. Vivek Kumar',
+        user_metadata: {
+          ...activeProfile?.user_metadata,
+          specialization: 'General Medicine',
+          clinic_name: 'Kankarbagh Connected Clinic',
+          display_name: 'Dr. Vivek Kumar'
+        }
+      };
     }
     
     if (activeProfile) {
@@ -839,17 +877,27 @@ export default function App() {
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
+  const isDashboardSubdomain = hostname === 'app.vitalsync.in' || hostname.startsWith('app.');
+  const isLandingPageDomain = hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in' || hostname === 'localhost' || hostname === '127.0.0.1';
 
-  // 1. Landing Page Domain Routing
-  if ((hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') && !session) {
-    return <LandingPage onAuthSuccess={handleAuthSuccess} />;
-  }
-
+  // 1. Session Loading Gate
   if (isLoadingSession) {
     return <FullPageLoader message="Initializing clinical session..." />;
   }
 
-  // 2. Super Admin Dashboard Subdomain Routing
+  // 2. Landing Page Domain Routing
+  if (isLandingPageDomain) {
+    if (session) {
+      const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+        ? `http://app.localhost:${window.location.port || '5173'}`
+        : 'https://app.vitalsync.in';
+      window.location.replace(dashboardUrl);
+      return <FullPageLoader message="Redirecting to VitalSync dashboard..." />;
+    }
+    return <LandingPage onAuthSuccess={handleAuthSuccess} />;
+  }
+
+  // 3. Super Admin Dashboard Subdomain Routing
   if (isAdminSubdomain) {
     // Session exists but profile hasn't loaded yet (e.g. arriving via ops-modal redirect).
     // Show a loader instead of the login form to give loadOrHealProfile time to finish.
@@ -916,7 +964,7 @@ export default function App() {
     );
   }
 
-  // 3. Redirect operations accounts logged in on any non-admin subdomain to admin.vitalsync.in
+  // 4. Redirect operations accounts logged in on any non-admin subdomain to admin.vitalsync.in
   const isNonAdminSubdomain = !isAdminSubdomain;
   if (isNonAdminSubdomain && session && activeProfile) {
     const userRole = activeProfile.role;
@@ -942,6 +990,7 @@ export default function App() {
     }
   }
 
+  // 5. Onboarding Screen Gate
   if (isOnboarding) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -957,6 +1006,32 @@ export default function App() {
               Please wait while we initialize your clinical care network and apply secure tenant isolation keys...
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 6. Dashboard Domain Gated View (app.vitalsync.in / app.localhost)
+  if (isDashboardSubdomain && (!session || !activeProfile)) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+        
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+          <div className="flex flex-col items-center space-y-2 text-center">
+            <div className="p-3 bg-indigo-50 border border-indigo-150 text-indigo-650 rounded-2xl">
+              <Shield className="h-6 w-6" />
+            </div>
+            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">VitalSync Dashboard</h3>
+            <p className="text-xs text-slate-500 font-medium">Enterprise Care Connected Console</p>
+          </div>
+          
+          <AuthGateway 
+            onAuthSuccess={handleAuthSuccess} 
+            allowSignup={true} 
+            initialSignupTab={initialSignupTab}
+          />
         </div>
       </div>
     );

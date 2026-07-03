@@ -225,6 +225,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   allowSignup = false,
   initialSignupTab = 'signin'
 }) => {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isDashboardSubdomain = hostname === 'app.vitalsync.in' || hostname.startsWith('app.');
   const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
   const [joinSubMode, setJoinSubMode] = useState<'signin' | 'register'>('signin');
 
@@ -1346,7 +1348,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         {/* Sliding Tab Selector */}
         {initialSignupTab !== 'ops' && (
           <div className={`relative z-20 pointer-events-auto grid gap-1 bg-slate-200/50 p-1 rounded-xl border border-slate-200/80 ${
-            window.location.hostname === 'app.vitalsync.in'
+            isDashboardSubdomain
               ? (allowSignup ? 'grid-cols-3' : 'grid-cols-2')
               : (allowSignup ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3')
           }`}>
@@ -1369,11 +1371,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             <button
               type="button"
               onClick={() => handleTabSelect('join')}
-              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
+              className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'join' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-850'}`}
             >
               Partner Sign In
             </button>
-            {window.location.hostname !== 'app.vitalsync.in' && (
+            {!isDashboardSubdomain && (
               <button
                 type="button"
                 onClick={() => handleTabSelect('ops')}

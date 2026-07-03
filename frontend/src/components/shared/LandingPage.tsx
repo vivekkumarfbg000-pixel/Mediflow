@@ -199,94 +199,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   }, []);
 
 
-  const handleDemoSignUpInstant = async () => {
-    setIsSigningInDemo(true);
-    if (typeof window !== 'undefined') {
-      (window as any).__vitalsync_ops_redirect = true;
-    }
-
-    const safetyTimeout = setTimeout(() => {
-      setIsSigningInDemo(false);
-      if (typeof window !== 'undefined') {
-        (window as any).__vitalsync_ops_redirect = false;
-      }
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Demo Connection Timeout ⚠️',
-          message: 'The connection to Supabase timed out. Initiating auto-healing...',
-          type: 'error'
-        }
-      }));
-      StateHealingEngine.handleException(
-        new Error('LoadingWatchdogException: Public login/handshake request timed out after 6 seconds')
-      );
-    }, 6000);
-
-    try {
-      const authEmail = 'doctor@mediflow.com';
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: authEmail,
-        password: 'password123'
-      });
-
-      clearTimeout(safetyTimeout);
-
-      if (authError) {
-        if (authError.message.includes('Invalid login credentials') || authError.message.includes('Email not confirmed')) {
-          throw new Error(`Demo user ${authEmail} not found in Supabase Auth. Please run the seed migrations or create the user in Supabase Dashboard with password 'password123'.`);
-        }
-        throw authError;
-      }
-
-      if (!authData?.session || !authData?.user) {
-        throw new Error('Sign in succeeded but no session was returned.');
-      }
-
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101')
-        .single();
-
-      if (profileErr || !profile) {
-        throw new Error('Authenticated, but profile could not be loaded. Ensure database migrations have run.');
-      }
-
-      const modifiedProfile = {
-        ...profile,
-        display_name: 'Dr. Vivek Kumar',
-        user_metadata: {
-          ...profile?.user_metadata,
-          specialization: 'General Medicine',
-          clinic_name: 'Kankarbagh Connected Clinic',
-          display_name: 'Dr. Vivek Kumar'
-        },
-        raw_user_meta_data: {
-          ...profile?.raw_user_meta_data,
-          specialization: 'General Medicine',
-          clinic_name: 'Kankarbagh Connected Clinic',
-          display_name: 'Dr. Vivek Kumar'
-        }
-      };
-
-      onAuthSuccess(authData.session, modifiedProfile);
-    } catch (_err) {
-      clearTimeout(safetyTimeout);
-      const err = _err as any;
-      console.error('[LandingPage] Instant demo login failed:', err);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Demo Authentication Failed ⚠️',
-          message: err.message || 'Failed to auto-sign in as demo doctor.',
-          type: 'error'
-        }
-      }));
-    } finally {
-      if (typeof window !== 'undefined') {
-        (window as any).__vitalsync_ops_redirect = false;
-      }
-      setIsSigningInDemo(false);
-    }
+  const handleDemoSignUpInstant = () => {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+      ? `http://app.localhost:${window.location.port || '5173'}?demo=true`
+      : 'https://app.vitalsync.in?demo=true';
+    window.location.href = dashboardUrl;
   };
 
   // Eligibility Form States
@@ -313,7 +231,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const handleGetStartedClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isSignupUnlocked) {
-      scrollToGate(e);
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+        ? `http://app.localhost:${window.location.port || '5173'}?tab=register`
+        : 'https://app.vitalsync.in?tab=register';
+      window.location.href = dashboardUrl;
     } else {
       setShowEligibilityModal(true);
       setEligibilityError(null);
@@ -370,25 +292,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
     // Unlock signup
     setIsSignupUnlocked(true);
-    setShowAuthGate(true);
-    setPreselectedSignupTab(registrationType === 'doctor' ? 'register' : 'join');
     setShowEligibilityModal(false);
 
-    // Focus and scroll to the gate
-    setTimeout(() => {
-      const gate = document.getElementById('gate');
-      if (gate) {
-        gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
+    const registrationTab = registrationType === 'doctor' ? 'register' : 'join';
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+      ? `http://app.localhost:${window.location.port || '5173'}?tab=${registrationTab}`
+      : `https://app.vitalsync.in?tab=${registrationTab}`;
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
         title: 'Eligibility Verified',
-        message: 'Signup access has been securely granted. Please complete the form.',
+        message: 'Redirecting you to initialize your secure clinical workspace...',
         type: 'success'
       }
     }));
+
+    setTimeout(() => {
+      window.location.href = dashboardUrl;
+    }, 1200);
   };
 
   return (
@@ -545,8 +467,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </button>
             <button
               onClick={() => {
-                setShowAuthGate(true);
-                setPreselectedSignupTab('signin');
+                const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+                const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+                  ? `http://app.localhost:${window.location.port || '5173'}`
+                  : 'https://app.vitalsync.in';
+                window.location.href = dashboardUrl;
               }}
               className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-violet-500/20 cursor-pointer flex items-center gap-2"
             >
