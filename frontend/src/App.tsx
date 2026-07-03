@@ -531,7 +531,7 @@ export default function App() {
     const metadataRole = session.user?.user_metadata?.role;
     const profileRole = activeProfile.role;
 
-    const isOwner = authEmail === 'owner@mediflow.com' || authEmail === 'vivekkumarfbg000@gmail.com';
+    const isOwner = authEmail === 'owner@mediflow.com';
     const isOwnerRoleDiscrepancy = isOwner && profileRole !== 'platform_admin';
     const isGeneralRoleDiscrepancy = !isOwner && metadataRole && profileRole !== metadataRole && !(metadataRole === 'admin' && profileRole === 'platform_admin') && !(metadataRole === 'platform_admin' && profileRole === 'platform_admin');
 
