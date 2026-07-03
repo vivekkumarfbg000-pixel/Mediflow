@@ -375,6 +375,26 @@ function AppContent({
   );
 }
 
+const setCrossDomainCookie = (active: boolean) => {
+  if (typeof window === 'undefined') return;
+  const hostname = window.location.hostname;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
+  let cookieDomain = '';
+  
+  if (hostname.endsWith('.vitalsync.in')) {
+    cookieDomain = '; domain=.vitalsync.in';
+  } else if (hostname.endsWith('.localhost')) {
+    cookieDomain = '; domain=.localhost';
+  }
+  
+  const secureFlag = isLocal ? '' : '; Secure';
+  if (active) {
+    document.cookie = `vitalsync_session_active=true; path=/${cookieDomain}; max-age=31536000; SameSite=Lax${secureFlag}`;
+  } else {
+    document.cookie = `vitalsync_session_active=; path=/${cookieDomain}; max-age=0; SameSite=Lax${secureFlag}`;
+  }
+};
+
 export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('doctor');
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -393,6 +413,23 @@ export default function App() {
   });
 
   useEffect(() => {
+    // Eagerly redirect to app subdomain if cross-subdomain session cookie is active
+    const curHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isLandingPage = curHostname === 'vitalsync.in' || curHostname === 'www.vitalsync.in' || curHostname === 'localhost' || curHostname === '127.0.0.1';
+    
+    if (isLandingPage && typeof window !== 'undefined') {
+      const isSessionActive = document.cookie.includes('vitalsync_session_active=true');
+      if (isSessionActive) {
+        console.log('[VitalSync Auth] Active cookie session detected on landing page. Eagerly redirecting to app subdomain...');
+        const isLocal = curHostname === 'localhost' || curHostname === '127.0.0.1' || curHostname.endsWith('.localhost');
+        const redirectUrl = isLocal
+          ? `http://app.localhost:${window.location.port || '5173'}`
+          : 'https://app.vitalsync.in';
+        window.location.replace(redirectUrl);
+        return;
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
     if (tabParam === 'register' || tabParam === 'join') {
@@ -671,6 +708,7 @@ export default function App() {
       if (!active) return;
       setSession(session);
       if (session?.user) {
+        setCrossDomainCookie(true);
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
           clearTimeout(safetyTimeout);
@@ -688,6 +726,7 @@ export default function App() {
           setIsLoadingSession(false);
         }
       } else {
+        setCrossDomainCookie(false);
         clearTimeout(safetyTimeout);
         setIsLoadingSession(false);
       }
@@ -707,11 +746,13 @@ export default function App() {
       }
       setSession(session);
       if (!session) {
+        setCrossDomainCookie(false);
         setActiveProfile(null);
         setIsLoadingSession(false);
         // Clear pod context so next user gets fresh real IDs
         clearPodContext();
       } else {
+        setCrossDomainCookie(true);
         if (event === 'SIGNED_IN' && activeProfile) {
           console.log('[Mediflow Auth] SIGNED_IN event detected with active profile. Deferring profile load to form handler.');
           // Eagerly resolve pod context in background on sign-in
@@ -798,6 +839,7 @@ export default function App() {
       console.error('[Mediflow Auth] handleAuthSuccess: profile is null after onboarding check. Skipping state update.');
       return;
     }
+    setCrossDomainCookie(true);
     setSession(session);
     setActiveProfile(finalProfile);
     
@@ -822,6 +864,7 @@ export default function App() {
 
 
   const handleSignOut = async () => {
+    setCrossDomainCookie(false);
     try {
       await supabase.auth.signOut();
     } catch (err) {
