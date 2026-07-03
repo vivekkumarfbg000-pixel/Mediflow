@@ -258,6 +258,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeErrorCode, setActiveErrorCode] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   // New Redesigned Sign-up States
   const [firstName, setFirstName] = useState('');
@@ -298,6 +299,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setValidationErrors({});
     setRegistrationStep(1);
     setTosAccepted(false);
+    setResetSent(false);
   };
 
   const handleJoinSubModeSelect = (mode: 'signin' | 'register') => {
@@ -310,6 +312,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setValidationErrors({});
     setRegistrationStep(1);
     setTosAccepted(false);
+    setResetSent(false);
   };
 
   const recordAttempt = (attemptEmail: string, success: boolean, err?: any) => {
@@ -522,9 +525,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setLoading(true);
     setErrorMsg(null);
     setActiveErrorCode(null);
-    if (typeof window !== 'undefined') {
-      (window as any).__mediflow_registering = true;
-    }
 
     try {
       // 1. Verify lockout and rate limit via database sentry
@@ -611,7 +611,15 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // Record successful attempt
       recordAttempt(email, true, { user_id: data.user.id });
-      onAuthSuccess(data.session, profile);
+      
+      // Dispatch toast manually on login success
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Professional Portal Initialized',
+          message: `Successfully authenticated as ${profile.display_name}. Role: ${profile.role.toUpperCase()}`,
+          type: 'success'
+        }
+      }));
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Login failed:', err);
@@ -649,9 +657,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setLoading(true);
     setErrorMsg(null);
     setActiveErrorCode(null);
-    if (typeof window !== 'undefined') {
-      (window as any).__mediflow_registering = true;
-    }
 
     try {
       // 1. Verify lockout and rate limit via database sentry
@@ -708,7 +713,15 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       recordAttempt(email, true, { user_id: data.user.id });
-      onAuthSuccess(data.session, profile);
+      
+      // Dispatch toast manually on login success
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Professional Portal Initialized',
+          message: `Successfully authenticated as ${profile.display_name}. Role: ${profile.role.toUpperCase()}`,
+          type: 'success'
+        }
+      }));
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Partner login failed:', err);
@@ -872,6 +885,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // 4. Show registration success screen with generated clinic code!
       const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
       setRegisteredClinicCode(generatedCode);
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+      }
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -999,6 +1015,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       if (profileErr) throw profileErr;
 
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+      }
+
       // 5. Notify app of authentication success!
       onAuthSuccess(authData.session, profile);
 
@@ -1029,9 +1049,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setLoading(true);
     setErrorMsg(null);
     setActiveErrorCode(null);
-    if (typeof window !== 'undefined') {
-      (window as any).__mediflow_registering = true;
-    }
 
     try {
       // 1. Verify lockout and rate limit via database sentry
@@ -1121,7 +1138,15 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       recordAttempt(email, true, { user_id: data.user.id });
-      onAuthSuccess(data.session, profile);
+      
+      // Dispatch toast manually on login success
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Professional Portal Initialized',
+          message: `Successfully authenticated as ${profile.display_name}. Role: ${profile.role.toUpperCase()}`,
+          type: 'success'
+        }
+      }));
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Ops login failed:', err);
@@ -1210,7 +1235,15 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // Record successful attempt
       recordAttempt(authEmail, true);
-      onAuthSuccess(authData.session, modifiedProfile);
+      
+      // Dispatch toast manually on login success
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Professional Portal Initialized',
+          message: `Successfully authenticated as ${modifiedProfile.display_name}. Role: ${modifiedProfile.role.toUpperCase()}`,
+          type: 'success'
+        }
+      }));
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Demo login failed:', err);
@@ -1224,6 +1257,41 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
       }
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const redirectUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+        ? `http://app.localhost:${window.location.port || '5173'}`
+        : 'https://app.vitalsync.in';
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${redirectUrl}?recovery=true`
+      });
+
+      if (error) throw error;
+
+      setResetSent(true);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Reset Link Sent! ✉️',
+          message: `Check your email inbox at ${email} to reset your password.`,
+          type: 'success'
+        }
+      }));
+    } catch (_err) {
+      const err = _err as any;
+      console.error('[Mediflow Auth] Password reset request failed:', err);
+      setErrorMsg(err.message || 'Failed to send password reset email.');
+    } finally {
       setLoading(false);
     }
   };
@@ -1543,11 +1611,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 transition-all cursor-pointer"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 transition-all cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex justify-end pr-1">
+              <button
+                type="button"
+                onClick={() => { setActiveTab('forgot'); setErrorMsg(null); }}
+                className="text-[10px] font-bold text-cyan-600 hover:text-cyan-850 transition-colors cursor-pointer underline"
+              >
+                Forgot Password?
+              </button>
             </div>
 
             <button
@@ -1558,6 +1636,82 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Authenticate Operations Console <ArrowRight className="h-4 w-4" /></>}
             </button>
           </form>
+        )}
+
+        {/* FORGOT PASSWORD FLOW */}
+        {activeTab === 'forgot' && !resetSent && (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="bg-cyan-50/50 border border-cyan-100/50 rounded-xl p-3 text-[10px] text-slate-600 leading-relaxed font-medium">
+              <span className="font-bold text-cyan-700">Password Reset:</span> Enter your email address and we will send you a secure link to update your security password.
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                Professional Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@mediflow.com"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                  required
+                />
+              </div>
+            </div>
+
+            {errorMsg && (
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2.5">
+                <AlertCircle className="h-4.5 w-4.5 text-rose-500 mt-0.5 shrink-0" />
+                <span className="text-[11px] text-rose-600 font-semibold">{errorMsg}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Send Reset Link <ArrowRight className="h-4 w-4" /></>}
+            </button>
+
+            <p className="text-center text-[10px] text-slate-500 font-medium">
+              Remember your password?{' '}
+              <button type="button" onClick={() => { setActiveTab('signin'); setErrorMsg(null); }} className="text-cyan-600 hover:text-cyan-800 font-bold underline cursor-pointer">
+                Back to Sign In
+              </button>
+            </p>
+          </form>
+        )}
+
+        {activeTab === 'forgot' && resetSent && (
+          <div className="w-full flex flex-col space-y-5 animate-fade-in text-center py-4">
+            <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Mail className="h-6 w-6 text-emerald-500 animate-pulse" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-extrabold text-slate-900">Check Your Email</h3>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                We have sent a secure password reset link to <strong className="text-slate-800">{email}</strong>.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setResetSent(false);
+                setActiveTab('signin');
+                setEmail('');
+                setErrorMsg(null);
+              }}
+              className="w-full py-3 bg-gradient-to-r from-indigo-500 to-indigo-650 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer font-sans"
+            >
+              Return to Sign In
+            </button>
+          </div>
         )}
 
         {/* DOCTOR REGISTRATION FLOW */}
@@ -2003,6 +2157,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                </div>
+
+                <div className="flex justify-end pr-1">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('forgot'); setErrorMsg(null); }}
+                    className="text-[10px] font-bold text-cyan-600 hover:text-cyan-850 transition-colors cursor-pointer underline"
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
 
                 <button

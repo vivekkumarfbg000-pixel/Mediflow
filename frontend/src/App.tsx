@@ -16,7 +16,7 @@ import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
 import { BrandMark } from './components/shared/BrandMark';
 import { supabase } from './lib/supabaseClient';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { ClinicProvider, useClinic } from './context/ClinicContext';
@@ -385,6 +385,12 @@ export default function App() {
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
   const [initialSignupTab, setInitialSignupTab] = useState<'signin' | 'register' | 'join'>('signin');
   const watchdogTriggered = useRef(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('recovery') === 'true';
+    }
+    return false;
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -695,6 +701,10 @@ export default function App() {
     // 2. Setup auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!active) return;
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log('[Mediflow Auth] PASSWORD_RECOVERY event triggered. Entering recovery mode.');
+        setIsRecoveryMode(true);
+      }
       setSession(session);
       if (!session) {
         setActiveProfile(null);
@@ -887,6 +897,35 @@ export default function App() {
   const isDashboardSubdomain = hostname === 'app.vitalsync.in' || hostname.startsWith('app.');
   const isLandingPageDomain = hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in' || hostname === 'localhost' || hostname === '127.0.0.1';
 
+  // 1a. Password Recovery/Reset Mode Gate
+  if (isRecoveryMode) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+        
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+          <div className="flex flex-col items-center space-y-2 text-center">
+            <BrandMark size={52} title="VitalSync" />
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Create New Password</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">Set a secure password for your clinical portal</p>
+            </div>
+          </div>
+          
+          <ResetPasswordForm 
+            onSuccess={() => {
+              setIsRecoveryMode(false);
+              // Clean URL query params
+              const newUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, newUrl);
+            }} 
+          />
+        </div>
+      </div>
+    );
+  }
+
   // 1. Session Loading Gate
   if (isLoadingSession) {
     return <FullPageLoader message="Initializing clinical session..." />;
@@ -896,6 +935,21 @@ export default function App() {
   // vitalsync.in always shows the landing page — on ALL devices (desktop and mobile).
   // Users reach app.vitalsync.in via the "Console Login" or "Get Started" buttons.
   if (isLandingPageDomain) {
+    if (session && activeProfile) {
+      const userRole = activeProfile.role;
+      const isAdmin = userRole === 'admin' || userRole === 'platform_admin';
+      const redirectUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+        ? (isAdmin 
+            ? `http://admin.localhost:${window.location.port || '5173'}` 
+            : `http://app.localhost:${window.location.port || '5173'}`)
+        : (isAdmin 
+            ? 'https://admin.vitalsync.in' 
+            : 'https://app.vitalsync.in');
+      
+      console.log(`[Mediflow Auth] Active session found on landing page. Redirecting to: ${redirectUrl}`);
+      window.location.replace(redirectUrl);
+      return <FullPageLoader message="Redirecting to dashboard..." />;
+    }
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
@@ -1100,5 +1154,118 @@ export default function App() {
         </SpecializationProvider>
       </ClinicProvider>
     </ToastProvider>
+  );
+}
+
+interface ResetPasswordFormProps {
+  onSuccess: () => void;
+}
+
+function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) return;
+
+    if (newPassword.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Password Updated! 🎉',
+          message: 'Your new security password is now active. Welcome back.',
+          type: 'success'
+        }
+      }));
+
+      onSuccess();
+    } catch (_err) {
+      const err = _err as any;
+      console.error('[Mediflow Auth] Password update failed:', err);
+      setErrorMsg(err.message || 'Failed to update password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleUpdatePassword} className="space-y-4">
+      {errorMsg && (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2.5">
+          <AlertCircle className="h-4.5 w-4.5 text-rose-500 mt-0.5 shrink-0" />
+          <span className="text-[11px] text-rose-600 font-semibold">{errorMsg}</span>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+          New Security Password
+        </label>
+        <div className="relative">
+          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="••••••••••••"
+            className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-12 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 transition-all cursor-pointer"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+          Confirm New Password
+        </label>
+        <div className="relative">
+          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="••••••••••••"
+            className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-12 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+            required
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Update Password & Sign In <ArrowRight className="h-4 w-4" /></>}
+      </button>
+    </form>
   );
 }

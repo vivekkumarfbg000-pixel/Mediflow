@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2
+  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Phone
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
@@ -762,27 +762,55 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-6 relative z-10 bg-white border-t border-slate-200 text-slate-500">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold">
-          <span>© 2026 VitalSync Care Connected Ecosystem</span>
-          <div className="flex items-center gap-4">
-            <span className="text-cyan-700 font-semibold italic">Integrated Clinical Network</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-            <span className="font-mono">v1.0.0-stable</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-            <button
-              type="button"
-              onClick={() => {
-                const adminUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                  ? `http://admin.localhost:${window.location.port || '5173'}`
-                  : 'https://admin.vitalsync.in';
-                window.location.href = adminUrl;
-              }}
-              className="text-slate-400 hover:text-slate-600 transition-colors font-mono text-[10px] tracking-widest uppercase cursor-pointer select-none"
-              title="Go to admin.vitalsync.in"
-            >
-              Platform Operations
-            </button>
+      <footer className="py-12 px-6 relative z-10 bg-white border-t border-slate-200 text-slate-500">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:justify-between gap-8 text-xs font-semibold">
+          {/* Left Column: Brand & Location Address */}
+          <div className="flex flex-col space-y-3 text-left">
+            <div className="flex items-center gap-2">
+              <BrandMark size={20} title="VitalSync" />
+              <span className="text-sm font-black text-slate-900 tracking-tight">VitalSync</span>
+            </div>
+            <p className="text-slate-500 font-medium leading-relaxed max-w-sm">
+              <span className="font-bold text-slate-700 block mb-0.5">Clinical Hub Address:</span>
+              Patna Bailey Road, Patna, Bihar, India
+            </p>
+          </div>
+
+          {/* Right Column: Contact CTA & Metadata */}
+          <div className="flex flex-col space-y-4 md:items-end">
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href="https://wa.me/918986426029?text=Hi%20VitalSync%20Support,%20I'm%20interested%20in%20onboarding."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-all shadow-sm cursor-pointer select-none font-sans text-xs"
+              >
+                <span className="material-symbols-outlined text-sm font-bold text-white leading-none">chat</span>
+                <span>Contact Support via WhatsApp</span>
+              </a>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-450">
+              <span>© 2026 VitalSync Care Connected Ecosystem</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-200 hidden sm:inline" />
+              <span className="text-cyan-700 font-semibold italic hidden sm:inline">Integrated Clinical Network</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+              <span className="font-mono">v1.0.0-stable</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+              <button
+                type="button"
+                onClick={() => {
+                  const adminUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? `http://admin.localhost:${window.location.port || '5173'}`
+                    : 'https://admin.vitalsync.in';
+                  window.location.href = adminUrl;
+                }}
+                className="text-slate-400 hover:text-slate-655 transition-colors font-mono text-[10px] tracking-widest uppercase cursor-pointer select-none"
+                title="Go to admin.vitalsync.in"
+              >
+                Platform Operations
+              </button>
+            </div>
           </div>
         </div>
       </footer>
