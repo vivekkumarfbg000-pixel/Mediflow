@@ -8,8 +8,9 @@ interface BrandMarkProps {
 
 export function BrandMark({ size = 40, className = '', title = 'VitalSync' }: BrandMarkProps) {
   const instanceId = useId().replace(/:/g, '');
-  const primaryGradId = `vitalsync-brand-primary-grad-${instanceId}`;
-  const glowId = `vitalsync-brand-glow-${instanceId}`;
+  const tealGradId = `vitalsync-brand-teal-grad-${instanceId}`;
+  const greenGradId = `vitalsync-brand-green-grad-${instanceId}`;
+  const shadowId = `vitalsync-brand-shadow-${instanceId}`;
 
   return (
     <svg
@@ -24,43 +25,45 @@ export function BrandMark({ size = 40, className = '', title = 'VitalSync' }: Br
     >
       <title>{title}</title>
       <defs>
-        {/* VitalSync Indigo-Teal Glow Gradient */}
-        <linearGradient id={primaryGradId} x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#4F46E5" />
+        {/* Teal Gradient (Teal to Deep Teal) */}
+        <linearGradient id={tealGradId} x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#0EA5E9" />
           <stop offset="100%" stopColor="#0D9488" />
         </linearGradient>
 
-        {/* Neon Glow Filter */}
-        <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="4.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        {/* Green Gradient (Light Green to Leaf Green) */}
+        <linearGradient id={greenGradId} x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#34D399" />
+          <stop offset="100%" stopColor="#059669" />
+        </linearGradient>
+
+        {/* Drop Shadow for ECG Line */}
+        <filter id={shadowId} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2.5" stdDeviation="1.8" floodColor="#0F172A" floodOpacity="0.22" />
         </filter>
       </defs>
 
-      {/* VitalSync Emblem: Double Intersecting Nodes forming a 'V' + Heartbeat Sync */}
-      <g transform="translate(10, 10) scale(0.8)">
-        {/* Main Glowing Loop Connection */}
+      <g transform="translate(1, 1) scale(0.98)">
+        {/* Left Shield Half — Green */}
         <path
-          d="M 20 40 C 20 20, 50 20, 50 50 C 50 80, 80 80, 80 60 C 80 40, 50 40, 50 50 C 50 60, 20 60, 20 40 Z"
-          stroke={`url(#${primaryGradId})`}
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-          filter={`url(#${glowId})`}
+          d="M 50 84 C 26 80 18 55 18 35 L 18 18 C 30 18 42 22 50 24 L 50 84 Z"
+          fill={`url(#${greenGradId})`}
         />
-        
-        {/* Outer Sync Ring */}
-        <circle cx="50" cy="50" r="36" stroke="#4F46E5" strokeWidth="1.5" strokeDasharray="6 8" opacity="0.4" />
-        
-        {/* Central Pulse Heartbeat Node */}
+
+        {/* Right Shield Half — Teal */}
         <path
-          d="M 38 50 L 44 50 L 47 62 L 50 35 L 53 65 L 56 46 L 59 52 L 62 50 L 68 50"
-          stroke="#4F46E5"
-          strokeWidth="4.5"
+          d="M 50 84 C 74 80 82 55 82 35 L 82 18 C 70 18 58 22 50 24 L 50 84 Z"
+          fill={`url(#${tealGradId})`}
+        />
+
+        {/* ECG Heartbeat Line — white, centered across shield */}
+        <path
+          d="M 14 52 L 36 52 L 40 66 L 45 22 L 51 80 L 56 36 L 60 56 L 64 52 L 86 52"
+          stroke="#FFFFFF"
+          strokeWidth="3.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          fill="none"
+          filter={`url(#${shadowId})`}
         />
       </g>
     </svg>
