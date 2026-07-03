@@ -14,6 +14,7 @@ const SaaSAdminPanel = lazy(() => import('./components/admin/SaaSAdminPanel').th
 
 import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
+import { BrandMark } from './components/shared/BrandMark';
 import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
@@ -926,11 +927,11 @@ export default function App() {
           
           <div className="w-full max-w-md bg-slate-900 border border-slate-800/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
             <div className="flex flex-col items-center space-y-2 text-center">
-              <div className="p-3.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-2xl">
-                <Shield className="h-6 w-6" />
+              <BrandMark size={52} title="VitalSync" />
+              <div>
+                <h3 className="text-xl font-extrabold text-white">VitalSync Super Admin</h3>
+                <p className="text-xs text-slate-400 mt-1">Secure Operations Management Console</p>
               </div>
-              <h3 className="text-xl font-extrabold text-white">VitalSync Super Admin</h3>
-              <p className="text-xs text-slate-400">Secure Operations Management Console</p>
             </div>
             
             <AuthGateway 
@@ -1033,11 +1034,11 @@ export default function App() {
         
         <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
           <div className="flex flex-col items-center space-y-2 text-center">
-            <div className="p-3 bg-indigo-50 border border-indigo-150 text-indigo-650 rounded-2xl">
-              <Shield className="h-6 w-6" />
+            <BrandMark size={52} title="VitalSync" />
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">VitalSync Dashboard</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">Enterprise Care Connected Console</p>
             </div>
-            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">VitalSync Dashboard</h3>
-            <p className="text-xs text-slate-500 font-medium">Enterprise Care Connected Console</p>
           </div>
           
           <AuthGateway 

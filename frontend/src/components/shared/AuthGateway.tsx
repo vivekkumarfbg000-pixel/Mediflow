@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrandMark } from './BrandMark';
 import { supabase, isMissingEnv } from '../../lib/supabaseClient';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
@@ -1330,19 +1331,23 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
 
       <div className="z-10 flex flex-col space-y-5">
-        <div>
-          <h3 className="text-xl font-extrabold text-slate-900">
-            {activeTab === 'signin' && 'Sign In to Mediflow'}
-            {activeTab === 'register' && 'Register Your Clinic'}
-            {activeTab === 'join' && (joinSubMode === 'signin' ? 'Partner Sign In' : 'Join Existing Clinic Network')}
-            {activeTab === 'ops' && 'SaaS Platform Operations'}
-          </h3>
-          <p className="text-xs text-slate-500 mt-1 font-semibold">
-            {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
-            {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
-            {activeTab === 'join' && (joinSubMode === 'signin' ? 'Sign in to your partner pharmacy/laboratory workspace.' : 'Pharmacies and laboratories can request to link with a clinic.')}
-            {activeTab === 'ops' && 'Secure authentication for Mediflow systems administration team.'}
-          </p>
+        {/* Brand Logo Header */}
+        <div className="flex items-center gap-3">
+          <BrandMark size={40} title="VitalSync" />
+          <div>
+            <h3 className="text-xl font-extrabold text-slate-900">
+              {activeTab === 'signin' && 'Sign In to VitalSync'}
+              {activeTab === 'register' && 'Register Your Clinic'}
+              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Partner Sign In' : 'Join Existing Clinic Network')}
+              {activeTab === 'ops' && 'SaaS Platform Operations'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5 font-semibold">
+              {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
+              {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
+              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Sign in to your partner pharmacy/laboratory workspace.' : 'Pharmacies and laboratories can request to link with a clinic.')}
+              {activeTab === 'ops' && 'Secure authentication for Mediflow systems administration team.'}
+            </p>
+          </div>
         </div>
 
         {/* Sliding Tab Selector */}
