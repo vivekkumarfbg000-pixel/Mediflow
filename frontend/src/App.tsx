@@ -893,6 +893,44 @@ export default function App() {
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
+  // 2a. Fallback Routing for single-domain environments (Vercel previews, custom domains, direct IPs)
+  // If the host is not one of the pre-configured subdomains, we check query params:
+  // - ?console=true or ?tab=register/join: Render the dashboard login page / signup flow.
+  // - If session exists: Fall through and render the dashboard workspace.
+  // - Otherwise: Render the Landing Page.
+  const isSingleDomain = !isLandingPageDomain && !isDashboardSubdomain && !isAdminSubdomain;
+  const isConsoleRequested = new URLSearchParams(window.location.search).get('console') === 'true' || new URLSearchParams(window.location.search).get('tab') !== null;
+
+  if (isSingleDomain) {
+    if (!session || !activeProfile) {
+      if (isConsoleRequested) {
+        return (
+          <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+            
+            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+              <div className="flex flex-col items-center space-y-2 text-center">
+                <BrandMark size={52} title="VitalSync" />
+                <div>
+                  <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">VitalSync Dashboard</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Enterprise Care Connected Console</p>
+                </div>
+              </div>
+              
+              <AuthGateway 
+                onAuthSuccess={handleAuthSuccess} 
+                allowSignup={true} 
+                initialSignupTab={initialSignupTab}
+              />
+            </div>
+          </div>
+        );
+      }
+      return <LandingPage onAuthSuccess={handleAuthSuccess} />;
+    }
+  }
+
 
   // 3. Super Admin Dashboard Subdomain Routing
   if (isAdminSubdomain) {

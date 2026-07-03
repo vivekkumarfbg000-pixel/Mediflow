@@ -1084,4 +1084,84 @@ body.dark {
               inset 0 1px 0 0 rgba(255, 255, 255, 0.5) !important;
 }
 
+/* Mobile Landscape warning overlay */
+.mobile-landscape-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+  color: #f8fafc;
+  z-index: 999999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 2rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* Only display on mobile screen sizes in landscape orientation */
+@media screen and (max-height: 480px) and (orientation: landscape) and (max-width: 950px) {
+  .mobile-landscape-overlay {
+    display: flex !important;
+  }
+}
+
+.landscape-warning-box {
+  max-width: 420px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.phone-rotate-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  background: rgba(79, 70, 229, 0.15);
+  border: 1px solid rgba(79, 70, 229, 0.35);
+  border-radius: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #818cf8;
+  animation: phoneRotate 2.5s ease-in-out infinite;
+}
+
+.phone-rotate-icon span {
+  font-size: 2.5rem;
+}
+
+.landscape-warning-box h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.landscape-warning-box p {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0;
+  font-weight: 500;
+}
+
+@keyframes phoneRotate {
+  0% { transform: rotate(0deg); }
+  35% { transform: rotate(-90deg); }
+  70% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+
 

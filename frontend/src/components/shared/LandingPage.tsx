@@ -216,6 +216,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
   const scrollToGate = (e: React.MouseEvent) => {
     e.preventDefault();
     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isSingleDomain = hostname.includes('.vercel.app') || /^[0-9.]+$/.test(hostname);
+
+    if (isSingleDomain) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('console', 'true');
+      window.location.href = url.toString();
+      return;
+    }
+
     const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
       ? `http://app.localhost:${window.location.port || '5173'}`
       : 'https://app.vitalsync.in';
@@ -226,6 +235,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
     e.preventDefault();
     if (isSignupUnlocked) {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const isSingleDomain = hostname.includes('.vercel.app') || /^[0-9.]+$/.test(hostname);
+
+      if (isSingleDomain) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'register');
+        window.location.href = url.toString();
+        return;
+      }
+
       const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
         ? `http://app.localhost:${window.location.port || '5173'}?tab=register`
         : 'https://app.vitalsync.in?tab=register';
@@ -290,9 +308,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
 
     const registrationTab = registrationType === 'doctor' ? 'register' : 'join';
     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-      ? `http://app.localhost:${window.location.port || '5173'}?tab=${registrationTab}`
-      : `https://app.vitalsync.in?tab=${registrationTab}`;
+    const isSingleDomain = hostname.includes('.vercel.app') || /^[0-9.]+$/.test(hostname);
+
+    let targetUrl = '';
+    if (isSingleDomain) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', registrationTab);
+      targetUrl = url.toString();
+    } else {
+      targetUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+        ? `http://app.localhost:${window.location.port || '5173'}?tab=${registrationTab}`
+        : `https://app.vitalsync.in?tab=${registrationTab}`;
+    }
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -303,7 +330,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
     }));
 
     setTimeout(() => {
-      window.location.href = dashboardUrl;
+      window.location.href = targetUrl;
     }, 1200);
   };
 
@@ -460,13 +487,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
               Get Started <ArrowRight className="h-4 w-4" />
             </button>
             <button
-              onClick={() => {
-                const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-                const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-                  ? `http://app.localhost:${window.location.port || '5173'}`
-                  : 'https://app.vitalsync.in';
-                window.location.href = dashboardUrl;
-              }}
+              onClick={scrollToGate}
               className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-violet-500/20 cursor-pointer flex items-center gap-2"
             >
               Console Login <ArrowRight className="h-4 w-4" />

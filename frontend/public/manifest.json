@@ -5,7 +5,7 @@
   "start_url": "https://app.vitalsync.in/",
   "scope": "https://app.vitalsync.in/",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "portrait",
   "background_color": "#090d16",
   "theme_color": "#0f62fe",
   "icons": [

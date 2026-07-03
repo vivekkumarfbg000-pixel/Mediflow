@@ -9,9 +9,25 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
       (function() {
-        localStorage.setItem('theme', 'light');
+        try {
+          localStorage.setItem('theme', 'light');
+        } catch(e) {}
         document.documentElement.classList.remove('dark');
-        document.body?.classList.remove('dark');
+        if (document.body) {
+          document.body.classList.remove('dark');
+        }
+      })();
+
+      // Screen Orientation Lock — lock to portrait on mobile devices
+      (function() {
+        try {
+          var isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          if (isMobile && screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').catch(function() {
+              // Lock may fail in regular browser (only works in PWA standalone) — silently ignore
+            });
+          }
+        } catch(e) {}
       })();
 
       // Emergency Startup Shield for catching early JS/Vite/Circular import crashes
@@ -81,6 +97,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- Mobile Landscape Warning Overlay -->
+    <div id="mobile-landscape-overlay" class="mobile-landscape-overlay">
+      <div class="landscape-warning-box">
+        <div class="phone-rotate-icon">
+          <span class="material-symbols-outlined">screen_rotation</span>
+        </div>
+        <h3>Please Rotate Your Device</h3>
+        <p>VitalSync is optimized for portrait mode on mobile devices. Please rotate your device back to portrait to continue.</p>
+      </div>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
