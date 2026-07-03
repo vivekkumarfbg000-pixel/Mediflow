@@ -1250,24 +1250,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const pwdStrength = getPasswordStrength(password);
   if (registeredClinicCode) {
     return (
-      <div className="w-full bg-clinical-900 text-clinical-100 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-cyan-500/10 blur-[80px] pointer-events-none animate-pulse-subtle"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full bg-indigo-500/10 blur-[80px] pointer-events-none animate-pulse-subtle"></div>
-
-        <div className="z-10 flex flex-col space-y-5 text-center animate-fade-in">
+      <div className="w-full flex flex-col space-y-5 animate-fade-in">
+        <div className="flex flex-col space-y-5 text-center">
           <div className="mx-auto w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/20">
             <Sparkles className="h-6 w-6 text-cyan-500 animate-pulse-subtle" />
           </div>
 
           <div className="space-y-2">
             <h3 className="text-xl font-extrabold text-slate-900">Clinic Registered!</h3>
-            <p className="text-xs text-clinical-300 leading-relaxed font-medium">
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
               Your clinic node is now live. Share the unique code below with your partner pharmacy and lab.
             </p>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
-            <span className="text-[9px] font-bold text-clinical-400 uppercase tracking-widest block">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 shadow-sm">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
               Unique Clinic Network Code
             </span>
             <div className="flex items-center justify-center gap-3">
@@ -1290,7 +1287,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             <h4 className="text-[10px] font-bold text-cyan-600 flex items-center gap-2 uppercase tracking-wider">
               <Shield className="h-3.5 w-3.5" /> Next Steps:
             </h4>
-            <ul className="text-[10px] text-clinical-300 space-y-1 list-decimal list-inside pl-1 leading-relaxed font-medium">
+            <ul className="text-[10px] text-slate-600 space-y-1 list-decimal list-inside pl-1 leading-relaxed font-medium">
               <li>Copy the unique code above</li>
               <li>Share it with your partner Pharmacy and Lab staff</li>
               <li>When they register using this code, approve their requests in your clinic dashboard settings</li>
@@ -1324,31 +1321,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   }
 
   return (
-    <div className="w-full bg-white text-slate-800 p-6 md:p-8 flex flex-col space-y-5 relative overflow-hidden border border-slate-200 rounded-3xl shadow-xl">
-      
+    <div className="w-full flex flex-col space-y-5 relative">
       {/* Background Neon Glow Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/5 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
 
       <div className="z-10 flex flex-col space-y-5">
-        {/* Brand Logo Header */}
-        <div className="flex items-center gap-3">
-          <BrandMark size={40} title="VitalSync" />
-          <div>
-            <h3 className="text-xl font-extrabold text-slate-900">
-              {activeTab === 'signin' && 'Sign In to VitalSync'}
-              {activeTab === 'register' && 'Register Your Clinic'}
-              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Partner Sign In' : 'Join Existing Clinic Network')}
-              {activeTab === 'ops' && 'SaaS Platform Operations'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-semibold">
-              {activeTab === 'signin' && 'Sign in to access your digital clinic care workspace.'}
-              {activeTab === 'register' && 'Medical doctors can initialize a new secure clinical pod.'}
-              {activeTab === 'join' && (joinSubMode === 'signin' ? 'Sign in to your partner pharmacy/laboratory workspace.' : 'Pharmacies and laboratories can request to link with a clinic.')}
-              {activeTab === 'ops' && 'Secure authentication for Mediflow systems administration team.'}
-            </p>
-          </div>
-        </div>
 
         {/* Sliding Tab Selector */}
         {initialSignupTab !== 'ops' && (
@@ -2462,48 +2440,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           </div>
         )}
       </div>
-
-      {(() => {
-        const isDemoMode = true; // Always enable mock profiles for evaluation/testing convenience
-
-        if (activeTab !== 'signin' || !isDemoMode) return null;
-
-        return (
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between border-t border-slate-200 pt-4">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                Enterprise Mock Profiles (E2E Telemetry)
-              </span>
-              <span className="text-[9px] font-bold text-cyan-600 bg-cyan-50 px-2.5 py-0.5 rounded-full border border-cyan-200">
-                RLS Verification Active
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {demoUsers.map((user, idx) => (
-                <button
-                  key={`${user.id}-${idx}`}
-                  type="button"
-                  onClick={() => handleDemoSignIn(user)}
-                  disabled={loading}
-                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-cyan-500/30 rounded-xl p-2.5 flex flex-col text-left space-y-1 cursor-pointer transition-all duration-300 group"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-[10px] font-black text-slate-800 group-hover:text-cyan-600 transition-colors truncate">
-                      {user.name.split(' ')[1] || user.name}
-                    </span>
-                    <span className="text-xs">{user.icon}</span>
-                  </div>
-                  <div className="text-[8px] font-extrabold uppercase tracking-wide leading-tight">
-                    <span className="text-cyan-600 group-hover:text-cyan-700 block truncate">{user.role.replace('_', ' ')}</span>
-                    <span className="text-slate-500 truncate block mt-0.5">{user.entity.split(' ')[0]}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Terms of Service & Privacy Policy Modal */}
       {showTermsModal && (

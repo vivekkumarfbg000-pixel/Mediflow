@@ -1,5 +1,5 @@
 // Mediflow Connected Care Ecosystem - Premium Dashboard v1.0.0
-import { useState, useEffect, lazy, Suspense, startTransition } from 'react';
+import { useState, useEffect, lazy, Suspense, startTransition, useRef } from 'react';
 import { Navbar } from './components/shared/Navbar';
 import type { UserRole } from './components/shared/Navbar';
 import { api } from './services/api';
@@ -384,6 +384,7 @@ export default function App() {
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
   const [initialSignupTab, setInitialSignupTab] = useState<'signin' | 'register' | 'join'>('signin');
+  const watchdogTriggered = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -445,15 +446,20 @@ export default function App() {
     api.setSimulatedRole(apiRole);
   }, [currentRole]);
 
-  // Loading watchdog: If session exists but we are stuck loading for more than 4 seconds, trigger self-healing
+  // Loading watchdog: If session exists but we are stuck loading for more than 12 seconds, trigger self-healing
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      watchdogTriggered.current = false;
+      return;
+    }
     if (typeof window !== 'undefined' && (window as any).__mediflow_registering) return;
+    if (watchdogTriggered.current) return;
     
     const timer = setTimeout(() => {
       const isStillLoading = isLoadingSession || isOnboarding;
-      if (isStillLoading) {
-        console.warn('[Loading Watchdog] Stuck loading state detected for >4 seconds. Triggering State Healing Engine...');
+      if (isStillLoading && !watchdogTriggered.current) {
+        watchdogTriggered.current = true;
+        console.warn('[Loading Watchdog] Stuck loading state detected for >12 seconds. Triggering State Healing Engine...');
         StateHealingEngine.handleException(new Error('LoadingWatchdogException: Dashboard loading state hung or profiles query blocked'))
           .then(healed => {
             if (healed) {
@@ -466,7 +472,7 @@ export default function App() {
             }
           });
       }
-    }, 4000);
+    }, 12000);
 
     return () => clearTimeout(timer);
   }, [session, isLoadingSession, isOnboarding]);
@@ -646,13 +652,13 @@ export default function App() {
   useEffect(() => {
     let active = true;
 
-    // Safety timeout: If session loading takes more than 3.5 seconds (e.g. invalid refresh token fetch hangs), force loader removal
+    // Safety timeout: If session loading takes more than 12 seconds (e.g. invalid refresh token fetch hangs), force loader removal
     const safetyTimeout = setTimeout(() => {
       if (active) {
         console.warn('[Mediflow Auth] Session initialization timed out. Forcing loader removal.');
         setIsLoadingSession(false);
       }
-    }, 3500);
+    }, 12000);
 
     // 1. Check existing Supabase session and load active profile
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -909,7 +915,7 @@ export default function App() {
             <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
             
-            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
               <div className="flex flex-col items-center space-y-2 text-center">
                 <BrandMark size={52} title="VitalSync" />
                 <div>
@@ -946,7 +952,7 @@ export default function App() {
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
           
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
             <div className="flex flex-col items-center space-y-2 text-center">
               <BrandMark size={52} title="VitalSync" />
               <div>
@@ -1053,7 +1059,7 @@ export default function App() {
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
         
-        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
           <div className="flex flex-col items-center space-y-2 text-center">
             <BrandMark size={52} title="VitalSync" />
             <div>
