@@ -1516,9 +1516,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                                   ]);
                                   
                                   setTimeout(() => {
+                                    const container = document.getElementById('doctor-tab-container') || document.querySelector('.doctor-dashboard-main-content');
                                     const panel = document.getElementById('prescription-panel');
-                                    if (panel) {
-                                      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    if (container && panel) {
+                                      const offsetTop = panel.offsetTop;
+                                      container.scrollTop = offsetTop - 120;
                                     }
                                     setFlashPrescriptionPanel(true);
                                     setTimeout(() => setFlashPrescriptionPanel(false), 1500);
