@@ -228,7 +228,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 }) => {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isDashboardSubdomain = hostname === 'app.vitalsync.in' || hostname.startsWith('app.');
-  const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'join' | 'ops'>('signin');
+  const [activeTab, setActiveTab] = useState<'signin' | 'register' | 'join' | 'ops' | 'forgot'>('signin');
   const [joinSubMode, setJoinSubMode] = useState<'signin' | 'register'>('signin');
 
   // Handle updates to initialSignupTab from LandingPage
@@ -287,7 +287,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const [validatedClinicName, setValidatedClinicName] = useState<string | null>(null);
 
   // Clear form errors and states when switching context
-  const handleTabSelect = (tab: 'signin' | 'register' | 'join' | 'ops') => {
+  const handleTabSelect = (tab: 'signin' | 'register' | 'join' | 'ops' | 'forgot') => {
     if (!allowSignup && tab === 'register') {
       return;
     }
