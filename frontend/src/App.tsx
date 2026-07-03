@@ -383,8 +383,8 @@ const setCrossDomainCookie = (active: boolean) => {
   
   if (hostname.endsWith('.vitalsync.in')) {
     cookieDomain = '; domain=.vitalsync.in';
-  } else if (hostname.endsWith('.localhost')) {
-    cookieDomain = '; domain=.localhost';
+  } else if (hostname.includes('localhost')) {
+    cookieDomain = '; domain=localhost';
   }
   
   const secureFlag = isLocal ? '' : '; Secure';
@@ -392,6 +392,9 @@ const setCrossDomainCookie = (active: boolean) => {
     document.cookie = `vitalsync_session_active=true; path=/${cookieDomain}; max-age=31536000; SameSite=Lax${secureFlag}`;
   } else {
     document.cookie = `vitalsync_session_active=; path=/${cookieDomain}; max-age=0; SameSite=Lax${secureFlag}`;
+    // Self-healing cleanup for legacy/orphaned subdomain cookies
+    document.cookie = `vitalsync_session_active=; path=/; domain=.localhost; max-age=0; SameSite=Lax${secureFlag}`;
+    document.cookie = `vitalsync_session_active=; path=/; domain=.vitalsync.in; max-age=0; SameSite=Lax${secureFlag}`;
   }
 };
 
