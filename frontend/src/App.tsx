@@ -887,13 +887,26 @@ export default function App() {
 
   // 2. Landing Page Domain Routing
   if (isLandingPageDomain) {
-    if (session) {
-      const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-        ? `http://app.localhost:${window.location.port || '5173'}`
-        : 'https://app.vitalsync.in';
-      window.location.replace(dashboardUrl);
-      return <FullPageLoader message="Redirecting to VitalSync dashboard..." />;
+    // If running as an installed PWA (standalone mode) on the landing page domain, redirect to dashboard/admin subdomains
+    const isStandalone = typeof window !== 'undefined' && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone ||
+      document.referrer.includes('android-app://')
+    );
+
+    if (isStandalone) {
+      const userRole = activeProfile?.role;
+      const targetSubdomain = (userRole === 'admin' || userRole === 'platform_admin') ? 'admin' : 'app';
+      
+      const targetUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+        ? `http://${targetSubdomain}.localhost:${window.location.port || '5173'}`
+        : `https://${targetSubdomain}.vitalsync.in`;
+        
+      window.location.replace(targetUrl);
+      return <FullPageLoader message="Opening VitalSync app..." />;
     }
+
+    // Otherwise, normal browser visitors on landing page domain ALWAYS see the landing page
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
