@@ -385,7 +385,7 @@ export class StateHealingEngine {
           localStorage.removeItem(`sb-${projectRef}-auth-token`);
           sessionStorage.clear();
           try {
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: 'local' });
             healingSteps.push('✅ Supabase auth session successfully signed out and reset.');
           } catch (signOutEx) {
             healingSteps.push(`⚠️ Supabase signOut failed (expected if offline): ${String(signOutEx)}`);

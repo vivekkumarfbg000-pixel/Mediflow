@@ -280,6 +280,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
 
+  // Google OAuth Onboarding States
+  const [sessionWithNoProfile, setSessionWithNoProfile] = useState<any | null>(null);
+  const [oauthOnboardingRole, setOauthOnboardingRole] = useState<'doctor' | 'partner' | null>(null);
+
   // Partner Join specific states
   const [clinicCode, setClinicCode] = useState('');
   const [partnerType, setPartnerType] = useState<'pharmacy' | 'lab' | 'compounder'>('pharmacy');
@@ -503,7 +507,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       if (allowedRoles && !allowedRoles.includes(profile.role)) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         throw new Error('Access Denied: This account is not registered with the required role for this tab.');
       }
 
@@ -513,6 +517,240 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const err = _err as any;
       console.error('[Mediflow Auth] Real login failed:', err);
       setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check if session exists but profile is missing (Google OAuth redirect landing)
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Check if profile exists
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (error || !profile) {
+            // Check if they are platform owners/admins (hardened in RPC)
+            const email = session.user.email;
+            if (email === 'owner@mediflow.com' || email === 'vivekkumarfbg000@gmail.com') {
+              // Trigger auto-healing reconcile
+              try {
+                await supabase.rpc('reconcile_profile_role');
+                const { data: healedProfile } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .single();
+                if (healedProfile) {
+                  onAuthSuccess(session, healedProfile);
+                  return;
+                }
+              } catch (healErr) {
+                console.error('[OAuth Onmount] Failed to reconcile platform owner profile:', healErr);
+              }
+            }
+
+            // Retrieve any saved onboarding info from sessionStorage
+            const savedDataRaw = sessionStorage.getItem('mediflow_oauth_onboarding_temp');
+            if (savedDataRaw) {
+              try {
+                const savedData = JSON.parse(savedDataRaw);
+                if (savedData.role === 'doctor') {
+                  setOauthOnboardingRole('doctor');
+                  if (savedData.clinicName) setClinicName(savedData.clinicName);
+                  if (savedData.specialization) setSpecialization(savedData.specialization);
+                  if (savedData.address) setAddress(savedData.address);
+                  if (savedData.phone) setPhone(savedData.phone);
+                } else if (savedData.role === 'partner') {
+                  setOauthOnboardingRole('partner');
+                  if (savedData.clinicCode) setClinicCode(savedData.clinicCode);
+                  if (savedData.partnerType) setPartnerType(savedData.partnerType);
+                  if (savedData.displayName) setDisplayName(savedData.displayName);
+                  if (savedData.phone) setPhone(savedData.phone);
+                  if (savedData.address) setAddress(savedData.address);
+                }
+                // Clear so we don't repeat
+                sessionStorage.removeItem('mediflow_oauth_onboarding_temp');
+              } catch (e) {
+                console.error('Failed to parse saved onboarding data:', e);
+              }
+            }
+
+            // User exists but has no profile -> needs onboarding
+            setSessionWithNoProfile(session);
+          }
+        }
+      } catch (err) {
+        console.error('[OAuth Onmount] Session check failed:', err);
+      }
+    };
+    checkSession();
+  }, [onAuthSuccess]);
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      // Save any partial signup input to sessionStorage so we can pre-fill it when we return
+      if (activeTab === 'register') {
+        sessionStorage.setItem('mediflow_oauth_onboarding_temp', JSON.stringify({
+          role: 'doctor',
+          clinicName,
+          specialization,
+          address,
+          phone
+        }));
+      } else if (activeTab === 'join' && joinSubMode === 'register') {
+        sessionStorage.setItem('mediflow_oauth_onboarding_temp', JSON.stringify({
+          role: 'partner',
+          clinicCode,
+          partnerType,
+          displayName: `${firstName} ${lastName}`.trim(),
+          phone,
+          address
+        }));
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('[Mediflow Auth] Google Sign-In failed:', err);
+      setErrorMsg(err.message || 'Failed to authenticate with Google. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOAuthRegisterClinic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sessionWithNoProfile) return;
+    if (!clinicName || !phone || !address) {
+      setErrorMsg('Please fill in all clinic fields.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      // 1. Call register_clinic_network RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('register_clinic_network', {
+        p_clinic_name: clinicName.trim(),
+        p_clinic_phone: phone.trim(),
+        p_clinic_address: address.trim(),
+        p_specialization: specialization
+      });
+
+      if (rpcError) throw rpcError;
+
+      // 2. Clear the pending registration flag
+      await supabase.auth.updateUser({
+        data: { pending_registration: false }
+      });
+
+      // 3. Wait a split second and fetch profile
+      await new Promise(resolve => setTimeout(resolve, 800));
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionWithNoProfile.user.id)
+        .single();
+
+      if (profileErr || !profile) {
+        throw new Error('Clinic registered successfully, but we could not load your user profile.');
+      }
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Clinic Registered successfully! 🎉',
+          message: 'Welcome to Mediflow Care Console.',
+          type: 'success'
+        }
+      }));
+
+      onAuthSuccess(sessionWithNoProfile, profile);
+    } catch (err: any) {
+      console.error('[OAuth Onboarding] Register Clinic failed:', err);
+      setErrorMsg(err.message || 'Onboarding failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOAuthJoinClinic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sessionWithNoProfile) return;
+    if (!clinicCode || !phone || !displayName || !address) {
+      setErrorMsg('Please fill in all partner fields.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      // 1. Call join_clinic_network RPC function
+      const { error: rpcError } = await supabase.rpc('join_clinic_network', {
+        p_clinic_code: clinicCode.trim().toUpperCase(),
+        p_partner_type: partnerType,
+        p_partner_name: displayName.trim(),
+        p_partner_phone: phone.trim(),
+        p_partner_address: address.trim()
+      });
+
+      if (rpcError) throw rpcError;
+
+      // 2. Clear the pending registration flag
+      await supabase.auth.updateUser({
+        data: { pending_registration: false }
+      });
+
+      // 3. Wait a split second and fetch profile
+      await new Promise(resolve => setTimeout(resolve, 800));
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionWithNoProfile.user.id)
+        .single();
+
+      if (profileErr || !profile) {
+        throw new Error('Joined clinic successfully, but we could not load your user profile.');
+      }
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Join Request Submitted! 🎉',
+          message: 'Welcome to Mediflow. Please request your doctor to approve your profile.',
+          type: 'success'
+        }
+      }));
+
+      onAuthSuccess(sessionWithNoProfile, profile);
+    } catch (err: any) {
+      console.error('[OAuth Onboarding] Join Clinic failed:', err);
+      setErrorMsg(err.message || 'Onboarding failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOAuthSignOut = async () => {
+    setLoading(true);
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+      setSessionWithNoProfile(null);
+      setOauthOnboardingRole(null);
+    } catch (err) {
+      console.error('[OAuth Onboarding] Sign out failed:', err);
     } finally {
       setLoading(false);
     }
@@ -586,7 +824,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       if (!['doctor', 'admin', 'platform_admin'].includes(profile.role)) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         const accessErr = new Error('Access Denied: Restricted to Doctors and Platform Admin.');
         (accessErr as any).code = 'ERR_INVALID_CREDENTIALS';
         throw accessErr;
@@ -599,7 +837,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
         const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
         if (!isAdminSubdomain) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
             ? `http://admin.localhost:${window.location.port || '5173'}`
             : 'https://admin.vitalsync.in';
@@ -706,7 +944,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       if (!['pharmacist', 'lab_technician', 'compounder'].includes(profile.role)) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         const accessErr = new Error('Access Denied: This account is not registered as a partner.');
         (accessErr as any).code = 'ERR_INVALID_CREDENTIALS';
         throw accessErr;
@@ -1113,7 +1351,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       if (profile?.role === 'doctor' || profile?.role === 'admin' || profile?.role === 'platform_admin') {
         // Role verified
       } else {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         const accessErr = new Error('Access Denied: Restricted to Doctors and Platform Admin.');
         (accessErr as any).code = 'ERR_INVALID_CREDENTIALS';
         throw accessErr;
@@ -1127,7 +1365,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
         const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
         if (!isAdminSubdomain) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
             ? `http://admin.localhost:${window.location.port || '5173'}`
             : 'https://admin.vitalsync.in';
@@ -1388,6 +1626,256 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     );
   }
 
+  if (sessionWithNoProfile) {
+    return (
+      <div className="w-full flex flex-col space-y-5 relative animate-fade-in text-slate-800">
+        {/* Background Neon Glow Orbs */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/5 blur-[120px] pointer-events-none animate-pulse-subtle"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
+
+        <div className="z-10 flex flex-col space-y-6">
+          <div className="text-center space-y-2">
+            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Complete Your Profile</h3>
+            <p className="text-xs text-slate-500 font-medium">
+              Signed in as <span className="font-bold text-slate-700">{sessionWithNoProfile.user?.email}</span>
+            </p>
+          </div>
+
+          {errorMsg && (
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3.5 flex items-start gap-3">
+              <Shield className="h-5 w-5 text-rose-400 mt-0.5 flex-shrink-0" />
+              <div className="text-xs font-semibold text-rose-300 leading-relaxed">{errorMsg}</div>
+            </div>
+          )}
+
+          {!oauthOnboardingRole ? (
+            <div className="space-y-4">
+              <p className="text-xs font-medium text-slate-500 text-center pb-2">
+                Choose your role to finish setting up your account:
+              </p>
+              
+              <div className="grid grid-cols-1 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOauthOnboardingRole('doctor')}
+                  className="p-5 bg-white border border-slate-200 hover:border-indigo-500 hover:shadow-md rounded-2xl transition-all text-left flex items-start gap-4 group cursor-pointer"
+                >
+                  <span className="p-3 bg-indigo-50 text-indigo-650 rounded-xl text-xl group-hover:scale-110 transition-transform">🩺</span>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">I am a Doctor / Clinic Manager</h4>
+                    <p className="text-[11px] text-slate-500 font-medium">Create a new clinic network node and consult patients.</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setOauthOnboardingRole('partner')}
+                  className="p-5 bg-white border border-slate-200 hover:border-cyan-500 hover:shadow-md rounded-2xl transition-all text-left flex items-start gap-4 group cursor-pointer"
+                >
+                  <span className="p-3 bg-cyan-50 text-cyan-600 rounded-xl text-xl group-hover:scale-110 transition-transform">🔬</span>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-slate-900 group-hover:text-cyan-600 transition-colors">I am a Partner (Pharmacy / Lab)</h4>
+                    <p className="text-[11px] text-slate-500 font-medium">Join an existing clinic network node using a clinic code.</p>
+                  </div>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOAuthSignOut}
+                disabled={loading}
+                className="w-full mt-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                Sign Out / Cancel
+              </button>
+            </div>
+          ) : oauthOnboardingRole === 'doctor' ? (
+            <form onSubmit={handleOAuthRegisterClinic} className="space-y-4">
+              <div className="flex items-center justify-between pb-2">
+                <button
+                  type="button"
+                  onClick={() => { setOauthOnboardingRole(null); setErrorMsg(null); }}
+                  className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-indigo-600 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <ArrowLeft className="h-3 w-3" /> Back
+                </button>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Doctor Onboarding</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Clinic Network Name
+                </label>
+                <input
+                  type="text"
+                  value={clinicName}
+                  onChange={(e) => setClinicName(e.target.value)}
+                  placeholder="e.g. Apex Health Clinic"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Primary Specialization
+                </label>
+                <select
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-850 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                >
+                  <option value="General Medicine">General Medicine</option>
+                  <option value="Pediatrics">Pediatrics</option>
+                  <option value="Ophthalmology">Ophthalmology</option>
+                  <option value="Cardiology">Cardiology</option>
+                  <option value="Dermatology">Dermatology</option>
+                  <option value="Internal Medicine">Internal Medicine</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Contact Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="10-digit mobile number"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Clinic Physical Address
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Street address, city"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Create Clinic Network <ArrowRight className="h-4 w-4" /></>}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleOAuthJoinClinic} className="space-y-4">
+              <div className="flex items-center justify-between pb-2">
+                <button
+                  type="button"
+                  onClick={() => { setOauthOnboardingRole(null); setErrorMsg(null); }}
+                  className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-cyan-600 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <ArrowLeft className="h-3 w-3" /> Back
+                </button>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Partner Onboarding</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Clinic Network Code (Required)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={clinicCode}
+                    onChange={(e) => setClinicCode(e.target.value)}
+                    placeholder="e.g. MF-0001"
+                    className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans uppercase"
+                    required
+                  />
+                  {validatingCode && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />}
+                </div>
+                {validatedClinicName && (
+                  <div className="text-[10px] text-emerald-600 font-bold pl-1 flex items-center gap-1">
+                    ✓ Connected to: {validatedClinicName}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Partner Entity Type
+                </label>
+                <select
+                  value={partnerType}
+                  onChange={(e) => setPartnerType(e.target.value as any)}
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-850 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                >
+                  <option value="pharmacy">Pharmacy Shop</option>
+                  <option value="lab">Diagnostics Lab</option>
+                  <option value="compounder">Clinical Compounder / Nurse</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Your Full Name
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Ramesh Patel"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Contact Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="10-digit mobile number"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  Shop/Entity Address
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Shop number, street name, city"
+                  className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Join Clinic Network <ArrowRight className="h-4 w-4" /></>}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col space-y-5 relative">
       {/* Background Neon Glow Orbs */}
@@ -1565,6 +2053,43 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Workspace <ArrowRight className="h-4 w-4" /></>}
             </button>
 
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-slate-200"></div>
+              <span className="flex-shrink mx-4 text-slate-400 text-[9px] font-bold uppercase tracking-widest">or</span>
+              <div className="flex-grow border-t border-slate-200"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  fill="currentColor"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  fill="#FBBC05"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  fill="#EA4335"
+                />
+              </svg>
+              Continue with Google
+            </button>
+
             <p className="text-center text-[10px] text-slate-500 font-medium">
               Are you a partner (pharmacist/lab)? Use the{' '}
               <button type="button" onClick={() => { setActiveTab('join'); setJoinSubMode('signin'); setErrorMsg(null); }} className="text-cyan-600 hover:text-cyan-800 font-bold underline cursor-pointer">
@@ -1634,6 +2159,43 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Authenticate Operations Console <ArrowRight className="h-4 w-4" /></>}
+            </button>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-slate-200"></div>
+              <span className="flex-shrink mx-4 text-slate-400 text-[9px] font-bold uppercase tracking-widest">or</span>
+              <div className="flex-grow border-t border-slate-200"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  fill="currentColor"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  fill="#FBBC05"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  fill="#EA4335"
+                />
+              </svg>
+              Continue with Google
             </button>
           </form>
         )}
@@ -1954,6 +2516,43 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 >
                   Next: Clinic Setup <ArrowRight className="h-4 w-4" />
                 </button>
+
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-slate-200"></div>
+                  <span className="flex-shrink mx-4 text-slate-400 text-[9px] font-bold uppercase tracking-widest">or</span>
+                  <div className="flex-grow border-t border-slate-200"></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path
+                      fill="currentColor"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      fill="#34A853"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  Continue with Google
+                </button>
               </div>
             ) : (
               <form onSubmit={handleClinicRegister} className="space-y-3.5 animate-fade-in">
@@ -2175,6 +2774,43 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Enter Partner Workspace <ArrowRight className="h-4 w-4" /></>}
+                </button>
+
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-slate-200"></div>
+                  <span className="flex-shrink mx-4 text-slate-400 text-[9px] font-bold uppercase tracking-widest">or</span>
+                  <div className="flex-grow border-t border-slate-200"></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path
+                      fill="currentColor"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      fill="#34A853"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  Continue with Google
                 </button>
 
                 <p className="text-center text-[10px] text-slate-500 font-medium">
@@ -2425,6 +3061,43 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
                     >
                       Next: Partner Details <ArrowRight className="h-4 w-4" />
+                    </button>
+
+                    <div className="relative flex py-1 items-center">
+                      <div className="flex-grow border-t border-slate-200"></div>
+                      <span className="flex-shrink mx-4 text-slate-400 text-[9px] font-bold uppercase tracking-widest">or</span>
+                      <div className="flex-grow border-t border-slate-200"></div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={loading}
+                      className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path
+                          fill="currentColor"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                      Continue with Google
                     </button>
                   </div>
                 ) : (
