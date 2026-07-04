@@ -438,7 +438,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
       {/* LEFT COLUMN: Patient queue, CDSS Analyzer */}
-      <div className="lg:col-span-4 space-y-6">
+      <div className={`${selectedPatient ? 'hidden lg:block' : 'block'} lg:col-span-4 space-y-6`}>
         {/* Patient Consultation Queue */}
         <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white">
           <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -565,6 +565,14 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       {/* RIGHT COLUMN: Consultation Sheet, e-Rx Form */}
       {selectedPatient && (
         <div className="lg:col-span-8 glass-panel p-6 border-slate-200/80 shadow-sm space-y-6 relative overflow-hidden bg-white">
+          <button
+            type="button"
+            onClick={() => setSelectedPatient(null)}
+            className="lg:hidden inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 pb-2 cursor-pointer transition active:scale-95 border-0 bg-transparent p-0"
+          >
+            <span className="material-symbols-outlined text-sm font-bold">arrow_back</span>
+            Back to Patients Queue
+          </button>
           {!isConsentActive && (
                 <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-white/95 border border-rose-500/20 p-8 text-center animate-fade-in">
               <div className="w-14 h-14 rounded-full bg-rose-50/50 border border-rose-500/20 flex items-center justify-center mb-4 text-rose-500 animate-pulse">

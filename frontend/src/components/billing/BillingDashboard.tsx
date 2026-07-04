@@ -172,7 +172,7 @@ export const BillingDashboard: React.FC = () => {
       `}</style>
 
       {/* LEFT COLUMN: Invoices list */}
-      <div className="lg:col-span-4 space-y-6 print-hidden">
+      <div className={`${selectedInvoice ? 'hidden lg:block' : 'block'} lg:col-span-4 space-y-6 print-hidden`}>
         
         {/* Invoice Pipeline */}
         <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
@@ -280,6 +280,14 @@ export const BillingDashboard: React.FC = () => {
             
             {/* Split breakdown details */}
             <div className="space-y-6">
+              <button
+                type="button"
+                onClick={() => setSelectedInvoice(null)}
+                className="lg:hidden inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 pb-2 cursor-pointer transition active:scale-[0.97] border-0 bg-transparent p-0"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">arrow_back</span>
+                Back to Bill Ledger List
+              </button>
               <div className="border-b border-slate-200 pb-4">
                 <div className="flex justify-between items-start">
                   <span className={`text-[9px] font-bold px-3 py-1 rounded-full border uppercase tracking-widest font-mono ${

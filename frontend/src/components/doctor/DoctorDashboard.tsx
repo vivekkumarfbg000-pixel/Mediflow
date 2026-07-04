@@ -29,6 +29,20 @@ const SopConfigTab = React.lazy(() => import('./tabs/SopConfigTab').then(m => ({
 
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -1480,9 +1494,9 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
                   {activePod?.clinicCode || 'MF-PATNA101'}
                 </span>
-                <span className="flex sm:hidden items-center gap-1 text-[10px] text-emerald-600 font-semibold pl-1 font-mono">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                  Live
+                <span className={`flex sm:hidden items-center gap-1 text-[10px] font-semibold pl-1 font-mono ${isOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full animate-pulse inline-block ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {isOnline ? 'Live' : 'Offline'}
                 </span>
               </p>
             </div>
@@ -1491,10 +1505,10 @@ Keep the tone professional, clinical, objective, and precise.`;
           {/* Status pill - hidden on small mobile viewports */}
           <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
             <span className="flex h-1.5 w-1.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
             </span>
-            <span className="font-mono">Real-Time Sync: Connected</span>
+            <span className="font-mono">{isOnline ? 'Real-Time Sync: Connected' : 'Sync Paused: Working Offline'}</span>
           </div>
         </div>
 

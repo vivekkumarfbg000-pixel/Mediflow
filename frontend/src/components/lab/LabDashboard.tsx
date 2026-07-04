@@ -18,6 +18,21 @@ export const LabDashboard: React.FC = () => {
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
   const { activePod, activeEntity, podEntities } = useClinic();
   const [activeTab, setActiveTab] = useState<LabTab>('queue');
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const [requisitions, setRequisitions] = useState<LabRequisition[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [reagents, setReagents] = useState<ReagentStock[]>([]);
@@ -612,7 +627,9 @@ export const LabDashboard: React.FC = () => {
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <span className="material-symbols-outlined text-indigo-600 text-[20px]">biotech</span>
               {nomenclature.labTitle}
-              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono ml-1">LIVE</span>
+              <span className={`text-[10px] border px-2 py-0.5 rounded-full font-mono ml-1 ${isOnline ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-500 bg-amber-500/10 border-amber-500/20'}`}>
+                {isOnline ? 'LIVE' : 'OFFLINE'}
+              </span>
             </h1>
             <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
               Bihar Regional Mediflow Clinical Pod • Lab Tech: Lalit Prasad
@@ -851,63 +868,131 @@ export const LabDashboard: React.FC = () => {
               {completedList.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-sm">No completed tests logged today.</div>
               ) : (
-                <div className="border border-slate-200 rounded-xl overflow-hidden responsive-table-container">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
-                      <tr>
-                        <th className="p-3.5">Patient</th>
-                        <th className="p-3.5">Test</th>
-                        <th className="p-3.5">Result</th>
-                        {!isOphthalmology && <th className="p-3.5 text-right">Reagent Used</th>}
-                        <th className="p-3.5 text-right">Report File</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
-                      {completedList.map(req => (
-                        <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3.5 font-semibold text-slate-800">
-                            <div>{req.patientName}</div>
-                            {req.encounterId === 'walkin' && (
-                              <span className="text-[8px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-full uppercase font-mono">Walk-in</span>
-                            )}
-                          </td>
-                          <td className="p-3.5 text-slate-600">
-                            <div className="font-semibold text-slate-800">{req.testName}</div>
-                            <div className="text-[9px] text-slate-500 mt-1 uppercase font-mono tracking-wider">
-                              LOINC: {req.testCode}
-                            </div>
-                          </td>
-                          <td className="p-3.5">{renderResultValue(req.quantitativeResult)}</td>
-                          {!isOphthalmology && (
-                            <td className="p-3.5 text-right">
-                              {(req.reagentDeductions || []).map((ded, idx) => (
-                                <div key={idx} className="text-right text-[10px] text-rose-400 flex items-center justify-end gap-1.5 font-bold font-mono">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                                  -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
-                                </div>
-                              ))}
-                            </td>
-                          )}
-                          <td className="p-3.5 text-right">
-                            {(() => {
-                              const rep = api.getFullLabReports().find(r => r.requisitionId === req.id);
-                              return rep?.reportFileUrl ? (
-                                <button 
-                                  onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
-                                  className="ml-auto px-2.5 py-1 bg-slate-200 hover:bg-white/20 border border-white/20 hover:border-white/30 text-slate-800 rounded text-[10px] flex items-center gap-1 font-bold cursor-pointer active:scale-95 transition-transform"
-                                >
-                                  <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
-                                  View Doc
-                                </button>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 italic">No File</span>
-                              );
-                            })()}
-                          </td>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto responsive-table-container">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
+                        <tr>
+                          <th className="p-3.5">Patient</th>
+                          <th className="p-3.5">Test</th>
+                          <th className="p-3.5">Result</th>
+                          {!isOphthalmology && <th className="p-3.5 text-right">Reagent Used</th>}
+                          <th className="p-3.5 text-right">Report File</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 bg-white">
+                        {completedList.map(req => (
+                          <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3.5 font-semibold text-slate-800">
+                              <div>{req.patientName}</div>
+                              {req.encounterId === 'walkin' && (
+                                <span className="text-[8px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-full uppercase font-mono">Walk-in</span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-slate-600">
+                              <div className="font-semibold text-slate-800">{req.testName}</div>
+                              <div className="text-[9px] text-slate-500 mt-1 uppercase font-mono tracking-wider">
+                                LOINC: {req.testCode}
+                              </div>
+                            </td>
+                            <td className="p-3.5">{renderResultValue(req.quantitativeResult)}</td>
+                            {!isOphthalmology && (
+                              <td className="p-3.5 text-right">
+                                {(req.reagentDeductions || []).map((ded, idx) => (
+                                  <div key={idx} className="text-right text-[10px] text-rose-400 flex items-center justify-end gap-1.5 font-bold font-mono">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                    -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
+                                  </div>
+                                ))}
+                              </td>
+                            )}
+                            <td className="p-3.5 text-right">
+                              {(() => {
+                                const rep = api.getFullLabReports().find(r => r.requisitionId === req.id);
+                                return rep?.reportFileUrl ? (
+                                  <button 
+                                    onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
+                                    className="ml-auto px-2.5 py-1 bg-slate-200 hover:bg-white/20 border border-white/20 hover:border-white/30 text-slate-800 rounded text-[10px] flex items-center gap-1 font-bold cursor-pointer active:scale-95 transition-transform"
+                                  >
+                                    <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                    View Doc
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">No File</span>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card List View */}
+                  <div className="block md:hidden divide-y divide-slate-200 bg-slate-50/30">
+                    {completedList.map(req => {
+                      const rep = api.getFullLabReports().find(r => r.requisitionId === req.id);
+                      return (
+                        <div key={req.id} className="p-4 space-y-3 hover:bg-white/40 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-bold text-slate-800 text-xs">{req.patientName}</div>
+                              {req.encounterId === 'walkin' && (
+                                <span className="inline-block text-[8px] text-blue-500 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full uppercase font-mono mt-1">Walk-in</span>
+                              )}
+                            </div>
+                            <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              Completed
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Diagnostic Test</span>
+                            <div className="font-semibold text-slate-700 text-xs">{req.testName}</div>
+                            <div className="text-[9px] text-slate-500 font-mono">LOINC: {req.testCode}</div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-[10px] bg-white/40 p-2.5 rounded-lg border border-slate-200/50">
+                            <div>
+                              <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider">Report Result</span>
+                              <div className="mt-1">{renderResultValue(req.quantitativeResult)}</div>
+                            </div>
+                            {!isOphthalmology && (
+                              <div>
+                                <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider">Reagents Used</span>
+                                <div className="space-y-0.5 mt-1">
+                                  {(req.reagentDeductions || []).map((ded, idx) => (
+                                    <div key={idx} className="text-[9px] text-rose-500 flex items-center gap-1 font-bold font-mono">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                      -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex justify-between items-center pt-1">
+                            <span className="text-[9px] text-slate-400 font-mono">ID: {req.id.substring(0, 8)}...</span>
+                            {rep?.reportFileUrl ? (
+                              <button 
+                                onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
+                                className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer border-0 active:scale-95 transition"
+                              >
+                                <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                View Report
+                              </button>
+                            ) : (
+                              <span className="text-[9px] text-slate-400 italic">No PDF Uploaded</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
                 </div>
               )}
             </div>

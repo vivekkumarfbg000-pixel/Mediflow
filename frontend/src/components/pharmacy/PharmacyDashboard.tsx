@@ -993,12 +993,11 @@ export const PharmacyDashboard: React.FC = () => {
                   <option value="All">All Categories</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-              </div>
-            </div>
-
-            {/* Inventory table */}
+                   {/* Inventory table / Responsive Mobile Card List */}
             <div className="border border-slate-200 rounded-xl overflow-hidden glass-panel-inner">
-              <div className="overflow-x-auto responsive-table-container">
+              
+              {/* Desktop View */}
+              <div className="hidden md:block overflow-x-auto responsive-table-container">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
                     <tr>
@@ -1036,11 +1035,11 @@ export const PharmacyDashboard: React.FC = () => {
                                 Exp: {item.expiryDate} {isExpired && '[EXPIRED]'}
                               </div>
                             </td>
-                            <td className="p-3.5 text-right font-mono text-white font-semibold">
+                            <td className="p-3.5 text-right font-mono text-slate-700 dark:text-slate-200 font-semibold">
                               ₹{item.price.toFixed(2)} <span className="text-[9px] text-slate-500 font-normal">(₹{item.mrp.toFixed(2)})</span>
                             </td>
                             <td className="p-3.5 text-center">
-                              <span className={`font-mono font-bold text-xs ${isLow ? 'text-rose-400 font-black' : 'text-emerald-400'}`}>
+                              <span className={`font-mono font-bold text-xs ${isLow ? 'text-rose-450 font-black' : 'text-emerald-500'}`}>
                                 {item.stock} {item.unit}
                               </span>
                             </td>
@@ -1049,14 +1048,14 @@ export const PharmacyDashboard: React.FC = () => {
                               <div className="flex gap-2 justify-end">
                                 <button
                                   onClick={() => handleQuickRestock(item)}
-                                  className="px-2.5 py-1 text-[9px] bg-teal-600/15 hover:bg-teal-600 text-teal-600 hover:text-black border border-teal-500/25 hover:border-teal-500 font-black rounded-lg uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
+                                  className="px-2.5 py-1 text-[9px] bg-teal-650/15 hover:bg-teal-600 text-teal-600 hover:text-black border border-teal-500/25 hover:border-teal-500 font-black rounded-lg uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
                                   title="Quick Restock"
                                 >
                                   Restock
                                 </button>
                                 <button
                                   onClick={() => handleDeleteItem(item.id)}
-                                  className="p-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg transition-all cursor-pointer"
+                                  className="p-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-450 border border-rose-500/20 rounded-lg transition-all cursor-pointer"
                                   title="Delete Batch"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1070,8 +1069,72 @@ export const PharmacyDashboard: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
 
+              {/* Mobile Card List View */}
+              <div className="block md:hidden divide-y divide-slate-200 bg-slate-50/30">
+                {filteredCatalog.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 font-medium text-xs">
+                    No matching medicine batches found in catalog.
+                  </div>
+                ) : (
+                  filteredCatalog.map(item => {
+                    const isLow = item.stock <= item.threshold;
+                    const isExpired = new Date(item.expiryDate) < new Date();
+                    return (
+                      <div key={item.id} className="p-4 space-y-3 hover:bg-white/40 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-bold text-slate-800 text-xs">{item.name} <span className="text-[10px] text-slate-500 font-normal">({item.dosage})</span></div>
+                            <div className="text-[10px] text-slate-500 italic font-mono mt-0.5">{item.genericName}</div>
+                          </div>
+                          <span className="text-[9px] bg-indigo-50 border border-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                            {item.category}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[10px] bg-white/40 p-2.5 rounded-lg border border-slate-200/50">
+                          <div>
+                            <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider">Batch & Expiry</span>
+                            <span className="font-mono font-bold block text-slate-700">No: {item.batchNumber}</span>
+                            <span className={`font-mono text-[9px] block mt-0.5 ${isExpired ? 'text-rose-500 font-bold' : 'text-slate-500'}`}>
+                              Exp: {item.expiryDate} {isExpired && '[EXPIRED]'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider">Stock & Margin</span>
+                            <span className={`font-mono font-bold block ${isLow ? 'text-rose-500' : 'text-emerald-600'}`}>
+                              Stock: {item.stock} {item.unit}
+                            </span>
+                            <span className="text-slate-500 block text-[9px] mt-0.5">Min Margin: {item.threshold} {item.unit}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1">
+                          <div className="font-mono text-slate-800 text-xs font-semibold">
+                            MRP: ₹{item.price.toFixed(2)} <span className="text-[9px] text-slate-500 font-normal">(₹{item.mrp.toFixed(2)})</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleQuickRestock(item)}
+                              className="px-2.5 py-1.5 text-[9px] bg-teal-600 hover:bg-teal-700 text-black font-black rounded-lg uppercase tracking-wider active:scale-95 transition-all cursor-pointer border-0"
+                            >
+                              Restock
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-lg transition-all cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+            </div>
           </div>
         )}
 
