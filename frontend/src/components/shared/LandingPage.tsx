@@ -158,6 +158,14 @@ const InteractivePlexus3D: React.FC = () => {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block pointer-events-none z-0" />;
 };
 
+const getIsSingleDomain = (hostname: string): boolean => {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
+  if (hostname.endsWith('.localhost')) return false;
+  if (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') return false;
+  if (hostname.endsWith('.vitalsync.in')) return false;
+  return true;
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuthSuccess }) => {
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [isSignupUnlocked, setIsSignupUnlocked] = useState(false);
@@ -198,6 +206,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
 
   const handleDemoSignUpInstant = () => {
     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isSingleDomain = getIsSingleDomain(hostname);
+    
+    if (isSingleDomain) {
+      window.location.href = `${window.location.origin}?demo=true`;
+      return;
+    }
+    
     const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
       ? `http://app.localhost:${window.location.port || '5173'}?demo=true`
       : 'https://app.vitalsync.in?demo=true';
@@ -215,8 +230,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
   // Redirect to app subdomain for sign-in (auth lives on app.vitalsync.in, not the landing page)
   const scrollToGate = (e: React.MouseEvent) => {
     e.preventDefault();
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isSingleDomain = hostname.includes('.vercel.app') || /^[0-9.]+$/.test(hostname);
+    const isSingleDomain = getIsSingleDomain(hostname);
 
     if (isSingleDomain) {
       const url = new URL(window.location.href);
@@ -234,8 +248,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
   const handleGetStartedClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isSignupUnlocked) {
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      const isSingleDomain = hostname.includes('.vercel.app') || /^[0-9.]+$/.test(hostname);
+      const isSingleDomain = getIsSingleDomain(hostname);
 
       if (isSingleDomain) {
         const url = new URL(window.location.href);
@@ -307,8 +320,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
     setShowEligibilityModal(false);
 
     const registrationTab = registrationType === 'doctor' ? 'register' : 'join';
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isSingleDomain = hostname.includes('.vercel.app') || /^[0-9.]+$/.test(hostname);
+    const isSingleDomain = getIsSingleDomain(hostname);
 
     let targetUrl = '';
     if (isSingleDomain) {
@@ -800,9 +812,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
               <button
                 type="button"
                 onClick={() => {
-                  const adminUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                    ? `http://admin.localhost:${window.location.port || '5173'}`
-                    : 'https://admin.vitalsync.in';
+                  const curHostname = window.location.hostname;
+                  const isSingleDomain = getIsSingleDomain(curHostname);
+                  
+                  const adminUrl = isSingleDomain
+                    ? `${window.location.origin}?console=true`
+                    : (curHostname === 'localhost' || curHostname === '127.0.0.1'
+                      ? `http://admin.localhost:${window.location.port || '5173'}`
+                      : 'https://admin.vitalsync.in');
                   window.location.href = adminUrl;
                 }}
                 className="text-slate-400 hover:text-slate-655 transition-colors font-mono text-[10px] tracking-widest uppercase cursor-pointer select-none"

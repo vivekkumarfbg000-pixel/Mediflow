@@ -375,10 +375,23 @@ function AppContent({
   );
 }
 
+function getIsLocal(hostname: string): boolean {
+  return (
+    hostname === 'localhost' || 
+    hostname === '127.0.0.1' || 
+    hostname.endsWith('.localhost') || 
+    hostname.includes('192.168.') || 
+    hostname.includes('10.') || 
+    hostname.includes('172.') || 
+    hostname.endsWith('.local') || 
+    !hostname.includes('.')
+  );
+}
+
 const setCrossDomainCookie = (active: boolean) => {
   if (typeof window === 'undefined') return;
   const hostname = window.location.hostname;
-  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
+  const isLocal = getIsLocal(hostname);
   let cookieDomain = '';
   
   if (hostname.endsWith('.vitalsync.in')) {
@@ -424,7 +437,7 @@ export default function App() {
       const isSessionActive = document.cookie.includes('vitalsync_session_active=true');
       if (isSessionActive) {
         console.log('[VitalSync Auth] Active cookie session detected on landing page. Eagerly redirecting to app subdomain...');
-        const isLocal = curHostname === 'localhost' || curHostname === '127.0.0.1' || curHostname.endsWith('.localhost');
+        const isLocal = getIsLocal(curHostname);
         const redirectUrl = isLocal
           ? `http://app.localhost:${window.location.port || '5173'}`
           : 'https://app.vitalsync.in';
@@ -637,9 +650,13 @@ export default function App() {
       
     let activeProfile = profiles && profiles.length > 0 ? profiles[0] : null;
     
-    // 2. If profile is missing, trigger auto-healing RPC
-    if (!activeProfile) {
-      console.log('[Profile Loader] Profile missing. Triggering reconcile_profile_role...');
+    // Check if it's an admin email but has non-admin role, or is missing
+    const isPlatformAdminEmail = session.user?.email === 'owner@mediflow.com' || session.user?.email === 'vivekkumarfbg000@gmail.com';
+    const isStaleAdminRole = activeProfile && isPlatformAdminEmail && activeProfile.role !== 'platform_admin';
+
+    // 2. If profile is missing or has stale admin role, trigger auto-healing RPC
+    if (!activeProfile || isStaleAdminRole) {
+      console.log('[Profile Loader] Profile missing or stale admin role. Triggering reconcile_profile_role...');
       try {
         await supabase.rpc('reconcile_profile_role');
         // Re-query
@@ -1107,7 +1124,8 @@ export default function App() {
 
   // 4. Redirect operations accounts logged in on any non-admin subdomain to admin.vitalsync.in
   const isNonAdminSubdomain = !isAdminSubdomain;
-  if (isNonAdminSubdomain && session && activeProfile) {
+  
+  if (!isSingleDomain && isNonAdminSubdomain && session && activeProfile) {
     const userRole = activeProfile.role;
     if (userRole === 'admin' || userRole === 'platform_admin') {
       const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'

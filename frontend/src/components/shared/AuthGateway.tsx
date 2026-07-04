@@ -221,6 +221,14 @@ interface AuthGatewayProps {
   initialSignupTab?: 'signin' | 'register' | 'join' | 'ops';
 }
 
+const getIsSingleDomain = (hostname: string): boolean => {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
+  if (hostname.endsWith('.localhost')) return false;
+  if (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') return false;
+  if (hostname.endsWith('.vitalsync.in')) return false;
+  return true;
+};
+
 export const AuthGateway: React.FC<AuthGatewayProps> = ({ 
   onAuthSuccess,
   allowSignup = false,
@@ -438,17 +446,28 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     const validateCode = async () => {
       setValidatingCode(true);
       try {
-        const { data, error } = await supabase
-          .from('pods')
-          .select('name')
-          .eq('clinic_code', clinicCode.trim().toUpperCase())
-          .single();
+        let clinicName: string | null = null;
 
-        if (error || !data) {
-          setValidatedClinicName(null);
-        } else {
-          setValidatedClinicName(data.name);
+        // 1. Try validation via secure RPC
+        const { data: rpcData, error: rpcError } = await supabase.rpc('validate_clinic_code', {
+          p_code: clinicCode.trim().toUpperCase()
+        });
+
+        if (!rpcError) {
+          clinicName = rpcData;
+        } else if (rpcError.code === '42883') {
+          // If RPC is not deployed yet, fallback to direct query (for local dev transition)
+          const { data: tableData } = await supabase
+            .from('pods')
+            .select('name')
+            .eq('clinic_code', clinicCode.trim().toUpperCase())
+            .single();
+          if (tableData) {
+            clinicName = tableData.name;
+          }
         }
+
+        setValidatedClinicName(clinicName);
       } catch (err) {
         setValidatedClinicName(null);
       } finally {
@@ -535,10 +554,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             .eq('id', session.user.id)
             .single();
 
-          if (error || !profile) {
+          const email = session.user.email;
+          const isPlatformAdminEmail = email === 'owner@mediflow.com' || email === 'vivekkumarfbg000@gmail.com';
+          const isStaleAdminRole = profile && isPlatformAdminEmail && profile.role !== 'platform_admin';
+
+          if (error || !profile || isStaleAdminRole) {
             // Check if they are platform owners/admins (hardened in RPC)
-            const email = session.user.email;
-            if (email === 'owner@mediflow.com' || email === 'vivekkumarfbg000@gmail.com') {
+            if (isPlatformAdminEmail) {
               // Trigger auto-healing reconcile
               try {
                 await supabase.rpc('reconcile_profile_role');
@@ -553,6 +575,36 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 }
               } catch (healErr) {
                 console.error('[OAuth Onmount] Failed to reconcile platform owner profile:', healErr);
+              }
+            }
+
+            // Check if there is temporary OAuth onboarding data in sessionStorage
+            const tempOnboardingData = sessionStorage.getItem('mediflow_oauth_onboarding_temp');
+            if (tempOnboardingData) {
+              try {
+                const temp = JSON.parse(tempOnboardingData);
+                setSessionWithNoProfile(session);
+                setOauthOnboardingRole(temp.role || null);
+                
+                // Pre-fill form fields
+                if (temp.role === 'doctor') {
+                  setClinicName(temp.clinicName || '');
+                  setSpecialization(temp.specialization || 'General Medicine');
+                  setAddress(temp.address || '');
+                  setPhone(temp.phone || '');
+                } else if (temp.role === 'partner') {
+                  setClinicCode(temp.clinicCode || '');
+                  setPartnerType(temp.partnerType || 'pharmacy');
+                  setDisplayName(temp.displayName || '');
+                  setPhone(temp.phone || '');
+                  setAddress(temp.address || '');
+                }
+                
+                sessionStorage.removeItem('mediflow_oauth_onboarding_temp');
+                setLoading(false);
+                return;
+              } catch (parseErr) {
+                console.error('[OAuth Onmount] Failed to parse temp onboarding data:', parseErr);
               }
             }
 
@@ -605,7 +657,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         },
       });
       if (error) throw error;
-    } catch (err: any) {
+    } catch (_err) {
+      const err = _err as any;
       console.error('[Mediflow Auth] Google Sign-In failed:', err);
       setErrorMsg(err.message || 'Failed to authenticate with Google. Please try again.');
     } finally {
@@ -660,7 +713,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }));
 
       onAuthSuccess(sessionWithNoProfile, profile);
-    } catch (err: any) {
+    } catch (_err) {
+      const err = _err as any;
       console.error('[OAuth Onboarding] Register Clinic failed:', err);
       setErrorMsg(err.message || 'Onboarding failed. Please try again.');
     } finally {
@@ -716,7 +770,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }));
 
       onAuthSuccess(sessionWithNoProfile, profile);
-    } catch (err: any) {
+    } catch (_err) {
+      const err = _err as any;
       console.error('[OAuth Onboarding] Join Clinic failed:', err);
       setErrorMsg(err.message || 'Onboarding failed. Please try again.');
     } finally {
@@ -816,7 +871,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // that origin's localStorage and will be invisible to admin.vitalsync.in.
       if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
         const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-        const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
+        const isSingleDomain = getIsSingleDomain(hostname);
+        const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.') || isSingleDomain;
         if (!isAdminSubdomain) {
           await supabase.auth.signOut({ scope: 'local' });
           const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
@@ -1344,8 +1400,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // Sign out here and redirect so they can log in on the correct origin.
       if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
         const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-        const isDevOrStaging = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes('vercel.app');
-        const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.') || isDevOrStaging;
+        const isSingleDomain = getIsSingleDomain(hostname);
+        const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.') || isSingleDomain;
         if (!isAdminSubdomain) {
           await supabase.auth.signOut({ scope: 'local' });
           const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
@@ -1489,9 +1545,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setErrorMsg(null);
     try {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      const redirectUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-        ? `http://app.localhost:${window.location.port || '5173'}`
-        : 'https://app.vitalsync.in';
+      const isSingleDomain = getIsSingleDomain(hostname);
+      const redirectUrl = isSingleDomain
+        ? window.location.origin
+        : (hostname === 'localhost' || hostname === '127.0.0.1'
+          ? `http://app.localhost:${window.location.port || '5173'}`
+          : 'https://app.vitalsync.in');
 
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${redirectUrl}?recovery=true`
