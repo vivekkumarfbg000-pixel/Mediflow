@@ -666,7 +666,7 @@ export const LabDashboard: React.FC = () => {
       </div>
 
       {/* ── TAB NAV ───────────────────────────────────────────── */}
-      <div className="flex overflow-x-auto gap-2 pb-1.5 no-scrollbar select-none -mb-px">
+      <div className="hidden md:flex overflow-x-auto gap-2 pb-1.5 no-scrollbar select-none -mb-px">
         {tabItems.map(tab => (
           <button
             key={tab.id}

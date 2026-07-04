@@ -1466,13 +1466,13 @@ Keep the tone professional, clinical, objective, and precise.`;
       <div className="border-b border-slate-200 pb-0">
 
         {/* Top row */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 sm:gap-3 pb-3">
           <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600 text-white shadow-sm shrink-0">
+            <span className="hidden sm:inline-flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600 text-white shadow-sm shrink-0">
               <span className="material-symbols-outlined text-[18px]">hub</span>
             </span>
             <div>
-              <h1 className="text-base font-semibold tracking-tight text-slate-800 font-sans leading-tight">Dr. Sharma's Care Dashboard</h1>
+              <h1 className="text-sm sm:text-base font-semibold tracking-tight text-slate-800 font-sans leading-tight">Dr. Sharma's Care Dashboard</h1>
               <p className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
                 Mediflow Pod Tenant Host
                 <span className="text-slate-600">·</span>
@@ -1480,12 +1480,16 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
                   {activePod?.clinicCode || 'MF-PATNA101'}
                 </span>
+                <span className="flex sm:hidden items-center gap-1 text-[10px] text-emerald-600 font-semibold pl-1 font-mono">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  Live
+                </span>
               </p>
             </div>
           </div>
 
-          {/* Status pill */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
+          {/* Status pill - hidden on small mobile viewports */}
+          <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
             <span className="flex h-1.5 w-1.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>

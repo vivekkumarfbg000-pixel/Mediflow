@@ -616,7 +616,7 @@ export const PharmacyDashboard: React.FC = () => {
       `}</style>
 
       {/* DASHBOARD HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 border-b-0 md:border-b border-slate-200 pb-3 md:pb-6">
         <div>
           <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
             <span className="material-symbols-outlined text-indigo-600 text-[20px]">medication</span>
@@ -629,7 +629,7 @@ export const PharmacyDashboard: React.FC = () => {
               {isOnline ? 'Online' : 'Offline Mode (Local Cache)'}
             </span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="hidden sm:block text-xs text-slate-500 mt-1">
             Clinic ecosystem pharmacy dispatcher center connected with doctor holds, WhatsApp automated billing, and live FEFO batch compliance tracker.
           </p>
         </div>
@@ -656,7 +656,7 @@ export const PharmacyDashboard: React.FC = () => {
       </div>
 
       {/* HORIZONTAL TAB SWITCHER */}
-      <div className="flex overflow-x-auto gap-2 pb-2.5 no-scrollbar select-none -mb-px">
+      <div className="hidden md:flex overflow-x-auto gap-2 pb-2.5 no-scrollbar select-none -mb-px">
         {[
           { id: 'prescription_queue', label: 'Prescription Queue', icon: 'inventory_2', badge: activeHoldsCount },
           { id: 'inventory_catalog', label: 'Inventory Catalog', icon: 'database' },

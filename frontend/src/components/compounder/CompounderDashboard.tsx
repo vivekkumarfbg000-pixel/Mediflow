@@ -1066,19 +1066,19 @@ export const CompounderDashboard: React.FC = () => {
       `}</style>
 
       {/* DASHBOARD HEADER — integrated tabs & glassmorphism */}
-      <div className="border-b border-slate-200/50 dark:border-white/5 pb-0 bg-white/60 dark:bg-clinical-900/40 backdrop-blur-xl p-5 rounded-2xl shadow-sm mb-6 z-10 relative">
+      <div className="border-b-0 md:border-b border-slate-200/50 dark:border-white/5 pb-4 md:pb-0 bg-white/60 dark:bg-clinical-900/40 backdrop-blur-xl p-4 md:p-5 rounded-2xl shadow-sm mb-4 md:mb-6 z-10 relative">
         {/* Top row: title + status */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6 pb-2 md:pb-6">
           <div className="flex items-start gap-4">
-            <span className="flex-shrink-0 inline-flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20">
+            <span className="hidden sm:inline-flex flex-shrink-0 items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20">
               <span className="material-symbols-outlined text-[24px]">medical_services</span>
             </span>
             <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <h1 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
                   Compounder Operations Desk
                 </h1>
-                <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-widest ${
+                <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest ${
                   isOnline
                     ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 animate-pulse'
                     : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400'
@@ -1086,37 +1086,37 @@ export const CompounderDashboard: React.FC = () => {
                   {isOnline ? 'Online' : 'Offline'}
                 </span>
               </div>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <p className="hidden sm:block text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Clinical checkup hub — appointments, medicine billing, pathology scans &amp; Shiprocket dispatches.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap lg:self-center">
-            <span className="inline-flex items-center gap-1.5 text-[10px] bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 px-3.5 py-2 rounded-full font-semibold uppercase tracking-wider font-mono shadow-sm">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap lg:self-center w-full lg:w-auto justify-start lg:justify-end">
+            <span className="inline-flex items-center gap-1 text-[9px] bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider font-mono shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
               {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} · Checked-In
             </span>
             <button
               type="button"
               onClick={() => setIsInvoiceGeneratorOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-clinical-800/50 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-clinical-700/50 hover:shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-clinical-800/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-clinical-700/50 hover:shadow-md transition-all cursor-pointer"
             >
-              <Printer className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              <Printer className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
               Invoice Generator
             </button>
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-100 transition cursor-pointer"
             >
-              <LogOut className="h-4 w-4 text-rose-600" />
+              <LogOut className="h-3.5 w-3.5 text-rose-600" />
               Sign Out
             </button>
           </div>
         </div>
 
-        {/* Integrated Tab Switcher — lives in header */}
-        <div className="flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
+        {/* Integrated Tab Switcher — hidden on mobile, visible on desktop */}
+        <div className="hidden md:flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
           <button
             onClick={() => setActiveTab('intake')}
             className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
