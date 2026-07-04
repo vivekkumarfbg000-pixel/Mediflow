@@ -993,7 +993,10 @@ export const PharmacyDashboard: React.FC = () => {
                   <option value="All">All Categories</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                   {/* Inventory table / Responsive Mobile Card List */}
+              </div>
+            </div>
+
+            {/* Inventory table / Responsive Mobile Card List */}
             <div className="border border-slate-200 rounded-xl overflow-hidden glass-panel-inner">
               
               {/* Desktop View */}
