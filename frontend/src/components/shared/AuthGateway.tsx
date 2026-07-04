@@ -1344,7 +1344,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // Sign out here and redirect so they can log in on the correct origin.
       if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
         const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-        const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
+        const isDevOrStaging = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes('vercel.app');
+        const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.') || isDevOrStaging;
         if (!isAdminSubdomain) {
           await supabase.auth.signOut({ scope: 'local' });
           const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
