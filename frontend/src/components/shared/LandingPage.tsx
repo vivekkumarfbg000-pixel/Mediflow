@@ -5,7 +5,6 @@ import {
   X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Phone, Eye
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
-import { StateHealingEngine } from '../../services/autoHealerAgent';
 
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';

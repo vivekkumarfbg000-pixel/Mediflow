@@ -1,7 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
-import { TelemetryService } from './telemetry';
-import { PatientService } from './patientService';
 import type { 
   PharmacyInventoryItem, 
   InventoryHold, 
