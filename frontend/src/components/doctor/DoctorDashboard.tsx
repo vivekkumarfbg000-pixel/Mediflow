@@ -13,7 +13,7 @@ import {
 import { useClinic } from '../../context/ClinicContext';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { OphthalmicRefractionGrid } from './OphthalmicRefractionGrid';
-import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, getAcuityRank, OPHTHALMIC_EYE_CARE_COPY, type RefractionRx } from '../../types/ophthalmic';
+import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, getAcuityRank, OPHTHALMIC_EYE_CARE_COPY, type RefractionRx, EMPTY_BIOMETRY, serializeBiometry, type BiometryData } from '../../types/ophthalmic';
 
 import { StateHealingEngine } from '../../services/autoHealerAgent';
 import { BiomarkerChart } from './BiomarkerChart';
@@ -80,6 +80,7 @@ export const DoctorDashboard: React.FC = () => {
   // Existing states
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
   const [refractionRx, setRefractionRx] = useState<RefractionRx>(EMPTY_REFRACTION_RX);
+  const [biometryRx, setBiometryRx] = useState<BiometryData>(EMPTY_BIOMETRY);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [notes, setNotes] = useState('');
   const [medications, setMedications] = useState<Omit<MedicationRequest, 'id'>[]>([]);
@@ -378,6 +379,7 @@ export const DoctorDashboard: React.FC = () => {
     setCdssAnomalies([]);
     setAiError(null);
     setRefractionRx(EMPTY_REFRACTION_RX);
+    setBiometryRx(EMPTY_BIOMETRY);
 
     if (selectedPatient?.id) {
       // 1. Preload RAG clinical insight
@@ -833,6 +835,9 @@ Keep the tone professional, clinical, objective, and precise.`;
     if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
       finalNotes += serializeRefractionRx(refractionRx);
     }
+    if (isOphthalmology && (biometryRx.axialLength || biometryRx.k1 || biometryRx.k2 || biometryRx.iolPower)) {
+      finalNotes += serializeBiometry(biometryRx);
+    }
 
     api.createEncounter({
       patientId: selectedPatient.id,
@@ -924,6 +929,34 @@ Keep the tone professional, clinical, objective, and precise.`;
         title: 'Encounter Saved & Synced'
       }
     }));
+
+    // Find the next patient in the queue
+    const activeQueue = api.getPatients()
+      .filter(p => p.queueStatus === 'awaiting_consultation' && p.id !== selectedPatient.id);
+    
+    const parseTokenNum = (token?: string) => {
+      if (!token) return Infinity;
+      const match = token.match(/\d+/);
+      return match ? parseInt(match[0], 10) : Infinity;
+    };
+    
+    activeQueue.sort((a, b) => parseTokenNum(a.tokenNumber) - parseTokenNum(b.tokenNumber));
+    
+    if (activeQueue.length > 0) {
+      const nextPat = activeQueue[0];
+      setSelectedPatient(nextPat);
+      api.updatePatientQueueStatus(nextPat.id, 'in_consultation');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Next Patient Loaded 🩺',
+          message: `Switched to ${nextPat.name} (Token: ${nextPat.tokenNumber || 'N/A'})`,
+          type: 'info'
+        }
+      }));
+    } else {
+      setSelectedPatient(null);
+      setActiveTab('pod_view');
+    }
   };
 
 
@@ -943,8 +976,17 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <PodCommandCenter 
                   hideHeader={true}
                   onStartConsultation={(patient: Patient) => {
+                    setNotes('');
+                    setHinglishSummary('');
+                    setAudioUrl(null);
+                    setAudioBlob(null);
+                    setMedications([]);
+                    setSelectedTests([]);
+                    setRefractionRx(EMPTY_REFRACTION_RX);
+
                     setSelectedPatient(patient);
                     setActiveTab('consultation');
+                    api.updatePatientQueueStatus(patient.id, 'in_consultation');
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
                         title: 'Consultation Initialized! 🩺',
@@ -976,6 +1018,8 @@ Keep the tone professional, clinical, objective, and precise.`;
                   setMedDur={setMedDur}
                   refractionRx={refractionRx}
                   setRefractionRx={setRefractionRx}
+                  biometryRx={biometryRx}
+                  setBiometryRx={setBiometryRx}
                   cdssAnomalies={cdssAnomalies}
                   aiInsight={aiInsight}
                   isAiLoading={isAiLoading}
@@ -1095,8 +1139,17 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <PodCommandCenter 
                   hideHeader={true}
                   onStartConsultation={(patient: Patient) => {
+                    setNotes('');
+                    setHinglishSummary('');
+                    setAudioUrl(null);
+                    setAudioBlob(null);
+                    setMedications([]);
+                    setSelectedTests([]);
+                    setRefractionRx(EMPTY_REFRACTION_RX);
+
                     setSelectedPatient(patient);
                     setActiveTab('consultation');
+                    api.updatePatientQueueStatus(patient.id, 'in_consultation');
                   }}
                 />
               );
@@ -1480,13 +1533,15 @@ Keep the tone professional, clinical, objective, and precise.`;
       <div className="border-b border-slate-200 pb-0">
 
         {/* Top row */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 sm:gap-3 pb-3">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3">
           <div className="flex items-center gap-2.5">
             <span className="hidden sm:inline-flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600 text-white shadow-sm shrink-0">
               <span className="material-symbols-outlined text-[18px]">hub</span>
             </span>
             <div>
-              <h1 className="text-sm sm:text-base font-semibold tracking-tight text-slate-800 font-sans leading-tight">Dr. Sharma's Care Dashboard</h1>
+              <h1 className="text-sm sm:text-base font-semibold tracking-tight text-slate-800 font-sans leading-tight">
+                {isOphthalmology ? "Dr. Amit Arya's Eye Care Console" : "Dr. Sharma's Care Dashboard"}
+              </h1>
               <p className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
                 Mediflow Pod Tenant Host
                 <span className="text-slate-600">·</span>
@@ -1502,13 +1557,45 @@ Keep the tone professional, clinical, objective, and precise.`;
             </div>
           </div>
 
-          {/* Status pill - hidden on small mobile viewports */}
-          <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
-            <span className="flex h-1.5 w-1.5 relative">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-            </span>
-            <span className="font-mono">{isOnline ? 'Real-Time Sync: Connected' : 'Sync Paused: Working Offline'}</span>
+          <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
+            {/* Specialization Demo Toggles */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('mediflow-switch-specialization', { detail: 'General Medicine' }));
+                }}
+                className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 cursor-pointer ${
+                  !isOphthalmology
+                    ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/50'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                🏥 General Doctor
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('mediflow-switch-specialization', { detail: 'Ophthalmology' }));
+                }}
+                className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 cursor-pointer ${
+                  isOphthalmology
+                    ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/50'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                👁️ Eye Doctor
+              </button>
+            </div>
+
+            {/* Status pill - hidden on small mobile viewports */}
+            <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
+              <span className="flex h-1.5 w-1.5 relative">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+              </span>
+              <span className="font-mono">{isOnline ? 'Real-Time Sync: Connected' : 'Sync Paused: Working Offline'}</span>
+            </div>
           </div>
         </div>
 

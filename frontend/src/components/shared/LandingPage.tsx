@@ -167,6 +167,7 @@ const getIsSingleDomain = (hostname: string): boolean => {
 };
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuthSuccess }) => {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [isSignupUnlocked, setIsSignupUnlocked] = useState(false);
   const [isSigningInDemo, setIsSigningInDemo] = useState(false);

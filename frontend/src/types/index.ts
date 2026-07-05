@@ -20,7 +20,7 @@ export interface Patient {
   abhaId?: string;
   vitals?: PatientVitals;
   tokenNumber?: string;
-  queueStatus?: 'awaiting_vitals' | 'awaiting_consultation' | 'completed';
+  queueStatus?: 'awaiting_vitals' | 'awaiting_consultation' | 'in_consultation' | 'completed';
   pastReportsSummary?: string;
   createdAt: string;
 }

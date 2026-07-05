@@ -2053,9 +2053,15 @@ export const CompounderDashboard: React.FC = () => {
                                       ) : p.vitals.dilationStatus === 'instilled' ? (
                                         <button
                                           onClick={() => {
-                                            const updatedVitals = {
-                                              ...(p.vitals),
-                                              dilationStatus: 'dilated' as const
+                                            const updatedVitals: PatientVitals = {
+                                              temperature: p.vitals?.temperature || '6/6',
+                                              bloodPressure: p.vitals?.bloodPressure || '6/6',
+                                              pulseRate: p.vitals?.pulseRate || '16',
+                                              weight: p.vitals?.weight || '',
+                                              recordedAt: p.vitals?.recordedAt || new Date().toISOString(),
+                                              bloodSugar: p.vitals?.bloodSugar,
+                                              dilationStatus: 'dilated' as const,
+                                              dilationStartTime: p.vitals?.dilationStartTime
                                             };
                                             api.updatePatientVitalsAndToken(p.id, updatedVitals, p.tokenNumber || 'TK-1');
                                             syncData();
