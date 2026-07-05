@@ -256,7 +256,7 @@ export interface PharmacyInventoryItem {
   mrp: number;                 // Maximum Retail Price ₹
   price: number;               // Selling Price ₹
   stock: number;               // Current units available
-  unit: 'tabs' | 'caps' | 'vials' | 'ml' | 'gm' | 'strips';
+  unit: 'tabs' | 'caps' | 'vials' | 'ml' | 'gm' | 'strips' | 'units' | 'boxes' | 'pairs';
   threshold: number;           // Low-stock alert trigger level
   dosage: string;              // e.g. "500mg"
   addedAt: string;             // ISO datetime when batch was entered
