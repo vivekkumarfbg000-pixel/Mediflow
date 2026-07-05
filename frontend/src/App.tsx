@@ -430,21 +430,22 @@ export default function App() {
 
   useEffect(() => {
     // Eagerly redirect to app subdomain if cross-subdomain session cookie is active
-    const curHostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isLandingPage = curHostname === 'vitalsync.in' || curHostname === 'www.vitalsync.in' || curHostname === 'localhost' || curHostname === '127.0.0.1';
+    // Disabled to prevent stale cookie redirection traps (e.g. redirecting to login page when session expires)
+    // const curHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    // const isLandingPage = curHostname === 'vitalsync.in' || curHostname === 'www.vitalsync.in' || curHostname === 'localhost' || curHostname === '127.0.0.1';
     
-    if (isLandingPage && typeof window !== 'undefined') {
-      const isSessionActive = document.cookie.includes('vitalsync_session_active=true');
-      if (isSessionActive) {
-        console.log('[VitalSync Auth] Active cookie session detected on landing page. Eagerly redirecting to app subdomain...');
-        const isLocal = getIsLocal(curHostname);
-        const redirectUrl = isLocal
-          ? `http://app.localhost:${window.location.port || '5173'}`
-          : 'https://app.vitalsync.in';
-        window.location.replace(redirectUrl);
-        return;
-      }
-    }
+    // if (isLandingPage && typeof window !== 'undefined') {
+    //   const isSessionActive = document.cookie.includes('vitalsync_session_active=true');
+    //   if (isSessionActive) {
+    //     console.log('[VitalSync Auth] Active cookie session detected on landing page. Eagerly redirecting to app subdomain...');
+    //     const isLocal = getIsLocal(curHostname);
+    //     const redirectUrl = isLocal
+    //       ? `http://app.localhost:${window.location.port || '5173'}`
+    //       : 'https://app.vitalsync.in';
+    //     window.location.replace(redirectUrl);
+    //     return;
+    //   }
+    // }
 
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
