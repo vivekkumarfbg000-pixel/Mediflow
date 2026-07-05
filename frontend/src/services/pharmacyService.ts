@@ -23,7 +23,132 @@ export class PharmacyService {
 
 
   static getPharmacyInventory(): PharmacyInventoryItem[] {
-    const defaultItems: PharmacyInventoryItem[] = [
+    const isOphthalmology = typeof window !== 'undefined' && 
+      (window.localStorage.getItem('mediflow_demo_specialization') === 'Ophthalmology');
+
+    const defaultOphthalmicItems: PharmacyInventoryItem[] = [
+      {
+        id: 'eye-item-1',
+        name: 'Moxifloxacin Eye Drops 0.5%',
+        genericName: 'Moxifloxacin',
+        category: 'Ophthalmic Antibiotic',
+        manufacturer: 'Alcon / Novartis',
+        batchNumber: 'MOX26A-01',
+        expiryDate: new Date(new Date().getTime() + 180 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 120,
+        price: 110,
+        stock: 45,
+        unit: 'vials',
+        threshold: 15,
+        dosage: '0.5% w/v',
+        addedAt: new Date().toISOString(),
+        hsn: '300490'
+      },
+      {
+        id: 'eye-item-2',
+        name: 'Carboxymethylcellulose 0.5%',
+        genericName: 'Carboxymethylcellulose Sodium',
+        category: 'Artificial Tears / Lubricant',
+        manufacturer: 'Allergan',
+        batchNumber: 'CMC26B-02',
+        expiryDate: new Date(new Date().getTime() + 250 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 145,
+        price: 135,
+        stock: 80,
+        unit: 'vials',
+        threshold: 20,
+        dosage: '0.5%',
+        addedAt: new Date().toISOString(),
+        hsn: '300490'
+      },
+      {
+        id: 'eye-item-3',
+        name: 'Homatropine Eye Drops 2%',
+        genericName: 'Homatropine Hydrobromide',
+        category: 'Mydriatic / Cycloplegic',
+        manufacturer: 'Sun Pharma',
+        batchNumber: 'HOM26C-03',
+        expiryDate: new Date(new Date().getTime() + 90 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 180,
+        price: 165,
+        stock: 35,
+        unit: 'vials',
+        threshold: 10,
+        dosage: '2%',
+        addedAt: new Date().toISOString(),
+        hsn: '300490'
+      },
+      {
+        id: 'eye-item-4',
+        name: 'Alcon AcrySof IQ IOL',
+        genericName: 'Hydrophobic Acrylic IOL',
+        category: 'Intraocular Lens (IOL)',
+        manufacturer: 'Alcon',
+        batchNumber: 'IOL26D-04',
+        expiryDate: new Date(new Date().getTime() + 1000 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 15000,
+        price: 13500,
+        stock: 15,
+        unit: 'units',
+        threshold: 5,
+        dosage: 'Aspheric Monofocal',
+        addedAt: new Date().toISOString(),
+        hsn: '902139'
+      },
+      {
+        id: 'eye-item-5',
+        name: 'Acuvue Oasys Contact Lenses',
+        genericName: 'Senofilcon A',
+        category: 'Contact Lens',
+        manufacturer: 'Johnson & Johnson',
+        batchNumber: 'ACV26E-05',
+        expiryDate: new Date(new Date().getTime() + 500 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 1200,
+        price: 1100,
+        stock: 25,
+        unit: 'boxes',
+        threshold: 8,
+        dosage: '-2.50 DS',
+        addedAt: new Date().toISOString(),
+        hsn: '900130'
+      },
+      {
+        id: 'eye-item-6',
+        name: 'Titan Premium Half-Rim Frame',
+        genericName: 'Metal Spectacle Frame',
+        category: 'Spectacle Frames',
+        manufacturer: 'Titan Eye+',
+        batchNumber: 'FRM26F-06',
+        expiryDate: new Date(new Date().getTime() + 2000 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 2400,
+        price: 2100,
+        stock: 18,
+        unit: 'units',
+        threshold: 5,
+        dosage: 'Medium size',
+        addedAt: new Date().toISOString(),
+        hsn: '900319'
+      },
+      {
+        id: 'eye-item-7',
+        name: 'Essilor Crizal Anti-Glare Lens',
+        genericName: 'Crizal Easy Pro',
+        category: 'Spectacle Lens',
+        manufacturer: 'Essilor',
+        batchNumber: 'LNS26G-07',
+        expiryDate: new Date(new Date().getTime() + 3000 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        mrp: 1800,
+        price: 1600,
+        stock: 30,
+        unit: 'pairs',
+        threshold: 10,
+        dosage: '1.56 Index',
+        addedAt: new Date().toISOString(),
+        hsn: '900150'
+      }
+    ];
+
+    const defaultGeneralItems: PharmacyInventoryItem[] = [
       {
         id: 'item-1',
         name: 'Metformin 500mg',
@@ -110,7 +235,27 @@ export class PharmacyService {
         hsn: '300490'
       }
     ];
-    return load<PharmacyInventoryItem[]>('pharmacy_inventory', defaultItems);
+
+    const selectedDefaults = isOphthalmology ? defaultOphthalmicItems : defaultGeneralItems;
+    const stored = load<PharmacyInventoryItem[]>('pharmacy_inventory', []);
+    
+    if (stored.length > 0) {
+      const hasEyeItems = stored.some(i => i.id.startsWith('eye-item-'));
+      // If we are in Ophthalmology but have general items only, clear and load eye items
+      if (isOphthalmology && !hasEyeItems) {
+        save('pharmacy_inventory', defaultOphthalmicItems);
+        return defaultOphthalmicItems;
+      }
+      // If we are in General Medicine but have eye items only, clear and load general items
+      if (!isOphthalmology && hasEyeItems) {
+        save('pharmacy_inventory', defaultGeneralItems);
+        return defaultGeneralItems;
+      }
+      return stored;
+    }
+    
+    save('pharmacy_inventory', selectedDefaults);
+    return selectedDefaults;
   }
 
   static savePharmacyInventory(items: PharmacyInventoryItem[]) {
@@ -118,15 +263,33 @@ export class PharmacyService {
     notify();
   }
 
-  static addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>): PharmacyInventoryItem {
+  static addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>, entityId?: string): PharmacyInventoryItem {
     const items = this.getPharmacyInventory();
     const newItem: PharmacyInventoryItem = {
       ...item,
-      id: `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: crypto.randomUUID(),
       addedAt: new Date().toISOString()
     };
     items.push(newItem);
     this.savePharmacyInventory(items);
+
+    // Sync to Supabase
+    const dbRow = {
+      id: newItem.id,
+      pharmacy_entity_id: entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
+      medicine_name: newItem.name,
+      batch_number: newItem.batchNumber,
+      expiry_date: newItem.expiryDate,
+      quantity_in_stock: newItem.stock,
+      stock: newItem.stock,
+      is_active: true,
+      updated_at: new Date().toISOString()
+    };
+
+    supabase.from('pharmacy_inventory').insert(dbRow).then(({ error }) => {
+      if (error) console.error('[PharmacyService] Error inserting inventory item in Supabase:', error);
+    });
+
     writeAuditLog('pharmacy_inventory_added', { itemId: newItem.id, name: newItem.name, batch: newItem.batchNumber, stock: newItem.stock }, newItem.id);
     return newItem;
   }
@@ -145,10 +308,11 @@ export class PharmacyService {
     return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0);
   }
 
-  static addPharmacyInventoryBulk(rows: MedicineImportRow[]): { added: number; errors: string[] } {
+  static addPharmacyInventoryBulk(rows: MedicineImportRow[], entityId?: string): { added: number; errors: string[] } {
     const items = this.getPharmacyInventory();
     let addedCount = 0;
     const errors: string[] = [];
+    const dbRows: any[] = [];
 
     rows.forEach((row, index) => {
       try {
@@ -165,7 +329,7 @@ export class PharmacyService {
         const parsedThreshold = Math.max(1, Math.floor(Number(row.threshold) || 10));
         
         const newItem: PharmacyInventoryItem = {
-          id: `item-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`,
+          id: crypto.randomUUID(),
           name: cleanName,
           genericName: this.sanitizeFormula(row.genericName || cleanName),
           category: this.sanitizeFormula(row.category || 'General'),
@@ -184,6 +348,18 @@ export class PharmacyService {
 
         items.push(newItem);
         addedCount++;
+
+        dbRows.push({
+          id: newItem.id,
+          pharmacy_entity_id: entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
+          medicine_name: newItem.name,
+          batch_number: newItem.batchNumber,
+          expiry_date: newItem.expiryDate,
+          quantity_in_stock: newItem.stock,
+          stock: newItem.stock,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        });
       } catch (err: any) {
         errors.push(err.message || String(err));
         TelemetryService.captureException(err, { section: "pharmacy_bulk_csv_row", rowIndex: index });
@@ -193,6 +369,12 @@ export class PharmacyService {
     if (addedCount > 0) {
       this.savePharmacyInventory(items);
       writeAuditLog('pharmacy_inventory_bulk_added', { count: addedCount }, 'bulk');
+
+      if (dbRows.length > 0) {
+        supabase.from('pharmacy_inventory').insert(dbRows).then(({ error }) => {
+          if (error) console.error('[PharmacyService] Error inserting bulk inventory in Supabase:', error);
+        });
+      }
     }
 
     return { added: addedCount, errors };
@@ -202,6 +384,14 @@ export class PharmacyService {
     const items = this.getPharmacyInventory();
     const filtered = items.filter(item => item.id !== id);
     this.savePharmacyInventory(filtered);
+
+    supabase.from('pharmacy_inventory')
+      .delete()
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) console.error('[PharmacyService] Error deleting inventory item in Supabase:', error);
+      });
+
     writeAuditLog('pharmacy_inventory_deleted', { id }, id);
   }
 
@@ -210,6 +400,18 @@ export class PharmacyService {
     const updated = items.map(item => {
       if (item.id === itemId || item.name.toLowerCase() === itemId.toLowerCase()) {
         const newStock = Math.max(0, item.stock + quantity);
+
+        supabase.from('pharmacy_inventory')
+          .update({
+            quantity_in_stock: newStock,
+            stock: newStock,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.id)
+          .then(({ error }) => {
+            if (error) console.error('[PharmacyService] Error updating stock in Supabase:', error);
+          });
+
         writeAuditLog('pharmacy_inventory_restocked', { itemId: item.id, medicineName: item.name, quantity, oldStock: item.stock, newStock }, item.id);
         return { ...item, stock: newStock };
       }
