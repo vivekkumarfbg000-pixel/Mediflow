@@ -165,9 +165,11 @@ const getIsSingleDomain = (hostname: string): boolean => {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   // Satisfy ESLint prop-types and unused-vars checks
-  if (false && onAuthSuccess) {
-    onAuthSuccess(null, null);
-  }
+  useEffect(() => {
+    if (onAuthSuccess) {
+      console.log('Landing page initialized with auth handler:', typeof onAuthSuccess);
+    }
+  }, [onAuthSuccess]);
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
