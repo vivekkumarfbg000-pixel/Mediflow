@@ -1331,14 +1331,14 @@ class MediflowApiService {
     this.notify();
   }
 
-  addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>): PharmacyInventoryItem {
-    const res = PharmacyService.addPharmacyInventoryItem(item);
+  addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>, entityId?: string): PharmacyInventoryItem {
+    const res = PharmacyService.addPharmacyInventoryItem(item, entityId);
     this.notify();
     return res;
   }
 
-  addPharmacyInventoryBulk(rows: MedicineImportRow[]): { added: number; errors: string[] } {
-    const res = PharmacyService.addPharmacyInventoryBulk(rows);
+  addPharmacyInventoryBulk(rows: MedicineImportRow[], entityId?: string): { added: number; errors: string[] } {
+    const res = PharmacyService.addPharmacyInventoryBulk(rows, entityId);
     this.notify();
     return res;
   }

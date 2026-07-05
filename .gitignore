@@ -36,3 +36,4 @@ deploy-supabase.local.ps1
 # Scratch scripts
 scratch/
 
+.agent/skills/cashfree-skills/

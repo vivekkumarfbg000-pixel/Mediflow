@@ -354,7 +354,7 @@ export const PharmacyDashboard: React.FC = () => {
       threshold: Number(addForm.threshold) || 20,
       dosage: addForm.dosage || '10mg',
       hsn: addForm.hsn || '300490'
-    });
+    }, activeEntity?.id);
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -430,7 +430,7 @@ export const PharmacyDashboard: React.FC = () => {
 
   const handleConfirmCsvImport = () => {
     if (csvPreview.length === 0) return;
-    const res = api.addPharmacyInventoryBulk(csvPreview);
+    const res = api.addPharmacyInventoryBulk(csvPreview, activeEntity?.id);
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {

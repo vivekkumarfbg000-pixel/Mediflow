@@ -713,7 +713,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }));
 
       onAuthSuccess(sessionWithNoProfile, profile);
-    } catch (_err) {
+    } catch (_err) { // Force rebuild of AuthGateway to clear compiler error
       const err = _err as any;
       console.error('[OAuth Onboarding] Register Clinic failed:', err);
       setErrorMsg(err.message || 'Onboarding failed. Please try again.');

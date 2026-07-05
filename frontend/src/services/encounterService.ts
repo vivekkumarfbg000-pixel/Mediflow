@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
 import { resolvePodContext, FALLBACK_DOCTOR_ID } from './podContext';
 import { PatientService } from './patientService';
-import type { Encounter, HistoricalBiomarker, LabRequisition } from '../types';
+import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
 
 export class EncounterService {
   static getEncounters(): Encounter[] {
@@ -23,6 +23,92 @@ export class EncounterService {
 
     // Transition patient's local and database queue status to completed
     PatientService.updatePatientQueueStatus(newEncounter.patientId, 'completed');
+
+    // 1. Create local and Supabase lab requisitions for ordered diagnostic tests
+    if (newEncounter.diagnosticTests.length > 0) {
+      const existingReqs = load<any[]>('lab_requisitions', []);
+      const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
+      
+      for (const test of newEncounter.diagnosticTests) {
+        const reqId = crypto.randomUUID();
+        const barcode = `BAR-${encounterId.substring(0, 8)}-${test.loincCode}`.toUpperCase();
+        const newReq: any = {
+          id: reqId,
+          encounterId: encounterId,
+          patientId: newEncounter.patientId,
+          patientName: patient?.name || 'Unknown Patient',
+          testCode: test.loincCode,
+          testName: test.name,
+          barcode: barcode,
+          status: 'pending',
+          reagentDeductions: [],
+          createdAt: new Date().toISOString()
+        };
+        existingReqs.unshift(newReq);
+      }
+      save('lab_requisitions', existingReqs);
+    }
+
+    // 2. Create local inventory holds and update stocks for medications
+    if (newEncounter.medications.length > 0) {
+      const inventory = load<any[]>('pharmacy_inventory', []);
+      const holds = load<any[]>('inventory_holds', []);
+      
+      for (const med of newEncounter.medications) {
+        const item = inventory.find(i => i.name.toLowerCase() === med.medicineName.toLowerCase() || i.genericName.toLowerCase() === med.medicineName.toLowerCase());
+        const qty = 10; // default quantity for hold
+        const batch = item?.batchNumber || 'MET26A-01';
+        const expiry = item?.expiryDate || new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0];
+        
+        const holdId = crypto.randomUUID();
+        const newHold = {
+          id: holdId,
+          pharmacyId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Seeded pharmacy
+          patientId: newEncounter.patientId,
+          medicineName: med.medicineName,
+          dosage: med.dosage || '',
+          quantity: qty,
+          holdStatus: 'held',
+          expiryDate: expiry,
+          batchNumber: batch,
+          createdAt: new Date().toISOString()
+        };
+        holds.push(newHold);
+        
+        if (item) {
+          item.stock = Math.max(0, item.stock - qty);
+        }
+      }
+      save('inventory_holds', holds);
+      save('pharmacy_inventory', inventory);
+    }
+
+    // 3. Create local unified invoice
+    const invoices = load<any[]>('unified_invoices', []);
+    const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
+    const docFee = 400;
+    const labFee = newEncounter.diagnosticTests.length * 350;
+    const pharmFee = newEncounter.medications.length * 150;
+    const platFee = Math.max(10, (docFee + labFee + pharmFee) * 0.03);
+    const total = docFee + labFee + pharmFee + platFee;
+
+    const newInvoice = {
+      id: crypto.randomUUID(),
+      encounterId: encounterId,
+      patientId: newEncounter.patientId,
+      patientName: patient?.name || 'Unknown Patient',
+      patientPhone: patient?.phone || '',
+      doctorFee: docFee,
+      labFee: labFee,
+      pharmacyFee: pharmFee,
+      platformFee: platFee,
+      totalAmount: total,
+      upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-${encounterId}`,
+      paymentStatus: 'pending',
+      createdAt: new Date().toISOString()
+    };
+    invoices.push(newInvoice);
+    save('unified_invoices', invoices);
 
     // Asynchronously resolve real IDs then insert to Supabase
     (async () => {

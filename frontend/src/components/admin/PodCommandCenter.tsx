@@ -117,12 +117,32 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }, [labMetrics, pharmacyMetrics, whatsappMetrics, financialMetrics]);
 
   const filteredPatients = useMemo(() => {
-    return patients.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            p.phone.includes(searchQuery) ||
-                            (p.tokenNumber && p.tokenNumber.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesSearch;
-    });
+    const parseTokenNum = (token?: string) => {
+      if (!token) return Infinity;
+      const match = token.match(/\d+/);
+      return match ? parseInt(match[0], 10) : Infinity;
+    };
+
+    return patients
+      .filter(p => {
+        const isActiveQueue = p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation';
+        if (!isActiveQueue && !searchQuery) return false;
+
+        const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              p.phone.includes(searchQuery) ||
+                              (p.tokenNumber && p.tokenNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesSearch;
+      })
+      .sort((a, b) => {
+        const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
+        const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
+        const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
+        if (statusA !== statusB) return statusA - statusB;
+
+        const tokenA = parseTokenNum(a.tokenNumber);
+        const tokenB = parseTokenNum(b.tokenNumber);
+        return tokenA - tokenB;
+      });
   }, [patients, searchQuery]);
 
   const lowStockSKUs = useMemo(() => {

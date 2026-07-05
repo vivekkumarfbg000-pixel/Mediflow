@@ -326,7 +326,8 @@ export class PatientService {
     if (hasActiveReqs) {
       return 'lab';
     }
-    if (hasActiveEncounter) {
+    const patientObj = this.getPatients().find(p => p.id === patientId);
+    if (hasActiveEncounter || (patientObj && patientObj.queueStatus === 'awaiting_consultation')) {
       return 'diagnosing';
     }
     return 'registered';
