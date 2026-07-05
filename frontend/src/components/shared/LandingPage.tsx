@@ -2,10 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Phone, Eye
+  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, Eye
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
-
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
 import background3DSrc from '../../assets/3d_background.png';
