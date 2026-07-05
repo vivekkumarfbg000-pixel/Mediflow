@@ -12,6 +12,7 @@ import type {
   Invoice,
   Prescription,
   Patient,
+  PatientVitals,
   WhatsAppSession,
   ClinicStaff,
   PathologyReport,
