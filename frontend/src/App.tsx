@@ -46,12 +46,8 @@ interface AppContentProps {
   session: any;
   activeProfile: any;
   currentRole: UserRole;
-  setCurrentRole: (role: UserRole) => void;
   toasts: Toast[];
-  setToasts: React.Dispatch<React.SetStateAction<Toast[]>>;
   isBypassMode: boolean;
-  setIsBypassMode: (bypass: boolean) => void;
-  handleAuthSuccess: (session: any, profile: any) => void;
   handleSignOut: () => void;
   handleToggleBypass: (bypass: boolean) => void;
   handleRoleChange: (role: UserRole) => void;
@@ -64,7 +60,6 @@ function AppContent({
   currentRole,
   toasts,
   isBypassMode,
-  handleAuthSuccess,
   handleSignOut,
   handleToggleBypass,
   handleRoleChange,
@@ -1281,12 +1276,8 @@ export default function App() {
             session={session}
             activeProfile={activeProfile}
             currentRole={currentRole}
-            setCurrentRole={setCurrentRole}
             toasts={toasts}
-            setToasts={setToasts}
             isBypassMode={isBypassMode}
-            setIsBypassMode={setIsBypassMode}
-            handleAuthSuccess={handleAuthSuccess}
             handleSignOut={handleSignOut}
             handleToggleBypass={handleToggleBypass}
             handleRoleChange={handleRoleChange}
