@@ -1,9 +1,9 @@
-// Mediflow Connected Care Ecosystem - Premium Dashboard v1.0.0
 import { useState, useEffect, lazy, Suspense, startTransition, useRef } from 'react';
 import { Navbar } from './components/shared/Navbar';
 import type { UserRole } from './components/shared/Navbar';
 import { api } from './services/api';
 import { StateHealingEngine, ProactiveHealthMonitor } from './services/autoHealerAgent';
+import { PwaSyncManager } from './pwa';
 
 const CompounderDashboard = lazy(() => import('./components/compounder/CompounderDashboard').then(m => ({ default: m.CompounderDashboard })));
 const DoctorDashboard = lazy(() => import('./components/doctor/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
@@ -19,13 +19,12 @@ import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
+import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
 import { ClinicProvider, useClinic } from './context/ClinicContext';
 import { SpecializationProvider } from './context/SpecializationContext';
-import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
 import { PatientWhatsAppSimulator } from './components/shared/PatientWhatsAppSimulator';
 import { PatientMobileDashboard } from './components/shared/PatientMobileDashboard';
 import { CommandBar } from './components/shared/CommandBar';
-import { PwaSyncManager } from './pwa';
 import { ToastProvider } from './components/shared/ToastProvider';
 import { resolvePodContext, clearPodContext } from './services/podContext';
 import {
