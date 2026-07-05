@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, Eye
+  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye
 } from 'lucide-react';
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
