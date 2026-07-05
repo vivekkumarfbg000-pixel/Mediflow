@@ -1075,21 +1075,22 @@ export default function App() {
   // vitalsync.in always shows the landing page — on ALL devices (desktop and mobile).
   // Users reach app.vitalsync.in via the "Console Login" or "Get Started" buttons.
   if (isLandingPageDomain) {
-    if (session && activeProfile) {
-      const userRole = activeProfile.role;
-      const isAdmin = userRole === 'admin' || userRole === 'platform_admin';
-      const redirectUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-        ? (isAdmin 
-            ? `http://admin.localhost:${window.location.port || '5173'}` 
-            : `http://app.localhost:${window.location.port || '5173'}`)
-        : (isAdmin 
-            ? 'https://admin.vitalsync.in' 
-            : 'https://app.vitalsync.in');
-      
-      console.log(`[Mediflow Auth] Active session found on landing page. Redirecting to: ${redirectUrl}`);
-      window.location.replace(redirectUrl);
-      return <FullPageLoader message="Redirecting to dashboard..." />;
-    }
+    // Disabled to prevent cross-origin redirect traps (e.g. redirecting to login page when session is expired on app subdomain)
+    // if (session && activeProfile) {
+    //   const userRole = activeProfile.role;
+    //   const isAdmin = userRole === 'admin' || userRole === 'platform_admin';
+    //   const redirectUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+    //     ? (isAdmin 
+    //         ? `http://admin.localhost:${window.location.port || '5173'}` 
+    //         : `http://app.localhost:${window.location.port || '5173'}`)
+    //     : (isAdmin 
+    //         ? 'https://admin.vitalsync.in' 
+    //         : 'https://app.vitalsync.in');
+    //   
+    //   console.log(`[Mediflow Auth] Active session found on landing page. Redirecting to: ${redirectUrl}`);
+    //   window.location.replace(redirectUrl);
+    //   return <FullPageLoader message="Redirecting to dashboard..." />;
+    // }
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
