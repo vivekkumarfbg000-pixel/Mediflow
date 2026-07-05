@@ -1881,7 +1881,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           key={eye}
                           type="button"
                           onClick={() => {
-                            let cleanName = medName.replace(/\s*\((OD|OS|OU)\)/i, '').trim();
+                            const cleanName = medName.replace(/\s*\((OD|OS|OU)\)/i, '').trim();
                             if (cleanName) {
                               setMedName(`${cleanName} (${eye})`);
                             }
