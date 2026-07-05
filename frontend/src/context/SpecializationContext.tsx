@@ -57,7 +57,13 @@ interface SpecializationProviderProps {
 export const SpecializationProvider: React.FC<SpecializationProviderProps> = ({ children, activeProfile }) => {
   const value = useMemo(() => {
     // Extract specialization from user metadata (set during doctor registration in AuthGateway)
-    const spec: string = activeProfile?.user_metadata?.specialization
+    // Allow localStorage override for Demo Sandbox sessions (e.g. demo=eye URL param)
+    const demoOverride = typeof window !== 'undefined'
+      ? window.localStorage.getItem('mediflow_demo_specialization')
+      : null;
+
+    const spec: string = demoOverride
+      || activeProfile?.user_metadata?.specialization
       || activeProfile?.raw_user_meta_data?.specialization
       || 'General Medicine';
 

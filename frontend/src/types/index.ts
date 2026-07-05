@@ -5,6 +5,8 @@ export interface PatientVitals {
   weight: string;            // kg
   bloodSugar?: string;       // mg/dL (glucometer)
   recordedAt: string;
+  dilationStatus?: 'not_started' | 'instilled' | 'dilated';
+  dilationStartTime?: string; // ISO string
 }
 
 export interface Patient {

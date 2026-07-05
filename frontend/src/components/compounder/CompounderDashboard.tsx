@@ -270,6 +270,15 @@ export const CompounderDashboard: React.FC = () => {
     return api.subscribe(syncData);
   }, [syncData]);
 
+  // Auto-refresh every 60 seconds so the dilation countdown timer ticks down
+  // without requiring a manual user interaction or page reload
+  useEffect(() => {
+    const dilationRefreshInterval = setInterval(() => {
+      syncData();
+    }, 60_000);
+    return () => clearInterval(dilationRefreshInterval);
+  }, [syncData]);
+
   useEffect(() => {
     const container = chatContainerRef.current;
     if (container) {
@@ -1957,6 +1966,20 @@ export const CompounderDashboard: React.FC = () => {
                                     Vitals Logged
                                   </span>
                                 )}
+                                {isOphthalmology && p.vitals?.dilationStatus && (
+                                  <span className={`flex items-center gap-1.5 px-2 py-0.2 rounded border text-[8px] font-bold uppercase tracking-wider ${
+                                    p.vitals.dilationStatus === 'dilated'
+                                      ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/10'
+                                      : 'bg-amber-500/5 text-amber-600 border-amber-500/10'
+                                  }`}>
+                                    {p.vitals.dilationStatus === 'dilated' ? '👁️ Fully Dilated' : '⏳ Dilation in Progress'}
+                                    {p.vitals.dilationStatus === 'instilled' && p.vitals.dilationStartTime && (
+                                      <span className="font-mono text-[9px] lowercase">
+                                        ({Math.max(0, Math.ceil((new Date(p.vitals.dilationStartTime).getTime() + 20 * 60 * 1000 - Date.now()) / (60 * 1000)))}m left)
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
                                 {(isAwaitingVitals || isAwaitingConsult) && (
                                   <span className="text-indigo-600 font-mono text-[9px]">
                                     Est. Wait: ~{currentWaitEstimate} mins
@@ -2004,6 +2027,50 @@ export const CompounderDashboard: React.FC = () => {
                                 </button>
                               ) : isAwaitingConsult ? (
                                 <div className="flex flex-col items-end gap-1.5">
+                                  {isOphthalmology && (
+                                    <div className="flex items-center gap-1 mb-1">
+                                      {(!p.vitals?.dilationStatus || p.vitals.dilationStatus === 'not_started') ? (
+                                        <button
+                                          onClick={() => {
+                                            const updatedVitals = {
+                                              ...(p.vitals || {
+                                                temperature: '6/6',
+                                                bloodPressure: '6/6',
+                                                pulseRate: '16',
+                                                weight: '',
+                                                recordedAt: new Date().toISOString()
+                                              }),
+                                              dilationStatus: 'instilled' as const,
+                                              dilationStartTime: new Date().toISOString()
+                                            };
+                                            api.updatePatientVitalsAndToken(p.id, updatedVitals, p.tokenNumber || 'TK-1');
+                                            syncData();
+                                          }}
+                                          className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-white border border-amber-500/20 rounded font-bold uppercase tracking-wider text-[8px] transition-all cursor-pointer border-0"
+                                        >
+                                          💧 Instill Drops
+                                        </button>
+                                      ) : p.vitals.dilationStatus === 'instilled' ? (
+                                        <button
+                                          onClick={() => {
+                                            const updatedVitals = {
+                                              ...(p.vitals),
+                                              dilationStatus: 'dilated' as const
+                                            };
+                                            api.updatePatientVitalsAndToken(p.id, updatedVitals, p.tokenNumber || 'TK-1');
+                                            syncData();
+                                          }}
+                                          className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-bold uppercase tracking-wider text-[8px] transition-all cursor-pointer border-0"
+                                        >
+                                          👁️ Mark Dilated
+                                        </button>
+                                      ) : (
+                                        <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-250 px-2 py-0.5 rounded uppercase tracking-wider">
+                                          Fully Dilated
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                   <span className="text-[8px] bg-amber-500/10 text-amber-700 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 uppercase tracking-widest animate-pulse-subtle">
                                     In Doctor Chamber
                                   </span>

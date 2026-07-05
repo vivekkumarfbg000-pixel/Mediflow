@@ -452,10 +452,21 @@ export default function App() {
       setInitialSignupTab(tabParam);
     }
 
-    if (params.get('demo') === 'true') {
+    if (params.get('demo') === 'true' || params.get('demo') === 'eye') {
+      const isEyeDemo = params.get('demo') === 'eye';
       // Clear demo query param
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
+
+      // Set/clear specialization override in localStorage
+      if (isEyeDemo) {
+        localStorage.setItem('mediflow_demo_specialization', 'Ophthalmology');
+        localStorage.setItem('mediflow_demo_clinic_name', 'Patna Eye Care Center');
+      } else {
+        // Normal demo — clear any previous eye demo override
+        localStorage.removeItem('mediflow_demo_specialization');
+        localStorage.removeItem('mediflow_demo_clinic_name');
+      }
 
       // Trigger demo login
       setIsLoadingSession(true);
@@ -467,6 +478,7 @@ export default function App() {
             password: 'password123'
           });
           if (error) throw error;
+          localStorage.setItem('mediflow_demo_sandbox', 'true');
         } catch (err) {
           console.error('[Demo Auth] Automatic demo login failed:', err);
           window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -504,6 +516,59 @@ export default function App() {
     else if (currentRole === 'patient') apiRole = 'patient';
     api.setSimulatedRole(apiRole);
   }, [currentRole]);
+
+  // Specialization Switch Handler for demonstration and dev bypass
+  useEffect(() => {
+    const handleSwitchSpecialization = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      const newSpec = customEvent.detail;
+      if (activeProfile) {
+        const updatedProfile = {
+          ...activeProfile,
+          user_metadata: {
+            ...activeProfile.user_metadata,
+            specialization: newSpec
+          },
+          raw_user_meta_data: {
+            ...activeProfile.raw_user_meta_data,
+            specialization: newSpec
+          }
+        };
+        setActiveProfile(updatedProfile);
+
+        // Dispatches global toast
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Specialization Switch Activated',
+            message: `Switched clinical module context to ${newSpec}.`,
+            type: 'info'
+          }
+        }));
+
+        // Persist update in DB if logged in
+        if (activeProfile.id) {
+          supabase
+            .from('profiles')
+            .update({
+              user_metadata: updatedProfile.user_metadata,
+              raw_user_meta_data: updatedProfile.raw_user_meta_data
+            })
+            .eq('id', activeProfile.id)
+            .then(({ error }) => {
+              if (error) {
+                console.warn('[Specialization Switch] Failed to persist in DB:', error);
+              }
+            });
+        }
+      }
+    };
+
+    window.addEventListener('mediflow-switch-specialization', handleSwitchSpecialization);
+    return () => {
+      window.removeEventListener('mediflow-switch-specialization', handleSwitchSpecialization);
+    };
+  }, [activeProfile]);
+
 
   // Loading watchdog: If session exists but we are stuck loading for more than 12 seconds, trigger self-healing
   useEffect(() => {
@@ -690,15 +755,21 @@ export default function App() {
     }
 
     // 3a. Demo Doctor Profile Overrides for sandbox consistency
+    // Reads localStorage demo specialization to apply the correct clinic identity
     if (activeProfile && (activeProfile.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' || session.user?.email === 'doctor@mediflow.com')) {
+      const demoSpec = typeof window !== 'undefined'
+        ? window.localStorage.getItem('mediflow_demo_specialization')
+        : null;
+      const isEyeDemo = demoSpec === 'Ophthalmology';
+
       activeProfile = {
         ...activeProfile,
-        display_name: 'Dr. Vivek Kumar',
+        display_name: isEyeDemo ? 'Dr. Amit Arya' : 'Dr. Vivek Kumar',
         user_metadata: {
           ...activeProfile?.user_metadata,
-          specialization: 'General Medicine',
-          clinic_name: 'Kankarbagh Connected Clinic',
-          display_name: 'Dr. Vivek Kumar'
+          specialization: isEyeDemo ? 'Ophthalmology' : 'General Medicine',
+          clinic_name: isEyeDemo ? 'Patna Eye Care Center' : 'Kankarbagh Connected Clinic',
+          display_name: isEyeDemo ? 'Dr. Amit Arya' : 'Dr. Vivek Kumar'
         }
       };
     }
@@ -885,6 +956,11 @@ export default function App() {
 
   const handleSignOut = async () => {
     setCrossDomainCookie(false);
+    localStorage.removeItem('mediflow_demo_sandbox');
+    // Clear demo specialization override so a real doctor logging in next
+    // does not inherit the Eye Hospital or any other demo specialization
+    localStorage.removeItem('mediflow_demo_specialization');
+    localStorage.removeItem('mediflow_demo_clinic_name');
     try {
       await supabase.auth.signOut();
     } catch (err) {

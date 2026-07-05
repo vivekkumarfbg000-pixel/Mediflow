@@ -125,3 +125,40 @@ export function getAcuityRank(val: string) {
   if (clean.includes('NPL')) return 11;
   return 0;
 }
+
+export interface BiometryData {
+  axialLength: string;
+  k1: string;
+  k2: string;
+  targetRefraction: string;
+  iolPower: string;
+  iolModel: string;
+}
+
+export const EMPTY_BIOMETRY: BiometryData = {
+  axialLength: '',
+  k1: '',
+  k2: '',
+  targetRefraction: '',
+  iolPower: '',
+  iolModel: ''
+};
+
+export const BIOMETRY_START_TAG = '---BIOMETRY_START---';
+export const BIOMETRY_END_TAG = '---BIOMETRY_END---';
+
+export function serializeBiometry(bio: BiometryData): string {
+  return `\n${BIOMETRY_START_TAG}\n${JSON.stringify(bio)}\n${BIOMETRY_END_TAG}\n`;
+}
+
+export function parseBiometry(notes: string): BiometryData | null {
+  const startIdx = notes.indexOf(BIOMETRY_START_TAG);
+  const endIdx = notes.indexOf(BIOMETRY_END_TAG);
+  if (startIdx === -1 || endIdx === -1) return null;
+  try {
+    const jsonStr = notes.substring(startIdx + BIOMETRY_START_TAG.length, endIdx).trim();
+    return JSON.parse(jsonStr) as BiometryData;
+  } catch {
+    return null;
+  }
+}

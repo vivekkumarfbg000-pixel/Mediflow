@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Phone
+  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Phone, Eye
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { StateHealingEngine } from '../../services/autoHealerAgent';
@@ -219,6 +219,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
     window.location.href = dashboardUrl;
   };
 
+  // Launches the demo in Eye Hospital / Ophthalmology mode via ?demo=eye
+  const handleEyeDemoSignUpInstant = () => {
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isSingleDomain = getIsSingleDomain(hostname);
+
+    if (isSingleDomain) {
+      window.location.href = `${window.location.origin}?demo=eye`;
+      return;
+    }
+
+    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
+      ? `http://app.localhost:${window.location.port || '5173'}?demo=eye`
+      : 'https://app.vitalsync.in?demo=eye';
+    window.location.href = dashboardUrl;
+  };
+
   // Eligibility Form States
   const [ageConfirm, setAgeConfirm] = useState(false);
   const [complianceConfirm, setComplianceConfirm] = useState(false);
@@ -417,10 +433,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess: _onAuth
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleEyeDemoSignUpInstant}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-sm hover:shadow-md flex items-center gap-1.5"
+              title="Launch demo as an Eye Care Hospital (Ophthalmology mode with dilation tracker, biometry worksheet & ophthalmic prescribing)"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Eye Hospital Demo
+            </button>
             <button
               onClick={handleDemoSignUpInstant}
-              className="px-4.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-sm hover:shadow-md flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-sm hover:shadow-md flex items-center gap-1.5"
+              title="Launch demo as a General Physician (default Mediflow dashboard)"
             >
               <Sparkles className="h-3.5 w-3.5" />
               Demo Sandbox

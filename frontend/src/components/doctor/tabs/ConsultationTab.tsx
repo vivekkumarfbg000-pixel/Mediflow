@@ -4,11 +4,14 @@ import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '..
 import { CheckCircle2 } from 'lucide-react';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
 import { OphthalmicRefractionGrid } from '../OphthalmicRefractionGrid';
+import { BiometryWorksheet } from '../BiometryWorksheet';
 import { 
   EMPTY_REFRACTION_RX, 
   getAcuityRank, 
   OPHTHALMIC_EYE_CARE_COPY, 
-  type RefractionRx 
+  OPHTHALMIC_FREQUENCIES,
+  type RefractionRx,
+  type BiometryData
 } from '../../../types/ophthalmic';
 
 interface ConsultationTabProps {
@@ -31,6 +34,8 @@ interface ConsultationTabProps {
   setMedDur: (d: string) => void;
   refractionRx: RefractionRx;
   setRefractionRx: (r: RefractionRx) => void;
+  biometryRx: BiometryData;
+  setBiometryRx: (b: BiometryData) => void;
   cdssAnomalies: string[];
   aiInsight: string;
   isAiLoading: boolean;
@@ -87,6 +92,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   setMedDur,
   refractionRx,
   setRefractionRx,
+  biometryRx,
+  setBiometryRx,
   cdssAnomalies,
   aiInsight,
   isAiLoading,
@@ -447,50 +454,100 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           </h2>
           
           <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-            {patients.map((p: Patient) => {
-              const isSelected = selectedPatient?.id === p.id;
-              const patientAppts = appointments.filter(a => a.patientId === p.id);
-              const virtualAppt = patientAppts.find(a => a.isVirtual);
+            {(() => {
+              const parseTokenNum = (token?: string) => {
+                if (!token) return Infinity;
+                const match = token.match(/\d+/);
+                return match ? parseInt(match[0], 10) : Infinity;
+              };
 
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPatient(p)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all duration-300 relative group overflow-hidden ${
-                    isSelected 
-                      ? 'bg-primary-container/20 border-primary shadow-sm' 
-                      : 'bg-slate-50 border-slate-200/60 hover:bg-slate-100/80'
-                  }`}
-                >
-                  {isSelected && (
-                    <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-primary" />
-                  )}
-                  <div className="flex justify-between items-start">
-                    <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors">{p.name}</div>
-                    <span className="text-[8px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-mono">
-                      {p.id.toUpperCase().substring(0, 8)}
-                    </span>
+              const queuePatients = patients
+                .filter(p => p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || p.id === selectedPatient?.id)
+                .sort((a, b) => {
+                  const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
+                  const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
+                  const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
+                  if (statusA !== statusB) return statusA - statusB;
+
+                  const tokenA = parseTokenNum(a.tokenNumber);
+                  const tokenB = parseTokenNum(b.tokenNumber);
+                  return tokenA - tokenB;
+                });
+
+              if (queuePatients.length === 0) {
+                return (
+                  <div className="text-center py-8 text-xs text-slate-400 font-medium">
+                    No active patients in queue
                   </div>
-                  
-                  <div className="text-[10px] text-slate-500 mt-2 flex justify-between items-center flex-wrap gap-1.5">
-                    <span>{p.gender}, {p.age} years</span>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {p.abhaId && (
-                        <span className="bg-secondary/10 text-secondary border border-secondary/20 px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider font-mono">
-                          ABHA
-                        </span>
-                      )}
-                      {virtualAppt && (
-                        <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-md animate-pulse font-sans">
-                          <span className="material-symbols-outlined text-[10px] text-emerald-700">check_circle</span>
-                          📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
-                        </span>
-                      )}
+                );
+              }
+
+              return queuePatients.map((p: Patient) => {
+                const isSelected = selectedPatient?.id === p.id;
+                const patientAppts = appointments.filter(a => a.patientId === p.id);
+                const virtualAppt = patientAppts.find(a => a.isVirtual);
+
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPatient(p)}
+                    className={`w-full text-left p-4 rounded-xl border transition-all duration-300 relative group overflow-hidden ${
+                      isSelected 
+                        ? 'bg-primary-container/20 border-primary shadow-sm' 
+                        : 'bg-slate-50 border-slate-200/60 hover:bg-slate-100/80'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-primary" />
+                    )}
+                    <div className="flex justify-between items-start">
+                      <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors flex items-center gap-1.5">
+                        {p.name}
+                        {p.tokenNumber && (
+                          <span className="text-[8px] font-mono px-1 py-0.2 bg-indigo-50 border border-indigo-200/50 text-indigo-700 rounded shrink-0">
+                            {p.tokenNumber}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[8px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-mono">
+                        {p.id.toUpperCase().substring(0, 8)}
+                      </span>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                    
+                    <div className="text-[10px] text-slate-500 mt-2 flex justify-between items-center flex-wrap gap-1.5">
+                      <span>{p.gender}, {p.age} years</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isOphthalmology && p.vitals?.dilationStatus && (
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase border flex items-center gap-0.5 ${
+                            p.vitals.dilationStatus === 'dilated'
+                              ? 'bg-emerald-50 text-emerald-750 border-emerald-200'
+                              : 'bg-amber-550/10 text-amber-700 border-amber-200/60 animate-pulse'
+                          }`}>
+                            {p.vitals.dilationStatus === 'dilated' ? '👁️ Dilated' : '⏳ Dilating'}
+                            {p.vitals.dilationStatus === 'instilled' && p.vitals.dilationStartTime && (
+                              <span className="font-mono">
+                                ({Math.max(0, Math.ceil((new Date(p.vitals.dilationStartTime).getTime() + 20 * 60 * 1000 - Date.now()) / (60 * 1000)))}m)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {p.abhaId && (
+                          <span className="bg-secondary/10 text-secondary border border-secondary/20 px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider font-mono">
+                            ABHA
+                          </span>
+                        )}
+                        {virtualAppt && (
+                          <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-md animate-pulse font-sans">
+                            <span className="material-symbols-outlined text-[10px] text-emerald-700">check_circle</span>
+                            📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              });
+            })()}
           </div>
         </div>
 
@@ -1815,34 +1872,82 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             {/* Form to add medication */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50/30 p-4 border border-slate-200/50 rounded-xl">
               <div className="sm:col-span-2 space-y-1">
-                <span className="text-[10px] font-bold text-slate-550 uppercase">Medicine Name</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-slate-555 uppercase">Medicine Name</span>
+                  {isOphthalmology && (
+                    <div className="flex gap-1">
+                      {['OD', 'OS', 'OU'].map(eye => (
+                        <button
+                          key={eye}
+                          type="button"
+                          onClick={() => {
+                            let cleanName = medName.replace(/\s*\((OD|OS|OU)\)/i, '').trim();
+                            if (cleanName) {
+                              setMedName(`${cleanName} (${eye})`);
+                            }
+                          }}
+                          className="px-1.5 py-0.2 bg-indigo-50 hover:bg-indigo-500 hover:text-white text-indigo-700 rounded text-[7.5px] font-black border border-indigo-200/50 cursor-pointer"
+                        >
+                          {eye}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <input
                   type="text"
-                  placeholder="e.g. Paracetamol 650mg"
+                  placeholder={isOphthalmology ? "e.g. Moxifloxacin Eye Drops" : "e.g. Paracetamol 650mg"}
                   value={medName}
                   onChange={(e) => setMedName(e.target.value)}
                   className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
                 />
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-550 uppercase">Dosage</span>
-                <input
-                  type="text"
-                  placeholder="e.g. 1 tab"
-                  value={medDosage}
-                  onChange={(e) => setMedDosage(e.target.value)}
-                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
-                />
+                <span className="text-[10px] font-bold text-slate-555 uppercase">Dosage</span>
+                {isOphthalmology ? (
+                  <select
+                    value={medDosage}
+                    onChange={(e) => setMedDosage(e.target.value)}
+                    className="w-full input-field py-1.5 text-xs bg-white border-slate-200 cursor-pointer"
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="1 drop">1 drop</option>
+                    <option value="2 drops">2 drops</option>
+                    <option value="Thin ribbon">Thin ribbon</option>
+                    <option value="Apply ointment">Apply ointment</option>
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. 1 tab"
+                    value={medDosage}
+                    onChange={(e) => setMedDosage(e.target.value)}
+                    className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
+                  />
+                )}
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-550 uppercase">Frequency</span>
-                <input
-                  type="text"
-                  placeholder="e.g. 1-0-1"
-                  value={medFreq}
-                  onChange={(e) => setMedFreq(e.target.value)}
-                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
-                />
+                <span className="text-[10px] font-bold text-slate-555 uppercase">Frequency</span>
+                {isOphthalmology ? (
+                  <select
+                    value={medFreq}
+                    onChange={(e) => setMedFreq(e.target.value)}
+                    className="w-full input-field py-1.5 text-xs bg-white border-slate-200 cursor-pointer"
+                  >
+                    <option value="">-- Select --</option>
+                    {OPHTHALMIC_FREQUENCIES.map(freq => (
+                      <option key={freq} value={freq}>{freq}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. 1-0-1"
+                    value={medFreq}
+                    onChange={(e) => setMedFreq(e.target.value)}
+                    className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
+                  />
+                )}
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-slate-550 uppercase">Duration</span>
@@ -1920,10 +2025,15 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* Ophthalmology Refraction Rx Grid */}
           {isOphthalmology && (
-            <div className="space-y-3 pt-5 border-t border-slate-100 animate-fade-in text-left">
+            <div className="space-y-4 pt-5 border-t border-slate-100 animate-fade-in text-left">
               <OphthalmicRefractionGrid 
                 value={refractionRx} 
                 onChange={setRefractionRx} 
+              />
+              
+              <BiometryWorksheet 
+                value={biometryRx} 
+                onChange={setBiometryRx} 
               />
             </div>
           )}
