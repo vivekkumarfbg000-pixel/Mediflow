@@ -1102,7 +1102,7 @@ body.dark {
 
 /* Only display on mobile screen sizes in landscape orientation */
 @media screen and (max-height: 480px) and (orientation: landscape) and (max-width: 950px) {
-  .mobile-landscape-overlay {
+  .is-mobile .mobile-landscape-overlay {
     display: flex !important;
   }
 }

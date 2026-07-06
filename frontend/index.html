@@ -22,10 +22,13 @@
       (function() {
         try {
           var isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-          if (isMobile && screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('portrait').catch(function() {
-              // Lock may fail in regular browser (only works in PWA standalone) — silently ignore
-            });
+          if (isMobile) {
+            document.documentElement.classList.add('is-mobile');
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock('portrait').catch(function() {
+                // Lock may fail in regular browser (only works in PWA standalone) — silently ignore
+              });
+            }
           }
         } catch(e) {}
       })();
