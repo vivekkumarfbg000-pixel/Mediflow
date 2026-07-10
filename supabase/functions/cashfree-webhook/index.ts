@@ -110,9 +110,9 @@ serve(async (req) => {
         });
       }
 
-      if (existingInvoice.payment_status === "paid") {
-        console.log(`[cashfree-webhook] Idempotency intercepted: Invoice ${existingInvoice.id} is already marked as PAID. Ignoring duplicate webhook event.`);
-        return new Response(JSON.stringify({ success: true, message: "Duplicate event ignored. Invoice already paid." }), {
+      if (existingInvoice.payment_status === "cleared") {
+        console.log(`[cashfree-webhook] Idempotency intercepted: Invoice ${existingInvoice.id} is already CLEARED. Ignoring duplicate webhook event.`);
+        return new Response(JSON.stringify({ success: true, message: "Duplicate event ignored. Invoice already cleared." }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -122,7 +122,7 @@ serve(async (req) => {
       const { data: invoice, error: updateErr } = await supabase
         .from("unified_invoices")
         .update({ 
-          payment_status: "paid",
+          payment_status: "cleared",  // DB constraint: only 'pending' | 'cleared' allowed
           split_settlement_status: "settled"
         })
         .eq("cashfree_order_id", orderId)

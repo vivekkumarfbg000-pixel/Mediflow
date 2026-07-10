@@ -83,7 +83,7 @@ export async function resolvePodContext(): Promise<PodContext> {
       // Fetch profile joined with entities table
       const { data: profile } = await supabase
         .from('profiles')
-        .select('entity_id, role, entities!inner(pod_id, type)')
+        .select('entity_id, role, entities!inner(pod_id, entity_type)')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -98,12 +98,12 @@ export async function resolvePodContext(): Promise<PodContext> {
         // Look up all entities for this pod to find lab and pharmacy
         const { data: siblings } = await supabase
           .from('entities')
-          .select('id, type')
+          .select('id, entity_type')
           .eq('pod_id', podId);
 
         if (siblings) {
-          const lab  = siblings.find(e => e.type === 'lab');
-          const pharm = siblings.find(e => e.type === 'pharmacy');
+          const lab  = siblings.find(e => e.entity_type === 'lab');
+          const pharm = siblings.find(e => e.entity_type === 'pharmacy');
           if (lab)  labEntityId    = lab.id;
           if (pharm) pharmacyEntityId = pharm.id;
         }

@@ -133,7 +133,7 @@ export const LabDashboard: React.FC = () => {
   useEffect(() => {
     const sync = () => {
       setRequisitions(api.getLabRequisitions());
-      setInvoices(api.getInvoices());
+      setInvoices(api.getUnifiedInvoices());
       setReagents(api.getReagentStocks());
       setPatients(api.getPatients());
     };
@@ -188,8 +188,8 @@ export const LabDashboard: React.FC = () => {
   const gatedRequisitions = useMemo(() => {
     return requisitions.filter(r => {
       if (r.encounterId === 'walkin') return true;
-      const inv = invoices.find(i => i.appointmentId === r.encounterId && i.type === 'lab');
-      return inv?.status === 'paid';
+      const inv = invoices.find(i => i.encounterId === r.encounterId);
+      return inv?.paymentStatus === 'cleared';
     });
   }, [requisitions, invoices]);
 

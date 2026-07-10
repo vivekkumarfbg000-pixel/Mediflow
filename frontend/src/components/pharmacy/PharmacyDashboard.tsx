@@ -726,13 +726,11 @@ export const PharmacyDashboard: React.FC = () => {
               <div className="space-y-4">
                 {(() => {
                   const patients = api.getPatients();
-                  const appointments = api.getAppointments();
                   const prescriptions = api.getPrescriptions();
-                  const paidPharmaInvoices = api.getInvoices().filter(i => i.type === 'pharmacy' && i.status === 'paid');
+                  const paidPharmaInvoices = api.getUnifiedInvoices().filter(i => i.pharmacyFee > 0 && i.paymentStatus === 'cleared');
                   
                   const filteredInvoices = paidPharmaInvoices.filter(invoice => {
-                    const appt = appointments.find(a => a.id === invoice.appointmentId);
-                    const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
+                    const patient = patients.find(p => p.id === invoice.patientId);
                     if (!patient) return false;
                     
                     const query = verifySearch.toLowerCase().trim();
@@ -751,9 +749,9 @@ export const PharmacyDashboard: React.FC = () => {
                   return (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {filteredInvoices.map(invoice => {
-                        const appt = appointments.find(a => a.id === invoice.appointmentId);
-                        const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
-                        const prescription = appt ? prescriptions.find(p => p.appointmentId === appt.id) : null;
+                        const appt = { id: invoice.encounterId, patientId: invoice.patientId };
+                        const patient = patients.find(p => p.id === invoice.patientId);
+                        const prescription = prescriptions.find(p => p.appointmentId === invoice.encounterId);
 
                         return (
                           <div key={invoice.id} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative overflow-hidden">

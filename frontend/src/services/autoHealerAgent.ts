@@ -578,17 +578,12 @@ export class StateHealingEngine {
     }
   }
 
-  /** Quick schema drift scan — runs autonomously every 15 min */
+  /** Schema drift scan — runs every 15 min. Actual RLS policy check is done by runRLSScanner(). */
   static async runSchemaDriftScan(): Promise<void> {
-    console.log('[Auto-Healer] Running proactive schema drift scan...');
-    try {
-      const fakeErr = new Error('schema drift scan — proactive autonomous check');
-      fakeErr.name  = 'SchemaDriftScan';
-      // Only fire if we can classify it as database
-      await this.handleException(new Error('column schema drift proactive scan'));
-    } catch (e) {
-      console.warn('[Auto-Healer] Schema drift scan interrupted:', e);
-    }
+    // No-op: schema drift detection is covered by the Supabase RLS scanner (runRLSScanner).
+    // Previously this incorrectly called handleException() with a fabricated error, which triggered
+    // unnecessary telemetry DB writes and healing-loop CPU work every 15 minutes.
+    console.log('[Auto-Healer] Schema drift scan: delegated to RLS scanner — no action needed.');
   }
 }
 

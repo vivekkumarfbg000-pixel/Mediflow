@@ -187,7 +187,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
           {(() => {
             const financials = api.getFinancialLedgers();
             const todayStr = new Date().toISOString().split('T')[0];
-            const grossRev  = financials.filter(l => l.transactionType === 'appointment_fee').reduce((s, l) => s + l.grossAmount, 0);
+            const grossRev  = financials.reduce((s, l) => s + l.netPayout, 0);
             const cleared   = financials.filter(l => l.paymentStatus === 'cleared').reduce((s, l) => s + l.netPayout, 0);
             const pending   = financials.filter(l => l.paymentStatus === 'pending').reduce((s, l) => s + l.netPayout, 0);
             const todayCount = financials.filter(l => l.createdAt?.startsWith(todayStr)).length;

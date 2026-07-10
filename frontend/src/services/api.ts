@@ -234,11 +234,21 @@ class MediflowApiService {
   public isLabTrending = false;
   public simulatedRole = 'compounder';
 
+  private initialized = false;
+  private realtimeSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor() {
     if (typeof window !== 'undefined') {
       (window as any).api = this;
       (window as any).supabase = supabase;
     }
+  }
+
+  public initialize(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+
+    console.log('[Mediflow API] Initializing API Service listeners and subscriptions...');
 
     // Dynamic sync on auth events
     supabase.auth.onAuthStateChange((event) => {
@@ -248,10 +258,11 @@ class MediflowApiService {
       }
     });
 
-    this.syncFromSupabase().catch(err => console.error('[Mediflow API] Initial sync failed:', err));
-
-    const activeChannel = supabase.channel('mediflow-pod-realtime');
-    supabase.removeChannel(activeChannel);
+    // Clean up any pre-existing channels with the same name to prevent duplicates and deadlocks
+    const existingChannels = supabase.getChannels().filter(c => c.topic === 'realtime:mediflow-pod-realtime' || c.name === 'mediflow-pod-realtime');
+    for (const c of existingChannels) {
+      supabase.removeChannel(c);
+    }
 
     supabase
       .channel('mediflow-pod-realtime')
@@ -260,7 +271,12 @@ class MediflowApiService {
         { event: '*', schema: 'public' },
         (payload) => {
           console.log('[Mediflow Realtime] Event received:', payload.table, payload.eventType);
-          this.syncFromSupabase().catch(err => console.error('[Mediflow API] Realtime-triggered sync failed:', err));
+          // Debounce: collapse rapid successive DB events into one sync cycle
+          if (this.realtimeSyncTimer) clearTimeout(this.realtimeSyncTimer);
+          this.realtimeSyncTimer = setTimeout(() => {
+            this.realtimeSyncTimer = null;
+            this.syncFromSupabase().catch(err => console.error('[Mediflow API] Realtime-triggered sync failed:', err));
+          }, 2000);
         }
       )
       .subscribe((status) => {
@@ -477,6 +493,8 @@ class MediflowApiService {
   public async syncFromSupabase(): Promise<void> {
     // Prevent syncing if not authenticated (no active session keys in local storage)
     const hasSession = typeof window !== 'undefined' && Object.keys(localStorage).some(k => k.includes('-auth-token'));
+    if (this.isSyncing) return; // ← concurrency guard: skip if a sync is already in flight
+
     if (!hasSession) {
       console.log('[Mediflow API] Sync skipped: No active session token found.');
       return;
@@ -485,276 +503,36 @@ class MediflowApiService {
     this.isSyncing = true;
     this.notify();
     try {
-      const dbConsents = await supabaseCircuit.execute(async () => {
-        const { data, error } = await supabase
-          .from('patient_consents')
-          .select('*')
-          .eq('data_sharing_consent', true);
-        if (error) throw error;
-        return data;
-      }, () => {
-        const cachedConsentIds = this.load<string[]>('active_consent_ids', []);
-        return cachedConsentIds.map(id => ({ patient_id: id, consented_at: new Date().toISOString() }));
-      });
-
-      const activePatientIds = new Set<string>();
-
-      // Load local consents first so offline modifications persist
-      const localConsentTimestamps = this.load<Record<string, string>>('local_consent_timestamps', {});
-      Object.entries(localConsentTimestamps).forEach(([patientId, grantedAtStr]) => {
-        const grantedDate = new Date(grantedAtStr);
-        const diffDays = (new Date().getTime() - grantedDate.getTime()) / (1000 * 3600 * 24);
-        if (diffDays <= 30) {
-          activePatientIds.add(patientId);
-        } else {
-          delete localConsentTimestamps[patientId];
-        }
-      });
-      this.save('local_consent_timestamps', localConsentTimestamps);
-
-      if (dbConsents) {
-        dbConsents.forEach(c => {
-          const dateStr = c.consented_at || c.granted_at || c.created_at;
-          if (dateStr) {
-            const grantedDate = new Date(dateStr);
-            const diffDays = (new Date().getTime() - grantedDate.getTime()) / (1000 * 3600 * 24);
-            if (diffDays <= 30) {
-              activePatientIds.add(c.patient_id);
-            }
-          }
-        });
-      }
-      this.save('active_consent_ids', Array.from(activePatientIds));
-
-      const dbPatients = await supabaseCircuit.execute(async () => {
-        const { data, error } = await supabase.from('patient_registry').select('*');
-        if (error) throw error;
-        return data;
-      }, () => {
-        return this.load<any[]>('patients', []).map(p => ({
-          id: p.id,
-          name: p.name,
-          phone: p.phone,
-          age: p.age,
-          gender: p.gender,
-          allergies: p.allergies,
-          chronic_conditions: p.chronicConditions,
-          abha_id: p.abhaId,
-          vitals: p.vitals,
-          token_number: p.tokenNumber,
-          queue_status: p.queueStatus,
-          past_reports_summary: p.pastReportsSummary,
-          created_at: p.createdAt
-        }));
-      });
-
-      if (dbPatients) {
-        const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin'].includes(this.simulatedRole);
-        const filteredPatients = dbPatients.filter(p => isClinicalRole || activePatientIds.has(p.id));
-
-        const patients = filteredPatients.map(p => ({
-          id: p.id,
-          name: p.name,
-          phone: p.phone,
-          age: p.age,
-          gender: p.gender as Patient['gender'],
-          allergies: p.allergies || [],
-          chronicConditions: p.chronicConditions || p.chronic_conditions || [],
-          abhaId: p.abhaId || p.abha_id || undefined,
-          vitals: p.vitals || undefined,
-          tokenNumber: p.tokenNumber || p.token_number || undefined,
-          queueStatus: (p.queueStatus as Patient['queueStatus']) || (p.queue_status as Patient['queueStatus']) || undefined,
-          pastReportsSummary: p.pastReportsSummary || p.past_reports_summary || undefined,
-          createdAt: p.createdAt || p.created_at
-        }));
-        this.save('patients', patients);
-      }
-
-      const dbSessions = await supabaseCircuit.execute(async () => {
-        const { data, error } = await supabase.from('whatsapp_sessions').select('*');
-        if (error) throw error;
-        return data;
-      }, () => {
-        return this.load<any[]>('whatsapp_sessions', []).map(s => ({
-          id: s.id,
-          patient_phone: s.patientPhone || s.patient_phone,
-          current_state: s.currentState || s.current_state,
-          last_interaction: s.lastInteraction || s.last_interaction,
-          session_data: s.sessionData || s.session_data
-        }));
-      });
-
-      if (dbSessions) {
-        const sessions = dbSessions.map(s => {
-          const sessionData = s.session_data || s.sessionData || {};
-          return {
-            id: s.id,
-            patientPhone: s.patient_phone || s.patientPhone,
-            currentState: (sessionData.currentState || s.current_state || s.currentState) as WhatsAppSession['currentState'],
-            lastInteraction: s.last_interaction || s.lastInteraction,
-            sessionData
-          };
-        });
-        this.save('whatsapp_sessions', sessions);
-      }
-
-      // Sync clinic SOPs from Supabase
-      const { data: dbSops } = await supabase.from('clinic_sops').select('*');
-      if (dbSops) {
-        const sops: ClinicSop[] = dbSops.map(s => ({
-          id: s.id,
-          entityId: s.entity_id,
-          sopFileName: s.sop_file_name || '',
-          sopText: s.sop_text || '',
-          extractedConfig: s.extracted_config || {},
-          isActive: s.is_active,
-          createdAt: s.created_at || new Date().toISOString()
-        }));
-        this.save('clinic_sops', sops);
-      }
-
-      // Sync medicine bills with line items from Supabase
-      const { data: dbBills } = await supabase.from('medicine_bills').select(`
-        id,
-        patient_id,
-        encounter_id,
-        subtotal,
-        loyalty_discount_percent,
-        loyalty_discount_amount,
-        item_discount_amount,
-        gst_amount,
-        total_amount,
-        payment_mode,
-        upi_qr_payload,
-        status,
-        source,
-        delivery_type,
-        delivery_address,
-        delivery_charge,
-        shiprocket_order_id,
-        created_at,
-        patient:patient_registry(name, phone),
-        medicine_bill_items(
-          inventory_item_id,
-          name,
-          batch_number,
-          expiry_date,
-          quantity,
-          mrp,
-          selling_price,
-          discount_percent,
-          gst_percent,
-          line_total
-        )
-      `);
-      if (dbBills) {
-        const bills = dbBills.map(b => ({
-          id: b.id,
-          patientId: b.patient_id,
-          patientName: (Array.isArray(b.patient) ? (b.patient[0] as any)?.name : (b.patient as any)?.name) || 'WhatsApp Patient',
-          patientPhone: (Array.isArray(b.patient) ? (b.patient[0] as any)?.phone : (b.patient as any)?.phone) || '',
-          encounterId: b.encounter_id || undefined,
-          subtotal: Number(b.subtotal),
-          loyaltyDiscountPercent: Number(b.loyalty_discount_percent),
-          loyaltyDiscountAmount: Number(b.loyalty_discount_amount),
-          itemDiscountAmount: Number(b.item_discount_amount),
-          gstAmount: Number(b.gst_amount),
-          totalAmount: Number(b.total_amount),
-          paymentMode: b.payment_mode,
-          upiQrPayload: b.upi_qr_payload || undefined,
-          status: b.status,
-          source: b.source,
-          deliveryType: b.delivery_type || undefined,
-          deliveryAddress: b.delivery_address || undefined,
-          deliveryCharge: b.delivery_charge ? Number(b.delivery_charge) : undefined,
-          shiprocketOrderId: b.shiprocket_order_id || undefined,
-          createdAt: b.created_at,
-          items: (b.medicine_bill_items || []).map(item => ({
-            inventoryItemId: item.inventory_item_id,
-            name: item.name,
-            batchNumber: item.batch_number,
-            expiryDate: item.expiry_date,
-            quantity: Number(item.quantity),
-            mrp: Number(item.mrp),
-            sellingPrice: Number(item.selling_price),
-            discountPercent: Number(item.discount_percent),
-            gstPercent: Number(item.gst_percent),
-            lineTotal: Number(item.line_total)
-          }))
-        }));
-        this.save('medicine_bills', bills);
-      }
-
-      if (this.simulatedRole === 'pharmacist') {
-        console.warn('[Mediflow DevSecOps] Security Block: Pharmacist role is strictly blocked from querying clinical encounter notes.');
-        this.save('encounters', []);
-      } else {
-        const dbEncounters = await supabaseCircuit.execute<any>(async () => {
-          const { data, error } = await supabase.from('encounters').select(`
-            id,
-            patient_id,
-            doctor_id,
-            clinical_notes,
-            status,
-            created_at,
-            patient:patient_registry(name),
-            encounter_medications(id, medicine_name, dosage, frequency, duration),
-            encounter_diagnostics(loinc_code, test_name)
-          `);
-          if (error) throw error;
-          return data;
-        }, () => {
-          return this.load<any[]>('encounters', []).map(e => ({
-            id: e.id,
-            patient_id: e.patientId || e.patient_id,
-            doctor_id: e.doctorId || e.doctor_id,
-            clinical_notes: e.clinicalNotes || e.clinical_notes,
-            status: e.status,
-            created_at: e.createdAt || e.created_at,
-            patient: { name: e.patientName },
-            encounter_medications: (e.medications || e.encounter_medications || []).map((m: any) => ({
-              id: m.id,
-              medicine_name: m.medicineName || m.medicine_name,
-              dosage: m.dosage,
-              frequency: m.frequency,
-              duration: m.duration
-            })),
-            encounter_diagnostics: (e.diagnosticTests || e.encounter_diagnostics || []).map((d: any) => ({
-              loinc_code: d.loincCode || d.loinc_code,
-              test_name: d.name || d.test_name
-            }))
-          }));
-        });
-        if (dbEncounters) {
-          const encounters = (dbEncounters as unknown as DBEncounter[]).map((e: DBEncounter) => ({
-            id: e.id,
-            patientId: e.patient_id,
-            patientName: e.patient?.name || 'Unknown',
-            doctorId: e.doctor_id,
-            clinicalNotes: e.clinical_notes || '',
-            medications: (e.encounter_medications || []).map((m: DBEncounterMedication) => ({
-              id: m.id,
-              medicineName: m.medicine_name,
-              dosage: m.dosage,
-              frequency: m.frequency,
-              duration: m.duration
-            })),
-            diagnosticTests: (e.encounter_diagnostics || []).map((d: DBEncounterDiagnostic) => {
-              const master = MASTER_TEST_CATALOG.find(t => t.loincCode === d.loinc_code);
-              return {
-                loincCode: d.loinc_code,
-                name: d.test_name,
-                category: master?.category || 'General',
-                normalRange: master?.normalRange || '',
-                unit: master?.unit || ''
-              };
-            }),
-            status: e.status === 'completed' ? 'completed' as const : 'active' as const,
-            createdAt: e.created_at
-          }));
-          this.save('encounters', encounters);
-        }
-      }
+      // ─── Build role-conditional queries before parallelizing ──────────────
+      const encounterFetch = supabaseCircuit.execute<any>(async () => {
+            const selectFields = this.simulatedRole === 'pharmacist'
+              ? `id, patient_id, doctor_id, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`
+              : `id, patient_id, doctor_id, clinical_notes, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`;
+            const { data, error } = await supabase.from('encounters').select(selectFields);
+            if (error) throw error;
+            return data;
+          }, () => {
+            return this.load<any[]>('encounters', []).map(e => ({
+              id: e.id,
+              patient_id: e.patientId || e.patient_id,
+              doctor_id: e.doctorId || e.doctor_id,
+              clinical_notes: this.simulatedRole === 'pharmacist' ? '' : (e.clinicalNotes || e.clinical_notes),
+              status: e.status,
+              created_at: e.createdAt || e.created_at,
+              patient: { name: e.patientName },
+              encounter_medications: (e.medications || e.encounter_medications || []).map((m: any) => ({
+                id: m.id,
+                medicine_name: m.medicineName || m.medicine_name,
+                dosage: m.dosage,
+                frequency: m.frequency,
+                duration: m.duration
+              })),
+              encounter_diagnostics: (e.diagnosticTests || e.encounter_diagnostics || []).map((d: any) => ({
+                loinc_code: d.loincCode || d.loinc_code,
+                test_name: d.name || d.test_name
+              }))
+            }));
+          });
 
       let reqQuery = supabase.from('lab_requisitions').select(`
         id,
@@ -769,16 +547,221 @@ class MediflowApiService {
         patient:patient_registry(name),
         lab_reports(result_value)
       `);
-
       if (this.simulatedRole === 'lab_technician') {
-        reqQuery = reqQuery.eq('assigned_technician_id', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          reqQuery = reqQuery.or(`assigned_technician_id.eq.${user.id},assigned_technician_id.is.null`);
+        } else {
+          reqQuery = reqQuery.or(`assigned_technician_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317102,assigned_technician_id.is.null`);
+        }
       }
 
-      const { data: dbReqs } = await reqQuery;
-      if (dbReqs) {
-        const requisitions = (dbReqs as unknown as DBLabRequisition[]).map((r: DBLabRequisition) => {
+      // ─── Fire all 13 fetches in parallel ─────────────────────────────────
+      const [
+        dbConsents, dbPatients, dbSessions, dbSops,
+        dbBills, dbEncounters, dbReqs, dbReagents,
+        dbHolds, dbInvoices, dbForecasts, dbStaff, dbLedgers
+      ] = await Promise.all([
+        // 1. patient_consents
+        supabaseCircuit.execute(async () => {
+          const { data, error } = await supabase.from('patient_consents').select('*').eq('data_sharing_consent', true);
+          if (error) throw error;
+          return data;
+        }, () => {
+          const cachedConsentIds = this.load<string[]>('active_consent_ids', []);
+          return cachedConsentIds.map(id => ({ patient_id: id, consented_at: new Date().toISOString() }));
+        }),
+        // 2. patient_registry
+        supabaseCircuit.execute(async () => {
+          const { data, error } = await supabase.from('patient_registry').select('*');
+          if (error) throw error;
+          return data;
+        }, () => {
+          return this.load<any[]>('patients', []).map(p => ({
+            id: p.id, name: p.name, phone: p.phone, age: p.age, gender: p.gender,
+            allergies: p.allergies, chronic_conditions: p.chronicConditions,
+            abha_id: p.abhaId, vitals: p.vitals, token_number: p.tokenNumber,
+            queue_status: p.queueStatus, past_reports_summary: p.pastReportsSummary, created_at: p.createdAt
+          }));
+        }),
+        // 3. whatsapp_sessions
+        supabaseCircuit.execute(async () => {
+          const { data, error } = await supabase.from('whatsapp_sessions').select('*');
+          if (error) throw error;
+          return data;
+        }, () => {
+          return this.load<any[]>('whatsapp_sessions', []).map(s => ({
+            id: s.id, patient_phone: s.patientPhone || s.patient_phone,
+            current_state: s.currentState || s.current_state,
+            last_interaction: s.lastInteraction || s.last_interaction,
+            session_data: s.sessionData || s.session_data
+          }));
+        }),
+        // 4. clinic_sops
+        supabase.from('clinic_sops').select('*').then(r => r.data).catch(() => null),
+        // 5. medicine_bills
+        supabase.from('medicine_bills').select(`
+          id, patient_id, encounter_id, subtotal, loyalty_discount_percent,
+          loyalty_discount_amount, item_discount_amount, gst_amount, total_amount,
+          payment_mode, upi_qr_payload, status, source, delivery_type,
+          delivery_address, delivery_charge, shiprocket_order_id, created_at,
+          patient:patient_registry(name, phone),
+          medicine_bill_items(
+            inventory_item_id, name, batch_number, expiry_date, quantity,
+            mrp, selling_price, discount_percent, gst_percent, line_total
+          )
+        `).then(r => r.data).catch(() => null),
+        // 6. encounters (role-gated promise already built above)
+        encounterFetch,
+        // 7. lab_requisitions (role-filtered query already built above)
+        reqQuery.then(r => r.data).catch(() => null),
+        // 8. reagent_inventory
+        supabase.from('reagent_inventory').select('*').then(r => r.data).catch(() => null),
+        // 9. inventory_holds
+        supabase.from('inventory_holds').select('*').then(r => r.data).catch(() => null),
+        // 10. unified_invoices
+        supabase.from('unified_invoices').select(`
+          id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
+          platform_fee, total_amount, upi_qr_payload, payment_status, created_at,
+          patient:patient_registry(name, phone)
+        `).then(r => r.data).catch(() => null),
+        // 11. seasonal_demand_forecasts
+        supabase.from('seasonal_demand_forecasts').select('*').then(r => r.data).catch(() => null),
+        // 12. clinic_staff
+        supabase.from('clinic_staff').select('*').then(r => r.data).catch(() => null),
+        // 13. financial_ledgers
+        supabase.from('financial_ledgers').select('*').then(r => r.data).catch(() => null),
+      ]);
+
+      // ─── Process consent IDs (needed to filter patients) ─────────────────
+      const activePatientIds = new Set<string>();
+      const localConsentTimestamps = this.load<Record<string, string>>('local_consent_timestamps', {});
+      Object.entries(localConsentTimestamps).forEach(([patientId, grantedAtStr]) => {
+        const diffDays = (new Date().getTime() - new Date(grantedAtStr).getTime()) / (1000 * 3600 * 24);
+        if (diffDays <= 30) { activePatientIds.add(patientId); }
+        else { delete localConsentTimestamps[patientId]; }
+      });
+      if (dbConsents) {
+        dbConsents.forEach((c: any) => {
+          const dateStr = c.consented_at || c.granted_at || c.created_at;
+          if (dateStr && (new Date().getTime() - new Date(dateStr).getTime()) / (1000 * 3600 * 24) <= 30) {
+            activePatientIds.add(c.patient_id);
+          }
+        });
+      }
+
+      // ─── Defer all localStorage writes so JSON serialization doesn't block paint ──
+      setTimeout(() => {
+        // Consents
+        this.save('local_consent_timestamps', localConsentTimestamps);
+        this.save('active_consent_ids', Array.from(activePatientIds));
+
+        // Patients
+        if (dbPatients) {
+          const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin'].includes(this.simulatedRole);
+          const patients = dbPatients
+            .filter((p: any) => isClinicalRole || activePatientIds.has(p.id))
+            .map((p: any) => ({
+              id: p.id, name: p.name, phone: p.phone, age: p.age,
+              gender: p.gender as Patient['gender'],
+              allergies: p.allergies || [],
+              chronicConditions: p.chronicConditions || p.chronic_conditions || [],
+              abhaId: p.abhaId || p.abha_id || undefined,
+              vitals: p.vitals || undefined,
+              tokenNumber: p.tokenNumber || p.token_number || undefined,
+              queueStatus: (p.queueStatus as Patient['queueStatus']) || (p.queue_status as Patient['queueStatus']) || undefined,
+              pastReportsSummary: p.pastReportsSummary || p.past_reports_summary || undefined,
+              createdAt: p.createdAt || p.created_at
+            }));
+          this.save('patients', patients);
+        }
+
+        // WhatsApp sessions
+        if (dbSessions) {
+          const sessions = dbSessions.map((s: any) => {
+            const sessionData = s.session_data || s.sessionData || {};
+            return {
+              id: s.id,
+              patientPhone: s.patient_phone || s.patientPhone,
+              currentState: (sessionData.currentState || s.current_state || s.currentState) as WhatsAppSession['currentState'],
+              lastInteraction: s.last_interaction || s.lastInteraction,
+              sessionData
+            };
+          });
+          this.save('whatsapp_sessions', sessions);
+        }
+
+        // Clinic SOPs
+        if (dbSops) {
+          const sops: ClinicSop[] = (dbSops as any[]).map(s => ({
+            id: s.id, entityId: s.entity_id, sopFileName: s.sop_file_name || '',
+            sopText: s.sop_text || '', extractedConfig: s.extracted_config || {},
+            isActive: s.is_active, createdAt: s.created_at || new Date().toISOString()
+          }));
+          this.save('clinic_sops', sops);
+        }
+
+        // Medicine bills
+        if (dbBills) {
+          const bills = (dbBills as any[]).map(b => ({
+            id: b.id, patientId: b.patient_id,
+            patientName: (Array.isArray(b.patient) ? (b.patient[0] as any)?.name : (b.patient as any)?.name) || 'WhatsApp Patient',
+            patientPhone: (Array.isArray(b.patient) ? (b.patient[0] as any)?.phone : (b.patient as any)?.phone) || '',
+            encounterId: b.encounter_id || undefined,
+            subtotal: Number(b.subtotal), loyaltyDiscountPercent: Number(b.loyalty_discount_percent),
+            loyaltyDiscountAmount: Number(b.loyalty_discount_amount), itemDiscountAmount: Number(b.item_discount_amount),
+            gstAmount: Number(b.gst_amount), totalAmount: Number(b.total_amount),
+            paymentMode: b.payment_mode, upiQrPayload: b.upi_qr_payload || undefined,
+            status: b.status, source: b.source,
+            deliveryType: b.delivery_type || undefined, deliveryAddress: b.delivery_address || undefined,
+            deliveryCharge: b.delivery_charge ? Number(b.delivery_charge) : undefined,
+            shiprocketOrderId: b.shiprocket_order_id || undefined, createdAt: b.created_at,
+            items: (b.medicine_bill_items || []).map((item: any) => ({
+              inventoryItemId: item.inventory_item_id, name: item.name, batchNumber: item.batch_number,
+              expiryDate: item.expiry_date, quantity: Number(item.quantity), mrp: Number(item.mrp),
+              sellingPrice: Number(item.selling_price), discountPercent: Number(item.discount_percent),
+              gstPercent: Number(item.gst_percent), lineTotal: Number(item.line_total)
+            }))
+          }));
+          this.save('medicine_bills', bills);
+        }
+
+        // Encounters
+        if (dbEncounters) {
+          const encounters = (dbEncounters as unknown as DBEncounter[]).map((e: DBEncounter) => ({
+            id: e.id, patientId: e.patient_id, patientName: e.patient?.name || 'Unknown',
+            doctorId: e.doctor_id, clinicalNotes: e.clinical_notes || '',
+            medications: (e.encounter_medications || []).map((m: DBEncounterMedication) => ({
+              id: m.id, medicineName: m.medicine_name, dosage: m.dosage, frequency: m.frequency, duration: m.duration
+            })),
+            diagnosticTests: (e.encounter_diagnostics || []).map((d: DBEncounterDiagnostic) => {
+              const master = MASTER_TEST_CATALOG.find(t => t.loincCode === d.loinc_code);
+              return { loincCode: d.loinc_code, name: d.test_name, category: master?.category || 'General', normalRange: master?.normalRange || '', unit: master?.unit || '' };
+            }),
+            status: 'completed' as const,
+            createdAt: e.created_at
+          }));
+          this.save('encounters', encounters);
+
+          // Map to prescriptions so they are available locally
+          const prescriptions = encounters.map(e => ({
+            id: e.id,
+            appointmentId: e.id,
+            extractedMedicines: e.medications.map(m => ({
+              name: m.medicineName,
+              dosage: m.dosage,
+              frequency: m.frequency
+            })),
+            extractedTests: e.diagnosticTests.map(d => d.loincCode),
+            createdAt: e.createdAt
+          }));
+          this.save('saas_prescriptions', prescriptions);
+        }
+
+        // Lab requisitions
+        if (dbReqs) {
           const getReagents = (loinc: string) => {
-            switch(loinc) {
+            switch (loinc) {
               case '4544-3': return [{ reagentName: 'HbA1c Enzyme Reagent A', volumeDeducted: 1.5, unit: 'ml' }];
               case '2160-0': return [{ reagentName: 'Creatinine Alkaline Picrate B', volumeDeducted: 2.0, unit: 'ml' }];
               case '3024-7': return [{ reagentName: 'Drabkin Reagent (Hemoglobin)', volumeDeducted: 1.0, unit: 'ml' }];
@@ -787,139 +770,90 @@ class MediflowApiService {
               default: return [];
             }
           };
+          const requisitions = (dbReqs as unknown as DBLabRequisition[]).map((r: DBLabRequisition) => {
+            const rx = this.getPrescriptions().find(p => p.appointmentId === r.encounter_id || p.appointmentId === r.id);
+            return {
+              id: r.id, encounterId: r.encounter_id, patientId: r.patient_id,
+              patientName: r.patient?.name || 'Unknown', testCode: r.loinc_code, testName: r.test_name,
+              barcode: r.barcode,
+              status: r.status === 'processing' ? 'collected' : (r.status === 'completed' ? 'completed' : r.status),
+              quantitativeResult: r.lab_reports?.[0]?.result_value || undefined,
+              reagentDeductions: r.status === 'completed' ? getReagents(r.loinc_code) : [],
+              prescriptionFileUrl: rx?.prescriptionFileUrl || undefined, createdAt: r.created_at
+            };
+          });
+          this.save('lab_requisitions', requisitions);
+        }
 
-          const rx = this.getPrescriptions().find(p => p.appointmentId === r.encounter_id || p.appointmentId === r.id);
+        // Reagents
+        if (dbReagents) {
+          this.save('reagents', (dbReagents as any[]).map(r => ({ reagentName: r.reagent_name, stockVolume: Number(r.stock_volume), unit: r.unit })));
+        }
 
-          return {
-            id: r.id,
-            encounterId: r.encounter_id,
-            patientId: r.patient_id,
-            patientName: r.patient?.name || 'Unknown',
-            testCode: r.loinc_code,
-            testName: r.test_name,
-            barcode: r.barcode,
-            status: r.status === 'processing' ? 'collected' : (r.status === 'completed' ? 'completed' : r.status),
-            quantitativeResult: r.lab_reports?.[0]?.result_value || undefined,
-            reagentDeductions: r.status === 'completed' ? getReagents(r.loinc_code) : [],
-            prescriptionFileUrl: rx?.prescriptionFileUrl || undefined,
-            createdAt: r.created_at
-          };
-        });
-        this.save('lab_requisitions', requisitions);
-      }
+        // Inventory holds
+        if (dbHolds) {
+          this.save('inventory_holds', (dbHolds as any[]).map(h => ({
+            id: h.id, pharmacyId: h.pharmacy_entity_id, patientId: h.patient_id,
+            medicineName: h.medicine_name, dosage: h.dosage || '', quantity: h.quantity,
+            holdStatus: h.hold_status as InventoryHold['holdStatus'],
+            expiryDate: h.expiry_date || '', batchNumber: h.batch_number || '', createdAt: h.created_at
+          })));
+        }
 
-      const { data: dbReagents } = await supabase.from('reagent_inventory').select('*');
-      if (dbReagents) {
-        const reagents = dbReagents.map(r => ({
-          reagentName: r.reagent_name,
-          stockVolume: Number(r.stock_volume),
-          unit: r.unit
-        }));
-        this.save('reagents', reagents);
-      }
+        // Unified invoices
+        if (dbInvoices) {
+          const invoices = (dbInvoices as unknown as DBInvoice[]).map((i: DBInvoice) => ({
+            id: i.id, encounterId: i.encounter_id, patientId: i.patient_id,
+            patientName: i.patient?.name || 'Unknown', patientPhone: i.patient?.phone || '',
+            doctorFee: Number(i.doctor_fee), labFee: Number(i.lab_fee),
+            pharmacyFee: Number(i.pharmacy_fee), platformFee: Number(i.platform_fee),
+            totalAmount: Number(i.total_amount), upiQrPayload: i.upi_qr_payload || '',
+            paymentStatus: (i.payment_status === 'unpaid' || i.payment_status === 'refunded' || i.payment_status === 'pending')
+              ? 'pending'
+              : ((i.payment_status === 'paid' || i.payment_status === 'cleared') ? 'cleared' : i.payment_status as any),
+            createdAt: i.created_at
+          }));
+          this.save('unified_invoices', invoices);
+        }
 
-      const { data: dbHolds } = await supabase.from('inventory_holds').select('*');
-      if (dbHolds) {
-        const holds = dbHolds.map(h => ({
-          id: h.id,
-          pharmacyId: h.pharmacy_entity_id,
-          patientId: h.patient_id,
-          medicineName: h.medicine_name,
-          dosage: h.dosage || '',
-          quantity: h.quantity,
-          holdStatus: h.hold_status as InventoryHold['holdStatus'],
-          expiryDate: h.expiry_date || '',
-          batchNumber: h.batch_number || '',
-          createdAt: h.created_at
-        }));
-        this.save('inventory_holds', holds);
-      }
+        // Seasonal forecasts
+        if (dbForecasts) {
+          this.save('seasonal_forecasts', (dbForecasts as any[]).map(f => ({
+            id: f.id, pharmacyId: f.pharmacy_entity_id, medicineName: f.medicine_name,
+            suggestedIncreasePercentage: f.suggested_increase_percentage, reason: f.reason,
+            forecastConfidence: Number(f.forecast_confidence), isActedUpon: f.is_acted_upon, createdAt: f.created_at
+          })));
+        }
 
-      const { data: dbInvoices } = await supabase.from('unified_invoices').select(`
-        id,
-        encounter_id,
-        patient_id,
-        doctor_fee,
-        lab_fee,
-        pharmacy_fee,
-        platform_fee,
-        total_amount,
-        upi_qr_payload,
-        payment_status,
-        created_at,
-        patient:patient_registry(name, phone)
-      `);
-      if (dbInvoices) {
-        const invoices = (dbInvoices as unknown as DBInvoice[]).map((i: DBInvoice) => ({
-          id: i.id,
-          encounterId: i.encounter_id,
-          patientId: i.patient_id,
-          patientName: i.patient?.name || 'Unknown',
-          patientPhone: i.patient?.phone || '',
-          doctorFee: Number(i.doctor_fee),
-          labFee: Number(i.lab_fee),
-          pharmacyFee: Number(i.pharmacy_fee),
-          platformFee: Number(i.platform_fee),
-          totalAmount: Number(i.total_amount),
-          upiQrPayload: i.upi_qr_payload || '',
-          paymentStatus: (i.payment_status === 'unpaid' || i.payment_status === 'refunded' || i.payment_status === 'pending') 
-            ? 'pending' 
-            : ((i.payment_status === 'paid' || i.payment_status === 'cleared') ? 'cleared' : i.payment_status as any),
-          createdAt: i.created_at
-        }));
-        this.save('unified_invoices', invoices);
-      }
+        // Clinic staff
+        if (dbStaff) {
+          this.save('clinic_staff', (dbStaff as any[]).map(s => ({
+            id: s.id, entityId: s.entity_id, userId: s.user_id || undefined,
+            staffName: s.staff_name, role: s.role as ClinicStaff['role'],
+            isActive: s.is_active, createdAt: s.created_at
+          })));
+        }
 
-      const { data: dbForecasts } = await supabase.from('seasonal_demand_forecasts').select('*');
-      if (dbForecasts) {
-        const forecasts = dbForecasts.map(f => ({
-          id: f.id,
-          pharmacyId: f.pharmacy_entity_id,
-          medicineName: f.medicine_name,
-          suggestedIncreasePercentage: f.suggested_increase_percentage,
-          reason: f.reason,
-          forecastConfidence: Number(f.forecast_confidence),
-          isActedUpon: f.is_acted_upon,
-          createdAt: f.created_at
-        }));
-        this.save('seasonal_forecasts', forecasts);
-      }
+        // Financial ledgers
+        if (dbLedgers) {
+          this.save('financial_ledgers', (dbLedgers as any[]).map(l => ({
+            id: l.id, invoiceId: l.invoice_id, sourceEntityId: l.source_entity_id,
+            destinationEntityId: l.destination_entity_id,
+            transactionType: l.transaction_type as FinancialLedgerEntry['transactionType'],
+            grossAmount: Number(l.gross_amount), commissionRate: Number(l.commission_rate),
+            netPayout: Number(l.net_payout),
+            paymentStatus: l.payment_status as FinancialLedgerEntry['paymentStatus'],
+            settledAt: l.settled_at, createdAt: l.created_at
+          })));
+        }
 
-      const { data: dbStaff } = await supabase.from('clinic_staff').select('*');
-      if (dbStaff) {
-        const staff = dbStaff.map(s => ({
-          id: s.id,
-          entityId: s.entity_id,
-          userId: s.user_id || undefined,
-          staffName: s.staff_name,
-          role: s.role as ClinicStaff['role'],
-          isActive: s.is_active,
-          createdAt: s.created_at
-        }));
-        this.save('clinic_staff', staff);
-      }
-
-      const { data: dbLedgers } = await supabase.from('financial_ledgers').select('*');
-      if (dbLedgers) {
-        const ledgers = dbLedgers.map(l => ({
-          id: l.id,
-          invoiceId: l.invoice_id,
-          sourceEntityId: l.source_entity_id,
-          destinationEntityId: l.destination_entity_id,
-          transactionType: l.transaction_type as FinancialLedgerEntry['transactionType'],
-          grossAmount: Number(l.gross_amount),
-          commissionRate: Number(l.commission_rate),
-          netPayout: Number(l.net_payout),
-          paymentStatus: l.payment_status as FinancialLedgerEntry['paymentStatus'],
-          settledAt: l.settled_at,
-          createdAt: l.created_at
-        }));
-        this.save('financial_ledgers', ledgers);
-      }
+        this.isSyncing = false;
+        this.notify();
+      }, 0); // defer saves to next task — unblocks the paint frame
 
     } catch (e) {
       console.error('Error synchronizing with Supabase', e);
-    } finally {
+      // Ensure isSyncing is reset on error path (success path resets it inside setTimeout)
       this.isSyncing = false;
       this.notify();
     }

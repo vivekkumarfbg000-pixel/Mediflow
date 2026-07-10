@@ -84,7 +84,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
   const financialMetrics = useMemo(() => {
     const today = financials.filter(l => l.createdAt?.startsWith(todayStr));
-    const grossRev = financials.filter(l => l.transactionType === 'appointment_fee').reduce((s, l) => s + l.grossAmount, 0);
+    const grossRev = financials.reduce((s, l) => s + l.netPayout, 0);
     const cleared = financials.filter(l => l.paymentStatus === 'cleared').reduce((s, l) => s + l.netPayout, 0);
     const pending = financials.filter(l => l.paymentStatus === 'pending').reduce((s, l) => s + l.netPayout, 0);
     const todayLedgers = today.length;
@@ -170,17 +170,47 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       }
     }
     if (vitals.pulseRate) {
-      const hr = parseInt(vitals.pulseRate);
+      let hr = parseInt(vitals.pulseRate);
       if (!isNaN(hr)) {
-        if (hr > 100) alerts.push(`High HR (${hr} bpm)`);
-        else if (hr < 55) alerts.push(`Low HR (${hr} bpm)`);
+        // Sanitize repeated digits (e.g. 72727272 -> 72)
+        const hrStr = vitals.pulseRate.toString().trim();
+        if (hrStr.length >= 4 && hrStr.length % 2 === 0) {
+          const half = hrStr.substring(0, 2);
+          if (hrStr.split(half).join('') === '') {
+            hr = parseInt(half);
+          }
+        }
+        
+        if (hr >= 30 && hr <= 250) {
+          if (hr > 100) alerts.push(`High HR (${hr} bpm)`);
+          else if (hr < 55) alerts.push(`Low HR (${hr} bpm)`);
+        } else {
+          alerts.push(`Invalid HR (${hrStr} bpm)`);
+        }
       }
     }
     if (vitals.bloodSugar) {
-      const bs = parseInt(vitals.bloodSugar);
+      let bs = parseInt(vitals.bloodSugar);
       if (!isNaN(bs)) {
-        if (bs > 180) alerts.push(`High Sugar (${bs} mg/dL)`);
-        else if (bs < 70) alerts.push(`Low Sugar (${bs} mg/dL)`);
+        const bsStr = vitals.bloodSugar.toString().trim();
+        if (bsStr.length >= 6 && bsStr.length % 3 === 0) {
+          const pattern = bsStr.substring(0, 3);
+          if (bsStr.split(pattern).join('') === '') {
+            bs = parseInt(pattern);
+          }
+        } else if (bsStr.length >= 4 && bsStr.length % 2 === 0) {
+          const pattern = bsStr.substring(0, 2);
+          if (bsStr.split(pattern).join('') === '') {
+            bs = parseInt(pattern);
+          }
+        }
+        
+        if (bs >= 20 && bs <= 1000) {
+          if (bs > 180) alerts.push(`High Sugar (${bs} mg/dL)`);
+          else if (bs < 70) alerts.push(`Low Sugar (${bs} mg/dL)`);
+        } else {
+          alerts.push(`Invalid Sugar (${bsStr} mg/dL)`);
+        }
       }
     }
     return alerts;
@@ -226,10 +256,36 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       const lastPatientMsg = [...history].reverse().find(m => m.sender === 'patient');
       if (lastPatientMsg) {
         const patient = patients.find(p => p.phone === s.patientPhone);
+        let text = lastPatientMsg.text.trim();
+        const cleaned = text.toLowerCase();
+        
+        // Translate short technical keyword replies into meaningful action labels
+        if (cleaned === '1' || cleaned === 'start') {
+          if (s.currentState === 'AWAITING_WELCOME') {
+            text = '1 (Initiate Workspace Connect)';
+          } else if (s.currentState === 'AWAITING_CONSENT') {
+            text = '1 (Grant Data Sharing Consent)';
+          } else if (s.currentState === 'AWAITING_PAYMENT') {
+            text = '1 (Confirm Invoice Payment)';
+          } else {
+            text = `${text} (Select Option 1)`;
+          }
+        } else if (cleaned === 'consent') {
+          text = 'CONSENT (Grant Data Sharing)';
+        } else if (cleaned === 'summary') {
+          text = 'SUMMARY (Request Lab Report Scan)';
+        } else if (cleaned === 'a') {
+          text = 'A (Check Active Appointments)';
+        } else if (cleaned === 'i') {
+          text = 'I (Invoices Summary Request)';
+        } else if (cleaned === 'pay' || cleaned === 'clear' || cleaned === 'done') {
+          text = `${text.toUpperCase()} (Clear Outstanding Invoice)`;
+        }
+
         list.push({
           id: s.id,
           patientName: patient ? patient.name : s.patientPhone,
-          text: lastPatientMsg.text,
+          text: text,
           status: s.currentState,
           phone: s.patientPhone
         });

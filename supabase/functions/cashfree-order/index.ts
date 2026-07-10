@@ -123,7 +123,7 @@ serve(async (req) => {
 
     const appId     = Deno.env.get("CASHFREE_APP_ID") ?? "";
     const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
-    const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? "sandbox";
+    const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? "";
 
     if (!appId || !secretKey) {
       console.error("[cashfree-order] Credentials missing in vault.");
@@ -133,9 +133,28 @@ serve(async (req) => {
       });
     }
 
-    const apiBase = cfEnv === "production"
+    // ── CASHFREE_ENV guard ─────────────────────────────────────────────────────
+    // IMPORTANT: Set CASHFREE_ENV = "production" in Supabase Vault Secrets
+    // before going live. If this is missing, real payments route to the Cashfree
+    // SANDBOX silently, meaning no real money is captured.
+    //
+    // To set in Supabase CLI:
+    //   supabase secrets set CASHFREE_ENV=production --project-ref <ref>
+    // ──────────────────────────────────────────────────────────────────────────
+    if (!cfEnv) {
+      console.error(
+        "[cashfree-order] MISCONFIGURATION: CASHFREE_ENV vault secret is not set. " +
+        "Defaulting to SANDBOX. Set CASHFREE_ENV=production in Supabase Vault before go-live."
+      );
+    }
+
+    const resolvedEnv = cfEnv || "sandbox";
+    const apiBase = resolvedEnv === "production"
       ? "https://api.cashfree.com/pg/orders"
       : "https://sandbox.cashfree.com/pg/orders";
+
+    console.log(`[cashfree-order] Using Cashfree environment: ${resolvedEnv.toUpperCase()}`);
+
 
     const orderId = `VITAL-${invoiceId.substring(0, 8).toUpperCase()}-${Date.now().toString().slice(-5)}`;
 
@@ -168,7 +187,7 @@ serve(async (req) => {
       headers: {
         "x-client-id":     appId,
         "x-client-secret": secretKey,
-        "x-api-version":   "2023-08-01",
+        "x-api-version":   "2025-01-01",
         "Content-Type":    "application/json",
       },
       body: JSON.stringify(body),

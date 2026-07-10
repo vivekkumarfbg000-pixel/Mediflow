@@ -497,49 +497,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
   }, []);
 
-  const signInWithRealProfile = async (allowedRoles?: string[]) => {
-    if (!email || !password) return;
-    setLoading(true);
-    setErrorMsg(null);
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
-      if (error) throw error;
-
-      if (!data?.session || !data?.user) {
-        throw new Error('Sign in succeeded but no session was returned. Please try again.');
-      }
-
-      // Verify profile exists and role matches (but don't call onAuthSuccess - let onAuthStateChange handle it)
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profileErr || !profile) {
-        throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
-      }
-
-      if (allowedRoles && !allowedRoles.includes(profile.role)) {
-        await supabase.auth.signOut({ scope: 'local' });
-        throw new Error('Access Denied: This account is not registered with the required role for this tab.');
-      }
-
-      // Profile verified successfully - call onAuthSuccess
-      onAuthSuccess(data.session, profile);
-    } catch (_err) {
-      const err = _err as any;
-      console.error('[Mediflow Auth] Real login failed:', err);
-      setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Check if session exists but profile is missing (Google OAuth redirect landing)
   useEffect(() => {
@@ -800,9 +758,28 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setErrorMsg(null);
     setActiveErrorCode(null);
 
+    // Global 20-second watchdog: if ANY part of this handler hangs (network freeze,
+    // sentry RPC timeout, Supabase auth slow response), force the spinner off so the
+    // user isn't stuck with an infinite loader.
+    const handlerTimeout = setTimeout(() => {
+      setLoading(false);
+      setErrorMsg('Login is taking longer than expected. Please check your internet connection and try again.');
+      setActiveErrorCode('ERR_NETWORK_FAILURE');
+    }, 20000);
+
     try {
-      // 1. Verify lockout and rate limit via database sentry
-      const check = await verifyLoginAllowed(email);
+      // 1. Verify lockout and rate limit via database sentry (with 5s timeout fallback)
+      let check: { allowed: boolean; errorCode?: string; msg?: string } = { allowed: true };
+      try {
+        const sentryTimeout = new Promise<{ allowed: boolean }>((resolve) =>
+          setTimeout(() => resolve({ allowed: true }), 5000) // silent pass-through on timeout
+        );
+        check = await Promise.race([verifyLoginAllowed(email), sentryTimeout]);
+      } catch {
+        // If sentry check fails entirely, allow login to proceed (don't block on infra issue)
+        check = { allowed: true };
+      }
+
       if (!check.allowed) {
         setErrorMsg(check.msg || 'Login is temporarily blocked.');
         if (check.errorCode) {
@@ -813,13 +790,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         return;
       }
 
-      // 2. Perform authentication with retry mechanism (up to 3 retries for transient issues)
-      const { data, error } = await retryRequest(async () => {
-        return await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+      // 2. Perform authentication with a 15s timeout to prevent infinite loading
+      const signInPromise = supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       });
+      const signInTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(Object.assign(new Error('Authentication request timed out. Please check your connection.'), { code: 'ERR_NETWORK_FAILURE' })), 15000)
+      );
+
+      const { data, error } = await Promise.race([signInPromise, signInTimeout]) as any;
 
       if (error) {
         if (error.message?.includes('Invalid login credentials')) {
@@ -900,7 +880,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       console.error('[Mediflow Auth] Login failed:', err);
       let mappedCode = err.code;
       if (!mappedCode) {
-        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0 || err.message?.includes('timed out')) {
           mappedCode = 'ERR_NETWORK_FAILURE';
         } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('invalid') || err.status === 400) {
           mappedCode = 'ERR_INVALID_CREDENTIALS';
@@ -918,6 +898,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         setErrorMsg(err.message || 'Authentication failed. Please verify credentials.');
       }
     } finally {
+      clearTimeout(handlerTimeout);
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
       }
@@ -933,9 +914,25 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setErrorMsg(null);
     setActiveErrorCode(null);
 
+    // Global 20-second watchdog for partner sign-in
+    const handlerTimeout = setTimeout(() => {
+      setLoading(false);
+      setErrorMsg('Login is taking longer than expected. Please check your internet connection and try again.');
+      setActiveErrorCode('ERR_NETWORK_FAILURE');
+    }, 20000);
+
     try {
-      // 1. Verify lockout and rate limit via database sentry
-      const check = await verifyLoginAllowed(email);
+      // 1. Verify lockout and rate limit via database sentry (with 5s timeout fallback)
+      let check: { allowed: boolean; errorCode?: string; msg?: string } = { allowed: true };
+      try {
+        const sentryTimeout = new Promise<{ allowed: boolean }>((resolve) =>
+          setTimeout(() => resolve({ allowed: true }), 5000)
+        );
+        check = await Promise.race([verifyLoginAllowed(email), sentryTimeout]);
+      } catch {
+        check = { allowed: true };
+      }
+
       if (!check.allowed) {
         setErrorMsg(check.msg || 'Login is temporarily blocked.');
         if (check.errorCode) {
@@ -946,13 +943,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         return;
       }
 
-      // 2. Perform authentication with retry mechanism (up to 3 retries for transient issues)
-      const { data, error } = await retryRequest(async () => {
-        return await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+      // 2. Perform authentication with 15s timeout
+      const signInPromise = supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       });
+      const signInTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(Object.assign(new Error('Authentication request timed out. Please check your connection.'), { code: 'ERR_NETWORK_FAILURE' })), 15000)
+      );
+
+      const { data, error } = await Promise.race([signInPromise, signInTimeout]) as any;
 
       if (error) {
         if (error.message?.includes('Invalid login credentials')) {
@@ -1002,7 +1002,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       console.error('[Mediflow Auth] Partner login failed:', err);
       let mappedCode = err.code;
       if (!mappedCode) {
-        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0) {
+        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0 || err.message?.includes('timed out')) {
           mappedCode = 'ERR_NETWORK_FAILURE';
         } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('invalid') || err.status === 400) {
           mappedCode = 'ERR_INVALID_CREDENTIALS';
@@ -1020,6 +1020,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
       }
     } finally {
+      clearTimeout(handlerTimeout);
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
       }
@@ -1454,6 +1455,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   };
 
   const handleDemoSignIn = async (user: typeof demoUsers[0]) => {
+    // DEV-ONLY guard: demo auto-login is stripped from the production build.
+    if (!import.meta.env.DEV) {
+      setErrorMsg('Demo sign-in is only available in development mode. Please use your real credentials.');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
     setActiveErrorCode(null);
@@ -1463,16 +1470,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
     try {
       const authEmail = user.authEmail;
+      const demoPassword = import.meta.env.VITE_DEMO_PASSWORD || 'password123';
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: authEmail,
-        password: 'password123'
+        password: demoPassword
       });
 
       if (authError) {
         // If user doesn't exist, provide helpful error message
         if (authError.message.includes('Invalid login credentials') || authError.message.includes('Email not confirmed')) {
-          throw new Error(`Demo user ${authEmail} not found in Supabase Auth. Please run the seed migrations or create the user in Supabase Dashboard with password 'password123'.`);
+          throw new Error(`Demo user ${authEmail} not found in Supabase Auth. Please run the seed migrations or create the user in Supabase Dashboard.`);
         }
         throw authError;
       }
@@ -1480,6 +1488,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       if (!authData?.session || !authData?.user) {
         throw new Error('Sign in succeeded but no session was returned.');
       }
+
 
       const { data: profile, error: profileErr } = await supabase
         .from('profiles')
@@ -2044,12 +2053,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         {activeTab === 'signin' && (
           <form onSubmit={handleEmailSignIn} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+              <label htmlFor="signin-email" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Professional Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
+                  id="signin-email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -2062,12 +2073,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+              <label htmlFor="signin-password" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Security Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
+                  id="signin-password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -2079,7 +2092,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 transition-all cursor-pointer"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 transition-all cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -2140,12 +2153,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         {activeTab === 'ops' && (
           <form onSubmit={handleOpsSignIn} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+              <label htmlFor="ops-email" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Operations Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
+                  id="ops-email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -2157,12 +2172,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+              <label htmlFor="ops-password" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                 Security Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
+                  id="ops-password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -2713,12 +2730,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  <label htmlFor="partner-email" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                     Partner Email Address
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
+                      id="partner-email"
+                      name="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -2731,12 +2750,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
+                  <label htmlFor="partner-password" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
                     Security Password
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
+                      id="partner-password"
+                      name="password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

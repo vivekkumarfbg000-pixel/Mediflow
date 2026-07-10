@@ -448,6 +448,17 @@ export default function App() {
     }
 
     if (params.get('demo') === 'true' || params.get('demo') === 'eye') {
+      // ── Demo Sandbox ──────────────────────────────────────────────────────────
+      // DEV-ONLY: The demo sandbox auto-login is intentionally gated behind the
+      // DEV flag. In production builds, visiting ?demo=true simply redirects to
+      // the standard login page without exposing credentials.
+      // ─────────────────────────────────────────────────────────────────────────
+      if (!import.meta.env.DEV) {
+        // Production: strip demo param silently — do not auto-login
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
       const isEyeDemo = params.get('demo') === 'eye';
       // Clear demo query param
       const newUrl = window.location.pathname;
@@ -463,14 +474,16 @@ export default function App() {
         localStorage.removeItem('mediflow_demo_clinic_name');
       }
 
-      // Trigger demo login
+      // Trigger demo login (DEV only — credentials stripped from prod bundle)
       setIsLoadingSession(true);
 
       const doDemoLogin = async () => {
         try {
+          const demoEmail = import.meta.env.VITE_DEMO_EMAIL || 'doctor@mediflow.com';
+          const demoPassword = import.meta.env.VITE_DEMO_PASSWORD || 'password123';
           const { error } = await supabase.auth.signInWithPassword({
-            email: 'doctor@mediflow.com',
-            password: 'password123'
+            email: demoEmail,
+            password: demoPassword
           });
           if (error) throw error;
           localStorage.setItem('mediflow_demo_sandbox', 'true');
@@ -489,12 +502,15 @@ export default function App() {
 
       doDemoLogin();
     }
+
   }, []);
 
   useEffect(() => {
     PwaSyncManager.registerServiceWorker();
     StateHealingEngine.initGlobalListener();
-    ProactiveHealthMonitor.start();
+    // Delay health monitor startup by 10 seconds so it doesn't compete with auth
+    // session initialization and the first critical render on page load.
+    setTimeout(() => ProactiveHealthMonitor.start(), 10_000);
     // Signal to Emergency Startup Shield that the React app successfully loaded and initialized
     if (typeof window !== 'undefined') {
       (window as any).__mediflow_startup_healthy = true;
@@ -781,13 +797,16 @@ export default function App() {
   useEffect(() => {
     let active = true;
 
-    // Safety timeout: If session loading takes more than 12 seconds (e.g. invalid refresh token fetch hangs), force loader removal
+    // Deferred initialization of API Service to prevent deadlocks during module evaluation
+    api.initialize();
+
+    // Safety timeout: If session loading takes more than 25 seconds (e.g. invalid refresh token fetch hangs), force loader removal
     const safetyTimeout = setTimeout(() => {
       if (active) {
         console.warn('[Mediflow Auth] Session initialization timed out. Forcing loader removal.');
         setIsLoadingSession(false);
       }
-    }, 12000);
+    }, 25000);
 
     // 1. Check existing Supabase session and load active profile
     supabase.auth.getSession().then(async ({ data: { session } }) => {
