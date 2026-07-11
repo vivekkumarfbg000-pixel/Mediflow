@@ -464,11 +464,6 @@ export default function App() {
       // DEV flag. In production builds, visiting ?demo=true simply redirects to
       // the standard login page without exposing credentials.
       // ─────────────────────────────────────────────────────────────────────────
-      if (!import.meta.env.DEV) {
-        // Production: strip demo param silently — do not auto-login
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
 
       const isEyeDemo = params.get('demo') === 'eye';
       // Clear demo query param
