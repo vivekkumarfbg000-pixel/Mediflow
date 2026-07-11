@@ -362,7 +362,7 @@ export class BillingService {
     notify();
   }
 
-  static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
+  static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: Invoice['type'], amount: number, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     
     // Check if splits already exist for this invoiceId
