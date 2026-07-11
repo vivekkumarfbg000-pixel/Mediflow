@@ -771,7 +771,16 @@ export default function App() {
           display_name: session.user?.user_metadata?.display_name || session.user?.email?.split('@')[0] || 'Admin',
           email: session.user.email,
         };
-      }
+    }
+
+    if (activeProfile) {
+      activeProfile = {
+        ...activeProfile,
+        user_metadata: {
+          ...session.user?.user_metadata,
+          ...activeProfile.user_metadata
+        }
+      };
     }
 
     // 3a. Demo Doctor Profile Overrides for sandbox consistency
