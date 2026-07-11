@@ -563,7 +563,7 @@ export class BillingService {
 
     let resolvedInvoice: any = null;
     let amount = 0;
-    let type: 'consult' | 'lab' | 'pharmacy' = 'consult';
+    let type: Invoice['type'] = 'consult';
     let apptId = '';
 
     if (saasInv) {

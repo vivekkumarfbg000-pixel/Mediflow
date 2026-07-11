@@ -20,7 +20,7 @@ git add .
 echo [Mediflow Sync] Committing changes...
 git commit -m "docs: add B2B sales playbook and fix frontend typescript build errors"
 echo [Mediflow Sync] Pushing to GitHub (origin master)...
-git push origin master
+git push origin main
 echo ===================================================
 echo [Mediflow Sync] Complete!
 echo ===================================================
