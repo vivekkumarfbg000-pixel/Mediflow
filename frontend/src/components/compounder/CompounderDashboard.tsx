@@ -41,7 +41,8 @@ import {
   FileText,
   Activity,
   LogOut,
-  Users
+  Users,
+  Stethoscope
 } from 'lucide-react';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
@@ -4925,7 +4926,8 @@ export const CompounderDashboard: React.FC = () => {
             { id: 'patients', label: 'Patients', icon: Users },
             { id: 'tokens', label: 'Tokens', icon: Activity },
             { id: 'labs', label: 'Labs', icon: FileText },
-            { id: 'pharmacy', label: 'Pharmacy', icon: QrCode }
+            { id: 'pharmacy', label: 'Pharmacy', icon: QrCode },
+            { id: 'ot_billing', label: isOphthalmology ? 'Daycare' : 'Minor OT', icon: Stethoscope }
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
