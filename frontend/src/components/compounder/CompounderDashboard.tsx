@@ -4112,7 +4112,8 @@ export const CompounderDashboard: React.FC = () => {
                     ) : (
                       daycarePatients.map(p => {
                         if (isOphthalmology) {
-                          const booking = p.vitals?.surgeryBooking;
+                          if (!p.vitals) return null;
+                          const booking = p.vitals.surgeryBooking;
                           if (!booking) return null;
                           const balance = booking.price - (booking.advancePaid || 0);
                           const isSelected = activePatient?.id === p.id;
@@ -4166,7 +4167,8 @@ export const CompounderDashboard: React.FC = () => {
                             </div>
                           );
                         } else {
-                          const booking = p.vitals?.gpProcedureBooking;
+                          if (!p.vitals) return null;
+                          const booking = p.vitals.gpProcedureBooking;
                           if (!booking) return null;
                           const balance = booking.price - (booking.advancePaid || 0);
                           const isSelected = activePatient?.id === p.id;

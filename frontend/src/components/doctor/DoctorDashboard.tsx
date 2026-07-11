@@ -96,7 +96,7 @@ export const DoctorDashboard: React.FC = () => {
 
   useEffect(() => {
     if (selectedPatient) {
-      setRefractionRx(selectedPatient.vitals?.refractionRx || EMPTY_REFRACTION_RX);
+      setRefractionRx((selectedPatient.vitals?.refractionRx || EMPTY_REFRACTION_RX) as RefractionRx);
       setBiometryRx(selectedPatient.vitals?.biometryRx || EMPTY_BIOMETRY);
     } else {
       setRefractionRx(EMPTY_REFRACTION_RX);

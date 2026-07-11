@@ -109,7 +109,7 @@ export const RefractionDashboard: React.FC = () => {
     setArOSSph(v?.arOS_sph || '');
     setArOSCyl(v?.arOS_cyl || '');
     setArOSAxis(v?.arOS_axis || '');
-    setSubjectiveRx(v?.refractionRx || EMPTY_REFRACTION_RX);
+    setSubjectiveRx((v?.refractionRx || EMPTY_REFRACTION_RX) as RefractionRx);
     setBiometryRx(v?.biometryRx || EMPTY_BIOMETRY);
     
     // Mark as in-progress if not already consultation

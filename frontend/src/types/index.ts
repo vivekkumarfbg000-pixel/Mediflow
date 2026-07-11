@@ -1,4 +1,4 @@
-import type { BiometryData, RefractionRx } from './ophthalmic';
+import { type BiometryData, type RefractionRx } from './ophthalmic';
 
 export interface PatientVitals {
   temperature: string;       // °F
