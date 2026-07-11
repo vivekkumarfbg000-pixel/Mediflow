@@ -304,7 +304,7 @@ export class PharmacyService {
     });
 
     // Check matches from master list
-    const results = [];
+    const results: any[] = [];
     
     // First matching master lists
     masterList.forEach(item => {

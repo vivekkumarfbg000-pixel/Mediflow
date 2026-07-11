@@ -1,4 +1,4 @@
-import { BiometryData } from './ophthalmic';
+import type { BiometryData, RefractionRx } from './ophthalmic';
 
 export interface PatientVitals {
   temperature: string;       // °F
@@ -27,14 +27,7 @@ export interface PatientVitals {
   arOS_cyl?: string;
   arOS_axis?: string;
   
-  // Subjective Refraction (Spectacle Power Matrix)
-  refractionRx?: {
-    od: { sph: string; cyl: string; axis: string; add: string };
-    os: { sph: string; cyl: string; axis: string; add: string };
-    pd: string;
-    lensType: string;
-    notes: string;
-  };
+  refractionRx?: RefractionRx;
   biometryRx?: BiometryData;
   surgeryBooking?: any;
   gpProcedureBooking?: any;
@@ -107,7 +100,9 @@ export interface WhatsAppSession {
     | 'MEDICINE_AWAITING_PAYMENT'
     | 'MEDICINE_READY_FOR_PICKUP'
     | 'AWAITING_CONSENT'
-    | 'AWAITING_WELCOME_ACK';
+    | 'AWAITING_WELCOME_ACK'
+    | 'AWAITING_REFILL_CHOICE'
+    | 'AWAITING_RESCHEDULE_TIME';
   lastInteraction: string;
   sessionData: WhatsAppSessionData;
   isActive?: boolean;
@@ -415,7 +410,7 @@ export interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
-  status: 'pending_payment' | 'ready_for_consult' | 'completed' | 'scheduled';
+  status: 'pending_payment' | 'ready_for_consult' | 'completed' | 'scheduled' | 'cancelled';
   appointmentTime?: string;  // ISO datetime for same-day evening slot
   endTime?: string;          // ISO datetime, 30 min after appointmentTime
   createdAt: string;
@@ -439,10 +434,12 @@ export interface EveningSlot {
 export interface Invoice {
   id: string;
   appointmentId: string;
-  type: 'consult' | 'lab' | 'pharmacy';
+  type: 'consult' | 'lab' | 'pharmacy' | 'ot' | 'gp_procedure';
   amount: number;
   status: 'unpaid' | 'paid';
   createdAt: string;
+  patientId?: string;
+  metadata?: any;
 }
 
 export interface LabReport {
