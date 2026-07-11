@@ -988,7 +988,7 @@ export default function App() {
     localStorage.removeItem('mediflow_demo_specialization');
     localStorage.removeItem('mediflow_demo_clinic_name');
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (err) {
       console.error('Error during Supabase signout:', err);
     }
