@@ -254,7 +254,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {[
                   { id: 'registered', label: 'Registered' },
-                  { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                  { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
                   { id: 'lab', label: nomenclature.careLoopLabStep },
                   { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
                   { id: 'settled', label: 'Ledger Settled' }
@@ -291,7 +291,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="flex flex-col gap-1.5 font-medium text-[10px]">
                   {[
                     { id: 'registered', label: 'Registered' },
-                    { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                    { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
                     { id: 'lab', label: nomenclature.careLoopLabStep },
                     { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
                     { id: 'settled', label: 'Ledger Settled' }
@@ -606,7 +606,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="bg-white border border-slate-200/50 rounded-lg p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center gap-1.5 overflow-x-auto scrollbar-none font-semibold text-[9px]">
                 {[
                   { id: 'registered', label: 'Registered' },
-                  { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                  { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
                   { id: 'lab', label: nomenclature.careLoopLabStep },
                   { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
                   { id: 'settled', label: 'Ledger Settled' }
@@ -714,7 +714,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="flex flex-col gap-2 font-medium text-[11px]">
                     {[
                       { id: 'registered', label: 'Registered' },
-                      { id: 'diagnosing', label: 'Diagnosing (CDSS)' },
+                      { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
                       { id: 'lab', label: nomenclature.careLoopLabStep },
                       { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
                       { id: 'settled', label: 'Ledger Settled' }
