@@ -60,8 +60,8 @@ export class PatientService {
     const tokensMap = load<Record<string, string>>('tokens_map', {});
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
     
-    const isOphthalmology = typeof window !== 'undefined' && localStorage.getItem('mediflow_demo_specialization') === 'Ophthalmology';
-    const nextStatus = isOphthalmology ? 'awaiting_refraction' : 'awaiting_consultation';
+    // In production, use the clinic's specialization from user profile
+    const nextStatus = 'awaiting_consultation';
     
     vitalsMap[patientId] = vitals;
     tokensMap[patientId] = token;

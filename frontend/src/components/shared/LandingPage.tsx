@@ -174,7 +174,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [isSignupUnlocked, setIsSignupUnlocked] = useState(false);
-  const [isSigningInDemo, setIsSigningInDemo] = useState(false);
   const [showBenefitsTour, setShowBenefitsTour] = useState(false);
   const [tourSlide, setTourSlide] = useState(0);
   const [calcPatients, setCalcPatients] = useState(25);
@@ -207,38 +206,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
-
-
-  const handleDemoSignUpInstant = () => {
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isSingleDomain = getIsSingleDomain(hostname);
-    
-    if (isSingleDomain) {
-      window.location.href = `${window.location.origin}?demo=true`;
-      return;
-    }
-    
-    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-      ? `http://app.localhost:${window.location.port || '5173'}?demo=true`
-      : 'https://app.vitalsync.in?demo=true';
-    window.location.href = dashboardUrl;
-  };
-
-  // Launches the demo in Eye Hospital / Ophthalmology mode via ?demo=eye
-  const handleEyeDemoSignUpInstant = () => {
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isSingleDomain = getIsSingleDomain(hostname);
-
-    if (isSingleDomain) {
-      window.location.href = `${window.location.origin}?demo=eye`;
-      return;
-    }
-
-    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-      ? `http://app.localhost:${window.location.port || '5173'}?demo=eye`
-      : 'https://app.vitalsync.in?demo=eye';
-    window.location.href = dashboardUrl;
-  };
 
   // Eligibility Form States
   const [ageConfirm, setAgeConfirm] = useState(false);
@@ -311,11 +278,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
     // 3. Prevent duplicate check on default accounts
     const normalizedEmail = emailInput.trim().toLowerCase();
-    const demoEmails = ['doctor@mediflow.com', 'labtech@mediflow.com', 'pharmacist@mediflow.com', 'owner@mediflow.com'];
-    if (demoEmails.includes(normalizedEmail)) {
-      setEligibilityError('An account with this email address already exists in the system. Please Sign In instead.');
-      return;
-    }
 
     // 4. Verify compliance acceptances
     if (!complianceConfirm) {
@@ -436,25 +398,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </span>
               <span className="text-[8.5px] text-slate-500 font-semibold tracking-wide mt-0.5">Integrated Clinical Network</span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleEyeDemoSignUpInstant}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-sm hover:shadow-md flex items-center gap-1.5"
-              title="Launch demo as an Eye Care Hospital (Ophthalmology mode with dilation tracker, biometry worksheet & ophthalmic prescribing)"
-            >
-              <Eye className="h-3.5 w-3.5" />
-              Eye Hospital Demo
-            </button>
-            <button
-              onClick={handleDemoSignUpInstant}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-sm hover:shadow-md flex items-center gap-1.5"
-              title="Launch demo as a General Physician (default Mediflow dashboard)"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Demo Sandbox
-            </button>
           </div>
         </div>
       </header>
@@ -1007,19 +950,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       )}
 
-      {isSigningInDemo && (
-        <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in text-white font-sans">
-          <div className="flex flex-col items-center space-y-6 text-center">
-            <Loader2 className="h-12 w-12 text-indigo-500 animate-spin" />
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold text-slate-100 tracking-wide">Initializing Demo Sandbox</h3>
-              <p className="text-xs text-slate-300 max-w-sm">
-                Signing you in automatically as <span className="text-indigo-450 font-extrabold">Dr. Vivek Kumar</span> to showcase the clinical dashboard...
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showBenefitsTour && (
         <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-lg animate-fade-in text-slate-800 font-sans">

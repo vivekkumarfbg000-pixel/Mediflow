@@ -12,7 +12,7 @@ import { SettlementWidget } from '../shared/SettlementWidget';
    Interconnected clinical node — Doctor › Lab › Pharmacy › WhatsApp
  ───────────────────────────────────────────────────────────────────────────── */
 
-type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'reagents' | 'settlements' | 'pod_network';
+type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'reagents' | 'settlements' | 'pod_network' | 'billing_invoices';
 
 export const LabDashboard: React.FC = () => {
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
@@ -633,6 +633,7 @@ export const LabDashboard: React.FC = () => {
 
   const tabItems: { id: LabTab; label: string; icon: string; badge?: number }[] = [
     { id: 'queue', label: 'Test Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
+    { id: 'billing_invoices', label: 'Billing & Invoices', icon: 'receipt_long' },
     { id: 'walkin', label: 'Walk-in Register', icon: 'person_add', badge: walkinList.length },
     { id: 'upload_report', label: 'Direct Report Upload', icon: 'upload_file' },
     { id: 'analytics', label: 'Analytics', icon: 'bar_chart' },
@@ -2241,6 +2242,234 @@ export const LabDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB: BILLING & INVOICES */}
+      {activeTab === 'billing_invoices' && (
+        <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden text-left">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400 text-base">receipt_long</span>
+                Lab Billing & Invoices
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Generate itemized pathology invoices from doctor-prescribed test requisitions, process walk-in bills, and print/send invoices.
+              </p>
+            </div>
+          </div>
+
+          {(() => {
+            const labTestBills = api.getLabTestBills();
+            const activeRequisitions = requisitions.filter(r => r.status === 'pending');
+            const patientsList = api.getPatients();
+
+            // Group requisitions by patientId
+            const reqsByPatient: Record<string, typeof activeRequisitions> = {};
+            activeRequisitions.forEach(r => {
+              if (!reqsByPatient[r.patientId]) reqsByPatient[r.patientId] = [];
+              reqsByPatient[r.patientId].push(r);
+            });
+
+            const pendingBills = labTestBills.filter(b => b.status === 'draft' || b.status === 'confirmed');
+            const paidBills = labTestBills.filter(b => b.status === 'paid');
+
+            return (
+              <div className="space-y-8">
+                {/* 1. Pending Requisitions Awaiting Billing */}
+                <div>
+                  <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    Doctor Requisitions Awaiting Billing ({Object.keys(reqsByPatient).length} patients)
+                  </h3>
+                  {Object.keys(reqsByPatient).length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      No pending test requisitions require billing.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(reqsByPatient).map(([patientId, patientReqs]) => {
+                        const patient = patientsList.find(p => p.id === patientId);
+                        if (!patient) return null;
+                        const totalAmt = patientReqs.reduce((sum, r) => {
+                          const test = testCatalog.find(t => t.loincCode === r.testCode);
+                          return sum + (test?.price || 350);
+                        }, 0);
+
+                        return (
+                          <div key={patientId} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-slate-800 text-xs">{patient.name}</h4>
+                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone}</p>
+                              </div>
+                              <span className="text-xs font-black text-amber-600">₹{totalAmt.toFixed(0)}</span>
+                            </div>
+                            <div className="space-y-1">
+                              {patientReqs.map(r => {
+                                const test = testCatalog.find(t => t.loincCode === r.testCode);
+                                return (
+                                  <div key={r.id} className="flex justify-between text-[10px] text-slate-600 font-mono">
+                                    <span>🧪 {r.testName}</span>
+                                    <span>₹{test?.price || '350'}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => {
+                                const billItems = patientReqs.map(r => {
+                                  const test = testCatalog.find(t => t.loincCode === r.testCode);
+                                  const price = test?.price || 350;
+                                  return {
+                                    requisitionId: r.id,
+                                    loincCode: r.testCode,
+                                    testName: r.testName,
+                                    price,
+                                    discountPercent: 0,
+                                    gstPercent: 0,
+                                    lineTotal: price
+                                  };
+                                });
+                                const subtotal = billItems.reduce((s, i) => s + i.price, 0);
+                                const bill = {
+                                  id: crypto.randomUUID(),
+                                  patientId: patient.id,
+                                  patientName: patient.name,
+                                  patientPhone: patient.phone,
+                                  encounterId: patientReqs[0]?.encounterId,
+                                  items: billItems,
+                                  subtotal,
+                                  discountAmount: 0,
+                                  gstAmount: 0,
+                                  totalAmount: subtotal,
+                                  paymentMode: 'cash' as const,
+                                  status: 'draft' as const,
+                                  source: 'encounter' as const,
+                                  createdAt: new Date().toISOString()
+                                };
+                                api.saveLabTestBill(bill);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Lab test bill generated for ${patient.name}!`, type: 'success', title: 'Lab Bill Created' }
+                                }));
+                              }}
+                              className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer transition-all border-0"
+                            >
+                              Generate Lab Invoice
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Pending Invoices (Awaiting Payment Collection) */}
+                <div>
+                  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-505" />
+                    Pending Payments ({pendingBills.length})
+                  </h3>
+                  {pendingBills.length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      No pending bills.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {pendingBills.map(bill => (
+                        <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
+                          <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                            {bill.status.toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{bill.id.substring(0, 8)} • {bill.items.length} tests</p>
+                          </div>
+                          <div className="text-xs font-black text-slate-800">Total: ₹{bill.totalAmount.toFixed(2)}</div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                api.payLabTestBill(bill.id, 'cash');
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Collected ₹${bill.totalAmount.toFixed(0)} cash! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
+                                }));
+                              }}
+                              className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
+                            >
+                              Cash
+                            </button>
+                            <button
+                              onClick={() => {
+                                api.payLabTestBill(bill.id, 'upi');
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Collected ₹${bill.totalAmount.toFixed(0)} via UPI! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
+                                }));
+                              }}
+                              className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
+                            >
+                              UPI / QR
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Paid Invoices (Print & Send to Patient) */}
+                <div>
+                  <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Paid Invoices ({paidBills.length})
+                  </h3>
+                  {paidBills.length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      No paid invoices yet.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {paidBills.slice(0, 12).map(bill => (
+                        <div key={bill.id} className="p-4 bg-white border border-emerald-200 rounded-xl space-y-2 relative">
+                          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                            ✓ PAID
+                          </div>
+                          <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
+                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{bill.totalAmount.toFixed(2)} • {bill.items.length} tests</p>
+                          <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                const html = api.generateLabInvoiceHtml(bill);
+                                const blob = new Blob([html], { type: 'text/html' });
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, '_blank');
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">print</span> Print
+                            </button>
+                            <button
+                              onClick={() => {
+                                api.sendLabInvoiceToPatient(bill);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Invoice sent to ${bill.patientName} on WhatsApp!`, type: 'success', title: 'Invoice Sent' }
+                                }));
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">send</span> WhatsApp
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

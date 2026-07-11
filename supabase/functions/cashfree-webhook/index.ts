@@ -154,7 +154,7 @@ serve(async (req) => {
         }
       });
 
-      // 3. Dispatch secure transaction confirmation message to WhatsApp
+// 3. Dispatch secure transaction confirmation message to WhatsApp
       try {
         const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
         const dispatchRes = await fetch(dispatchUrl, {
@@ -165,7 +165,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             patientId: invoice.patient_id,
-            templateName: "appointment_confirmation",
+            templateName: "payment_confirmation",
             templateParams: {
               patient_name: invoice.patient_registry?.name || "Valued Patient",
               amount: totalAmount?.toString() || invoice.total_amount?.toString() || "0",

@@ -1795,7 +1795,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     const taskId = `task-hinglish-${selectedPatient.id}-${Date.now()}`;
                     await api.saveAIResult({
                       id: crypto.randomUUID(),
-                      user_id: 'demo-doctor-uuid',
+                      user_id: 'doctor-uuid-placeholder',
                       task_id: taskId,
                       patient_id: selectedPatient.id,
                       input_data: notes,
@@ -1907,7 +1907,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         const taskId = `task-trend-${selectedPatient.id}-${Date.now()}`;
                         await api.saveAIResult({
                           id: crypto.randomUUID(),
-                          user_id: 'demo-doctor-uuid',
+                          user_id: 'doctor-uuid-placeholder',
                           task_id: taskId,
                           patient_id: selectedPatient.id,
                           input_data: `Comparative trend: baseline=${baselineDate || 'None'}, comparison=${comparisonDate || 'None'}`,

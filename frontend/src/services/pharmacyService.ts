@@ -23,8 +23,9 @@ export class PharmacyService {
 
 
   static getPharmacyInventory(): PharmacyInventoryItem[] {
-    const isOphthalmology = typeof window !== 'undefined' && 
-      (window.localStorage.getItem('mediflow_demo_specialization') === 'Ophthalmology');
+    // In production, use the clinic's specialization from user profile
+    // For now, return general medicine inventory
+    const isOphthalmology = false;
 
     const defaultOphthalmicItems: PharmacyInventoryItem[] = [
       {
@@ -1043,5 +1044,130 @@ Thank you for choosing VitalSync! 🟢`;
         type: 'success'
       }
     }));
+  }
+
+  // ── Printable HTML Invoice Generation ─────────────────────────────────────
+
+  static generatePharmacyInvoiceHtml(bill: MedicineBill): string {
+    const rows = bill.items.map(item =>
+      `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#475569">${item.name}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:11px">${item.dosage}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-family:monospace;font-size:11px">${item.batchNumber}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center">${item.quantity}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;color:#64748b">₹${item.mrp.toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${item.discountPercent > 0 ? item.discountPercent + '%' : '—'}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">₹${item.lineTotal.toFixed(2)}</td>
+      </tr>`
+    ).join('');
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Pharmacy Invoice — ${bill.patientName}</title>
+  <style>
+    body { font-family: 'Inter', 'Segoe UI', sans-serif; margin: 40px; color: #0f172a; }
+    h1 { color: #106675; margin-bottom: 4px; font-size: 22px; }
+    .clinic-name { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+    .meta { color: #94a3b8; font-size: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; }
+    .patient-info { background: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
+    .patient-info strong { color: #0f172a; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { text-align: left; padding: 10px 12px; background: #106675; color: white; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    th:nth-child(4), th:nth-child(5), th:nth-child(6), th:nth-child(7) { text-align: right; }
+    th:nth-child(4) { text-align: center; }
+    .totals { width: 320px; margin-left: auto; }
+    .totals tr td { padding: 6px 12px; font-size: 13px; }
+    .totals tr td:last-child { text-align: right; font-weight: 600; }
+    .totals .grand-total td { font-size: 16px; font-weight: 800; color: #106675; border-top: 2px solid #106675; padding-top: 10px; }
+    .payment-badge { display: inline-block; background: #10b981; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .payment-badge.unpaid { background: #f59e0b; color: #1e293b; }
+    .footer { margin-top: 32px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+    @media print { body { margin: 20px; } }
+  </style>
+</head>
+<body>
+  <h1>💊 Pharmacy Invoice</h1>
+  <p class="clinic-name">VitalSync Connected Care Ecosystem</p>
+
+  <div class="meta">
+    <span>Invoice #${bill.id.substring(0, 8).toUpperCase()}</span>
+    <span>${new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+  </div>
+
+  <div class="patient-info">
+    <strong>Patient:</strong> ${bill.patientName} &nbsp;|&nbsp;
+    <strong>Phone:</strong> +91 ${bill.patientPhone}
+    ${bill.pharmacyGstin ? `&nbsp;|&nbsp; <strong>Pharmacy GSTIN:</strong> ${bill.pharmacyGstin}` : ''}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Medicine</th>
+        <th>Dosage</th>
+        <th>Batch</th>
+        <th>Qty</th>
+        <th>MRP</th>
+        <th>Disc</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <table class="totals">
+    <tr><td>Subtotal</td><td>₹${bill.subtotal.toFixed(2)}</td></tr>
+    ${bill.itemDiscountAmount > 0 ? `<tr><td>Item Discount</td><td>-₹${bill.itemDiscountAmount.toFixed(2)}</td></tr>` : ''}
+    ${bill.loyaltyDiscountAmount > 0 ? `<tr><td>Loyalty Discount (${bill.loyaltyDiscountPercent}%)</td><td>-₹${bill.loyaltyDiscountAmount.toFixed(2)}</td></tr>` : ''}
+    ${bill.gstAmount > 0 ? `<tr><td>GST</td><td>₹${bill.gstAmount.toFixed(2)}</td></tr>` : ''}
+    ${(bill.deliveryCharge || 0) > 0 ? `<tr><td>Delivery (Shiprocket)</td><td>₹${bill.deliveryCharge?.toFixed(2)}</td></tr>` : ''}
+    <tr class="grand-total"><td>Total Amount</td><td>₹${bill.totalAmount.toFixed(2)}</td></tr>
+  </table>
+
+  <p>
+    <span class="payment-badge ${bill.status === 'paid' ? '' : 'unpaid'}">
+      ${bill.status === 'paid' ? '✓ PAID' : '⚠ UNPAID'} — ${bill.paymentMode?.toUpperCase() || 'PENDING'}
+    </span>
+  </p>
+
+  <div class="footer">
+    This is a computer-generated invoice. No signature required.<br/>
+    Powered by VitalSync Connected Care Ecosystem • For queries: support@vitalsync.in
+  </div>
+</body>
+</html>`;
+  }
+
+  // ── Send Invoice to Patient via WhatsApp ──────────────────────────────────
+
+  static sendPharmacyInvoiceToPatient(bill: MedicineBill): void {
+    const invoiceText = this.generateMedicineInvoiceMessage(bill);
+
+    const sessions = load<any[]>('whatsapp_sessions', []);
+    const session = sessions.find(s => s.patientPhone === bill.patientPhone);
+    if (session) {
+      const currentHistory = session.sessionData?.chatHistory || [];
+      currentHistory.push({
+        sender: 'bot',
+        text: invoiceText,
+        time: new Date().toISOString()
+      });
+      session.sessionData = { ...session.sessionData, chatHistory: currentHistory };
+      save('whatsapp_sessions', sessions);
+
+      if (navigator.onLine) {
+        supabase.from('whatsapp_sessions').update({
+          session_data: session.sessionData,
+          last_interaction: new Date().toISOString()
+        }).eq('patient_phone', bill.patientPhone).then(({ error }) => {
+          if (error) console.error('[PharmacyService] Error syncing WhatsApp session:', error);
+        });
+      }
+    }
+
+    writeAuditLog('pharmacy_invoice_sent_whatsapp', { billId: bill.id, patientPhone: bill.patientPhone }, bill.patientId);
+    notify();
   }
 }

@@ -355,17 +355,19 @@ function AppContent({
 
 
 
-      {/* Floating WhatsApp Sandbox Trigger Button */}
-      <button
-        onClick={() => setIsSimulatorOpen(true)}
-        className="fixed bottom-14 right-6 z-[80] bg-emerald-500 hover:bg-emerald-600 text-white p-3.5 rounded-full shadow-2xl flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all group duration-300 border border-emerald-400/25 cursor-pointer text-white-force"
-        title="Open Patient WhatsApp Simulator"
-      >
-        <span className="material-symbols-outlined text-2xl font-bold animate-pulse text-white-force">chat</span>
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-out whitespace-nowrap text-xs font-bold uppercase tracking-wider text-white-force">
-          Simulate WhatsApp Sandbox
-        </span>
-      </button>
+      {/* Floating WhatsApp Sandbox Trigger Button (Dev-Only) */}
+      {typeof window !== 'undefined' && getIsLocal(window.location.hostname) && (
+        <button
+          onClick={() => setIsSimulatorOpen(true)}
+          className="fixed bottom-14 right-6 z-[80] bg-emerald-500 hover:bg-emerald-600 text-white p-3.5 rounded-full shadow-2xl flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all group duration-300 border border-emerald-400/25 cursor-pointer text-white-force"
+          title="Open Patient WhatsApp Simulator"
+        >
+          <span className="material-symbols-outlined text-2xl font-bold animate-pulse text-white-force">chat</span>
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-out whitespace-nowrap text-xs font-bold uppercase tracking-wider text-white-force">
+            Simulate WhatsApp Sandbox
+          </span>
+        </button>
+      )}
 
       <PatientWhatsAppSimulator isOpen={isSimulatorOpen} onClose={() => setIsSimulatorOpen(false)} />
       <CommandBar 
@@ -458,57 +460,6 @@ export default function App() {
       setInitialSignupTab(tabParam);
     }
 
-    if (params.get('demo') === 'true' || params.get('demo') === 'eye') {
-      // ── Demo Sandbox ──────────────────────────────────────────────────────────
-      // DEV-ONLY: The demo sandbox auto-login is intentionally gated behind the
-      // DEV flag. In production builds, visiting ?demo=true simply redirects to
-      // the standard login page without exposing credentials.
-      // ─────────────────────────────────────────────────────────────────────────
-
-      const isEyeDemo = params.get('demo') === 'eye';
-      // Clear demo query param
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-
-      // Set/clear specialization override in localStorage
-      if (isEyeDemo) {
-        localStorage.setItem('mediflow_demo_specialization', 'Ophthalmology');
-        localStorage.setItem('mediflow_demo_clinic_name', 'Patna Eye Care Center');
-      } else {
-        // Normal demo — clear any previous eye demo override
-        localStorage.removeItem('mediflow_demo_specialization');
-        localStorage.removeItem('mediflow_demo_clinic_name');
-      }
-
-      // Trigger demo login (DEV only — credentials stripped from prod bundle)
-      setIsLoadingSession(true);
-
-      const doDemoLogin = async () => {
-        try {
-          const demoEmail = import.meta.env.VITE_DEMO_EMAIL || 'doctor@mediflow.com';
-          const demoPassword = import.meta.env.VITE_DEMO_PASSWORD || 'password123';
-          const { error } = await supabase.auth.signInWithPassword({
-            email: demoEmail,
-            password: demoPassword
-          });
-          if (error) throw error;
-          localStorage.setItem('mediflow_demo_sandbox', 'true');
-        } catch (err) {
-          console.error('[Demo Auth] Automatic demo login failed:', err);
-          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-            detail: {
-              title: 'Demo Authentication Failed ⚠️',
-              message: 'Failed to auto-sign in as demo doctor. Please sign in manually.',
-              type: 'error'
-            }
-          }));
-          setIsLoadingSession(false);
-        }
-      };
-
-      doDemoLogin();
-    }
-
   }, []);
 
   useEffect(() => {
@@ -528,7 +479,7 @@ export default function App() {
     // Sync the active role with MediflowApiService simulated checks
     let apiRole: string = currentRole;
     if (currentRole === 'lab') apiRole = 'lab_technician';
-    else if (currentRole === 'pharmacy') apiRole = 'pharmacist';
+    else if (currentRole === 'pharmacy') apiRole = 'pharmacy';
     else if (currentRole === 'billing') apiRole = 'admin';
     else if (currentRole === 'patient') apiRole = 'patient';
     api.setSimulatedRole(apiRole);
@@ -582,13 +533,11 @@ export default function App() {
         }
       }
     };
-
     window.addEventListener('mediflow-switch-specialization', handleSwitchSpecialization);
     return () => {
       window.removeEventListener('mediflow-switch-specialization', handleSwitchSpecialization);
     };
   }, [activeProfile]);
-
 
   // Loading watchdog: If session exists but we are stuck loading for more than 12 seconds, trigger self-healing
   useEffect(() => {
@@ -786,28 +735,7 @@ export default function App() {
 
     // 3a. Demo Doctor Profile Overrides for sandbox consistency
     // Reads localStorage demo specialization to apply the correct clinic identity
-    if (activeProfile && (activeProfile.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' || session.user?.email === 'doctor@mediflow.com')) {
-      const demoSpec = typeof window !== 'undefined'
-        ? window.localStorage.getItem('mediflow_demo_specialization')
-        : null;
-      const isEyeDemo = demoSpec === 'Ophthalmology';
-
-      activeProfile = {
-        ...activeProfile,
-        display_name: isEyeDemo ? 'Dr. Amit Arya' : 'Dr. Vivek Kumar',
-        user_metadata: {
-          ...activeProfile?.user_metadata,
-          specialization: isEyeDemo ? 'Ophthalmology' : 'General Medicine',
-          clinic_name: isEyeDemo ? 'Patna Eye Care Center' : 'Kankarbagh Connected Clinic',
-          display_name: isEyeDemo ? 'Dr. Amit Arya' : 'Dr. Vivek Kumar'
-        }
-      };
-    }
-    
     if (activeProfile) {
-      if (typeof window !== 'undefined' && activeProfile.user_metadata?.specialization) {
-        localStorage.setItem('mediflow_demo_specialization', activeProfile.user_metadata.specialization);
-      }
       // 4. Complete onboarding if needed
       return await checkAndCompleteOnboarding(session, activeProfile);
     }
@@ -992,11 +920,6 @@ export default function App() {
 
   const handleSignOut = async () => {
     setCrossDomainCookie(false);
-    localStorage.removeItem('mediflow_demo_sandbox');
-    // Clear demo specialization override so a real doctor logging in next
-    // does not inherit the Eye Hospital or any other demo specialization
-    localStorage.removeItem('mediflow_demo_specialization');
-    localStorage.removeItem('mediflow_demo_clinic_name');
     try {
       await supabase.auth.signOut({ scope: 'local' });
     } catch (err) {

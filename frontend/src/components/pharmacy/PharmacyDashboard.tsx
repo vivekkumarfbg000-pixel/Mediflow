@@ -29,7 +29,7 @@ import { SettlementWidget } from '../shared/SettlementWidget';
 export const PharmacyDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { activePod, activeEntity, podEntities, refreshClinic } = useClinic();
-  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand' | 'settlements' | 'pod_connect' | 'profile_settings'>('prescription_queue');
+  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand' | 'settlements' | 'pod_connect' | 'profile_settings' | 'billing_invoices'>('prescription_queue');
 
   // Pharmacy Profile Settings States
   const [profileName, setProfileName] = useState('');
@@ -659,6 +659,7 @@ export const PharmacyDashboard: React.FC = () => {
       <div className="hidden md:flex overflow-x-auto gap-2 pb-2.5 no-scrollbar select-none -mb-px">
         {[
           { id: 'prescription_queue', label: 'Prescription Queue', icon: 'inventory_2', badge: activeHoldsCount },
+          { id: 'billing_invoices', label: 'Billing & Invoices', icon: 'receipt_long' },
           { id: 'inventory_catalog', label: 'Inventory Catalog', icon: 'database' },
           { id: 'stock_alerts', label: 'Stock Alerts', icon: 'warning', badge: criticalStockCount, alert: true },
           { id: 'expiry_tracker', label: 'Expiry Tracker', icon: 'event_busy', badge: criticalExpiryCount, warning: true },
@@ -2396,6 +2397,250 @@ export const PharmacyDashboard: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB: BILLING & INVOICES */}
+      {activeTab === 'billing_invoices' && (
+        <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400 text-base">receipt_long</span>
+                Pharmacy Billing & Invoices
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Generate itemized medicine invoices from prescription holds, collect payments, print invoices, and send to patients via WhatsApp.
+              </p>
+            </div>
+          </div>
+
+          {(() => {
+            const patients = api.getPatients();
+            const medicineBills = api.getMedicineBills();
+            const activeHolds = holds.filter(h => h.holdStatus === 'held');
+
+            // Group holds by patientId
+            const holdsByPatient: Record<string, typeof activeHolds> = {};
+            activeHolds.forEach(h => {
+              if (!holdsByPatient[h.patientId]) holdsByPatient[h.patientId] = [];
+              holdsByPatient[h.patientId].push(h);
+            });
+
+            const pendingBills = medicineBills.filter(b => b.status === 'draft' || b.status === 'confirmed');
+            const paidBills = medicineBills.filter(b => b.status === 'paid');
+
+            return (
+              <div className="space-y-8">
+                {/* Section 1: Unbilled Holds — auto-generate bills */}
+                <div>
+                  <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    Prescription Holds Awaiting Billing ({Object.keys(holdsByPatient).length} patients)
+                  </h3>
+                  {Object.keys(holdsByPatient).length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      No pending prescription holds require billing.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(holdsByPatient).map(([patientId, patientHolds]) => {
+                        const patient = patients.find(p => p.id === patientId);
+                        if (!patient) return null;
+                        const totalAmt = patientHolds.reduce((sum, h) => {
+                          const invItem = inventory.find(i => i.name.toLowerCase() === h.medicineName.toLowerCase());
+                          return sum + (invItem ? invItem.price * h.quantity : 150);
+                        }, 0);
+
+                        return (
+                          <div key={patientId} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-slate-800 text-xs">{patient.name}</h4>
+                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone}</p>
+                              </div>
+                              <span className="text-xs font-black text-amber-600">₹{totalAmt.toFixed(0)}</span>
+                            </div>
+                            <div className="space-y-1">
+                              {patientHolds.map(h => {
+                                const invItem = inventory.find(i => i.name.toLowerCase() === h.medicineName.toLowerCase());
+                                return (
+                                  <div key={h.id} className="flex justify-between text-[10px] text-slate-600 font-mono">
+                                    <span>💊 {h.medicineName} x{h.quantity}</span>
+                                    <span>₹{invItem ? (invItem.price * h.quantity).toFixed(0) : '150'}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => {
+                                const billItems = patientHolds.map(h => {
+                                  const invItem = inventory.find(i => i.name.toLowerCase() === h.medicineName.toLowerCase());
+                                  const price = invItem?.price || 150;
+                                  const mrp = invItem?.mrp || price;
+                                  return {
+                                    inventoryItemId: invItem?.id || h.id,
+                                    name: h.medicineName,
+                                    genericName: invItem?.genericName || h.medicineName,
+                                    dosage: h.dosage || invItem?.dosage || '',
+                                    batchNumber: h.batchNumber,
+                                    expiryDate: h.expiryDate,
+                                    quantity: h.quantity,
+                                    mrp,
+                                    sellingPrice: price,
+                                    discountPercent: 0,
+                                    gstPercent: 5,
+                                    lineTotal: price * h.quantity * 1.05,
+                                    alternativeSuggested: undefined,
+                                    alternativeInventoryId: undefined
+                                  };
+                                });
+                                const subtotal = billItems.reduce((s, i) => s + i.sellingPrice * i.quantity, 0);
+                                const gstAmount = parseFloat((subtotal * 0.05).toFixed(2));
+                                const pharmacyGstin = podEntities.find(pe => pe.entityType === 'pharmacy')?.gstin;
+                                const bill = {
+                                  id: crypto.randomUUID(),
+                                  patientId: patient.id,
+                                  patientName: patient.name,
+                                  patientPhone: patient.phone,
+                                  pharmacyGstin: pharmacyGstin || undefined,
+                                  items: billItems,
+                                  subtotal,
+                                  loyaltyDiscountPercent: 0,
+                                  loyaltyDiscountAmount: 0,
+                                  itemDiscountAmount: 0,
+                                  gstAmount,
+                                  totalAmount: subtotal + gstAmount,
+                                  paymentMode: 'cash' as const,
+                                  upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${(subtotal + gstAmount).toFixed(2)}&cu=INR`,
+                                  status: 'draft' as const,
+                                  source: 'counter' as const,
+                                  createdAt: new Date().toISOString()
+                                };
+                                api.saveMedicineBill(bill);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Medicine bill ₹${bill.totalAmount.toFixed(0)} generated for ${patient.name}!`, type: 'success', title: 'Invoice Created' }
+                                }));
+                                syncData();
+                              }}
+                              className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer transition-all"
+                            >
+                              Generate Medicine Bill
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Pending Bills — collect payment */}
+                <div>
+                  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                    Pending Payment ({pendingBills.length})
+                  </h3>
+                  {pendingBills.length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      No pending bills.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {pendingBills.map(bill => (
+                        <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
+                          <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                            {bill.status.toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{bill.id.substring(0, 8)} • {bill.items.length} items</p>
+                          </div>
+                          <div className="text-xs font-black text-slate-800">Total: ₹{bill.totalAmount.toFixed(2)}</div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                api.dispenseMedicineBill(bill.id);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `₹${bill.totalAmount.toFixed(0)} collected via CASH. Stock deducted.`, type: 'success', title: 'Payment Received' }
+                                }));
+                                syncData();
+                              }}
+                              className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                            >
+                              Cash
+                            </button>
+                            <button
+                              onClick={() => {
+                                api.dispenseMedicineBill(bill.id);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `₹${bill.totalAmount.toFixed(0)} collected via UPI. Stock deducted.`, type: 'success', title: 'UPI Payment Received' }
+                                }));
+                                syncData();
+                              }}
+                              className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                            >
+                              UPI
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 3: Paid Bills — print & send */}
+                <div>
+                  <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Paid Invoices ({paidBills.length})
+                  </h3>
+                  {paidBills.length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      No paid invoices yet.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {paidBills.slice(0, 12).map(bill => (
+                        <div key={bill.id} className="p-4 bg-white border border-emerald-200 rounded-xl space-y-2 relative">
+                          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                            ✓ PAID
+                          </div>
+                          <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
+                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{bill.totalAmount.toFixed(2)} • {bill.items.length} items</p>
+                          <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                const html = api.generatePharmacyInvoiceHtml(bill);
+                                const blob = new Blob([html], { type: 'text/html' });
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, '_blank');
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">print</span> Print
+                            </button>
+                            <button
+                              onClick={() => {
+                                api.sendPharmacyInvoiceToPatient(bill);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Invoice sent to ${bill.patientName} on WhatsApp!`, type: 'success', title: 'Invoice Sent' }
+                                }));
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">send</span> WhatsApp
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

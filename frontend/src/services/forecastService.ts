@@ -8,13 +8,11 @@ import { getPodContext } from './podContext';
 import type { SeasonalForecast, DiagnosticTest } from '../types';
 
 export class ForecastService {
-  // Toggle this flag to true during demos to return simulated mock data immediately, bypassing network timeouts.
+  // Toggle this flag to true during development to return simulated mock data immediately
   public static get FORCE_MOCK_DEMO(): boolean {
     if (typeof window !== 'undefined') {
-      const isDemoSession = localStorage.getItem('mediflow_demo_sandbox') === 'true';
-      const activeUser = localStorage.getItem('sb-kguupaybvbngyzyofjun-auth-token'); // Supabase auth token
-      if (isDemoSession) return true;
-      if (activeUser && activeUser.includes('doctor@mediflow.com')) return true;
+      // Only use mock in development if explicitly enabled
+      return import.meta.env.DEV && localStorage.getItem('mediflow_debug_mock') === 'true';
     }
     return false;
   }

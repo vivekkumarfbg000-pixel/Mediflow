@@ -529,7 +529,7 @@ export class WhatsAppService {
             if (numMatch) qty = Number(numMatch[0]);
           }
 
-          let matchedItem = activeInventory.find(item => 
+          const matchedItem = activeInventory.find(item => 
             item.name.toLowerCase().includes(selectedMedName.toLowerCase()) || 
             selectedMedName.toLowerCase().includes(item.name.toLowerCase()) ||
             item.genericName.toLowerCase().includes(selectedMedName.toLowerCase()) ||

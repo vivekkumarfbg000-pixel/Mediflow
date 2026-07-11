@@ -73,11 +73,66 @@ serve(async (req) => {
       });
     }
 
+    // POD VALIDATION: Verify the requesting user belongs to the same pod as the invoice
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const { data: { user }, error: authErr } = await supabase.auth.getUser(
+        authHeader.replace("Bearer ", "")
+      );
+      if (!authErr && user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("entity_id, entities!inner(pod_id)")
+          .eq("id", user.id)
+          .maybeSingle();
+        
+        const userPodId = profile?.entities?.pod_id;
+        if (userPodId && userPodId !== invoice.pod_id) {
+          console.warn(`[cashfree-order] Pod mismatch: user pod ${userPodId} !== invoice pod ${invoice.pod_id}`);
+          return new Response(JSON.stringify({ error: "Pod mismatch - unauthorized" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
     const patient = invoice.patient_registry;
     const amount = Number(invoice.total_amount);
 
     // 1. Read pre-calculated payment splits from database split_payload
     const orderSplits = invoice.split_payload || [];
+
+    // IDEMPOTENCY: Check if order already exists for this invoice
+    if (invoice.cashfree_order_id) {
+      console.log(`[cashfree-order] Idempotency hit: Invoice ${invoiceId} already has order_id ${invoice.cashfree_order_id}`);
+      // Fetch the existing order from Cashfree to get payment_session_id
+      const existingOrderUrl = `${resolvedEnv === "production" 
+        ? "https://api.cashfree.com/pg/orders"
+        : "https://sandbox.cashfree.com/pg/orders"}/${invoice.cashfree_order_id}`;
+      try {
+        const existingRes = await fetch(existingOrderUrl, {
+          headers: {
+            "x-client-id": appId,
+            "x-client-secret": secretKey,
+            "x-api-version": "2025-01-01",
+          },
+        });
+        if (existingRes.ok) {
+          const existingData = await existingRes.json();
+          return new Response(JSON.stringify({
+            order_id: existingData.order_id,
+            payment_session_id: existingData.payment_session_id,
+            cf_order_id: existingData.cf_order_id,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (e) {
+        console.warn("[cashfree-order] Failed to fetch existing order, will create new:", e);
+      }
+    }
 
     const appId     = Deno.env.get("CASHFREE_APP_ID") ?? "";
     const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
@@ -114,7 +169,7 @@ serve(async (req) => {
     console.log(`[cashfree-order] Using Cashfree environment: ${resolvedEnv.toUpperCase()}`);
 
 
-    const orderId = `VITAL-${invoiceId.substring(0, 8).toUpperCase()}-${Date.now().toString().slice(-5)}`;
+    const orderId = `VITAL-${invoiceId}`;
 
     const body: Record<string, any> = {
       order_amount:   amount,
@@ -143,10 +198,11 @@ serve(async (req) => {
     const cfRes = await fetch(apiBase, {
       method: "POST",
       headers: {
-        "x-client-id":     appId,
-        "x-client-secret": secretKey,
-        "x-api-version":   "2025-01-01",
-        "Content-Type":    "application/json",
+        "x-client-id":       appId,
+        "x-client-secret":   secretKey,
+        "x-api-version":     "2025-01-01",
+        "Content-Type":      "application/json",
+        "x-idempotency-key": orderId,
       },
       body: JSON.stringify(body),
     });

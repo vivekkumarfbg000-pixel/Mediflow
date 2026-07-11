@@ -110,6 +110,21 @@ serve(async (req) => {
       });
     }
 
+    // POD VALIDATION: Verify patient belongs to the same pod as the request
+    const { data: patientPod } = await supabase
+      .from("patient_registry")
+      .select("pod_id")
+      .eq("id", patientId)
+      .maybeSingle();
+    
+    if (patientPod?.pod_id && patientPod.pod_id !== podId) {
+      console.warn(`[whatsapp-dispatch] Pod mismatch: patient pod ${patientPod.pod_id} !== request pod ${podId}`);
+      return new Response(JSON.stringify({ error: "Pod mismatch - patient not in this clinic" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const patientPhone = patient.phone;
     const patientName = patient.name;
 

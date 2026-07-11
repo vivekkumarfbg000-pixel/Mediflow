@@ -7,11 +7,12 @@ import { LabService, MASTER_TEST_CATALOG, OPHTHALMIC_TEST_CATALOG, DENTAL_TEST_C
 import { BillingService } from './billingService';
 import { WhatsAppService } from './whatsappService';
 import { ForecastService } from './forecastService';
+import { LabBillingService } from './labBillingService';
 import { StaffService } from './staffService';
 import { AIService, type AIResult } from './aiService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
-import { getPodContext } from './podContext';
+import { getPodContext, resolvePodContext } from './podContext';
 
 import type { 
   Patient, 
@@ -41,7 +42,8 @@ import type {
   EveningSlot,
   LabReport,
   ReagentStock,
-  SyntheticProfile
+  SyntheticProfile,
+  LabTestBill
 } from '../types';
 
 export { MASTER_TEST_CATALOG, OPHTHALMIC_TEST_CATALOG, DENTAL_TEST_CATALOG };
@@ -230,6 +232,7 @@ export const walDB = new WALIndexedDB();
 class MediflowApiService {
   private listeners: Set<() => void> = new Set();
   public isSyncing = false;
+  public isWALReplaying = false;
   public isVoiceScribing = false;
   public isOcrScanning = false;
   public isLabTrending = false;
@@ -341,15 +344,20 @@ class MediflowApiService {
   }
 
   public async replayWALOutbox(): Promise<void> {
-    if (this.isSyncing) return;
+    if (this.isSyncing || this.isWALReplaying) return;
+    this.isWALReplaying = true;
     let entries;
     try {
       entries = await walDB.getUnsyncedEntries();
     } catch (e) {
       console.warn('[Mediflow WAL] Failed to fetch WAL outbox entries:', e);
+      this.isWALReplaying = false;
       return;
     }
-    if (!entries || entries.length === 0) return;
+    if (!entries || entries.length === 0) {
+      this.isWALReplaying = false;
+      return;
+    }
 
     console.log(`[Mediflow WAL] Replaying ${entries.length} offline operations...`);
     for (const entry of entries) {
@@ -359,7 +367,7 @@ class MediflowApiService {
         switch (entry.action) {
           case 'CREATE_ENCOUNTER': {
             const { payload } = entry;
-            const ctx = getPodContext();
+            const ctx = await resolvePodContext();
             // Execute Supabase insert sequentially with active user context
             const { error: encError } = await supabase
               .from('encounters')
@@ -405,8 +413,7 @@ class MediflowApiService {
           }
           case 'UPDATE_VITALS': {
             const { payload } = entry;
-            const isOphthalmology = typeof window !== 'undefined' && localStorage.getItem('mediflow_demo_specialization') === 'Ophthalmology';
-            const nextStatus = isOphthalmology ? 'awaiting_refraction' : 'awaiting_consultation';
+            const nextStatus = 'awaiting_consultation';
             const { error } = await supabase.from('patient_registry').update({
               vitals: payload.vitals,
               token_number: payload.token,
@@ -496,12 +503,14 @@ class MediflowApiService {
           await walDB.markSynced(entry.id);
           console.log(`[Mediflow WAL] Duplicate entry resolved. Marked as synced ✅`);
         } else {
+          this.isWALReplaying = false;
           break;
         }
       }
     }
 
     await this.syncFromSupabase();
+    this.isWALReplaying = false;
   }
 
   public async syncFromSupabase(): Promise<void> {
@@ -519,7 +528,7 @@ class MediflowApiService {
     try {
       // ─── Build role-conditional queries before parallelizing ──────────────
       const encounterFetch = supabaseCircuit.execute<any>(async () => {
-            const selectFields = this.simulatedRole === 'pharmacist'
+            const selectFields = this.simulatedRole === 'pharmacy'
               ? `id, patient_id, doctor_id, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`
               : `id, patient_id, doctor_id, clinical_notes, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`;
             const { data, error } = await supabase.from('encounters').select(selectFields);
@@ -530,7 +539,7 @@ class MediflowApiService {
               id: e.id,
               patient_id: e.patientId || e.patient_id,
               doctor_id: e.doctorId || e.doctor_id,
-              clinical_notes: this.simulatedRole === 'pharmacist' ? '' : (e.clinicalNotes || e.clinical_notes),
+              clinical_notes: this.simulatedRole === 'pharmacy' ? '' : (e.clinicalNotes || e.clinical_notes),
               status: e.status,
               created_at: e.createdAt || e.created_at,
               patient: { name: e.patientName },
@@ -1101,9 +1110,12 @@ class MediflowApiService {
     return EncounterService.getEncounters();
   }
 
-  createEncounter(encounterData: Omit<Encounter, 'id' | 'createdAt' | 'status'>): Encounter {
+  async createEncounter(encounterData: Omit<Encounter, 'id' | 'createdAt' | 'status'>): Promise<Encounter> {
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    // CRITICAL: Ensure pod context is resolved before writing
+    await resolvePodContext();
 
     if (isOffline || isCircuitOpen) {
       console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing CREATE_ENCOUNTER in local outbox...');
@@ -1852,6 +1864,51 @@ class MediflowApiService {
    */
   clearAllSyntheticProfiles(): void {
     this.save('synthetic_profiles', []);
+    this.notify();
+  }
+
+  // ── Lab Test Billing Delegators ──────────────────────────────────────────
+
+  getLabTestBills(): LabTestBill[] {
+    return LabBillingService.getLabTestBills();
+  }
+
+  saveLabTestBill(bill: LabTestBill): LabTestBill {
+    const res = LabBillingService.saveLabTestBill(bill);
+    this.notify();
+    return res;
+  }
+
+  getLabTestBillById(id: string): LabTestBill | null {
+    return LabBillingService.getLabTestBillById(id);
+  }
+
+  payLabTestBill(id: string, paymentMethod: 'cash' | 'upi' | 'card' = 'cash'): void {
+    LabBillingService.payLabTestBill(id, paymentMethod);
+    this.notify();
+  }
+
+  generateLabInvoiceHtml(bill: LabTestBill): string {
+    return LabBillingService.generateLabInvoiceHtml(bill);
+  }
+
+  sendLabInvoiceToPatient(bill: LabTestBill): void {
+    LabBillingService.sendLabInvoiceToPatient(bill);
+    this.notify();
+  }
+
+  generateLabInvoiceMessage(bill: LabTestBill): string {
+    return LabBillingService.generateLabInvoiceMessage(bill);
+  }
+
+  // ── Pharmacy Invoice Delegators ─────────────────────────────────────────
+
+  generatePharmacyInvoiceHtml(bill: MedicineBill): string {
+    return PharmacyService.generatePharmacyInvoiceHtml(bill);
+  }
+
+  sendPharmacyInvoiceToPatient(bill: MedicineBill): void {
+    PharmacyService.sendPharmacyInvoiceToPatient(bill);
     this.notify();
   }
 }

@@ -492,7 +492,7 @@ export const DoctorDashboard: React.FC = () => {
         const taskId = `task-rag-${selectedPatient.id}-${Date.now()}`;
         api.saveAIResult({
           id: crypto.randomUUID(),
-          user_id: 'demo-doctor-uuid',
+          user_id: 'doctor-uuid-placeholder',
           task_id: taskId,
           patient_id: selectedPatient.id,
           input_data: `RAG Clinical Advisory fetch: baseDate=${baselineDate || 'None'}, compDate=${comparisonDate || 'None'}`,
@@ -1545,36 +1545,6 @@ Keep the tone professional, clinical, objective, and precise.`;
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
-            {/* Specialization Demo Toggles */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('mediflow-switch-specialization', { detail: 'General Medicine' }));
-                }}
-                className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 cursor-pointer ${
-                  !isOphthalmology
-                    ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/50'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                🏥 General Doctor
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('mediflow-switch-specialization', { detail: 'Ophthalmology' }));
-                }}
-                className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all duration-200 cursor-pointer ${
-                  isOphthalmology
-                    ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/50'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                👁️ Eye Doctor
-              </button>
-            </div>
-
             {/* Status pill - hidden on small mobile viewports */}
             <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
               <span className="flex h-1.5 w-1.5 relative">

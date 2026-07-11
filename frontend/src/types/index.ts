@@ -518,3 +518,32 @@ export interface WabaConnection {
   connectedAt: string;
 }
 
+// ── LAB TEST BILLING (Pathology generates, sent to WhatsApp) ─────────────────
+export interface LabTestBillItem {
+  requisitionId: string;
+  loincCode: string;
+  testName: string;
+  price: number;
+  discountPercent: number;
+  gstPercent: number;
+  lineTotal: number;
+}
+
+export interface LabTestBill {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  encounterId?: string;
+  labGstin?: string;
+  items: LabTestBillItem[];
+  subtotal: number;
+  discountAmount: number;
+  gstAmount: number;
+  totalAmount: number;
+  paymentMode: 'cash' | 'upi' | 'card';
+  status: 'draft' | 'confirmed' | 'paid' | 'cancelled';
+  source: 'encounter' | 'walkin';
+  createdAt: string;
+}
+
