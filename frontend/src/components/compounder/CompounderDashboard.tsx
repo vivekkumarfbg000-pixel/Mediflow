@@ -24,6 +24,7 @@ import type {
 } from '../../types';
 import InvoiceGenerator from './InvoiceGenerator';
 import { InvoiceCard } from '../InvoiceCard';
+import { PatientsDirectoryTab } from '../doctor/tabs/PatientsDirectoryTab';
 import { 
   Smartphone, 
   Upload, 
@@ -39,7 +40,8 @@ import {
   UserCheck, 
   FileText,
   Activity,
-  LogOut
+  LogOut,
+  Users
 } from 'lucide-react';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
@@ -75,7 +77,16 @@ const getBilingualInstruction = (medicineName: string, dosage?: string) => {
 export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { podEntities } = useClinic();
-  const [activeTab, setActiveTab] = useState<'intake' | 'tokens' | 'labs' | 'pharmacy'>('intake');
+  const [activeTab, setActiveTab] = useState<'intake' | 'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing'>('intake');
+
+  // Patient Directory Tab Local States
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
+  const [selectedDirectoryPatient, setSelectedDirectoryPatient] = useState<Patient | null>(null);
+  const [newPatientName, setNewPatientName] = useState('');
+  const [newPatientPhone, setNewPatientPhone] = useState('');
+  const [newPatientAge, setNewPatientAge] = useState('');
+  const [newPatientGender, setNewPatientGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [patientRAGSummary, setPatientRAGSummary] = useState('');
 
   // Active patient in care loop
   const [activePatient, setActivePatientState] = useState<Patient | null>(null);
@@ -1129,50 +1140,74 @@ export const CompounderDashboard: React.FC = () => {
         <div className="hidden md:flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
           <button
             onClick={() => setActiveTab('intake')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
+            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
               activeTab === 'intake'
                 ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
                 : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
             <UserCheck className="h-4 w-4" />
-            📱 Intake Desk (इन्टेक डेस्क)
+            📱 Intake (इन्टेक)
+          </button>
+
+          <button
+            onClick={() => setActiveTab('patients')}
+            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
+              activeTab === 'patients'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <Users className="h-4 w-4 text-indigo-600" />
+            👥 Patients (पेशेंट)
           </button>
 
           <button
             onClick={() => setActiveTab('tokens')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider tracking-wider cursor-pointer rounded-t-lg ${
+            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
               activeTab === 'tokens'
                 ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
                 : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
             <Activity className="h-4 w-4 text-rose-500" />
-            🗓️ Appointments &amp; Tokens (अपॉइंटमेंट और टोकन)
+            🗓️ Tokens (टोकन)
           </button>
 
           <button
             onClick={() => setActiveTab('labs')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
               activeTab === 'labs'
                 ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
                 : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
             <FileText className="h-4 w-4 text-indigo-500" />
-            🧪 Lab Booking (पैथोलॉजी लैब बुकिंग)
+            {isOphthalmology ? '👁️ Biometry (बायोमेट्री)' : '🧪 Labs (लैब)'}
           </button>
 
           <button
             onClick={() => setActiveTab('pharmacy')}
-            className={`px-5 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-all uppercase tracking-wider cursor-pointer rounded-t-lg ${
+            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
               activeTab === 'pharmacy'
                 ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
                 : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
             <QrCode className="h-4 w-4 text-amber-500" />
-            💊 Pharmacy Billing (दवा बिलिंग)
+            {isOphthalmology ? '👓 Optical/Rx (चश्मा)' : '💊 Pharmacy (दवा)'}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('ot_billing' as any)}
+            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
+              activeTab === 'ot_billing'
+                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm text-rose-600 font-bold">medical_services</span>
+            {isOphthalmology ? '🏥 Daycare (सर्जरी)' : '🏥 Minor OT (ओटी)'}
           </button>
         </div>
       </div>
@@ -1422,6 +1457,29 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         )}
         
+        {/* PATIENTS DIRECTORY & BULK ONBOARDER TAB */}
+        {activeTab === 'patients' && (
+          <div className="animate-fade-in">
+            <PatientsDirectoryTab
+              patients={patients}
+              patientSearchQuery={patientSearchQuery}
+              setPatientSearchQuery={setPatientSearchQuery}
+              selectedDirectoryPatient={selectedDirectoryPatient}
+              setSelectedDirectoryPatient={setSelectedDirectoryPatient}
+              newPatientName={newPatientName}
+              setNewPatientName={setNewPatientName}
+              newPatientPhone={newPatientPhone}
+              setNewPatientPhone={setNewPatientPhone}
+              newPatientAge={newPatientAge}
+              setNewPatientAge={setNewPatientAge}
+              newPatientGender={newPatientGender}
+              setNewPatientGender={setNewPatientGender}
+              patientRAGSummary={patientRAGSummary}
+              setPatientRAGSummary={setPatientRAGSummary}
+            />
+          </div>
+        )}
+
         {/* TAB 1: INTAKE DESK */}
         {activeTab === 'intake' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -4016,6 +4074,648 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* TAB 6: DAYCARE SURGERY & OT PACKAGE BILLING */}
+        {activeTab === ('ot_billing' as any) && (() => {
+          const daycarePatients = patients.filter(p => {
+            if (isOphthalmology) {
+              return p.vitals?.surgeryBooking && p.vitals.surgeryBooking.eye !== 'None';
+            } else {
+              return p.vitals?.gpProcedureBooking && p.vitals.gpProcedureBooking.procedure !== 'None';
+            }
+          });
+
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
+              {/* Left Column: Scheduled Daycare List */}
+              <div className="lg:col-span-6 space-y-6">
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-left">
+                  <div className={`absolute top-0 left-0 w-full h-[2px] ${isOphthalmology ? 'bg-rose-600' : 'bg-amber-600'} opacity-60`} />
+                  <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-rose-600 text-lg">medical_services</span>
+                    {isOphthalmology 
+                      ? `Active Scheduled Daycare Surgeries (${daycarePatients.length})` 
+                      : `Active Scheduled Daycare Procedures (${daycarePatients.length})`}
+                  </h2>
+                  <p className="text-xs text-slate-500 mb-4">
+                    {isOphthalmology 
+                      ? 'Daycare admission OT tracker. Collect advance bookings, track lens packages, and print finalized bills.'
+                      : 'Daycare minor OT procedure tracker. Collect payments, track dressing rooms, and print finalized bills.'}
+                  </p>
+
+                  <div className="space-y-3.5 max-h-[480px] overflow-y-auto pr-1">
+                    {daycarePatients.length === 0 ? (
+                      <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                        {isOphthalmology 
+                          ? 'No surgeries currently scheduled by doctors.' 
+                          : 'No minor procedures currently scheduled by doctors.'}
+                      </div>
+                    ) : (
+                      daycarePatients.map(p => {
+                        if (isOphthalmology) {
+                          const booking = p.vitals.surgeryBooking;
+                          const balance = booking.price - (booking.advancePaid || 0);
+                          const isSelected = activePatient?.id === p.id;
+
+                          return (
+                            <div
+                              key={p.id}
+                              onClick={() => api.setActivePatient(p)}
+                              className={`p-4 border rounded-xl flex justify-between items-start cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'border-indigo-500 bg-indigo-500/5 shadow-xs'
+                                  : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                              }`}
+                            >
+                              <div className="space-y-1.5 flex-1 pr-4 text-left">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="font-bold text-xs text-slate-800">{p.name}</h4>
+                                  <span className="text-[8px] font-mono font-bold bg-indigo-50 text-indigo-750 border border-indigo-200 px-1.5 py-0.2 rounded uppercase">
+                                    Eye: {booking.eye}
+                                  </span>
+                                  <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded uppercase font-mono border ${
+                                    booking.status === 'paid'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : booking.advancePaid > 0
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                                  }`}>
+                                    {booking.status === 'paid'
+                                      ? 'Settled'
+                                      : booking.advancePaid > 0
+                                        ? `Adv Paid (₹${booking.advancePaid})`
+                                        : 'Unpaid'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">
+                                  Package: <strong>{booking.package}</strong> | Date: {booking.date}
+                                </p>
+                                <p className="text-[10px] text-slate-650 font-medium">
+                                  Lens model: {booking.lensType} | Target Power: {booking.iolPower || 'N/A'}
+                                </p>
+                              </div>
+
+                              <div className="text-right space-y-1">
+                                <div className="text-[12px] font-black text-slate-800">₹{booking.price}</div>
+                                {balance > 0 ? (
+                                  <div className="text-[9px] font-semibold text-rose-600">Due: ₹{balance}</div>
+                                ) : (
+                                  <div className="text-[9px] font-semibold text-emerald-600">Fully Paid</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          const booking = p.vitals.gpProcedureBooking;
+                          const balance = booking.price - (booking.advancePaid || 0);
+                          const isSelected = activePatient?.id === p.id;
+
+                          return (
+                            <div
+                              key={p.id}
+                              onClick={() => api.setActivePatient(p)}
+                              className={`p-4 border rounded-xl flex justify-between items-start cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'border-indigo-500 bg-indigo-500/5 shadow-xs'
+                                  : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                              }`}
+                            >
+                              <div className="space-y-1.5 flex-1 pr-4 text-left">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="font-bold text-xs text-slate-800">{p.name}</h4>
+                                  <span className="text-[8px] font-mono font-bold bg-amber-50 text-amber-750 border border-amber-200 px-1.5 py-0.2 rounded uppercase">
+                                    Procedure Room: {booking.room}
+                                  </span>
+                                  <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded uppercase font-mono border ${
+                                    booking.status === 'paid'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : booking.advancePaid > 0
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                                  }`}>
+                                    {booking.status === 'paid'
+                                      ? 'Settled'
+                                      : booking.advancePaid > 0
+                                        ? `Adv Paid (₹${booking.advancePaid})`
+                                        : 'Unpaid'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">
+                                  Type: <strong>{booking.procedure}</strong> | Date: {booking.date}
+                                </p>
+                                <p className="text-[10px] text-slate-650 font-medium">
+                                  Facility: {booking.room}
+                                </p>
+                              </div>
+
+                              <div className="text-right space-y-1">
+                                <div className="text-[12px] font-black text-slate-800">₹{booking.price}</div>
+                                {balance > 0 ? (
+                                  <div className="text-[9px] font-semibold text-rose-600">Due: ₹{balance}</div>
+                                ) : (
+                                  <div className="text-[9px] font-semibold text-emerald-600">Fully Paid</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: OT/Procedure Billing Worksheet & Payments */}
+              <div className="lg:col-span-6 space-y-6">
+                {activePatient ? (
+                  isOphthalmology && activePatient.vitals?.surgeryBooking && activePatient.vitals.surgeryBooking.eye !== 'None' ? (
+                    (() => {
+                      const booking = activePatient.vitals.surgeryBooking;
+                      const balance = booking.price - (booking.advancePaid || 0);
+                      const surgeonFee = Math.round(booking.price * 0.35);
+                      const lensConsumables = Math.round(booking.price * 0.45);
+                      const anesthetistFee = Math.round(booking.price * 0.10);
+                      const otRent = Math.round(booking.price * 0.10);
+
+                      return (
+                        <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800 space-y-5 animate-fade-in text-left">
+                          <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-600" />
+                          
+                          <div className="flex justify-between items-start border-b border-slate-200 pb-3 flex-wrap gap-2">
+                            <div>
+                              <span className="block text-[8px] font-black text-rose-700 tracking-widest uppercase font-mono">Daycare Surgery Pre-Op Billing</span>
+                              <h3 className="font-bold text-sm text-slate-800 mt-0.5">OT Worksheet: {activePatient.name}</h3>
+                            </div>
+                            <span className="text-[9px] bg-slate-100 text-slate-655 px-2.5 py-0.5 rounded border font-mono">
+                              ID: {activePatient.tokenNumber || 'PAT'}
+                            </span>
+                          </div>
+
+                          {/* Package Itemized splits */}
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5 select-none font-mono">
+                            <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase mb-1">Clinic Package Breakdown splits</span>
+                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
+                              <span>Surgeon Operation Fee (35%):</span>
+                              <span className="font-bold">₹{surgeonFee}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
+                              <span>IOL Lens Implant & OT Consumables (45%):</span>
+                              <span className="font-bold">₹{lensConsumables}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
+                              <span>Anaesthetist Consultation Block (10%):</span>
+                              <span className="font-bold">₹{anesthetistFee}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-600 pb-0.5">
+                              <span>OT Rent & Daycare Ward Rent (10%):</span>
+                              <span className="font-bold">₹{otRent}</span>
+                            </div>
+                          </div>
+
+                          {/* Ledger Summary */}
+                          <div className="grid grid-cols-3 gap-3 text-center border-y border-slate-200 py-3.5 select-none">
+                            <div>
+                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Total Package</div>
+                              <div className="text-sm font-black text-slate-800 mt-1">₹{booking.price}</div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Advance Paid</div>
+                              <div className="text-sm font-black text-indigo-750 mt-1">₹{booking.advancePaid || 0}</div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Balance Due</div>
+                              <div className="text-sm font-black text-rose-600 mt-1">₹{balance}</div>
+                            </div>
+                          </div>
+
+                          {/* Payment inputs */}
+                          {balance > 0 && (
+                            <div className="space-y-3.5 border-b border-slate-200 pb-4">
+                              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Record Payment Desk</h4>
+                              
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  id="ot-deposit-amount"
+                                  placeholder="Deposit Amount (₹)"
+                                  className="flex-1 input-field text-xs py-2 px-3 focus:ring-1 focus:ring-rose-500 focus:border-rose-500 bg-slate-50 border-slate-200 text-slate-800 rounded-lg outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const el = document.getElementById('ot-deposit-amount') as HTMLInputElement;
+                                    const amt = parseInt(el?.value || '');
+                                    if (!amt || isNaN(amt) || amt <= 0) {
+                                      alert('Please enter a valid deposit amount.');
+                                      return;
+                                    }
+                                    if (amt > balance) {
+                                      alert(`Deposit amount cannot exceed the balance due of ₹${balance}.`);
+                                      return;
+                                    }
+                                    
+                                    const invoices = api.getInvoices();
+                                    const otInv = invoices.find(i => i.patientId === activePatient.id && i.type === 'ot' && i.status === 'unpaid');
+                                    if (otInv) {
+                                      api.recordOTAdvancePayment(otInv.id, amt);
+                                      el.value = "";
+                                      syncData();
+                                      
+                                      api.pushWhatsAppMessageFromBot(activePatient.phone, 
+                                        `🏥 *OT Package Advance Collected* ✅\n\n` +
+                                        `Hello *${activePatient.name}*, hume aapki surgery booking ke liye *₹${amt}* ka deposit prapt hua hai.\n\n` +
+                                        `💵 *Total Price:* ₹${booking.price}\n` +
+                                        `💰 *Advance Paid:* ₹${booking.advancePaid + amt}\n` +
+                                        `⚖️ *Remaining Due:* ₹${balance - amt}\n\n` +
+                                        `Thank you. Mediflow Daycare.`
+                                      );
+                                      
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                        detail: {
+                                          message: `Advance deposit of ₹${amt} successfully recorded.`,
+                                          type: 'success',
+                                          title: 'Advance Recorded'
+                                        }
+                                      }));
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-slate-850 font-bold rounded-lg text-xs cursor-pointer border-0 active:scale-95 transition-all shrink-0"
+                                >
+                                  Collect Advance
+                                </button>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const invoices = api.getInvoices();
+                                  const otInv = invoices.find(i => i.patientId === activePatient.id && i.type === 'ot' && i.status === 'unpaid');
+                                  if (otInv) {
+                                    api.recordOTAdvancePayment(otInv.id, balance);
+                                    syncData();
+                                    
+                                    api.pushWhatsAppMessageFromBot(activePatient.phone, 
+                                      `🏥 *Daycare Surgery Billing Settled* ✅\n\n` +
+                                      `Hello *${activePatient.name}*, aapka Daycare surgery bill purntah settle ho gaya hai.\n\n` +
+                                      `💵 *Settle Amount:* ₹${balance}\n` +
+                                      `👍 *Status:* FULLY PAID\n\n` +
+                                      `Thank you. Mediflow Daycare.`
+                                    );
+
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: {
+                                        message: `Remaining balance of ₹${balance} fully settled.`,
+                                        type: 'success',
+                                        title: 'Worksheet Settled'
+                                      }
+                                    }));
+                                  }
+                                }}
+                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-850 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1 cursor-pointer border-0"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">done_all</span>
+                                Settle Remaining Balance (₹{balance}) &amp; Approve OT Entry
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Daycare Admission Receipt print */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const printWindow = window.open('', '_blank', 'width=800,height=900');
+                              if (!printWindow) return;
+                              
+                              printWindow.document.write(`
+                                <html>
+                                  <head>
+                                    <title>Mediflow Daycare - Daycare OT Admission Receipt</title>
+                                    <style>
+                                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                                      .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+                                      .title { font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; }
+                                      .meta-table { width: 100%; margin-bottom: 30px; font-size: 13px; }
+                                      .meta-table td { padding: 6px 12px; }
+                                      .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #dc2626; color: #dc2626; padding-bottom: 6px; margin: 30px 0 15px; }
+                                      table.splits-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                                      table.splits-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; font-weight: 800; color: #475569; }
+                                      table.splits-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+                                      .summary-box { float: right; width: 300px; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 30px; font-size: 13px; }
+                                      .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; }
+                                      .summary-row.total { font-weight: 800; font-size: 16px; border-top: 1.5px solid #e2e8f0; padding-top: 8px; margin-top: 8px; color: #dc2626; }
+                                      .footer { clear: both; text-align: center; margin-top: 80px; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+                                    </style>
+                                  </head>
+                                  <body>
+                                    <div class="header">
+                                      <div class="title">Mediflow Connected Healthcare Pod</div>
+                                      <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 5px;">DAYCARE SURGERY ADMISSION &amp; OT RECEIPT</div>
+                                    </div>
+                                    <table class="meta-table" width="100%">
+                                      <tr>
+                                        <td><strong>Patient Name:</strong> \${activePatient.name}</td>
+                                        <td><strong>Date:</strong> \${new Date().toLocaleDateString('en-IN')}</td>
+                                      </tr>
+                                      <tr>
+                                        <td><strong>Age / Gender:</strong> \${activePatient.age}y / \${activePatient.gender}</td>
+                                        <td><strong>Token Number:</strong> \${activePatient.tokenNumber || '—'}</td>
+                                      </tr>
+                                      <tr>
+                                        <td><strong>Procedure Type:</strong> \${booking.type}</td>
+                                        <td><strong>Selected Eye:</strong> \${booking.eye}</td>
+                                      </tr>
+                                      <tr>
+                                        <td><strong>Lens Model / IOL power:</strong> \${booking.lensType} (\${booking.iolPower || 'N/A'})</td>
+                                        <td><strong>Assigned OT Charge:</strong> \${booking.coordinator}</td>
+                                      </tr>
+                                    </table>
+
+                                    <div class="section-title">Itemized Package splits (LEDGER DESCRIPTION)</div>
+                                    <table class="splits-table">
+                                      <thead>
+                                        <tr>
+                                          <th>Billing Item / Splitted Category</th>
+                                          <th style="text-align: right;">Amount Charged</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr>
+                                          <td>Surgeon Operation Fee (35%)</td>
+                                          <td style="text-align: right;">₹\${surgeonFee}</td>
+                                        </tr>
+                                        <tr>
+                                          <td>IOL Implant, Viscoelastics &amp; OT Consumables (45%)</td>
+                                          <td style="text-align: right;">₹\${lensConsumables}</td>
+                                        </tr>
+                                        <tr>
+                                          <td>Anesthetist Consultation Block (10%)</td>
+                                          <td style="text-align: right;">₹\${anesthetistFee}</td>
+                                        </tr>
+                                        <tr>
+                                          <td>OT Chamber Ward &amp; Post-Op Care Rent (10%)</td>
+                                          <td style="text-align: right;">₹\${otRent}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+
+                                    <div class="summary-box">
+                                      <div class="summary-row">
+                                        <span>Total Package cost:</span>
+                                        <span>₹\${booking.price}</span>
+                                      </div>
+                                      <div class="summary-row">
+                                        <span>Advance Deposit Paid:</span>
+                                        <span style="color: #4f46e5;">₹\${booking.advancePaid || 0}</span>
+                                      </div>
+                                      <div class="summary-row total">
+                                        <span>Balance Due:</span>
+                                        <span>₹\${balance}</span>
+                                      </div>
+                                    </div>
+
+                                    <div class="footer">
+                                      <p>This daycare OT admission receipt is digitally authorized under VitalSync Clinic guidelines.</p>
+                                      <p style="margin-top: 40px; font-weight: bold; color: #475569;">Authorized Registrar Signature / Hospital Seal</p>
+                                    </div>
+                                  </body>
+                                </html>
+                              `);
+                              printWindow.document.close();
+                            }}
+                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">print</span>
+                            Print Daycare Admission &amp; OT Receipt
+                          </button>
+                        </div>
+                      );
+                    })()
+                  ) : !isOphthalmology && activePatient.vitals?.gpProcedureBooking && activePatient.vitals.gpProcedureBooking.procedure !== 'None' ? (
+                    (() => {
+                      const booking = activePatient.vitals.gpProcedureBooking;
+                      const balance = booking.price - (booking.advancePaid || 0);
+                      const surgeonFee = Math.round(booking.price * 0.40);
+                      const roomFee = Math.round(booking.price * 0.30);
+                      const consumablesFee = Math.round(booking.price * 0.30);
+
+                      return (
+                        <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800 space-y-5 animate-fade-in text-left">
+                          <div className="absolute top-0 left-0 w-full h-[3px] bg-amber-600" />
+                          
+                          <div className="flex justify-between items-start border-b border-slate-200 pb-3 flex-wrap gap-2">
+                            <div>
+                              <span className="block text-[8px] font-black text-amber-700 tracking-widest uppercase font-mono">Daycare Minor OT &amp; Dressing Billing</span>
+                              <h3 className="font-bold text-sm text-slate-800 mt-0.5">Procedure Worksheet: {activePatient.name}</h3>
+                            </div>
+                            <span className="text-[9px] bg-slate-100 text-slate-655 px-2.5 py-0.5 rounded border font-mono">
+                              ID: {activePatient.tokenNumber || 'PAT'}
+                            </span>
+                          </div>
+
+                          {/* Package Itemized splits */}
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5 select-none font-mono">
+                            <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase mb-1">Procedure Cost Breakdown splits</span>
+                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
+                              <span>Doctor/Surgeon Fee (40%):</span>
+                              <span className="font-bold">₹{surgeonFee}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
+                              <span>Sterile Dressing Room / Facility Fee (30%):</span>
+                              <span className="font-bold">₹{roomFee}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-600 pb-0.5">
+                              <span>Sterile Consumables &amp; Disposables (30%):</span>
+                              <span className="font-bold">₹{consumablesFee}</span>
+                            </div>
+                          </div>
+
+                          {/* Ledger Summary */}
+                          <div className="grid grid-cols-3 gap-3 text-center border-y border-slate-200 py-3.5 select-none">
+                            <div>
+                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Total Procedure</div>
+                              <div className="text-sm font-black text-slate-800 mt-1">₹{booking.price}</div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Paid Amount</div>
+                              <div className="text-sm font-black text-indigo-755 mt-1">₹{booking.advancePaid || 0}</div>
+                            </div>
+                            <div>
+                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Balance Due</div>
+                              <div className="text-sm font-black text-rose-600 mt-1">₹{balance}</div>
+                            </div>
+                          </div>
+
+                          {/* Payment inputs */}
+                          {balance > 0 ? (
+                            <div className="space-y-3.5 border-b border-slate-200 pb-4">
+                              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Record Payment Desk</h4>
+                              
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const invoices = api.getInvoices();
+                                  const gpInv = invoices.find(i => i.patientId === activePatient.id && i.type === ('gp_procedure' as any) && i.status === 'unpaid');
+                                  if (gpInv) {
+                                    api.recordGPProcedurePayment(gpInv.id, balance);
+                                    syncData();
+                                    
+                                    api.pushWhatsAppMessageFromBot(activePatient.phone, 
+                                      `🏥 *GP Minor Procedure Settled* ✅\n\n` +
+                                      `Hello *${activePatient.name}*, aapka minor procedure bill settle ho gaya hai.\n\n` +
+                                      `💵 *Procedure:* ${booking.procedure}\n` +
+                                      `💰 *Total Amount:* ₹${booking.price}\n` +
+                                      `👍 *Status:* FULLY PAID\n\n` +
+                                      `Thank you. Mediflow Daycare.`
+                                    );
+
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: {
+                                        message: `Procedure bill of ₹${balance} fully settled.`,
+                                        type: 'success',
+                                        title: 'Worksheet Settled'
+                                      }
+                                    }));
+                                  }
+                                }}
+                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-850 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1 cursor-pointer border-0"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">done_all</span>
+                                Settle Procedure Bill (₹{balance}) &amp; Approve Entry
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-emerald-50 border border-emerald-250 rounded-xl text-center text-xs text-emerald-800 font-bold font-mono">
+                              🎉 Invoice Settle &amp; Payment Verification Complete
+                            </div>
+                          )}
+
+                          {/* Daycare Admission Receipt print */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const printWindow = window.open('', '_blank', 'width=800,height=900');
+                              if (!printWindow) return;
+                              
+                              printWindow.document.write(`
+                                <html>
+                                  <head>
+                                    <title>Mediflow Daycare - Minor Procedure Admission Receipt</title>
+                                    <style>
+                                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                                      .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+                                      .title { font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #d97706; }
+                                      .meta-table { width: 100%; margin-bottom: 30px; font-size: 13px; }
+                                      .meta-table td { padding: 6px 12px; }
+                                      .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #d97706; color: #d97706; padding-bottom: 6px; margin: 30px 0 15px; }
+                                      table.splits-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                                      table.splits-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; font-weight: 800; color: #475569; }
+                                      table.splits-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+                                      .summary-box { float: right; width: 300px; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 30px; font-size: 13px; }
+                                      .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; }
+                                      .summary-row.total { font-weight: 800; font-size: 16px; border-top: 1.5px solid #e2e8f0; padding-top: 8px; margin-top: 8px; color: #d97706; }
+                                      .footer { clear: both; text-align: center; margin-top: 80px; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+                                    </style>
+                                  </head>
+                                  <body>
+                                    <div class="header">
+                                      <div class="title">Mediflow Connected Healthcare Pod</div>
+                                      <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 5px;">MINOR PROCEDURE ADMISSION &amp; RECEIPT</div>
+                                    </div>
+                                    <table class="meta-table" width="100%">
+                                      <tr>
+                                        <td><strong>Patient Name:</strong> \${activePatient.name}</td>
+                                        <td><strong>Date:</strong> \${new Date().toLocaleDateString('en-IN')}</td>
+                                      </tr>
+                                      <tr>
+                                        <td><strong>Age / Gender:</strong> \${activePatient.age}y / \${activePatient.gender}</td>
+                                        <td><strong>Token Number:</strong> \${activePatient.tokenNumber || '—'}</td>
+                                      </tr>
+                                      <tr>
+                                        <td><strong>Procedure Type:</strong> \${booking.procedure}</td>
+                                        <td><strong>Facility / Room:</strong> \${booking.room}</td>
+                                      </tr>
+                                    </table>
+
+                                    <div class="section-title">Itemized Splits (LEDGER DESCRIPTION)</div>
+                                    <table class="splits-table">
+                                      <thead>
+                                        <tr>
+                                          <th>Billing Item / Splitted Category</th>
+                                          <th style="text-align: right;">Amount Charged</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr>
+                                          <td>Doctor/Surgeon Fee (40%)</td>
+                                          <td style="text-align: right;">₹\${surgeonFee}</td>
+                                        </tr>
+                                        <tr>
+                                          <td>Sterile Dressing Room / Facility Rent (30%)</td>
+                                          <td style="text-align: right;">₹\${roomFee}</td>
+                                        </tr>
+                                        <tr>
+                                          <td>Sterile Consumables &amp; Disposables (30%)</td>
+                                          <td style="text-align: right;">₹\${consumablesFee}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+
+                                    <div class="summary-box">
+                                      <div class="summary-row">
+                                        <span>Total Price:</span>
+                                        <span>₹\${booking.price}</span>
+                                      </div>
+                                      <div class="summary-row">
+                                        <span>Amount Paid:</span>
+                                        <span style="color: #4f46e5;">₹\${booking.advancePaid || 0}</span>
+                                      </div>
+                                      <div class="summary-row total">
+                                        <span>Balance Due:</span>
+                                        <span>₹\${balance}</span>
+                                      </div>
+                                    </div>
+
+                                    <div class="footer">
+                                      <p>This minor procedure receipt is digitally authorized under VitalSync Clinic guidelines.</p>
+                                      <p style="margin-top: 40px; font-weight: bold; color: #475569;">Authorized Registrar Signature / Hospital Seal</p>
+                                    </div>
+                                  </body>
+                                </html>
+                              `);
+                              printWindow.document.close();
+                            }}
+                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">print</span>
+                            Print Minor OT Admission &amp; Receipt
+                          </button>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-indigo-200 rounded-2xl p-8 bg-indigo-50/30 text-center h-[300px]">
+                      <span className="material-symbols-outlined text-3xl text-indigo-400">person_search</span>
+                      <p className="text-xs text-slate-655 font-semibold">
+                        {isOphthalmology 
+                          ? 'Select a patient scheduled for surgery from the list on the left to start OT billing.'
+                          : 'Select a patient scheduled for a minor procedure from the list on the left to start procedure billing.'}
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-indigo-200 rounded-2xl p-8 bg-indigo-50/30 text-center h-[300px]">
+                    <span className="material-symbols-outlined text-3xl text-indigo-400">person_search</span>
+                    <p className="text-xs text-slate-655 font-semibold">
+                      {isOphthalmology 
+                        ? 'Select a patient scheduled for surgery from the list on the left to start OT billing.'
+                        : 'Select a patient scheduled for a minor procedure from the list on the left to start procedure billing.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Real-time WhatsApp Loop simulator at the bottom */}
         <div className="glass-panel border-slate-200 shadow-xl overflow-hidden flex flex-col h-[600px] relative mt-8">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-600 opacity-80" />
@@ -4218,6 +4918,7 @@ export const CompounderDashboard: React.FC = () => {
         <div className="flex items-center justify-around h-16">
           {[
             { id: 'intake', label: 'Intake', icon: UserCheck },
+            { id: 'patients', label: 'Patients', icon: Users },
             { id: 'tokens', label: 'Tokens', icon: Activity },
             { id: 'labs', label: 'Labs', icon: FileText },
             { id: 'pharmacy', label: 'Pharmacy', icon: QrCode }

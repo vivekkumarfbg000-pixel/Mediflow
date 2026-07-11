@@ -104,11 +104,14 @@ interface RateLimitRow {
 type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
 
 export const SaaSAdminPanel: React.FC = () => {
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('vitalsync_admin_logged_in') === 'true';
-    }
-    return false;
+  // SECURITY: Never initialise from localStorage — it is client-writable.
+  // The localStorage flag is kept only as a UI loading hint (e.g., hide spinner),
+  // but the actual security gate is the async checkRole() below.
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [_localAdminHint] = useState<boolean>(() => {
+    // purely cosmetic: used to avoid a flash-of-login-form when we know the user
+    // was recently verified as admin. Does NOT gate any data access.
+    return typeof window !== 'undefined' && localStorage.getItem('vitalsync_admin_logged_in') === 'true';
   });
   const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('saas_health');
@@ -166,39 +169,52 @@ export const SaaSAdminPanel: React.FC = () => {
     return api.subscribe(syncProfiles);
   }, []);
 
-  // Check current profile role
+  // Check current profile role — uses getUser() for server-verified JWT auth
   const checkRole = useCallback(async () => {
+    let aborted = false;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        
-        const isProfileAdmin = profile?.role === 'admin' || profile?.role === 'platform_admin';
-        const isMetadataAdmin = session.user?.app_metadata?.role === 'admin' || 
-                                session.user?.app_metadata?.role === 'platform_admin' ||
-                                session.user?.user_metadata?.role === 'admin' ||
-                                session.user?.user_metadata?.role === 'platform_admin';
-                                
-        if (isProfileAdmin || isMetadataAdmin) {
-          setIsAdmin(true);
-          localStorage.setItem('vitalsync_admin_logged_in', 'true');
-        } else {
-          setIsAdmin(false);
-          localStorage.removeItem('vitalsync_admin_logged_in');
-        }
+      // ── SECURITY: Use getUser() not getSession() ─────────────────────────────────
+      // getSession() reads from localStorage — client-writable and unverified.
+      // getUser() makes a round-trip to Supabase Auth to cryptographically verify
+      // the JWT, so tampering with localStorage has no effect on this check.
+      // ──────────────────────────────────────────────────────────────────────────
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (aborted) return;
+
+      if (userErr || !user) {
+        setIsAdmin(false);
+        localStorage.removeItem('vitalsync_admin_logged_in');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (aborted) return;
+
+      // Only trust the DB profile role — not app_metadata (settable client-side)
+      const isProfileAdmin = profile?.role === 'admin' || profile?.role === 'platform_admin';
+
+      if (isProfileAdmin) {
+        setIsAdmin(true);
+        localStorage.setItem('vitalsync_admin_logged_in', 'true');
       } else {
         setIsAdmin(false);
         localStorage.removeItem('vitalsync_admin_logged_in');
       }
     } catch (err) {
-      console.error('[SaaS Admin] Failed to check role:', err);
+      if (aborted) return;
+      console.error('[SaaS Admin] Failed to verify role:', err);
+      // Fail closed — if we can't verify, deny access
+      setIsAdmin(false);
+      localStorage.removeItem('vitalsync_admin_logged_in');
     } finally {
-      setLoadingProfile(false);
+      if (!aborted) setLoadingProfile(false);
     }
+    return () => { aborted = true; };
   }, []);
 
   // Fetch aggregated SaaS statistics from RPCs

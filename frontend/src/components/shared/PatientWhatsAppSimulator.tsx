@@ -8,6 +8,67 @@ interface PatientWhatsAppSimulatorProps {
   onClose: () => void;
 }
 
+const VoiceNotePlayer: React.FC<{
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  progress: number;
+  playSpeed: number;
+  onSpeedToggle: () => void;
+}> = ({ isPlaying, onTogglePlay, progress, playSpeed, onSpeedToggle }) => {
+  const waveHeights = [12, 18, 8, 24, 16, 28, 14, 20, 26, 10, 22, 14, 6, 18, 12, 24, 10, 16];
+  const totalDurationSeconds = 14;
+  const currentSeconds = Math.floor((progress / 100) * totalDurationSeconds);
+  const displayTime = `0:${currentSeconds.toString().padStart(2, '0')}`;
+
+  return (
+    <div className="bg-[#f0f2f5] p-2.5 rounded-xl border border-slate-200/50 flex items-center gap-3 w-[240px] select-none my-1">
+      <button
+        type="button"
+        onClick={onTogglePlay}
+        className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer shrink-0"
+      >
+        <span className="material-symbols-outlined text-xl">
+          {isPlaying ? 'pause' : 'play_arrow'}
+        </span>
+      </button>
+
+      <div className="flex-1 flex flex-col gap-1 min-w-0">
+        <div className="flex items-end gap-[2px] h-8 pt-1">
+          {waveHeights.map((h, idx) => {
+            const barProgress = (idx / waveHeights.length) * 100;
+            const isActive = progress >= barProgress;
+            return (
+              <div
+                key={idx}
+                className="w-[2.5px] rounded-t transition-colors duration-150"
+                style={{
+                  height: `${h}px`,
+                  backgroundColor: isActive ? '#075e54' : '#b6bec5'
+                }}
+              />
+            );
+          })}
+        </div>
+        <div className="flex justify-between items-center text-[8.5px] text-slate-500 font-mono">
+          <span>{isPlaying ? displayTime : '0:14'}</span>
+          <span className="flex items-center gap-0.5 text-emerald-600 font-bold">
+            <span className="material-symbols-outlined text-[10px]">mic</span>
+            Voice Note
+          </span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onSpeedToggle}
+        className="px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-[8px] font-black text-slate-700 hover:bg-slate-50 transition-colors shrink-0 font-mono tracking-wider cursor-pointer"
+      >
+        {playSpeed}x
+      </button>
+    </div>
+  );
+};
+
 export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> = ({ isOpen, onClose }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default to Aarav Sharma
@@ -15,6 +76,62 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
   const [invoices, setInvoices] = useState<any[]>([]);
   const [typedMessage, setTypedMessage] = useState<string>('');
   
+  const [playingVoiceId, setPlayingVoiceId] = useState<number | null>(null);
+  const [voiceProgress, setVoiceProgress] = useState(0);
+  const [playSpeed, setPlaySpeed] = useState<1 | 1.5 | 2>(1);
+  const progressTimerRef = useRef<any>(null);
+
+  const cycleSpeed = () => {
+    setPlaySpeed(prev => {
+      const nextMap: Record<number, 1 | 1.5 | 2> = { 1: 1.5, 1.5: 2, 2: 1 };
+      const next = nextMap[prev] || 1;
+      if (playingVoiceId !== null) {
+        if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+        const intervalMs = 150 / next;
+        progressTimerRef.current = setInterval(() => {
+          setVoiceProgress(p => {
+            if (p >= 100) {
+              clearInterval(progressTimerRef.current);
+              setPlayingVoiceId(null);
+              return 0;
+            }
+            return p + 1;
+          });
+        }, intervalMs);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleVoicePlay = (idx: number) => {
+    if (playingVoiceId === idx) {
+      setPlayingVoiceId(null);
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    } else {
+      setPlayingVoiceId(idx);
+      setVoiceProgress(0);
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      
+      const intervalMs = 150 / playSpeed;
+      progressTimerRef.current = setInterval(() => {
+        setVoiceProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressTimerRef.current);
+            setPlayingVoiceId(null);
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, intervalMs);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    };
+  }, [playingVoiceId, playSpeed]);
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
@@ -138,10 +255,18 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
               </div>
               <div>
                 <div className="text-xs font-bold flex items-center gap-1">
-                  VitalSync Assistant
+                  {(() => {
+                    let botDispName = "Mediflow Bot";
+                    const activePodId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || '';
+                    if (activePodId) {
+                      const customName = localStorage.getItem(`waba_bot_name_${activePodId}`);
+                      if (customName) botDispName = customName;
+                    }
+                    return botDispName;
+                  })()}
                   <Check className="h-3 w-3 bg-emerald-400 text-[#075e54] rounded-full p-0.5" />
                 </div>
-                <span className="text-[8px] text-emerald-300 font-medium">Online • पटना केयर पॉड</span>
+                <span className="text-[8px] text-emerald-300 font-medium">Online • Active Clinic Connection</span>
               </div>
             </div>
             <div className="flex items-center gap-3 text-emerald-100">
@@ -168,6 +293,16 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
 
             {chatHistory.map((msg, i) => {
               const isBot = msg.sender === 'bot';
+              const hasVoiceNote = msg.text.includes('https://vitalsync.in/api/voice-slips/');
+              
+              let displayTargetText = msg.text;
+              let voiceUrl = '';
+              if (hasVoiceNote) {
+                const parts = msg.text.split('https://vitalsync.in/api/voice-slips/');
+                displayTargetText = parts[0].trim();
+                voiceUrl = 'https://vitalsync.in/api/voice-slips/' + parts[1].split('\n')[0].trim();
+              }
+
               return (
                 <div 
                   key={i} 
@@ -177,7 +312,18 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                       : 'bg-[#dcf8c6] text-slate-800 self-end rounded-tr-none border-r-2 border-[#82d641]'
                   }`}
                 >
-                  <p className="whitespace-pre-line font-medium leading-normal">{msg.text}</p>
+                  {displayTargetText && <p className="whitespace-pre-line font-medium leading-normal">{displayTargetText}</p>}
+                  
+                  {hasVoiceNote && (
+                    <VoiceNotePlayer 
+                      isPlaying={playingVoiceId === i} 
+                      onTogglePlay={() => handleToggleVoicePlay(i)} 
+                      progress={playingVoiceId === i ? voiceProgress : 0}
+                      playSpeed={playSpeed}
+                      onSpeedToggle={cycleSpeed}
+                    />
+                  )}
+
                   <div className="text-[7px] text-slate-600 text-right mt-1 font-mono">
                     {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '12:00 PM'}
                   </div>

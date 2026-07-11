@@ -60,9 +60,12 @@ export class PatientService {
     const tokensMap = load<Record<string, string>>('tokens_map', {});
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
     
+    const isOphthalmology = typeof window !== 'undefined' && localStorage.getItem('mediflow_demo_specialization') === 'Ophthalmology';
+    const nextStatus = isOphthalmology ? 'awaiting_refraction' : 'awaiting_consultation';
+    
     vitalsMap[patientId] = vitals;
     tokensMap[patientId] = token;
-    queueStatusMap[patientId] = 'awaiting_consultation';
+    queueStatusMap[patientId] = nextStatus;
     
     save('vitals_map', vitalsMap);
     save('tokens_map', tokensMap);
@@ -71,7 +74,7 @@ export class PatientService {
     supabase.from('patient_registry').update({
       vitals: vitals,
       token_number: token,
-      queue_status: 'awaiting_consultation'
+      queue_status: nextStatus
     }).eq('id', patientId).then(({ error }) => {
       if (error) console.error('Error syncing vitals to Supabase:', error);
     });
@@ -82,6 +85,40 @@ export class PatientService {
       patientName: pat?.name,
       tokenNumber: token,
       vitals
+    }, patientId);
+    
+    notify();
+  }
+
+  static saveRefractionDiagnostics(patientId: string, diagnostics: Partial<PatientVitals>): void {
+    const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
+    const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    
+    const existingVitals = vitalsMap[patientId] || { recordedAt: new Date().toISOString() };
+    const updatedVitals = {
+      ...existingVitals,
+      ...diagnostics,
+      recordedAt: new Date().toISOString()
+    };
+    
+    vitalsMap[patientId] = updatedVitals as PatientVitals;
+    queueStatusMap[patientId] = 'awaiting_consultation';
+    
+    save('vitals_map', vitalsMap);
+    save('queue_status_map', queueStatusMap);
+    
+    supabase.from('patient_registry').update({
+      vitals: updatedVitals,
+      queue_status: 'awaiting_consultation'
+    }).eq('id', patientId).then(({ error }) => {
+      if (error) console.error('Error syncing refraction to Supabase:', error);
+    });
+    
+    const pat = this.getPatients().find(p => p.id === patientId);
+    writeAuditLog('PATIENT_REFRACTION_RECORDED', {
+      patientId,
+      patientName: pat?.name,
+      diagnostics
     }, patientId);
     
     notify();
@@ -130,11 +167,25 @@ export class PatientService {
   static registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
     const patients = this.getPatients();
     const newId = this.isUUID(patientData.id) ? patientData.id! : crypto.randomUUID();
+    
+    // Generate custom patient ID: first letter of name + count of same-letter patients
+    const firstLetter = (patientData.name && patientData.name.trim().length > 0)
+      ? patientData.name.trim().substring(0, 1).toUpperCase()
+      : 'P';
+    
+    const countSameLetter = patients.filter(p => 
+      p.name && p.name.trim().length > 0 && p.name.trim().substring(0, 1).toUpperCase() === firstLetter
+    ).length;
+
+    const customPatientId = `${firstLetter}${countSameLetter + 1}`;
+
     const newPatient: Patient = {
       ...patientData,
       id: newId,
+      tokenNumber: patientData.tokenNumber || customPatientId,
       createdAt: new Date().toISOString()
     } as Patient;
+    
     patients.push(newPatient);
     save('patients', patients);
 
@@ -151,6 +202,7 @@ export class PatientService {
       allergies: newPatient.allergies,
       chronic_conditions: newPatient.chronicConditions,
       abha_id: newPatient.abhaId,
+      token_number: newPatient.tokenNumber,
       registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
     }).then(({ error }) => {
       if (error) console.error('Error registering patient in Supabase:', JSON.stringify({ message: error.message, details: error.details, hint: error.hint, code: error.code }));
@@ -608,6 +660,48 @@ export class PatientService {
   static clearAllSyntheticProfiles(): void {
     save('synthetic_profiles', []);
     notify();
+  }
+
+  static checkTriageAlert(patient: Patient): { isAlert: boolean; reason: string } {
+    if (!patient.vitals) return { isAlert: false, reason: '' };
+    const bp = patient.vitals.bloodPressure || '';
+    if (bp.includes('/')) {
+      const [sysStr, diaStr] = bp.split('/');
+      const sys = parseInt(sysStr);
+      const dia = parseInt(diaStr);
+      if (sys > 140 || dia > 90) {
+        return { isAlert: true, reason: `High BP: ${bp} mmHg` };
+      }
+    }
+    const sugar = parseInt(patient.vitals.bloodSugar || '');
+    if (!isNaN(sugar) && sugar > 200) {
+      return { isAlert: true, reason: `High Sugar: ${sugar} mg/dL` };
+    }
+    return { isAlert: false, reason: '' };
+  }
+
+  static calculateDynamicOPDFee(patientId: string): { amount: number; type: 'First Visit' | 'Follow-up' | 'Free Review'; baseAmount: number } {
+    const encounters = load<any[]>('encounters', []);
+    const patientEncounters = encounters.filter(e => e.patient_id === patientId || e.patientId === patientId);
+    
+    // Load active SOP configuration to determine dynamic base fee
+    const sops = load<any[]>('clinic_sops', []);
+    const activeSop = sops.find(s => s.isActive || s.is_active);
+    const baseFee = activeSop?.extractedConfig?.doctor_fee ?? activeSop?.extracted_config?.doctor_fee ?? 500;
+
+    if (patientEncounters.length === 0) {
+      return { amount: baseFee, type: 'First Visit', baseAmount: baseFee };
+    }
+    const sorted = [...patientEncounters].sort((a, b) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime());
+    const lastVisitDate = new Date(sorted[0].created_at || sorted[0].createdAt);
+    const diffDays = Math.floor((Date.now() - lastVisitDate.getTime()) / (24 * 3600 * 1000));
+    if (diffDays <= 3) {
+      return { amount: 0, type: 'Free Review', baseAmount: baseFee };
+    } else if (diffDays <= 10) {
+      return { amount: Math.round(baseFee * 0.4), type: 'Follow-up', baseAmount: baseFee };
+    } else {
+      return { amount: baseFee, type: 'First Visit', baseAmount: baseFee };
+    }
   }
 }
 

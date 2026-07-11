@@ -1,3 +1,5 @@
+import { BiometryData } from './ophthalmic';
+
 export interface PatientVitals {
   temperature: string;       // °F
   bloodPressure: string;     // Systolic/Diastolic e.g. "120/80"
@@ -7,6 +9,35 @@ export interface PatientVitals {
   recordedAt: string;
   dilationStatus?: 'not_started' | 'instilled' | 'dilated';
   dilationStartTime?: string; // ISO string
+  dilationDropsUsed?: string;
+  
+  // Ophthalmology / Refraction Section parameters
+  visualAcuityOD?: string;
+  visualAcuityOS?: string;
+  visualAcuityAidedOD?: string;
+  visualAcuityAidedOS?: string;
+  iopOD?: string;
+  iopOS?: string;
+  
+  // Autorefraction (AR) Readings
+  arOD_sph?: string;
+  arOD_cyl?: string;
+  arOD_axis?: string;
+  arOS_sph?: string;
+  arOS_cyl?: string;
+  arOS_axis?: string;
+  
+  // Subjective Refraction (Spectacle Power Matrix)
+  refractionRx?: {
+    od: { sph: string; cyl: string; axis: string; add: string };
+    os: { sph: string; cyl: string; axis: string; add: string };
+    pd: string;
+    lensType: string;
+    notes: string;
+  };
+  biometryRx?: BiometryData;
+  surgeryBooking?: any;
+  gpProcedureBooking?: any;
 }
 
 export interface Patient {
@@ -20,7 +51,7 @@ export interface Patient {
   abhaId?: string;
   vitals?: PatientVitals;
   tokenNumber?: string;
-  queueStatus?: 'awaiting_vitals' | 'awaiting_consultation' | 'in_consultation' | 'completed';
+  queueStatus?: 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed';
   pastReportsSummary?: string;
   createdAt: string;
 }

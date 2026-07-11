@@ -11,6 +11,7 @@ import { StaffService } from './staffService';
 import { AIService, type AIResult } from './aiService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
+import { getPodContext } from './podContext';
 
 import type { 
   Patient, 
@@ -259,7 +260,7 @@ class MediflowApiService {
     });
 
     // Clean up any pre-existing channels with the same name to prevent duplicates and deadlocks
-    const existingChannels = supabase.getChannels().filter(c => c.topic === 'realtime:mediflow-pod-realtime' || c.name === 'mediflow-pod-realtime');
+    const existingChannels = supabase.getChannels().filter(c => c.topic === 'realtime:mediflow-pod-realtime' || (c as any).name === 'mediflow-pod-realtime');
     for (const c of existingChannels) {
       supabase.removeChannel(c);
     }
@@ -358,14 +359,15 @@ class MediflowApiService {
         switch (entry.action) {
           case 'CREATE_ENCOUNTER': {
             const { payload } = entry;
-            // Execute Supabase insert sequentially
+            const ctx = getPodContext();
+            // Execute Supabase insert sequentially with active user context
             const { error: encError } = await supabase
               .from('encounters')
               .insert({
                 id: entry.id, // client UUID (idempotency key)
                 patient_id: payload.patientId,
-                doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
-                entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+                doctor_id: ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+                entity_id: ctx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
                 clinical_notes: payload.clinicalNotes,
                 status: 'active'
               });
@@ -403,9 +405,20 @@ class MediflowApiService {
           }
           case 'UPDATE_VITALS': {
             const { payload } = entry;
+            const isOphthalmology = typeof window !== 'undefined' && localStorage.getItem('mediflow_demo_specialization') === 'Ophthalmology';
+            const nextStatus = isOphthalmology ? 'awaiting_refraction' : 'awaiting_consultation';
             const { error } = await supabase.from('patient_registry').update({
               vitals: payload.vitals,
               token_number: payload.token,
+              queue_status: nextStatus
+            }).eq('id', payload.patientId);
+            if (error) throw error;
+            break;
+          }
+          case 'SAVE_REFRACTION': {
+            const { payload } = entry;
+            const { error } = await supabase.from('patient_registry').update({
+              vitals: payload.diagnostics,
               queue_status: 'awaiting_consultation'
             }).eq('id', payload.patientId);
             if (error) throw error;
@@ -430,6 +443,7 @@ class MediflowApiService {
               allergies: payload.allergies,
               chronic_conditions: payload.chronicConditions,
               abha_id: payload.abhaId,
+              token_number: payload.tokenNumber,
               registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
             });
             if (error) throw error;
@@ -598,9 +612,9 @@ class MediflowApiService {
           }));
         }),
         // 4. clinic_sops
-        supabase.from('clinic_sops').select('*').then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('clinic_sops').select('*')).then(r => r.data).catch(() => null),
         // 5. medicine_bills
-        supabase.from('medicine_bills').select(`
+        Promise.resolve(supabase.from('medicine_bills').select(`
           id, patient_id, encounter_id, subtotal, loyalty_discount_percent,
           loyalty_discount_amount, item_discount_amount, gst_amount, total_amount,
           payment_mode, upi_qr_payload, status, source, delivery_type,
@@ -610,27 +624,27 @@ class MediflowApiService {
             inventory_item_id, name, batch_number, expiry_date, quantity,
             mrp, selling_price, discount_percent, gst_percent, line_total
           )
-        `).then(r => r.data).catch(() => null),
+        `)).then(r => r.data).catch(() => null),
         // 6. encounters (role-gated promise already built above)
         encounterFetch,
         // 7. lab_requisitions (role-filtered query already built above)
-        reqQuery.then(r => r.data).catch(() => null),
+        Promise.resolve(reqQuery).then(r => r.data).catch(() => null),
         // 8. reagent_inventory
-        supabase.from('reagent_inventory').select('*').then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('reagent_inventory').select('*')).then(r => r.data).catch(() => null),
         // 9. inventory_holds
-        supabase.from('inventory_holds').select('*').then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('inventory_holds').select('*')).then(r => r.data).catch(() => null),
         // 10. unified_invoices
-        supabase.from('unified_invoices').select(`
+        Promise.resolve(supabase.from('unified_invoices').select(`
           id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
           platform_fee, total_amount, upi_qr_payload, payment_status, created_at,
           patient:patient_registry(name, phone)
-        `).then(r => r.data).catch(() => null),
+        `)).then(r => r.data).catch(() => null),
         // 11. seasonal_demand_forecasts
-        supabase.from('seasonal_demand_forecasts').select('*').then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('seasonal_demand_forecasts').select('*')).then(r => r.data).catch(() => null),
         // 12. clinic_staff
-        supabase.from('clinic_staff').select('*').then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('clinic_staff').select('*')).then(r => r.data).catch(() => null),
         // 13. financial_ledgers
-        supabase.from('financial_ledgers').select('*').then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('financial_ledgers').select('*')).then(r => r.data).catch(() => null),
       ]);
 
       // ─── Process consent IDs (needed to filter patients) ─────────────────
@@ -658,7 +672,7 @@ class MediflowApiService {
 
         // Patients
         if (dbPatients) {
-          const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin'].includes(this.simulatedRole);
+          const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin', 'refraction'].includes(this.simulatedRole);
           const patients = dbPatients
             .filter((p: any) => isClinicalRole || activePatientIds.has(p.id))
             .map((p: any) => ({
@@ -889,6 +903,27 @@ class MediflowApiService {
     this.notify();
   }
 
+  saveRefractionDiagnostics(patientId: string, diagnostics: Partial<PatientVitals>): void {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const isCircuitOpen = supabaseCircuit.isBlocking();
+
+    if (isOffline || isCircuitOpen) {
+      console.warn('[Mediflow WAL] Network offline or DB circuit open. Enqueuing SAVE_REFRACTION in local outbox...');
+      PatientService.saveRefractionDiagnostics(patientId, diagnostics);
+      walDB.addEntry('SAVE_REFRACTION', {
+        id: crypto.randomUUID(),
+        patientId,
+        diagnostics
+      }).then(() => {
+        this.notify();
+      });
+      return;
+    }
+
+    PatientService.saveRefractionDiagnostics(patientId, diagnostics);
+    this.notify();
+  }
+
   updatePatientQueueStatus(patientId: string, status: Patient['queueStatus']): void {
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     const isCircuitOpen = supabaseCircuit.isBlocking();
@@ -929,6 +964,7 @@ class MediflowApiService {
       
       walDB.addEntry('REGISTER_PATIENT', {
         id: res.id,
+        tokenNumber: res.tokenNumber,
         ...patientData
       }).then(() => {
         this.notify();
@@ -939,6 +975,14 @@ class MediflowApiService {
     const res = PatientService.registerPatient(patientData);
     this.notify();
     return res;
+  }
+
+  checkTriageAlert(patient: Patient): { isAlert: boolean; reason: string } {
+    return PatientService.checkTriageAlert(patient);
+  }
+
+  calculateDynamicOPDFee(patientId: string): { amount: number; type: 'First Visit' | 'Follow-up' | 'Free Review'; baseAmount: number } {
+    return PatientService.calculateDynamicOPDFee(patientId);
   }
 
   getPatientHistoricalBiomarkers(patientId: string): HistoricalBiomarker[] {
@@ -1386,6 +1430,11 @@ class MediflowApiService {
     this.notify();
   }
 
+  saveUnifiedInvoice(invoice: UnifiedInvoice): void {
+    BillingService.saveUnifiedInvoice(invoice);
+    this.notify();
+  }
+
   getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
     return BillingService.getFinancialLedgers(invoiceId);
   }
@@ -1461,6 +1510,26 @@ class MediflowApiService {
 
   getActiveSop(): ClinicSop | null {
     return BillingService.getActiveSop();
+  }
+
+  createOTPackageInvoice(patientId: string, details: { procedure: string; eye: string; lensType: string; packageTier: string; totalAmount: number }): void {
+    BillingService.createOTPackageInvoice(patientId, details);
+    this.notify();
+  }
+
+  recordOTAdvancePayment(invoiceId: string, advanceAmount: number): void {
+    BillingService.recordOTAdvancePayment(invoiceId, advanceAmount);
+    this.notify();
+  }
+
+  createGPProcedureInvoice(patientId: string, details: { procedure: string; room: string; totalAmount: number }): void {
+    BillingService.createGPProcedureInvoice(patientId, details);
+    this.notify();
+  }
+
+  recordGPProcedurePayment(invoiceId: string, paidAmount: number): void {
+    BillingService.recordGPProcedurePayment(invoiceId, paidAmount);
+    this.notify();
   }
 
   // Forecast AI Scribe & RAG Delegators

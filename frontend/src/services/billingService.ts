@@ -151,18 +151,20 @@ export class BillingService {
 
   static createGate1Consult(patientId: string): void {
     const apptId = crypto.randomUUID();
-    const newAppt: Appointment = {
-      id: apptId,
-      patientId,
-      doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
-      status: 'pending_payment',
-      createdAt: new Date().toISOString()
-    };
-    this.saveAppointment(newAppt);
+    const ctx = getPodContext();
 
     // Fetch dynamic consultation fee from active SOP config (default: 450)
     const activeSop = this.getActiveSop();
-    const consultFee = activeSop?.extractedConfig?.doctor_fee ?? 450;
+    const baseFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
+
+    // Calculate dynamic fee type based on patient visit history (First Visit vs. Follow-up vs. Free Review)
+    const dynamicFeeResult = PatientService.calculateDynamicOPDFee(patientId);
+    let consultFee = dynamicFeeResult.amount;
+    if (dynamicFeeResult.type === 'First Visit') {
+      consultFee = baseFee;
+    } else if (dynamicFeeResult.type === 'Follow-up') {
+      consultFee = Math.round(baseFee * 0.4); // 40% of base fee (e.g. ₹200 for ₹500 base)
+    }
 
     const newInvoice: Invoice = {
       id: crypto.randomUUID(),
@@ -174,21 +176,183 @@ export class BillingService {
     };
     this.saveInvoice(newInvoice);
     
-    const patient = PatientService.getPatients().find(p => p.id === patientId);
-    if (patient) {
-      // Direct push WhatsApp message bot history logic
-      const sessions = load<any[]>('whatsapp_sessions', []);
-      const existing = sessions.find(s => s.patientPhone === patient.phone);
-      if (existing) {
-        const text = `🟢 *Welcome to VitalSync Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹${consultFee}* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${consultFee}.00_`;
-        const currentHistory = existing.sessionData.chatHistory || [];
-        currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
-        existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
-        save('whatsapp_sessions', sessions);
-        supabase.from('whatsapp_sessions').update({
-          session_data: existing.sessionData,
-          last_interaction: new Date().toISOString()
-        }).eq('patient_phone', patient.phone);
+    const runInit = async () => {
+      let resolvedDoctorId = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'; // fallback
+      try {
+        const { data: doctorProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('pod_id', ctx.podId)
+          .eq('role', 'doctor')
+          .limit(1)
+          .maybeSingle();
+        if (doctorProfile?.id) {
+          resolvedDoctorId = doctorProfile.id;
+        }
+      } catch (err) {
+        console.warn('[BillingService] Failed to dynamically look up doctor for consult:', err);
+      }
+
+      const newAppt: Appointment = {
+        id: apptId,
+        patientId,
+        doctorId: resolvedDoctorId,
+        status: 'pending_payment',
+        createdAt: new Date().toISOString()
+      };
+      this.saveAppointment(newAppt);
+
+      const patient = PatientService.getPatients().find(p => p.id === patientId);
+      if (patient) {
+        // Direct push WhatsApp message bot history logic
+        const sessions = load<any[]>('whatsapp_sessions', []);
+        const existing = sessions.find(s => s.patientPhone === patient.phone);
+        if (existing) {
+          const text = `🟢 *Welcome to VitalSync Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹${consultFee}* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${consultFee}.00_`;
+          const currentHistory = existing.sessionData.chatHistory || [];
+          currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
+          existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
+          save('whatsapp_sessions', sessions);
+          
+          try {
+            await supabase.from('whatsapp_sessions').update({
+              session_data: existing.sessionData,
+              last_interaction: new Date().toISOString()
+            }).eq('patient_phone', patient.phone);
+          } catch (dbErr) {
+            console.error('[BillingService] Failed to sync session to DB:', dbErr);
+          }
+        }
+      }
+      notify();
+    };
+    runInit();
+  }
+
+  static createOTPackageInvoice(patientId: string, details: { procedure: string; eye: string; lensType: string; packageTier: string; totalAmount: number }): void {
+    const apptId = crypto.randomUUID();
+    const newInvoice: Invoice = {
+      id: `ot-inv-${Date.now()}`,
+      appointmentId: apptId,
+      patientId,
+      type: 'ot' as any,
+      amount: details.totalAmount,
+      status: 'unpaid',
+      createdAt: new Date().toISOString(),
+      metadata: {
+        procedure: details.procedure,
+        eye: details.eye,
+        lensType: details.lensType,
+        packageTier: details.packageTier,
+        advancePaid: 0,
+        balanceDue: details.totalAmount
+      } as any
+    };
+    this.saveInvoice(newInvoice);
+    notify();
+  }
+
+  static recordOTAdvancePayment(invoiceId: string, advanceAmount: number): void {
+    const invoices = this.getInvoices();
+    const idx = invoices.findIndex(i => i.id === invoiceId);
+    if (idx >= 0) {
+      const inv = invoices[idx];
+      const meta = inv.metadata || {};
+      const newAdvance = (meta.advancePaid || 0) + advanceAmount;
+      const newBalance = Math.max(0, inv.amount - newAdvance);
+      
+      invoices[idx] = {
+        ...inv,
+        metadata: {
+          ...meta,
+          advancePaid: newAdvance,
+          balanceDue: newBalance
+        } as any,
+        status: newBalance === 0 ? 'paid' : 'unpaid'
+      };
+      
+      this.saveInvoice(invoices[idx]);
+      notify();
+      
+      const appt = this.getAppointments().find(a => a.id === inv.appointmentId);
+      const patientId = appt?.patientId || inv.patientId;
+      if (patientId) {
+        const patient = PatientService.getPatients().find(p => p.id === patientId);
+        if (patient && patient.vitals && (patient.vitals as any).surgeryBooking) {
+          const booking = (patient.vitals as any).surgeryBooking;
+          const updatedVitals = {
+            ...patient.vitals,
+            surgeryBooking: {
+              ...booking,
+              advancePaid: newAdvance,
+              status: newBalance === 0 ? 'paid' : 'advance_paid'
+            }
+          };
+          PatientService.saveRefractionDiagnostics(patientId, updatedVitals);
+        }
+      }
+    }
+  }
+
+  static createGPProcedureInvoice(patientId: string, details: { procedure: string; room: string; totalAmount: number }): void {
+    const apptId = crypto.randomUUID();
+    const newInvoice: Invoice = {
+      id: `gp-proc-inv-${Date.now()}`,
+      appointmentId: apptId,
+      patientId,
+      type: 'gp_procedure' as any,
+      amount: details.totalAmount,
+      status: 'unpaid',
+      createdAt: new Date().toISOString(),
+      metadata: {
+        procedure: details.procedure,
+        room: details.room,
+        advancePaid: 0,
+        balanceDue: details.totalAmount
+      } as any
+    };
+    this.saveInvoice(newInvoice);
+    notify();
+  }
+
+  static recordGPProcedurePayment(invoiceId: string, paidAmount: number): void {
+    const invoices = this.getInvoices();
+    const idx = invoices.findIndex(i => i.id === invoiceId);
+    if (idx >= 0) {
+      const inv = invoices[idx];
+      const meta = inv.metadata || {};
+      const newAdvance = (meta.advancePaid || 0) + paidAmount;
+      const newBalance = Math.max(0, inv.amount - newAdvance);
+      
+      invoices[idx] = {
+        ...inv,
+        metadata: {
+          ...meta,
+          advancePaid: newAdvance,
+          balanceDue: newBalance
+        } as any,
+        status: newBalance === 0 ? 'paid' : 'unpaid'
+      };
+      
+      this.saveInvoice(invoices[idx]);
+      notify();
+      
+      const appt = this.getAppointments().find(a => a.id === inv.appointmentId);
+      const patientId = appt?.patientId || inv.patientId;
+      if (patientId) {
+        const patient = PatientService.getPatients().find(p => p.id === patientId);
+        if (patient && patient.vitals) {
+          const booking = (patient.vitals as any).gpProcedureBooking || {};
+          const updatedVitals = {
+            ...patient.vitals,
+            gpProcedureBooking: {
+              ...booking,
+              advancePaid: newAdvance,
+              status: newBalance === 0 ? 'paid' : 'advance_paid'
+            }
+          };
+          PatientService.saveRefractionDiagnostics(patientId, updatedVitals);
+        }
       }
     }
   }
@@ -535,7 +699,7 @@ export class BillingService {
 
   static async markInvoicePaid(invoiceId: string, sendWhatsApp = true, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
     const { error } = await supabase.from('unified_invoices')
-      .update({ payment_status: 'paid', payment_method: paymentMethod })
+      .update({ payment_status: 'cleared', payment_method: paymentMethod })
       .eq('id', invoiceId);
     if (error) {
       console.error('[Mediflow API] markInvoicePaid error:', error);
@@ -616,11 +780,30 @@ export class BillingService {
     };
     this.saveInvoice(labInvoice);
 
+    // Compute pharmacy invoice total from extracted medicines against active SOP test prices / inventory
+    let pharmaTotal = 0;
+    const pharmacyInventory = await import('./pharmacyService').then(m => m.PharmacyService.getPharmacyInventory());
+    if (rx.extractedMedicines && rx.extractedMedicines.length > 0) {
+      rx.extractedMedicines.forEach(med => {
+        const invItem = pharmacyInventory.find(i =>
+          i.name.toLowerCase().includes(med.name.toLowerCase()) ||
+          i.genericName.toLowerCase().includes(med.name.toLowerCase())
+        );
+        if (invItem) {
+          // Default qty = 10, use selling price
+          pharmaTotal += invItem.price * 10;
+        } else {
+          pharmaTotal += 50; // flat ₹50 fallback per unknown medicine
+        }
+      });
+    }
+    if (pharmaTotal === 0) pharmaTotal = 150; // absolute fallback
+
     const pharmaInvoice: Invoice = {
       id: crypto.randomUUID(),
       appointmentId,
       type: 'pharmacy',
-      amount: 150,
+      amount: Math.round(pharmaTotal),
       status: 'unpaid',
       createdAt: new Date().toISOString()
     };
@@ -662,7 +845,7 @@ export class BillingService {
       pharmacy_fee: type === 'pharmacy' ? amount : 0,
       platform_fee: 0,
       total_amount: amount,
-      payment_status: 'unpaid',
+      payment_status: 'pending',  // DB constraint: only 'pending' | 'cleared' allowed
       created_at: new Date().toISOString(),
     }).select('id').single();
     if (error) {
@@ -729,5 +912,32 @@ export class BillingService {
   static getActiveSop(): ClinicSop | null {
     const sops = this.getClinicSops();
     return sops.find(s => s.isActive) || null;
+  }
+
+  static saveUnifiedInvoice(invoice: UnifiedInvoice): void {
+    const invoices = this.getUnifiedInvoices();
+    const idx = invoices.findIndex(i => i.id === invoice.id);
+    if (idx >= 0) invoices[idx] = invoice;
+    else invoices.push(invoice);
+    save('unified_invoices', invoices);
+    notify();
+
+    // Sync to Supabase
+    supabase.from('unified_invoices').upsert({
+      id: invoice.id,
+      encounter_id: invoice.encounterId === 'walkin' ? null : (invoice.encounterId || null),
+      patient_id: invoice.patientId,
+      doctor_fee: invoice.doctorFee,
+      lab_fee: invoice.labFee,
+      pharmacy_fee: invoice.pharmacyFee,
+      platform_fee: invoice.platformFee,
+      total_amount: invoice.totalAmount,
+      upi_qr_payload: invoice.upiQrPayload,
+      payment_status: invoice.paymentStatus === 'cleared' ? 'paid' : (invoice.paymentStatus as any),
+      payment_method: invoice.paymentMethod || null,
+      created_at: invoice.createdAt
+    }).then(({ error }) => {
+      if (error) console.error('[BillingService] Unified invoice sync failed:', error);
+    });
   }
 }

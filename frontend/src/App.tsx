@@ -11,6 +11,7 @@ const LabDashboard = lazy(() => import('./components/lab/LabDashboard').then(m =
 const PharmacyDashboard = lazy(() => import('./components/pharmacy/PharmacyDashboard').then(m => ({ default: m.PharmacyDashboard })));
 const BillingDashboard = lazy(() => import('./components/billing/BillingDashboard').then(m => ({ default: m.BillingDashboard })));
 const SaaSAdminPanel = lazy(() => import('./components/admin/SaaSAdminPanel').then(m => ({ default: m.SaaSAdminPanel })));
+const RefractionDashboard = lazy(() => import('./components/doctor/RefractionDashboard').then(m => ({ default: m.RefractionDashboard })));
 
 import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
@@ -99,6 +100,7 @@ function AppContent({
       case 'doctor': return <DoctorDashboardSkeleton />;
       case 'lab': return <LabDashboardSkeleton />;
       case 'pharmacy': return <PharmacyDashboardSkeleton />;
+      case 'refraction': return <DoctorDashboardSkeleton />;
       default: return <DashboardSkeleton />;
     }
   };
@@ -113,7 +115,8 @@ function AppContent({
       pharmacy: 'Pharmacy POS',
       billing: 'UPI Ledger',
       saas_admin: 'Platform Admin',
-      patient: 'Patient Portal'
+      patient: 'Patient Portal',
+      refraction: 'Refraction Desk'
     };
 
     items.push({ label: roleNames[currentRole] || currentRole });
@@ -148,6 +151,14 @@ function AppContent({
           <ErrorBoundary fallbackTitle="Doctor Consultation Dashboard">
             <RequireRole allowedRoles={['doctor']} role={currentRole} bypass={isBypassMode}>
               <DoctorDashboard />
+            </RequireRole>
+          </ErrorBoundary>
+        );
+      case 'refraction':
+        return (
+          <ErrorBoundary fallbackTitle="Refraction Operations Desk">
+            <RequireRole allowedRoles={['refraction', 'doctor']} role={currentRole} bypass={isBypassMode}>
+              <RefractionDashboard />
             </RequireRole>
           </ErrorBoundary>
         );
@@ -534,6 +545,9 @@ export default function App() {
       const customEvent = e as CustomEvent<string>;
       const newSpec = customEvent.detail;
       if (activeProfile) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('mediflow_demo_specialization', newSpec);
+        }
         const updatedProfile = {
           ...activeProfile,
           user_metadata: {
@@ -786,6 +800,9 @@ export default function App() {
     }
     
     if (activeProfile) {
+      if (typeof window !== 'undefined' && activeProfile.user_metadata?.specialization) {
+        localStorage.setItem('mediflow_demo_specialization', activeProfile.user_metadata.specialization);
+      }
       // 4. Complete onboarding if needed
       return await checkAndCompleteOnboarding(session, activeProfile);
     }
@@ -1009,7 +1026,7 @@ export default function App() {
   const handleRoleChange = (role: UserRole) => {
     if (!isBypassMode && activeProfile) {
       const allowedRoles: Record<string, UserRole[]> = {
-        'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient'],
+        'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'],
         'compounder': ['compounder'],
         'lab_technician': ['lab'],
         'pharmacist': ['pharmacy'],

@@ -504,12 +504,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const { data: { user }, error: userErr } = await supabase.auth.getUser();
+        if (session?.user && user && !userErr) {
           // Check if profile exists
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', user.id)
             .single();
 
           const email = session.user.email;
@@ -525,7 +526,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 const { data: healedProfile } = await supabase
                   .from('profiles')
                   .select('*')
-                  .eq('id', session.user.id)
+                  .eq('id', user.id)
                   .single();
                 if (healedProfile) {
                   onAuthSuccess(session, healedProfile);
@@ -1658,11 +1659,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 (window as any).__mediflow_registering = false;
               }
               const { data: { session } } = await supabase.auth.getSession();
-              if (session?.user) {
+              const { data: { user }, error: userErr } = await supabase.auth.getUser();
+              if (session?.user && user && !userErr) {
                 const { data: profile } = await supabase
                   .from('profiles')
                   .select('*')
-                  .eq('id', session.user.id)
+                  .eq('id', user.id)
                   .single();
                 if (profile) onAuthSuccess(session, profile);
               }
@@ -3146,6 +3148,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                           <option value="pharmacy" className="text-slate-800 bg-white">Pharmacy POS</option>
                           <option value="lab" className="text-slate-800 bg-white">Pathology Lab</option>
                           <option value="compounder" className="text-slate-800 bg-white">Clinic Compounder</option>
+                          <option value="refraction" className="text-slate-800 bg-white">Refraction Doctor / Optometrist</option>
                         </select>
                       </div>
                       <div className="space-y-1">

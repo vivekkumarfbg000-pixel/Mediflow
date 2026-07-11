@@ -744,9 +744,9 @@ Dhyan rakhein aur time par medicine lein!`;
     medications: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
     diagnosticTests: DiagnosticTest[];
   }> {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn('[Mediflow AI] No VITE_GEMINI_API_KEY found, falling back to simulated OCR data.');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.warn('[Mediflow AI] No active session found, falling back to simulated OCR data.');
       return {
         patientName: 'Aarav Sharma',
         patientPhone: '9876543210',
@@ -863,15 +863,26 @@ If no prescription image could be loaded or fetched, generate a highly realistic
         });
       }
 
-      const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(apiEndpoint, {
+      // SECURITY FIX (BUG-05): Proxy request via Edge Function instead of direct client call
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const edgeFnUrl = `${supabaseUrl}/functions/v1/ai-inference`;
+
+      const response = await fetch(edgeFnUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          model,
+          contents: requestBody.contents,
+          generationConfig: requestBody.generationConfig
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(`AI inference proxy returned ${response.status}: ${errBody?.error ?? response.statusText}`);
       }
 
       const result = await response.json();

@@ -263,6 +263,85 @@ export class PharmacyService {
     notify();
   }
 
+  // Master Drug Database containing common default prescription configurations
+  static getDrugSuggestions(query: string, isOphthalmology: boolean) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+
+    const defaultOphthalmicSuggestions = [
+      { name: 'Moxifloxacin Eye Drops 0.5%', genericName: 'Moxifloxacin', category: 'Ophthalmic Antibiotic', dosage: '1 drop', frequency: 'QDS (4 times daily)', duration: '5 Days' },
+      { name: 'Carboxymethylcellulose 0.5%', genericName: 'Carboxymethylcellulose Sodium', category: 'Artificial Tears / Lubricant', dosage: '1 drop', frequency: 'TDS (3 times daily)', duration: '30 Days' },
+      { name: 'Homatropine Eye Drops 2%', genericName: 'Homatropine Hydrobromide', category: 'Mydriatic / Cycloplegic', dosage: '1 drop', frequency: 'BD (twice daily)', duration: '3 Days' },
+      { name: 'Tobramycin Eye Drops 0.3%', genericName: 'Tobramycin', category: 'Ophthalmic Antibiotic', dosage: '1 drop', frequency: 'QDS (4 times daily)', duration: '7 Days' },
+      { name: 'Prednisolone Acetate Eye Drops 1%', genericName: 'Prednisolone Acetate', category: 'Ophthalmic Corticosteroid', dosage: '1 drop', frequency: 'BD (twice daily)', duration: '14 Days' },
+      { name: 'Flurbiprofen Eye Drops 0.03%', genericName: 'Flurbiprofen', category: 'Ophthalmic NSAID', dosage: '1 drop', frequency: 'TDS (3 times daily)', duration: '5 Days' },
+      { name: 'Timolol Eye Drops 0.5%', genericName: 'Timolol Maleate', category: 'Anti-Glaucoma / Beta-Blocker', dosage: '1 drop', frequency: 'BD (twice daily)', duration: '60 Days' },
+      { name: 'Latanoprost Eye Drops 0.005%', genericName: 'Latanoprost', category: 'Anti-Glaucoma / Prostaglandin', dosage: '1 drop', frequency: 'Once daily at night', duration: '90 Days' }
+    ];
+
+    const defaultGeneralSuggestions = [
+      { name: 'Metformin 500mg', genericName: 'Metformin Hydrochloride', category: 'Antidiabetic', dosage: '1 tablet', frequency: '1-0-1', duration: '30 Days' },
+      { name: 'Paracetamol 650mg', genericName: 'Paracetamol', category: 'Analgesic / Antipyretic', dosage: '1 tablet', frequency: '1-0-1', duration: '3 Days' },
+      { name: 'Amoxicillin 250mg', genericName: 'Amoxicillin Trihydrate', category: 'Antibiotic', dosage: '1 capsule', frequency: '1-1-1', duration: '5 Days' },
+      { name: 'Atorvastatin 10mg', genericName: 'Atorvastatin Calcium', category: 'Cardiovascular / Statin', dosage: '1 tablet', frequency: '0-0-1', duration: '30 Days' },
+      { name: 'Pantoprazole 40mg', genericName: 'Pantoprazole Sodium', category: 'Gastrointestinal / PPI', dosage: '1 tablet', frequency: '1-0-0', duration: '10 Days' },
+      { name: 'Azithromycin 500mg', genericName: 'Azithromycin', category: 'Antibiotic / Macrolide', dosage: '1 tablet', frequency: '1-0-0', duration: '3 Days' },
+      { name: 'Amlodipine 5mg', genericName: 'Amlodipine Besylate', category: 'Antihypertensive', dosage: '1 tablet', frequency: '1-0-0', duration: '30 Days' },
+      { name: 'Ibuprofen 400mg', genericName: 'Ibuprofen', category: 'NSAID / Analgesic', dosage: '1 tablet', frequency: '1-0-1', duration: '3 Days' },
+      { name: 'Cetirizine 10mg', genericName: 'Cetirizine Hydrochloride', category: 'Antihistamine', dosage: '1 tablet', frequency: '0-0-1', duration: '5 Days' },
+      { name: 'Lisinopril 10mg', genericName: 'Lisinopril', category: 'ACE Inhibitor', dosage: '1 tablet', frequency: '1-0-0', duration: '30 Days' }
+    ];
+
+    const masterList = isOphthalmology ? defaultOphthalmicSuggestions : defaultGeneralSuggestions;
+
+    // Fetch active local inventory
+    const inventory = this.getPharmacyInventory();
+
+    // Map inventory items for matching
+    const inventoryMap = new Map();
+    inventory.forEach(item => {
+      inventoryMap.set(item.name.toLowerCase(), item.stock);
+    });
+
+    // Check matches from master list
+    const results = [];
+    
+    // First matching master lists
+    masterList.forEach(item => {
+      const matchName = item.name.toLowerCase().includes(q) || item.genericName.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
+      if (matchName) {
+        const stock = inventoryMap.has(item.name.toLowerCase()) ? inventoryMap.get(item.name.toLowerCase()) : 0;
+        results.push({
+          ...item,
+          stock,
+          inInventory: inventoryMap.has(item.name.toLowerCase())
+        });
+      }
+    });
+
+    // Also check if any unique items are in the pharmacy inventory that are not in master list
+    inventory.forEach(item => {
+      const isAlreadyAdded = results.some(r => r.name.toLowerCase() === item.name.toLowerCase());
+      if (!isAlreadyAdded) {
+        const matchName = item.name.toLowerCase().includes(q) || (item.genericName && item.genericName.toLowerCase().includes(q)) || (item.category && item.category.toLowerCase().includes(q));
+        if (matchName) {
+          results.push({
+            name: item.name,
+            genericName: item.genericName || 'N/A',
+            category: item.category || 'Pharmacy Inventory',
+            dosage: item.dosage || '',
+            frequency: isOphthalmology ? 'TDS (3 times daily)' : '1-0-1',
+            duration: '5 Days',
+            stock: item.stock,
+            inInventory: true
+          });
+        }
+      }
+    });
+
+    return results;
+  }
+
   static addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>, entityId?: string): PharmacyInventoryItem {
     const items = this.getPharmacyInventory();
     const newItem: PharmacyInventoryItem = {

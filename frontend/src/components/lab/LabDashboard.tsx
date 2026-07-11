@@ -3,7 +3,7 @@ import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { supabase } from '../../lib/supabaseClient';
 import type { ReagentStock } from '../../services/api';
-import type { LabRequisition, Patient, Invoice, LabReport } from '../../types';
+import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice } from '../../types';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
 
@@ -34,7 +34,7 @@ export const LabDashboard: React.FC = () => {
   }, []);
 
   const [requisitions, setRequisitions] = useState<LabRequisition[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
   const [reagents, setReagents] = useState<ReagentStock[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -383,6 +383,47 @@ export const LabDashboard: React.FC = () => {
       }));
       setActiveTab('queue');
     }, 700);
+  };
+
+  const handleBillWalkinTest = (reqId: string, paymentMethod: 'cash' | 'upi') => {
+    const req = requisitions.find(r => r.id === reqId);
+    if (!req) return;
+
+    const test = testCatalog.find(t => t.loincCode === req.testCode) || { price: 350 };
+    const testPrice = test.price || 350;
+    const platformFee = Math.round(testPrice * 0.03);
+    const total = testPrice + platformFee;
+    const invoiceId = crypto.randomUUID();
+
+    const newInvoice = {
+      id: invoiceId,
+      encounterId: req.id,
+      patientId: req.patientId,
+      patientName: req.patientName,
+      patientPhone: patients.find(p => p.id === req.patientId)?.phone || '',
+      doctorFee: 0,
+      labFee: testPrice,
+      pharmacyFee: 0,
+      platformFee: platformFee,
+      totalAmount: total,
+      upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-LAB-${req.id.substring(0,6)}`,
+      paymentStatus: 'pending' as const,
+      createdAt: new Date().toISOString()
+    };
+
+    // Save Unified Invoice locally and sync to Supabase
+    api.saveUnifiedInvoice(newInvoice);
+
+    // Clear Payment
+    api.clearInvoice(invoiceId, paymentMethod);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Walk-in test invoice generated and payment cleared via ${paymentMethod.toUpperCase()}!`,
+        type: 'success',
+        title: 'Billing Succeeded'
+      }
+    }));
   };
 
   const handleDirectReportUploadSubmit = async (e: React.FormEvent) => {
@@ -1403,36 +1444,122 @@ export const LabDashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {walkinList.map(req => (
-                    <div key={req.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          req.status === 'completed' ? 'bg-emerald-400' :
-                          req.status === 'collected' || req.status === 'processed' ? 'bg-indigo-600 animate-pulse' :
-                          'bg-amber-400 animate-pulse'
-                        }`} />
-                        <div>
-                          <div className="text-xs font-bold text-slate-800">{req.patientName}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">{req.testName} · {req.testCode}</div>
-                          <div className="text-[9px] text-blue-400 font-mono mt-0.5">Barcode: {req.barcode}</div>
+                  {walkinList.map(req => {
+                    const invoices = api.getUnifiedInvoices();
+                    const inv = invoices.find(i => i.encounterId === req.id);
+                    const isPaid = inv && inv.paymentStatus === 'cleared';
+                    const test = testCatalog.find(t => t.loincCode === req.testCode) || { price: 350 };
+                    const testPrice = test.price || 350;
+
+                    return (
+                      <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            req.status === 'completed' ? 'bg-emerald-400' :
+                            req.status === 'collected' || req.status === 'processed' ? 'bg-indigo-600 animate-pulse' :
+                            'bg-amber-400 animate-pulse'
+                          }`} />
+                          <div>
+                            <div className="text-xs font-bold text-slate-800">{req.patientName}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">{req.testName} · {req.testCode}</div>
+                            <div className="text-[9px] text-blue-400 font-mono mt-0.5">Barcode: {req.barcode}</div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                          {/* Invoice Billing Options */}
+                          {isPaid ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-mono">
+                                PAID ✅ (₹{inv.totalAmount})
+                              </span>
+                              <button
+                                onClick={() => {
+                                  // Open lab receipt print window
+                                  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>Lab Bill Receipt</title>
+<style>
+  * { margin:0;padding:0;box-sizing:border-box; }
+  body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#1a1a2e; }
+  .page { max-width:600px; margin:0 auto; padding:20px 28px; }
+  .header { border-bottom:2px solid #4f46e5; padding-bottom:12px; margin-bottom:14px; display:flex; justify-content:space-between; }
+  .clinic { font-size:16px; font-weight:800; color:#4f46e5; }
+  .sub { font-size:10px; color:#6b7280; }
+  .badge { background:#e0e7ff; color:#3730a3; font-size:9px; font-weight:800; padding:2px 8px; border-radius:99px; border:1px solid #c7d2fe; }
+  .section-title { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:#4f46e5; border-bottom:1px solid #e5e7eb; padding-bottom:3px; margin:12px 0 8px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .field label { font-size:9px; font-weight:700; color:#9ca3af; text-transform:uppercase; }
+  .field span { font-size:12px; font-weight:600; color:#111827; display:block; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#f5f3ff; text-align:left; padding:5px 8px; font-size:9px; font-weight:800; text-transform:uppercase; color:#6b7280; }
+  td { padding:5px 8px; border-bottom:1px solid #f3f4f6; }
+  .total { font-weight:900; font-size:14px; color:#4f46e5; text-align:right; margin-top:10px; }
+  .footer { margin-top:24px; font-size:9px; color:#9ca3af; text-align:center; border-top:1px solid #e5e7eb; padding-top:8px; }
+  @media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+</style></head>
+<body><div class="page">
+  <div class="header">
+    <div><div class="clinic">Mediflow Diagnostics</div><div class="sub">Walk-in Laboratory Bill Receipt</div></div>
+    <div style="text-align:right">
+      <div class="badge">PAID ✅</div>
+      <div class="sub" style="margin-top:4px">Date: ${new Date(inv.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div class="sub">Invoice: ${inv.id.substring(0,8)}...</div>
+    </div>
+  </div>
+  <div class="section-title">Patient Details</div>
+  <div class="grid">
+    <div class="field"><label>Name</label><span>${req.patientName}</span></div>
+    <div class="field"><label>Barcode</label><span>${req.barcode}</span></div>
+    <div class="field"><label>Amount Paid</label><span style="color:#4f46e5">₹${inv.totalAmount}</span></div>
+  </div>
+  <div class="section-title">Subscribed Lab Tests</div>
+  <table><thead><tr><th>#</th><th>Test Name</th><th>LOINC Code</th><th>Price</th></tr></thead>
+  <tbody><tr><td>1</td><td><b>${req.testName}</b></td><td>${req.testCode}</td><td>₹${inv.labFee}</td></tr></tbody></table>
+  <div class="total">Total Paid (incl. platform commission): ₹${inv.totalAmount}</div>
+  <div class="footer">Diagnostics bill cleared at counter. Test results will sync to physician console. Mediflow Pod network &copy; ${new Date().getFullYear()}</div>
+</div><script>window.onload=function(){window.print()}<\/script></body></html>`;
+                                  const win = window.open('','_blank','width=720,height=800');
+                                  if (win) { win.document.write(html); win.document.close(); }
+                                }}
+                                className="px-2.5 py-1 bg-slate-200 hover:bg-slate-350 text-slate-800 text-[9px] font-black rounded-lg cursor-pointer flex items-center gap-1 border-0"
+                              >
+                                <span className="material-symbols-outlined text-[11px]">print</span>
+                                Receipt
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-black text-rose-500 font-mono">UNPAID (₹{testPrice}) ⚠️</span>
+                              <button
+                                onClick={() => handleBillWalkinTest(req.id, 'cash')}
+                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 active:scale-95 text-slate-800 text-[9px] font-black rounded-lg cursor-pointer border-0"
+                              >
+                                Collect Cash
+                              </button>
+                              <button
+                                onClick={() => handleBillWalkinTest(req.id, 'upi')}
+                                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black rounded-lg cursor-pointer border-0"
+                              >
+                                UPI QR
+                              </button>
+                            </div>
+                          )}
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono border ${
+                            req.status === 'completed'
+                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                              : req.status === 'collected'
+                              ? 'text-indigo-600 bg-indigo-50 border-indigo-200'
+                              : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                          }`}>
+                            {req.status}
+                          </span>
+                          <div className="text-[9px] text-slate-400 font-mono">
+                            {new Date(req.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono border ${
-                          req.status === 'completed'
-                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                            : req.status === 'collected'
-                            ? 'text-indigo-600 bg-indigo-50 border-indigo-200'
-                            : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                        }`}>
-                          {req.status}
-                        </span>
-                        <div className="text-[9px] text-slate-400 font-mono mt-1">
-                          {new Date(req.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

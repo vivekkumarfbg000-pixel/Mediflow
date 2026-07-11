@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../../services/api';
+import { PharmacyService } from '../../../services/pharmacyService';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
 import { CheckCircle2 } from 'lucide-react';
+import { useClinic } from '../../../context/ClinicContext';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
 import { OphthalmicRefractionGrid } from '../OphthalmicRefractionGrid';
 import { BiometryWorksheet } from '../BiometryWorksheet';
@@ -129,6 +131,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   handleSaveEncounter,
   handleLaunchVideoConsult
 }) => {
+  const { activePod } = useClinic();
   const appointments: Appointment[] = api.getAppointments();
   const [aiHistory, setAiHistory] = useState<any[]>([]);
 
@@ -148,6 +151,45 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const [virtualTimeInput, setVirtualTimeInput] = useState('');
   const [expandedCitationPmid, setExpandedCitationPmid] = useState<string | null>(null);
   const [flashPrescriptionPanel, setFlashPrescriptionPanel] = useState(false);
+
+  // Smart Drug Autocomplete & Presets States
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(0);
+  const [isSelectingFromDropdown, setIsSelectingFromDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Interactive Prescription Pad Workspace States
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  const [testSearchQuery, setTestSearchQuery] = useState('');
+  const [activeSubTab, setActiveSubTab] = useState<'workup' | 'prescription'>('workup');
+
+  useEffect(() => {
+    if (isSelectingFromDropdown) {
+      setIsSelectingFromDropdown(false);
+      return;
+    }
+    if (!medName.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const results = PharmacyService.getDrugSuggestions(medName, isOphthalmology);
+    setSuggestions(results);
+    setShowSuggestions(results.length > 0);
+    setActiveSuggestionIdx(0);
+  }, [medName, isOphthalmology]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const [consentPurpose, setConsentPurpose] = useState<string>('GENERAL_TREATMENT');
   const [consentNotes, setConsentNotes] = useState<string>('');
   const [activePhysicalConsent, setActivePhysicalConsent] = useState<any>(null);
@@ -197,6 +239,154 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     return () => clearInterval(timerId);
   }, [activePhysicalConsent]);
 
+  const [surgeryEye, setSurgeryEye] = useState<'OD' | 'OS' | 'None'>('None');
+  const [surgeryType, setSurgeryType] = useState('Cataract - Phacoemulsification (MICS)');
+  const [lensType, setLensType] = useState('Monofocal');
+  const [iolPower, setIolPower] = useState('');
+  const [surgeryDate, setSurgeryDate] = useState('');
+  const [surgeryCoordinator, setSurgeryCoordinator] = useState('Sister Mary (OT Charge)');
+  const [surgeryPackage, setSurgeryPackage] = useState('Indian Monofocal (SICS)');
+  const [isSurgerySaving, setIsSurgerySaving] = useState(false);
+
+  const [gpProcedureType, setGpProcedureType] = useState('None');
+  const [gpProcedureDate, setGpProcedureDate] = useState('');
+  const [gpProcedureRoom, setGpProcedureRoom] = useState('Dressing Room 1');
+  const [isGPProcedureSaving, setIsGPProcedureSaving] = useState(false);
+
+  useEffect(() => {
+    if (selectedPatient && selectedPatient.vitals) {
+      if ((selectedPatient.vitals as any).surgeryBooking) {
+        const booking = (selectedPatient.vitals as any).surgeryBooking;
+        setSurgeryEye(booking.eye || 'None');
+        setSurgeryType(booking.type || 'Cataract - Phacoemulsification (MICS)');
+        setLensType(booking.lensType || 'Monofocal');
+        setIolPower(booking.iolPower || '');
+        setSurgeryDate(booking.date || '');
+        setSurgeryCoordinator(booking.coordinator || 'Sister Mary (OT Charge)');
+        setSurgeryPackage(booking.package || 'Indian Monofocal (SICS)');
+      } else {
+        setSurgeryEye('None');
+        setSurgeryType('Cataract - Phacoemulsification (MICS)');
+        setLensType('Monofocal');
+        setIolPower('');
+        setSurgeryDate('');
+        setSurgeryCoordinator('Sister Mary (OT Charge)');
+        setSurgeryPackage('Indian Monofocal (SICS)');
+      }
+
+      if ((selectedPatient.vitals as any).gpProcedureBooking) {
+        const gpBooking = (selectedPatient.vitals as any).gpProcedureBooking;
+        setGpProcedureType(gpBooking.procedure || 'None');
+        setGpProcedureDate(gpBooking.date || '');
+        setGpProcedureRoom(gpBooking.room || 'Dressing Room 1');
+      } else {
+        setGpProcedureType('None');
+        setGpProcedureDate('');
+        setGpProcedureRoom('Dressing Room 1');
+      }
+    } else {
+      setSurgeryEye('None');
+      setSurgeryType('Cataract - Phacoemulsification (MICS)');
+      setLensType('Monofocal');
+      setIolPower('');
+      setSurgeryDate('');
+      setSurgeryCoordinator('Sister Mary (OT Charge)');
+      setSurgeryPackage('Indian Monofocal (SICS)');
+
+      setGpProcedureType('None');
+      setGpProcedureDate('');
+      setGpProcedureRoom('Dressing Room 1');
+    }
+  }, [selectedPatient]);
+
+  const handleSaveSurgeryBooking = () => {
+    if (!selectedPatient) return;
+    setIsSurgerySaving(true);
+    
+    let basePrice = 12000;
+    if (surgeryPackage === 'Indian Monofocal (Phaco)') basePrice = 18000;
+    else if (surgeryPackage === 'Imported Monofocal (Phaco)') basePrice = 32000;
+    else if (surgeryPackage === 'Premium Multifocal (Phaco)') basePrice = 65000;
+    else if (surgeryPackage === 'Ultra Toric/EDOF (Phaco)') basePrice = 95000;
+
+    const diagnosticsData = {
+      ...selectedPatient.vitals,
+      surgeryBooking: {
+        eye: surgeryEye,
+        type: surgeryType,
+        lensType,
+        iolPower,
+        date: surgeryDate,
+        coordinator: surgeryCoordinator,
+        package: surgeryPackage,
+        price: basePrice,
+        advancePaid: 0,
+        status: 'pending_payment'
+      }
+    };
+    api.saveRefractionDiagnostics(selectedPatient.id, diagnosticsData);
+    setIsSurgerySaving(false);
+    
+    // Generate the pending OT Invoice
+    api.createOTPackageInvoice(selectedPatient.id, {
+      procedure: surgeryType,
+      eye: surgeryEye,
+      lensType,
+      packageTier: surgeryPackage,
+      totalAmount: basePrice
+    });
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Surgery Scheduled & OT Ledger Generated! 🏥',
+        message: `Cataract surgery scheduled for ${selectedPatient.name} (${surgeryEye}) on ${surgeryDate}. Package: ${surgeryPackage}.`,
+        type: 'success'
+      }
+    }));
+  };
+
+  const handleSaveGPProcedureBooking = () => {
+    if (!selectedPatient) return;
+    setIsGPProcedureSaving(true);
+
+    let price = 0;
+    if (gpProcedureType === 'Minor Suturing / Stitching') price = 1200;
+    else if (gpProcedureType === 'Abscess Incision & Drainage (I&D)') price = 1500;
+    else if (gpProcedureType === 'Wound Dressing & Debridement') price = 800;
+    else if (gpProcedureType === 'Sebaceous Cyst Excision') price = 3000;
+    else if (gpProcedureType === 'IV Infusion / Saline Drip Session') price = 600;
+
+    const diagnosticsData = {
+      ...selectedPatient.vitals,
+      gpProcedureBooking: {
+        procedure: gpProcedureType,
+        room: gpProcedureRoom,
+        date: gpProcedureDate,
+        price,
+        advancePaid: 0,
+        status: 'pending_payment'
+      }
+    };
+    api.saveRefractionDiagnostics(selectedPatient.id, diagnosticsData);
+    setIsGPProcedureSaving(false);
+
+    if (gpProcedureType !== 'None') {
+      api.createGPProcedureInvoice(selectedPatient.id, {
+        procedure: gpProcedureType,
+        room: gpProcedureRoom,
+        totalAmount: price
+      });
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'GP Procedure Scheduled! 🏥',
+          message: `Procedure '${gpProcedureType}' scheduled in ${gpProcedureRoom} on ${gpProcedureDate} for ₹${price}.`,
+          type: 'success'
+        }
+      }));
+    }
+  };
+
   const handleRevokePhysicalConsent = async () => {
     if (!selectedPatient || !activePhysicalConsent) return;
     try {
@@ -211,6 +401,209 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     } catch (err) {
       console.error('[Consent] Failed to revoke physical consent:', err);
     }
+  };
+
+  const handlePrintPrescription = () => {
+    if (!selectedPatient) return;
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) return;
+
+    const medRows = medications.map(m => `
+      <tr>
+        <td><strong>${m.medicineName}</strong></td>
+        <td>${m.dosage || '—'}</td>
+        <td>${m.frequency || '—'}</td>
+        <td>${m.duration || '—'}</td>
+      </tr>
+    `).join('');
+
+    const diagnosticRows = selectedTests.map(t => `
+      <tr>
+        <td><strong>${t.name}</strong></td>
+        <td>${t.loincCode || 'N/A'}</td>
+      </tr>
+    `).join('');
+
+    let refractionSection = '';
+    if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
+      refractionSection = `
+        <div class="section">
+          <div class="section-title">Spectacle / Lens Refraction Rx</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Eye</th>
+                <th>SPH</th>
+                <th>CYL</th>
+                <th>AXIS</th>
+                <th>ADD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Right Eye (OD)</strong></td>
+                <td>${refractionRx.od.sph || 'Plano'}</td>
+                <td>${refractionRx.od.cyl || '—'}</td>
+                <td>${refractionRx.od.axis ? refractionRx.od.axis + '°' : '—'}</td>
+                <td>${refractionRx.od.add || '—'}</td>
+              </tr>
+              <tr>
+                <td><strong>Left Eye (OS)</strong></td>
+                <td>${refractionRx.os.sph || 'Plano'}</td>
+                <td>${refractionRx.os.cyl || '—'}</td>
+                <td>${refractionRx.os.axis ? refractionRx.os.axis + '°' : '—'}</td>
+                <td>${refractionRx.os.add || '—'}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="margin-top: 10px; font-size: 11px;">
+            <strong>Lens Type:</strong> ${refractionRx.lensType || 'Single Vision'} &nbsp;&nbsp;&nbsp;&nbsp;
+            <strong>PD:</strong> ${refractionRx.pd || '—'} mm
+          </p>
+          ${refractionRx.notes ? `<p style="font-size: 11px;"><strong>Notes:</strong> ${refractionRx.notes}</p>` : ''}
+        </div>
+      `;
+    }
+
+    let biometrySection = '';
+    if (isOphthalmology && (biometryRx.axialLength || biometryRx.k1 || biometryRx.k2 || biometryRx.iolPower)) {
+      biometrySection = `
+        <div class="section">
+          <div class="section-title">Cataract Pre-Op Biometry & IOL Planner</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Axial Length (mm)</th>
+                <th>K1 Flat (D)</th>
+                <th>K2 Steep (D)</th>
+                <th>Target Rx (D)</th>
+                <th>IOL Model</th>
+                <th>IOL Power (D)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${biometryRx.axialLength || '—'}</td>
+                <td>${biometryRx.k1 || '—'}</td>
+                <td>${biometryRx.k2 || '—'}</td>
+                <td>${biometryRx.targetRefraction || '—'}</td>
+                <td>${biometryRx.iolModel || '—'}</td>
+                <td>${biometryRx.iolPower || '—'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Medical Prescription - ${selectedPatient.name}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; }
+            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .logo-area h1 { font-size: 26px; margin: 0; color: #4f46e5; font-weight: 800; letter-spacing: -0.025em; }
+            .logo-area p { margin: 5px 0 0 0; font-size: 12px; color: #64748b; font-weight: 500; }
+            .doc-info { text-align: right; font-size: 12px; line-height: 1.6; }
+            .section { margin-bottom: 30px; }
+            .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #4f46e5; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 0.05em; }
+            .patient-grid { display: grid; grid-template-cols: 1fr 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 12px; }
+            .patient-grid div { margin-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+            th { background-color: #f8fafc; font-weight: bold; color: #475569; }
+            .footer { margin-top: 60px; font-size: 10px; text-align: center; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
+            .btn-container { text-align: right; margin-bottom: 20px; }
+            .print-btn { background: #4f46e5; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+            .print-btn:hover { background: #4338ca; }
+            @media print {
+              body { padding: 0; }
+              .btn-container { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="btn-container">
+            <button class="print-btn" onclick="window.print()">Print Prescription</button>
+          </div>
+          
+          <div class="header">
+            <div class="logo-area">
+              <h1>VitalSync</h1>
+              <p>Connected Care Clinic Network</p>
+            </div>
+            <div class="doc-info">
+              <strong>Dr. Amit Arya, MBBS, MS</strong><br/>
+              Ophthalmology Specialist<br/>
+              Patna West Pod Tenant (MF-PATNA101)<br/>
+              Date: ${new Date().toLocaleDateString('en-IN')}
+            </div>
+          </div>
+
+          <div class="patient-grid">
+            <div><strong>Patient Name:</strong> ${selectedPatient.name}</div>
+            <div><strong>Age / Gender:</strong> ${selectedPatient.age || '—'} Y / ${selectedPatient.gender || '—'}</div>
+            <div><strong>Token Number:</strong> ${selectedPatient.tokenNumber || '—'}</div>
+            <div><strong>Phone Number:</strong> ${selectedPatient.phone || '—'}</div>
+            <div><strong>ABHA ID:</strong> ${selectedPatient.abhaId || '—'}</div>
+            <div><strong>Encounter Status:</strong> Finalized</div>
+          </div>
+
+          ${refractionSection}
+          ${biometrySection}
+
+          ${medications.length > 0 ? `
+            <div class="section">
+              <div class="section-title">Prescribed Medications (Rx)</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Medicine Name</th>
+                    <th>Dosage</th>
+                    <th>Frequency</th>
+                    <th>Duration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${medRows}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+
+          ${selectedTests.length > 0 ? `
+            <div class="section">
+              <div class="section-title">Diagnostic Requisitions (Dx)</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Test Name</th>
+                    <th>LOINC Code</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${diagnosticRows}
+                </tbody>
+              </table>
+            </div>
+          ` : ''}
+
+          ${notes ? `
+            <div class="section">
+              <div class="section-title">Doctor's Advice & Clinical Directions</div>
+              <p style="font-size: 12px; white-space: pre-line; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #f1f5f9;">${notes}</p>
+            </div>
+          ` : ''}
+
+          <div class="footer">
+            <p>This is a digitally verified e-prescription generated by VitalSync Connected Care Platform.</p>
+            <p style="margin-top: 30px; font-weight: bold;">Dr. Amit Arya (Authorized Signature / Seal)</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handlePrintClinicalReferral = () => {
@@ -500,14 +893,25 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     {isSelected && (
                       <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-primary" />
                     )}
-                    <div className="flex justify-between items-start">
-                      <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <div className="flex justify-between items-start flex-wrap gap-1">
+                      <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors flex items-center gap-1.5 flex-wrap">
                         {p.name}
                         {p.tokenNumber && (
                           <span className="text-[8px] font-mono px-1 py-0.2 bg-indigo-50 border border-indigo-200/50 text-indigo-700 rounded shrink-0">
                             {p.tokenNumber}
                           </span>
                         )}
+                        {p.vitals && (() => {
+                          const triage = api.checkTriageAlert(p);
+                          if (triage.isAlert) {
+                            return (
+                              <span className="text-[7px] font-bold bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse border-0">
+                                Triage: {triage.reason.split(':')[0]}
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <span className="text-[8px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-mono">
                         {p.id.toUpperCase().substring(0, 8)}
@@ -729,8 +1133,19 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <span className="material-symbols-outlined text-primary text-xl">clinical_notes</span>
                 Electronic Consultation Record
               </h2>
-              <p className="text-xs text-slate-500 mt-1 font-medium">
+              <p className="text-xs text-slate-500 mt-1 font-medium flex items-center gap-2 flex-wrap">
                 Selected Profile: <strong className="text-slate-700 font-bold">{selectedPatient.name}</strong> ({selectedPatient.age}y, {selectedPatient.gender})
+                {selectedPatient.vitals && (() => {
+                  const triage = api.checkTriageAlert(selectedPatient);
+                  if (triage.isAlert) {
+                    return (
+                      <span className="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded animate-pulse border-0">
+                        ⚠️ Critical Triage Warning: {triage.reason}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -752,14 +1167,42 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
           </div>
 
-          {/* Handwritten prescription workflow notice */}
-          <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-start gap-2.5 my-3">
-            <span className="material-symbols-outlined text-indigo-600 text-lg mt-0.5">edit_note</span>
-            <div className="text-[10px] text-indigo-950 leading-relaxed">
-              <strong className="font-bold text-[11px] text-indigo-950 block mb-0.5">Handwritten Rx Support Enabled</strong>
-              Prefer paper? Write the prescription by hand as usual. The compounder will scan it at the counter, and our clinical AI will automatically reserve medicine inventory and queue pathology tests.
-            </div>
+          {/* Sub-Tabs Switcher */}
+          <div className="flex gap-2 border-b border-slate-200 pb-px mb-4">
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('workup')}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                activeSubTab === 'workup'
+                  ? 'border-indigo-600 text-indigo-650 font-black'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              🏥 Clinical Workup & Insights
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('prescription')}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                activeSubTab === 'prescription'
+                  ? 'border-indigo-600 text-indigo-650 font-black'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              💊 e-Prescription Pad (Rx / Dx)
+            </button>
           </div>
+
+          {activeSubTab === 'workup' && (
+            <div className="space-y-5 animate-fade-in">
+              {/* Handwritten prescription workflow notice */}
+              <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-start gap-2.5 my-3">
+                <span className="material-symbols-outlined text-indigo-600 text-lg mt-0.5">edit_note</span>
+                <div className="text-[10px] text-indigo-950 leading-relaxed">
+                  <strong className="font-bold text-[11px] text-indigo-950 block mb-0.5">Handwritten Rx Support Enabled</strong>
+                  Prefer paper? Write the prescription by hand as usual. The compounder will scan it at the counter, and our clinical AI will automatically reserve medicine inventory and queue pathology tests.
+                </div>
+              </div>
 
           {/* Virtual Appointment Timing Allocator */}
           {(() => {
@@ -1748,17 +2191,58 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
           </div>
 
-          {/* Prescribe Medications */}
+        {/* Clinical Notes (placed at the bottom of the workup tab) */}
+            <div className="space-y-2 text-left mt-4 pt-4 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                <span className="material-symbols-outlined text-xs text-indigo-500 font-bold">edit_note</span>
+                Consultation & Clinical Notes
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Presenting complaints, systemic examination notes, and diagnosis..."
+                rows={3}
+                className="w-full input-field resize-none text-xs leading-relaxed bg-white border border-slate-200"
+              />
+            </div>
+
+            {/* Tab Transition Button */}
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setActiveSubTab('prescription')}
+                className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer border-0 text-white-force"
+              >
+                Proceed to Prescription
+                <span className="material-symbols-outlined text-xs font-bold text-white-force">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'prescription' && (
+          <div className="space-y-5 animate-fade-in">
+            {/* Prescribe Medications */}
           <div 
             id="prescription-panel" 
             className={`space-y-4 text-left border-t border-slate-100 pt-5 transition-all duration-500 p-2.5 rounded-2xl ${
               flashPrescriptionPanel ? 'bg-indigo-50/80 border border-indigo-200 ring-4 ring-indigo-500/20' : ''
             }`}
           >
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-xs text-primary font-bold">medication</span>
-              Prescribe Medications (e-Rx)
-            </label>
+            <div className="flex justify-between items-center">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-xs text-primary font-bold">medication</span>
+                Prescribe Medications (e-Rx)
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsPrescriptionModalOpen(true)}
+                className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-500 text-indigo-700 hover:text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wide flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+              >
+                <span className="material-symbols-outlined text-xs font-bold">receipt_long</span>
+                Interactive E-Rx Pad
+              </button>
+            </div>
 
             {/* Smart Drug Swap Banner */}
             {(() => {
@@ -1842,21 +2326,42 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               return null;
             })()}
 
-            {/* List of current medications */}
+            {/* List of current medications (Professional Clinical Cards) */}
             {medications.length > 0 ? (
-              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 max-h-[300px] overflow-y-auto pr-1">
                 {medications.map((med, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200/60 rounded-xl text-xs">
-                    <div>
-                      <strong className="text-slate-800 text-xs">{med.medicineName}</strong>
-                      <span className="text-[10px] text-slate-500 block mt-0.5">
-                        Dosage: {med.dosage} | Frequency: {med.frequency} | Duration: {med.duration}
-                      </span>
+                  <div 
+                    key={idx} 
+                    className="p-4 bg-white border border-slate-200/80 rounded-2xl flex justify-between items-start hover:border-indigo-300 hover:shadow-xs transition-all relative overflow-hidden group"
+                  >
+                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                    <div className="space-y-2 flex-1 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-indigo-500 text-base font-bold">medication</span>
+                        <strong className="text-slate-800 text-xs font-bold font-sans tracking-tight">{med.medicineName}</strong>
+                      </div>
+                      
+                      {med.dosage && (
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          <span className="font-semibold text-slate-700">Generic Formula:</span> {med.dosage}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono">
+                          🕒 {med.frequency}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                          📅 {med.duration}
+                        </span>
+                      </div>
                     </div>
+                    
                     <button
                       type="button"
                       onClick={() => handleRemoveMedication(idx)}
-                      className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                      className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition-colors cursor-pointer border border-slate-200/60 hover:border-rose-200"
+                      title="Remove Medication"
                     >
                       <span className="material-symbols-outlined text-sm">delete</span>
                     </button>
@@ -1864,106 +2369,234 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 italic bg-slate-50/50 p-4 border border-dashed border-slate-200 rounded-xl text-center">
-                No medications prescribed yet. Add a medication below.
-              </p>
+              <div className="p-6 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl text-center flex flex-col items-center justify-center space-y-1.5">
+                <span className="material-symbols-outlined text-slate-400 text-2xl">receipt_long</span>
+                <p className="text-xs text-slate-600 font-medium font-sans">No medications prescribed yet.</p>
+                <p className="text-[10px] text-slate-400 font-medium">Type a medicine name below to generate suggestions.</p>
+              </div>
             )}
 
-            {/* Form to add medication */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50/30 p-4 border border-slate-200/50 rounded-xl">
-              <div className="sm:col-span-2 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-slate-555 uppercase">Medicine Name</span>
-                  {isOphthalmology && (
-                    <div className="flex gap-1">
-                      {['OD', 'OS', 'OU'].map(eye => (
-                        <button
-                          key={eye}
-                          type="button"
+            {/* Form to add medication with autocomplete typeahead */}
+            <div className="space-y-4 bg-slate-50/30 p-4.5 border border-slate-200/50 rounded-2xl relative">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                
+                {/* Autocomplete Input */}
+                <div ref={dropdownRef} className="md:col-span-2 space-y-1.5 relative">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider font-mono">Medicine Name</span>
+                    {isOphthalmology && (
+                      <div className="flex gap-1">
+                        {['OD', 'OS', 'OU'].map(eye => (
+                          <button
+                            key={eye}
+                            type="button"
+                            onClick={() => {
+                              const cleanName = medName.replace(/\s*\((OD|OS|OU)\)/i, '').trim();
+                              if (cleanName) {
+                                setMedName(`${cleanName} (${eye})`);
+                              }
+                            }}
+                            className="px-1.5 py-0.2 bg-indigo-50 hover:bg-indigo-500 hover:text-white text-indigo-700 rounded text-[7.5px] font-black border border-indigo-200/50 cursor-pointer transition-all"
+                          >
+                            {eye}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder={isOphthalmology ? "e.g. Moxifloxacin Eye Drops" : "e.g. Paracetamol 650mg"}
+                      value={medName}
+                      onChange={(e) => setMedName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (!showSuggestions || suggestions.length === 0) return;
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setActiveSuggestionIdx(prev => (prev + 1) % suggestions.length);
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setActiveSuggestionIdx(prev => (prev - 1 + suggestions.length) % suggestions.length);
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const selected = suggestions[activeSuggestionIdx];
+                          setIsSelectingFromDropdown(true);
+                          setMedName(selected.name);
+                          setMedDosage(selected.genericName);
+                          setMedFreq(selected.frequency);
+                          setMedDur(selected.duration);
+                          setShowSuggestions(false);
+                        } else if (e.key === 'Escape') {
+                          setShowSuggestions(false);
+                        }
+                      }}
+                      className="w-full input-field py-2 text-xs bg-white border-slate-200 pr-8"
+                    />
+                    <span className="material-symbols-outlined text-slate-400 absolute right-2.5 top-2.5 text-sm pointer-events-none">search</span>
+                  </div>
+
+                  {/* Autocomplete Dropdown Panel */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-[220px] overflow-y-auto">
+                      {suggestions.map((item, idx) => (
+                        <div
+                          key={idx}
                           onClick={() => {
-                            const cleanName = medName.replace(/\s*\((OD|OS|OU)\)/i, '').trim();
-                            if (cleanName) {
-                              setMedName(`${cleanName} (${eye})`);
-                            }
+                            setIsSelectingFromDropdown(true);
+                            setMedName(item.name);
+                            setMedDosage(item.genericName);
+                            setMedFreq(item.frequency);
+                            setMedDur(item.duration);
+                            setShowSuggestions(false);
                           }}
-                          className="px-1.5 py-0.2 bg-indigo-50 hover:bg-indigo-500 hover:text-white text-indigo-700 rounded text-[7.5px] font-black border border-indigo-200/50 cursor-pointer"
+                          onMouseEnter={() => setActiveSuggestionIdx(idx)}
+                          className={`p-3 border-b border-slate-100 last:border-0 flex justify-between items-center cursor-pointer text-xs transition-colors ${
+                            idx === activeSuggestionIdx ? 'bg-indigo-50/70 text-indigo-900' : 'text-slate-700 hover:bg-slate-50'
+                          }`}
                         >
-                          {eye}
-                        </button>
+                          <div>
+                            <div className="font-semibold flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-xs text-indigo-500">medication</span>
+                              {item.name}
+                            </div>
+                            <div className="text-[10px] text-slate-650 mt-0.5">
+                              {item.genericName} • <span className="text-slate-450 italic">{item.category}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {item.inInventory ? (
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider font-mono ${
+                                item.stock > 10 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}>
+                                {item.stock} in stock
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider font-mono bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                Catalog
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
-                <input
-                  type="text"
-                  placeholder={isOphthalmology ? "e.g. Moxifloxacin Eye Drops" : "e.g. Paracetamol 650mg"}
-                  value={medName}
-                  onChange={(e) => setMedName(e.target.value)}
-                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
-                />
+
+                {/* Dosage Input */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider font-mono">Dosage / Formula</span>
+                  {isOphthalmology ? (
+                    <select
+                      value={medDosage}
+                      onChange={(e) => setMedDosage(e.target.value)}
+                      className="w-full input-field py-2 text-xs bg-white border-slate-200 cursor-pointer"
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="1 drop">1 drop</option>
+                      <option value="2 drops">2 drops</option>
+                      <option value="Thin ribbon">Thin ribbon</option>
+                      <option value="Apply ointment">Apply ointment</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="e.g. 1 tab"
+                      value={medDosage}
+                      onChange={(e) => setMedDosage(e.target.value)}
+                      className="w-full input-field py-2 text-xs bg-white border-slate-200"
+                    />
+                  )}
+                </div>
+
+                {/* Frequency & Duration Inputs */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider font-mono">Frequency</span>
+                  {isOphthalmology ? (
+                    <select
+                      value={medFreq}
+                      onChange={(e) => setMedFreq(e.target.value)}
+                      className="w-full input-field py-2 text-xs bg-white border-slate-200 cursor-pointer"
+                    >
+                      <option value="">-- Select --</option>
+                      {OPHTHALMIC_FREQUENCIES.map(freq => (
+                        <option key={freq} value={freq}>{freq}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="e.g. 1-0-1"
+                      value={medFreq}
+                      onChange={(e) => setMedFreq(e.target.value)}
+                      className="w-full input-field py-2 text-xs bg-white border-slate-200"
+                    />
+                  )}
+                </div>
               </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-555 uppercase">Dosage</span>
-                {isOphthalmology ? (
-                  <select
-                    value={medDosage}
-                    onChange={(e) => setMedDosage(e.target.value)}
-                    className="w-full input-field py-1.5 text-xs bg-white border-slate-200 cursor-pointer"
-                  >
-                    <option value="">-- Select --</option>
-                    <option value="1 drop">1 drop</option>
-                    <option value="2 drops">2 drops</option>
-                    <option value="Thin ribbon">Thin ribbon</option>
-                    <option value="Apply ointment">Apply ointment</option>
-                  </select>
-                ) : (
+
+              {/* Quick Presets / Shortcuts for General Medicine */}
+              {!isOphthalmology && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wide">Quick Frequency Presets</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: 'Once daily (morning)', val: '1-0-0' },
+                        { label: 'Once daily (night)', val: '0-0-1' },
+                        { label: 'Twice daily', val: '1-0-1' },
+                        { label: 'Three times daily', val: '1-1-1' },
+                        { label: 'As needed (PRN)', val: 'SOS' }
+                      ].map(preset => (
+                        <button
+                          key={preset.val}
+                          type="button"
+                          onClick={() => setMedFreq(preset.val)}
+                          className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-[10px] font-semibold text-slate-650 transition-all cursor-pointer"
+                        >
+                          {preset.label} ({preset.val})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wide">Quick Duration Presets</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['3 Days', '5 Days', '7 Days', '10 Days', '15 Days', '30 Days'].map(dur => (
+                        <button
+                          key={dur}
+                          type="button"
+                          onClick={() => setMedDur(dur)}
+                          className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-[10px] font-semibold text-slate-650 transition-all cursor-pointer"
+                        >
+                          {dur}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Duration Input & Action Row */}
+              <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-3 border-t border-slate-100">
+                <div className="space-y-1 flex-1 max-w-[200px]">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider font-mono">Duration</span>
                   <input
                     type="text"
-                    placeholder="e.g. 1 tab"
-                    value={medDosage}
-                    onChange={(e) => setMedDosage(e.target.value)}
+                    placeholder="e.g. 5 Days"
+                    value={medDur}
+                    onChange={(e) => setMedDur(e.target.value)}
                     className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
                   />
-                )}
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-555 uppercase">Frequency</span>
-                {isOphthalmology ? (
-                  <select
-                    value={medFreq}
-                    onChange={(e) => setMedFreq(e.target.value)}
-                    className="w-full input-field py-1.5 text-xs bg-white border-slate-200 cursor-pointer"
-                  >
-                    <option value="">-- Select --</option>
-                    {OPHTHALMIC_FREQUENCIES.map(freq => (
-                      <option key={freq} value={freq}>{freq}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="e.g. 1-0-1"
-                    value={medFreq}
-                    onChange={(e) => setMedFreq(e.target.value)}
-                    className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
-                  />
-                )}
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-550 uppercase">Duration</span>
-                <input
-                  type="text"
-                  placeholder="e.g. 5 Days"
-                  value={medDur}
-                  onChange={(e) => setMedDur(e.target.value)}
-                  className="w-full input-field py-1.5 text-xs bg-white border-slate-200"
-                />
-              </div>
-              <div className="sm:col-span-4 flex justify-end">
+                </div>
+
                 <button
                   type="button"
                   onClick={handleAddMedication}
-                  className="bg-[#075e54] hover:bg-[#0c4e46] text-white font-bold text-xs px-4 py-2 rounded-xl active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
+                  className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0 text-white-force self-end"
                 >
                   <span className="material-symbols-outlined text-xs font-bold text-white-force">add</span>
                   Add to Prescription
@@ -1972,20 +2605,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
           </div>
 
-          {/* Clinical Notes */}
-          <div className="space-y-2 text-left">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-xs text-primary">edit_note</span>
-              Consultation & Clinical Notes
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Presenting complaints, systemic examination notes, and diagnosis..."
-              rows={3}
-              className="w-full input-field resize-none text-xs leading-relaxed"
-            />
-          </div>
+
 
           {/* Diagnostic Requisitions Section */}
           <div className="space-y-3 text-left">
@@ -2025,20 +2645,294 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* Ophthalmology Refraction Rx Grid */}
           {isOphthalmology && (
-            <div className="space-y-4 pt-5 border-t border-slate-100 animate-fade-in text-left">
+            <div className="space-y-6 pt-5 border-t border-slate-100 animate-fade-in text-left">
+              {/* Refractionist Intake Metrics Summary Card */}
+              {selectedPatient.vitals && (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-205 pb-2">
+                    <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-indigo-650 text-base font-bold">clinical_notes</span>
+                      Refractionist Station Diagnostics (अपवर्तन रिपोर्ट)
+                    </h3>
+                    {selectedPatient.vitals.dilationStatus && (
+                      <span className={`text-[9px] font-black font-mono px-2 py-0.5 rounded uppercase tracking-wider border ${
+                        selectedPatient.vitals.dilationStatus === 'dilated'
+                          ? 'bg-emerald-550/10 text-emerald-700 border-emerald-200'
+                          : 'bg-amber-550/10 text-amber-800 border-amber-200'
+                      }`}>
+                        {selectedPatient.vitals.dilationStatus === 'dilated' ? '👁️ Fully Dilated' : '⏳ Dilation in Progress'}
+                        {selectedPatient.vitals.dilationStatus === 'instilled' && selectedPatient.vitals.dilationStartTime && (
+                          <span className="ml-1 text-[9px] font-mono lowercase">
+                            ({Math.max(0, Math.ceil((new Date(selectedPatient.vitals.dilationStartTime).getTime() + 20 * 60 * 1000 - Date.now()) / (60 * 1000)))}m left)
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Visual Acuity */}
+                    <div className="bg-white border border-slate-150 p-3 rounded-xl space-y-1.5">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono block">Visual Acuity</span>
+                      <div className="text-xs space-y-1 text-slate-800 font-medium">
+                        <p className="flex justify-between"><span>Unaided OD:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.visualAcuityOD || '6/6'}</span></p>
+                        <p className="flex justify-between"><span>Unaided OS:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.visualAcuityOS || '6/6'}</span></p>
+                        {selectedPatient.vitals.visualAcuityAidedOD && (
+                          <p className="flex justify-between"><span>Aided OD:</span> <span className="font-bold text-emerald-600">{selectedPatient.vitals.visualAcuityAidedOD}</span></p>
+                        )}
+                        {selectedPatient.vitals.visualAcuityAidedOS && (
+                          <p className="flex justify-between"><span>Aided OS:</span> <span className="font-bold text-emerald-600">{selectedPatient.vitals.visualAcuityAidedOS}</span></p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Autorefraction Readings */}
+                    <div className="bg-white border border-slate-150 p-3 rounded-xl space-y-1.5">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono block">Autorefraction (AR)</span>
+                      <div className="text-xs space-y-1 text-slate-800 font-mono text-[10px]">
+                        <p className="flex justify-between">
+                          <span>OD:</span> 
+                          <span className="font-bold">
+                            {selectedPatient.vitals.arOD_sph ? `SPH ${selectedPatient.vitals.arOD_sph}` : ''}
+                            {selectedPatient.vitals.arOD_cyl ? ` CYL ${selectedPatient.vitals.arOD_cyl}` : ''}
+                            {selectedPatient.vitals.arOD_axis ? ` AXIS ${selectedPatient.vitals.arOD_axis}°` : ''}
+                            {!selectedPatient.vitals.arOD_sph && !selectedPatient.vitals.arOD_cyl && '—'}
+                          </span>
+                        </p>
+                        <p className="flex justify-between">
+                          <span>OS:</span> 
+                          <span className="font-bold">
+                            {selectedPatient.vitals.arOS_sph ? `SPH ${selectedPatient.vitals.arOS_sph}` : ''}
+                            {selectedPatient.vitals.arOS_cyl ? ` CYL ${selectedPatient.vitals.arOS_cyl}` : ''}
+                            {selectedPatient.vitals.arOS_axis ? ` AXIS ${selectedPatient.vitals.arOS_axis}°` : ''}
+                            {!selectedPatient.vitals.arOS_sph && !selectedPatient.vitals.arOS_cyl && '—'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* IOP Intraocular Pressure */}
+                    <div className="bg-white border border-slate-150 p-3 rounded-xl space-y-1.5">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono block">Intraocular Pressure</span>
+                      <div className="text-xs space-y-1 text-slate-800 font-medium">
+                        <p className="flex justify-between"><span>IOP OD:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.iopOD ? `${selectedPatient.vitals.iopOD} mmHg` : '—'}</span></p>
+                        <p className="flex justify-between"><span>IOP OS:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.iopOS ? `${selectedPatient.vitals.iopOS} mmHg` : '—'}</span></p>
+                        {selectedPatient.vitals.dilationDropsUsed && (
+                          <p className="flex justify-between text-[10px]"><span>Drops:</span> <span className="font-bold text-amber-600">{selectedPatient.vitals.dilationDropsUsed}</span></p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <OphthalmicRefractionGrid 
                 value={refractionRx} 
-                onChange={setRefractionRx} 
+                onChange={() => {}} 
+                readOnly={true}
               />
               
               <BiometryWorksheet 
                 value={biometryRx} 
-                onChange={setBiometryRx} 
+                onChange={() => {}} 
+                readOnly={true}
               />
+
+              {/* Cataract Surgery Booking Widget */}
+              <div className="glass-panel p-5 border-slate-200 bg-slate-50/40 shadow-xs rounded-2xl space-y-4 text-left my-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-indigo-600 text-xl">medical_services</span>
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cataract Surgery Booking & IOL Planner</h3>
+                  </div>
+                  <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded font-mono font-bold uppercase">
+                    Pre-Op Workspace
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Select Surgery Eye</label>
+                    <select
+                      value={surgeryEye}
+                      onChange={e => setSurgeryEye(e.target.value as any)}
+                      className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
+                    >
+                      <option value="None">None (No Surgery Scheduled)</option>
+                      <option value="OD">Right Eye (OD)</option>
+                      <option value="OS">Left Eye (OS)</option>
+                    </select>
+                  </div>
+
+                  {surgeryEye !== 'None' && (
+                    <>
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Procedure Type</label>
+                        <select
+                          value={surgeryType}
+                          onChange={e => setSurgeryType(e.target.value)}
+                          className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
+                        >
+                          <option value="Cataract - Phacoemulsification (MICS)">Cataract - Phacoemulsification (MICS)</option>
+                          <option value="Cataract - SICS (Small Incision)">Cataract - SICS (Small Incision)</option>
+                          <option value="Cataract - FLACS (Femto-Laser)">Cataract - FLACS (Femto-Laser)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Surgery Package Tier</label>
+                        <select
+                          value={surgeryPackage}
+                          onChange={e => setSurgeryPackage(e.target.value)}
+                          className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
+                        >
+                          <option value="Indian Monofocal (SICS)">Indian Monofocal (SICS) - ₹12,000</option>
+                          <option value="Indian Monofocal (Phaco)">Indian Monofocal (Phaco) - ₹18,000</option>
+                          <option value="Imported Monofocal (Phaco)">Imported Monofocal (Phaco) - ₹32,000</option>
+                          <option value="Premium Multifocal (Phaco)">Premium Multifocal (Phaco) - ₹65,000</option>
+                          <option value="Ultra Toric/EDOF (Phaco)">Ultra Toric/EDOF (Phaco) - ₹95,000</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">IOL Lens Model / Type</label>
+                        <select
+                          value={lensType}
+                          onChange={e => setLensType(e.target.value)}
+                          className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
+                        >
+                          <option value="Monofocal">Monofocal Lens (Standard)</option>
+                          <option value="Multifocal">Multifocal Lens (Presbyopia correcting)</option>
+                          <option value="Toric">Toric Lens (Astigmatism correcting)</option>
+                          <option value="EDOF">EDOF Lens (Extended Depth of Focus)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Target IOL Power (D)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. +21.5 D"
+                          value={iolPower}
+                          onChange={e => setIolPower(e.target.value)}
+                          className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Scheduled Surgery Date</label>
+                        <input
+                          type="date"
+                          value={surgeryDate}
+                          onChange={e => setSurgeryDate(e.target.value)}
+                          className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1 px-2 text-xs text-slate-850 outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Assigned OT Coordinator</label>
+                        <select
+                          value={surgeryCoordinator}
+                          onChange={e => setSurgeryCoordinator(e.target.value)}
+                          className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
+                        >
+                          <option value="Sister Mary (OT Charge)">Sister Mary (OT Charge)</option>
+                          <option value="Brother Paul (OT Assistant)">Brother Paul (OT Assistant)</option>
+                          <option value="Dr. Verma (Anesthetist)">Dr. Verma (Anesthetist)</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {surgeryEye !== 'None' && (
+                  <div className="flex justify-end pt-2 border-t border-slate-200/50 animate-fade-in">
+                    <button
+                      type="button"
+                      onClick={handleSaveSurgeryBooking}
+                      disabled={isSurgerySaving || !surgeryDate}
+                      className="px-5 py-2 bg-indigo-650 hover:bg-indigo-600 disabled:bg-slate-200 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition active:scale-95 border-0 text-white-force bg-indigo-650-force"
+                    >
+                      {isSurgerySaving ? 'Scheduling...' : 'Save & Schedule Surgery'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
+          {/* General Physician Minor OT & Daycare Procedure Booking Widget */}
+          {!isOphthalmology && (
+            <div className="glass-panel p-5 border-slate-200 bg-slate-50/40 shadow-xs rounded-2xl space-y-4 text-left my-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-600 text-xl">medical_services</span>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">GP Minor OT & Daycare Procedure Booking</h3>
+                </div>
+                <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded font-mono font-bold uppercase">
+                  Procedure Workspace
+                </span>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Select Minor Procedure</label>
+                  <select
+                    value={gpProcedureType}
+                    onChange={e => setGpProcedureType(e.target.value)}
+                    className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
+                  >
+                    <option value="None">None (No Procedure Scheduled)</option>
+                    <option value="Minor Suturing / Stitching">Minor Suturing / Stitching - ₹1,200</option>
+                    <option value="Abscess Incision & Drainage (I&D)">Abscess Incision & Drainage (I&D) - ₹1,500</option>
+                    <option value="Wound Dressing & Debridement">Wound Dressing & Debridement - ₹800</option>
+                    <option value="Sebaceous Cyst Excision">Sebaceous Cyst Excision - ₹3,000</option>
+                    <option value="IV Infusion / Saline Drip Session">IV Infusion / Saline Drip Session - ₹600</option>
+                  </select>
+                </div>
+
+                {gpProcedureType !== 'None' && (
+                  <>
+                    <div className="space-y-1 animate-fade-in">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Scheduled Date</label>
+                      <input
+                        type="date"
+                        value={gpProcedureDate}
+                        onChange={e => setGpProcedureDate(e.target.value)}
+                        className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1 px-2 text-xs text-slate-850 outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1 animate-fade-in">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Assigned Facility / Dressing Room</label>
+                      <select
+                        value={gpProcedureRoom}
+                        onChange={e => setGpProcedureRoom(e.target.value)}
+                        className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
+                      >
+                        <option value="Dressing Room 1">Dressing Room 1</option>
+                        <option value="Dressing Room 2">Dressing Room 2</option>
+                        <option value="Minor OT 1">Minor OT 1</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {gpProcedureType !== 'None' && (
+                <div className="flex justify-end pt-2 border-t border-slate-200/50 animate-fade-in">
+                  <button
+                    type="button"
+                    onClick={handleSaveGPProcedureBooking}
+                    disabled={isGPProcedureSaving || !gpProcedureDate}
+                    className="px-5 py-2 bg-indigo-650 hover:bg-indigo-600 disabled:bg-slate-200 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition active:scale-95 border-0 text-white-force bg-indigo-650-force"
+                  >
+                    {isGPProcedureSaving ? 'Scheduling...' : 'Save & Schedule Procedure'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Pod-to-Pod Network Referral */}
           <div className="border-t border-slate-100 pt-5 mt-5 space-y-3 text-left">
@@ -2077,6 +2971,379 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             >
               <CheckCircle2 className="h-5 w-5 text-slate-800-force" /> Submit Encounter & Route Mappings
             </button>
+          </div>
+          </div>
+        )}
+        </div>
+      )}
+
+      {/* ── INTERACTIVE E-PRESCRIPTION PAD WORKSPACE MODAL ── */}
+      {isPrescriptionModalOpen && selectedPatient && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 md:p-6 md:pl-[272px] overflow-hidden animate-fade-in">
+          <div className="glass-panel max-w-6xl w-full p-6 md:p-8 border-slate-200 shadow-2xl relative bg-white text-slate-800 rounded-3xl flex flex-col max-h-[92vh] overflow-hidden">
+            
+            {/* Top gradient accent line */}
+            <div className="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
+
+            {/* Header: Title & Close Action */}
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-600 text-2xl font-bold">receipt_long</span>
+                <div>
+                  <h3 className="text-sm md:text-base font-black text-slate-800 uppercase tracking-wider font-sans">
+                    Interactive Clinical E-Prescription Pad
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-medium">Design & organize prescriptions and diagnostics worksheets in a unified layout</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPrescriptionModalOpen(false)}
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            {/* Content Body: Scrollable Sheet */}
+            <div className="flex-1 overflow-y-auto pr-1 py-4 space-y-6">
+              
+              {/* Clinical letterhead */}
+              <div className="p-5 bg-slate-50/50 border border-slate-200 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-4 relative">
+                <div className="space-y-1 text-left border-r border-dashed border-slate-200 pr-4">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase">
+                    {isOphthalmology ? "Dr. Amit Arya, MS (Ophthalmology)" : "Dr. Sharma, MD (Medicine)"}
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {isOphthalmology ? "Ophthalmic Microsurgery & Refractive Consultant" : "General Medicine & Nephrology Specialist"}
+                  </p>
+                  <p className="text-[9px] text-slate-400 font-mono">
+                    Reg No: MCI-84992-A • Phone: +91 99342 98453
+                  </p>
+                  <p className="text-[9px] text-slate-500 font-medium">
+                    🏢 {activePod?.clinicCode ? `Clinic Hub: Patna (Code: ${activePod.clinicCode})` : "VitalSync Patna Clinic Group"}
+                  </p>
+                </div>
+
+                <div className="space-y-1 text-left md:pl-2">
+                  <div className="flex justify-between">
+                    <span className="text-[10px] font-bold text-slate-700">Patient:</span>
+                    <span className="text-[10px] text-slate-900 font-medium">{selectedPatient.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] font-bold text-slate-700">Age / Gender:</span>
+                    <span className="text-[10px] text-slate-900 font-medium">{selectedPatient.age}y / {selectedPatient.gender}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] font-bold text-slate-700">ABHA ID:</span>
+                    <span className="text-[10px] text-slate-900 font-mono">{selectedPatient.abhaId || "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] font-bold text-slate-700">Token Number:</span>
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded">
+                      {selectedPatient.tokenNumber || "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-100 pt-1 mt-1">
+                    <span className="text-[9px] font-bold text-slate-500">Date:</span>
+                    <span className="text-[9px] text-slate-500 font-mono">
+                      {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 50/50 Split Workspace */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                
+                {/* LEFT HALF: Medication builder & cards list */}
+                <div className="space-y-4 text-left p-4.5 bg-slate-50/20 border border-slate-200/50 rounded-2xl">
+                  <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                    <span className="material-symbols-outlined text-indigo-500 text-base">medication</span>
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">
+                      1. Medications Prescription details (Rx)
+                    </h4>
+                  </div>
+
+                  {/* Form to add medicine (Duplicate layout inside modal for smoothness) */}
+                  <div className="space-y-3.5 bg-white p-4 border border-slate-200 rounded-xl relative">
+                    <div className="space-y-1.5 relative">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase font-mono">Medicine Search / Name</span>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder={isOphthalmology ? "e.g. Moxifloxacin Eye Drops" : "e.g. Paracetamol 650mg"}
+                          value={medName}
+                          onChange={(e) => setMedName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (!showSuggestions || suggestions.length === 0) return;
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setActiveSuggestionIdx(prev => (prev + 1) % suggestions.length);
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setActiveSuggestionIdx(prev => (prev - 1 + suggestions.length) % suggestions.length);
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const selected = suggestions[activeSuggestionIdx];
+                              setIsSelectingFromDropdown(true);
+                              setMedName(selected.name);
+                              setMedDosage(selected.genericName);
+                              setMedFreq(selected.frequency);
+                              setMedDur(selected.duration);
+                              setShowSuggestions(false);
+                            } else if (e.key === 'Escape') {
+                              setShowSuggestions(false);
+                            }
+                          }}
+                          className="w-full input-field py-1.5 text-xs bg-slate-50 border-slate-200 pr-8"
+                        />
+                        <span className="material-symbols-outlined text-slate-400 absolute right-2.5 top-2 text-sm pointer-events-none">search</span>
+                      </div>
+
+                      {/* Autocomplete Dropdown inside Modal */}
+                      {showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[130] max-h-[160px] overflow-y-auto">
+                          {suggestions.map((item, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                setIsSelectingFromDropdown(true);
+                                setMedName(item.name);
+                                setMedDosage(item.genericName);
+                                setMedFreq(item.frequency);
+                                setMedDur(item.duration);
+                                setShowSuggestions(false);
+                              }}
+                              onMouseEnter={() => setActiveSuggestionIdx(idx)}
+                              className={`p-2.5 border-b border-slate-100 last:border-0 flex justify-between items-center cursor-pointer text-xs transition-colors ${
+                                idx === activeSuggestionIdx ? 'bg-indigo-50/70 text-indigo-900' : 'text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div>
+                                <div className="font-semibold flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[11px] text-indigo-500">medication</span>
+                                  {item.name}
+                                </div>
+                                <div className="text-[9px] text-slate-500 mt-0.5">
+                                  {item.genericName}
+                                </div>
+                              </div>
+                              <span className={`px-1.5 py-0.2 rounded-full text-[8px] font-bold ${
+                                item.inInventory ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-indigo-50 text-indigo-650'
+                              }`}>
+                                {item.inInventory ? `${item.stock} Avail` : 'Catalog'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase font-mono">Dosage / Formula</span>
+                        {isOphthalmology ? (
+                          <select
+                            value={medDosage}
+                            onChange={(e) => setMedDosage(e.target.value)}
+                            className="w-full input-field py-1.5 text-xs bg-slate-50 border-slate-200 cursor-pointer"
+                          >
+                            <option value="">-- Select --</option>
+                            <option value="1 drop">1 drop</option>
+                            <option value="2 drops">2 drops</option>
+                            <option value="Thin ribbon">Thin ribbon</option>
+                            <option value="Apply ointment">Apply ointment</option>
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="e.g. 1 tab"
+                            value={medDosage}
+                            onChange={(e) => setMedDosage(e.target.value)}
+                            className="w-full input-field py-1.5 text-xs bg-slate-50 border-slate-200"
+                          />
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase font-mono">Frequency</span>
+                        {isOphthalmology ? (
+                          <select
+                            value={medFreq}
+                            onChange={(e) => setMedFreq(e.target.value)}
+                            className="w-full input-field py-1.5 text-xs bg-slate-50 border-slate-200 cursor-pointer"
+                          >
+                            <option value="">-- Select --</option>
+                            {OPHTHALMIC_FREQUENCIES.map(freq => (
+                              <option key={freq} value={freq}>{freq}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="e.g. 1-0-1"
+                            value={medFreq}
+                            onChange={(e) => setMedFreq(e.target.value)}
+                            className="w-full input-field py-1.5 text-xs bg-slate-50 border-slate-200"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center gap-3 pt-2">
+                      <div className="space-y-1 flex-1 max-w-[150px]">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase font-mono">Duration</span>
+                        <input
+                          type="text"
+                          placeholder="e.g. 5 Days"
+                          value={medDur}
+                          onChange={(e) => setMedDur(e.target.value)}
+                          className="w-full input-field py-1 text-xs bg-slate-50 border-slate-200"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddMedication}
+                        className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-[10px] px-4 py-2 rounded-xl active:scale-[0.98] transition-all flex items-center gap-1 cursor-pointer border-0 text-white-force self-end"
+                      >
+                        <span className="material-symbols-outlined text-[11px] font-bold text-white-force">add</span>
+                        Prescribe
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active e-Rx Card List */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide font-mono block">Prescribed Medication List</span>
+                    {medications.length > 0 ? (
+                      <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
+                        {medications.map((med, idx) => (
+                          <div 
+                            key={idx} 
+                            className="p-3 bg-white border border-slate-200 rounded-xl flex justify-between items-center hover:border-indigo-300 hover:shadow-xs transition-all relative overflow-hidden"
+                          >
+                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                            <div className="flex-1 pr-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-indigo-500 text-xs font-bold">medication</span>
+                                <strong className="text-slate-800 text-[11px] font-bold">{med.medicineName}</strong>
+                              </div>
+                              <span className="text-[9px] text-slate-500 block mt-0.5">
+                                Formula: {med.dosage || 'As directed'} • Freq: {med.frequency} • Dur: {med.duration}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMedication(idx)}
+                              className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">delete</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-[10px] text-slate-400 italic">
+                        No medications prescribed yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* RIGHT HALF: Searchable diagnostic tests catalog selector */}
+                <div className="space-y-4 text-left p-4.5 bg-slate-50/20 border border-slate-200/50 rounded-2xl flex flex-col h-full min-h-[380px]">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-teal-600 text-base">biotech</span>
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">
+                        2. Diagnostics Requisitions (Dx)
+                      </h4>
+                    </div>
+                    <span className="text-[8px] font-bold px-2 py-0.5 bg-teal-50 border border-teal-200 text-teal-700 rounded-full font-mono">
+                      {selectedTests.length} Selected
+                    </span>
+                  </div>
+
+                  {/* Search diagnostics filter */}
+                  <div className="relative">
+                    <span className="material-symbols-outlined text-slate-400 text-xs absolute left-2.5 top-2 pointer-events-none">search</span>
+                    <input
+                      type="text"
+                      placeholder="Search diagnostic test name or LOINC..."
+                      value={testSearchQuery}
+                      onChange={(e) => setTestSearchQuery(e.target.value)}
+                      className="w-full input-field py-1.5 pl-8 text-xs bg-white border-slate-200"
+                    />
+                    {testSearchQuery && (
+                      <button 
+                        onClick={() => setTestSearchQuery('')} 
+                        className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-700 cursor-pointer border-0 bg-transparent"
+                      >
+                        <span className="material-symbols-outlined text-xs">close</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Diagnostic catalog list grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto max-h-[260px] pr-1 pt-1">
+                    {testCatalog
+                      .filter(test => 
+                        test.name.toLowerCase().includes(testSearchQuery.toLowerCase()) || 
+                        test.loincCode.toLowerCase().includes(testSearchQuery.toLowerCase())
+                      )
+                      .map((test) => {
+                        const isChecked = selectedTests.some(t => t.loincCode === test.loincCode);
+                        return (
+                          <button
+                            key={test.loincCode}
+                            type="button"
+                            onClick={() => handleToggleTest(test)}
+                            className={`flex items-center justify-between p-3 rounded-xl border text-left text-xs transition-all duration-200 cursor-pointer ${
+                              isChecked
+                                ? 'bg-indigo-50/70 border-indigo-300 text-slate-900 shadow-xs'
+                                : 'bg-white border-slate-200/80 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="truncate pr-2">
+                              <span className="font-semibold block truncate text-[10px] text-slate-750">{test.name}</span>
+                              <span className="text-[8px] text-slate-400 font-mono mt-0.5 inline-block uppercase">
+                                LOINC: {test.loincCode}
+                              </span>
+                            </div>
+                            <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center shrink-0 transition-all ${
+                              isChecked ? 'bg-indigo-600 border-indigo-600 text-white-force' : 'border-slate-300 bg-slate-50'
+                            }`}>
+                              {isChecked && <span className="material-symbols-outlined text-[10px] font-bold text-white-force">check</span>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Footer Workspace Action Row */}
+            <div className="border-t border-slate-100 pt-4 mt-2 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div className="flex gap-4 text-[10px] text-slate-500 font-mono font-medium">
+                <div>Prescribed Medications: <strong className="text-indigo-600">{medications.length}</strong></div>
+                <div>Lab Diagnostics: <strong className="text-teal-600">{selectedTests.length}</strong></div>
+              </div>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsPrescriptionModalOpen(false)}
+                  className="w-full sm:w-auto bg-indigo-650 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer border-0 text-white-force shadow-md"
+                >
+                  <span className="material-symbols-outlined text-xs text-white-force">check_circle</span>
+                  Save & Apply Workspace
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

@@ -4,7 +4,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // System-wide environment variables loaded from Supabase Vault/Secrets
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY") ?? "mediflow_vault_key_2026";
+
+// ── SECURITY: WABA decryption key — MUST be set in Supabase Vault ────────────
+// Never use a fallback here. If this key is missing, all tenant WABA tokens
+// would be encrypted/decrypted with a publicly-visible default string.
+// Set via: supabase secrets set WABA_DECRYPTION_KEY=<strong-256bit-hex>
+// ─────────────────────────────────────────────────────────────────────────────
+const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY");
+if (!wabaSecretKey) {
+  console.error("[meta-webhook] FATAL: WABA_DECRYPTION_KEY is not set in Supabase Vault. Cannot decrypt tenant WABA tokens.");
+}
 
 // Initialize Supabase Client with service key to bypass RLS for administrative routing
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
@@ -19,7 +28,13 @@ serve(async (req) => {
     const challenge = url.searchParams.get("hub.challenge");
 
     // Retrieve global webhook verification token
-    const systemVerifyToken = Deno.env.get("META_VERIFY_TOKEN") ?? "mediflow_handshake_secret";
+    // SECURITY: This must be set in Supabase Vault. If missing, reject all handshakes
+    // to prevent attackers from using the publicly-known default to register fake subscriptions.
+    const systemVerifyToken = Deno.env.get("META_VERIFY_TOKEN");
+    if (!systemVerifyToken) {
+      console.error("[Meta Webhook] FATAL: META_VERIFY_TOKEN not set in Vault. Rejecting all handshakes.");
+      return new Response("Server configuration error", { status: 500 });
+    }
 
     if (mode === "subscribe" && token === systemVerifyToken) {
       console.log("[Meta Webhook] GET Handshake Verification Succeeded!");

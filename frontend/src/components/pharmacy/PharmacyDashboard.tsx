@@ -723,240 +723,412 @@ export const PharmacyDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {(() => {
                   const patients = api.getPatients();
                   const prescriptions = api.getPrescriptions();
-                  const paidPharmaInvoices = api.getUnifiedInvoices().filter(i => i.pharmacyFee > 0 && i.paymentStatus === 'cleared');
+                  const allInvoices = api.getUnifiedInvoices();
+
+                  const pendingPharmaInvoices = allInvoices.filter(i => i.pharmacyFee > 0 && i.paymentStatus === 'pending');
+                  const paidPharmaInvoices = allInvoices.filter(i => i.pharmacyFee > 0 && i.paymentStatus === 'cleared');
                   
-                  const filteredInvoices = paidPharmaInvoices.filter(invoice => {
+                  const filteredPending = pendingPharmaInvoices.filter(invoice => {
                     const patient = patients.find(p => p.id === invoice.patientId);
                     if (!patient) return false;
-                    
                     const query = verifySearch.toLowerCase().trim();
                     if (!query) return true;
                     return patient.name.toLowerCase().includes(query) || patient.phone.includes(query);
                   });
 
-                  if (filteredInvoices.length === 0) {
-                    return (
-                      <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-sm text-slate-400">
-                        No paid medicine invoices matching search.
-                      </div>
-                    );
-                  }
+                  const filteredPaid = paidPharmaInvoices.filter(invoice => {
+                    const patient = patients.find(p => p.id === invoice.patientId);
+                    if (!patient) return false;
+                    const query = verifySearch.toLowerCase().trim();
+                    if (!query) return true;
+                    return patient.name.toLowerCase().includes(query) || patient.phone.includes(query);
+                  });
 
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredInvoices.map(invoice => {
-                        const appt = { id: invoice.encounterId, patientId: invoice.patientId };
-                        const patient = patients.find(p => p.id === invoice.patientId);
-                        const prescription = prescriptions.find(p => p.appointmentId === invoice.encounterId);
-
-                        return (
-                          <div key={invoice.id} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 bg-emerald-600 text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                              PAID ✅
-                            </div>
-
-                            <div className="flex justify-between items-start border-b border-slate-100 pb-2">
-                              <div>
-                                <h4 className="font-bold text-slate-800 text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
-                                <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
-                                  Phone: +91 {patient ? patient.phone : 'N/A'}
-                                </p>
-                              </div>
-                            </div>
-
-                            {prescription && prescription.extractedMedicines && (
-                              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
-                                <span className="block text-[8px] font-black text-teal-600 tracking-widest uppercase font-mono">
-                                  Approved Medicines to Dispense
-                                </span>
-                                <div className="space-y-1.5">
-                                  {prescription.extractedMedicines.map((m, idx) => {
-                                    const isSpectacles = m.name.startsWith('Spectacles (');
-                                    if (isSpectacles) {
-                                      // Parse refraction from dosage field!
-                                      const odPart = m.dosage.split('|')[0] || '';
-                                      const osPart = m.dosage.split('|')[1] || '';
-                                      
-                                      const parseEye = (part: string) => {
-                                        const sphMatch = part.match(/SPH\s+([^\s]+)/);
-                                        const cylMatch = part.match(/CYL\s+([^\s]+)/);
-                                        const axisMatch = part.match(/Axis\s+([^\s|]+)/);
-                                        const addMatch = part.match(/ADD\s+([^\s|]+)/);
-                                        return {
-                                          sph: sphMatch ? sphMatch[1] : 'Plano',
-                                          cyl: cylMatch ? cylMatch[1] : '—',
-                                          axis: axisMatch ? axisMatch[1] : '—',
-                                          add: addMatch ? addMatch[1] : '—'
-                                        };
-                                      };
-                                      
-                                      const od = parseEye(odPart);
-                                      const os = parseEye(osPart);
-                                      const lensType = m.name.replace('Spectacles (', '').replace(')', '');
-                                      
-                                      return (
-                                        <div key={idx} className="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-slate-800 w-full">
-                                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                            <div className="flex items-center gap-1.5">
-                                              <span className="material-symbols-outlined text-indigo-400 text-sm">visibility</span>
-                                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-350">Refraction Rx / Spectacles</span>
-                                            </div>
-                                            <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded font-black font-mono">
-                                              {lensType}
-                                            </span>
-                                          </div>
-                                          
-                                          <div className="grid grid-cols-2 gap-3">
-                                            {/* OD */}
-                                            <div className="space-y-1 p-2 bg-white rounded-lg border border-indigo-100">
-                                              <div className="text-[8px] font-bold uppercase text-indigo-500 font-mono">Right Eye (OD)</div>
-                                              <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">SPH</span>
-                                                  <span className="font-bold text-slate-800">{od.sph}</span>
-                                                </div>
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">CYL</span>
-                                                  <span className="font-bold text-slate-800">{od.cyl}</span>
-                                                </div>
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">AXIS</span>
-                                                  <span className="font-bold text-slate-800">{od.axis}</span>
-                                                </div>
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">ADD</span>
-                                                  <span className="font-bold text-slate-800">{od.add}</span>
-                                                </div>
-                                              </div>
-                                            </div>
-                                            
-                                            {/* OS */}
-                                            <div className="space-y-1 p-2 bg-white rounded-lg border border-indigo-100">
-                                              <div className="text-[8px] font-bold uppercase text-indigo-500 font-mono">Left Eye (OS)</div>
-                                              <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">SPH</span>
-                                                  <span className="font-bold text-slate-800">{os.sph}</span>
-                                                </div>
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">CYL</span>
-                                                  <span className="font-bold text-slate-800">{os.cyl}</span>
-                                                </div>
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">AXIS</span>
-                                                  <span className="font-bold text-slate-800">{os.axis}</span>
-                                                </div>
-                                                <div>
-                                                  <span className="block text-[7px] text-slate-400">ADD</span>
-                                                  <span className="font-bold text-slate-800">{os.add}</span>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
-                                          
-                                          <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[9px]">
-                                            <span className="text-slate-500 italic">Freq: {m.frequency}</span>
-                                            <button
-                                              onClick={async () => {
-                                                try {
-                                                  const refractionData = {
-                                                    od: {
-                                                      sph: od.sph === 'Plano' ? '' : od.sph,
-                                                      cyl: od.cyl === '—' ? '' : od.cyl,
-                                                      axis: od.axis === '—' ? '' : od.axis,
-                                                      add: od.add === '—' ? '' : od.add,
-                                                    },
-                                                    os: {
-                                                      sph: os.sph === 'Plano' ? '' : os.sph,
-                                                      cyl: os.cyl === '—' ? '' : os.cyl,
-                                                      axis: os.axis === '—' ? '' : os.axis,
-                                                      add: os.add === '—' ? '' : os.add,
-                                                    },
-                                                    pd: '', // optional or empty
-                                                    lensType: lensType as any,
-                                                    notes: 'Printed from Patna Optical POS'
-                                                  };
-
-                                                  const pdfBytes = await generateSpectaclePdfCard({
-                                                    invoiceId: invoice.id,
-                                                    patientName: patient ? patient.name : 'Unknown Patient',
-                                                    refractionRx: refractionData,
-                                                    date: new Date(invoice.createdAt).toLocaleDateString()
-                                                  });
-
-                                                  const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
-                                                  const url = URL.createObjectURL(blob);
-                                                  
-                                                  // Open in new tab for direct browser print
-                                                  const newWindow = window.open(url, '_blank');
-                                                  if (newWindow) {
-                                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                                      detail: {
-                                                        message: `Spectacle Refraction Rx Card PDF compiled and opened for ${patient?.name || 'patient'}! 👓`,
-                                                        type: 'success',
-                                                        title: 'Rx Card PDF Generated'
-                                                      }
-                                                    }));
-                                                  } else {
-                                                    alert('Please allow popups to view the Spectacle Rx Card PDF');
-                                                  }
-                                                } catch (err) {
-                                                  console.error('[Optical POS] Failed to generate PDF:', err);
-                                                  alert('Error compiling Spectacle Rx Card PDF.');
-                                                }
-                                              }}
-                                              className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[8px] uppercase tracking-wider flex items-center gap-1 border-0 cursor-pointer transition-colors active:scale-95 font-mono"
-                                            >
-                                              <span className="material-symbols-outlined text-[9px]">print</span>
-                                              Print Rx Card
-                                            </button>
-                                          </div>
-                                        </div>
-                                      );
-                                    }
-                                    
-                                    return (
-                                      <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-                                        <span>💊 {m.name} ({m.dosage})</span>
-                                        <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="flex justify-between items-center pt-2">
-                              <div>
-                                <span className="text-[9px] text-slate-500 block font-mono">Invoice: {invoice.id.substring(0, 8)}...</span>
-                                {activeEntity?.gstin && (
-                                  <span className="text-[9.5px] text-indigo-600 block font-mono font-bold">GSTIN: {activeEntity.gstin}</span>
-                                )}
-                                <span className="text-xs font-black text-slate-800">Amount Verified: ₹{invoice.amount}</span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
-                                      message: `Receipt printed & verification ledger committed for ${patient?.name || 'patient'}.`,
-                                      type: 'success',
-                                      title: 'Invoice Verified'
-                                    }
-                                  }));
-                                }}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer flex items-center gap-1"
-                              >
-                                <span className="material-symbols-outlined text-xs animate-pulse">print</span>
-                                Print Dispense Slip
-                              </button>
-                            </div>
+                    <div className="space-y-8">
+                      {/* 1. Pending Section */}
+                      <div>
+                        <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          Pending e-Prescriptions (Awaiting Payment) ({filteredPending.length})
+                        </h3>
+                        {filteredPending.length === 0 ? (
+                          <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                            No pending prescriptions awaiting payment.
                           </div>
-                        );
-                      })}
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {filteredPending.map(invoice => {
+                              const patient = patients.find(p => p.id === invoice.patientId);
+                              const prescription = prescriptions.find(p => p.appointmentId === invoice.encounterId);
+
+                              return (
+                                <div key={invoice.id} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative overflow-hidden">
+                                  <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                                    UNPAID ⚠️
+                                  </div>
+
+                                  <div className="flex justify-between items-start border-b border-slate-100 pb-2">
+                                    <div>
+                                      <h4 className="font-bold text-slate-800 text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                                      <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                                        Phone: +91 {patient ? patient.phone : 'N/A'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {prescription && prescription.extractedMedicines && (
+                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1.5">
+                                      <span className="block text-[8px] font-black text-amber-600 tracking-widest uppercase font-mono">
+                                        Prescribed Medicines
+                                      </span>
+                                      <div className="space-y-1">
+                                        {prescription.extractedMedicines.map((m, idx) => (
+                                          <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between">
+                                            <span>💊 {m.name} ({m.dosage})</span>
+                                            <span className="text-[9px] bg-slate-200 px-1 rounded">{m.frequency}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="flex justify-between items-center pt-2">
+                                    <div>
+                                      <span className="text-[9px] text-slate-500 block font-mono">Invoice ID: {invoice.id.substring(0, 8)}...</span>
+                                      <span className="text-xs font-black text-slate-800">Pharmacy Fee: ₹{invoice.pharmacyFee}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => {
+                                          api.clearInvoice(invoice.id, 'cash');
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: {
+                                              message: `Invoice ₹${invoice.pharmacyFee} cleared via CASH! Medicine hold marked as dispensed.`,
+                                              type: 'success',
+                                              title: 'Bill Paid Successful'
+                                            }
+                                          }));
+                                          syncData();
+                                        }}
+                                        className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                                      >
+                                        Collect Cash
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          api.clearInvoice(invoice.id, 'upi');
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: {
+                                              message: `Invoice ₹${invoice.pharmacyFee} cleared via UPI! Medicine hold marked as dispensed.`,
+                                              type: 'success',
+                                              title: 'UPI Paid Successful'
+                                            }
+                                          }));
+                                          syncData();
+                                        }}
+                                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                                      >
+                                        UPI / QR
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. Paid / Dispensation Section */}
+                      <div>
+                        <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          Dispensation &amp; Handout Queue ({filteredPaid.length})
+                        </h3>
+                        {filteredPaid.length === 0 ? (
+                          <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                            No paid invoices in queue.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {filteredPaid.map(invoice => {
+                              const patient = patients.find(p => p.id === invoice.patientId);
+                              const prescription = prescriptions.find(p => p.appointmentId === invoice.encounterId);
+
+                              return (
+                                <div key={invoice.id} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative overflow-hidden">
+                                  <div className="absolute top-0 right-0 bg-emerald-600 text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                                    PAID ✅
+                                  </div>
+
+                                  <div className="flex justify-between items-start border-b border-slate-100 pb-2">
+                                    <div>
+                                      <h4 className="font-bold text-slate-800 text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
+                                      <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
+                                        Phone: +91 {patient ? patient.phone : 'N/A'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {prescription && prescription.extractedMedicines && (
+                                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
+                                      <span className="block text-[8px] font-black text-teal-600 tracking-widest uppercase font-mono">
+                                        Approved Medicines to Dispense
+                                      </span>
+                                      <div className="space-y-1.5">
+                                        {prescription.extractedMedicines.map((m, idx) => {
+                                          const isSpectacles = m.name.startsWith('Spectacles (');
+                                          if (isSpectacles) {
+                                            // Parse refraction from dosage field!
+                                            const odPart = m.dosage.split('|')[0] || '';
+                                            const osPart = m.dosage.split('|')[1] || '';
+                                            
+                                            const parseEye = (part: string) => {
+                                              const sphMatch = part.match(/SPH\s+([^\s]+)/);
+                                              const cylMatch = part.match(/CYL\s+([^\s]+)/);
+                                              const axisMatch = part.match(/Axis\s+([^\s|]+)/);
+                                              const addMatch = part.match(/ADD\s+([^\s|]+)/);
+                                              return {
+                                                sph: sphMatch ? sphMatch[1] : 'Plano',
+                                                cyl: cylMatch ? cylMatch[1] : '—',
+                                                axis: axisMatch ? axisMatch[1] : '—',
+                                                add: addMatch ? addMatch[1] : '—'
+                                              };
+                                            };
+                                            
+                                            const od = parseEye(odPart);
+                                            const os = parseEye(osPart);
+                                            const lensType = m.name.replace('Spectacles (', '').replace(')', '');
+                                            
+                                            return (
+                                              <div key={idx} className="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-slate-800 w-full">
+                                                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-indigo-400 text-sm">visibility</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-350">Refraction Rx / Spectacles</span>
+                                                  </div>
+                                                  <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded font-black font-mono">
+                                                    {lensType}
+                                                  </span>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-3">
+                                                  {/* OD */}
+                                                  <div className="space-y-1 p-2 bg-white rounded-lg border border-indigo-100">
+                                                    <div className="text-[8px] font-bold uppercase text-indigo-500 font-mono">Right Eye (OD)</div>
+                                                    <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">SPH</span>
+                                                        <span className="font-bold text-slate-800">{od.sph}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">CYL</span>
+                                                        <span className="font-bold text-slate-800">{od.cyl}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">AXIS</span>
+                                                        <span className="font-bold text-slate-800">{od.axis}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">ADD</span>
+                                                        <span className="font-bold text-slate-800">{od.add}</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  
+                                                  {/* OS */}
+                                                  <div className="space-y-1 p-2 bg-white rounded-lg border border-indigo-100">
+                                                    <div className="text-[8px] font-bold uppercase text-indigo-500 font-mono">Left Eye (OS)</div>
+                                                    <div className="grid grid-cols-4 gap-0.5 text-[9px] font-mono text-center">
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">SPH</span>
+                                                        <span className="font-bold text-slate-800">{os.sph}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">CYL</span>
+                                                        <span className="font-bold text-slate-800">{os.cyl}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">AXIS</span>
+                                                        <span className="font-bold text-slate-800">{os.axis}</span>
+                                                      </div>
+                                                      <div>
+                                                        <span className="block text-[7px] text-slate-400">ADD</span>
+                                                        <span className="font-bold text-slate-800">{os.add}</span>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                <div className="bg-indigo-50/50 border border-indigo-100 p-2.5 rounded-lg text-[9.5px] text-slate-700 leading-relaxed text-left space-y-1">
+                                                  <p className="font-bold text-indigo-950 flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[11px] text-indigo-600 font-bold">info</span>
+                                                    Bilingual Usage Advice / उपयोग निर्देश:
+                                                  </p>
+                                                  <p className="font-medium">
+                                                    🇺🇸 Clean with microfiber cloth. Wear constantly for reading &amp; digital screens.
+                                                  </p>
+                                                  <p className="font-bold text-slate-800">
+                                                    🇮🇳 केवल माइक्रोफाइबर कपड़े से साफ करें। पढ़ते व स्क्रीन पर कार्य करते समय लगातार पहनें।
+                                                  </p>
+                                                </div>
+                                                
+                                                <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[9px]">
+                                                  <span className="text-slate-500 italic">Freq: {m.frequency}</span>
+                                                  <button
+                                                    onClick={async () => {
+                                                      try {
+                                                        const refractionData = {
+                                                          od: {
+                                                            sph: od.sph === 'Plano' ? '' : od.sph,
+                                                            cyl: od.cyl === '—' ? '' : od.cyl,
+                                                            axis: od.axis === '—' ? '' : od.axis,
+                                                            add: od.add === '—' ? '' : od.add,
+                                                          },
+                                                          os: {
+                                                            sph: os.sph === 'Plano' ? '' : os.sph,
+                                                            cyl: os.cyl === '—' ? '' : os.cyl,
+                                                            axis: os.axis === '—' ? '' : os.axis,
+                                                            add: os.add === '—' ? '' : os.add,
+                                                          },
+                                                          pd: '', // optional or empty
+                                                          lensType: lensType as any,
+                                                          notes: 'Printed from Patna Optical POS'
+                                                        };
+
+                                                        const { generateSpectaclePdfCard } = await import('../../utils/pdfGenerator');
+                                                        const pdfBytes = await generateSpectaclePdfCard({
+                                                          invoiceId: invoice.id,
+                                                          patientName: patient ? patient.name : 'Unknown Patient',
+                                                          refractionRx: refractionData,
+                                                          date: new Date(invoice.createdAt).toLocaleDateString()
+                                                        });
+
+                                                        const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+                                                        const url = URL.createObjectURL(blob);
+                                                        
+                                                        // Open in new tab for direct browser print
+                                                        const newWindow = window.open(url, '_blank');
+                                                        if (newWindow) {
+                                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                            detail: {
+                                                              message: `Spectacle Refraction Rx Card PDF compiled and opened for ${patient?.name || 'patient'}! 👓`,
+                                                              type: 'success',
+                                                              title: 'Rx Card PDF Generated'
+                                                            }
+                                                          }));
+                                                        } else {
+                                                          alert('Please allow popups to view the Spectacle Rx Card PDF');
+                                                        }
+                                                      } catch (err) {
+                                                        console.error('[Optical POS] Failed to generate PDF:', err);
+                                                        alert('Error compiling Spectacle Rx Card PDF.');
+                                                      }
+                                                    }}
+                                                    className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[8px] uppercase tracking-wider flex items-center gap-1 border-0 cursor-pointer transition-colors active:scale-95 font-mono"
+                                                  >
+                                                    <span className="material-symbols-outlined text-[9px]">print</span>
+                                                    Print Rx Card
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                          
+                                          return (
+                                            <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                                              <span>💊 {m.name} ({m.dosage})</span>
+                                              <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="flex justify-between items-center pt-2">
+                                    <div>
+                                      <span className="text-[9px] text-slate-500 block font-mono">Invoice: {invoice.id.substring(0, 8)}...</span>
+                                      {activeEntity?.gstin && (
+                                        <span className="text-[9.5px] text-indigo-600 block font-mono font-bold">GSTIN: {activeEntity.gstin}</span>
+                                      )}
+                                      <span className="text-xs font-black text-slate-800">Amount Verified: ₹{invoice.pharmacyFee}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        // Build and open printable dispense slip
+                                        const meds = prescription?.extractedMedicines || [];
+                                        const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>Dispense Slip</title>
+<style>
+  * { margin:0;padding:0;box-sizing:border-box; }
+  body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#1a1a2e; }
+  .page { max-width:680px; margin:0 auto; padding:20px 28px; }
+  .header { border-bottom:2px solid #16a34a; padding-bottom:12px; margin-bottom:14px; display:flex; justify-content:space-between; }
+  .clinic { font-size:16px; font-weight:800; color:#16a34a; }
+  .sub { font-size:10px; color:#6b7280; }
+  .badge { background:#dcfce7; color:#15803d; font-size:9px; font-weight:800; padding:2px 8px; border-radius:99px; border:1px solid #86efac; }
+  .section-title { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:#16a34a; border-bottom:1px solid #e5e7eb; padding-bottom:3px; margin:12px 0 8px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .field label { font-size:9px; font-weight:700; color:#9ca3af; text-transform:uppercase; }
+  .field span { font-size:12px; font-weight:600; color:#111827; display:block; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#f0fdf4; text-align:left; padding:5px 8px; font-size:9px; font-weight:800; text-transform:uppercase; color:#6b7280; }
+  td { padding:5px 8px; border-bottom:1px solid #f3f4f6; }
+  .total { font-weight:900; font-size:14px; color:#16a34a; text-align:right; margin-top:10px; }
+  .footer { margin-top:24px; font-size:9px; color:#9ca3af; text-align:center; border-top:1px solid #e5e7eb; padding-top:8px; }
+  @media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+</style></head>
+<body><div class="page">
+  <div class="header">
+    <div><div class="clinic">Mediflow Pharmacy</div><div class="sub">${activeEntity?.name || 'Mediflow Clinic Pharmacy'}</div>${activeEntity?.gstin ? `<div class="sub" style="margin-top:2px">GSTIN: ${activeEntity.gstin}</div>` : ''}</div>
+    <div style="text-align:right">
+      <div class="badge">PAID ✅</div>
+      <div class="sub" style="margin-top:4px">Date: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div class="sub">Invoice: ${invoice.id.substring(0,8)}...</div>
+    </div>
+  </div>
+  <div class="section-title">Patient Details</div>
+  <div class="grid">
+    <div class="field"><label>Name</label><span>${patient ? patient.name : 'Unknown'}</span></div>
+    <div class="field"><label>Phone</label><span>+91 ${patient ? patient.phone : 'N/A'}</span></div>
+    <div class="field"><label>Amount Paid</label><span style="color:#16a34a">₹${invoice.pharmacyFee}</span></div>
+  </div>
+  <div class="section-title">Dispensed Medicines</div>
+  ${meds.length > 0 ? `
+  <table><thead><tr><th>#</th><th>Medicine</th><th>Dosage</th><th>Frequency</th></tr></thead>
+  <tbody>${meds.map((m,i) => `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.dosage||'As directed'}</td><td>${m.frequency||'—'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#9ca3af;font-size:11px;">No medicine details on record.</p>'}
+  <div class="total">Total Paid: ₹${invoice.pharmacyFee}</div>
+  <div class="footer">Medicines dispensed by verified compounder. Keep this slip for reference. | Mediflow Ecosystem &copy; ${new Date().getFullYear()}</div>
+</div><script>window.onload=function(){window.print()}<\/script></body></html>`;
+                                        const win = window.open('','_blank','width=720,height=800');
+                                        if (win) { win.document.write(html); win.document.close(); }
+                                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                          detail: {
+                                            message: `Dispense slip generated & sent to printer for ${patient?.name || 'patient'}.`,
+                                            type: 'success',
+                                            title: 'Slip Printed'
+                                          }
+                                        }));
+                                      }}
+                                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer flex items-center gap-1"
+                                    >
+                                      <span className="material-symbols-outlined text-xs animate-pulse">print</span>
+                                      Print Dispense Slip
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}

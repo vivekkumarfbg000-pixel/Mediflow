@@ -76,7 +76,11 @@ export async function resolvePodContext(): Promise<PodContext> {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) {
         // Not logged in yet — keep fallbacks, mark loaded so we don't re-query
-        _ctx = { ..._ctx, loaded: true };
+        _ctx = { 
+          ..._ctx, 
+          doctorId: (import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === 'true') ? FALLBACK_DOCTOR_ID : null,
+          loaded: true 
+        };
         return _ctx;
       }
 

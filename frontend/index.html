@@ -101,15 +101,42 @@
   </head>
   <body>
     <!-- Mobile Landscape Warning Overlay -->
-    <div id="mobile-landscape-overlay" class="mobile-landscape-overlay">
+    <div id="mobile-landscape-overlay" class="mobile-landscape-overlay" style="display: none;">
       <div class="landscape-warning-box">
         <div class="phone-rotate-icon">
           <span class="material-symbols-outlined">screen_rotation</span>
         </div>
         <h3>Please Rotate Your Device</h3>
         <p>VitalSync is optimized for portrait mode on mobile devices. Please rotate your device back to portrait to continue.</p>
+        <button id="dismiss-landscape-warning" style="margin-top: 1.5rem; background: rgba(255,255,255,0.1); hover:background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 0.6rem 1.2rem; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.05em;">
+          Continue in Landscape
+        </button>
       </div>
     </div>
+
+    <script>
+      (function() {
+        var overlay = document.getElementById('mobile-landscape-overlay');
+        var dismissBtn = document.getElementById('dismiss-landscape-warning');
+        
+        function applyDismissal() {
+          if (overlay) {
+            overlay.style.setProperty('display', 'none', 'important');
+          }
+        }
+
+        if (sessionStorage.getItem('dismiss_landscape_warning') === 'true') {
+          applyDismissal();
+        }
+
+        if (dismissBtn) {
+          dismissBtn.addEventListener('click', function() {
+            sessionStorage.setItem('dismiss_landscape_warning', 'true');
+            applyDismissal();
+          });
+        }
+      })();
+    </script>
 
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

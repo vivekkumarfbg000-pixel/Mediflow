@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
 import { supabase } from '../../../lib/supabaseClient';
 import type { Patient } from '../../../types';
 import { ClinicPlacardGenerator } from '../../admin/ClinicPlacardGenerator';
+import { WhatsAppService } from '../../../services/whatsappService';
 
 interface WhatsAppTabProps {
   whatsAppSessions: any[];
@@ -55,12 +56,24 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   activePod,
   telemetryLogs
 }) => {
+  const [rightTab, setRightTab] = useState<'chat' | 'broadcast'>('chat');
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'diabetes' | 'hypertension' | 'opd'>('all');
+  const [broadcastLogs, setBroadcastLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const logs = localStorage.getItem('whatsapp_broadcast_logs');
+    if (logs) {
+      setBroadcastLogs(JSON.parse(logs));
+    }
+  }, []);
   // WABA OTP & Advanced Manual Onboarding local state variables
   const [onboardingMethod, setOnboardingMethod] = useState<'otp' | 'manual'>('otp');
   const [otpRequested, setOtpRequested] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [isGeneratingOtp, setIsGeneratingOtp] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState('');
+  const [customBotName, setCustomBotName] = useState('');
 
   // Filter sessions based on search
   const filteredSessions = whatsAppSessions.filter(s => {
@@ -130,9 +143,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <div className="flex gap-4.5 items-start">
               <span className="material-symbols-outlined text-primary text-4xl mt-1">chat_bubble</span>
               <div className="space-y-1">
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Deploy Production-Grade WhatsApp Chatbot Engine</h3>
+                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Activate Clinic WhatsApp Chatbot in 10 Seconds</h3>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-2xl font-sans">
-                  Mediflow utilizes Meta's official WhatsApp Business Cloud API. Connect your unique clinic phone number to allow patients to instantly verify data consents, receive RAG diagnostic summaries, query generic medication dosage, and settle splits dynamic UPI payouts in real-time.
+                  Connect your clinic's WhatsApp number to automatically interact with patients. No Meta developer accounts, complex credentials, or API billing setup required—we handle the integration and billing. Patients can instantly book/reschedule appointments, request chronic refills, query generic drug dosage, and clear invoice payments via chat.
                 </p>
               </div>
             </div>
@@ -260,187 +273,349 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
       </div>
 
       {/* Right Pane: Live Active Conversation Detail & Takeover Console */}
-      <div className="lg:col-span-8">
-        {activeChat ? (
-          <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary" />
-            
-            {/* Active Chat Header */}
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  {patients.find(p => p.id === activeChat.patientId)?.name ?? 'Linked Patient'}
-                  <span className={`w-2 h-2 rounded-full ${isHumanOverride ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
-                </h3>
-                <span className="text-[10px] text-slate-404 font-mono">{activeChat.patientPhone}</span>
-              </div>
+      <div className="lg:col-span-8 flex flex-col space-y-4">
+        {/* Tab Selector */}
+        <div className="flex gap-2 p-1 bg-slate-100/80 border border-slate-200/50 rounded-2xl self-start">
+          <button
+            type="button"
+            onClick={() => setRightTab('chat')}
+            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              rightTab === 'chat' ? 'bg-primary text-white text-white-force' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            💬 Patient Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => setRightTab('broadcast')}
+            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              rightTab === 'broadcast' ? 'bg-primary text-white text-white-force' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            📢 Broadcast Campaigns
+          </button>
+        </div>
 
-              {/* Takeover Control Toggle */}
-              <div className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200/40 rounded-2xl">
-                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                  isHumanOverride ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {isHumanOverride ? '⚡ Human Takeover' : '🤖 AI Agent Active'}
-                </span>
-                <button
-                  onClick={async () => {
-                    const updatedOverride = !isHumanOverride;
-                    const updatedSess = {
-                      ...activeChat,
-                      sessionData: { ...sessionData, humanOverride: updatedOverride },
-                      session_data: { ...sessionData, humanOverride: updatedOverride }
-                    };
+        {rightTab === 'chat' ? (
+          activeChat ? (
+            <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary" />
+              
+              {/* Active Chat Header */}
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    {patients.find(p => p.id === activeChat.patientId)?.name ?? 'Linked Patient'}
+                    <span className={`w-2 h-2 rounded-full ${isHumanOverride ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
+                  </h3>
+                  <span className="text-[10px] text-slate-404 font-mono">{activeChat.patientPhone}</span>
+                </div>
 
-                    const { error } = await supabase
-                      .from('whatsapp_sessions')
-                      .update({
-                        session_data: { ...sessionData, humanOverride: updatedOverride }
-                      })
-                      .eq('id', activeChat.id);
-
-                    if (error) {
-                      alert("Error toggling takeover state: " + error.message);
-                    } else {
-                      setSelectedChatSession(updatedSess);
-                      setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: updatedOverride ? 'Human Override Enabled! ⚡' : 'AI Bot Restored! 🤖',
-                          message: updatedOverride ? 'AI chatbot response pipeline frozen. Staff manual response active.' : 'Clinical Scribe AI resume passive patient routing.',
-                          type: 'success'
-                        }
-                      }));
-                    }
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-xs border-0 ${
-                    isHumanOverride 
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
-                      : 'bg-amber-600 hover:bg-amber-500 text-white'
-                  }`}
-                >
-                  {isHumanOverride ? 'Restore AI Bot' : 'Take Over Chat'}
-                </button>
-              </div>
-            </div>
-
-            {/* Chat Message Stream */}
-            <div className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[360px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
-              {(sessionData.chatHistory ?? []).map((msg: any, idx: number) => {
-                const isBot = msg.sender === 'bot';
-                const isPatient = msg.sender === 'patient';
-                
-                let bubbleStyle = 'bg-primary text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
-                if (isPatient) {
-                  bubbleStyle = 'bg-white border border-slate-200/80 text-slate-800 mr-auto rounded-tr-2xl rounded-br-2xl rounded-tl-2xl';
-                } else if (msg.sender === 'agent' || (!isBot && !isPatient)) {
-                  bubbleStyle = 'bg-amber-500 text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
-                }
-
-                return (
-                  <div key={idx} className="flex flex-col w-full max-w-[85%] space-y-0.5 relative">
-                    <div className={`p-3 text-xs leading-relaxed font-sans shadow-2xs ${bubbleStyle}`}>
-                      {msg.text}
-                    </div>
-                    <span className={`text-[8px] font-mono text-slate-600 ${isPatient ? 'mr-auto pl-1' : 'ml-auto pr-1'}`}>
-                      {msg.sender.toUpperCase()} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Outbound Messaging Inputs Panel */}
-            <div className="border-t border-slate-100 pt-3">
-              {isHumanOverride ? (
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!manualChatMsg.trim()) return;
-
-                    const textToSend = manualChatMsg.trim();
-                    setManualChatMsg('');
-
-                    const chatHistory = sessionData.chatHistory ?? [];
-                    const currentTime = new Date().toISOString();
-                    
-                    chatHistory.push({
-                      sender: 'agent',
-                      text: textToSend,
-                      timestamp: currentTime
-                    });
-
-                    const { error } = await supabase
-                      .from('whatsapp_sessions')
-                      .update({
-                        session_data: { ...sessionData, chatHistory },
-                        last_interaction: currentTime
-                      })
-                      .eq('id', activeChat.id);
-
-                    if (error) {
-                      alert("Error saving manual message: " + error.message);
-                    } else {
-                      await api.sendWhatsAppMessagePayload(activeChat.patientPhone, 'custom_manual_reply', {
-                        replyText: textToSend
-                      });
-
+                {/* Takeover Control Toggle */}
+                <div className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200/40 rounded-2xl">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    isHumanOverride ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {isHumanOverride ? '⚡ Human Takeover' : '🤖 AI Agent Active'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const updatedOverride = !isHumanOverride;
                       const updatedSess = {
                         ...activeChat,
-                        sessionData: { ...sessionData, chatHistory },
-                        session_data: { ...sessionData, chatHistory }
+                        sessionData: { ...sessionData, humanOverride: updatedOverride },
+                        session_data: { ...sessionData, humanOverride: updatedOverride }
                       };
-                      setSelectedChatSession(updatedSess);
-                      setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
-                      
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Message Dispatched! ✉️',
-                          message: `Direct message sent to patient WhatsApp queue.`,
-                          type: 'success'
-                        }
-                      }));
-                    }
-                  }}
-                  className="flex gap-3"
-                >
-                  <input
-                    type="text"
-                    placeholder="Type a manual response to takeover the patient session..."
-                    value={manualChatMsg}
-                    onChange={(e) => setManualChatMsg(e.target.value)}
-                    className="flex-1 px-4.5 py-3 border border-slate-200/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/25 rounded-2xl text-xs outline-none bg-slate-50/50"
-                  />
-                  <button
-                    type="submit"
-                    className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-amber-500-force border-0"
-                  >
-                    <span className="material-symbols-outlined text-sm font-bold text-white-force">send</span>
-                    Send Message
-                  </button>
-                </form>
-              ) : (
-                <div className="p-3 bg-blue-50/50 border border-blue-100/60 rounded-2xl text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                    <span className="material-symbols-outlined text-sm text-blue-500 animate-pulse">lock</span>
-                    AI chatbot agent is actively handling this patient care session
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    Click the "Take Over Chat" button at the top header to halt AI automations and send manual updates.
-                  </p>
-                </div>
-              )}
-            </div>
 
-          </div>
+                      const { error } = await supabase
+                        .from('whatsapp_sessions')
+                        .update({
+                          session_data: { ...sessionData, humanOverride: updatedOverride }
+                        })
+                        .eq('id', activeChat.id);
+
+                      if (error) {
+                        alert("Error toggling takeover state: " + error.message);
+                      } else {
+                        setSelectedChatSession(updatedSess);
+                        setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: updatedOverride ? 'Human Override Enabled! ⚡' : 'AI Bot Restored! 🤖',
+                            message: updatedOverride ? 'AI chatbot response pipeline frozen. Staff manual response active.' : 'Clinical Scribe AI resume passive patient routing.',
+                            type: 'success'
+                          }
+                        }));
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-xs border-0 ${
+                      isHumanOverride 
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
+                        : 'bg-amber-600 hover:bg-amber-500 text-white'
+                    }`}
+                  >
+                    {isHumanOverride ? 'Restore AI Bot' : 'Take Over Chat'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat Message Stream */}
+              <div className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[360px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
+                {(sessionData.chatHistory ?? []).map((msg: any, idx: number) => {
+                  const isBot = msg.sender === 'bot';
+                  const isPatient = msg.sender === 'patient';
+                  
+                  let bubbleStyle = 'bg-primary text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
+                  if (isPatient) {
+                    bubbleStyle = 'bg-white border border-slate-200/80 text-slate-800 mr-auto rounded-tr-2xl rounded-br-2xl rounded-tl-2xl';
+                  } else if (msg.sender === 'agent' || (!isBot && !isPatient)) {
+                    bubbleStyle = 'bg-amber-500 text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
+                  }
+
+                  return (
+                    <div key={idx} className="flex flex-col w-full max-w-[85%] space-y-0.5 relative">
+                      <div className={`p-3 text-xs leading-relaxed font-sans shadow-2xs ${bubbleStyle}`}>
+                        {msg.text}
+                      </div>
+                      <span className={`text-[8px] font-mono text-slate-600 ${isPatient ? 'mr-auto pl-1' : 'ml-auto pr-1'}`}>
+                        {msg.sender.toUpperCase()} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Outbound Messaging Inputs Panel */}
+              <div className="border-t border-slate-100 pt-3">
+                {isHumanOverride ? (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!manualChatMsg.trim()) return;
+
+                      const textToSend = manualChatMsg.trim();
+                      setManualChatMsg('');
+
+                      const chatHistory = sessionData.chatHistory ?? [];
+                      const currentTime = new Date().toISOString();
+                      
+                      chatHistory.push({
+                        sender: 'agent',
+                        text: textToSend,
+                        timestamp: currentTime
+                      });
+
+                      const { error } = await supabase
+                        .from('whatsapp_sessions')
+                        .update({
+                          session_data: { ...sessionData, chatHistory },
+                          last_interaction: currentTime
+                        })
+                        .eq('id', activeChat.id);
+
+                      if (error) {
+                        alert("Error saving manual message: " + error.message);
+                      } else {
+                        await api.sendWhatsAppMessagePayload(activeChat.patientPhone, 'custom_manual_reply', {
+                          replyText: textToSend
+                        });
+
+                        const updatedSess = {
+                          ...activeChat,
+                          sessionData: { ...sessionData, chatHistory },
+                          session_data: { ...sessionData, chatHistory }
+                        };
+                        setSelectedChatSession(updatedSess);
+                        setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
+                        
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'Message Dispatched! ✉️',
+                            message: `Direct message sent to patient WhatsApp queue.`,
+                            type: 'success'
+                          }
+                        }));
+                      }
+                    }}
+                    className="flex gap-3"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Type a manual response to takeover the patient session..."
+                      value={manualChatMsg}
+                      onChange={(e) => setManualChatMsg(e.target.value)}
+                      className="flex-1 px-4.5 py-3 border border-slate-200/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/25 rounded-2xl text-xs outline-none bg-slate-50/50"
+                    />
+                    <button
+                      type="submit"
+                      className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-amber-500-force border-0"
+                    >
+                      <span className="material-symbols-outlined text-sm font-bold text-white-force">send</span>
+                      Send Message
+                    </button>
+                  </form>
+                ) : (
+                  <div className="p-3 bg-blue-50/50 border border-blue-100/60 rounded-2xl text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                      <span className="material-symbols-outlined text-sm text-blue-500 animate-pulse">lock</span>
+                      AI chatbot agent is actively handling this patient care session
+                    </div>
+                    <p className="text-[10px] text-slate-404">
+                      Click the "Take Over Chat" button at the top header to halt AI automations and send manual updates.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          ) : (
+            <div className="glass-panel p-12 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary/20" />
+              <span className="material-symbols-outlined text-slate-200 text-6xl">chat</span>
+              <div>
+                <h3 className="text-slate-700 font-extrabold uppercase text-xs tracking-wider">No Patient Conversation Selected</h3>
+                <p className="text-xs text-slate-400 mt-2 max-w-sm font-sans">
+                  Select a live active chat session from the queue registry on the left to monitor, review clinical guidelines, or override chatbot automations with human takeover capabilities.
+                </p>
+              </div>
+            </div>
+          )
         ) : (
-          <div className="glass-panel p-12 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary/20" />
-            <span className="material-symbols-outlined text-slate-200 text-6xl">chat</span>
-            <div>
-              <h3 className="text-slate-700 font-extrabold uppercase text-xs tracking-wider">No Patient Conversation Selected</h3>
-              <p className="text-xs text-slate-400 mt-2 max-w-sm font-sans">
-                Select a live active chat session from the queue registry on the left to monitor, review clinical guidelines, or override chatbot automations with human takeover capabilities.
-              </p>
+          /* Clinician Broadcast Campaigns Panel */
+          <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col justify-between relative overflow-hidden animate-fade-in">
+            <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary" />
+            <div className="space-y-4 overflow-y-auto max-h-[510px] pr-1.5 w-full flex-1">
+              
+              <div>
+                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  📢 Create WhatsApp Broadcast Campaign
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-1 font-sans">
+                  Send proactive messages to patient subsets matching clinical criteria.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Patient Audience</label>
+                  <select
+                    value={broadcastTarget}
+                    onChange={(e) => setBroadcastTarget(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50"
+                  >
+                    <option value="all">All Registered Patients</option>
+                    <option value="diabetes">Diabetic Patients (Chronic)</option>
+                    <option value="hypertension">Hypertensive Patients (Chronic)</option>
+                    <option value="opd">Currently Active OPD Queue</option>
+                  </select>
+                </div>
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center text-[10px] text-blue-700 font-sans leading-relaxed">
+                  💡 *Hinglish / Bilingual Templates* are highly recommended to maximize readability and patient engagement.
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Campaign Message Draft</label>
+                <textarea
+                  rows={4}
+                  placeholder="Type your WhatsApp broadcast campaign message here..."
+                  value={broadcastMsg}
+                  onChange={(e) => setBroadcastMsg(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 font-sans leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!broadcastMsg.trim()) return;
+                    let targets: Patient[] = [];
+                    if (broadcastTarget === 'all') {
+                      targets = patients;
+                    } else if (broadcastTarget === 'diabetes') {
+                      targets = patients.filter(p => p.chronicConditions.some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar')));
+                    } else if (broadcastTarget === 'hypertension') {
+                      targets = patients.filter(p => p.chronicConditions.some(c => c.toLowerCase().includes('hypertension') || c.toLowerCase().includes('bp')));
+                    } else if (broadcastTarget === 'opd') {
+                      targets = patients.filter(p => p.queueStatus && p.queueStatus !== 'completed');
+                    }
+
+                    if (targets.length === 0) {
+                      alert("Selected target filters did not match any patients.");
+                      return;
+                    }
+
+                    targets.forEach(p => {
+                      WhatsAppService.pushWhatsAppMessageFromBot(p.phone, broadcastMsg);
+                    });
+
+                    const newLog = {
+                      id: `bc-${Date.now()}`,
+                      date: new Date().toISOString(),
+                      target: broadcastTarget,
+                      message: broadcastMsg,
+                      count: targets.length,
+                      status: 'Sent ✅'
+                    };
+
+                    const updatedLogs = [newLog, ...broadcastLogs];
+                    setBroadcastLogs(updatedLogs);
+                    localStorage.setItem('whatsapp_broadcast_logs', JSON.stringify(updatedLogs));
+                    setBroadcastMsg('');
+
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'Broadcast Dispatched! 📢',
+                        message: `Campaign message sent to ${targets.length} patient(s) successfully.`,
+                        type: 'success'
+                      }
+                    }));
+                  }}
+                  disabled={!broadcastMsg.trim()}
+                  className="px-5 py-2.5 bg-primary hover:bg-primary-505 disabled:bg-slate-200 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer text-white-force bg-primary-force border-0"
+                >
+                  <span className="material-symbols-outlined text-sm font-bold text-white-force">campaign</span>
+                  Send Broadcast Campaign
+                </button>
+              </div>
+
+              {/* Broadcast Logs History */}
+              <div className="pt-2 border-t border-slate-100 w-full">
+                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Campaign Broadcast History</h4>
+                <div className="overflow-x-auto w-full">
+                  <table className="min-w-full text-left text-[10px] font-sans">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-400 font-bold border-b border-slate-100">
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3">Target</th>
+                        <th className="py-2 px-3">Message</th>
+                        <th className="py-2 px-3 text-center">Audience</th>
+                        <th className="py-2 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {broadcastLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-4 text-center text-slate-400 italic">No campaign logs recorded.</td>
+                        </tr>
+                      ) : (
+                        broadcastLogs.map(log => (
+                          <tr key={log.id} className="hover:bg-slate-50/50">
+                            <td className="py-2 px-3 font-mono text-[9px] whitespace-nowrap">{new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</td>
+                            <td className="py-2 px-3 font-bold text-slate-700 uppercase tracking-wider text-[9px]">{log.target}</td>
+                            <td className="py-2 px-3 max-w-[200px] truncate" title={log.message}>"{log.message}"</td>
+                            <td className="py-2 px-3 text-center font-bold font-mono">{log.count}</td>
+                            <td className="py-2 px-3 text-emerald-600 font-bold">{log.status}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -471,36 +646,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-600 transition-colors border-0 bg-transparent"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            {/* Onboarding Method Tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setOnboardingMethod('otp');
-                  setOtpRequested(false);
-                  setOtpCode('');
-                }}
-                className={`flex-1 py-2 text-center text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all border-0 cursor-pointer ${
-                  onboardingMethod === 'otp' 
-                    ? 'bg-white shadow-sm text-primary' 
-                    : 'bg-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                ⚡ OTP Quick Activation
-              </button>
-              <button
-                type="button"
-                onClick={() => setOnboardingMethod('manual')}
-                className={`flex-1 py-2 text-center text-[10px] font-extrabold uppercase tracking-widest rounded-xl transition-all border-0 cursor-pointer ${
-                  onboardingMethod === 'manual' 
-                    ? 'bg-white shadow-sm text-primary' 
-                    : 'bg-transparent text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                🔧 Advanced Manual Setup
               </button>
             </div>
 
@@ -580,6 +725,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       setActiveWabaConnection(data);
                       setWabaFormOpen(false);
                       
+                      localStorage.setItem(`waba_bot_name_${activePod.id}`, customBotName.trim() || activePod.name);
+                      setCustomBotName('');
                       setWabaPhoneId('');
                       setWabaIdVal('');
                       setWabaNumber('');
@@ -601,6 +748,18 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 }}
                 className="space-y-4 text-xs font-sans"
               >
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Chatbot Custom Display Name (Optional)</label>
+                  <input
+                    type="text"
+                    disabled={otpRequested}
+                    placeholder={activePod ? `e.g. ${activePod.name} Assistant (defaults to Clinic Name)` : "e.g. Mediflow Bot"}
+                    value={customBotName}
+                    onChange={(e) => setCustomBotName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 disabled:bg-slate-100 disabled:text-slate-600"
+                  />
+                </div>
+
                 <div className="space-y-1">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Clinic Verified Phone Number</label>
                   <input

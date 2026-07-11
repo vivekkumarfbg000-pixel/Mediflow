@@ -60,7 +60,7 @@ export const DoctorDashboard: React.FC = () => {
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: activeTab }));
   }, [activeTab]);
-  
+
   // SOP States
   const [sopFile, setSopFile] = useState<File | null>(null);
   const [sopText, setSopText] = useState('');
@@ -93,6 +93,16 @@ export const DoctorDashboard: React.FC = () => {
   
   const [cdssAnomalies, setCdssAnomalies] = useState<string[]>([]);
   const [aiInsight, setAiInsight] = useState<string>('');
+
+  useEffect(() => {
+    if (selectedPatient) {
+      setRefractionRx(selectedPatient.vitals?.refractionRx || EMPTY_REFRACTION_RX);
+      setBiometryRx(selectedPatient.vitals?.biometryRx || EMPTY_BIOMETRY);
+    } else {
+      setRefractionRx(EMPTY_REFRACTION_RX);
+      setBiometryRx(EMPTY_BIOMETRY);
+    }
+  }, [selectedPatient]);
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   const [aiError, setAiError] = useState<string | null>(null);
   
@@ -378,8 +388,6 @@ export const DoctorDashboard: React.FC = () => {
     setComparisonDate(null);
     setCdssAnomalies([]);
     setAiError(null);
-    setRefractionRx(EMPTY_REFRACTION_RX);
-    setBiometryRx(EMPTY_BIOMETRY);
 
     if (selectedPatient?.id) {
       // 1. Preload RAG clinical insight
@@ -582,14 +590,12 @@ export const DoctorDashboard: React.FC = () => {
           defaultInsight += `2. Schedule a follow-up repeat **Serum Creatinine & GFR** in 14 days.\n`;
         }
 
-        // If Mistral API key is configured, perform live synthesis
-        const mistralApiKey = import.meta.env.VITE_MISTRAL_API_KEY;
-        if (!mistralApiKey) {
-          setAiInsight(defaultInsight);
-          clearTimeout(timeoutId);
-          persistRAGResult(defaultInsight, 'static-fallback');
-          return;
-        }
+        // ── SECURITY FIX (BUG-05): AI API keys must NEVER be in the browser bundle ───
+        // VITE_* env vars are inlined into the JS bundle at build time and are
+        // trivially extractable from the browser's DevTools / bundle inspector.
+        // All AI inference is now proxied through the ai-inference Edge Function
+        // which holds the keys in Supabase Vault (server-side only).
+        // ──────────────────────────────────────────────────────────────────────────
 
         const promptText = `You are a clinical advisory assistant powered by Mistral Large and Mediflow RAG index.
 Analyze the following patient profile and the retrieved standard clinical guidelines.
@@ -635,60 +641,41 @@ Structure it with sections:
 Keep the tone professional, clinical, objective, and precise.`;
 
         let synthesizedInsight = '';
-        let modelUsed = 'mistral-large-latest';
+        let modelUsed = 'ai-inference-proxy';
         try {
-          const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          // Get session token to authenticate the edge function call
+          const { data: { session: aiSession } } = await supabase.auth.getSession();
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const edgeFnUrl = `${supabaseUrl}/functions/v1/ai-inference`;
+
+          const response = await fetch(edgeFnUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${mistralApiKey}`
+              'Authorization': `Bearer ${aiSession?.access_token ?? ''}`,
             },
             body: JSON.stringify({
+              prompt: promptText,
               model: 'mistral-large-latest',
-              messages: [
-                { role: 'user', content: promptText }
-              ],
-              temperature: 0.15
+              temperature: 0.15,
+              maxTokens: 2048
             })
           });
 
           if (!response.ok) {
-            throw new Error(`Mistral API returned ${response.status} ${response.statusText}`);
+            const errBody = await response.json().catch(() => ({}));
+            throw new Error(`AI inference proxy returned ${response.status}: ${errBody?.error ?? response.statusText}`);
           }
 
           const resData = await response.json();
-          synthesizedInsight = resData.choices?.[0]?.message?.content || '';
-        } catch (mistralErr) {
-          console.warn("[Mistral Live RAG Synthesis failed, initiating backup failover to Groq Llama-3.3-70B]:", mistralErr);
-          const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
-          if (groqApiKey) {
-            modelUsed = 'llama-3.3-70b-versatile';
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${groqApiKey}`
-              },
-              body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                messages: [
-                  { role: 'user', content: promptText }
-                ],
-                temperature: 0.2
-              })
-            });
-
-            if (response.ok) {
-              const resData = await response.json();
-              synthesizedInsight = resData.choices?.[0]?.message?.content || '';
-            } else {
-              console.warn("[Groq RAG Backup also failed]");
-            }
-          }
+          synthesizedInsight = resData.content || '';
+          modelUsed = resData.model || 'ai-inference-proxy';
+        } catch (proxyErr) {
+          console.warn('[AI RAG] Edge function inference failed, falling back to static guidelines:', proxyErr);
         }
 
         if (!synthesizedInsight) {
-          throw new Error("Mistral API returned an empty completion.");
+          throw new Error('AI inference returned an empty completion.');
         }
 
         clearTimeout(timeoutId);

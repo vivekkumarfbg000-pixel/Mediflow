@@ -76,7 +76,13 @@ serve(async (req) => {
       .eq("patient_id", patientId);
 
     if (consentErr) {
-      console.error("[whatsapp-dispatch] Failed to query patient consents", consentErr);
+      // SECURITY: Fail CLOSED. If consent cannot be verified, we must NOT send.
+      // Sending to an opted-out patient due to a DB error is a compliance violation.
+      console.error("[whatsapp-dispatch] Consent query failed — blocking send for patient safety.", consentErr);
+      return new Response(JSON.stringify({ error: "Consent verification failed. Send blocked for patient safety." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // If there is any consent record where revoked_at is NOT NULL, restrict sending immediately
@@ -129,7 +135,15 @@ serve(async (req) => {
 
     if (wabaConn) {
       try {
-        const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY") ?? "mediflow_vault_key_2026";
+        // ── SECURITY: WABA_DECRYPTION_KEY must be set in Supabase Vault ────────────
+        // No fallback. If unset, all tenant WABA token decryption would use a
+        // publicly-visible default string, exposing every clinic's WhatsApp token.
+        // ────────────────────────────────────────────────────────────────────────────
+        const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY");
+        if (!wabaSecretKey) {
+          console.error("[whatsapp-dispatch] FATAL: WABA_DECRYPTION_KEY not set in Vault. Cannot decrypt WABA tokens.");
+          throw new Error("Server misconfiguration: WABA_DECRYPTION_KEY missing from Vault.");
+        }
         const { data: rpcData, error: rpcErr } = await supabase.rpc("decrypt_tenant_waba_connection", {
           p_phone_number_id: wabaConn.phone_number_id,
           p_secret_key: wabaSecretKey

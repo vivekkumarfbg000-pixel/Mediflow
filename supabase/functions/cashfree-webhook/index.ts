@@ -26,6 +26,7 @@ serve(async (req) => {
 
     const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
     const signature = req.headers.get("x-webhook-signature");
+    const timestamp = req.headers.get("x-webhook-timestamp") ?? "";
 
     if (!signature) {
       console.warn("[cashfree-webhook] Missing x-webhook-signature header");
@@ -41,7 +42,8 @@ serve(async (req) => {
     // Works with both Base64 and Hex encoding for absolute resilience
     const encoder = new TextEncoder();
     const keyData = encoder.encode(secretKey);
-    const messageData = encoder.encode(rawBody);
+    const signedPayload = timestamp + rawBody;
+    const messageData = encoder.encode(signedPayload);
 
     const key = await crypto.subtle.importKey(
       "raw",

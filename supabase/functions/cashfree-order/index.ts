@@ -66,7 +66,7 @@ serve(async (req) => {
       });
     }
 
-    if (invoice.payment_status === "paid") {
+    if (invoice.payment_status === "cleared") {
       return new Response(JSON.stringify({ error: "Invoice already paid" }), {
         status: 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -76,54 +76,12 @@ serve(async (req) => {
     const patient = invoice.patient_registry;
     const amount = Number(invoice.total_amount);
 
-    // 1. Fetch registered sub-account vendors in this pod to configure payment splits
-    const { data: dbVendors, error: vendorErr } = await supabase
-      .from("cashfree_vendors")
-      .select(`
-        vendor_id,
-        entity_id,
-        entities:entity_id (
-          entity_type
-        )
-      `)
-      .eq("pod_id", invoice.pod_id);
-
-    if (vendorErr) {
-      console.warn("[cashfree-order] Failed to fetch pod vendors, fallback to single account.", vendorErr);
-    }
-
-    // Map vendors by type
-    const doctorVendor   = dbVendors?.find((v: any) => v.entities?.entity_type === 'clinic' || v.entities?.entity_type === 'doctor')?.vendor_id;
-    const pharmacyVendor = dbVendors?.find((v: any) => v.entities?.entity_type === 'pharmacy')?.vendor_id;
-    const labVendor      = dbVendors?.find((v: any) => v.entities?.entity_type === 'lab')?.vendor_id;
-
-    // 2. Build the order_splits array (remaining balance settles directly to SaaS platform master)
-    const orderSplits = [];
-    
-    if (doctorVendor && Number(invoice.doctor_fee) > 0) {
-      orderSplits.push({
-        vendor_id: doctorVendor,
-        amount: Number(invoice.doctor_fee)
-      });
-    }
-
-    if (pharmacyVendor && Number(invoice.pharmacy_fee) > 0) {
-      orderSplits.push({
-        vendor_id: pharmacyVendor,
-        amount: Number(invoice.pharmacy_fee)
-      });
-    }
-
-    if (labVendor && Number(invoice.lab_fee) > 0) {
-      orderSplits.push({
-        vendor_id: labVendor,
-        amount: Number(invoice.lab_fee)
-      });
-    }
+    // 1. Read pre-calculated payment splits from database split_payload
+    const orderSplits = invoice.split_payload || [];
 
     const appId     = Deno.env.get("CASHFREE_APP_ID") ?? "";
     const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
-    const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? "";
+    const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? ""; // Must be set to "production" in Vault before go-live
 
     if (!appId || !secretKey) {
       console.error("[cashfree-order] Credentials missing in vault.");

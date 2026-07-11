@@ -18,13 +18,14 @@ import {
   Menu,
   X,
   Settings,
-  FileText
+  FileText,
+  Eye
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
 import { BrandMark } from './BrandMark';
 
-export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient' | 'saas_admin';
+export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient' | 'saas_admin' | 'refraction';
 
 interface NavbarProps {
   currentRole: UserRole;
@@ -140,6 +141,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   const roles = [
     { id: 'compounder', name: 'Compounder', icon: UserPlus, color: 'text-accent-500 bg-accent-500/10' },
     { id: 'doctor', name: 'Doctor Dashboard', icon: Stethoscope, color: 'text-primary-500 bg-primary-500/10' },
+    ...(isOphthalmology ? [
+      { id: 'refraction', name: 'Refraction Desk', icon: Eye, color: 'text-violet-500 bg-violet-500/10' }
+    ] : []),
     { id: 'lab', name: nomenclature.labTitle, icon: Beaker, color: 'text-blue-500 bg-blue-500/10' },
     { id: 'pharmacy', name: nomenclature.pharmacyTitle, icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-500/10' },
     { id: 'billing', name: 'UPI Ledger', icon: QrCode, color: 'text-rose-500 bg-rose-500/10' },
@@ -147,13 +151,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const allowedRolesMap: Record<string, string[]> = {
-    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient'],
+    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'],
     'compounder': ['compounder'],
     'lab_technician': ['lab'],
     'pharmacist': ['pharmacy'],
     'patient': ['patient'],
     'admin': ['saas_admin'],
-    'platform_admin': ['saas_admin']
+    'platform_admin': ['saas_admin'],
+    'refraction': ['refraction'],
   };
 
   const activeUserRole = activeProfile?.role || 'compounder';
