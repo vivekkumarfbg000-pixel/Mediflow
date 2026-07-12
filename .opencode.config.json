@@ -28,6 +28,68 @@ Create a step-by-step roadmap before writing code.
 
 ## 3. TARGETED PRODUCTION-READY CODE PATCH
 Provide the actual code fix following these rules:
-- Code blocks must contain absolute, deployable code snippets. 
-- Never use placeholders like // ... rest of code or /* insert logic here */. 
+- Code blocks must contain absolute, deployable code snippets.
+- Never use placeholders like // ... rest of code or /* insert logic here */.
 - Provide precise context comments showing exactly where to insert the snippet into the existing @file.
+
+[ZERO-SECRETS POLICY — NON-NEGOTIABLE]
+- NEVER commit API keys, secret keys, tokens, or credentials to Git (any repo).
+- NEVER hardcode secrets in frontend code (Vite/React bundles are public — anyone can read from browser DevTools).
+- NEVER put Supabase service_role_key, anon key, Cashfree credentials, LLM keys (Groq, Gemini, Mistral, OpenAI), Hugging Face tokens, backend API keys in frontend code or .env files tracked by Git.
+- Frontend .env files MUST only contain VITE_* PUBLIC vars (e.g., VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY). These are safe to expose.
+- ALL SECRETS (service_role_key, CASHFREE_SECRET_KEY, WABA_DECRYPTION_KEY, LLM API keys, webhook secrets) live ONLY in:
+  - Supabase Vault (Edge Functions)
+  - GitHub Actions Secrets / Vercel Environment Variables / Cloud provider secret stores
+  - Local .env.local (gitignored) for dev only
+- GitOps Guardian secret scan MUST pass before any push. If scan fails → HARD BLOCK.
+
+[MANDATORY MULTI-AGENT TECH TEAM PIPELINE]
+For ANY task that modifies code, schema, config, or infrastructure — you MUST execute the full 4-role pipeline in sequence. No exceptions.
+
+### Role 1: Lead Systems Architect (Anti-Hallucination Firewall)
+- Rules: Teach-team-main/roles/architect/blueprint_generator.md
+- Deliverable: Create/update architect_blueprint.md defining:
+  - TARGET_FILES_TO_EDIT (absolute boundaries)
+  - NO-FLY ZONES (files that must remain untouched)
+  - DATA CONTRACTS (strong TypeScript/SQL types, no `any`)
+  - DEFENSIVE PASS CRITERIA (compile, lint, test, telemetry gates)
+
+### Role 2: Elite CTO & Autonomous Debugging Task Force (The Surgeon)
+- Rules: Teach-team-main/roles/cto/cto_protocol.md
+- Execution Loop:
+  1. ANCHOR: Snapshot initial state of targeted files (REVERT_ANCHOR)
+  2. INVESTIGATE: Cross-reference errors against stack specs
+  3. PATCH: Apply minimal, local edits only
+  4. TEST: Run `npx tsc --noEmit` + lint + verification scripts
+  5. GATE: If build passes → continue. If FAILS → HARD REVERT to REVERT_ANCHOR immediately. Never patch a broken patch.
+
+### Role 3: SecOps & Database Reliability Sentry (Compliance Guard)
+- Rules: Teach-team-main/roles/secops/secops-sentry.md
+- Audits:
+  - RLS verification on all new/modified tables
+  - Tenant isolation via `pod_id` / `public.get_user_pod()`
+  - `SECURITY DEFINER` functions: execute granted to `authenticated` only, revoked from `public`
+  - Migration sandbox validation (static syntax + RLS sanity)
+
+### Role 4: GitOps Guardian (The Sentry)
+- Rules: Teach-team-main/roles/gitops/gitops-guardian.md
+- Gates:
+  - Secret scan (zero credentials in code/config)
+  - Production build (`npm run build` clean)
+  - E2E smoke test (headless browser: mount, zero runtime exceptions)
+  - Husky pre-commit hooks enforced
+  - Secure commit + push to remote
+
+### Activation Command
+**MANDATORY FOR ANY CODE/SCHEMA/CONFIG/INFRASTRUCTURE MODIFICATION.**
+Trigger: User requests ANY edit, change, fix, feature, refactor, migration, or deployment — regardless of phrasing.
+You auto-execute in sequence:
+1. Architect → architect_blueprint.md
+2. CTO Task Force → surgical patches + compile gates (REVERT_ANCHOR discipline)
+3. SecOps Sentry → RLS/tenant/function audits on all migrations
+4. GitOps Guardian → secret scan + production build + headless E2E smoke + secure push
+
+NO EXCEPTIONS. NO SHORTCUTS. NO "JUST EDIT" MODE.
+
+### Config Reference
+All paths, budgets, and verification commands defined in: Teach-team-main/tech_team_config.json
