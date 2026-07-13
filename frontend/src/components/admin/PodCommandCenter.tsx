@@ -968,10 +968,10 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                     );
                   })}
                 </div>
-              </PointerGlowCard>
+              </div>
+            </PointerGlowCard>
           </div>
         </div>
-      </div>
 
       {/* ── BOTTOM ALERT BANNER ──────────────────────────────────── */}
       {criticalPatients.length > 0 && (

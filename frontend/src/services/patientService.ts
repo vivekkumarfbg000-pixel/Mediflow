@@ -333,10 +333,6 @@ export class PatientService {
     return newPatient;
   }
 
-
-    return newPatient;
-  }
-
   static getPatientHistoricalBiomarkers(patientId: string): any[] {
     const requisitions = load<any[]>('lab_requisitions', []).filter(
       r => r.patientId === patientId && r.status === 'completed' && r.quantitativeResult
