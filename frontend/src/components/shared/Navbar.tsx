@@ -202,7 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onToggleSidebarCollapse?.(false);
           }
         }}
-        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white/70 dark:bg-slate-950/60 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5 z-40 justify-between transition-all duration-300 overflow-y-auto no-scrollbar ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
+        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white/70 dark:bg-slate-950/60 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5 z-40 transition-all duration-300 overflow-y-auto no-scrollbar ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
       >
         {/* Collapse Toggle Button (Circular) */}
         <button
@@ -221,7 +221,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {/* Top: Brand Logo and Connected Info */}
-        <div className={`space-y-3 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`flex-1 space-y-3 w-full ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
             <div className="flex items-center justify-center h-9 w-9 shrink-0">
               <BrandMark size={32} title="VitalSync logo" />
@@ -738,8 +738,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
 
           {/* Drawer Content Sheet */}
-          <aside className="relative flex flex-col w-72 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50 border-r border-slate-200/50 dark:border-white/5">
-            <div className="space-y-6">
+          <aside className="relative flex flex-col w-72 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md h-full p-5 shadow-2xl animate-slide-in-left z-50 border-r border-slate-200/50 dark:border-white/5 overflow-y-auto no-scrollbar">
+            <div className="flex-1 space-y-6">
               {/* Header inside drawer */}
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
                 <div className="flex items-center gap-3">
