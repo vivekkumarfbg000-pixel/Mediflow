@@ -1576,7 +1576,7 @@ export const SaaSAdminPanel: React.FC = () => {
         </div>
 
         {/* ── Virtual Operations Team Navigation (Mobile Footer) ───────────────── */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/50 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg border-t border-slate-200/50 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
           <div className="flex justify-around items-center h-16 max-w-md mx-auto">
             {agents.map(agent => {
               const Icon = agent.icon;
@@ -1597,11 +1597,11 @@ export const SaaSAdminPanel: React.FC = () => {
                   type="button"
                   onClick={() => setActiveTab(agent.id)}
                   className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all cursor-pointer ${
-                    isActive ? 'text-slate-900 font-extrabold scale-105' : 'text-slate-400 font-semibold'
+                    isActive ? 'text-slate-900 dark:text-white font-extrabold scale-105' : 'text-slate-400 dark:text-zinc-500 font-semibold'
                   }`}
                 >
-                  <Icon className={`h-5 w-5 mb-0.5 ${isActive ? 'text-slate-900' : 'text-slate-400'}`} />
-                  <span className="text-[9px] uppercase tracking-wider">{shortLabel}</span>
+                  <Icon className={`h-5 w-5 mb-0.5 ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
+                  <span className="text-[10px] font-bold uppercase tracking-wide leading-none">{shortLabel}</span>
                 </button>
               );
             })}

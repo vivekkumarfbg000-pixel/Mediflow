@@ -1677,7 +1677,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 }`}>
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 </div>
-                <span className="text-[9px] mt-1 tracking-tight">
+                <span className="text-[10px] font-bold mt-1 tracking-wide leading-none">
                   {item.label}
                 </span>
                 {isActive && (
