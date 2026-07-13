@@ -952,11 +952,15 @@ export const CompounderDashboard: React.FC = () => {
     );
   }, [activeInventory, medSearchQuery]);
 
-  const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.phone.includes(searchQuery) ||
-    (p.abhaId && p.abhaId.includes(searchQuery))
-  );
+  const filteredPatients = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    return patients.filter(p => 
+      p.name.toLowerCase().includes(query) || 
+      p.phone.includes(query) ||
+      (p.abhaId && p.abhaId.includes(query))
+    );
+  }, [patients, searchQuery]);
 
   const assignFilteredPatients = useMemo(() => {
     if (!assignSearchQuery.trim()) return [];

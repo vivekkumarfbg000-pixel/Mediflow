@@ -37,12 +37,16 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   patientRAGSummary,
   setPatientRAGSummary
 }) => {
-  const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
-    p.phone.includes(patientSearchQuery) ||
-    p.id.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
-    (p.abhaId && p.abhaId.toLowerCase().includes(patientSearchQuery.toLowerCase()))
-  );
+  const filteredPatients = React.useMemo(() => {
+    const query = patientSearchQuery.trim().toLowerCase();
+    if (!query) return patients;
+    return patients.filter(p => 
+      p.name.toLowerCase().includes(query) ||
+      p.phone.includes(query) ||
+      p.id.toLowerCase().includes(query) ||
+      (p.abhaId && p.abhaId.toLowerCase().includes(query))
+    );
+  }, [patients, patientSearchQuery]);
 
   const [bulkInput, setBulkInput] = React.useState('');
   const [parsedList, setParsedList] = React.useState<any[]>([]);
