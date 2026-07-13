@@ -787,7 +787,7 @@ export default function App() {
               specialization: 'General Medicine'
             }
           }
-        };
+        } as any;
       }
 
       setSession(currentSession);

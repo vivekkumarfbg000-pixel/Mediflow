@@ -124,7 +124,15 @@ export const DoctorDashboard: React.FC = () => {
   const [comparisonDate, setComparisonDate] = useState<string | null>(null);
   
   const [hoveredHbA1c, setHoveredHbA1c] = useState<{ x: number, y: number, val: number, date: string } | null>(null);
-  const [allergyAlert, setAllergyAlert] = useState<{ medicineName: string, allergen: string, resolved: boolean, justification: string } | null>(null);
+  const [allergyAlert, setAllergyAlert] = useState<{ 
+    medicineName: string, 
+    allergen: string, 
+    resolved: boolean, 
+    justification: string,
+    confidenceScore?: number,
+    clinicalGuidelineCitation?: string,
+    severity?: string
+  } | null>(null);
 
   // New Dashboard Helper States
   const [selectedApprovedReport, setSelectedApprovedReport] = useState<PathologyReport | null>(null);
