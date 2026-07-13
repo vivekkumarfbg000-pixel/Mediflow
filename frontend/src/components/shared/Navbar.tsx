@@ -437,6 +437,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Bottom: Active Profile Badge & Workspace Actions */}
         <div className={`space-y-4 pt-4 border-t border-slate-200/60 w-full ${isSidebarCollapsed ? 'flex flex-col items-center gap-3 pt-3' : ''}`}>
+          {/* Persistent Theme Toggle (Always visible, even if activeProfile is loading/null) */}
+          <div className="w-full">
+            {isSidebarCollapsed ? (
+              <button
+                onClick={toggleTheme}
+                className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/5 text-slate-650 dark:text-zinc-400 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative group hover:scale-105 active:scale-95 mb-1"
+                title={isDark ? "Light Mode" : "Dark Mode"}
+              >
+                {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
+              </button>
+            ) : (
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center justify-between py-2 px-3 bg-slate-100 hover:bg-slate-200/60 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-zinc-300 rounded-lg transition-all duration-200 font-semibold text-[11px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+              >
+                <span className="flex items-center gap-2">
+                  {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
+                  Theme Mode
+                </span>
+                <span className="text-[9px] uppercase tracking-wider text-slate-500">{isDark ? 'Dark' : 'Light'}</span>
+              </button>
+            )}
+          </div>
+
           {activeProfile && (
             isSidebarCollapsed ? (
               <div className="flex flex-col items-center gap-3 w-full">
@@ -449,15 +473,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {activeProfile.display_name} ({displayRole(activeProfile.role)})
                   </div>
                 </div>
-
-                {/* Collapsed Theme Trigger */}
-                <button
-                  onClick={toggleTheme}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 border border-slate-200 dark:border-white/5 text-slate-650 dark:text-zinc-400 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative group hover:scale-105 active:scale-95"
-                  title={isDark ? "Light Mode" : "Dark Mode"}
-                >
-                  {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
-                </button>
 
                 {/* Collapsed Settings Trigger */}
                 <button
@@ -473,23 +488,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <div className="space-y-3 animate-fade-in w-full">
                 {/* Profile Details Badge */}
-                <div className="flex items-center justify-between gap-2.5 p-2 rounded-lg bg-white/80 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
-                      {activeProfile.display_name.charAt(0)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="block text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate leading-tight">{activeProfile.display_name}</span>
-                      <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
-                    </div>
+                <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/80 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
+                    {activeProfile.display_name.charAt(0)}
                   </div>
-                  <button 
-                    onClick={toggleTheme}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/60 dark:hover:border-white/5 rounded-md text-slate-500 dark:text-zinc-400 transition-all cursor-pointer shrink-0"
-                    title={isDark ? "Light Mode" : "Dark Mode"}
-                  >
-                    {isDark ? <Sun className="h-3.5 w-3.5 text-amber-500" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
-                  </button>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate leading-tight">{activeProfile.display_name}</span>
+                    <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
+                  </div>
                 </div>
 
                 {/* Settings Section (Collapsible Accordion) */}
