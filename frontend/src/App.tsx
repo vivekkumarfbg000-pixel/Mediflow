@@ -17,7 +17,7 @@ import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
 import { BrandMark } from './components/shared/BrandMark';
 import { supabase } from './lib/supabaseClient';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
@@ -71,6 +71,23 @@ function AppContent({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
   const [activeDoctorTab, setActiveDoctorTab] = useState('pod_view');
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' || document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isDark: boolean }>;
+      if (customEvent.detail) {
+        setIsDark(customEvent.detail.isDark);
+      }
+    };
+    window.addEventListener('mediflow-theme-change', handleThemeChange as any);
+    return () => window.removeEventListener('mediflow-theme-change', handleThemeChange as any);
+  }, []);
 
   useEffect(() => {
     const handleDoctorTabChange = (e: Event) => {
@@ -264,6 +281,15 @@ function AppContent({
       <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-500/15 dark:bg-indigo-500/10 blur-[120px] pointer-events-none z-0 animate-ambient-float-1" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/15 dark:bg-teal-500/10 blur-[130px] pointer-events-none z-0 animate-ambient-float-2" />
       
+      {/* Floating Theme Toggle (Always visible on desktop views) */}
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent('mediflow-theme-toggle'))}
+        className="fixed top-4 right-4 z-50 hidden md:flex items-center justify-center p-2.5 bg-white/80 dark:bg-slate-950/60 backdrop-blur-md border border-slate-200/50 dark:border-white/5 rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white"
+        title="Toggle Visual Theme"
+      >
+        {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
+      </button>
+
       {/* Shared Ecosystem Navigation Header */}
       <Navbar 
         currentRole={currentRole} 

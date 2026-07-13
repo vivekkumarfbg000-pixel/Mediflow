@@ -98,6 +98,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark } }));
   }, [isDark]);
 
+  useEffect(() => {
+    const handleThemeToggle = () => {
+      setIsDark(prev => !prev);
+    };
+    window.addEventListener('mediflow-theme-toggle', handleThemeToggle);
+    return () => {
+      window.removeEventListener('mediflow-theme-toggle', handleThemeToggle);
+    };
+  }, []);
+
   const toggleTheme = () => {
     setIsDark(!isDark);
   };
