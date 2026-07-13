@@ -1121,7 +1121,7 @@ export const CompounderDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsInvoiceGeneratorOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-clinical-800/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-clinical-700/50 hover:shadow-md transition-all cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-clinical-800/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-clinical-700/50 hover:shadow-md transition-all cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
               Invoice Generator
@@ -1129,7 +1129,7 @@ export const CompounderDashboard: React.FC = () => {
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-100 transition cursor-pointer"
             >
               <LogOut className="h-3.5 w-3.5 text-rose-600" />
               Sign Out
@@ -4904,7 +4904,7 @@ export const CompounderDashboard: React.FC = () => {
                 }`}>
                   <Icon className="h-5 w-5" />
                 </div>
-                <span className="text-[9px] mt-1 tracking-tight">
+                <span className="text-[10px] font-bold mt-1 tracking-wide leading-none">
                   {item.label}
                 </span>
                 {isActive && (

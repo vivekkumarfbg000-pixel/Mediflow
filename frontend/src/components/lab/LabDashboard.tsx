@@ -2722,7 +2722,7 @@ export const LabDashboard: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <span className="text-[9px] mt-1 tracking-tight">
+                <span className="text-[10px] font-bold mt-1 tracking-wide leading-none">
                   {item.label}
                 </span>
                 {isActive && (
