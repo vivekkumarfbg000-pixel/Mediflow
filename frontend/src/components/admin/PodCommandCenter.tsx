@@ -40,6 +40,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   const [pulse, setPulse] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -135,8 +136,20 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
     return patients
       .filter(p => {
-        const isActiveQueue = p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation';
-        if (!isActiveQueue && !searchQuery) return false;
+        // Handle metric-specific filters
+        if (selectedMetric === 'all') {
+          // Show all registered today (no filter by status)
+        } else if (selectedMetric === 'awaiting') {
+          if (p.queueStatus !== 'awaiting_consultation') return false;
+        } else if (selectedMetric === 'active') {
+          if (p.queueStatus !== 'in_consultation') return false;
+        } else if (selectedMetric === 'completed') {
+          if (p.queueStatus !== 'completed') return false;
+        } else {
+          // Default filter: Active Queue (Awaiting or In Consultation)
+          const isActiveQueue = p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation';
+          if (!isActiveQueue && !searchQuery) return false;
+        }
 
         const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               p.phone.includes(searchQuery) ||
@@ -144,7 +157,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         return matchesSearch;
       })
       .sort((a, b) => {
-        const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
+        const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2, 'completed': 3 };
         const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
         const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
         if (statusA !== statusB) return statusA - statusB;
@@ -153,7 +166,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         const tokenB = parseTokenNum(b.tokenNumber);
         return tokenA - tokenB;
       });
-  }, [patients, searchQuery]);
+  }, [patients, searchQuery, selectedMetric]);
 
   const lowStockSKUs = useMemo(() => {
     return pharmacyInventory.filter(item => item.stock <= item.threshold);
@@ -536,31 +549,47 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </>
         ) : (
           [
-            { label: 'Total Registered',         value: patientMetrics.total,                icon: 'group',          accent: 'indigo',   sub: 'Total checked-in patients' },
-            { label: 'Awaiting Consultation',    value: patientMetrics.awaitingConsultation, icon: 'clinical_notes',  accent: 'amber',    sub: 'Patients waiting in queue' },
-            { label: 'In Consultation',          value: patientMetrics.inConsultation,       icon: 'stethoscope',     accent: 'teal',     sub: 'Active patient encounters' },
-            { label: 'Completed Care Loop',      value: patientMetrics.completed,            icon: 'task_alt',        accent: 'emerald',  sub: 'Completed clinic visits'  },
-          ].map(({ label, value, icon, accent, sub }) => (
-            <PointerGlowCard
-              key={label}
-              className="bg-white/90 dark:bg-slate-950/60 p-4 flex items-center gap-4 hover:shadow-md transition-all duration-300"
-            >
-              <div className={`w-11 h-11 rounded-xl bg-${accent}-550/10 dark:bg-${accent}-950/20 border border-${accent}-100 dark:border-${accent}-900/30 flex items-center justify-center text-${accent}-600 dark:text-${accent}-400 shrink-0`}>
-                <span className="material-symbols-outlined text-[22px]">{icon}</span>
-              </div>
-              <div>
-                <div className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
-                  {value}
+            { id: 'all',       label: 'Total Registered',         value: patientMetrics.total,                icon: 'group',          accent: 'indigo',   sub: 'Total checked-in patients' },
+            { id: 'awaiting',  label: 'Awaiting Consultation',    value: patientMetrics.awaitingConsultation, icon: 'clinical_notes',  accent: 'amber',    sub: 'Patients waiting in queue' },
+            { id: 'active',    label: 'In Consultation',          value: patientMetrics.inConsultation,       icon: 'stethoscope',     accent: 'teal',     sub: 'Active patient encounters' },
+            { id: 'completed', label: 'Completed Care Loop',      value: patientMetrics.completed,            icon: 'task_alt',        accent: 'emerald',  sub: 'Completed clinic visits'  },
+          ].map(({ id, label, value, icon, accent, sub }) => {
+            const isSelected = selectedMetric === id || (selectedMetric === null && id === 'awaiting');
+            
+            const borderStyles = {
+              indigo: 'border-indigo-500/80 dark:border-indigo-500/60 shadow-indigo-500/10 bg-indigo-50/10 dark:bg-indigo-950/10',
+              amber: 'border-amber-500/80 dark:border-amber-500/60 shadow-amber-500/10 bg-amber-50/10 dark:bg-amber-950/10',
+              teal: 'border-teal-500/80 dark:border-teal-500/60 shadow-teal-500/10 bg-teal-50/10 dark:bg-teal-950/10',
+              emerald: 'border-emerald-500/80 dark:border-emerald-500/60 shadow-emerald-500/10 bg-emerald-50/10 dark:bg-emerald-950/10'
+            }[accent as 'indigo' | 'amber' | 'teal' | 'emerald'];
+
+            return (
+              <PointerGlowCard
+                key={label}
+                onClick={() => setSelectedMetric(id)}
+                className={`bg-white/90 dark:bg-slate-950/60 p-4 flex items-center gap-4 hover:shadow-md transition-all duration-300 cursor-pointer border-2 hover:scale-[1.02] active:scale-95 ${
+                  isSelected 
+                    ? `${borderStyles} shadow-lg scale-[1.02]` 
+                    : 'border-slate-200/50 dark:border-white/5'
+                }`}
+              >
+                <div className={`w-11 h-11 rounded-xl bg-${accent}-550/10 dark:bg-${accent}-950/20 border border-${accent}-100 dark:border-${accent}-900/30 flex items-center justify-center text-${accent}-600 dark:text-${accent}-400 shrink-0`}>
+                  <span className="material-symbols-outlined text-[22px]">{icon}</span>
                 </div>
-                <div className="text-[10px] font-bold text-slate-800 dark:text-zinc-300 mt-0.5 leading-none">
-                  {label}
+                <div>
+                  <div className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
+                    {value}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-800 dark:text-zinc-300 mt-0.5 leading-none">
+                    {label}
+                  </div>
+                  <div className="text-[9px] text-slate-500 dark:text-zinc-400 mt-1 font-medium leading-none">
+                    {sub}
+                  </div>
                 </div>
-                <div className="text-[9px] text-slate-500 dark:text-zinc-400 mt-1 font-medium leading-none">
-                  {sub}
-                </div>
-              </div>
-            </PointerGlowCard>
-          ))
+              </PointerGlowCard>
+            );
+          })
         )}
       </div>
 
@@ -576,11 +605,17 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <div className="p-5 flex flex-col flex-1">
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-550 text-[18px]">clinical_notes</span>
-                  Active Consultation Queue
+                  <span className="material-symbols-outlined text-indigo-550 text-[18px]">
+                    {selectedMetric === 'all' ? 'group' : selectedMetric === 'active' ? 'stethoscope' : selectedMetric === 'completed' ? 'task_alt' : 'clinical_notes'}
+                  </span>
+                  {selectedMetric === 'all' && 'Registered Patients Today'}
+                  {selectedMetric === 'awaiting' && 'Consultation Queue (Awaiting)'}
+                  {selectedMetric === 'active' && 'Active Consultations (In Progress)'}
+                  {selectedMetric === 'completed' && 'Completed Consultations'}
+                  {(selectedMetric === null) && 'Active Consultation Queue'}
                 </h2>
                 <span className="text-[10px] font-bold px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded-full font-mono">
-                  {filteredPatients.length} Active
+                  {filteredPatients.length} {selectedMetric === 'completed' ? 'Completed' : selectedMetric === 'active' ? 'Active' : 'Total'}
                 </span>
               </div>
 
@@ -641,9 +676,13 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                       {onStartConsultation && (
                         <button
                           onClick={() => onStartConsultation(p)}
-                          className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 hover:from-indigo-600 hover:to-indigo-700 dark:hover:from-indigo-555 dark:hover:to-indigo-650 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border-0 shadow-[0_2px_4px_rgba(79,70,229,0.15)] hover:shadow-[0_4px_8px_rgba(79,70,229,0.3)] whitespace-nowrap"
+                          className={`px-3 py-1.5 bg-gradient-to-r ${
+                            p.queueStatus === 'completed' 
+                              ? 'from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 hover:from-emerald-600 hover:to-emerald-700 text-white' 
+                              : 'from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 hover:from-indigo-600 hover:to-indigo-700 dark:hover:from-indigo-555 dark:hover:to-indigo-650 text-white'
+                          } rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border-0 shadow-[0_2px_4px_rgba(79,70,229,0.15)] whitespace-nowrap`}
                         >
-                          Consult
+                          {p.queueStatus === 'completed' ? 'Review' : 'Consult'}
                         </button>
                       )}
                     </div>
