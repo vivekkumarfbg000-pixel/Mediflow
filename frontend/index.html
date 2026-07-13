@@ -10,12 +10,14 @@
     <script>
       (function() {
         try {
-          localStorage.setItem('theme', 'light');
+          var savedTheme = localStorage.getItem('theme');
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            localStorage.setItem('theme', 'light');
+            document.documentElement.classList.remove('dark');
+          }
         } catch(e) {}
-        document.documentElement.classList.remove('dark');
-        if (document.body) {
-          document.body.classList.remove('dark');
-        }
       })();
 
       // Screen Orientation Lock — lock to portrait on mobile devices

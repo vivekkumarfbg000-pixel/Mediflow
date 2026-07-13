@@ -19,7 +19,9 @@ import {
   X,
   Settings,
   FileText,
-  Eye
+  Eye,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
@@ -76,16 +78,29 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, []);
   
-  const isDark = false;
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark';
+    }
+    return false;
+  });
 
   useEffect(() => {
-    document.documentElement.classList.remove('dark');
-    document.body?.classList.remove('dark');
-    localStorage.setItem('theme', 'light');
-    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: false } }));
-  }, []);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.body?.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body?.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark } }));
+  }, [isDark]);
 
-  const toggleTheme = () => {};
+  const toggleTheme = () => {
+    setIsDark(!isDark);
+  };
   
   const activeSop = api.getActiveSop();
 
@@ -177,7 +192,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onToggleSidebarCollapse?.(false);
           }
         }}
-        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white dark:bg-slate-50/95 border-r border-slate-200/50 dark:border-slate-800 z-40 justify-between transition-all duration-300 ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
+        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white/70 dark:bg-slate-950/60 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5 z-40 justify-between transition-all duration-300 overflow-y-auto no-scrollbar ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
       >
         {/* Collapse Toggle Button (Circular) */}
         <button
@@ -449,21 +464,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <div className="space-y-3 animate-fade-in w-full">
                 {/* Profile Details Badge */}
-                <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white border border-slate-200/50 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/80 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
                     {activeProfile.display_name.charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                    <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
+                    <span className="block text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate leading-tight">{activeProfile.display_name}</span>
+                    <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
                   </div>
                 </div>
 
                 {/* Settings Section (Collapsible Accordion) */}
-                <div className="border border-slate-200/60 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
+                <div className="border border-slate-200/60 dark:border-white/5 rounded-lg overflow-hidden bg-white/80 dark:bg-slate-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
                   <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100/50 text-[11px] font-semibold text-slate-700 transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2 bg-slate-50/50 dark:bg-slate-950/20 hover:bg-slate-100/50 dark:hover:bg-slate-950/40 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 transition-colors"
                   >
                     <span className="flex items-center gap-2">
                       <Settings className="h-3.5 w-3.5 text-slate-500" />
@@ -477,7 +492,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
 
                   {isSettingsOpen && (
-                    <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
+                    <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-transparent animate-fade-in w-full">
 
                       {/* Dev Bypass Trigger — DEV ONLY, hidden in production builds */}
                       {import.meta.env.DEV && (
@@ -502,6 +517,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                           )}
                         </button>
                       )}
+
+                      {/* Theme Toggle Button */}
+                      <button
+                        onClick={toggleTheme}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200/60 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-zinc-300 rounded-md transition-all duration-200 font-semibold text-[10px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                      >
+                        {isDark ? (
+                          <>
+                            <Sun className="h-3 w-3 text-amber-500" />
+                            Light Mode
+                          </>
+                        ) : (
+                          <>
+                            <Moon className="h-3 w-3 text-indigo-500" />
+                            Dark Mode
+                          </>
+                        )}
+                      </button>
 
                       {/* Profile & Partners settings button */}
                       <button
@@ -530,7 +563,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="md:hidden border-b border-slate-200/50 dark:border-slate-800 bg-white/95 dark:bg-slate-50/95 backdrop-blur-xl sticky top-0 z-50 px-3 py-2.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
+      <nav className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-2.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
         <div className="max-w-7xl mx-auto flex flex-col gap-2">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2 min-w-0">
@@ -663,7 +696,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
 
           {/* Drawer Content Sheet */}
-          <aside className="relative flex flex-col w-72 bg-white dark:bg-slate-50 h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50 border-r border-slate-200/50 dark:border-slate-800">
+          <aside className="relative flex flex-col w-72 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md h-full p-5 justify-between shadow-2xl animate-slide-in-left z-50 border-r border-slate-200/50 dark:border-white/5">
             <div className="space-y-6">
               {/* Header inside drawer */}
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
@@ -807,21 +840,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               {activeProfile && (
                 <div className="space-y-3">
                   {/* Profile Card */}
-                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white border border-slate-200/50 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
+                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/80 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
                       {activeProfile.display_name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xs font-semibold text-slate-800 truncate leading-tight">{activeProfile.display_name}</span>
-                      <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
+                      <span className="block text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate leading-tight">{activeProfile.display_name}</span>
+                      <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
                     </div>
                   </div>
 
                   {/* Settings Section (Collapsible Accordion) */}
-                  <div className="border border-slate-200/60 rounded-lg overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
+                  <div className="border border-slate-200/60 dark:border-white/5 rounded-lg overflow-hidden bg-white/80 dark:bg-slate-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
                     <button
                       onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100/50 text-[11px] font-semibold text-slate-700 transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50/50 dark:bg-slate-950/20 hover:bg-slate-100/50 dark:hover:bg-slate-950/40 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 transition-colors"
                     >
                       <span className="flex items-center gap-2">
                         <Settings className="h-3.5 w-3.5 text-slate-500" />
@@ -835,7 +868,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
 
                     {isSettingsOpen && (
-                      <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-white animate-fade-in w-full">
+                      <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-transparent animate-fade-in w-full">
 
                         {/* Dev Bypass Trigger — DEV ONLY, hidden in production builds */}
                         {import.meta.env.DEV && (
@@ -863,6 +896,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                             )}
                           </button>
                         )}
+
+                        {/* Theme Toggle Button */}
+                        <button
+                          onClick={toggleTheme}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200/60 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-zinc-300 rounded-md transition-all duration-200 font-semibold text-[10px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                        >
+                          {isDark ? (
+                            <>
+                              <Sun className="h-3 w-3 text-amber-500" />
+                              Light Mode
+                            </>
+                          ) : (
+                            <>
+                              <Moon className="h-3 w-3 text-indigo-500" />
+                              Dark Mode
+                            </>
+                          )}
+                        </button>
 
                         {/* Profile & Partners settings button */}
                         <button
@@ -901,7 +952,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
       {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && currentRole !== 'saas_admin' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/50 dark:border-slate-800 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/70 dark:bg-slate-950/60 backdrop-blur-lg border-t border-slate-200/50 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
           <div className="flex items-center justify-around h-16">
             {visibleRoles.map((r) => {
               const Icon = r.icon;

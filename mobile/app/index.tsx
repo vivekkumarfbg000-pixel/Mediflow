@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
   View, 
   TouchableOpacity, 
-  ScrollView,
   SafeAreaView,
   TextInput,
   Dimensions,
-  Platform
+  Platform,
+  Animated
 } from 'react-native';
 import { 
   Home, 
@@ -43,6 +43,60 @@ export default function AppIndex() {
     'Sync completed: Prescriptions updated for Patna Pod 04',
     'Access control: New device verified for Dr. Vivek'
   ]);
+
+  const [isOnline, setIsOnline] = useState(true);
+  const [pendingSyncTasks, setPendingSyncTasks] = useState(0);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Anim values for spring touch buttons
+  const tabHomeScale = useRef(new Animated.Value(1)).current;
+  const tabOcrScale = useRef(new Animated.Value(1)).current;
+  const tabAlertsScale = useRef(new Animated.Value(1)).current;
+  const tabLogsScale = useRef(new Animated.Value(1)).current;
+  const simulateBtnScale = useRef(new Animated.Value(1)).current;
+  const launchOcrBtnScale = useRef(new Animated.Value(1)).current;
+
+  const animatePress = (scaleValue: Animated.Value, toValue: number) => {
+    Animated.spring(scaleValue, {
+      toValue,
+      friction: 4,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Simulate network dropout fluctuation and sync task queue
+  useEffect(() => {
+    const netInterval = setInterval(() => {
+      setIsOnline(prev => {
+        const next = !prev;
+        const timestamp = new Date().toLocaleTimeString();
+        setLogs(l => [...l, `[${timestamp}] Connection status changed: ${next ? 'ONLINE' : 'OFFLINE'}`]);
+        return next;
+      });
+    }, 25000);
+
+    return () => clearInterval(netInterval);
+  }, []);
+
+  // Sync worker simulator
+  useEffect(() => {
+    let syncInterval: NodeJS.Timeout;
+    if (isOnline && pendingSyncTasks > 0) {
+      syncInterval = setInterval(() => {
+        setPendingSyncTasks(prev => {
+          if (prev <= 1) {
+            const timestamp = new Date().toLocaleTimeString();
+            setLogs(l => [...l, `[${timestamp}] Offline sync queue cleared successfully.`]);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 3000);
+    }
+    return () => clearInterval(syncInterval);
+  }, [isOnline, pendingSyncTasks]);
 
   const activityData = [
     { day: 'M', count: 18, height: 40 },
@@ -90,6 +144,10 @@ export default function AppIndex() {
         `OCR success: Metformin prescription registered for Rahul Kumar`,
         ...prev
       ]);
+      if (!isOnline) {
+        setPendingSyncTasks(p => p + 1);
+        setLogs(prev => [...prev, `[${timestamp}] Sync Warning: Offline. Queuing OCR task to buffer.`]);
+      }
       setActiveTab('home');
     }, 2500);
   };
@@ -104,25 +162,75 @@ export default function AppIndex() {
       `Critical alert: HbA1c result of 7.8% verified for patient Rahul Kumar`,
       ...prev
     ]);
+    if (!isOnline) {
+      setPendingSyncTasks(p => p + 1);
+      setLogs(prev => [...prev, `[${timestamp}] Sync Warning: Offline. Queuing Vitals Alert task to buffer.`]);
+    }
   };
 
   const clearNotification = (index: number) => {
     setNotifications(prev => prev.filter((_, i) => i !== index));
   };
 
+  const translateGlowTopLeftY = scrollY.interpolate({
+    inputRange: [0, 400],
+    outputRange: [0, -60],
+    extrapolate: 'clamp',
+  });
+  
+  const translateGlowBottomRightY = scrollY.interpolate({
+    inputRange: [0, 400],
+    outputRange: [0, 80],
+    extrapolate: 'clamp',
+  });
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* Ambient background glows */}
+      <Animated.View 
+        style={[
+          styles.glowTopLeft, 
+          { transform: [{ translateY: translateGlowTopLeftY }] }
+        ]} 
+        pointerEvents="none" 
+      />
+      <Animated.View 
+        style={[
+          styles.glowBottomRight, 
+          { transform: [{ translateY: translateGlowBottomRightY }] }
+        ]} 
+        pointerEvents="none" 
+      />
+      <Animated.ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      >
         
         {/* Header Block */}
         <View style={styles.header}>
           <Text style={styles.subtitle}>OFFLINE-FIRST CLINICAL COMPANION</Text>
           <View style={styles.headerRow}>
             <Text style={styles.title}>VitalSync Care Dashboard</Text>
-            <View style={styles.onlineBadge}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.onlineText}>SYNCED</Text>
-            </View>
+            {pendingSyncTasks > 0 ? (
+              <View style={[styles.onlineBadge, { borderColor: 'rgba(245, 158, 11, 0.3)', backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                <RefreshCw size={8} color="#f59e0b" style={{ marginRight: 4 }} />
+                <Text style={[styles.onlineText, { color: '#f59e0b' }]}>{pendingSyncTasks} PENDING</Text>
+              </View>
+            ) : !isOnline ? (
+              <View style={[styles.onlineBadge, { borderColor: 'rgba(239, 68, 68, 0.3)', backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+                <View style={[styles.pulseDot, { backgroundColor: '#ef4444' }]} />
+                <Text style={[styles.onlineText, { color: '#ef4444' }]}>OFFLINE</Text>
+              </View>
+            ) : (
+              <View style={styles.onlineBadge}>
+                <View style={styles.pulseDot} />
+                <Text style={styles.onlineText}>ONLINE</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -204,14 +312,29 @@ export default function AppIndex() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>⚡ Operator Quick Actions</Text>
               <View style={styles.actionsGrid}>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => setActiveTab('ocr')}>
-                  <Camera size={18} color="#818cf8" />
-                  <Text style={styles.actionBtnText}>Launch OCR</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn} onPress={triggerLocalAlert}>
-                  <Bell size={18} color="#f59e0b" />
-                  <Text style={styles.actionBtnText}>Simulate Alarm</Text>
-                </TouchableOpacity>
+                <Animated.View style={{ transform: [{ scale: launchOcrBtnScale }], flex: 1 }}>
+                  <TouchableOpacity 
+                    style={styles.actionBtn} 
+                    onPressIn={() => animatePress(launchOcrBtnScale, 0.95)}
+                    onPressOut={() => animatePress(launchOcrBtnScale, 1)}
+                    onPress={() => setActiveTab('ocr')}
+                  >
+                    <Camera size={18} color="#818cf8" />
+                    <Text style={styles.actionBtnText}>Launch OCR</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+                
+                <Animated.View style={{ transform: [{ scale: simulateBtnScale }], flex: 1 }}>
+                  <TouchableOpacity 
+                    style={styles.actionBtn} 
+                    onPressIn={() => animatePress(simulateBtnScale, 0.95)}
+                    onPressOut={() => animatePress(simulateBtnScale, 1)}
+                    onPress={triggerLocalAlert}
+                  >
+                    <Bell size={18} color="#f59e0b" />
+                    <Text style={styles.actionBtnText}>Simulate Alarm</Text>
+                  </TouchableOpacity>
+                </Animated.View>
               </View>
             </View>
           </View>
@@ -294,41 +417,57 @@ export default function AppIndex() {
           </View>
         )}
 
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Premium Glassmorphic Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={[styles.navItem, activeTab === 'home' ? styles.navItemActive : null]}
-          onPress={() => setActiveTab('home')}
-        >
-          <Home size={18} color={activeTab === 'home' ? '#6366f1' : '#94a3b8'} />
-          <Text style={[styles.navText, activeTab === 'home' ? styles.navTextActive : null]}>Home</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: tabHomeScale }], flex: 1 }}>
+          <TouchableOpacity 
+            style={[styles.navItem, activeTab === 'home' ? styles.navItemActive : null]}
+            onPressIn={() => animatePress(tabHomeScale, 0.93)}
+            onPressOut={() => animatePress(tabHomeScale, 1)}
+            onPress={() => setActiveTab('home')}
+          >
+            <Home size={18} color={activeTab === 'home' ? '#6366f1' : '#94a3b8'} />
+            <Text style={[styles.navText, activeTab === 'home' ? styles.navTextActive : null]}>Home</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <TouchableOpacity 
-          style={[styles.navItem, activeTab === 'ocr' ? styles.navItemActive : null]}
-          onPress={() => setActiveTab('ocr')}
-        >
-          <Camera size={18} color={activeTab === 'ocr' ? '#6366f1' : '#94a3b8'} />
-          <Text style={[styles.navText, activeTab === 'ocr' ? styles.navTextActive : null]}>OCR</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: tabOcrScale }], flex: 1 }}>
+          <TouchableOpacity 
+            style={[styles.navItem, activeTab === 'ocr' ? styles.navItemActive : null]}
+            onPressIn={() => animatePress(tabOcrScale, 0.93)}
+            onPressOut={() => animatePress(tabOcrScale, 1)}
+            onPress={() => setActiveTab('ocr')}
+          >
+            <Camera size={18} color={activeTab === 'ocr' ? '#6366f1' : '#94a3b8'} />
+            <Text style={[styles.navText, activeTab === 'ocr' ? styles.navTextActive : null]}>OCR</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <TouchableOpacity 
-          style={[styles.navItem, activeTab === 'alerts' ? styles.navItemActive : null]}
-          onPress={() => setActiveTab('alerts')}
-        >
-          <Bell size={18} color={activeTab === 'alerts' ? '#6366f1' : '#94a3b8'} />
-          <Text style={[styles.navText, activeTab === 'alerts' ? styles.navTextActive : null]}>Alerts</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: tabAlertsScale }], flex: 1 }}>
+          <TouchableOpacity 
+            style={[styles.navItem, activeTab === 'alerts' ? styles.navItemActive : null]}
+            onPressIn={() => animatePress(tabAlertsScale, 0.93)}
+            onPressOut={() => animatePress(tabAlertsScale, 1)}
+            onPress={() => setActiveTab('alerts')}
+          >
+            <Bell size={18} color={activeTab === 'alerts' ? '#6366f1' : '#94a3b8'} />
+            <Text style={[styles.navText, activeTab === 'alerts' ? styles.navTextActive : null]}>Alerts</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <TouchableOpacity 
-          style={[styles.navItem, activeTab === 'logs' ? styles.navItemActive : null]}
-          onPress={() => setActiveTab('logs')}
-        >
-          <Terminal size={18} color={activeTab === 'logs' ? '#6366f1' : '#94a3b8'} />
-          <Text style={[styles.navText, activeTab === 'logs' ? styles.navTextActive : null]}>Logs</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: tabLogsScale }], flex: 1 }}>
+          <TouchableOpacity 
+            style={[styles.navItem, activeTab === 'logs' ? styles.navItemActive : null]}
+            onPressIn={() => animatePress(tabLogsScale, 0.93)}
+            onPressOut={() => animatePress(tabLogsScale, 1)}
+            onPress={() => setActiveTab('logs')}
+          >
+            <Terminal size={18} color={activeTab === 'logs' ? '#6366f1' : '#94a3b8'} />
+            <Text style={[styles.navText, activeTab === 'logs' ? styles.navTextActive : null]}>Logs</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
@@ -338,6 +477,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f172a',
+    position: 'relative',
+  },
+  glowTopLeft: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+  },
+  glowBottomRight: {
+    position: 'absolute',
+    bottom: 100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
   },
   scrollContent: {
     padding: 20,
@@ -398,13 +556,18 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: '#1e293b',
+    backgroundColor: 'rgba(30, 41, 59, 0.65)',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 16,
     padding: 12,
     alignItems: 'center',
     gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   metricVal: {
     color: '#ffffff',
@@ -418,12 +581,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: '#1e293b',
+    backgroundColor: 'rgba(30, 41, 59, 0.65)',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -476,9 +644,9 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
@@ -520,9 +688,9 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
@@ -582,13 +750,18 @@ const styles = StyleSheet.create({
     fontSize: 9,
   },
   emptyState: {
-    backgroundColor: '#1e293b',
+    backgroundColor: 'rgba(30, 41, 59, 0.65)',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   emptyStateText: {
     color: '#94a3b8',
@@ -599,14 +772,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   alertCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: 'rgba(30, 41, 59, 0.65)',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   alertHeader: {
     flexDirection: 'row',
@@ -633,12 +811,17 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   consoleCard: {
-    backgroundColor: '#020617',
+    backgroundColor: 'rgba(2, 6, 23, 0.75)',
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
   },
   consoleTitle: {
     color: '#818cf8',
@@ -659,17 +842,23 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 72,
-    backgroundColor: '#1e293b',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    height: 64,
+    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 24,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 12 : 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+    paddingBottom: 0,
   },
   navItem: {
     alignItems: 'center',
@@ -679,8 +868,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   navItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: '#6366f1',
+    borderTopWidth: 0,
   },
   navText: {
     color: '#94a3b8',

@@ -259,10 +259,10 @@ function AppContent({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none relative overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f1a] text-slate-800 dark:text-zinc-100 flex flex-col font-sans select-none relative overflow-hidden">
       {/* Ambient Glowing Blobs for Premium SaaS Aesthetic */}
-      <div className="fixed top-[-15%] left-[-15%] w-[450px] h-[450px] rounded-full bg-indigo-400/8 blur-[120px] pointer-events-none z-0 animate-ambient-float-1" />
-      <div className="fixed bottom-[-15%] right-[-15%] w-[550px] h-[550px] rounded-full bg-teal-400/8 blur-[130px] pointer-events-none z-0 animate-ambient-float-2" />
+      <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-500/15 dark:bg-indigo-500/10 blur-[120px] pointer-events-none z-0 animate-ambient-float-1" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/15 dark:bg-teal-500/10 blur-[130px] pointer-events-none z-0 animate-ambient-float-2" />
       
       {/* Shared Ecosystem Navigation Header */}
       <Navbar 
@@ -676,6 +676,18 @@ export default function App() {
   const loadOrHealProfile = async (session: any): Promise<any> => {
     if (!session?.user) return null;
     
+    // Developer bypass for offline testing on localhost
+    if (typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+      console.log('[Dev Bypass] Bypassing profile fetch. Loading mock doctor profile.');
+      return {
+        id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+        entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+        role: 'doctor',
+        display_name: 'Dr. Vivek Kumar (Mock)',
+        email: 'doctor@mediflow.com'
+      };
+    }
+    
     // 1. Try to fetch profile
     const { data: profiles } = await supabase
       .from('profiles')
@@ -761,10 +773,27 @@ export default function App() {
     // 1. Check existing Supabase session and load active profile
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!active) return;
-      setSession(session);
-      if (session?.user) {
+      
+      let currentSession = session;
+      if (!currentSession && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+        console.log('[Dev Bypass] Bypassing session check. Creating mock session.');
+        currentSession = {
+          user: {
+            id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+            email: 'doctor@mediflow.com',
+            user_metadata: {
+              display_name: 'Dr. Vivek Kumar (Mock)',
+              role: 'doctor',
+              specialization: 'General Medicine'
+            }
+          }
+        };
+      }
+
+      setSession(currentSession);
+      if (currentSession?.user) {
         setCrossDomainCookie(true);
-        const finalProfile = await loadOrHealProfile(session);
+        const finalProfile = await loadOrHealProfile(currentSession);
         if (active) {
           clearTimeout(safetyTimeout);
           if (finalProfile) {

@@ -194,26 +194,26 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
             const allTotal  = financials.reduce((s, l) => s + l.netPayout, 0) || 1;
 
             const categories = [
-              { type: 'appointment_fee',      label: 'Clinic Consult Payout',       dot: 'bg-indigo-500',  bar: 'bg-indigo-500' },
-              { type: 'lab_commission',        label: 'Lab Share Settlement',         dot: 'bg-teal-500',    bar: 'bg-teal-500'   },
-              { type: 'medicine_commission',   label: 'Pharmacy Share Settlement',    dot: 'bg-violet-500',  bar: 'bg-violet-500' },
-              { type: 'platform_fee',          label: 'Platform Commission Split',    dot: 'bg-slate-400',   bar: 'bg-slate-400'  },
+              { type: 'appointment_fee',      label: 'Clinic Consult Payout',       dot: 'bg-indigo-500',  bar: 'bg-gradient-to-r from-indigo-500 to-indigo-600' },
+              { type: 'lab_commission',        label: 'Lab Share Settlement',         dot: 'bg-teal-500',    bar: 'bg-gradient-to-r from-teal-400 to-teal-500'   },
+              { type: 'medicine_commission',   label: 'Pharmacy Share Settlement',    dot: 'bg-violet-500',  bar: 'bg-gradient-to-r from-violet-500 to-violet-600' },
+              { type: 'platform_fee',          label: 'Platform Commission Split',    dot: 'bg-slate-400',   bar: 'bg-gradient-to-r from-slate-400 to-slate-500'  },
             ];
 
             return (
-              <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 to-orange-50/40 overflow-hidden shadow-sm">
+              <div className="rounded-2xl border border-amber-500/20 dark:border-amber-500/10 bg-gradient-to-br from-amber-50/60 to-orange-50/20 dark:from-[#1e1b4b]/20 dark:to-[#111827]/30 overflow-hidden shadow-xs backdrop-blur-md">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-amber-600 text-[20px]">payments</span>
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/30 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[20px]">payments</span>
                     </div>
                     <div>
-                      <h3 className="text-sm font-extrabold text-slate-800 leading-none">Revenue Split Ledger</h3>
+                      <h3 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">Revenue Split Ledger</h3>
                       <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Bihar Zone · Real-time payout breakdown</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-850/30 rounded-xl text-[10px] font-bold text-amber-700 dark:text-amber-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
                     {todayCount} Today
                   </div>
@@ -221,24 +221,26 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
                 {/* KPI Row */}
                 <div className="grid grid-cols-3 gap-3 px-5 pb-4">
-                  <div className="p-3 bg-white/80 border border-slate-200/60 rounded-xl text-center shadow-xs">
-                    <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest">Gross</p>
-                    <p className="text-base font-black text-slate-800 mt-0.5 font-mono">₹{grossRev.toLocaleString('en-IN')}</p>
+                  <div className="p-3 bg-white/90 dark:bg-slate-900/40 border border-slate-200/60 dark:border-white/5 rounded-xl text-center shadow-xs">
+                    <p className="text-[9px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-widest">Gross</p>
+                    <p className="text-base font-black text-slate-800 dark:text-white mt-0.5 font-mono">₹{grossRev.toLocaleString('en-IN')}</p>
                   </div>
-                  <div className="p-3 bg-emerald-50 border border-emerald-200/60 rounded-xl text-center shadow-xs">
-                    <p className="text-[9px] text-emerald-600 font-semibold uppercase tracking-widest">Cleared</p>
-                    <p className="text-base font-black text-emerald-700 mt-0.5 font-mono">₹{cleared.toLocaleString('en-IN')}</p>
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/30 rounded-xl text-center shadow-xs">
+                    <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-widest">Cleared</p>
+                    <p className="text-base font-black text-emerald-700 dark:text-emerald-400 mt-0.5 font-mono">₹{cleared.toLocaleString('en-IN')}</p>
                   </div>
-                  <div className="p-3 bg-amber-50 border border-amber-200/60 rounded-xl text-center shadow-xs">
-                    <p className="text-[9px] text-amber-600 font-semibold uppercase tracking-widest">Pending</p>
-                    <p className="text-base font-black text-amber-700 mt-0.5 font-mono">₹{pending.toLocaleString('en-IN')}</p>
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-center shadow-xs">
+                    <p className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-widest">Pending</p>
+                    <p className="text-base font-black text-amber-700 dark:text-amber-450 mt-0.5 font-mono">₹{pending.toLocaleString('en-IN')}</p>
                   </div>
                 </div>
 
                 {/* Stacked proportional bar */}
                 <div className="px-5 pb-2">
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-2">Revenue Transaction Shares</p>
-                  <div className="h-4 bg-slate-200/60 rounded-full overflow-hidden flex gap-px">
+                  <p className="text-[9px] text-slate-550 dark:text-zinc-300 font-bold uppercase tracking-wider mb-2">Revenue Transaction Shares</p>
+                  <div className="h-4 bg-slate-250/70 dark:bg-slate-800 rounded-full overflow-hidden flex gap-px relative shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
+                    {/* Glossy sheen reflection */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/15 to-transparent pointer-events-none z-10" />
                     {categories.map((cat, idx) => {
                       const amt = financials.filter(l => l.transactionType === cat.type).reduce((s, l) => s + l.netPayout, 0);
                       const pct = (amt / allTotal) * 100;
@@ -261,14 +263,14 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     const amt = financials.filter(l => l.transactionType === cat.type).reduce((s, l) => s + l.netPayout, 0);
                     const pct = ((amt / allTotal) * 100).toFixed(1);
                     return (
-                      <div key={idx} className="flex items-center justify-between bg-white/70 border border-slate-200/50 px-3 py-2.5 rounded-xl hover:bg-white transition-colors">
-                        <span className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                      <div key={idx} className="flex items-center justify-between bg-white/70 dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 hover:scale-[1.015] hover:shadow-xs transition-all duration-300">
+                        <span className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">
                           <span className={`w-2.5 h-2.5 rounded-full ${cat.dot} shrink-0`} />
                           {cat.label}
                         </span>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-slate-500 font-mono">{pct}%</span>
-                          <span className="font-mono font-bold text-slate-800 text-xs">₹{Math.round(amt).toLocaleString('en-IN')}</span>
+                          <span className="text-[10px] text-slate-500 dark:text-zinc-450 font-mono">{pct}%</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-white text-xs">₹{Math.round(amt).toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     );

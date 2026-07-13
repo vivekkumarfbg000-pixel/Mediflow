@@ -7,6 +7,8 @@ import { PatientService } from '../../services/patientService';
 import { WhatsAppService } from '../../services/whatsappService';
 import { LabService } from '../../services/labService';
 import { PharmacyService } from '../../services/pharmacyService';
+import { PointerGlowCard } from '../ui/PointerGlowCard';
+import { SkeletonMetric, SkeletonCard, SkeletonRow } from '../ui/SkeletonLoader';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PodCommandCenter.tsx — Mediflow B2B Glassmorphic Matrix Console
@@ -37,6 +39,14 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   const [currentTime, setCurrentTime] = useState(new Date());
   const [pulse, setPulse] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   /* ─── Digital Clock + Pulse ──────────────────────────── */
   useEffect(() => {
@@ -441,7 +451,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     <div className="space-y-5 w-full animate-fade-in font-sans">
 
       {/* ── CLINIC FINANCIAL SUMMARY WIDGET ─────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden animate-fade-in">
+      <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden animate-fade-in backdrop-blur-md">
         {/* Amber-to-indigo gradient top line */}
         <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-emerald-500 to-indigo-500" />
         <div className="p-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -462,75 +472,96 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
           {/* Revenue Columns Grid + Clock */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full lg:w-auto lg:flex-1 lg:justify-end max-w-4xl">
-            <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-xl text-center min-w-[120px]">
-              <div className="text-[8px] text-slate-500 font-semibold uppercase tracking-wider">Gross Revenue</div>
-              <div className="text-xs font-bold font-mono text-slate-900 mt-0.5">
-                ₹{financialMetrics.grossRev.toLocaleString('en-IN')}
-              </div>
-            </div>
+            {isLoading ? (
+              <>
+                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
+                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
+                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
+                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[100px]" />
+                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[130px] hidden sm:block" />
+              </>
+            ) : (
+              <>
+                <PointerGlowCard containerClassName="min-w-[120px]" className="bg-slate-50 dark:bg-slate-900/40 p-2 text-center">
+                  <div className="text-[8px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Gross Revenue</div>
+                  <div className="text-xs font-bold font-mono text-slate-900 dark:text-white mt-0.5">
+                    ₹{financialMetrics.grossRev.toLocaleString('en-IN')}
+                  </div>
+                </PointerGlowCard>
 
-            <div className="bg-emerald-50/50 border border-emerald-100 p-2.5 rounded-xl text-center min-w-[120px]">
-              <div className="text-[8px] text-emerald-600 font-semibold uppercase tracking-wider">Cleared Share</div>
-              <div className="text-xs font-bold font-mono text-emerald-700 mt-0.5">
-                ₹{financialMetrics.cleared.toLocaleString('en-IN')}
-              </div>
-            </div>
+                <PointerGlowCard containerClassName="min-w-[120px]" className="bg-emerald-50/50 dark:bg-emerald-950/20 p-2 text-center">
+                  <div className="text-[8px] text-emerald-600 dark:text-emerald-455 font-semibold uppercase tracking-wider">Cleared Share</div>
+                  <div className="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400 mt-0.5">
+                    ₹{financialMetrics.cleared.toLocaleString('en-IN')}
+                  </div>
+                </PointerGlowCard>
 
-            <div className="bg-amber-50/50 border border-amber-100 p-2.5 rounded-xl text-center min-w-[120px]">
-              <div className="text-[8px] text-amber-600 font-semibold uppercase tracking-wider">Pending Split</div>
-              <div className="text-xs font-bold font-mono text-amber-700 mt-0.5">
-                ₹{financialMetrics.pending.toLocaleString('en-IN')}
-              </div>
-            </div>
+                <PointerGlowCard containerClassName="min-w-[120px]" className="bg-amber-50/50 dark:bg-amber-950/20 p-2 text-center">
+                  <div className="text-[8px] text-amber-600 dark:text-amber-455 font-semibold uppercase tracking-wider">Pending Split</div>
+                  <div className="text-xs font-bold font-mono text-amber-700 dark:text-amber-400 mt-0.5">
+                    ₹{financialMetrics.pending.toLocaleString('en-IN')}
+                  </div>
+                </PointerGlowCard>
 
-            <div className="bg-indigo-50/50 border border-indigo-100 p-2.5 rounded-xl text-center min-w-[100px] flex flex-col justify-center items-center">
-              <div className="text-[8px] text-indigo-600 font-semibold uppercase tracking-wider">Health Index</div>
-              <div className="text-xs font-bold font-mono text-indigo-700 mt-0.5 flex items-center gap-1 justify-center">
-                <span className={`w-1.5 h-1.5 rounded-full ${overallHealthScore >= 85 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                {overallHealthScore}%
-              </div>
-            </div>
+                <PointerGlowCard containerClassName="min-w-[100px]" className="bg-indigo-50/50 dark:bg-indigo-950/20 p-2 text-center flex flex-col justify-center items-center">
+                  <div className="text-[8px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">Health Index</div>
+                  <div className="text-xs font-bold font-mono text-indigo-700 dark:text-indigo-455 mt-0.5 flex items-center gap-1 justify-center">
+                    <span className={`w-1.5 h-1.5 rounded-full ${overallHealthScore >= 85 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    {overallHealthScore}%
+                  </div>
+                </PointerGlowCard>
 
-            <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-xl text-center min-w-[130px] hidden sm:block">
-              <div className="text-[8px] text-slate-500 font-semibold uppercase tracking-wider font-mono">
-                {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-              </div>
-              <div className="text-xs font-bold font-mono text-slate-900 mt-0.5">
-                {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-              </div>
-            </div>
+                <PointerGlowCard containerClassName="min-w-[130px] hidden sm:block" className="bg-slate-50 dark:bg-slate-900/40 p-2 text-center">
+                  <div className="text-[8px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider font-mono">
+                    {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
+                  </div>
+                  <div className="text-xs font-bold font-mono text-slate-900 dark:text-white mt-0.5">
+                    {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                  </div>
+                </PointerGlowCard>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* ── CLINIC CLINICAL METRICS GRID ─────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
-        {[
-          { label: 'Total Registered',         value: patientMetrics.total,                icon: 'group',          accent: 'indigo',   sub: 'Total checked-in patients' },
-          { label: 'Awaiting Consultation',    value: patientMetrics.awaitingConsultation, icon: 'clinical_notes',  accent: 'amber',    sub: 'Patients waiting in queue' },
-          { label: 'In Consultation',          value: patientMetrics.inConsultation,       icon: 'stethoscope',     accent: 'teal',     sub: 'Active patient encounters' },
-          { label: 'Completed Care Loop',      value: patientMetrics.completed,            icon: 'task_alt',        accent: 'emerald',  sub: 'Completed clinic visits'  },
-        ].map(({ label, value, icon, accent, sub }) => (
-          <div
-            key={label}
-            className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-sm flex items-center gap-4 hover:shadow-md transition-all duration-300"
-          >
-            <div className={`w-11 h-11 rounded-xl bg-${accent}-50 border border-${accent}-100 flex items-center justify-center text-${accent}-600 shrink-0`}>
-              <span className="material-symbols-outlined text-[22px]">{icon}</span>
-            </div>
-            <div>
-              <div className="text-xl font-bold font-mono text-slate-900 leading-tight">
-                {value}
+        {isLoading ? (
+          <>
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+            <SkeletonMetric />
+          </>
+        ) : (
+          [
+            { label: 'Total Registered',         value: patientMetrics.total,                icon: 'group',          accent: 'indigo',   sub: 'Total checked-in patients' },
+            { label: 'Awaiting Consultation',    value: patientMetrics.awaitingConsultation, icon: 'clinical_notes',  accent: 'amber',    sub: 'Patients waiting in queue' },
+            { label: 'In Consultation',          value: patientMetrics.inConsultation,       icon: 'stethoscope',     accent: 'teal',     sub: 'Active patient encounters' },
+            { label: 'Completed Care Loop',      value: patientMetrics.completed,            icon: 'task_alt',        accent: 'emerald',  sub: 'Completed clinic visits'  },
+          ].map(({ label, value, icon, accent, sub }) => (
+            <PointerGlowCard
+              key={label}
+              className="bg-white/90 dark:bg-slate-950/60 p-4 flex items-center gap-4 hover:shadow-md transition-all duration-300"
+            >
+              <div className={`w-11 h-11 rounded-xl bg-${accent}-550/10 dark:bg-${accent}-950/20 border border-${accent}-100 dark:border-${accent}-900/30 flex items-center justify-center text-${accent}-600 dark:text-${accent}-400 shrink-0`}>
+                <span className="material-symbols-outlined text-[22px]">{icon}</span>
               </div>
-              <div className="text-[10px] font-bold text-slate-800 mt-0.5 leading-none">
-                {label}
+              <div>
+                <div className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
+                  {value}
+                </div>
+                <div className="text-[10px] font-bold text-slate-800 dark:text-zinc-300 mt-0.5 leading-none">
+                  {label}
+                </div>
+                <div className="text-[9px] text-slate-500 dark:text-zinc-400 mt-1 font-medium leading-none">
+                  {sub}
+                </div>
               </div>
-              <div className="text-[9px] text-slate-500 mt-1 font-medium leading-none">
-                {sub}
-              </div>
-            </div>
-          </div>
-        ))}
+            </PointerGlowCard>
+          ))
+        )}
       </div>
 
       {/* ── 3-COLUMN WIDGET GRID ─────────────────────────────────── */}
@@ -540,15 +571,15 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         <div className="space-y-5">
 
           {/* Consultation Queue */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[350px]">
+          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden flex flex-col min-h-[350px] backdrop-blur-md">
             <div className="h-1 w-full bg-indigo-500" />
             <div className="p-5 flex flex-col flex-1">
               <div className="flex justify-between items-center mb-3">
-                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-500 text-[18px]">clinical_notes</span>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-indigo-550 text-[18px]">clinical_notes</span>
                   Active Consultation Queue
                 </h2>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-full font-mono">
+                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded-full font-mono">
                   {filteredPatients.length} Active
                 </span>
               </div>
@@ -571,7 +602,13 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
               </div>
 
               <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[300px] pr-0.5">
-                {filteredPatients.length === 0 ? (
+                {isLoading ? (
+                  <>
+                    <SkeletonRow />
+                    <SkeletonRow />
+                    <SkeletonRow />
+                  </>
+                ) : filteredPatients.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12 text-center">
                     <span className="material-symbols-outlined text-3xl mb-2 text-slate-300">group_off</span>
                     <span className="text-xs font-medium">No patients in queue</span>
@@ -580,25 +617,31 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   filteredPatients.map(p => (
                     <div
                       key={p.id}
-                      className="p-3 bg-slate-50 hover:bg-indigo-50/50 border border-slate-200/70 hover:border-indigo-200 rounded-xl flex items-center justify-between gap-3 transition-all"
+                      className="p-3 bg-slate-50/80 dark:bg-slate-900/40 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 border border-slate-200/70 dark:border-white/5 hover:border-indigo-300 dark:hover:border-indigo-800/50 rounded-xl flex items-center justify-between gap-3 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs"
                     >
                       <div className="truncate">
-                        <div className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
-                          {p.name}
+                        <div className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>{p.name}</span>
+                          {p.syncStatus === 'pending' && (
+                            <span className="material-symbols-outlined text-[12px] text-amber-555 animate-spin" title="Syncing to Supabase...">sync</span>
+                          )}
+                          {p.syncStatus === 'failed' && (
+                            <span className="material-symbols-outlined text-[12px] text-rose-500 animate-pulse" title="Sync failed. Auto-retrying...">report_problem</span>
+                          )}
                           {p.tokenNumber && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded border border-indigo-200">
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 rounded border border-indigo-200 dark:border-indigo-800/30">
                               {p.tokenNumber}
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">
+                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
                           {p.age}y · {p.gender} · {p.chronicConditions.join(', ') || 'General Checkup'}
                         </div>
                       </div>
                       {onStartConsultation && (
                         <button
                           onClick={() => onStartConsultation(p)}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer border-0 shadow-sm whitespace-nowrap"
+                          className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 hover:from-indigo-600 hover:to-indigo-700 dark:hover:from-indigo-555 dark:hover:to-indigo-650 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border-0 shadow-[0_2px_4px_rgba(79,70,229,0.15)] hover:shadow-[0_4px_8px_rgba(79,70,229,0.3)] whitespace-nowrap"
                         >
                           Consult
                         </button>
@@ -611,22 +654,22 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </div>
 
           {/* Patient Triage & Vitals Monitor */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
             <div className="h-1 w-full bg-rose-500" />
             <div className="p-5">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-500 text-[18px]">medical_services</span>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-rose-555 text-[18px]">medical_services</span>
                   Triage Alerts & Vitals
                 </h2>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-full font-mono">
+                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/30 text-rose-700 dark:text-rose-400 rounded-full font-mono">
                   {criticalPatients.length} Alerts
                 </span>
               </div>
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
                 {criticalPatients.length === 0 ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs text-center rounded-xl flex items-center justify-center gap-2">
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2">
                     <span className="material-symbols-outlined text-[16px]">check_circle</span>
                     All waiting patients are stable
                   </div>
@@ -634,11 +677,11 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   criticalPatients.map(p => {
                     const alerts = checkVitalsAlerts(p.vitals);
                     return (
-                      <div key={p.id} className="p-3 bg-rose-50/30 hover:bg-rose-50 border border-rose-100 rounded-xl space-y-1.5 transition-all">
+                      <div key={p.id} className="p-3 bg-rose-50/20 dark:bg-rose-950/10 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 rounded-xl space-y-1.5 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
                         <div className="flex justify-between items-center">
                           <div className="truncate">
-                            <span className="text-xs font-semibold text-slate-900 block truncate">{p.name}</span>
-                            <span className="text-[9px] text-slate-500 font-mono">Token: {p.tokenNumber || '—'}</span>
+                            <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">{p.name}</span>
+                            <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-mono">Token: {p.tokenNumber || '—'}</span>
                           </div>
                           {onStartConsultation && (
                             <button
@@ -651,7 +694,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {alerts.map((al, idx) => (
-                            <span key={idx} className="text-[8px] font-bold px-1.5 py-0.5 bg-white border border-rose-200 text-rose-600 rounded font-mono">
+                            <span key={idx} className="text-[8px] font-bold px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/30 text-rose-600 dark:text-rose-400 rounded font-mono">
                               {al}
                             </span>
                           ))}
@@ -669,15 +712,15 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         <div className="space-y-5">
 
           {/* Lab Reports Sign-Off */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
             <div className="h-1 w-full bg-teal-500" />
             <div className="p-5">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-teal-600 text-[18px]">biotech</span>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-teal-555 text-[18px]">biotech</span>
                   Lab Reports Sign-Off
                 </h2>
-                <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-teal-50 border border-teal-200 text-teal-700 rounded-full">
+                <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/30 text-teal-700 dark:text-teal-400 rounded-full">
                   {pendingReports.length} Pending
                 </span>
               </div>
@@ -754,39 +797,39 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </div>
 
           {/* E-Rx Dispensation Monitor */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
             <div className="h-1 w-full bg-violet-500" />
             <div className="p-5">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-violet-600 text-[18px]">medication</span>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-violet-555 text-[18px]">medication</span>
                   E-Rx Fulfillment
                 </h2>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-violet-50 border border-violet-200 text-violet-700 rounded-full font-mono">
+                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850/30 text-violet-700 dark:text-violet-400 rounded-full font-mono">
                   {groupedHolds.filter(g => g.status === 'held').length} Pending
                 </span>
               </div>
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
                 {groupedHolds.filter(g => g.status === 'held').length === 0 ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs text-center rounded-xl flex items-center justify-center gap-2">
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2">
                     <span className="material-symbols-outlined text-[16px]">check_circle</span>
                     All prescriptions dispensed
                   </div>
                 ) : (
                   groupedHolds.filter(g => g.status === 'held').map((group, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
+                    <div key={idx} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-900 truncate max-w-[180px]">{group.patientName}</span>
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 border-amber-200 text-amber-700">
+                        <span className="text-xs font-semibold text-slate-900 dark:text-white truncate max-w-[180px]">{group.patientName}</span>
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400">
                           Held
                         </span>
                       </div>
-                      <div className="text-[9px] text-slate-600 bg-white border border-slate-100 p-2 rounded-lg space-y-1">
+                      <div className="text-[9px] text-slate-600 dark:text-zinc-350 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg space-y-1">
                         {group.medicines.map((m, mIdx) => (
                           <div key={mIdx} className="flex justify-between items-center">
                             <span className="truncate max-w-[160px] font-medium">{m.name}</span>
-                            <span className="text-[8px] text-slate-500 font-mono font-semibold">Qty: {m.qty}</span>
+                            <span className="text-[8px] text-slate-500 dark:text-zinc-400 font-mono font-semibold">Qty: {m.qty}</span>
                           </div>
                         ))}
                       </div>
@@ -798,31 +841,31 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </div>
 
           {/* Patient Inquiries Feed */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
             <div className="h-1 w-full bg-emerald-500" />
             <div className="p-5">
-              <h2 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600 text-[18px]">chat_bubble</span>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-555 text-[18px]">chat_bubble</span>
                 Patient Inquiries Feed
               </h2>
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
                 {patientInquiries.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400 text-xs italic">
+                  <div className="text-center py-6 text-slate-450 dark:text-zinc-500 text-xs italic">
                     No incoming clinical queries.
                   </div>
                 ) : (
                   patientInquiries.map(m => (
-                    <div key={m.id} className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
+                    <div key={m.id} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-900">{m.patientName}</span>
+                        <span className="text-xs font-semibold text-slate-900 dark:text-white">{m.patientName}</span>
                         <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider border ${
-                          m.status === 'AWAITING_PAYMENT' ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                          m.status === 'COMPLETED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                          'bg-slate-100 border-slate-200 text-slate-600'
+                          m.status === 'AWAITING_PAYMENT' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-450' :
+                          m.status === 'COMPLETED' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400' :
+                          'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-600 dark:text-zinc-400'
                         }`}>{m.status.replace(/_/g, ' ')}</span>
                       </div>
-                      <p className="text-[10px] text-slate-600 leading-relaxed italic line-clamp-2 bg-white border border-slate-100 p-2 rounded-lg">
+                      <p className="text-[10px] text-slate-600 dark:text-zinc-350 leading-relaxed italic line-clamp-2 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg">
                         "{m.text}"
                       </p>
                       <div className="flex justify-end">
@@ -830,7 +873,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                           onClick={() => {
                             window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'whatsapp' }));
                           }}
-                          className="px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded text-[9px] font-bold uppercase hover:bg-indigo-600 hover:text-white transition-all cursor-pointer"
+                          className="px-2.5 py-1 bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-950/30 dark:to-indigo-900/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded text-[9px] font-bold uppercase hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
                         >
                           Reply
                         </button>
@@ -847,44 +890,48 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         <div className="space-y-5">
 
           {/* Revenue Split Ledger */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-            <div className="h-1 w-full bg-amber-500" />
-            <div className="p-5">
-              <div className="flex justify-between items-center mb-5">
-                <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-amber-600 text-[18px]">payments</span>
-                  Revenue Split Ledger
-                </h2>
-                <span className="text-[10px] font-mono font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">Bihar Zone</span>
-              </div>
+          <PointerGlowCard
+            containerClassName="shadow-xs overflow-hidden"
+            className="bg-white/90 dark:bg-slate-950/60 p-5 relative text-left"
+          >
+            <div className="h-1 w-full bg-amber-500 absolute top-0 left-0" />
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-550 text-[18px]">payments</span>
+                Revenue Split Ledger
+              </h2>
+              <span className="text-[10px] font-mono font-semibold text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 px-2 py-0.5 rounded-full">Bihar Zone</span>
+            </div>
 
-              {/* KPI Cards */}
+            {/* KPI Cards */}
               <div className="grid grid-cols-3 gap-3 mb-5">
-                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl text-center">
-                  <div className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest">Gross</div>
-                  <div className="text-sm font-bold font-mono mt-1 text-slate-900">₹{financialMetrics.grossRev.toLocaleString('en-IN')}</div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/75 dark:border-white/5 rounded-xl text-center shadow-xs">
+                  <div className="text-[9px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-widest">Gross</div>
+                  <div className="text-sm font-bold font-mono mt-1 text-slate-900 dark:text-white">₹{financialMetrics.grossRev.toLocaleString('en-IN')}</div>
                 </div>
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
-                  <div className="text-[9px] text-emerald-600 font-semibold uppercase tracking-widest">Cleared</div>
-                  <div className="text-sm font-bold font-mono mt-1 text-emerald-700">₹{financialMetrics.cleared.toLocaleString('en-IN')}</div>
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/30 rounded-xl text-center shadow-xs">
+                  <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-widest">Cleared</div>
+                  <div className="text-sm font-bold font-mono mt-1 text-emerald-700 dark:text-emerald-400">₹{financialMetrics.cleared.toLocaleString('en-IN')}</div>
                 </div>
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
-                  <div className="text-[9px] text-amber-600 font-semibold uppercase tracking-widest">Pending</div>
-                  <div className="text-sm font-bold font-mono mt-1 text-amber-700">₹{financialMetrics.pending.toLocaleString('en-IN')}</div>
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-center shadow-xs">
+                  <div className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-widest">Pending</div>
+                  <div className="text-sm font-bold font-mono mt-1 text-amber-700 dark:text-amber-450">₹{financialMetrics.pending.toLocaleString('en-IN')}</div>
                 </div>
               </div>
 
               {/* Revenue bar + breakdown */}
-              <div className="p-4 bg-slate-50 border border-slate-200/70 rounded-xl space-y-3">
-                <div className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Revenue Transaction Shares</div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-3 shadow-xs relative overflow-hidden">
+                <div className="text-[10px] text-slate-650 dark:text-zinc-300 font-bold uppercase tracking-wider">Revenue Transaction Shares</div>
 
-                {/* Stacked bar */}
-                <div className="h-4 bg-slate-200 rounded-full overflow-hidden flex">
+                {/* Stacked bar with gradients and custom reflection */}
+                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden flex gap-px relative shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
+                  {/* Glossy overlay sheen */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/15 to-transparent pointer-events-none z-10" />
                   {[
-                    { type: 'appointment_fee',    label: 'Consult',  color: 'bg-indigo-500' },
-                    { type: 'lab_commission',      label: 'Lab',      color: 'bg-teal-500'   },
-                    { type: 'medicine_commission', label: 'Pharmacy', color: 'bg-violet-500' },
-                    { type: 'platform_fee',        label: 'Platform', color: 'bg-slate-400'  }
+                    { type: 'appointment_fee',    label: 'Consult',  color: 'bg-gradient-to-r from-indigo-500 to-indigo-600' },
+                    { type: 'lab_commission',      label: 'Lab',      color: 'bg-gradient-to-r from-teal-400 to-teal-500'   },
+                    { type: 'medicine_commission', label: 'Pharmacy', color: 'bg-gradient-to-r from-violet-500 to-violet-600' },
+                    { type: 'platform_fee',        label: 'Platform', color: 'bg-gradient-to-r from-slate-400 to-slate-500'  }
                   ].map((item, index) => {
                     const total = financials.filter(l => l.transactionType === item.type).reduce((s, l) => s + l.netPayout, 0);
                     const allTotal = financials.reduce((s, l) => s + l.netPayout, 0) || 1;
@@ -911,33 +958,32 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   ].map((item, index) => {
                     const amt = financials.filter(l => l.transactionType === item.type).reduce((s, l) => s + l.netPayout, 0);
                     return (
-                      <div key={index} className="flex items-center justify-between bg-white border border-slate-200/60 px-3 py-2 rounded-xl">
-                        <span className="flex items-center gap-2 text-[11px] font-medium text-slate-700">
+                      <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
+                        <span className="flex items-center gap-2 text-[11px] font-medium text-slate-700 dark:text-zinc-300">
                           <span className={`w-2 h-2 rounded-full ${item.dot} shrink-0`} />
                           {item.label}
                         </span>
-                        <span className="font-mono font-bold text-slate-900 text-[11px]">₹{Math.round(amt).toLocaleString('en-IN')}</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px]">₹{Math.round(amt).toLocaleString('en-IN')}</span>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            </div>
+              </PointerGlowCard>
           </div>
         </div>
       </div>
 
       {/* ── BOTTOM ALERT BANNER ──────────────────────────────────── */}
       {criticalPatients.length > 0 && (
-        <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30 p-4 rounded-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xs">
           <div className="absolute top-0 left-0 w-full h-1 bg-rose-500" />
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-rose-600 text-[20px] animate-pulse">warning</span>
+            <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/30 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-rose-600 dark:text-rose-455 text-[20px] animate-pulse">warning</span>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-rose-800">Critical Triage Alert</h3>
-              <p className="text-[11px] text-rose-600 mt-0.5">
+              <h3 className="text-sm font-bold text-rose-800 dark:text-rose-400">Critical Triage Alert</h3>
+              <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">
                 {criticalPatients.length} patient(s) in the consultation queue have abnormal vitals requiring immediate attention.
               </p>
             </div>
@@ -951,7 +997,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   onStartConsultation(firstCrit);
                 }
               }}
-              className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer shadow-sm border-0"
+              className="px-3.5 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border-0 shadow-sm"
             >
               Consult High-Priority Patient
             </button>

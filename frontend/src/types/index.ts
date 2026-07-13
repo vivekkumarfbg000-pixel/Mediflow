@@ -47,6 +47,7 @@ export interface Patient {
   queueStatus?: 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed';
   pastReportsSummary?: string;
   createdAt: string;
+  syncStatus?: 'synced' | 'pending' | 'failed';
 }
 
 export interface ClinicStaff {

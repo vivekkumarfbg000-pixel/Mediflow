@@ -46,21 +46,80 @@ export class PatientService {
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
     const tokensMap = load<Record<string, string>>('tokens_map', {});
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
     
     return rawPatients.map(p => ({
       ...p,
       vitals: p.vitals || vitalsMap[p.id],
       tokenNumber: p.tokenNumber || tokensMap[p.id],
-      queueStatus: p.queueStatus || queueStatusMap[p.id] || 'awaiting_vitals'
+      queueStatus: p.queueStatus || queueStatusMap[p.id] || 'awaiting_vitals',
+      syncStatus: p.syncStatus || syncStatusMap[p.id] || 'synced'
     }));
+  }
+
+  // Self-Healing Background Sync Task Queue Worker
+  static async processSyncQueue(): Promise<void> {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+    const queue = load<any[]>('sync_queue', []);
+    if (queue.length === 0) return;
+
+    const activeItem = queue[0];
+    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
+
+    try {
+      let result;
+      if (activeItem.operation === 'register_patient') {
+        result = await supabase.from('patient_registry').insert(activeItem.payload);
+      } else if (activeItem.operation === 'update_vitals') {
+        result = await supabase.from('patient_registry').update(activeItem.payload).eq('id', activeItem.patientId);
+      } else if (activeItem.operation === 'save_refraction') {
+        result = await supabase.from('patient_registry').update(activeItem.payload).eq('id', activeItem.patientId);
+      } else if (activeItem.operation === 'queue_status') {
+        result = await supabase.from('patient_registry').update(activeItem.payload).eq('id', activeItem.patientId);
+      }
+
+      if (result?.error) {
+        throw new Error(result.error.message || 'Sync failed');
+      }
+
+      // Success: Remove item from queue, update sync status to 'synced'
+      const updatedQueue = queue.filter(item => item.id !== activeItem.id);
+      save('sync_queue', updatedQueue);
+
+      syncStatusMap[activeItem.patientId] = 'synced';
+      save('sync_status_map', syncStatusMap);
+      
+      notify();
+      
+      // Process next item recursively
+      this.processSyncQueue();
+    } catch (err) {
+      console.error('Queue worker process error:', err);
+      
+      activeItem.attempts = (activeItem.attempts || 0) + 1;
+      
+      if (activeItem.attempts >= 5) {
+        // Mark as failed and remove from active queue to avoid blocking
+        const updatedQueue = queue.filter(item => item.id !== activeItem.id);
+        save('sync_queue', updatedQueue);
+        
+        syncStatusMap[activeItem.patientId] = 'failed';
+        save('sync_status_map', syncStatusMap);
+        notify();
+      } else {
+        // Save back with increased attempts
+        save('sync_queue', queue);
+      }
+    }
   }
 
   static updatePatientVitalsAndToken(patientId: string, vitals: PatientVitals, token: string): void {
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
     const tokensMap = load<Record<string, string>>('tokens_map', {});
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
     
-    // In production, use the clinic's specialization from user profile
     const nextStatus = 'awaiting_consultation';
     
     vitalsMap[patientId] = vitals;
@@ -71,13 +130,25 @@ export class PatientService {
     save('tokens_map', tokensMap);
     save('queue_status_map', queueStatusMap);
 
-    supabase.from('patient_registry').update({
-      vitals: vitals,
-      token_number: token,
-      queue_status: nextStatus
-    }).eq('id', patientId).then(({ error }) => {
-      if (error) console.error('Error syncing vitals to Supabase:', error);
+    // Optimistic UI state update
+    syncStatusMap[patientId] = 'pending';
+    save('sync_status_map', syncStatusMap);
+
+    // Push to sync queue
+    const queue = load<any[]>('sync_queue', []);
+    queue.push({
+      id: crypto.randomUUID(),
+      patientId,
+      operation: 'update_vitals',
+      payload: {
+        vitals: vitals,
+        token_number: token,
+        queue_status: nextStatus
+      },
+      timestamp: new Date().toISOString(),
+      attempts: 0
     });
+    save('sync_queue', queue);
     
     const pat = this.getPatients().find(p => p.id === patientId);
     writeAuditLog('PATIENT_VITALS_RECORDED', {
@@ -88,11 +159,13 @@ export class PatientService {
     }, patientId);
     
     notify();
+    this.processSyncQueue();
   }
 
   static saveRefractionDiagnostics(patientId: string, diagnostics: Partial<PatientVitals>): void {
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
     
     const existingVitals = vitalsMap[patientId] || { recordedAt: new Date().toISOString() };
     const updatedVitals = {
@@ -106,13 +179,25 @@ export class PatientService {
     
     save('vitals_map', vitalsMap);
     save('queue_status_map', queueStatusMap);
-    
-    supabase.from('patient_registry').update({
-      vitals: updatedVitals,
-      queue_status: 'awaiting_consultation'
-    }).eq('id', patientId).then(({ error }) => {
-      if (error) console.error('Error syncing refraction to Supabase:', error);
+
+    // Optimistic UI state update
+    syncStatusMap[patientId] = 'pending';
+    save('sync_status_map', syncStatusMap);
+
+    // Push to sync queue
+    const queue = load<any[]>('sync_queue', []);
+    queue.push({
+      id: crypto.randomUUID(),
+      patientId,
+      operation: 'save_refraction',
+      payload: {
+        vitals: updatedVitals,
+        queue_status: 'awaiting_consultation'
+      },
+      timestamp: new Date().toISOString(),
+      attempts: 0
     });
+    save('sync_queue', queue);
     
     const pat = this.getPatients().find(p => p.id === patientId);
     writeAuditLog('PATIENT_REFRACTION_RECORDED', {
@@ -122,18 +207,33 @@ export class PatientService {
     }, patientId);
     
     notify();
+    this.processSyncQueue();
   }
 
   static updatePatientQueueStatus(patientId: string, status: Patient['queueStatus']): void {
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
+    
     queueStatusMap[patientId] = status;
     save('queue_status_map', queueStatusMap);
 
-    supabase.from('patient_registry').update({
-      queue_status: status
-    }).eq('id', patientId).then(({ error }) => {
-      if (error) console.error('Error syncing queue status to Supabase:', error);
+    // Optimistic UI state update
+    syncStatusMap[patientId] = 'pending';
+    save('sync_status_map', syncStatusMap);
+
+    // Push to sync queue
+    const queue = load<any[]>('sync_queue', []);
+    queue.push({
+      id: crypto.randomUUID(),
+      patientId,
+      operation: 'queue_status',
+      payload: {
+        queue_status: status
+      },
+      timestamp: new Date().toISOString(),
+      attempts: 0
     });
+    save('sync_queue', queue);
     
     const pat = this.getPatients().find(p => p.id === patientId);
     writeAuditLog('PATIENT_QUEUE_STATUS_UPDATED', {
@@ -143,6 +243,7 @@ export class PatientService {
     }, patientId);
     
     notify();
+    this.processSyncQueue();
   }
 
   static generateNextTokenNumber(): string {
@@ -160,7 +261,7 @@ export class PatientService {
 
   private static isUUID(str?: string): boolean {
     if (!str) return false;
-    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return regex.test(str);
   }
 
@@ -168,7 +269,6 @@ export class PatientService {
     const patients = this.getPatients();
     const newId = this.isUUID(patientData.id) ? patientData.id! : crypto.randomUUID();
     
-    // Generate custom patient ID: first letter of name + count of same-letter patients
     const firstLetter = (patientData.name && patientData.name.trim().length > 0)
       ? patientData.name.trim().substring(0, 1).toUpperCase()
       : 'P';
@@ -189,30 +289,49 @@ export class PatientService {
     patients.push(newPatient);
     save('patients', patients);
 
+    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
+    syncStatusMap[newPatient.id] = 'pending';
+    save('sync_status_map', syncStatusMap);
+
+    // Push to sync queue
+    const queue = load<any[]>('sync_queue', []);
+    queue.push({
+      id: crypto.randomUUID(),
+      patientId: newPatient.id,
+      operation: 'register_patient',
+      payload: {
+        id: newPatient.id,
+        name: newPatient.name,
+        phone: newPatient.phone,
+        age: newPatient.age,
+        gender: newPatient.gender,
+        allergies: newPatient.allergies,
+        chronic_conditions: newPatient.chronicConditions,
+        abha_id: newPatient.abhaId,
+        token_number: newPatient.tokenNumber,
+        registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
+      },
+      timestamp: new Date().toISOString(),
+      attempts: 0
+    });
+    save('sync_queue', queue);
+
     const staffList = load<any[]>('clinic_staff', []);
     const activeStaffId = load<string | null>('active_staff_id', null);
     const activeStaff = staffList.find(s => s.id === activeStaffId);
 
-    supabase.from('patient_registry').insert({
-      id: newPatient.id,
-      name: newPatient.name,
-      phone: newPatient.phone,
-      age: newPatient.age,
-      gender: newPatient.gender,
-      allergies: newPatient.allergies,
-      chronic_conditions: newPatient.chronicConditions,
-      abha_id: newPatient.abhaId,
-      token_number: newPatient.tokenNumber,
-      registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
-    }).then(({ error }) => {
-      if (error) console.error('Error registering patient in Supabase:', JSON.stringify({ message: error.message, details: error.details, hint: error.hint, code: error.code }));
-      else writeAuditLog('patient_registered', { 
-        name: newPatient.name, 
-        phone: newPatient.phone, 
-        registeredByStaffId: activeStaffId || 'None',
-        registeredByStaffName: activeStaff?.staffName || 'System'
-      }, newPatient.id);
-    });
+    writeAuditLog('patient_registered', { 
+      name: newPatient.name, 
+      phone: newPatient.phone, 
+      registeredByStaffId: activeStaffId || 'None',
+      registeredByStaffName: activeStaff?.staffName || 'System'
+    }, newPatient.id);
+
+    notify();
+    this.processSyncQueue();
+
+    return newPatient;
+  }
 
 
     return newPatient;
@@ -703,5 +822,17 @@ export class PatientService {
       return { amount: baseFee, type: 'First Visit', baseAmount: baseFee };
     }
   }
+}
+
+// Start offline sync background queue worker and register connection triggers
+if (typeof window !== 'undefined') {
+  // Check and process sync queue items every 8 seconds
+  setInterval(() => {
+    PatientService.processSyncQueue();
+  }, 8000);
+
+  window.addEventListener('online', () => {
+    PatientService.processSyncQueue();
+  });
 }
 

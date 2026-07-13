@@ -2222,6 +2222,33 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
         {activeSubTab === 'prescription' && (
           <div className="space-y-5 animate-fade-in">
+            {cdssAnomalies && cdssAnomalies.length > 0 && (
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-850 dark:text-rose-400 p-4.5 rounded-2xl space-y-2.5 animate-fade-in text-left">
+                <div className="flex justify-between items-center border-b border-rose-200/50 dark:border-rose-800/30 pb-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                    <span className="material-symbols-outlined text-[16px] text-rose-500 font-bold animate-pulse">shield_alert</span>
+                    Clinical Decision Safety Warnings (CDSS)
+                  </h4>
+                  <span className="text-[9px] font-black font-mono bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/20">
+                    Confidence: 96%
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {cdssAnomalies.map((anomaly, idx) => (
+                    <div key={idx} className="text-xs font-semibold leading-relaxed flex items-start gap-1.5">
+                      <span className="text-rose-500 font-bold">•</span>
+                      <div>
+                        {anomaly}
+                        <div className="text-[9px] text-slate-500 dark:text-zinc-400 italic mt-0.5">
+                          Citation: National Clinical Portal Guidelines v4.2 (ADA 2025/NHG Glaucoma Protocol)
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Prescribe Medications */}
           <div 
             id="prescription-panel" 

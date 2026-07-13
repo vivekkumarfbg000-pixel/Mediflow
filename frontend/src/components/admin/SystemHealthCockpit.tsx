@@ -57,6 +57,7 @@ export const SystemHealthCockpit: React.FC = () => {
     { key: 'database',   label: 'Database Node',     icon: Database,     status: 'active' },
     { key: 'frontend',   label: 'Frontend State',    icon: Cpu,          status: 'active' },
     { key: 'network',    label: 'Network Layer',     icon: Wifi,         status: 'active' },
+    { key: 'sync_queue', label: 'Offline Sync Queue', icon: Clock,        status: 'active' },
     { key: 'waba',       label: 'Meta Webhooks',     icon: Globe,        status: 'active' },
     { key: 'cdss',       label: 'CDSS AI Scribe',    icon: Sparkles,     status: 'active' },
   ]);
@@ -97,6 +98,10 @@ export const SystemHealthCockpit: React.FC = () => {
       if (node.key === 'network') {
         const net = results.find(r => r.service === 'Network Connectivity');
         return { ...node, status: net ? (net.status === 'healthy' ? 'active' : 'down') as NodeStatus : 'active' };
+      }
+      if (node.key === 'sync_queue') {
+        const sq = results.find(r => r.service === 'Sync Task Queue');
+        return { ...node, status: sq ? (sq.status === 'healthy' ? 'active' : 'warning') as NodeStatus : 'active', latencyMs: sq?.latencyMs };
       }
       return node;
     }));
@@ -284,7 +289,9 @@ export const SystemHealthCockpit: React.FC = () => {
                     <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{node.label}</div>
                     <div className={`text-[11px] font-bold mt-0.5 ${c.text}`}>{c.label}</div>
                     {node.latencyMs != null && node.latencyMs > 0 && (
-                      <div className="text-[9px] text-slate-400 font-mono mt-0.5">{node.latencyMs}ms</div>
+                      <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                        {node.key === 'sync_queue' ? `${node.latencyMs} queued tasks` : `${node.latencyMs}ms`}
+                      </div>
                     )}
                   </div>
                 </div>

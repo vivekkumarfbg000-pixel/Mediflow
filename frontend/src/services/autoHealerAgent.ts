@@ -732,6 +732,27 @@ export class ProactiveHealthMonitor {
     console.log('[HealthMonitor] Proactive health checks stopped.');
   }
 
+  static checkSyncQueueStatus(): ServiceHealth {
+    let queue: any[] = [];
+    try {
+      const raw = localStorage.getItem('sync_queue');
+      if (raw) queue = JSON.parse(raw);
+    } catch {
+      queue = [];
+    }
+
+    const hasFailed = queue.some(item => item.attempts > 0);
+    const status = queue.length === 0 ? 'healthy' : hasFailed ? 'degraded' : 'healthy';
+
+    return {
+      service: 'Sync Task Queue',
+      status: status as 'healthy' | 'degraded' | 'down',
+      latencyMs: queue.length,
+      lastChecked: new Date().toISOString(),
+      circuitState: 'CLOSED'
+    };
+  }
+
   static async runChecks(): Promise<ServiceHealth[]> {
     // Run cache sanity checks and session renewal probes proactively
     ProactiveHealthMonitor.runCacheSanityCheck();
@@ -752,6 +773,9 @@ export class ProactiveHealthMonitor {
         circuitState: 'OPEN' as CircuitState,
       }
     );
+
+    // Append sync queue check
+    results.push(ProactiveHealthMonitor.checkSyncQueueStatus());
 
     // Replay local offline telemetry if Supabase is healthy
     const dbCheck = results.find(r => r.service === 'Supabase Database');

@@ -148,7 +148,15 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     }`}
                   >
                     <div className="font-bold text-xs flex justify-between items-center">
-                      <span>{p.name}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span>{p.name}</span>
+                        {p.syncStatus === 'pending' && (
+                          <span className="material-symbols-outlined text-[12px] text-amber-555 animate-spin" title="Syncing to Supabase...">sync</span>
+                        )}
+                        {p.syncStatus === 'failed' && (
+                          <span className="material-symbols-outlined text-[12px] text-rose-500 animate-pulse" title="Sync failed. Auto-retrying...">report_problem</span>
+                        )}
+                      </span>
                       <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">{p.tokenNumber || 'PAT'}</span>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">{p.gender}, {p.age} years • {p.phone}</div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FinancialLedgerEntry } from '../../../types';
 import { SettlementWidget } from '../../shared/SettlementWidget';
+import { PointerGlowCard } from '../../ui/PointerGlowCard';
 
 interface FinancialsTabProps {
   financialLedgers: FinancialLedgerEntry[];
@@ -31,24 +32,24 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     <div className="space-y-6 text-slate-800 animate-fade-in text-left">
       {/* Revenue splits grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="glass-panel p-6 bg-white border-slate-200/85 shadow-sm rounded-2xl">
-          <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Total Earnings</div>
-          <div className="text-2xl font-bold mt-2 text-slate-900">₹{totalEarnings.toLocaleString()}</div>
-          <p className="text-[10px] text-slate-500 mt-1">Consolidated Clinic + Referral Fees</p>
-        </div>
+        <PointerGlowCard containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
+          <div className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">Total Earnings</div>
+          <div className="text-2xl font-bold mt-2 text-slate-900 dark:text-white">₹{totalEarnings.toLocaleString()}</div>
+          <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">Consolidated Clinic + Referral Fees</p>
+        </PointerGlowCard>
         {[
-          { label: "Clinic Fees", val: `₹${apptFees.toLocaleString()}`, split: "100% Payout", icon: "clinical_notes", color: "text-blue-600" },
-          { label: "Pharmacy Commission", val: `₹${pharmacyComm.toLocaleString()}`, split: "10% Referral Fee", icon: "pill", color: "text-teal-600" },
-          { label: "Pathology Lab Splits", val: `₹${labComm.toLocaleString()}`, split: "15% Referral Fee", icon: "biotech", color: "text-amber-600" }
+          { label: "Clinic Fees", val: `₹${apptFees.toLocaleString()}`, split: "100% Payout", icon: "clinical_notes", color: "text-blue-600 dark:text-blue-400" },
+          { label: "Pharmacy Commission", val: `₹${pharmacyComm.toLocaleString()}`, split: "10% Referral Fee", icon: "pill", color: "text-teal-600 dark:text-teal-400" },
+          { label: "Pathology Lab Splits", val: `₹${labComm.toLocaleString()}`, split: "15% Referral Fee", icon: "biotech", color: "text-amber-600 dark:text-amber-400" }
         ].map((item, i) => (
-          <div key={i} className="glass-panel p-6 bg-white border-slate-200/85 shadow-sm rounded-2xl">
+          <PointerGlowCard key={i} containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{item.label}</span>
+              <span className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">{item.label}</span>
               <span className={`material-symbols-outlined text-lg ${item.color}`}>{item.icon}</span>
             </div>
-            <div className="text-xl font-bold mt-2 text-slate-850">{item.val}</div>
-            <p className="text-[10px] text-slate-500 mt-1">{item.split}</p>
-          </div>
+            <div className="text-xl font-bold mt-2 text-slate-850 dark:text-white">{item.val}</div>
+            <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">{item.split}</p>
+          </PointerGlowCard>
         ))}
       </div>
 

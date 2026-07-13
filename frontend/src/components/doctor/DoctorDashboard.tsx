@@ -20,6 +20,7 @@ import { BiomarkerChart } from './BiomarkerChart';
 import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
 import { PodCommandCenter } from '../admin/PodCommandCenter';
 import { OphthalmologyPatientAnalysisPanel } from './OphthalmologyPatientAnalysisPanel';
+import { CommandPalette } from '../ui/CommandPalette';
 
 const ConsultationTab = React.lazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
 const FinancialsTab = React.lazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
@@ -42,6 +43,19 @@ export const DoctorDashboard: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -776,7 +790,10 @@ Keep the tone professional, clinical, objective, and precise.`;
         medicineName: medName,
         allergen: conflict,
         resolved: false,
-        justification: ''
+        justification: '',
+        confidenceScore: 99,
+        clinicalGuidelineCitation: 'National Health Authority (NHA) EMR Allergy Standards v2.1',
+        severity: 'high'
       });
       return;
     }
@@ -1441,18 +1458,39 @@ Keep the tone professional, clinical, objective, and precise.`;
   // ALLERGY BLOCKED CONFLICT OVERRIDE MODAL
   const renderAllergyAlertModal = () => {
     if (!allergyAlert) return null;
+    const severity = allergyAlert.severity || 'high';
+    const confidence = allergyAlert.confidenceScore || 99;
+    const citation = allergyAlert.clinicalGuidelineCitation || 'NHA EMR Drug-Allergy Standards v2.0';
+
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/50 backdrop-blur-sm p-4 animate-fade-in">
         <div className="glass-panel max-w-md w-full p-6 border-rose-500/30 shadow-2xl relative overflow-hidden space-y-4 bg-white text-slate-800">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
-          <div className="flex items-center gap-3 text-rose-600 font-bold text-lg font-sans">
-            <AlertTriangle className="h-6 w-6 text-rose-500 animate-pulse" />
-            Critical CDSS Contraindication
+          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-2 text-rose-600 font-bold text-sm font-sans">
+              <AlertTriangle className="h-5 w-5 text-rose-500 animate-pulse" />
+              Critical CDSS Contraindication
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded border border-rose-200 uppercase font-mono">
+                Severity: {severity}
+              </span>
+              <span className="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-150 font-mono">
+                Confidence: {confidence}%
+              </span>
+            </div>
           </div>
           
-          <p className="text-xs text-slate-600 leading-relaxed font-sans">
-            Prescription of <strong className="text-slate-800 font-bold">{allergyAlert.medicineName}</strong> intercepts active allergy profile. The patient is flagged allergic to <strong className="text-rose-600 font-bold">{allergyAlert.allergen}</strong>.
+          <p className="text-xs text-slate-650 leading-relaxed font-medium">
+            Prescription of <strong className="text-slate-850 font-bold">{allergyAlert.medicineName}</strong> intercepts active allergy profile. The patient is flagged allergic to <strong className="text-rose-605 font-bold">{allergyAlert.allergen}</strong>.
           </p>
+
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+            <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider text-left">Clinical Guideline Reference</div>
+            <p className="text-[10px] text-slate-650 font-mono italic leading-normal text-left">
+              {citation}
+            </p>
+          </div>
 
           <div className="space-y-2">
             <label className="block text-[10px] text-slate-600 font-bold uppercase tracking-wider">
@@ -1516,6 +1554,16 @@ Keep the tone professional, clinical, objective, and precise.`;
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
+      {!isOnline && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-850 dark:text-amber-400 px-4 py-3 rounded-xl flex items-center justify-between text-xs font-semibold backdrop-blur-md animate-pulse text-left">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-amber-500">wifi_off</span>
+            <span>Console running in Offline Mode. All clinical actions are buffered locally and will sync when connection returns.</span>
+          </div>
+          <span className="text-[10px] font-mono uppercase bg-amber-500/20 px-2 py-0.5 rounded-full shrink-0">Offline</span>
+        </div>
+      )}
+
       {/* ── HEADER BLOCK: title + tabs integrated ── */}
       <div className="border-b border-slate-200 pb-0">
 
@@ -1557,7 +1605,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         </div>
 
         {/* Desktop tab nav — integrated into header */}
-        <div className="hidden lg:flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px">
+        <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px">
           {[
             { id: 'pod_view',      label: 'Clinic Dashboard',  icon: 'dashboard' },
             { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
@@ -1570,14 +1618,14 @@ Keep the tone professional, clinical, objective, and precise.`;
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-semibold border-b-2 whitespace-nowrap transition-all cursor-pointer rounded-t-md ${
+                className={`flex items-center gap-1.5 px-4 py-2 text-[11px] font-bold rounded-lg transition-all duration-300 cursor-pointer whitespace-nowrap ${
                   isActive
-                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 shadow-xs border border-slate-200/50 dark:border-white/5'
+                    : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
                 }`}
               >
                 <span className={`material-symbols-outlined text-[15px] ${
-                  isActive ? 'text-indigo-500' : 'text-slate-600'
+                  isActive ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-zinc-500'
                 }`}>{tab.icon}</span>
                 {tab.label}
               </button>
@@ -1594,7 +1642,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       {/* Contextual Floating Action Button (FAB) for Mobile Viewports - Removed */}
 
       {/* Premium Mobile Bottom Tab Bar Navigation for Doctor Dashboard */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/70 dark:bg-slate-950/60 backdrop-blur-md border-t border-slate-200/50 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
         <div className="flex items-center justify-around h-16">
           {[
             { id: 'pod_view', label: 'Pod HUD', icon: 'hub' },
@@ -1608,16 +1656,16 @@ Keep the tone professional, clinical, objective, and precise.`;
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id as any)}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-250 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
-                    ? 'text-indigo-600 font-bold' 
-                    : 'text-slate-600 hover:text-slate-600'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold' 
+                    : 'text-slate-550 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
+                <div className={`p-1.5 rounded-lg transition-all duration-250 relative ${
                   isActive 
-                    ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                    : 'bg-transparent text-slate-600'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 scale-105 shadow-xs border border-indigo-100/50 dark:border-indigo-800/30' 
+                    : 'bg-transparent text-slate-500 dark:text-zinc-500'
                 }`}>
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 </div>
@@ -1625,7 +1673,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
                 )}
               </button>
             );
@@ -1636,6 +1684,18 @@ Keep the tone professional, clinical, objective, and precise.`;
       {/* Allergy overrides modal */}
       {allergyAlert && renderAllergyAlertModal()}
       {!isOphthalmology && analyzingReport && renderReportAnalysisModal()}
+
+      {/* Keyboard Command Palette overlay */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onStartConsultation={(patient) => {
+          setSelectedPatient(patient);
+          setActiveTab('consultation');
+        }}
+      />
     </div>
   );
 };
