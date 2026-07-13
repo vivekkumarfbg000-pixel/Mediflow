@@ -660,69 +660,71 @@ export const LabDashboard: React.FC = () => {
       )}
 
       {/* ── STATS HEADER ──────────────────────────────────────── */}
-      <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 via-teal-500 to-accent-500 opacity-70" />
+      {activeTab === 'queue' && (
+        <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 via-teal-500 to-accent-500 opacity-70" />
 
-        {/* Title row */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
-          <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <span className="material-symbols-outlined text-indigo-600 text-[20px]">biotech</span>
-              {nomenclature.labTitle}
-              <span className={`text-[10px] border px-2 py-0.5 rounded-full font-mono ml-1 ${isOnline ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-500 bg-amber-500/10 border-amber-500/20'}`}>
-                {isOnline ? 'LIVE' : 'OFFLINE'}
-              </span>
-            </h1>
-            <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
-              Bihar Regional Mediflow Clinical Pod • Lab Tech: Lalit Prasad
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-xl font-bold text-slate-800 font-mono">
-              {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          {/* Title row */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
+            <div>
+              <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-600 text-[20px]">biotech</span>
+                {nomenclature.labTitle}
+                <span className={`text-[10px] border px-2 py-0.5 rounded-full font-mono ml-1 ${isOnline ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-500 bg-amber-500/10 border-amber-500/20'}`}>
+                  {isOnline ? 'LIVE' : 'OFFLINE'}
+                </span>
+              </h1>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                Bihar Regional Mediflow Clinical Pod • Lab Tech: Lalit Prasad
+              </p>
             </div>
-            <div className="text-[10px] text-slate-500 font-mono">
-              {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-            </div>
-          </div>
-        </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            {
-              icon: 'pending', color: 'amber', label: 'Pending Draws',
-              value: pendingList.length, sub: 'Awaiting collection'
-            },
-            {
-              icon: 'science', color: 'blue', label: 'In Processing',
-              value: collectedList.length, sub: 'Analyzer active'
-            },
-            {
-              icon: 'verified', color: 'emerald', label: "Today's Reports",
-              value: todayCompleted.length, sub: `₹${todayRevenue.toLocaleString('en-IN')} billed`
-            },
-            {
-              icon: 'warning', color: lowStockCount > 0 ? 'rose' : 'slate', label: 'Low Reagents',
-              value: lowStockCount, sub: lowStockCount > 0 ? 'Needs attention' : 'All levels OK'
-            }
-          ].map(kpi => (
-            <div key={kpi.label} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-1.5">
-              <div className="flex items-center gap-2">
-                <span className={`material-symbols-outlined text-[18px] ${
-                  kpi.color === 'amber' ? 'text-amber-400' :
-                  kpi.color === 'blue' ? 'text-blue-400' :
-                  kpi.color === 'emerald' ? 'text-emerald-400' :
-                  kpi.color === 'rose' ? 'text-rose-400' : 'text-slate-500'
-                }`}>{kpi.icon}</span>
-                <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{kpi.label}</span>
+            <div className="text-right">
+              <div className="text-xl font-bold text-slate-800 font-mono">
+                {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </div>
-              <div className="text-3xl font-bold text-slate-800 font-mono">{kpi.value}</div>
-              <div className="text-[10px] text-slate-400 font-mono">{kpi.sub}</div>
+              <div className="text-[10px] text-slate-500 font-mono">
+                {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+              </div>
             </div>
-          ))}
+          </div>
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              {
+                icon: 'pending', color: 'amber', label: 'Pending Draws',
+                value: pendingList.length, sub: 'Awaiting collection'
+              },
+              {
+                icon: 'science', color: 'blue', label: 'In Processing',
+                value: collectedList.length, sub: 'Analyzer active'
+              },
+              {
+                icon: 'verified', color: 'emerald', label: "Today's Reports",
+                value: todayCompleted.length, sub: `₹${todayRevenue.toLocaleString('en-IN')} billed`
+              },
+              {
+                icon: 'warning', color: lowStockCount > 0 ? 'rose' : 'slate', label: 'Low Reagents',
+                value: lowStockCount, sub: lowStockCount > 0 ? 'Needs attention' : 'All levels OK'
+              }
+            ].map(kpi => (
+              <div key={kpi.label} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-[18px] ${
+                    kpi.color === 'amber' ? 'text-amber-400' :
+                    kpi.color === 'blue' ? 'text-blue-400' :
+                    kpi.color === 'emerald' ? 'text-emerald-400' :
+                    kpi.color === 'rose' ? 'text-rose-400' : 'text-slate-500'
+                  }`}>{kpi.icon}</span>
+                  <span className="text-[10px] text-slate-650 font-bold uppercase tracking-wider">{kpi.label}</span>
+                </div>
+                <div className="text-3xl font-bold text-slate-800 font-mono">{kpi.value}</div>
+                <div className="text-[10px] text-slate-400 font-mono">{kpi.sub}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── TAB NAV ───────────────────────────────────────────── */}
       <div className="hidden md:flex overflow-x-auto gap-2 pb-1.5 no-scrollbar select-none -mb-px">
