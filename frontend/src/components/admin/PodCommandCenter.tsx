@@ -581,6 +581,13 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
               emerald: 'border-emerald-500/80 dark:border-emerald-500/60 shadow-emerald-500/10 bg-emerald-50/10 dark:bg-emerald-950/10'
             }[accent as 'indigo' | 'amber' | 'teal' | 'emerald'];
 
+            const iconBgStyles = {
+              indigo: 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-800/30 text-indigo-650 dark:text-indigo-400',
+              amber: 'bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-800/30 text-amber-650 dark:text-amber-400',
+              teal: 'bg-teal-50 dark:bg-teal-950/30 border-teal-100 dark:border-teal-800/30 text-teal-650 dark:text-teal-400',
+              emerald: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-800/30 text-emerald-655 dark:text-emerald-400'
+            }[accent as 'indigo' | 'amber' | 'teal' | 'emerald'];
+
             return (
               <PointerGlowCard
                 key={label}
@@ -591,7 +598,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                     : 'border-slate-200/50 dark:border-white/5'
                 }`}
               >
-                <div className={`w-11 h-11 rounded-xl bg-${accent}-550/10 dark:bg-${accent}-950/20 border border-${accent}-100 dark:border-${accent}-900/30 flex items-center justify-center text-${accent}-600 dark:text-${accent}-400 shrink-0`}>
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${iconBgStyles}`}>
                   <span className="material-symbols-outlined text-[22px]">{icon}</span>
                 </div>
                 <div>
