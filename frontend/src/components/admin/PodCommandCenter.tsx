@@ -251,7 +251,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }, [pathologyReports]);
 
   const groupedHolds = useMemo(() => {
-    const groups: { [patientId: string]: { patientName: string; medicines: { name: string; qty: number; status: string }[]; totalItems: number; status: 'dispensed' | 'held' } } = {};
+    const groups: { [patientId: string]: { patientName: string; medicines: { id: string; name: string; qty: number; status: string }[]; totalItems: number; status: 'dispensed' | 'held' } } = {};
     inventoryHolds.forEach(h => {
       const patient = patients.find(p => p.id === h.patientId);
       const name = patient ? patient.name : `Patient ${h.patientId.substring(0, 5)}`;
@@ -263,7 +263,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           status: 'dispensed'
         };
       }
-      groups[h.patientId].medicines.push({ name: h.medicineName, qty: h.quantity, status: h.holdStatus });
+      groups[h.patientId].medicines.push({ id: h.id, name: h.medicineName, qty: h.quantity, status: h.holdStatus });
       groups[h.patientId].totalItems += h.quantity;
       if (h.holdStatus === 'held') {
         groups[h.patientId].status = 'held';
@@ -460,6 +460,19 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       }
     }));
   };
+
+  const dispensePatientHolds = (patientMedicines: { id: string; name: string }[]) => {
+    patientMedicines.forEach(m => {
+      api.dispenseInventoryHold(m.id);
+    });
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        message: `Successfully dispensed ${patientMedicines.length} medicine item(s).`,
+        type: 'success',
+        title: 'Prescription Fulfilled'
+      }
+    }));
+  };
    return (
     <div className="space-y-5 w-full animate-fade-in font-sans">
 
@@ -516,7 +529,12 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   </div>
                 </PointerGlowCard>
 
-                <PointerGlowCard containerClassName="min-w-[100px]" className="bg-indigo-50/50 dark:bg-indigo-950/20 p-2 text-center flex flex-col justify-center items-center">
+                <PointerGlowCard 
+                  containerClassName="min-w-[100px]" 
+                  onClick={runTelemetryDiagnostics}
+                  className="bg-indigo-50/50 dark:bg-indigo-950/20 p-2 text-center flex flex-col justify-center items-center cursor-pointer active:scale-95 transition-all hover:scale-[1.03]"
+                  title="Run Real-time Proactive Telemetry Diagnostics Scan"
+                >
                   <div className="text-[8px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">Health Index</div>
                   <div className="text-xs font-bold font-mono text-indigo-700 dark:text-indigo-455 mt-0.5 flex items-center gap-1 justify-center">
                     <span className={`w-1.5 h-1.5 rounded-full ${overallHealthScore >= 85 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
@@ -614,9 +632,19 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   {selectedMetric === 'completed' && 'Completed Consultations'}
                   {(selectedMetric === null) && 'Active Consultation Queue'}
                 </h2>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded-full font-mono">
-                  {filteredPatients.length} {selectedMetric === 'completed' ? 'Completed' : selectedMetric === 'active' ? 'Active' : 'Total'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={checkInWalkInPatient}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-indigo-700 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-white transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    title="Quick check-in a new random patient for consultation"
+                  >
+                    <span className="material-symbols-outlined text-sm">person_add</span>
+                    Check-in Walk-in
+                  </button>
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded-full font-mono shrink-0">
+                    {filteredPatients.length} {selectedMetric === 'completed' ? 'Completed' : selectedMetric === 'active' ? 'Active' : 'Total'}
+                  </span>
+                </div>
               </div>
 
               {/* Search Patient in Queue */}
@@ -759,9 +787,19 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   <span className="material-symbols-outlined text-teal-555 text-[18px]">biotech</span>
                   Lab Reports Sign-Off
                 </h2>
-                <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/30 text-teal-700 dark:text-teal-400 rounded-full">
-                  {pendingReports.length} Pending
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={restockAllReagents}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-white transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    title="Restock Lab Reagents (+500ml)"
+                  >
+                    <span className="material-symbols-outlined text-sm">science</span>
+                    Restock Reagents
+                  </button>
+                  <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/30 text-teal-700 dark:text-teal-400 rounded-full shrink-0">
+                    {pendingReports.length} Pending
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-0.5">
@@ -844,9 +882,19 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   <span className="material-symbols-outlined text-violet-555 text-[18px]">medication</span>
                   E-Rx Fulfillment
                 </h2>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850/30 text-violet-700 dark:text-violet-400 rounded-full font-mono">
-                  {groupedHolds.filter(g => g.status === 'held').length} Pending
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={restockPharmacyOOS}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-violet-700 dark:text-violet-400 hover:text-violet-850 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    title="Restock Low Stock Pharmacy SKUs (+100 items)"
+                  >
+                    <span className="material-symbols-outlined text-sm">inventory_2</span>
+                    Restock SKUs
+                  </button>
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850/30 text-violet-700 dark:text-violet-400 rounded-full font-mono shrink-0">
+                    {groupedHolds.filter(g => g.status === 'held').length} Pending
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
@@ -859,18 +907,26 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   groupedHolds.filter(g => g.status === 'held').map((group, idx) => (
                     <div key={idx} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-900 dark:text-white truncate max-w-[180px]">{group.patientName}</span>
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400">
+                        <span className="text-xs font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">{group.patientName}</span>
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400 shrink-0">
                           Held
                         </span>
                       </div>
                       <div className="text-[9px] text-slate-600 dark:text-zinc-350 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg space-y-1">
                         {group.medicines.map((m, mIdx) => (
                           <div key={mIdx} className="flex justify-between items-center">
-                            <span className="truncate max-w-[160px] font-medium">{m.name}</span>
-                            <span className="text-[8px] text-slate-500 dark:text-zinc-400 font-mono font-semibold">Qty: {m.qty}</span>
+                            <span className="truncate max-w-[165px] font-medium">{m.name}</span>
+                            <span className="text-[8px] text-slate-500 dark:text-zinc-400 font-mono font-semibold shrink-0">Qty: {m.qty}</span>
                           </div>
                         ))}
+                      </div>
+                      <div className="flex justify-end pt-1">
+                        <button
+                          onClick={() => dispensePatientHolds(group.medicines)}
+                          className="px-2.5 py-1 text-[9px] font-bold uppercase text-indigo-700 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-200 rounded-md transition-all cursor-pointer border-0"
+                        >
+                          Dispense
+                        </button>
                       </div>
                     </div>
                   ))
@@ -883,10 +939,22 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
             <div className="h-1 w-full bg-emerald-500" />
             <div className="p-5">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-555 text-[18px]">chat_bubble</span>
-                Patient Inquiries Feed
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-555 text-[18px]">chat_bubble</span>
+                  Patient Inquiries Feed
+                </h2>
+                {sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length > 0 && (
+                  <button
+                    onClick={triggerFailedMessageRetry}
+                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-rose-600 dark:text-rose-455 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    title="Flush and retry all failed messages"
+                  >
+                    <span className="material-symbols-outlined text-sm">sync_problem</span>
+                    Retry Failed ({sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length})
+                  </button>
+                )}
+              </div>
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
                 {patientInquiries.length === 0 ? (
