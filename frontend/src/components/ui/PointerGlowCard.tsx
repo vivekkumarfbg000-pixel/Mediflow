@@ -5,13 +5,15 @@ interface PointerGlowCardProps {
   className?: string; // styles for the inner card (bg, padding, etc)
   containerClassName?: string; // styles for the outer card border wrapper
   onClick?: () => void;
+  title?: string;
 }
 
 export const PointerGlowCard: React.FC<PointerGlowCardProps> = ({ 
   children, 
   className = '',
   containerClassName = '',
-  onClick
+  onClick,
+  title
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
@@ -30,6 +32,7 @@ export const PointerGlowCard: React.FC<PointerGlowCardProps> = ({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onClick={onClick}
+      title={title}
       className={`pointer-glow-card ${containerClassName}`}
       style={{
         // @ts-ignore
