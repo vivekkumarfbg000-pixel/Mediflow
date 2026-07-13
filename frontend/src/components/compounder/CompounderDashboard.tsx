@@ -1137,79 +1137,29 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Integrated Tab Switcher — hidden on mobile, visible on desktop */}
-        <div className="hidden md:flex overflow-x-auto gap-1 no-scrollbar select-none -mb-px">
-          <button
-            onClick={() => setActiveTab('intake')}
-            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
-              activeTab === 'intake'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <UserCheck className="h-4 w-4" />
-            📱 Intake (इन्टेक)
-          </button>
-
-          <button
-            onClick={() => setActiveTab('patients')}
-            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
-              activeTab === 'patients'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <Users className="h-4 w-4 text-indigo-600" />
-            👥 Patients (पेशेंट)
-          </button>
-
-          <button
-            onClick={() => setActiveTab('tokens')}
-            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
-              activeTab === 'tokens'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <Activity className="h-4 w-4 text-rose-500" />
-            🗓️ Tokens (टोकन)
-          </button>
-
-          <button
-            onClick={() => setActiveTab('labs')}
-            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
-              activeTab === 'labs'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <FileText className="h-4 w-4 text-indigo-500" />
-            {isOphthalmology ? '👁️ Biometry (बायोमेट्री)' : '🧪 Labs (लैब)'}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('pharmacy')}
-            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
-              activeTab === 'pharmacy'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <QrCode className="h-4 w-4 text-amber-500" />
-            {isOphthalmology ? '👓 Optical/Rx (चश्मा)' : '💊 Pharmacy (दवा)'}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('ot_billing' as any)}
-            className={`px-3.5 py-2.5 text-[10px] font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-t-lg ${
-              activeTab === 'ot_billing'
-                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/60'
-                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            <span className="material-symbols-outlined text-sm text-rose-600 font-bold">medical_services</span>
-            {isOphthalmology ? '🏥 Daycare (सर्जरी)' : '🏥 Minor OT (ओटी)'}
-          </button>
+        {/* Integrated Tab Switcher — scrollable glass pill capsules for all screen sizes */}
+        <div className="flex overflow-x-auto gap-2 no-scrollbar select-none -mb-px p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-xl border border-slate-200/50 dark:border-white/5 backdrop-blur-md">
+          {[
+            { id: 'intake', label: 'Intake (इन्टेक)', icon: <UserCheck className="h-4 w-4" /> },
+            { id: 'patients', label: 'Patients (पेशेंट)', icon: <Users className="h-4 w-4 text-indigo-600" /> },
+            { id: 'tokens', label: 'Tokens (टोकन)', icon: <Activity className="h-4 w-4 text-rose-500" /> },
+            { id: 'labs', label: isOphthalmology ? 'Biometry (बायोमेट्री)' : nomenclature.careLoopLabStep, icon: <FileText className="h-4 w-4 text-indigo-500" /> },
+            { id: 'pharmacy', label: isOphthalmology ? 'Optical/Rx (चश्मा)' : nomenclature.careLoopPharmacyStep, icon: <QrCode className="h-4 w-4 text-amber-500" /> },
+            { id: 'ot_billing', label: isOphthalmology ? 'Daycare (सर्जरी)' : 'Minor OT (ओटी)', icon: <span className="material-symbols-outlined text-sm font-bold text-rose-600">medical_services</span> }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2 text-[10px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-all uppercase cursor-pointer rounded-lg ${
+                activeTab === tab.id
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                  : 'text-slate-650 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 

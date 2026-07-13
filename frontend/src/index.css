@@ -1272,6 +1272,44 @@ body.dark {
   overflow: hidden;
 }
 
+/* Real-time Theme Overrides for Sleek Dark Mode */
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-slate-650,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark label {
+  color: #e2e8f0 !important;
+}
+
+.dark .bg-white {
+  background-color: rgba(30, 41, 59, 0.4) !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+.dark .border-slate-200 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .input-field {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark select.input-field option {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
 
 
 
