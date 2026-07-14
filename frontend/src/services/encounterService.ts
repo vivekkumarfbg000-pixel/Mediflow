@@ -24,6 +24,19 @@ export class EncounterService {
     // Transition patient's local and database queue status to completed
     PatientService.updatePatientQueueStatus(newEncounter.patientId, 'completed');
 
+    // Auto-complete active same-day appointment status
+    const appts = load<any[]>('saas_appointments', []);
+    const todayStr = new Date().toDateString();
+    const appt = appts.find(a => 
+      a.patientId === newEncounter.patientId && 
+      new Date(a.createdAt).toDateString() === todayStr && 
+      a.status !== 'completed'
+    );
+    if (appt) {
+      appt.status = 'completed';
+      save('saas_appointments', appts);
+    }
+
     // 1. Create local and Supabase lab requisitions for ordered diagnostic tests
     if (newEncounter.diagnosticTests.length > 0) {
       const existingReqs = load<any[]>('lab_requisitions', []);

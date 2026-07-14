@@ -50,10 +50,10 @@ export class PatientService {
     
     return rawPatients.map(p => ({
       ...p,
-      vitals: p.vitals || vitalsMap[p.id],
-      tokenNumber: p.tokenNumber || tokensMap[p.id],
-      queueStatus: p.queueStatus || queueStatusMap[p.id] || 'awaiting_vitals',
-      syncStatus: p.syncStatus || syncStatusMap[p.id] || 'synced'
+      vitals: vitalsMap[p.id] || p.vitals,
+      tokenNumber: tokensMap[p.id] || p.tokenNumber,
+      queueStatus: queueStatusMap[p.id] || p.queueStatus || 'awaiting_vitals',
+      syncStatus: syncStatusMap[p.id] || p.syncStatus || 'synced'
     }));
   }
 
