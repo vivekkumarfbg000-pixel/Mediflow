@@ -2154,7 +2154,7 @@ export const CompounderDashboard: React.FC = () => {
                         <button
                           onClick={async () => {
                             // 1. Create appointment + invoice (async init inside)
-                            const invoice = api.createGate1Consult(selectedApptPatient.id);
+                            const invoice = BillingService.createGate1Consult(selectedApptPatient.id, 'counter');
 
                             // 2. Give async appointment creation 200ms to settle, then pay
                             await new Promise(r => setTimeout(r, 200));
