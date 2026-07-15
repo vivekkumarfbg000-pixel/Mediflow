@@ -281,15 +281,6 @@ function AppContent({
       <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-500/15 dark:bg-indigo-500/10 blur-[120px] pointer-events-none z-0 animate-ambient-float-1" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/15 dark:bg-teal-500/10 blur-[130px] pointer-events-none z-0 animate-ambient-float-2" />
       
-      {/* Floating Theme Toggle (Always visible on desktop views) */}
-      <button
-        onClick={() => window.dispatchEvent(new CustomEvent('mediflow-theme-toggle'))}
-        className="fixed top-4 right-4 z-50 hidden md:flex items-center justify-center p-2.5 bg-white/80 dark:bg-slate-950/60 backdrop-blur-md border border-slate-200/50 dark:border-white/5 rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white"
-        title="Toggle Visual Theme"
-      >
-        {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
-      </button>
-
       {/* Shared Ecosystem Navigation Header */}
       <Navbar 
         currentRole={currentRole} 

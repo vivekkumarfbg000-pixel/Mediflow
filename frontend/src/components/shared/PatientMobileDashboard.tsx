@@ -25,13 +25,21 @@ import { MetricCard } from './MetricCard';
 import { MobileChart } from './MobileChart';
 
 export const PatientMobileDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills' | 'vitals'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills' | 'vitals' | 'book_appointment'>('home');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default Aarav Sharma
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
   const [reports, setReports] = useState<PathologyReport[]>([]);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   
+  // Book Appointment Tab States
+  const [bookName, setBookName] = useState('');
+  const [bookPhone, setBookPhone] = useState('');
+  const [bookAge, setBookAge] = useState('');
+  const [bookGender, setBookGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [bookTime, setBookTime] = useState('');
+  const [bookDate, setBookDate] = useState('');
+
   // RAG plain language state
   const [isRagTranslating, setIsRagTranslating] = useState(false);
   const [translatedRagReportId, setTranslatedRagReportId] = useState<string | null>(null);
@@ -815,6 +823,117 @@ export const PatientMobileDashboard: React.FC = () => {
                       <Smartphone className="h-3.5 w-3.5" />
                       Add to Mobile Home Screen
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 6: BOOK APPOINTMENT FOR NEW PATIENT */}
+              {activeTab === 'book_appointment' && (
+                <div className="space-y-4 animate-fade-in text-white text-left">
+                  <h3 className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wide">
+                    <span className="material-symbols-outlined text-cyan-400 text-base">calendar_month</span>
+                    Book Family/Friend Appointment
+                  </h3>
+                  
+                  <div className="bg-zinc-900 border border-white/5 p-4 rounded-2xl space-y-3">
+                    <p className="text-[10px] text-zinc-400 leading-relaxed">
+                      Register a new family member or friend and book a clinic consultation slot by paying the OPD consultation fee.
+                    </p>
+
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!bookName || !bookPhone || !bookAge) return;
+
+                        // 1. Register new patient
+                        const newPat = api.registerPatient({
+                          id: `pat-${bookPhone}`,
+                          name: bookName,
+                          phone: bookPhone,
+                          age: Number(bookAge),
+                          gender: bookGender,
+                          allergies: [],
+                          chronicConditions: [],
+                          queueStatus: 'awaiting_vitals'
+                        } as any);
+
+                        // 2. Create the consult invoice (source: whatsapp / patient)
+                        const newInvoice = api.createGate1Consult(newPat.id, 'whatsapp');
+
+                        // 3. Reset form
+                        setBookName('');
+                        setBookPhone('');
+                        setBookAge('');
+                        setBookGender('Male');
+
+                        // 4. Update local state
+                        setPatients(api.getPatients());
+
+                        // 5. Open UPI modal for payment sheet
+                        handleTriggerUpiSheet(newInvoice);
+                      }} 
+                      className="space-y-3"
+                    >
+                      <div className="space-y-1">
+                        <label className="block text-[9px] text-zinc-400 font-bold uppercase tracking-wider font-mono font-bold">Patient Name *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Rahul Verma"
+                          value={bookName}
+                          onChange={e => setBookName(e.target.value)}
+                          className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-[9px] text-zinc-400 font-bold uppercase tracking-wider font-mono font-bold">Phone Number *</label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="e.g. 9876541122"
+                          value={bookPhone}
+                          onChange={e => setBookPhone(e.target.value)}
+                          className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-[9px] text-zinc-400 font-bold uppercase tracking-wider font-mono font-bold">Age *</label>
+                          <input
+                            type="number"
+                            required
+                            placeholder="e.g. 28"
+                            value={bookAge}
+                            onChange={e => setBookAge(e.target.value)}
+                            className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] text-zinc-400 font-bold uppercase tracking-wider font-mono font-bold">Gender</label>
+                          <select
+                            value={bookGender}
+                            onChange={e => setBookGender(e.target.value as any)}
+                            className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none"
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="submit"
+                          className="w-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider py-2.5 transition-all shadow-md flex justify-center items-center gap-1.5 cursor-pointer text-white-force"
+                        >
+                          <span className="material-symbols-outlined text-xs text-white-force">lock</span>
+                          Register & Pay OPD Fee (₹500)
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}

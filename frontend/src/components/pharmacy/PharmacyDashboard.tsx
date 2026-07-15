@@ -617,7 +617,7 @@ export const PharmacyDashboard: React.FC = () => {
 
       {/* DASHBOARD HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 border-b-0 md:border-b border-slate-200 pb-3 md:pb-6">
-        <div>
+        <div className="hidden md:block">
           <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
             <span className="material-symbols-outlined text-indigo-600 text-[20px]">medication</span>
             {nomenclature.pharmacyTitle}
@@ -2493,7 +2493,8 @@ export const PharmacyDashboard: React.FC = () => {
                                     gstPercent: 5,
                                     lineTotal: price * h.quantity * 1.05,
                                     alternativeSuggested: undefined,
-                                    alternativeInventoryId: undefined
+                                    alternativeInventoryId: undefined,
+                                    isStockDeducted: true
                                   };
                                 });
                                 const subtotal = billItems.reduce((s, i) => s + i.sellingPrice * i.quantity, 0);
@@ -2519,6 +2520,12 @@ export const PharmacyDashboard: React.FC = () => {
                                   createdAt: new Date().toISOString()
                                 };
                                 api.saveMedicineBill(bill);
+                                
+                                // Clean up / dispense the matching inventory holds so they disappear from the awaiting list
+                                patientHolds.forEach(h => {
+                                  api.dispenseInventoryHold(h.id);
+                                });
+
                                 window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                   detail: { message: `Medicine bill ₹${bill.totalAmount.toFixed(0)} generated for ${patient.name}!`, type: 'success', title: 'Invoice Created' }
                                 }));

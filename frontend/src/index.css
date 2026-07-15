@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @config "../tailwind.config.js";
 
 @theme {
@@ -631,41 +632,41 @@ textarea:focus-visible {
   --color-outline-variant: #334155;
 
   /* Body background override when .dark class is active */
-  background-color: #0f172a !important;
+  background-color: #070913 !important;
 }
 
 body.dark {
-  background-color: #0f172a !important;
+  background-color: #070913 !important;
   color: #f8fafc !important;
 }
 
 /* Glass panel styling in dark mode */
 .dark .glass-panel {
-  background-color: #1e293b !important;
-  border: 1px solid rgba(51, 65, 85, 0.6) !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3) !important;
+  background-color: #0b0f19 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4) !important;
 }
 
 .dark .glass-panel-hover:hover {
-  background-color: rgba(30, 41, 59, 0.96) !important;
-  border-color: rgba(71, 85, 105, 0.8) !important;
+  background-color: #0f1524 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* Inputs styling in dark mode */
 .dark .input-field, 
 .dark .clinical-input {
-  background-color: rgba(15, 23, 42, 0.8) !important;
-  border: 1px solid rgba(51, 65, 85, 0.8) !important;
+  background-color: #070a13 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #f8fafc !important;
 }
 
 .dark .glass-panel-inner {
-  background: rgba(15, 23, 42, 0.5) !important;
-  border: 1px solid rgba(51, 65, 85, 0.5) !important;
+  background: #070a13 !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
 .dark .inner-glow-border {
-  border: 1px solid rgba(51, 65, 85, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 /* ─── Dark Mode CSS Variables (prefers-color-scheme) ────────────────────────── */
@@ -1272,11 +1273,12 @@ body.dark {
   overflow: hidden;
 }
 
-/* Real-time Theme Overrides for Sleek Dark Mode */
-.dark .text-slate-900,
-.dark .text-slate-800,
-.dark .text-slate-700,
-.dark .text-slate-650,
+/* ==========================================================================
+   COMPREHENSIVE DARK MODE TEXT VISIBILITY SYSTEM
+   All text must be bright white/near-white on dark or gray backgrounds.
+   ========================================================================== */
+
+/* ── Core heading and label text — bright near-white ──────────────────────── */
 .dark h1,
 .dark h2,
 .dark h3,
@@ -1284,32 +1286,210 @@ body.dark {
 .dark h5,
 .dark h6,
 .dark label {
+  color: #f1f5f9 !important;
+}
+
+/* ── All text utility classes — override from dark slate to light ────────── */
+.dark .text-slate-950,
+.dark .text-slate-900,
+.dark .text-slate-850,
+.dark .text-slate-805,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-slate-650 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-550,
+.dark .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* ── Paragraph and span text inside dark cards ───────────────────────────── */
+/* Targets any p/span that inherits dark card context and has no explicit color */
+.dark .glass-panel p,
+.dark .glass-panel span:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-indigo"]):not([class*="text-violet"]):not([class*="text-teal"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]):not([class*="text-purple"]):not([class*="text-white"]),
+.dark .glass-panel td,
+.dark .glass-panel th,
+.dark .glass-panel li {
+  color: #e2e8f0;
+}
+
+/* Bold title spans/headings inside glass panels */
+.dark .glass-panel h1,
+.dark .glass-panel h2,
+.dark .glass-panel h3,
+.dark .glass-panel h4,
+.dark .glass-panel h5,
+.dark .glass-panel h6 {
+  color: #f8fafc !important;
+}
+
+/* ── bg-white card dark conversion with forced text ─────────────────────── */
+.dark .bg-white {
+  background-color: #0b0f19 !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Text inside any element that was white-bg in light mode must be light */
+.dark .bg-white p,
+.dark .bg-white span:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-indigo"]):not([class*="text-violet"]):not([class*="text-teal"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]):not([class*="text-purple"]):not([class*="text-white"]),
+.dark .bg-white td,
+.dark .bg-white th,
+.dark .bg-white li,
+.dark .bg-white label,
+.dark .bg-white h1,
+.dark .bg-white h2,
+.dark .bg-white h3,
+.dark .bg-white h4,
+.dark .bg-white h5,
+.dark .bg-white h6 {
   color: #e2e8f0 !important;
 }
 
-.dark .bg-white {
-  background-color: rgba(30, 41, 59, 0.4) !important;
-}
-
+/* ── bg-slate-50/bg-slate-100 darker conversion with bright text ─────────── */
 .dark .bg-slate-50 {
-  background-color: rgba(15, 23, 42, 0.6) !important;
+  background-color: #070a13 !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
 }
 
-.dark .border-slate-200 {
-  border-color: rgba(255, 255, 255, 0.08) !important;
+.dark .bg-slate-50 p,
+.dark .bg-slate-50 span:not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-indigo"]):not([class*="text-violet"]):not([class*="text-white"]),
+.dark .bg-slate-50 td,
+.dark .bg-slate-50 th,
+.dark .bg-slate-50 li,
+.dark .bg-slate-50 label {
+  color: #cbd5e1 !important;
 }
 
-.dark .input-field {
-  background-color: rgba(15, 23, 42, 0.5) !important;
+.dark .bg-slate-100,
+.dark .bg-slate-200 {
+  background-color: #05070d !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+}
+
+.dark .bg-slate-100 p,
+.dark .bg-slate-100 span:not([class*="text-"]),
+.dark .bg-slate-100 td,
+.dark .bg-slate-100 th,
+.dark .bg-slate-200 p,
+.dark .bg-slate-200 span:not([class*="text-"]) {
+  color: #cbd5e1 !important;
+}
+
+/* ── Colored bg-* containers keep their semantic text override ───────────── */
+.dark .bg-indigo-50,
+.dark .bg-indigo-50\/80,
+.dark .bg-indigo-50\/30,
+.dark .bg-indigo-100 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+}
+
+.dark .bg-indigo-50 p, .dark .bg-indigo-50 span, .dark .bg-indigo-50\/30 p, .dark .bg-indigo-50\/30 span {
+  color: #a5b4fc !important;
+}
+
+.dark .bg-emerald-50,
+.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+.dark .bg-emerald-50 p, .dark .bg-emerald-50 span {
+  color: #34d399 !important;
+}
+
+.dark .bg-rose-50,
+.dark .bg-rose-100 {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+}
+
+.dark .bg-rose-50 p, .dark .bg-rose-50 span {
+  color: #fb7185 !important;
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+.dark .bg-amber-50 p, .dark .bg-amber-50 span {
+  color: #fbbf24 !important;
+}
+
+/* ── Border colors universally dim in dark mode ──────────────────────────── */
+.dark .border-slate-200,
+.dark [class*="border-slate-"] {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+.dark [class*="border-indigo-"] {
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+.dark [class*="border-emerald-"] {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.dark [class*="border-violet-"] {
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+/* ── Gradient text stays transparent ─────────────────────────────────────── */
+.dark .gradient-text {
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* ── Utility: force white text on very dark backgrounds ──────────────────── */
+.dark .text-white-force,
+.dark [class*="bg-indigo-6"] span,
+.dark [class*="bg-indigo-7"] span,
+.dark [class*="bg-emerald-6"] span,
+.dark [class*="bg-rose-6"] span {
   color: #ffffff !important;
+}
+
+/* ── Form fields dark mode ────────────────────────────────────────────────── */
+.dark .input-field,
+.dark .clinical-input {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  color: #f1f5f9 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .dark select.input-field option {
   background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+/* ── Font-mono and code text in dark mode ────────────────────────────────── */
+.dark .font-mono {
+  color: inherit;
+}
+
+/* ── Sidebar / nav text in dark mode ─────────────────────────────────────── */
+.dark nav p,
+.dark nav span:not([class*="text-indigo"]):not([class*="text-emerald"]):not([class*="text-rose"]):not([class*="text-white"]):not([class*="text-amber"]) {
+  color: #94a3b8;
+}
+
+/* ── Metric/KPI number values — always bright white in dark mode ─────────── */
+.dark .text-2xl,
+.dark .text-3xl,
+.dark .text-4xl {
   color: #ffffff !important;
 }
 
-
+/* ── Table rows in dark mode ─────────────────────────────────────────────── */
+.dark table tr td,
+.dark table tr th {
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
 
 

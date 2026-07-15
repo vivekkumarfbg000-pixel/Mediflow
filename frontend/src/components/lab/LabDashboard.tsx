@@ -186,10 +186,17 @@ export const LabDashboard: React.FC = () => {
 
   /* ─── Derived lists with SaaS Gate 2 payment filtering ────────── */
   const gatedRequisitions = useMemo(() => {
+    const labTestBills = api.getLabTestBills();
     return requisitions.filter(r => {
       if (r.encounterId === 'walkin') return true;
       const inv = invoices.find(i => i.encounterId === r.encounterId);
-      return inv?.paymentStatus === 'cleared';
+      if (inv && inv.paymentStatus === 'cleared') return true;
+      
+      // Also allow if paid via a separate LabTestBill
+      const isPaidBill = labTestBills.some(b => b.status === 'paid' && b.items.some(item => item.requisitionId === r.id));
+      if (isPaidBill) return true;
+      
+      return false;
     });
   }, [requisitions, invoices]);
 
@@ -665,7 +672,7 @@ export const LabDashboard: React.FC = () => {
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 via-teal-500 to-accent-500 opacity-70" />
 
           {/* Title row */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
+          <div className="hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
             <div>
               <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <span className="material-symbols-outlined text-indigo-600 text-[20px]">biotech</span>
@@ -2265,7 +2272,16 @@ export const LabDashboard: React.FC = () => {
 
           {(() => {
             const labTestBills = api.getLabTestBills();
-            const activeRequisitions = requisitions.filter(r => r.status === 'pending');
+            const activeRequisitions = requisitions.filter(r => {
+              if (r.status !== 'pending') return false;
+              // Check if paid via unified invoice
+              const inv = invoices.find(i => i.encounterId === r.encounterId);
+              if (inv && inv.paymentStatus === 'cleared') return false;
+              // Check if already linked to any active lab test bill (draft, confirmed, or paid)
+              const hasBill = labTestBills.some(b => b.status !== 'cancelled' && b.items.some(item => item.requisitionId === r.id));
+              if (hasBill) return false;
+              return true;
+            });
             const patientsList = api.getPatients();
 
             // Group requisitions by patientId

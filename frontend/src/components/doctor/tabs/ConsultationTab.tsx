@@ -1464,7 +1464,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: OPHTHALMIC_EYE_CARE_COPY.odFallback,
                       status: getAcuityRank(recent.temperature || '6/6') > 2 ? 'abnormal' : 'normal',
                       icon: 'visibility',
-                      color: getAcuityRank(recent.temperature || '6/6') > 2 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
+                      color: getAcuityRank(recent.temperature || '6/6') > 2 ? 'rose' : 'emerald'
                     },
                     {
                       name: 'Intraocular Pressure',
@@ -1475,7 +1475,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '10 - 21',
                       status: (recent.pulseRate || 16) > 21 ? 'critical' : 'normal',
                       icon: 'eye_tracking',
-                      color: (recent.pulseRate || 16) > 21 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
+                      color: (recent.pulseRate || 16) > 21 ? 'rose' : 'emerald'
                     },
                     {
                       name: 'Visual Acuity (OS)',
@@ -1486,32 +1486,39 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: OPHTHALMIC_EYE_CARE_COPY.osFallback,
                       status: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'abnormal' : 'borderline',
                       icon: 'visibility',
-                      color: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
+                      color: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'rose' : 'emerald'
                     }
-                  ].map((item, idx) => (
-                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2`}>
+                  ].map((item, idx) => {
+                    const cardCls = item.color === 'rose'
+                      ? 'from-rose-50 to-rose-100/50 border-rose-200 dark:from-rose-950/60 dark:to-rose-900/40 dark:border-rose-800/40'
+                      : item.color === 'amber'
+                      ? 'from-amber-50 to-amber-100/50 border-amber-200 dark:from-amber-950/60 dark:to-amber-900/40 dark:border-amber-800/40'
+                      : 'from-emerald-50 to-emerald-100/50 border-emerald-200 dark:from-emerald-950/60 dark:to-emerald-900/40 dark:border-emerald-800/40';
+                    return (
+                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-2`}>
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-700 font-bold uppercase tracking-wider">{item.name}</span>
-                        <span className="text-[9px] text-slate-600 font-mono">Normal: {item.normal}</span>
+                        <span className="text-[10px] text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider">{item.name}</span>
+                        <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">Normal: {item.normal}</span>
                       </div>
                       <div className="flex justify-between items-baseline pt-1">
-                        <span className="text-lg font-black font-mono tracking-tight text-slate-800">{item.val}</span>
+                        <span className="text-lg font-black font-mono tracking-tight text-slate-800 dark:text-white">{item.val}</span>
                         {baseline && item.diff !== 0 && (
                           <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
                             (item.diff > 0 && item.status !== 'normal')
-                              ? 'text-rose-750'
-                              : 'text-emerald-750'
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-emerald-600 dark:text-emerald-400'
                           }`}>
                             {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff).toFixed(0)}
                           </span>
                         )}
                       </div>
-                      <div className="text-[9px] text-slate-600 pt-1 border-t border-slate-200/50 flex justify-between">
+                      <div className="text-[9px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-white/10 flex justify-between">
                         <span>Base: {item.base}</span>
                         <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
                       </div>
                     </div>
-                  )) : [
+                    );
+                  }) : [
                     {
                       name: 'HbA1c (Glycated Hb)',
                       val: `${recent.HbA1c}%`,
@@ -1521,7 +1528,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '4.0 - 5.6',
                       status: recent.HbA1c > 6.5 ? 'critical' : recent.HbA1c > 5.7 ? 'warning' : 'normal',
                       icon: 'water_drop',
-                      color: recent.HbA1c > 6.5 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : recent.HbA1c > 5.7 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700',
+                      color: recent.HbA1c > 6.5 ? 'rose' : recent.HbA1c > 5.7 ? 'amber' : 'emerald',
                       zones: [
                         { start: 3.0, end: 5.7, color: 'bg-emerald-500' },
                         { start: 5.7, end: 6.5, color: 'bg-amber-400' },
@@ -1540,7 +1547,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '0.6 - 1.2',
                       status: recent.creatinine > 1.2 ? 'critical' : recent.creatinine > 1.0 ? 'warning' : 'normal',
                       icon: 'kidney',
-                      color: recent.creatinine > 1.2 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : recent.creatinine > 1.0 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700',
+                      color: recent.creatinine > 1.2 ? 'rose' : recent.creatinine > 1.0 ? 'amber' : 'emerald',
                       zones: [
                         { start: 0.2, end: 1.2, color: 'bg-emerald-500' },
                         { start: 1.2, end: 1.5, color: 'bg-amber-400' },
@@ -1559,7 +1566,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '> 90',
                       status: calculatedGfr < 30 ? 'critical' : calculatedGfr < 60 ? 'warning-severe' : calculatedGfr < 90 ? 'warning' : 'normal',
                       icon: 'analytics',
-                      color: calculatedGfr < 60 ? 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800' : calculatedGfr < 90 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700',
+                      color: calculatedGfr < 60 ? 'rose' : calculatedGfr < 90 ? 'amber' : 'emerald',
                       zones: [
                         { start: 10, end: 30, color: 'bg-rose-500' },
                         { start: 30, end: 60, color: 'bg-orange-400' },
@@ -1579,21 +1586,27 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       normal: '12.0 - 16.0',
                       status: recent.hemoglobin < 12.0 ? 'warning' : 'normal',
                       icon: 'bloodtype',
-                      color: recent.hemoglobin < 12.0 ? 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-900' : 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-700'
+                      color: recent.hemoglobin < 12.0 ? 'amber' : 'emerald'
                     }
-                  ].map((item: any, idx) => (
-                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${item.color} flex flex-col justify-between space-y-2.5`}>
+                  ].map((item: any, idx) => {
+                    const cardCls = item.color === 'rose'
+                      ? 'from-rose-50 to-rose-100/50 border-rose-200 dark:from-rose-950/70 dark:to-rose-900/50 dark:border-rose-800/50'
+                      : item.color === 'amber'
+                      ? 'from-amber-50 to-amber-100/50 border-amber-200 dark:from-amber-950/70 dark:to-amber-900/50 dark:border-amber-800/50'
+                      : 'from-emerald-50 to-emerald-100/50 border-emerald-200 dark:from-emerald-950/70 dark:to-emerald-900/50 dark:border-emerald-800/50';
+                    return (
+                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-2.5`}>
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{item.name}</span>
-                        <span className="text-[9px] text-slate-600 font-mono">Normal: {item.normal}</span>
+                        <span className="text-[10px] text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider">{item.name}</span>
+                        <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">Normal: {item.normal}</span>
                       </div>
                       <div className="flex justify-between items-baseline pt-1">
-                        <span className="text-lg font-black font-mono tracking-tight text-slate-800">{item.val}</span>
+                        <span className="text-lg font-black font-mono tracking-tight text-slate-900 dark:text-white">{item.val}</span>
                         {baseline && item.diff !== 0 && (
                           <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
                             (item.diff > 0 && item.status !== 'normal') || (item.diff < 0 && item.name.includes('Hemoglobin'))
-                              ? 'text-rose-800'
-                              : 'text-emerald-700'
+                              ? 'text-rose-700 dark:text-rose-400'
+                              : 'text-emerald-700 dark:text-emerald-400'
                           }`}>
                             {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff).toFixed(item.name.includes('Creatinine') ? 2 : 1)}
                           </span>
@@ -1626,12 +1639,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         </div>
                       )}
 
-                      <div className="text-[9px] text-slate-600 pt-1 border-t border-slate-200/50 flex justify-between">
+                      <div className="text-[9px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-white/10 flex justify-between">
                         <span>Base: {item.base}</span>
                         <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="space-y-3">
                   <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1.5 font-mono">

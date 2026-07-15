@@ -6,19 +6,20 @@ import {
   RefreshCw, 
   Activity, 
   Menu,
-  ShieldAlert
+  ShieldAlert,
+  Calendar
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface TabItem {
-  id: 'home' | 'records' | 'wallet' | 'refills' | 'vitals';
+  id: 'home' | 'records' | 'wallet' | 'refills' | 'vitals' | 'book_appointment';
   label: string;
   icon: LucideIcon;
 }
 
 interface MobileNavProps {
-  activeTab: 'home' | 'records' | 'wallet' | 'refills' | 'vitals';
-  onTabChange: (tabId: 'home' | 'records' | 'wallet' | 'refills' | 'vitals') => void;
+  activeTab: 'home' | 'records' | 'wallet' | 'refills' | 'vitals' | 'book_appointment';
+  onTabChange: (tabId: 'home' | 'records' | 'wallet' | 'refills' | 'vitals' | 'book_appointment') => void;
   patientName: string;
   isPodConnected: boolean;
   onMenuClick?: () => void;
@@ -36,7 +37,8 @@ export const MobileNav: React.FC<MobileNavProps> = ({
     { id: 'records', label: 'Records', icon: FileText },
     { id: 'wallet', label: 'Wallet', icon: Wallet },
     { id: 'refills', label: 'Refills', icon: RefreshCw },
-    { id: 'vitals', label: 'Health', icon: Activity }
+    { id: 'vitals', label: 'Health', icon: Activity },
+    { id: 'book_appointment', label: 'Book', icon: Calendar }
   ];
 
   return (

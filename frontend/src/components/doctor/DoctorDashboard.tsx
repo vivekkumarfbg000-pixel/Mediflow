@@ -1573,7 +1573,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       )}
 
       {/* ── HEADER BLOCK: title + tabs integrated ── */}
-      <div className="border-b border-slate-200 pb-0">
+      <div className="hidden md:block border-b border-slate-200 pb-0">
 
         {/* Top row */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3">

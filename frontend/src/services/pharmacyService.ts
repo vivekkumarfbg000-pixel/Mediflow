@@ -656,8 +656,31 @@ export class PharmacyService {
       const bill = bills[billIndex];
       bill.status = 'paid';
       
+      // Clear matching inventory holds for the patient
+      const holds = this.getInventoryHolds();
+      let holdsUpdated = false;
+      holds.forEach(h => {
+        if (h.patientId === bill.patientId && h.holdStatus === 'held') {
+          h.holdStatus = 'dispensed';
+          holdsUpdated = true;
+          
+          supabase.from('inventory_holds').update({
+            hold_status: 'dispensed',
+            dispensed_at: new Date().toISOString()
+          }).eq('id', h.id).then(({ error }) => {
+            if (error) console.error('Error dispensing WhatsApp/counter hold in Supabase:', error);
+          });
+        }
+      });
+      if (holdsUpdated) {
+        save('inventory_holds', holds);
+      }
+      
       const inventory = this.getPharmacyInventory();
       bill.items.forEach(item => {
+        if (item.isStockDeducted) {
+          return; // Skip stock deduction since it was already deducted when hold was created
+        }
         const invItem = inventory.find(inv => inv.id === item.inventoryItemId);
         if (invItem) {
           const oldStock = invItem.stock;
@@ -758,6 +781,41 @@ export class PharmacyService {
 
       notify();
       writeAuditLog('medicine_bill_dispensed', { billId: id }, bill.patientId);
+    }
+  }
+
+  static reserveStockForWhatsAppOrder(bill: MedicineBill): void {
+    const inventory = this.getPharmacyInventory();
+    const holds = this.getInventoryHolds();
+    let inventoryUpdated = false;
+
+    bill.items.forEach(item => {
+      const invItem = inventory.find(inv => inv.id === item.inventoryItemId);
+      if (invItem) {
+        // Reserve stock (deduct it from inventory)
+        invItem.stock = Math.max(0, invItem.stock - item.quantity);
+        inventoryUpdated = true;
+
+        // Create hold
+        holds.push({
+          id: `hold-wa-${crypto.randomUUID().substring(0, 8)}`,
+          pharmacyId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          patientId: bill.patientId,
+          medicineName: item.name,
+          dosage: item.dosage,
+          quantity: item.quantity,
+          holdStatus: 'held',
+          expiryDate: invItem.expiryDate,
+          batchNumber: invItem.batchNumber,
+          createdAt: new Date().toISOString()
+        });
+      }
+    });
+
+    if (inventoryUpdated) {
+      this.savePharmacyInventory(inventory);
+      save('inventory_holds', holds);
+      notify();
     }
   }
 

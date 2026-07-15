@@ -45,6 +45,52 @@ export class WhatsAppService {
     try {
       const cleaned = text.trim().toLowerCase();
       const sessions = this.getWhatsAppSessions();
+      
+      // Check if patient exists in registry
+      const patient = PatientService.getPatients().find(p => p.phone === phone);
+      if (!patient) {
+        // Unregistered patient!
+        const welcomeText = `⚠️ *Profile Not Found!* \n\nNamaste! Aapka contact number humare clinic database mein registered nahi hai. \n\nWhatsApp par appointment book karne ke liye, please pehle is link par click karke manually register kijiye: \n🔗 https://mediflow.in/register?phone=${phone} \n\nRegistration complete hone ke baad hume dobara message kijiye!`;
+        
+        let sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+        if (sessionIndex === -1) {
+          const newId = crypto.randomUUID();
+          const newSession: WhatsAppSession = {
+            id: newId,
+            patientPhone: phone,
+            currentState: 'AWAITING_WELCOME',
+            lastInteraction: new Date().toISOString(),
+            sessionData: {
+              chatHistory: [{ sender: 'bot', text: welcomeText, time: new Date().toISOString() }]
+            }
+          };
+          sessions.push(newSession);
+          this.saveWhatsAppSessions(sessions);
+          
+          supabase.from('whatsapp_sessions').upsert({
+            patient_phone: phone,
+            patient_id: null,
+            current_state: 'AWAITING_WELCOME',
+            last_interaction: new Date().toISOString(),
+            session_data: newSession.sessionData
+          }, { onConflict: 'patient_phone' }).then();
+        } else {
+          const session = sessions[sessionIndex];
+          session.sessionData.chatHistory = session.sessionData.chatHistory || [];
+          session.sessionData.chatHistory.push({ sender: 'patient', text, time: new Date().toISOString() });
+          session.sessionData.chatHistory.push({ sender: 'bot', text: welcomeText, time: new Date().toISOString() });
+          this.saveWhatsAppSessions(sessions);
+          
+          supabase.from('whatsapp_sessions').update({
+            session_data: session.sessionData,
+            last_interaction: new Date().toISOString()
+          }).eq('patient_phone', phone).then();
+        }
+        
+        this.sendWhatsAppMessagePayload(phone, 'mediflow_conversational_reply', { replyText: welcomeText });
+        return;
+      }
+
       const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
       
       if (sessionIndex === -1) {
@@ -227,7 +273,20 @@ export class WhatsAppService {
               }
 
               if (matchedItem) {
-                const patientObj = PatientService.getPatients().find(p => p.phone === phone);
+                let patientObj = PatientService.getPatients().find(p => p.phone === phone);
+                if (!patientObj) {
+                  // Auto-register patient to prevent duplicate registers or unlinked draft invoice deadlocks
+                  patientObj = PatientService.registerPatient({
+                    name: 'WhatsApp Patient',
+                    phone: phone,
+                    abhaId: `ABHA-WA-${Date.now().toString().slice(-4)}`,
+                    age: 35,
+                    gender: 'Male',
+                    allergies: [],
+                    chronicConditions: [],
+                    queueStatus: 'awaiting_vitals'
+                  });
+                }
                 const billId = `bill-${Date.now()}`;
                 
                 const itemTotal = matchedItem.price * qty;
@@ -246,13 +305,14 @@ export class WhatsAppService {
                   sellingPrice: matchedItem.price,
                   discountPercent: 0,
                   gstPercent: gst * 100,
-                  lineTotal: itemTotal
+                  lineTotal: itemTotal,
+                  isStockDeducted: true
                 };
 
                 const draftBill: MedicineBill = {
                   id: billId,
-                  patientId: patientObj?.id || 'pat-demo',
-                  patientName: patientObj?.name || 'WhatsApp Patient',
+                  patientId: patientObj.id,
+                  patientName: patientObj.name,
                   patientPhone: phone,
                   items: [billItem],
                   subtotal: itemTotal,
@@ -266,6 +326,9 @@ export class WhatsAppService {
                   source: 'whatsapp',
                   createdAt: new Date().toISOString()
                 };
+
+                // Reserve the stock and create active inventory holds for this WhatsApp order
+                PharmacyService.reserveStockForWhatsAppOrder(draftBill);
 
                 sessionData.draftMedicineBill = draftBill;
                 sessionData.medicineOrderStage = 'CHOOSING_DELIVERY';

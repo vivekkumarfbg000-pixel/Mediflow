@@ -336,6 +336,7 @@ export interface MedicineBillItem {
   lineTotal: number;               // qty × price × (1 - disc) × (1 + gst)
   alternativeSuggested?: string;   // alternative brand from inventory
   alternativeInventoryId?: string;
+  isStockDeducted?: boolean;
 }
 
 export interface MedicineBill {
