@@ -91,6 +91,29 @@ export class BillingService {
         });
       }
 
+      // Clear patient inventory holds if pharmacy fee is paid
+      if (inv.pharmacyFee > 0) {
+        const holds = load<any[]>('inventory_holds', []);
+        let holdsUpdated = false;
+        holds.forEach(h => {
+          if (h.patientId === inv.patientId && h.holdStatus === 'held') {
+            h.holdStatus = 'dispensed';
+            holdsUpdated = true;
+            
+            // Also update in Supabase
+            supabase.from('inventory_holds').update({
+              hold_status: 'dispensed',
+              dispensed_at: new Date().toISOString()
+            }).eq('id', h.id).then(({ error }) => {
+              if (error) console.error('Error dispensing inventory hold in Supabase:', error);
+            });
+          }
+        });
+        if (holdsUpdated) {
+          save('inventory_holds', holds);
+        }
+      }
+
       supabase.from('unified_invoices').update({
         payment_status: 'cleared'
       }).eq('id', invoiceId).then(({ error }) => {
@@ -149,14 +172,14 @@ export class BillingService {
     notify();
   }
 
-  static createGate1Consult(patientId: string): void {
+  static createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter'): Invoice {
     const apptId = crypto.randomUUID();
     const ctx = getPodContext();
-
+ 
     // Fetch dynamic consultation fee from active SOP config (default: 450)
     const activeSop = this.getActiveSop();
     const baseFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
-
+ 
     // Calculate dynamic fee type based on patient visit history (First Visit vs. Follow-up vs. Free Review)
     const dynamicFeeResult = PatientService.calculateDynamicOPDFee(patientId);
     let consultFee = dynamicFeeResult.amount;
@@ -165,14 +188,15 @@ export class BillingService {
     } else if (dynamicFeeResult.type === 'Follow-up') {
       consultFee = Math.round(baseFee * 0.4); // 40% of base fee (e.g. ₹200 for ₹500 base)
     }
-
+ 
     const newInvoice: Invoice = {
       id: crypto.randomUUID(),
       appointmentId: apptId,
       type: 'consult',
       amount: consultFee,
       status: 'unpaid',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      patientId // store patientId for ease of access
     };
     this.saveInvoice(newInvoice);
     
@@ -192,16 +216,17 @@ export class BillingService {
       } catch (err) {
         console.warn('[BillingService] Failed to dynamically look up doctor for consult:', err);
       }
-
+ 
       const newAppt: Appointment = {
         id: apptId,
         patientId,
         doctorId: resolvedDoctorId,
         status: 'pending_payment',
-        createdAt: new Date().toISOString()
-      };
+        createdAt: new Date().toISOString(),
+        source
+      } as any;
       this.saveAppointment(newAppt);
-
+ 
       const patient = PatientService.getPatients().find(p => p.id === patientId);
       if (patient) {
         // Direct push WhatsApp message bot history logic
@@ -227,6 +252,7 @@ export class BillingService {
       notify();
     };
     runInit();
+    return newInvoice;
   }
 
   static createOTPackageInvoice(patientId: string, details: { procedure: string; eye: string; lensType: string; packageTier: string; totalAmount: number }): void {

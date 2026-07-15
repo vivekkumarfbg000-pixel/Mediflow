@@ -2154,11 +2154,17 @@ export const CompounderDashboard: React.FC = () => {
                         <button
                           onClick={async () => {
                             // 1. Create appointment + invoice (async init inside)
-                            const invoice = BillingService.createGate1Consult(selectedApptPatient.id, 'counter');
+                            BillingService.createGate1Consult(selectedApptPatient.id);
 
                             // 2. Give async appointment creation 200ms to settle, then pay
                             await new Promise(r => setTimeout(r, 200));
-                            await BillingService.recordInvoicePayment(invoice.id, apptPaymentMode as 'cash' | 'upi' | 'card');
+                            // Retrieve the just-created unpaid consult invoice for this patient
+                            const newInvoice = BillingService.getInvoices()
+                              .filter(inv => inv.patientId === selectedApptPatient.id && inv.status === 'unpaid' && inv.type === 'consult')
+                              .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+                            if (newInvoice) {
+                              await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as 'cash' | 'upi' | 'card');
+                            }
 
                             // 3. Reset selection
                             const bookedPatient = selectedApptPatient;

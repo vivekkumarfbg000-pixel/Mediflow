@@ -1478,8 +1478,14 @@ class MediflowApiService {
     this.notify();
   }
 
-  createGate1Consult(patientId: string): void {
-    BillingService.createGate1Consult(patientId);
+  createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter'): Invoice {
+    const inv = BillingService.createGate1Consult(patientId, source);
+    this.notify();
+    return inv;
+  }
+
+  async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
+    await BillingService.recordInvoicePayment(invoiceId, paymentMethod);
     this.notify();
   }
 
