@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
-import type { Patient, UnifiedInvoice, PathologyReport, Encounter } from '../../types';
+import type { Patient, UnifiedInvoice, PathologyReport, Encounter, Invoice } from '../../types';
+import { BillingService } from '../../services/billingService';
 import { 
   Smartphone, 
   Home, 
@@ -858,7 +859,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         } as any);
 
                         // 2. Create the consult invoice (source: whatsapp / patient)
-                        const newInvoice = api.createGate1Consult(newPat.id, 'whatsapp');
+                        api.createGate1Consult(newPat.id);
 
                         // 3. Reset form
                         setBookName('');
@@ -869,8 +870,28 @@ export const PatientMobileDashboard: React.FC = () => {
                         // 4. Update local state
                         setPatients(api.getPatients());
 
-                        // 5. Open UPI modal for payment sheet
-                        handleTriggerUpiSheet(newInvoice);
+                        // 5. Retrieve just-created invoice and open UPI modal
+                        const createdInv = BillingService.getInvoices()
+                          .filter(inv => inv.patientId === newPat.id && inv.status === 'unpaid' && inv.type === 'consult')
+                          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+                        if (createdInv) {
+                          // Map Invoice → UnifiedInvoice shape for UPI modal
+                          handleTriggerUpiSheet({
+                            id: createdInv.id,
+                            encounterId: createdInv.appointmentId,
+                            patientId: newPat.id,
+                            patientName: bookName,
+                            patientPhone: bookPhone,
+                            doctorFee: createdInv.amount,
+                            labFee: 0,
+                            pharmacyFee: 0,
+                            platformFee: 0,
+                            totalAmount: createdInv.amount,
+                            upiQrPayload: '',
+                            paymentStatus: 'pending',
+                            createdAt: createdInv.createdAt,
+                          } as UnifiedInvoice);
+                        }
                       }} 
                       className="space-y-3"
                     >
