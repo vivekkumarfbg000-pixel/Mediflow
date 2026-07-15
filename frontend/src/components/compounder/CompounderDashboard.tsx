@@ -6,6 +6,7 @@ import { useClinic } from '../../context/ClinicContext';
 import { VISUAL_ACUITY_OPTIONS } from '../../types/ophthalmic';
 import { EncounterService } from '../../services/encounterService';
 import { PharmacyService } from '../../services/pharmacyService';
+import { BillingService } from '../../services/billingService';
 import { LabService } from '../../services/labService';
 import type {
   PharmacyInventoryItem,
@@ -194,11 +195,11 @@ export const CompounderDashboard: React.FC = () => {
       if (latestEncounter.medications.length === 0) {
         s7_status = 'skipped';
       } else {
-        const allSettled = mbills.length > 0 && mbills.every(b => b.status === 'paid' || b.status === 'dispensed');
+        const allSettled = mbills.length > 0 && mbills.every(b => b.status === 'paid' || b.status === 'confirmed');
         s7_status = allSettled ? 'completed' : 'active';
       }
     } else if (mbills.length > 0) {
-      const allSettled = mbills.every(b => b.status === 'paid' || b.status === 'dispensed');
+      const allSettled = mbills.every(b => b.status === 'paid' || b.status === 'confirmed');
       s7_status = allSettled ? 'completed' : 'active';
     }
 
@@ -2153,11 +2154,11 @@ export const CompounderDashboard: React.FC = () => {
                         <button
                           onClick={async () => {
                             // 1. Create appointment + invoice (async init inside)
-                            const invoice = api.createGate1Consult(selectedApptPatient.id, 'counter');
+                            const invoice = api.createGate1Consult(selectedApptPatient.id);
 
                             // 2. Give async appointment creation 200ms to settle, then pay
                             await new Promise(r => setTimeout(r, 200));
-                            await api.recordInvoicePayment(invoice.id, apptPaymentMode);
+                            await BillingService.recordInvoicePayment(invoice.id, apptPaymentMode as 'cash' | 'upi' | 'card');
 
                             // 3. Reset selection
                             const bookedPatient = selectedApptPatient;
@@ -2230,11 +2231,11 @@ export const CompounderDashboard: React.FC = () => {
                           <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex items-center gap-2.5">
                               <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-lg border ${
-                                appt.source === 'whatsapp'
+                                (appt as any).source === 'whatsapp'
                                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
                                   : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25'
                               }`}>
-                                {appt.source === 'whatsapp' ? 'WHATSAPP' : 'COUNTER'}
+                                {(appt as any).source === 'whatsapp' ? 'WHATSAPP' : 'COUNTER'}
                               </span>
                               <h4 className="font-bold text-slate-805 text-xs">{patient.name}</h4>
                               <span className="text-slate-500 text-[10px] font-medium">({patient.age}y · {patient.gender})</span>
@@ -2348,7 +2349,7 @@ export const CompounderDashboard: React.FC = () => {
                               <div className="flex gap-2">
                                 <button
                                   onClick={async () => {
-                                    await api.recordInvoicePayment(invoice.id, 'cash');
+                                    await BillingService.recordInvoicePayment(invoice.id, 'cash');
                                     syncData();
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: { message: 'Cash collected. Patient activated. Record vitals next!', type: 'success', title: 'Payment Settled ✔️' }
@@ -2362,7 +2363,7 @@ export const CompounderDashboard: React.FC = () => {
                                 </button>
                                 <button
                                   onClick={async () => {
-                                    await api.recordInvoicePayment(invoice.id, 'upi');
+                                    await BillingService.recordInvoicePayment(invoice.id, 'upi');
                                     // Full sync: refresh patients + appointments
                                     syncData();
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
