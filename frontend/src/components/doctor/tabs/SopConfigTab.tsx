@@ -61,7 +61,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       { delay: 1700, log: '🧪 Parsing pathology test price list (LOINC-code mapping)...' },
       { delay: 2200, log: '💰 Detecting commission split instructions (Doctor / Lab / Platform)...' },
       { delay: 2700, log: '📋 Extracting clinical workflow guidelines and SOPs...' },
-      { delay: 3200, log: '✅ Validating extracted config against Mediflow billing engine...' },
+      { delay: 3200, log: '✅ Validating extracted config against VitalSync billing engine...' },
       { delay: 3600, log: '🔐 Encrypting and saving SOP config to your clinic profile...' },
     ];
 
@@ -78,7 +78,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const docFee = docFeeMatch ? parseFloat(docFeeMatch[1]) : activeSop?.extractedConfig?.doctor_fee ?? 450;
 
     const splitDocMatch = text.match(/(?:doctor|physician|referring)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
-    const splitPlatMatch = text.match(/(?:platform|mediflow|software|app)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
+    const splitPlatMatch = text.match(/(?:platform|vitalsync|software|app)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
     const splitLabMatch = text.match(/(?:lab|laboratory|pathology)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
 
     const splitDoc = splitDocMatch ? parseFloat(splitDocMatch[1]) : activeSop?.extractedConfig?.splits?.doctor ?? 40;

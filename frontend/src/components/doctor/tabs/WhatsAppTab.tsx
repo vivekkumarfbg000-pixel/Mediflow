@@ -249,7 +249,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
         <div className="mt-4">
           <ClinicPlacardGenerator 
             activeWabaNumber={activeWabaConnection?.phone_number || '+91 90000 00000'}
-            clinicName={activePod?.name || 'Mediflow Smart Clinic'}
+            clinicName={activePod?.name || 'VitalSync Smart Clinic'}
           />
         </div>
 
@@ -948,7 +948,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     </div>
                     <div className="flex justify-between text-[11px]">
                       <span className="text-slate-500">Billing</span>
-                      <span className="font-bold text-slate-600">Managed by Mediflow</span>
+                      <span className="font-bold text-slate-600">Managed by VitalSync</span>
                     </div>
                   </div>
 

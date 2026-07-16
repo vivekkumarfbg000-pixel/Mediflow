@@ -39,19 +39,57 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
 }) => {
   const filteredPatients = React.useMemo(() => {
     const query = patientSearchQuery.trim().toLowerCase();
-    if (!query) return patients;
-    return patients.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      p.phone.includes(query) ||
-      p.id.toLowerCase().includes(query) ||
-      (p.abhaId && p.abhaId.toLowerCase().includes(query))
-    );
+    let list = patients;
+    
+    if (query) {
+      list = patients.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        p.phone.includes(query) ||
+        p.id.toLowerCase().includes(query) ||
+        (p.abhaId && p.abhaId.toLowerCase().includes(query))
+      );
+    }
+
+    // Sort virtual appointments to the top chronologically
+    const appts = api.getAppointments();
+    
+    const getVirtualApptInfo = (patientId: string) => {
+      const activeVirtual = appts.find(a => 
+        a.patientId === patientId && 
+        a.isVirtual && 
+        a.status !== 'completed' && 
+        a.status !== 'cancelled'
+      );
+      if (!activeVirtual) return null;
+      
+      const date = activeVirtual.virtualDate || '9999-12-31';
+      const time = activeVirtual.virtualTime || '11:59 PM';
+      return { date, time };
+    };
+
+    return [...list].sort((a, b) => {
+      const infoA = getVirtualApptInfo(a.id);
+      const infoB = getVirtualApptInfo(b.id);
+
+      if (infoA && !infoB) return -1;
+      if (!infoA && infoB) return 1;
+      
+      if (infoA && infoB) {
+        if (infoA.date !== infoB.date) {
+          return infoA.date.localeCompare(infoB.date);
+        }
+        return infoA.time.localeCompare(infoB.time);
+      }
+      return 0;
+    });
   }, [patients, patientSearchQuery]);
 
   const [bulkInput, setBulkInput] = React.useState('');
   const [parsedList, setParsedList] = React.useState<any[]>([]);
   const [isImporting, setIsImporting] = React.useState(false);
   const [importProgress, setImportProgress] = React.useState(0);
+  const [virtualDateInput, setVirtualDateInput] = React.useState('');
+  const [virtualTimeInput, setVirtualTimeInput] = React.useState('');
 
   const handleParseBulkInput = () => {
     if (!bulkInput.trim()) return;
@@ -138,30 +176,43 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {filteredPatients.map(p => {
                 const isSelected = selectedDirectoryPatient?.id === p.id;
+                
+                // Check if patient has a scheduled virtual consultation
+                const appts = api.getAppointments();
+                const hasVirtual = appts.some(a => a.patientId === p.id && a.isVirtual && a.status !== 'completed' && a.status !== 'cancelled');
+
                 return (
                   <button
                     key={p.id}
                     onClick={() => {
                       setSelectedDirectoryPatient(p);
                       setPatientRAGSummary('');
+                      setVirtualDateInput('');
+                      setVirtualTimeInput('');
                     }}
                     className={`w-full text-left p-3.5 rounded-xl border transition-all ${
                       isSelected
-                        ? 'bg-primary-container/20 border-primary text-slate-800'
+                        ? 'bg-primary-container/20 border-primary text-slate-800 shadow-sm'
                         : 'bg-slate-50 border-slate-200/50 hover:bg-slate-100'
                     }`}
                   >
                     <div className="font-bold text-xs flex justify-between items-center">
-                      <span className="flex items-center gap-1.5">
-                        <span>{p.name}</span>
+                      <span className="flex items-center gap-1.5 truncate">
+                        <span className="truncate">{p.name}</span>
                         {p.syncStatus === 'pending' && (
                           <span className="material-symbols-outlined text-[12px] text-amber-555 animate-spin" title="Syncing to Supabase...">sync</span>
                         )}
                         {p.syncStatus === 'failed' && (
                           <span className="material-symbols-outlined text-[12px] text-rose-500 animate-pulse" title="Sync failed. Auto-retrying...">report_problem</span>
                         )}
+                        {hasVirtual && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[8px] font-extrabold uppercase tracking-wider animate-pulse">
+                            <span className="material-symbols-outlined text-[10px] font-black text-emerald-800">video_call</span>
+                            Virtual
+                          </span>
+                        )}
                       </span>
-                      <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">{p.tokenNumber || 'PAT'}</span>
+                      <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 shrink-0">{p.tokenNumber || 'PAT'}</span>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">{p.gender}, {p.age} years • {p.phone}</div>
                   </button>
@@ -253,6 +304,120 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 </span>
               )}
             </div>
+
+            {/* ── Premium VitalSync Telemedicine Workspace ──────────────────── */}
+            {(() => {
+              const appts = api.getAppointments();
+              const patientAppts = appts.filter(a => a.patientId === selectedDirectoryPatient.id);
+              const virtualAppt = patientAppts.find(a => a.isVirtual && a.status !== 'completed' && a.status !== 'cancelled');
+              
+              if (!virtualAppt) return null;
+
+              const JITSI_ROOM_URL = virtualAppt.virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${virtualAppt.id}`;
+
+              return (
+                <div className="p-5 bg-gradient-to-br from-emerald-50/70 via-teal-50/30 to-slate-50/50 border border-emerald-200/60 rounded-3xl space-y-4 animate-fade-in relative overflow-hidden shadow-xs">
+                  <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-400 to-teal-500" />
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+                        <span className="material-symbols-outlined text-lg font-bold">video_call</span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Telemedicine Hub</h4>
+                        <p className="text-[9px] text-slate-400 font-mono mt-0.5">ROOM: vitalsync-consult-{virtualAppt.id.substring(0, 8)}</p>
+                      </div>
+                    </div>
+
+                    <span className={`text-[9px] font-extrabold px-2.5 py-1 rounded-full font-mono uppercase tracking-wider flex items-center gap-1 ${
+                      virtualAppt.virtualTimeAllocated 
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200/30' 
+                        : 'bg-amber-100 text-amber-900 border border-amber-200/30 animate-pulse'
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+                      {virtualAppt.virtualTimeAllocated ? 'Timing Confirmed' : 'Awaiting Schedule'}
+                    </span>
+                  </div>
+
+                  {/* Booking schedule inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Allocate Consultation Date</label>
+                      <input
+                        type="date"
+                        value={virtualDateInput || virtualAppt.virtualDate || ''}
+                        onChange={(e) => setVirtualDateInput(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 rounded-xl text-xs outline-none bg-white text-slate-800"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Allocate Slot Time</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 10:30 AM"
+                        value={virtualTimeInput || virtualAppt.virtualTime || ''}
+                        onChange={(e) => setVirtualTimeInput(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-100 rounded-xl text-xs outline-none bg-white text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions & Launcher */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const finalDate = virtualDateInput || virtualAppt.virtualDate || new Date().toISOString().split('T')[0];
+                        const finalTime = virtualTimeInput || virtualAppt.virtualTime || '10:30 AM';
+                        
+                        // Update appointment
+                        const updatedAppt = {
+                          ...virtualAppt,
+                          virtualDate: finalDate,
+                          virtualTime: finalTime,
+                          virtualTimeAllocated: true
+                        };
+                        api.saveAppointment(updatedAppt);
+                        
+                        // Notify patient on WhatsApp
+                        const notificationText = `📅 *Virtual Consultation Confirmed!* \n\nDr. Vivek has allocated your virtual consultation timing: \n🗓️ *Date:* ${finalDate} \n⏰ *Time:* ${finalTime} \n\nPlease join the meeting using this link when scheduled: \n🔗 ${JITSI_ROOM_URL}`;
+                        api.pushWhatsAppMessageFromBot(selectedDirectoryPatient.phone, notificationText);
+
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'Schedule Dispatched! 📅',
+                            message: `Consultation timing sent to patient's WhatsApp.`,
+                            type: 'success'
+                          }
+                        }));
+                      }}
+                      className="flex-1 py-3 border border-emerald-300 text-emerald-800 hover:bg-emerald-100/50 rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer bg-white"
+                    >
+                      Confirm &amp; Notify (WhatsApp)
+                    </button>
+
+                    <a
+                      href={JITSI_ROOM_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:scale-102 active:scale-98 text-white-force bg-emerald-600-force border-0"
+                    >
+                      <span className="material-symbols-outlined text-sm font-bold text-white-force">videocam</span>
+                      Start Video Call
+                    </a>
+                  </div>
+
+                  {/* USP explanation message */}
+                  <div className="p-3 bg-emerald-50/50 border border-emerald-100/60 rounded-2xl flex gap-2.5 items-start text-emerald-800">
+                    <span className="material-symbols-outlined text-emerald-600 text-base flex-shrink-0">info</span>
+                    <p className="text-[10px] leading-relaxed">
+                      <strong>💡 Monetization Hub:</strong> Virtual consultations are free for patients. Utilize your e-Prescription (e-Rx) or referral lab order buttons below to capture commissions on medicines and pathology tests.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* loyalty discounts dispatcher */}
             <div className="space-y-3">
