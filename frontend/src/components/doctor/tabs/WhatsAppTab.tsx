@@ -67,13 +67,18 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
       setBroadcastLogs(JSON.parse(logs));
     }
   }, []);
-  // WABA OTP & Advanced Manual Onboarding local state variables
-  const [onboardingMethod, setOnboardingMethod] = useState<'otp' | 'manual'>('otp');
-  const [otpRequested, setOtpRequested] = useState(false);
+  // ── Real Meta API Clinic WhatsApp Onboarding State ──────────────────────
+  // Step 1: Doctor enters clinic name + phone
+  // Step 2: Real OTP arrives via SMS to clinic phone
+  // Step 3: OTP verified → real WABA credentials saved to DB
+  const [onboardStep, setOnboardStep] = useState<1 | 2 | 3>(1);
+  const [clinicDisplayName, setClinicDisplayName] = useState('');
+  const [clinicPhoneInput, setClinicPhoneInput] = useState('');
+  const [onboardPhoneNumberId, setOnboardPhoneNumberId] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [isGeneratingOtp, setIsGeneratingOtp] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [customBotName, setCustomBotName] = useState('');
+  const [isOnboarding, setIsOnboarding] = useState(false);
+  const [onboardError, setOnboardError] = useState('');
+  const [otpMethod, setOtpMethod] = useState<'SMS' | 'VOICE'>('SMS');
 
   // Filter sessions based on search
   const filteredSessions = whatsAppSessions.filter(s => {
@@ -145,7 +150,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               <div className="space-y-1">
                 <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Activate Clinic WhatsApp Chatbot in 10 Seconds</h3>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-2xl font-sans">
-                  Connect your clinic's WhatsApp number to automatically interact with patients. No Meta developer accounts, complex credentials, or API billing setup required—we handle the integration and billing. Patients can instantly book/reschedule appointments, request chronic refills, query generic drug dosage, and clear invoice payments via chat.
+                  Connect your clinic's WhatsApp number in 3 simple steps. Enter your clinic name &amp; number, verify via OTP — we handle all Meta credentials and billing automatically. Patients will see your clinic name when they receive messages.
                 </p>
               </div>
             </div>
@@ -621,346 +626,358 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
         )}
       </div>
 
-      {/* Link Meta Cloud WABA Account Connection Form */}
+      {/* ── Real Meta API Clinic WhatsApp Onboarding Modal ───────────────── */}
       {wabaFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
-          <div className="glass-panel max-w-lg w-full p-6.5 border-slate-200 shadow-2xl relative overflow-hidden space-y-5 bg-white rounded-3xl">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-primary" />
-            
-            <div className="flex justify-between items-start">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-sm p-4 animate-fade-in text-slate-800">
+          <div className="glass-panel max-w-md w-full border-slate-200 shadow-2xl relative overflow-hidden bg-white rounded-3xl">
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-500 via-primary to-indigo-500" />
+
+            {/* ── Modal Header ─────────────────────────────────────────────── */}
+            <div className="p-6 pb-4 flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2 font-sans">
-                  <span className="material-symbols-outlined text-primary font-bold">cell_tower</span>
-                  Link WhatsApp Business API
+                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-500 font-bold">whatsapp</span>
+                  Activate Clinic WhatsApp
                 </h3>
-                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                  Verify business phone number using secure 6-Digit OTP to permanently activate Mediflow chatbot automations.
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {onboardStep === 1 && 'Enter your clinic details to connect.'}
+                  {onboardStep === 2 && 'Enter the 6-digit code sent to your clinic phone.'}
+                  {onboardStep === 3 && 'Your clinic WhatsApp is now live! 🎉'}
                 </p>
               </div>
               <button
                 onClick={() => {
                   setWabaFormOpen(false);
-                  setOtpRequested(false);
+                  setOnboardStep(1);
+                  setClinicDisplayName('');
+                  setClinicPhoneInput('');
                   setOtpCode('');
+                  setOnboardError('');
+                  setOnboardPhoneNumberId('');
                 }}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-600 transition-colors border-0 bg-transparent"
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors border-0 bg-transparent"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
 
-            {onboardingMethod === 'otp' ? (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!wabaNumber) {
-                    alert("Please fill in your clinic phone number.");
-                    return;
-                  }
+            {/* ── Step Progress Bar ─────────────────────────────────────────── */}
+            <div className="px-6 pb-2">
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3].map((step) => (
+                  <div
+                    key={step}
+                    className={`h-1 rounded-full flex-1 transition-all duration-500 ${
+                      onboardStep >= step ? 'bg-emerald-500' : 'bg-slate-200'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">
+                <span className={onboardStep >= 1 ? 'text-emerald-600' : ''}>Clinic Details</span>
+                <span className={onboardStep >= 2 ? 'text-emerald-600' : ''}>Verify OTP</span>
+                <span className={onboardStep >= 3 ? 'text-emerald-600' : ''}>Connected!</span>
+              </div>
+            </div>
 
-                  if (!otpRequested) {
-                    setIsGeneratingOtp(true);
-                    setTimeout(() => {
-                      const code = Math.floor(100000 + Math.random() * 900000).toString();
-                      setGeneratedOtp(code);
-                      setOtpRequested(true);
-                      setIsGeneratingOtp(false);
+            <div className="px-6 pb-6 pt-2 space-y-4">
 
-                      // Simulated dispatch log & browser custom event toast
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Verification Code Sent! 💬',
-                          message: `Simulated SMS OTP Code: ${code}. Input it below to verify!`,
-                          type: 'info'
+              {/* ── Error Banner ──────────────────────────────────────────── */}
+              {onboardError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex gap-2 items-start text-rose-700 animate-fade-in">
+                  <span className="material-symbols-outlined text-rose-500 text-base flex-shrink-0 mt-0.5">error</span>
+                  <p className="text-[11px] leading-relaxed">{onboardError}</p>
+                </div>
+              )}
+
+              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* STEP 1 — Clinic Details                                    */}
+              {/* ═══════════════════════════════════════════════════════════ */}
+              {onboardStep === 1 && (
+                <div className="space-y-4 animate-fade-in">
+
+                  {/* ⚠️ Personal Number Warning */}
+                  <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3">
+                    <span className="material-symbols-outlined text-amber-500 text-lg flex-shrink-0 mt-0.5">warning</span>
+                    <div className="text-[11px] text-amber-800 leading-relaxed">
+                      <strong className="block mb-0.5">⚠️ Use a dedicated clinic number</strong>
+                      The phone number you enter will be <strong>migrated to WhatsApp Business API</strong> and will no longer work on the standard WhatsApp personal app. Please use a separate SIM card or clinic landline — <strong>not your personal WhatsApp number</strong>.
+                    </div>
+                  </div>
+
+                  {/* Clinic Display Name */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Clinic Display Name
+                      <span className="ml-1 text-slate-400 normal-case font-normal">(shown to patients in WhatsApp)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Dr. Sharma Eye Clinic"
+                      value={clinicDisplayName}
+                      onChange={(e) => { setClinicDisplayName(e.target.value); setOnboardError(''); }}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 rounded-xl text-xs outline-none bg-slate-50/50"
+                    />
+                  </div>
+
+                  {/* Clinic Phone Number */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Clinic WhatsApp Number
+                      <span className="ml-1 text-slate-400 normal-case font-normal">(with country code)</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 flex items-center">
+                        🇮🇳 +91
+                      </div>
+                      <input
+                        type="tel"
+                        placeholder="98765 43210"
+                        value={clinicPhoneInput}
+                        onChange={(e) => { setClinicPhoneInput(e.target.value.replace(/\D/g, '').slice(0, 10)); setOnboardError(''); }}
+                        maxLength={10}
+                        className="flex-1 px-3.5 py-2.5 border border-slate-200 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 rounded-xl text-xs outline-none bg-slate-50/50 font-mono tracking-wider"
+                      />
+                    </div>
+                  </div>
+
+                  {/* OTP Delivery Method */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">OTP Delivery Method</label>
+                    <div className="flex gap-2">
+                      {(['SMS', 'VOICE'] as const).map((method) => (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => setOtpMethod(method)}
+                          className={`flex-1 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                            otpMethod === method
+                              ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                          }`}
+                        >
+                          {method === 'SMS' ? '💬 SMS' : '📞 Voice Call'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Send OTP Button */}
+                  <button
+                    type="button"
+                    disabled={isOnboarding || clinicPhoneInput.length !== 10 || !clinicDisplayName.trim()}
+                    onClick={async () => {
+                      setIsOnboarding(true);
+                      setOnboardError('');
+                      try {
+                        const { supabase: sb } = await import('../../../lib/supabaseClient');
+                        const { data: { session } } = await sb.auth.getSession();
+                        const res = await fetch(
+                          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
+                          {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                            },
+                            body: JSON.stringify({
+                              action: 'request_otp',
+                              clinicPhone: `+91${clinicPhoneInput}`,
+                              clinicName: clinicDisplayName.trim(),
+                              podId: activePod?.id,
+                              otpMethod
+                            })
+                          }
+                        );
+                        const result = await res.json();
+                        if (!res.ok || result.error) {
+                          setOnboardError(result.error ?? 'Failed to send OTP. Please try again.');
+                        } else {
+                          setOnboardPhoneNumberId(result.phoneNumberId);
+                          setOnboardStep(2);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Verification Code Sent! 💬',
+                              message: `OTP dispatched to +91${clinicPhoneInput} via ${otpMethod}. Check your phone.`,
+                              type: 'info'
+                            }
+                          }));
                         }
-                      }));
-                    }, 800);
-                    return;
-                  }
+                      } catch (err: any) {
+                        setOnboardError('Network error. Please check your connection and try again.');
+                      } finally {
+                        setIsOnboarding(false);
+                      }
+                    }}
+                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isOnboarding ? (
+                      <><span className="material-symbols-outlined text-sm animate-spin">sync</span> Sending OTP...</>
+                    ) : (
+                      <><span className="material-symbols-outlined text-sm">send</span> Send Verification Code</>
+                    )}
+                  </button>
+                </div>
+              )}
 
-                  if (otpCode !== generatedOtp && otpCode !== '123456') {
-                    alert("Verification code mismatch. Please check your SMS and try again.");
-                    return;
-                  }
+              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* STEP 2 — OTP Verification                                  */}
+              {/* ═══════════════════════════════════════════════════════════ */}
+              {onboardStep === 2 && (
+                <div className="space-y-4 animate-fade-in">
 
-                  if (!activePod?.id) {
-                    alert("No active clinic pod session found.");
-                    return;
-                  }
+                  {/* OTP Sent Confirmation */}
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                    <div className="text-2xl mb-1">{otpMethod === 'SMS' ? '💬' : '📞'}</div>
+                    <p className="text-xs font-bold text-emerald-800">
+                      {otpMethod === 'SMS' ? 'SMS sent to' : 'Voice call to'}
+                    </p>
+                    <p className="text-sm font-black text-emerald-700 font-mono tracking-wider mt-0.5">
+                      +91 {clinicPhoneInput.slice(0,5)} {clinicPhoneInput.slice(5)}
+                    </p>
+                    <p className="text-[10px] text-emerald-600 mt-1">Clinic: <strong>{clinicDisplayName}</strong></p>
+                  </div>
 
-                  try {
-                    // Standard system-wide sandbox fallback seeding
-                    const cleanNum = wabaNumber.replace(/\D/g, '');
-                    const defaultToken = "EAAGt0" + cleanNum.padEnd(40, '0');
-                    const defaultPhoneId = "10000" + cleanNum.substring(0, 10);
-                    const defaultWabaId = "20000" + cleanNum.substring(0, 10);
+                  {/* 6-digit OTP Input */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Enter 6-Digit Verification Code</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="• • • • • •"
+                      value={otpCode}
+                      onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setOnboardError(''); }}
+                      className="w-full px-4 py-4 border-2 border-slate-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 rounded-2xl text-xl text-center outline-none bg-white tracking-[1rem] font-black font-mono"
+                      autoFocus
+                    />
+                  </div>
 
-                    const { data: encryptedBytes, error: cryptErr } = await supabase.rpc('encrypt_waba_token', {
-                      token: defaultToken,
-                      secret_key: 'mediflow_vault_key_2026'
-                    });
+                  {/* Verify Button */}
+                  <button
+                    type="button"
+                    disabled={isOnboarding || otpCode.length !== 6}
+                    onClick={async () => {
+                      setIsOnboarding(true);
+                      setOnboardError('');
+                      try {
+                        const { supabase: sb } = await import('../../../lib/supabaseClient');
+                        const { data: { session } } = await sb.auth.getSession();
+                        const res = await fetch(
+                          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
+                          {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                            },
+                            body: JSON.stringify({
+                              action: 'verify_otp',
+                              phoneNumberId: onboardPhoneNumberId,
+                              otpCode: otpCode.trim(),
+                              clinicPhone: `+91${clinicPhoneInput}`,
+                              clinicName: clinicDisplayName.trim(),
+                              podId: activePod?.id,
+                              entityId: activePod?.entity_id
+                            })
+                          }
+                        );
+                        const result = await res.json();
+                        if (!res.ok || result.error) {
+                          setOnboardError(result.error ?? 'OTP verification failed. Please try again.');
+                        } else {
+                          setActiveWabaConnection(result.connection);
+                          setOnboardStep(3);
+                        }
+                      } catch (err: any) {
+                        setOnboardError('Network error. Please check your connection and try again.');
+                      } finally {
+                        setIsOnboarding(false);
+                      }
+                    }}
+                    className="w-full py-3 bg-primary hover:bg-primary-505 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer text-white-force bg-primary-force"
+                  >
+                    {isOnboarding ? (
+                      <><span className="material-symbols-outlined text-sm animate-spin text-white-force">sync</span> Verifying...</>
+                    ) : (
+                      <><span className="material-symbols-outlined text-sm text-white-force">verified</span> Verify &amp; Activate Clinic</>
+                    )}
+                  </button>
 
-                    if (cryptErr || !encryptedBytes) {
-                      throw new Error(cryptErr?.message ?? 'Cryptographic key exchange failure.');
-                    }
+                  {/* Resend OTP */}
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setOnboardStep(1); setOtpCode(''); setOnboardError(''); }}
+                      className="text-[11px] text-slate-400 hover:text-primary transition-colors underline-offset-2 hover:underline"
+                    >
+                      ← Change number or resend OTP
+                    </button>
+                  </div>
+                </div>
+              )}
 
-                    const { data, error } = await supabase
-                      .from('waba_connections')
-                      .insert({
-                        pod_id: activePod.id,
-                        entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // bihar clinic
-                        phone_number_id: defaultPhoneId,
-                        waba_id: defaultWabaId,
-                        phone_number: wabaNumber.trim(),
-                        encrypted_system_user_token: encryptedBytes,
-                        waba_status: 'active',
-                        verified_at: new Date().toISOString()
-                      })
-                      .select()
-                      .single();
+              {/* ═══════════════════════════════════════════════════════════ */}
+              {/* STEP 3 — Success                                           */}
+              {/* ═══════════════════════════════════════════════════════════ */}
+              {onboardStep === 3 && (
+                <div className="space-y-4 animate-fade-in text-center">
+                  <div className="py-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-emerald-300 flex items-center justify-center mx-auto mb-3">
+                      <span className="material-symbols-outlined text-emerald-500 text-3xl">check_circle</span>
+                    </div>
+                    <h4 className="text-base font-extrabold text-slate-800 mb-1">Clinic WhatsApp is LIVE! 🎉</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Patients will now see <strong className="text-slate-700">{clinicDisplayName}</strong> when
+                      they receive messages from <span className="font-mono text-slate-600">+91{clinicPhoneInput}</span>.
+                    </p>
+                  </div>
 
-                    if (error) {
-                      alert("Database WABA registration failed: " + error.message);
-                    } else {
-                      setActiveWabaConnection(data);
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-left">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">Clinic Name</span>
+                      <span className="font-bold text-slate-700">{clinicDisplayName}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">WhatsApp Number</span>
+                      <span className="font-mono font-bold text-slate-700">+91{clinicPhoneInput}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">Status</span>
+                      <span className="font-bold text-emerald-600">✅ Active</span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">Billing</span>
+                      <span className="font-bold text-slate-600">Managed by Mediflow</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
                       setWabaFormOpen(false);
-                      
-                      localStorage.setItem(`waba_bot_name_${activePod.id}`, customBotName.trim() || activePod.name);
-                      setCustomBotName('');
-                      setWabaPhoneId('');
-                      setWabaIdVal('');
-                      setWabaNumber('');
-                      setWabaTokenVal('');
-                      setOtpRequested(false);
+                      setOnboardStep(1);
+                      setClinicDisplayName('');
+                      setClinicPhoneInput('');
                       setOtpCode('');
-
+                      setOnboardPhoneNumberId('');
+                      setOnboardError('');
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                         detail: {
                           title: 'Chatbot Engine Connected! 🟢',
-                          message: `WABA connected successfully via dynamic OTP. Clinic portal active!`,
+                          message: `${clinicDisplayName} WhatsApp chatbot is now live for patients!`,
                           type: 'success'
                         }
                       }));
-                    }
-                  } catch (err: any) {
-                    alert("WABA OTP verification failed: " + (err.message || err));
-                  }
-                }}
-                className="space-y-4 text-xs font-sans"
-              >
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Chatbot Custom Display Name (Optional)</label>
-                  <input
-                    type="text"
-                    disabled={otpRequested}
-                    placeholder={activePod ? `e.g. ${activePod.name} Assistant (defaults to Clinic Name)` : "e.g. Mediflow Bot"}
-                    value={customBotName}
-                    onChange={(e) => setCustomBotName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 disabled:bg-slate-100 disabled:text-slate-600"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Clinic Verified Phone Number</label>
-                  <input
-                    type="text"
-                    required
-                    disabled={otpRequested}
-                    placeholder="e.g. +919876543210"
-                    value={wabaNumber}
-                    onChange={(e) => setWabaNumber(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 disabled:bg-slate-100 disabled:text-slate-600"
-                  />
-                </div>
-
-                {otpRequested && (
-                  <div className="space-y-1 animate-fade-in">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">6-Digit Verification Code (OTP)</label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      placeholder="Enter verification code..."
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs text-center outline-none bg-slate-50/50 tracking-[6px] font-black font-mono"
-                    />
-                  </div>
-                )}
-
-                <div className="p-3.5 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 text-xs text-blue-700">
-                  <span className="material-symbols-outlined text-blue-500 flex-shrink-0 mt-0.5">info</span>
-                  <div className="text-[10px] leading-relaxed">
-                    {otpRequested 
-                      ? "SMS Verification code has been dispatched. Enter the simulated 6-digit OTP to permanently bind your clinic's chatbot channel."
-                      : "We will trigger a simulated SMS Verification OTP to register this number into Mediflow's multi-tenant secure chatbot cloud."}
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setWabaFormOpen(false);
-                      setOtpRequested(false);
-                      setOtpCode('');
                     }}
-                    className="flex-1 btn-secondary py-2.5 rounded-xl text-center text-xs"
+                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all cursor-pointer"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 btn-primary py-2.5 rounded-xl text-center text-xs text-white-force bg-primary hover:bg-primary-505 font-bold flex justify-center items-center gap-1.5"
-                  >
-                    {isGeneratingOtp && (
-                      <span className="material-symbols-outlined text-xs animate-spin text-white-force">sync</span>
-                    )}
-                    {otpRequested ? "Verify & Activate" : "Request OTP Code"}
+                    Done — Open WhatsApp Inbox
                   </button>
                 </div>
-              </form>
-            ) : (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!wabaPhoneId || !wabaIdVal || !wabaNumber || !wabaTokenVal) {
-                    alert("Please fill in all connection credentials.");
-                    return;
-                  }
+              )}
 
-                  if (!activePod?.id) {
-                    alert("No active clinic pod session found.");
-                    return;
-                  }
-
-                  try {
-                    const { data: encryptedBytes, error: cryptErr } = await supabase.rpc('encrypt_waba_token', {
-                      token: wabaTokenVal.trim(),
-                      secret_key: 'mediflow_vault_key_2026'
-                    });
-
-                    if (cryptErr || !encryptedBytes) {
-                      throw new Error(cryptErr?.message ?? 'Cryptographic key exchange failure.');
-                    }
-
-                    const { data, error } = await supabase
-                      .from('waba_connections')
-                      .insert({
-                        pod_id: activePod.id,
-                        entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', 
-                        phone_number_id: wabaPhoneId.trim(),
-                        waba_id: wabaIdVal.trim(),
-                        phone_number: wabaNumber.trim(),
-                        encrypted_system_user_token: encryptedBytes,
-                        waba_status: 'active',
-                        verified_at: new Date().toISOString()
-                      })
-                      .select()
-                      .single();
-
-                    if (error) {
-                      alert("Database registration failed: " + error.message);
-                    } else {
-                      setActiveWabaConnection(data);
-                      setWabaFormOpen(false);
-                      
-                      setWabaPhoneId('');
-                      setWabaIdVal('');
-                      setWabaNumber('');
-                      setWabaTokenVal('');
-
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'WABA Channel Connected! 🟢',
-                          message: `Meta Cloud API registered for active pod. Chatbot automations live!`,
-                          type: 'success'
-                        }
-                      }));
-                    }
-                  } catch (err: any) {
-                    alert("WABA Encrypted onboarding failed: " + (err.message || err));
-                  }
-                }}
-                className="space-y-4 text-xs font-sans"
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">WhatsApp Phone Number ID</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 104845525547633"
-                      value={wabaPhoneId}
-                      onChange={(e) => setWabaPhoneId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">WABA Account ID</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 210874558296310"
-                      value={wabaIdVal}
-                      onChange={(e) => setWabaIdVal(e.target.value)}
-                      className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Verified Phone Number</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. +919876543210"
-                    value={wabaNumber}
-                    onChange={(e) => setWabaNumber(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Access Token</label>
-                  <textarea
-                    required
-                    rows={3}
-                    placeholder="Paste Meta business token (will be stored using secure column-level database encryption)..."
-                    value={wabaTokenVal}
-                    onChange={(e) => setWabaTokenVal(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 font-mono"
-                  />
-                </div>
-
-                <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex gap-3 text-xs text-amber-700">
-                  <span className="material-symbols-outlined text-amber-500 flex-shrink-0 mt-0.5">warning</span>
-                  <div className="text-[10px] leading-relaxed">
-                    Connecting your phone number to Meta's Cloud API requires that you **deactivate** the number from the standard mobile WhatsApp app. Ensure you verify this before clicking Save.
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setWabaFormOpen(false);
-                      setOtpRequested(false);
-                      setOtpCode('');
-                    }}
-                    className="flex-1 btn-secondary py-2.5 rounded-xl text-center text-xs"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 btn-primary py-2.5 rounded-xl text-center text-xs text-white-force bg-primary hover:bg-primary-505 font-bold"
-                  >
-                    Save Connection
-                  </button>
-                </div>
-              </form>
-            )}
+            </div>
           </div>
         </div>
       )}
@@ -968,3 +985,4 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
     </div>
   );
 });
+
