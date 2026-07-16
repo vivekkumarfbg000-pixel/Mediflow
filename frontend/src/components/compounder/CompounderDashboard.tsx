@@ -5243,7 +5243,46 @@ export const CompounderDashboard: React.FC = () => {
                                   <td className="p-2.5 font-mono text-slate-500 dark:text-slate-400">{req.barcode}</td>
                                   <td className="p-2.5">
                                     <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
-                                 <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/60 space-y-3 max-h-[350px] overflow-y-auto">
+                                      req.status === 'completed'
+                                        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                        : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                                    }`}>
+                                      {req.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* SUMMARY TYPE */}
+              {activeWorkflowDetail.type === 'summary' && (() => {
+                const patientObj = patients.find(p => p.id === activeWorkflowDetail.patientId);
+                const sessionList = api.getWhatsAppSessions();
+                const session = sessionList.find(s => s.patientPhone === (patientObj?.phone || ''));
+
+                if (!session || !session.sessionData?.chatHistory || session.sessionData.chatHistory.length === 0) {
+                  return (
+                    <div className="text-center py-8 px-4 border border-dashed border-slate-350 dark:border-slate-800 rounded-2xl">
+                      <p className="text-slate-500 dark:text-slate-400 italic text-[11px]">
+                        No active WhatsApp conversation history or summary logs found for this patient phone number.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-350 uppercase tracking-wider text-[9px] font-mono">
+                      WhatsApp Dialogue History
+                    </h4>
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/60 space-y-3 max-h-[350px] overflow-y-auto">
                       {session.sessionData.chatHistory.map((msg: any, idx: number) => {
                         const isBot = msg.sender === 'bot' || msg.sender === 'system';
                         return (
