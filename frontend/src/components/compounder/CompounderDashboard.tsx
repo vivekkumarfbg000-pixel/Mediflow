@@ -5243,46 +5243,7 @@ export const CompounderDashboard: React.FC = () => {
                                   <td className="p-2.5 font-mono text-slate-500 dark:text-slate-400">{req.barcode}</td>
                                   <td className="p-2.5">
                                     <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
-                                      req.status === 'completed'
-                                        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                                        : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-                                    }`}>
-                                      {req.status}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* SUMMARY TYPE */}
-              {activeWorkflowDetail.type === 'summary' && (() => {
-                const patientObj = patients.find(p => p.id === activeWorkflowDetail.patientId);
-                const sessionList = api.getWhatsAppSessions();
-                const session = sessionList.find(s => s.patientPhone === (patientObj?.phone || ''));
-
-                if (!session || !session.sessionData?.chatHistory || session.sessionData.chatHistory.length === 0) {
-                  return (
-                    <div className="text-center py-8 px-4 border border-dashed border-slate-350 dark:border-slate-800 rounded-2xl">
-                      <p className="text-slate-500 dark:text-slate-400 italic text-[11px]">
-                        No active WhatsApp conversation history or summary logs found for this patient phone number.
-                      </p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="space-y-4">
-                    <h4 className="font-bold text-slate-700 dark:text-slate-350 uppercase tracking-wider text-[9px] font-mono">
-                      WhatsApp Dialogue History
-                    </h4>
-                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/60 space-y-3 max-h-[350px] overflow-y-auto">
+                                 <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/60 space-y-3 max-h-[350px] overflow-y-auto">
                       {session.sessionData.chatHistory.map((msg: any, idx: number) => {
                         const isBot = msg.sender === 'bot' || msg.sender === 'system';
                         return (
@@ -5319,7 +5280,7 @@ export const CompounderDashboard: React.FC = () => {
       )}
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Compounder Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 dark:bg-[#0b0f19]/95 backdrop-blur-lg border-t border-slate-200/80 dark:border-slate-800/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.5)] px-2 pb-safe-bottom">
         <div className="flex items-center justify-around h-16">
           {[
             { id: 'intake', label: 'Intake', icon: UserCheck },
@@ -5343,14 +5304,14 @@ export const CompounderDashboard: React.FC = () => {
                 }}
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
-                    ? 'text-indigo-600 font-bold' 
-                    : 'text-slate-600 hover:text-slate-600'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold' 
+                    : 'text-slate-650 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 <div className={`p-1.5 rounded-lg transition-all duration-200 ${
                   isActive 
-                    ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                    : 'bg-transparent text-slate-600'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 scale-105 shadow-sm' 
+                    : 'bg-transparent text-slate-500 dark:text-slate-400'
                 }`}>
                   <Icon className="h-5 w-5" />
                 </div>
@@ -5358,7 +5319,7 @@ export const CompounderDashboard: React.FC = () => {
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
                 )}
               </button>
             );
