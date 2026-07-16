@@ -389,7 +389,7 @@ export const BillHubTab: React.FC = () => {
 
     testsList.forEach(t => {
       if (selectedTests[t.loincCode]) {
-        labSub += t.price;
+        labSub += t.price || 0;
       }
     });
 
@@ -434,7 +434,7 @@ export const BillHubTab: React.FC = () => {
       const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
       const initialTests: Record<string, boolean> = {};
 
-      Object.entries(result.structured).forEach(([k, v]) => {
+      Object.entries(result.structured_data).forEach(([k, v]) => {
         const itemLower = k.toLowerCase();
         const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || i.genericName.toLowerCase().includes(itemLower));
         const matchedTest = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase().includes(itemLower));
@@ -507,9 +507,9 @@ export const BillHubTab: React.FC = () => {
         .map(t => {
           return `<tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${t.name}<br/><span style="font-size:10px;color:#94a3b8">LOINC: ${t.loincCode}</span></td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${t.price.toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${(t.price || 0).toFixed(2)}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">1</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${t.price.toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${(t.price || 0).toFixed(2)}</td>
           </tr>`;
         }).join('');
 
@@ -557,9 +557,9 @@ export const BillHubTab: React.FC = () => {
         .forEach(t => {
           rows += `<tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">[Lab] ${t.name}<br/><span style="font-size:10px;color:#94a3b8">LOINC: ${t.loincCode}</span></td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${t.price.toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${(t.price || 0).toFixed(2)}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">1</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${t.price.toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${(t.price || 0).toFixed(2)}</td>
           </tr>`;
         });
 

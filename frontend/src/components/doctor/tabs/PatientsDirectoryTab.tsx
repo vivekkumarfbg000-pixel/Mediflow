@@ -37,6 +37,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   patientRAGSummary,
   setPatientRAGSummary
 }) => {
+  const [refreshKey, setRefreshKey] = React.useState(0);
   const filteredPatients = React.useMemo(() => {
     const query = patientSearchQuery.trim().toLowerCase();
     let list = patients;
@@ -90,7 +91,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   const [importProgress, setImportProgress] = React.useState(0);
   const [virtualDateInput, setVirtualDateInput] = React.useState('');
   const [virtualTimeInput, setVirtualTimeInput] = React.useState('');
-  const [refreshKey, setRefreshKey] = React.useState(0);
+
 
   const handleParseBulkInput = () => {
     if (!bulkInput.trim()) return;
