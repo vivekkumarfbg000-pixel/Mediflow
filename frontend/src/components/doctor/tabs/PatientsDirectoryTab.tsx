@@ -82,7 +82,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
       }
       return 0;
     });
-  }, [patients, patientSearchQuery]);
+  }, [patients, patientSearchQuery, refreshKey]);
 
   const [bulkInput, setBulkInput] = React.useState('');
   const [parsedList, setParsedList] = React.useState<any[]>([]);
@@ -90,6 +90,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   const [importProgress, setImportProgress] = React.useState(0);
   const [virtualDateInput, setVirtualDateInput] = React.useState('');
   const [virtualTimeInput, setVirtualTimeInput] = React.useState('');
+  const [refreshKey, setRefreshKey] = React.useState(0);
 
   const handleParseBulkInput = () => {
     if (!bulkInput.trim()) return;
@@ -311,7 +312,57 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
               const patientAppts = appts.filter(a => a.patientId === selectedDirectoryPatient.id);
               const virtualAppt = patientAppts.find(a => a.isVirtual && a.status !== 'completed' && a.status !== 'cancelled');
               
-              if (!virtualAppt) return null;
+              if (!virtualAppt) {
+                return (
+                  <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-3.5 animate-fade-in relative overflow-hidden text-left">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                        <span className="material-symbols-outlined text-lg">video_call</span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Telemedicine Status</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">No active virtual session scheduled for this patient.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1">
+                      <div className="text-[10px] text-slate-500 flex-1 leading-relaxed">
+                        Schedule a free virtual consultation loop. Downstream revenue is automatically captured when the patient fulfills prescribed meds at the Pharmacy or runs laboratory diagnostics.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newAppt: any = {
+                            id: `apt-${Date.now()}`,
+                            patientId: selectedDirectoryPatient.id,
+                            doctorId: 'doc-vivek',
+                            isVirtual: true,
+                            virtualDate: new Date().toISOString().split('T')[0],
+                            virtualTime: '10:30 AM',
+                            virtualTimeAllocated: false,
+                            status: 'pending',
+                            appointmentBookedAtCounter: false,
+                            discountEligible: false
+                          };
+                          api.saveAppointment(newAppt);
+                          setRefreshKey(prev => prev + 1);
+                          
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Telemedicine Scheduled! 📅',
+                              message: `A free virtual follow-up appointment has been scheduled for ${selectedDirectoryPatient.name}.`,
+                              type: 'success'
+                            }
+                          }));
+                        }}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer border-0 active:scale-95 text-white-force bg-indigo-600-force shrink-0"
+                      >
+                        Schedule Free Session
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
 
               const JITSI_ROOM_URL = virtualAppt.virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${virtualAppt.id}`;
 

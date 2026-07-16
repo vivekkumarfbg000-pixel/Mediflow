@@ -26,7 +26,7 @@ import type {
   Appointment,
   EveningSlot
 } from '../../types';
-import InvoiceGenerator from './InvoiceGenerator';
+import { BillHubTab } from './tabs/BillHubTab';
 import { InvoiceCard } from '../InvoiceCard';
 import { PatientsDirectoryTab } from '../doctor/tabs/PatientsDirectoryTab';
 import { 
@@ -1535,13 +1535,7 @@ export const CompounderDashboard: React.FC = () => {
       {/* TAB CONTENT SPACES */}
       <div className="space-y-6">
         {activeTab === 'invoice_generator' && (
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl animate-fade-in relative text-left">
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] font-mono">Invoice Generator Workspace</p>
-              <p className="text-xs text-slate-500">Generate, customize, and print invoices for pharmacy and diagnostic care loops.</p>
-            </div>
-            <InvoiceGenerator />
-          </div>
+          <BillHubTab />
         )}
         
         {/* PATIENTS DIRECTORY & BULK ONBOARDER TAB */}
