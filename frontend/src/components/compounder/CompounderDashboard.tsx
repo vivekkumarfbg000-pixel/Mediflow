@@ -1447,7 +1447,7 @@ export const CompounderDashboard: React.FC = () => {
               {/* Contextual Action Button */}
               {(() => {
                 let btnText = "";
-                let targetTab: 'intake' | 'tokens' | 'labs' | 'pharmacy' = "intake";
+                let targetTab: 'patients' | 'tokens' | 'labs' | 'pharmacy' = "patients";
                 let btnColor = "bg-indigo-600 hover:bg-indigo-500 text-slate-800";
                 
                 if (!activePatient.vitals) {
@@ -1472,7 +1472,7 @@ export const CompounderDashboard: React.FC = () => {
                   btnColor = "bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/15";
                 } else if (activePatientStage === 'settled') {
                   btnText = "Care Loop Complete";
-                  targetTab = "intake";
+                  targetTab = "patients";
                   btnColor = "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20";
                 }
  
