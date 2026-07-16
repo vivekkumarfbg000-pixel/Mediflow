@@ -82,7 +82,9 @@ const getBilingualInstruction = (medicineName: string, dosage?: string) => {
 export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { podEntities } = useClinic();
-  const [activeTab, setActiveTab] = useState<'intake' | 'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('intake');
+  const [activeTab, setActiveTab] = useState<'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('tokens');
+  const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
+  const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
   // Patient Directory Tab Local States
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
@@ -675,6 +677,7 @@ export const CompounderDashboard: React.FC = () => {
     api.setActivePatient(patient);
     const session = api.initiateWhatsAppSession(patient.phone);
     setActiveSession(session);
+    setIsChatDrawerOpen(true);
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -1284,8 +1287,7 @@ export const CompounderDashboard: React.FC = () => {
         {/* Integrated Tab Switcher — scrollable glass pill capsules for all screen sizes */}
         <div className="hidden md:flex overflow-x-auto gap-2 no-scrollbar select-none -mb-px p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-xl border border-slate-200/50 dark:border-white/5 backdrop-blur-md">
           {[
-            { id: 'intake', label: 'Intake (इन्टेक)', icon: <UserCheck className="h-4 w-4" /> },
-            { id: 'patients', label: 'Patients (पेशेंट)', icon: <Users className="h-4 w-4 text-indigo-600" /> },
+            { id: 'patients', label: 'Patients (मरीज)', icon: <Users className="h-4 w-4 text-indigo-600" /> },
             { id: 'tokens', label: 'Appointments (अपॉइंटमेंट)', icon: <span className="material-symbols-outlined text-[15px] font-bold text-rose-500">calendar_month</span> },
             { id: 'labs', label: isOphthalmology ? 'Biometry (बायोमेट्री)' : nomenclature.careLoopLabStep, icon: <FileText className="h-4 w-4 text-indigo-500" /> },
             { id: 'pharmacy', label: isOphthalmology ? 'Optical/Rx (चश्मा)' : nomenclature.careLoopPharmacyStep, icon: <QrCode className="h-4 w-4 text-amber-500" /> },
@@ -1365,7 +1367,7 @@ export const CompounderDashboard: React.FC = () => {
             <div className="flex-1 max-w-xl">
               <div className="flex items-center justify-between gap-1 select-none overflow-x-auto py-1 scrollbar-none">
                 {[
-                  { id: 'registered', label: '1. Registry', tab: 'intake' },
+                  { id: 'registered', label: '1. Registry', tab: 'patients' },
                   { id: 'vitals', label: `2. ${isOphthalmology ? 'Eye Exam' : 'Vitals Logged'}`, tab: 'tokens' },
                   { id: 'diagnosing', label: '3. CDSS Consult', tab: 'tokens' },
                   { id: 'lab', label: `4. ${isOphthalmology ? 'Scan / Lab' : 'Lab'}`, tab: 'labs' },
@@ -1397,6 +1399,9 @@ export const CompounderDashboard: React.FC = () => {
                       <button
                         onClick={() => {
                           setActiveTab(step.tab as any);
+                          if (step.tab === 'patients') {
+                            setPatientsSubTab('register');
+                          }
                           if (step.tab === 'tokens') {
                             setVitalsPatient(activePatient);
                             setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
@@ -1538,32 +1543,53 @@ export const CompounderDashboard: React.FC = () => {
           <BillHubTab />
         )}
         
-        {/* PATIENTS DIRECTORY & BULK ONBOARDER TAB */}
+        {/* PATIENTS DIRECTORY, ONBOARDER & INTAKE TAB */}
         {activeTab === 'patients' && (
-          <div className="animate-fade-in">
-            <PatientsDirectoryTab
-              patients={patients}
-              patientSearchQuery={patientSearchQuery}
-              setPatientSearchQuery={setPatientSearchQuery}
-              selectedDirectoryPatient={selectedDirectoryPatient}
-              setSelectedDirectoryPatient={setSelectedDirectoryPatient}
-              newPatientName={newPatientName}
-              setNewPatientName={setNewPatientName}
-              newPatientPhone={newPatientPhone}
-              setNewPatientPhone={setNewPatientPhone}
-              newPatientAge={newPatientAge}
-              setNewPatientAge={setNewPatientAge}
-              newPatientGender={newPatientGender}
-              setNewPatientGender={setNewPatientGender}
-              patientRAGSummary={patientRAGSummary}
-              setPatientRAGSummary={setPatientRAGSummary}
-            />
-          </div>
-        )}
+          <div className="space-y-6 animate-fade-in text-left">
+            {/* Sub Switcher */}
+            <div className="flex border-b border-slate-200 dark:border-slate-800 pb-2 gap-4">
+              <button
+                onClick={() => setPatientsSubTab('directory')}
+                className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
+                  patientsSubTab === 'directory'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                }`}
+              >
+                EHR Registry Directory
+              </button>
+              <button
+                onClick={() => setPatientsSubTab('register')}
+                className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
+                  patientsSubTab === 'register'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                }`}
+              >
+                Register New Profile
+              </button>
+            </div>
 
-        {/* TAB 1: INTAKE DESK */}
-        {activeTab === 'intake' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {patientsSubTab === 'directory' ? (
+              <PatientsDirectoryTab
+                patients={patients}
+                patientSearchQuery={patientSearchQuery}
+                setPatientSearchQuery={setPatientSearchQuery}
+                selectedDirectoryPatient={selectedDirectoryPatient}
+                setSelectedDirectoryPatient={setSelectedDirectoryPatient}
+                newPatientName={newPatientName}
+                setNewPatientName={setNewPatientName}
+                newPatientPhone={newPatientPhone}
+                setNewPatientPhone={setNewPatientPhone}
+                newPatientAge={newPatientAge}
+                setNewPatientAge={setNewPatientAge}
+                newPatientGender={newPatientGender}
+                setNewPatientGender={setNewPatientGender}
+                patientRAGSummary={patientRAGSummary}
+                setPatientRAGSummary={setPatientRAGSummary}
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
             <div className="lg:col-span-8 space-y-6">
               
               {/* Search Registry */}
@@ -1713,7 +1739,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. Rahul Kumar"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1724,7 +1750,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. 9876543210"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
                       />
                     </div>
                   </div>
@@ -1738,7 +1764,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. 35"
                         value={age}
                         onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1746,7 +1772,7 @@ export const CompounderDashboard: React.FC = () => {
                       <select
                         value={gender}
                         onChange={(e) => setGender(e.target.value as any)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer"
                       >
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -1760,7 +1786,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="e.g. 14-digit index"
                         value={abhaId}
                         onChange={(e) => setAbhaId(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
                       />
                     </div>
                   </div>
@@ -1773,7 +1799,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="Height"
                         value={heightInput}
                         onChange={(e) => setHeightInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1783,7 +1809,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="Weight"
                         value={weightInput}
                         onChange={(e) => setWeightInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1791,7 +1817,7 @@ export const CompounderDashboard: React.FC = () => {
                       <select
                         value={bloodGroupInput}
                         onChange={(e) => setBloodGroupInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer"
                       >
                         <option value="">Select</option>
                         <option value="A+">A+</option>
@@ -1811,7 +1837,7 @@ export const CompounderDashboard: React.FC = () => {
                         placeholder="WhatsApp (if diff)"
                         value={whatsAppInput}
                         onChange={(e) => setWhatsAppInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
+                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
                       />
                     </div>
                   </div>
@@ -2008,6 +2034,8 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+            )}
+          </div>
         )}
 
         {/* TAB 2: APPOINTMENTS & TOKENS */}
@@ -2018,7 +2046,7 @@ export const CompounderDashboard: React.FC = () => {
               
               {/* Appointment Booking & Search Form */}
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-650 opacity-60" />
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-indigo-500 text-[18px]">calendar_today</span>
                   Book Consultation Appointment (अपॉइंटमेंट बुकिंग)
@@ -2174,7 +2202,7 @@ export const CompounderDashboard: React.FC = () => {
                     <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
                     Today's Appointments Queue (दैनिक नियुक्तियां)
                   </h2>
-                  <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 bg-indigo-500/10 text-indigo-650 border border-indigo-550/20 rounded-full animate-pulse">
+                  <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 bg-indigo-500/10 text-indigo-600 border border-indigo-550/20 rounded-full animate-pulse">
                     Live Status
                   </span>
                 </div>
@@ -2307,11 +2335,11 @@ export const CompounderDashboard: React.FC = () => {
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => setActiveWorkflowDetail({ type: 'summary', patientId: patient.id, patientName: patient.name })}
-                                      className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-450 hover:bg-emerald-500/25 border border-emerald-500/25 rounded text-[8.5px] font-bold cursor-pointer transition-colors"
+                                      onClick={() => handleInitiateWhatsAppLoop(patient)}
+                                      className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 rounded text-[8.5px] font-bold cursor-pointer transition-colors"
                                     >
                                       <Smartphone className="h-2.5 w-2.5" />
-                                      WhatsApp Summary
+                                      WhatsApp Chat
                                     </button>
                                   </div>
                                 </div>
@@ -2560,7 +2588,7 @@ export const CompounderDashboard: React.FC = () => {
 
                     <button
                       type="submit"
-                      className="w-full py-2.5 bg-gradient-to-r from-indigo-650 to-indigo-750 hover:scale-[1.02] active:scale-[0.98] text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform"
+                      className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform"
                     >
                       Save &amp; Dispatch to Doctor 🩺
                     </button>
@@ -2575,1025 +2603,143 @@ export const CompounderDashboard: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* TAB 3: GATE 2 LAB BILLING & OCR */}
+                      {/* TAB 3: PATHOLOGY LOG & TIMELINES */}
         {activeTab === 'labs' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-7 space-y-6">
-              {/* Prescription Dispatch Panel */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
+            {/* Left Column: Scheduled Pathology Tests Queue */}
+            <div className="lg:col-span-7 space-y-6 text-left">
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                
                 <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-600 text-base">upload_file</span>
-                  📄 Prescription Dispatch Panel (Upload &amp; Scan)
+                  <span className="material-symbols-outlined text-indigo-600 text-base">biotech</span>
+                  🔬 Pathology Lab Requisition Queue
                 </h2>
                 <p className="text-xs text-slate-500 mb-4">
-                  Upload or scan a doctor's prescription. Clinical AI OCR will automatically extract patient credentials, match or register them, and send a requisition to the lab queue.
+                  Clinical operational queue showing all laboratory orders, sample collection tracking, and processing status.
                 </p>
 
-                {/* Handwritten Rx Workflow Alert */}
-                <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-2 mb-4">
-                  <span className="material-symbols-outlined text-indigo-600 text-sm mt-0.5">info</span>
-                  <div className="text-[10px] text-indigo-900 leading-relaxed text-left">
-                    <span className="font-bold">Handwritten Rx Workflow:</span> Capture/upload the doctor's paper prescription here. The AI will extract the parameters and populate the lab/medicine queues automatically.
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* File Upload Area */}
-                  <div className="flex gap-4 items-start">
-                    <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
-                      <Upload className="h-5 w-5 text-indigo-600" />
-                      <span>{dispatchFile ? 'Change Prescription File' : 'Upload / Drag Rx Image/PDF'}</span>
-                      <input 
-                        type="file" 
-                        accept="image/*,application/pdf" 
-                        className="hidden" 
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setDispatchFile(file);
-                          
-                          // Run OCR
-                          const reader = new FileReader();
-                          reader.onload = async () => {
-                            const dataUrl = reader.result as string;
-                            setDispatchPreviewUrl(dataUrl);
-                            setIsDispatchOcrParsing(true);
-                            setDispatchOcrLogs([
-                              `[${new Date().toLocaleTimeString()}] Visualizing prescription bounds...`,
-                              `[${new Date().toLocaleTimeString()}] Querying Clinical AI LLM-OCR...`
-                            ]);
-                            
-                            try {
-                              const parsed = await api.parsePrescriptionOCR(dataUrl);
-                              setDispatchOcrLogs(prev => [
-                                ...prev,
-                                `[${new Date().toLocaleTimeString()}] Extracted Name: "${parsed.patientName}"`,
-                                `[${new Date().toLocaleTimeString()}] Extracted Age: ${parsed.patientAge || 'Unknown'}, Gender: ${parsed.patientGender || 'Unknown'}`,
-                                `[${new Date().toLocaleTimeString()}] Found ${parsed.diagnosticTests?.length || 0} diagnostic test order(s)`
-                              ]);
-                              
-                              if (parsed.patientName) setDispatchPatientName(parsed.patientName);
-                              if (parsed.patientAge) setDispatchPatientAge(parsed.patientAge.toString());
-                              if (parsed.patientGender) setDispatchPatientGender(parsed.patientGender as any);
-                              
-                              // Check if matches existing patient
-                              const matched = api.getPatients().find(p => p.name.toLowerCase().trim() === parsed.patientName.toLowerCase().trim());
-                              if (matched) {
-                                setDispatchPatientPhone(matched.phone);
-                                setDispatchPatientAge(matched.age.toString());
-                                setDispatchPatientGender(matched.gender);
-                                setDispatchOcrLogs(prev => [
-                                  ...prev,
-                                  `[${new Date().toLocaleTimeString()}] MATCH FOUND: Linked to patient ${matched.name} (+91 ${matched.phone})`
-                                ]);
-                              } else {
-                                setDispatchPatientPhone('');
-                                setDispatchOcrLogs(prev => [
-                                  ...prev,
-                                  `[${new Date().toLocaleTimeString()}] NO MATCH: New profile will be automatically synced.`
-                                ]);
-                              }
-
-                              // Pre-fill test ordered
-                              if (parsed.diagnosticTests && parsed.diagnosticTests.length > 0) {
-                                const matchedTest = MASTER_TEST_CATALOG.find(t => 
-                                  t.name.toLowerCase().includes(parsed.diagnosticTests[0].name.toLowerCase()) ||
-                                  t.loincCode === parsed.diagnosticTests[0].loincCode
-                                );
-                                if (matchedTest) {
-                                  setDispatchSelectedTestCode(matchedTest.loincCode);
-                                  setDispatchOcrLogs(prev => [
-                                    ...prev,
-                                    `[${new Date().toLocaleTimeString()}] Test order matched: ${matchedTest.name}`
-                                  ]);
-                                } else {
-                                  setDispatchSelectedTestCode(MASTER_TEST_CATALOG[0].loincCode);
-                                }
-                              } else {
-                                setDispatchSelectedTestCode(MASTER_TEST_CATALOG[0].loincCode);
-                              }
-                              
-                              setDispatchOcrLogs(prev => [
-                                ...prev,
-                                `[${new Date().toLocaleTimeString()}] [SUCCESS] AI extraction complete. Ready to dispatch.`
-                              ]);
-                            } catch (err: any) {
-                              setDispatchOcrLogs(prev => [
-                                ...prev,
-                                `[ERROR] Extraction failed: ${err?.message || err}`
-                              ]);
-                            } finally {
-                              setIsDispatchOcrParsing(false);
-                            }
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                    </label>
-
-                    {dispatchPreviewUrl && (
-                      <div className="w-20 h-20 rounded-xl border border-slate-200 overflow-hidden relative group shrink-0 shadow-sm">
-                        <img src={dispatchPreviewUrl} alt="Prescription Thumbnail" className="w-full h-full object-cover" />
-                        <button 
-                          type="button"
-                          onClick={() => setViewingDocUrl(dispatchPreviewUrl)}
-                          className="absolute inset-0 bg-slate-800/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
-                        >
-                          View Rx
-                        </button>
+                {(() => {
+                  const reqs = LabService.getLabRequisitions();
+                  if (reqs.length === 0) {
+                    return (
+                      <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium select-none">
+                        No active pathology orders or lab tests in queue today.
                       </div>
-                    )}
-                  </div>
+                    );
+                  }
+                  return (
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono">Patient Name</th>
+                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono">Test Order</th>
+                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono text-center">Status</th>
+                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono text-right">Barcode</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reqs.map((req) => {
+                            let statusClass = "bg-slate-100 text-slate-700 border-slate-200";
+                            if (req.status === 'pending') statusClass = "bg-amber-100 text-amber-850 border-amber-200 animate-pulse";
+                            else if (req.status === 'collected') statusClass = "bg-blue-100 text-blue-800 border-blue-200";
+                            else if (req.status === 'processed') statusClass = "bg-indigo-100 text-indigo-850 border-indigo-200";
+                            else if (req.status === 'completed') statusClass = "bg-emerald-105 text-emerald-850 border-emerald-200";
 
-                  {/* OCR Logging Panel */}
-                  {dispatchOcrLogs.length > 0 && (
-                    <div className="bg-white border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-indigo-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
-                      {dispatchOcrLogs.map((log, index) => (
-                        <div key={index} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('[SUCCESS]') ? 'text-emerald-400 font-bold' : ''}>
-                          {log}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Form fields */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient Name</label>
-                      <input 
-                        type="text" 
-                        placeholder="Enter patient name"
-                        value={dispatchPatientName}
-                        onChange={(e) => setDispatchPatientName(e.target.value)}
-                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Phone (+91)</label>
-                      <input 
-                        type="text" 
-                        maxLength={10}
-                        placeholder="10-digit number"
-                        value={dispatchPatientPhone}
-                        onChange={(e) => setDispatchPatientPhone(e.target.value.replace(/\D/g, ''))}
-                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Age</label>
-                      <input 
-                        type="number" 
-                        placeholder="Age"
-                        value={dispatchPatientAge}
-                        onChange={(e) => setDispatchPatientAge(e.target.value)}
-                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Gender</label>
-                      <select 
-                        value={dispatchPatientGender}
-                        onChange={(e) => setDispatchPatientGender(e.target.value as any)}
-                        className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white transition-colors"
-                      >
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Lab Test Ordered</label>
-                    <select 
-                      value={dispatchSelectedTestCode}
-                      onChange={(e) => setDispatchSelectedTestCode(e.target.value)}
-                      className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white transition-colors"
-                      required
-                    >
-                      <option value="" disabled>-- Select Lab Test --</option>
-                      {MASTER_TEST_CATALOG.map(t => (
-                        <option key={t.loincCode} value={t.loincCode}>{t.name} (₹{t.price})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Dynamic Price & Discount Selection */}
-                  {dispatchSelectedTestCode && (() => {
-                    const test = MASTER_TEST_CATALOG.find(t => t.loincCode === dispatchSelectedTestCode);
-                    if (test) {
-                      const testPrice = test.price || 350;
-                      const finalPrice = testPrice * (1 - labDiscountPercent / 100);
-
-                      return (
-                        <div className="space-y-4 pt-2">
-                          {/* Discount Selectors: 0, 5, 10, 15 */}
-                          <div className="space-y-1.5 select-none">
-                            <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono block">Apply Pathology Discount</label>
-                            <div className="flex gap-1.5">
-                              {[0, 5, 10, 15].map(disc => (
-                                <button
-                                  key={disc}
-                                  type="button"
-                                  onClick={() => setLabDiscountPercent(disc)}
-                                  className={`flex-1 py-2 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                                    labDiscountPercent === disc
-                                      ? 'bg-indigo-600 text-slate-800 border-indigo-700 shadow-md shadow-indigo-600/10'
-                                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  {disc === 0 ? 'No Disc' : `${disc}% OFF`}
-                                </button>
-                              ))}
-                              <div className="w-16">
-                                <input
-                                  type="number"
-                                  placeholder="Custom %"
-                                  min={0}
-                                  max={100}
-                                  value={labDiscountPercent > 15 || (labDiscountPercent !== 0 && labDiscountPercent !== 5 && labDiscountPercent !== 10 && labDiscountPercent !== 15) ? labDiscountPercent : ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value === '' ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
-                                    setLabDiscountPercent(val);
-                                  }}
-                                  className="w-full input-field text-[10px] py-1.5 px-2 bg-white border-slate-200 text-slate-800 rounded-lg text-center"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Invoice Breakdown */}
-                          <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-xl space-y-2 text-xs select-none">
-                            <div className="flex justify-between items-center text-slate-600">
-                              <span>Test Name:</span>
-                              <span className="font-bold text-slate-800">{test.name}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-slate-650">
-                              <span>LOINC Code:</span>
-                              <span className="font-mono bg-slate-200/60 px-1.5 py-0.2 rounded text-[10px] text-slate-700 font-bold">{test.loincCode}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-slate-600">
-                              <span>Standard Fee:</span>
-                              <span className="font-semibold text-slate-850">₹{testPrice.toFixed(2)}</span>
-                            </div>
-                            {labDiscountPercent > 0 && (
-                              <div className="flex justify-between items-center text-emerald-650 font-bold">
-                                <span>Discount ({labDiscountPercent}%):</span>
-                                <span>-₹{(testPrice * labDiscountPercent / 100).toFixed(2)}</span>
-                              </div>
-                            )}
-                            <div className="flex justify-between items-center border-t border-slate-200/80 pt-2 text-sm font-bold text-slate-800">
-                              <span>Total Lab Fee Payable:</span>
-                              <span className="text-indigo-600">₹{finalPrice.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Payment Mode (Lab Fee Collection)</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'cash', label: 'Cash', icon: 'payments' },
-                        { id: 'upi', label: 'UPI QR', icon: 'qr_code_2' },
-                        { id: 'whatsapp_pay', label: 'WhatsApp Pay', icon: 'send_to_mobile' }
-                      ].map(mode => (
-                        <button
-                          key={mode.id}
-                          type="button"
-                          onClick={() => setLabPaymentMode(mode.id as any)}
-                          className={`py-2 text-[10px] font-bold rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                            labPaymentMode === mode.id
-                              ? 'bg-indigo-600 text-slate-800 border-indigo-700 shadow-md shadow-indigo-600/10'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-sm">{mode.icon}</span>
-                          {mode.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button 
-                    type="button"
-                    disabled={isDispatchOcrParsing || isDispatchingToLab || !dispatchFile || !dispatchPatientName || !dispatchPatientPhone || !dispatchSelectedTestCode}
-                    onClick={async () => {
-                      if (!dispatchFile) return;
-                      setIsDispatchingToLab(true);
-                      try {
-                        const testItem = MASTER_TEST_CATALOG.find(t => t.loincCode === dispatchSelectedTestCode);
-                        const testPrice = testItem?.price || 350;
-                        const finalPrice = testPrice * (1 - labDiscountPercent / 100);
-
-                        let patientId = '';
-                        const matchedPatient = api.getPatients().find(p => p.name.toLowerCase().trim() === dispatchPatientName.toLowerCase().trim() || p.phone === dispatchPatientPhone);
-                        if (matchedPatient) {
-                          patientId = matchedPatient.id;
-                        } else {
-                          const reg = api.registerPatient({
-                            name: dispatchPatientName,
-                            phone: dispatchPatientPhone || '9876543210',
-                            age: Number(dispatchPatientAge) || 30,
-                            gender: dispatchPatientGender,
-                            allergies: [],
-                            chronicConditions: []
-                          });
-                          patientId = reg.id;
-                          setPatients(api.getPatients());
-                        }
-
-                        // Create paid invoice record in system
-                        const invoiceId = `inv-lab-${Date.now()}`;
-                        api.saveInvoice({
-                          id: invoiceId,
-                          appointmentId: `lab-pos-${Date.now()}`,
-                          type: 'lab',
-                          amount: finalPrice,
-                          status: 'paid',
-                          createdAt: new Date().toISOString()
-                        });
-
-                        const fileUrl = await api.uploadPrescriptionToStorage(dispatchFile, patientId);
-                        const testName = testItem?.name || 'Lab Test';
-                        
-                        // Push to Lab technician queue
-                        api.createLabRequisitionFromPrescription(patientId, dispatchSelectedTestCode, testName, fileUrl);
-
-                         // Dispatch receipt message to patient's WhatsApp
-                        let session = sessions.find(s => s.patientPhone === dispatchPatientPhone);
-                        if (!session) {
-                          session = api.initiateWhatsAppSession(dispatchPatientPhone);
-                        }
-
-                        const payModeLabel = labPaymentMode === 'cash' ? 'Cash at Counter' : labPaymentMode === 'upi' ? 'UPI Dynamic QR' : 'WhatsApp Pay Link';
-                        const receiptMsg = `🧪 *MEDIFLOW PATHOLOGY LAB RECEIPT*\n----------------------------------------\nPatient Name: *${dispatchPatientName}*\nPhone: *+91 ${dispatchPatientPhone}*\nTest ordered: *${testName}* (LOINC: ${dispatchSelectedTestCode})\n\nOriginal Price: *₹${testPrice.toFixed(2)}*\nDiscount Applied: *${labDiscountPercent}%*\nTotal Paid: *₹${finalPrice.toFixed(2)}* (via ${payModeLabel})\nStatus: *PAID & routed to Pathology Lab*\n\n💳 Pay securely via mock UPI link below:\nupi://pay?pa=mediflow@icici&pn=Mediflow&am=${finalPrice.toFixed(2)}&cu=INR&tn=MF-LAB-${invoiceId.substring(4, 8)}\n----------------------------------------\nThank you! Mediflow Pathology. 🟢`;
-                        
-                        api.pushWhatsAppMessageFromBot(dispatchPatientPhone, receiptMsg);
-
-                        const updatedSessions = api.getWhatsAppSessions();
-                        const updatedSession = updatedSessions.find(s => s.patientPhone === dispatchPatientPhone) || session;
-
-                        api.updateWhatsAppState(dispatchPatientPhone, 'COMPLETED', {
-                          chatHistory: updatedSession.sessionData.chatHistory || []
-                        });
-
-                        const finalPat = api.getPatients().find(p => p.id === patientId) || { id: patientId, name: dispatchPatientName, phone: dispatchPatientPhone, age: Number(dispatchPatientAge), gender: dispatchPatientGender };
-                        handleInitiateWhatsAppLoop(finalPat as Patient);
-
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            message: `Lab Fee of ₹${finalPrice.toFixed(2)} collected. Requisition dispatched & WhatsApp invoice pushed!`,
-                            type: 'success',
-                            title: 'Lab Dispatch Success'
-                          }
-                        }));
-
-                        // Reset form
-                        setDispatchFile(null);
-                        setDispatchPreviewUrl('');
-                        setDispatchPatientName('');
-                        setDispatchPatientAge('');
-                        setDispatchPatientGender('Male');
-                        setDispatchPatientPhone('');
-                        setDispatchSelectedTestCode('');
-                        setDispatchOcrLogs([]);
-                        setLabDiscountPercent(0);
-                      } catch (err: any) {
-                        alert(`Error dispatching to lab: ${err.message || err}`);
-                      } finally {
-                        setIsDispatchingToLab(false);
-                      }
-                    }}
-                    className={`w-full py-2.5 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
-                      isDispatchingToLab || isDispatchOcrParsing || !dispatchFile || !dispatchPatientName || !dispatchPatientPhone || !dispatchSelectedTestCode
-                        ? 'bg-slate-400 cursor-not-allowed opacity-50'
-                        : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-md shadow-indigo-600/10'
-                    }`}
-                  >
-                    {isDispatchingToLab ? (
-                      <>
-                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Settle Payment &amp; Dispatch to Lab...
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined text-[14px]">payments</span>
-                        Settle Fees &amp; Send to Lab Queue →
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Existing Invoicing Chambers queue */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                
-                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-600 text-base">receipt_long</span>
-                  Gate 2: Active Chamber Billing &amp; Invoicing
-                </h2>
-                
-                <div className="space-y-6">
-                  {api.getAppointments().filter(a => a.status === 'ready_for_consult' || a.status === 'completed').length === 0 ? (
-                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
-                      No active consultation chambers matching Gate 2 bounds.
-                    </div>
-                  ) : (
-                    api.getAppointments().filter(a => a.status === 'ready_for_consult' || a.status === 'completed').sort((a, b) => {
-                      const isPatA = a.patientId === activePatient?.id;
-                      const isPatB = b.patientId === activePatient?.id;
-                      if (isPatA && !isPatB) return -1;
-                      if (!isPatA && isPatB) return 1;
-                      return 0;
-                    }).map(appt => {
-                      const patient = patients.find(p => p.id === appt.patientId);
-                      const prescription = api.getPrescriptions().find(p => p.appointmentId === appt.id);
-                      const labInvoice = api.getInvoices().find(i => i.appointmentId === appt.id && i.type === 'lab');
-                      const isActiveAppt = appt.patientId === activePatient?.id;
-                      
-                      return (
-                        <div 
-                          key={appt.id} 
-                          className={`p-4 border rounded-xl space-y-4 transition-all duration-350 ${
-                            isActiveAppt 
-                              ? 'border-indigo-500 bg-indigo-500/5 shadow-md shadow-indigo-500/5' 
-                              : 'border-slate-200 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <div>
-                              <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                                {isActiveAppt && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-ping shrink-0" />}
-                                {patient ? patient.name : 'Unknown Patient'}
-                              </h4>
-                              <p className="text-[9px] text-slate-400 font-mono">Appt ID: {appt.id.substring(0, 8)}... | Status: {appt.status}</p>
-                            </div>
-                            <span className="text-[9px] bg-indigo-100 text-indigo-750 font-mono font-bold px-2 py-0.5 rounded border border-indigo-200">
-                              CHAMBER OUT
-                            </span>
-                          </div>
-
-                          {!prescription ? (
-                            <div className="space-y-3">
-                              <p className="text-[10px] text-slate-500">Upload or scan the doctor's handwritten/printed prescription to run AI OCR and auto-generate invoices.</p>
-                              
-                              {/* Handwritten Rx Scanner Alert */}
-                              <div className="p-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-2">
-                                <span className="material-symbols-outlined text-indigo-650 text-sm mt-0.5">info</span>
-                                <div className="text-[10px] text-indigo-900 leading-relaxed text-left">
-                                  <span className="font-bold">Handwritten Rx Workflow:</span> Capture/upload the doctor's paper prescription here. The AI will extract the parameters and populate the lab/medicine queues automatically.
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-3">
-                                <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors shadow-sm hover:shadow-md">
-                                  <Upload className="h-5 w-5 text-indigo-600" />
-                                  <span>Upload / Scan Prescription</span>
-                                  <span className="text-[9px] text-slate-600 font-medium">Supports JPEG, PNG, and PDF</span>
-                                  <input 
-                                    type="file" 
-                                    accept="image/*,application/pdf" 
-                                    className="hidden" 
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) {
-                                        setOcrScanningApptId(appt.id);
-                                        const reader = new FileReader();
-                                        reader.onload = () => {
-                                          const base64Url = reader.result as string;
-                                          api.runSaaSPrescriptionOCR(appt.id, base64Url).then(() => {
-                                            setOcrScanningApptId(null);
-                                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                              detail: {
-                                                message: 'AI OCR parsed prescription: Loaded tests and medicine invoices!',
-                                                type: 'success',
-                                                title: 'Prescription Parsed'
-                                              }
-                                            }));
-                                          });
-                                        };
-                                        reader.readAsDataURL(file);
-                                      }
-                                    }}
-                                  />
-                                </label>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <div className="bg-slate-50 border border-slate-150 p-3 rounded-lg space-y-2">
-                                <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Extracted Lab Tests (AI OCR)</span>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {prescription.extractedTests?.map((t, idx) => (
-                                    <span key={idx} className="bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 text-[9px] font-semibold px-2 py-0.5 rounded">
-                                      {t}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="bg-slate-50 border border-slate-150 p-3 rounded-lg flex flex-col gap-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Prescription Document</span>
-                                  <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded font-mono uppercase tracking-wider ${
-                                    prescription.prescriptionFileUrl 
-                                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' 
-                                      : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-                                  }`}>
-                                    {prescription.prescriptionFileUrl ? 'Attached & Sent to Lab' : 'No Document Attached'}
+                            return (
+                              <tr key={req.id} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 transition-colors">
+                                <td className="p-3">
+                                  <div className="font-bold text-slate-800">{req.patientName}</div>
+                                  <span className="text-[9px] text-slate-400 block font-mono">ID: {req.patientId.substring(0, 8)}</span>
+                                </td>
+                                <td className="p-3">
+                                  <div className="font-semibold text-slate-800">{req.testName}</div>
+                                  <span className="text-[9px] text-slate-455 block font-mono">LOINC: {req.testCode}</span>
+                                </td>
+                                <td className="p-3 text-center">
+                                  <span className={`px-2 py-0.5 border rounded-full text-[9px] font-bold uppercase tracking-wider ${statusClass}`}>
+                                    {req.status}
                                   </span>
-                                </div>
+                                </td>
+                                <td className="p-3 text-right font-mono text-slate-500 font-bold">
+                                  {req.barcode}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
 
-                                <div className="flex items-center gap-2">
-                                  {prescription.prescriptionFileUrl && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setViewingDocUrl(prescription.prescriptionFileUrl || null)}
-                                      className="flex-1 py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1 shadow-sm"
-                                    >
-                                      View Original Rx
-                                    </button>
-                                  )}
-                                  <label className="flex-1 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg border border-indigo-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1 text-center font-sans">
-                                    {prescription.prescriptionFileUrl ? 'Re-upload / Change' : 'Upload Rx Doc'}
-                                    <input 
-                                      type="file" 
-                                      accept="image/*,application/pdf" 
-                                      className="hidden" 
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                          setOcrScanningApptId(appt.id);
-                                          const reader = new FileReader();
-                                          reader.onload = () => {
-                                            const base64Url = reader.result as string;
-                                            api.runSaaSPrescriptionOCR(appt.id, base64Url).then(() => {
-                                              setOcrScanningApptId(null);
-                                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                                detail: {
-                                                  message: 'Prescription document updated successfully!',
-                                                  type: 'success',
-                                                  title: 'Prescription Updated'
-                                                }
-                                              }));
-                                            });
-                                          };
-                                          reader.readAsDataURL(file);
-                                        }
-                                      }}
-                                    />
-                                  </label>
-                                </div>
-                              </div>
-
-                              {labInvoice && (
-                                <div className="flex items-center justify-between pt-1">
-                                  <div>
-                                    <span className="text-[9px] text-slate-600 block font-mono">Lab Invoice: {labInvoice.id.substring(0, 8)}...</span>
-                                    <span className="text-[12px] font-black text-slate-800">Lab Total: ₹{labInvoice.amount}</span>
-                                  </div>
-                                  <div>
-                                    {labInvoice.status === 'unpaid' ? (
-                                      <button
-                                        onClick={() => {
-                                          api.settleSaaSInvoice(labInvoice.id);
-                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                            detail: {
-                                              message: 'Lab invoice marked as PAID. Requisitions pushed to Lab Technician.',
-                                              type: 'success',
-                                              title: 'Lab Fee Settled'
-                                            }
-                                          }));
-                                        }}
-                                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
-                                      >
-                                        Mark Paid &amp; Route to Lab Tech
-                                      </button>
-                                    ) : (
-                                      <span className="text-[9px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
-                                        PAID &amp; SENT TO LAB ✅
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {ocrScanningApptId === appt.id && (
-                            <div className="p-3 bg-indigo-500/5 border border-indigo-500/15 rounded-lg flex items-center gap-2.5 animate-pulse">
-                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-550 animate-ping" />
-                              <span className="text-[10px] text-indigo-600 font-mono font-semibold">Running LLM-OCR scanning on prescription...</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
               </div>
             </div>
 
-            <div className="lg:col-span-5 space-y-6">
-              {/* Completed Lab Reports Approval Panel */}
+            {/* Right Column: Approved Lab Reports Timeline */}
+            <div className="lg:col-span-5 space-y-6 text-left select-none">
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-60" />
+                
                 <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-emerald-600 text-base">verified_user</span>
-                  ✅ Completed Lab Reports
+                  Approved Pathology Reports Timeline
                 </h2>
                 <p className="text-xs text-slate-500 mb-4">
-                  Review and clinically approve completed lab reports, then lock the patient's next revisit consultation timing.
+                  Chronological log of verified diagnostic outcomes, critical biomarkers, and scheduled physician final review timings.
                 </p>
-
-                {/* Tab toggle */}
-                <div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-lg">
-                  <button 
-                    onClick={() => setReportFilterTab('pending')}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                      reportFilterTab === 'pending' ? 'bg-white text-slate-850 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Awaiting Approval ({fullLabReports.filter(r => r.status === 'pending').length})
-                  </button>
-                  <button 
-                    onClick={() => setReportFilterTab('approved')}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                      reportFilterTab === 'approved' ? 'bg-white text-slate-850 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Approved Reports ({fullLabReports.filter(r => r.status === 'approved').length})
-                  </button>
-                </div>
 
                 <div className="space-y-4">
-                  {reportFilterTab === 'pending' && (
-                    fullLabReports.filter(r => r.status === 'pending').length === 0 ? (
-                      <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
-                        No reports awaiting approval.
-                      </div>
-                    ) : (
-                      fullLabReports.filter(r => r.status === 'pending').map(report => {
-                        const biomarkers = report.biomarkerJson?.biomarkers || {};
-                        const reportId = report.id;
-                        
-                        return (
-                          <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-sm">
-                            <div className="flex items-center justify-between border-b border-slate-150 pb-2">
-                              <div>
-                                <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
-                                <p className="text-[9px] text-slate-600 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
-                              </div>
-                              <span className="text-[9px] bg-amber-100 text-amber-800 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 uppercase">
-                                Pending
-                              </span>
+                  {(() => {
+                    const approved = fullLabReports.filter(r => r.status === 'approved');
+                    if (approved.length === 0) {
+                      return (
+                        <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium">
+                          No verified pathology reports logged today.
+                        </div>
+                      );
+                    }
+
+                    return approved.map((report) => {
+                      const biomarkers = report.biomarkerJson?.biomarkers || {};
+                      return (
+                        <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-xs">
+                          <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
+                            <div>
+                              <h4 className="font-bold text-xs text-slate-800">{report.patientName}</h4>
+                              <span className="text-[9px] text-slate-400 font-mono block">ID: {report.patientId.substring(0, 8)}</span>
                             </div>
-
-                            <div className="space-y-1">
-                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
-                                  const val = biomarkers[key];
-                                  const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
-                                  return (
-                                    <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-750 text-[10px] px-2 py-0.5 rounded font-mono font-bold">
-                                      {key}: {val} {unit}
-                                    </span>
-                                  );
-                                })}
-                                {Object.keys(biomarkers).length === 0 && (
-                                  <span className="text-[10px] text-slate-500 italic">No structured values found</span>
-                                )}
-                              </div>
-                            </div>
-
-                            {report.reportFileUrl && (
-                              <button
-                                type="button"
-                                onClick={() => setViewingDocUrl(report.reportFileUrl || null)}
-                                className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                              >
-                                <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
-                                View Report Document (PDF/Image)
-                              </button>
-                            )}
-
-                            {/* Revisit Scheduler inside report card */}
-                            <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-3">
-                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Schedule Revisit for Doctor's Final Advice</span>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-1">
-                                  <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Date</label>
-                                  <div className="flex gap-1">
-                                    <input 
-                                      type="date"
-                                      value={reportRevisitDates[reportId] || ''}
-                                      onChange={(e) => setReportRevisitDates(prev => ({ ...prev, [reportId]: e.target.value }))}
-                                      className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
-                                    />
-                                    <button
-                                      type="button"
-                                      title="AI Calculate Advice Revisit"
-                                      onClick={async () => {
-                                        try {
-                                          const patient = api.getPatients().find(p => p.id === report.patientId);
-                                          if (!patient) return;
-                                          const history = api.getPatientHistoricalBiomarkers(report.patientId);
-                                          const latestReport = history[history.length - 1];
-                                          const current_data = latestReport ? {
-                                            age: patient.age.toString(),
-                                            gender: patient.gender,
-                                            HbA1c: latestReport.HbA1c,
-                                            creatinine: latestReport.creatinine,
-                                            hemoglobin: latestReport.hemoglobin
-                                          } : {
-                                            age: patient.age.toString(),
-                                            gender: patient.gender,
-                                            HbA1c: 7.2,
-                                            creatinine: 1.1,
-                                            hemoglobin: 14.0
-                                          };
-                                          
-                                          const trendResult = await api.labTrend({ current_data });
-                                          
-                                          // Default to same day (today) evening according to token number
-                                          const dateString = new Date().toISOString().split('T')[0];
-                                          const tokenStr = patient.tokenNumber || '1';
-                                          const tokenNum = parseInt(tokenStr.replace(/\D/g, '')) || 1;
-                                          const totalMinutes = 16 * 60 + (tokenNum - 1) * 10; // 4:00 PM start, 10 min per token
-                                          const hours = Math.floor(totalMinutes / 60);
-                                          const minutes = totalMinutes % 60;
-                                          const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                          
-                                          setReportRevisitDates(prev => ({ ...prev, [reportId]: dateString }));
-                                          setReportRevisitTimes(prev => ({ ...prev, [reportId]: timeString }));
-                                          setReportRevisitNotes(prev => ({ ...prev, [reportId]: `Same-day evening final advice (Token #${tokenNum}). ${trendResult.trajectory ? `Report trajectory is ${trendResult.trajectory}.` : ''}` }));
-                                          
-                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                            detail: {
-                                              message: `AI scheduled final advice session for today evening at ${timeString} based on token #${tokenNum}!`,
-                                              type: 'success',
-                                              title: 'AI Advice Revisit Calculated'
-                                            }
-                                          }));
-                                        } catch (err) {
-                                          console.error('[AI Revisit error]:', err);
-                                        }
-                                      }}
-                                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-md text-[9px] cursor-pointer flex items-center justify-center shrink-0 border-0 text-white-force"
-                                    >
-                                      🤖 AI
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Time</label>
-                                  <input 
-                                    type="time"
-                                    value={reportRevisitTimes[reportId] || ''}
-                                    onChange={(e) => setReportRevisitTimes(prev => ({ ...prev, [reportId]: e.target.value }))}
-                                    className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[8px] text-slate-600 font-bold uppercase tracking-wider font-mono">Clinical Note / Recommendation</label>
-                                <input 
-                                  type="text"
-                                  placeholder="e.g. Return for HbA1c review"
-                                  value={reportRevisitNotes[reportId] || ''}
-                                  onChange={(e) => setReportRevisitNotes(prev => ({ ...prev, [reportId]: e.target.value }))}
-                                  className="w-full input-field text-[11px] py-1 px-2 bg-slate-50 border-slate-200 text-slate-800 rounded-md focus:bg-white"
-                                />
-                              </div>
-                            </div>
-
-                            {showRejectModalForId === report.id ? (
-                              <div className="mt-3 p-3 bg-rose-50 border border-rose-205 rounded-xl space-y-2">
-                                <label className="text-[9px] text-rose-700 font-bold uppercase tracking-wider font-mono">Rejection Reason</label>
-                                <textarea 
-                                  placeholder="Why are you rejecting this report?"
-                                  value={rejectionReasons[report.id] || ''}
-                                  onChange={(e) => setRejectionReasons(prev => ({ ...prev, [report.id]: e.target.value }))}
-                                  className="w-full input-field text-xs py-1.5 px-3 bg-white border-rose-200 text-slate-850 rounded-lg focus:border-rose-400"
-                                  rows={2}
-                                  required
-                                />
-                                <div className="flex gap-2 justify-end">
-                                  <button 
-                                    onClick={() => setShowRejectModalForId(null)}
-                                    className="px-2.5 py-1 text-slate-600 bg-slate-100 hover:bg-slate-200 text-[10px] font-bold rounded-lg cursor-pointer"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button 
-                                    disabled={!(rejectionReasons[report.id] || '').trim()}
-                                    onClick={async () => {
-                                      await api.rejectLabReport(report.id, rejectionReasons[report.id]);
-                                      setShowRejectModalForId(null);
-                                    }}
-                                    className="px-2.5 py-1 text-slate-800 bg-rose-600 hover:bg-rose-500 text-[10px] font-bold rounded-lg cursor-pointer disabled:opacity-50"
-                                  >
-                                    Send back to Lab
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex gap-2 pt-1">
-                                <button 
-                                  onClick={async () => {
-                                    const date = reportRevisitDates[reportId] || '';
-                                    const time = reportRevisitTimes[reportId] || '';
-                                    const note = reportRevisitNotes[reportId] || '';
-                                    await api.approveLabReport(reportId, date, time, note);
-                                  }}
-                                  className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
-                                >
-                                  <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                                  Approve &amp; Revisit
-                                </button>
-                                <button 
-                                  onClick={() => setShowRejectModalForId(report.id)}
-                                  className="py-1.5 px-3 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            )}
+                            <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-bold uppercase">
+                              Verified
+                            </span>
                           </div>
-                        );
-                      })
-                    )
-                  )}
 
-                  {reportFilterTab === 'approved' && (
-                    fullLabReports.filter(r => r.status === 'approved').length === 0 ? (
-                      <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
-                        No approved reports found.
-                      </div>
-                    ) : (
-                      fullLabReports.filter(r => r.status === 'approved').map(report => {
-                        const biomarkers = report.biomarkerJson?.biomarkers || {};
-                        return (
-                          <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-sm">
-                            <div className="flex items-center justify-between border-b border-slate-150 pb-2">
-                              <div>
-                                <h4 className="font-bold text-slate-800 text-xs">{report.patientName}</h4>
-                                <p className="text-[9px] text-slate-600 font-mono">Report ID: {report.id.substring(0, 8)}...</p>
-                              </div>
-                              <span className="text-[9px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
-                                Approved
-                              </span>
+                          <div className="space-y-1">
+                            <span className="block text-[8px] font-black text-slate-655 tracking-widest uppercase font-mono">Biomarker Log</span>
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
+                                const val = biomarkers[key];
+                                const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
+                                return (
+                                  <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-755 text-[9px] px-2 py-0.5 rounded font-mono font-bold">
+                                    {key}: {val} {unit}
+                                  </span>
+                                );
+                              })}
                             </div>
-
-                            <div className="space-y-1">
-                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Results &amp; Biomarkers</span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
-                                  const val = biomarkers[key];
-                                  const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
-                                  return (
-                                    <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-750 text-[10px] px-2 py-0.5 rounded font-mono font-bold">
-                                      {key}: {val} {unit}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {report.reportFileUrl && (
-                              <button
-                                type="button"
-                                onClick={() => setViewingDocUrl(report.reportFileUrl || null)}
-                                className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                              >
-                                <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
-                                View Approved Report Document
-                              </button>
-                            )}
-
-                            {report.revisitScheduledAt && (
-                              <div className="p-2.5 bg-emerald-50 border border-emerald-150 rounded-lg text-[10px] text-emerald-800">
-                                <strong>Advice Revisit Locked:</strong> {new Date(report.revisitScheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                                {report.revisitNote && <p className="mt-1 text-slate-650 font-medium">Note: {report.revisitNote}</p>}
-                              </div>
-                            )}
                           </div>
-                        );
-                      })
-                    )
-                  )}
+
+                          {report.revisitScheduledAt && (
+                            <div className="p-2.5 bg-emerald-50 border border-emerald-150 rounded-lg text-[9.5px] text-emerald-800 font-medium leading-relaxed">
+                              <strong>📅 Locked Revisit Consult:</strong> {new Date(report.revisitScheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                              {report.revisitNote && <p className="mt-1 text-slate-650 font-semibold italic">Note: {report.revisitNote}</p>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
-              </div>
-
-              {/* Doctor's Final Advice Appointment Desk (Manual Book) */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
-                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-600 text-base">calendar_month</span>
-                  Doctor's Final Advice Appointment Desk (Manual Book)
-                </h2>
-                <p className="text-xs text-slate-500 mb-4">
-                  Manually schedule final advice appointments for patients without any linked lab reports.
-                </p>
-
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!revisitPatientId || !revisitDate || !revisitTime) {
-                      alert('Please select patient and fill out date/time');
-                      return;
-                    }
-                    const p = patients.find(pat => pat.id === revisitPatientId);
-                    if (p) {
-                      const msg = `📅 *Mediflow Revisit Lock!* 🏥\n\n` +
-                        `Hello *${p.name}*, aapka doctor se milkar *final advice* lene ka appointment lock ho gaya hai:\n` +
-                        `📅 *${revisitDate}* at *${revisitTime}*.\n\n` +
-                        `Time par clinic aakar doctor se final advice lein. Dhyan rakhein! 🟢`;
-                      api.pushWhatsAppMessageFromBot(p.phone, msg);
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          message: `Advice appointment locked on WhatsApp for ${p.name}!`,
-                          type: 'success',
-                          title: 'Appointment Booked'
-                        }
-                      }));
-                      setRevisitPatientId('');
-                      setRevisitDate('');
-                      setRevisitTime('');
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient</label>
-                    <select
-                      value={revisitPatientId}
-                      onChange={(e) => {
-                        const patId = e.target.value;
-                        setRevisitPatientId(patId);
-                        const pat = patients.find(p => p.id === patId);
-                        if (pat) {
-                          setRevisitDate(new Date().toISOString().split('T')[0]);
-                          const tokenNum = parseInt((pat.tokenNumber || '1').replace(/\D/g, '')) || 1;
-                          const totalMinutes = 16 * 60 + (tokenNum - 1) * 10; // 4:00 PM start, 10 min per token
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = totalMinutes % 60;
-                          setRevisitTime(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
-                        }
-                      }}
-                      className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
-                      required
-                    >
-                      <option value="" disabled>-- Select Patient --</option>
-                      {patients.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} (+91 {p.phone})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Date</label>
-                      <input 
-                        type="date"
-                        value={revisitDate}
-                        onChange={(e) => setRevisitDate(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Time</label>
-                      <input 
-                        type="time"
-                        value={revisitTime}
-                        onChange={(e) => setRevisitTime(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button 
-                    type="submit"
-                    className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer"
-                  >
-                    Lock Advice Appointment &amp; Dispatch Bot Notification
-                  </button>
-                </form>
               </div>
             </div>
           </div>
@@ -3601,600 +2747,149 @@ export const CompounderDashboard: React.FC = () => {
 
         {/* TAB 5: GATE 3 PHARMACY BILLING */}
         {activeTab === 'pharmacy' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left Column: AI Prescription Scan & POS Billing Workspace */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-amber-500 opacity-60" />
-                
-                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-amber-500 text-base">receipt_long</span>
-                  📄 AI Prescription Scanner &amp; POS Workspace
-                </h2>
-                <p className="text-xs text-slate-500 mb-4">
-                  Scan prescription, extract patient profile and medicines via AI, sync with inventory prices, apply discounts, and dispatch WhatsApp invoices and dosage slips.
-                </p>
-
-                {/* Prescription File Upload Zone */}
-                <div className="space-y-4">
-                  <div className="flex gap-4 items-start">
-                    <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-350 hover:border-amber-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md">
-                      <Upload className="h-5 w-5 text-amber-500" />
-                      <span>{prescriptionImage ? 'Change Prescription File' : 'Upload / Scan Prescription Image/PDF'}</span>
-                      <input 
-                        type="file" 
-                        accept="image/*,application/pdf" 
-                        className="hidden" 
-                        onChange={handlePrescriptionImageUpload}
-                      />
-                    </label>
-
-                    {prescriptionImage && (
-                      <div className="w-20 h-20 rounded-xl border border-slate-200 overflow-hidden relative group shrink-0 shadow-sm">
-                        <img src={prescriptionImage} alt="Prescription Thumbnail" className="w-full h-full object-cover" />
-                        <button 
-                          type="button"
-                          onClick={() => setViewingDocUrl(prescriptionImage)}
-                          className="absolute inset-0 bg-slate-800/60 flex items-center justify-center text-[10px] text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity font-bold"
-                        >
-                          View Rx
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Run OCR Button */}
-                  {prescriptionImage && (
-                    <button
-                      type="button"
-                      onClick={handleTriggerPrescriptionOcr}
-                      disabled={isPrescriptionScanning}
-                      className="w-full py-2 bg-amber-500 hover:bg-amber-450 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] flex items-center justify-center gap-1.5 transition-all shadow-md"
-                    >
-                      {isPrescriptionScanning ? (
-                        <>
-                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          AI Extracting Prescription...
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined text-[14px]">psychology</span>
-                          Extract Data &amp; Sync Inventory
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {/* OCR Logging Panel */}
-                  {ocrLogs.length > 0 && (
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 font-mono text-[9px] text-indigo-700 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
-                      {ocrLogs.map((log, index) => (
-                        <div key={index} className={log.includes('[ERROR]') ? 'text-rose-600 font-bold' : log.includes('SUCCESS') ? 'text-emerald-600 font-bold' : 'text-indigo-700'}>
-                          {log}
-                        </div>
+          <div className="space-y-6 text-left">
+            {/* Reorder limit alerts banner */}
+            {(() => {
+              const lowStockItems = activeInventory.filter(item => item.stock <= item.threshold);
+              if (lowStockItems.length === 0) return null;
+              return (
+                <div className="glass-panel p-4 border-amber-200/80 bg-amber-50/40 rounded-2xl flex items-start gap-3 shadow-md">
+                  <span className="material-symbols-outlined text-amber-600 text-2xl shrink-0 mt-0.5 animate-bounce">warning</span>
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-amber-900">⚠️ Low Stock &amp; Reorder Limit Alerts (स्टॉक चेतावनी)</h3>
+                    <p className="text-[11px] text-amber-800/95 leading-relaxed">
+                      The following {lowStockItems.length} pharmacy items are running below their designated safety thresholds. Please notify procurement to restock:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      {lowStockItems.map(item => (
+                        <span key={item.id} className="bg-amber-600/10 text-amber-900 border border-amber-600/20 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                          💊 {item.name} ({item.stock} {item.unit} left | Min: {item.threshold})
+                        </span>
                       ))}
                     </div>
-                  )}
-
-                  {/* Patient Profile Form (Editable) */}
-                  <div className="border-t border-slate-100 pt-4 mt-2">
-                    <span className="block text-[9px] font-black text-slate-600 tracking-widest uppercase font-mono mb-2">Patient Profile (Extracted)</span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Patient Name</label>
-                        <input 
-                          type="text" 
-                          placeholder="Name"
-                          value={billingPatient?.name || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setBillingPatient(prev => prev ? { ...prev, name: val } : { id: `pat-${Date.now()}`, name: val, phone: '', age: 30, gender: 'Male', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
-                          }}
-                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Phone (+91)</label>
-                        <input 
-                          type="text" 
-                          maxLength={10}
-                          placeholder="Phone number"
-                          value={billingPatient?.phone || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setBillingPatient(prev => prev ? { ...prev, phone: val } : { id: `pat-${Date.now()}`, name: '', phone: val, age: 30, gender: 'Male', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
-                          }}
-                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Age</label>
-                        <input 
-                          type="number" 
-                          placeholder="Age"
-                          value={billingPatient?.age || ''}
-                          onChange={(e) => {
-                            const val = Number(e.target.value) || 30;
-                            setBillingPatient(prev => prev ? { ...prev, age: val } : { id: `pat-${Date.now()}`, name: '', phone: '', age: val, gender: 'Male', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
-                          }}
-                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white transition-colors"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Gender</label>
-                        <select 
-                          value={billingPatient?.gender || 'Male'}
-                          onChange={(e) => {
-                            const val = e.target.value as any;
-                            setBillingPatient(prev => prev ? { ...prev, gender: val } : { id: `pat-${Date.now()}`, name: '', phone: '', age: 30, gender: val, allergies: [], chronicConditions: [], createdAt: new Date().toISOString() });
-                          }}
-                          className="w-full input-field text-xs py-1.5 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer focus:bg-white"
-                        >
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                    </div>
                   </div>
+                </div>
+              );
+            })()}
 
-                  {/* Medicines Workspace */}
-                  {billingItems.length > 0 && (
-                    <div className="border-t border-slate-100 pt-4 mt-2">
-                      <span className="block text-[9px] font-black text-slate-600 tracking-widest uppercase font-mono mb-2">Sync'd Medicines from Inventory</span>
-                      <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm mb-3">
-                        {billingItems.map((item, idx) => (
-                          <div key={idx} className="p-3 flex items-center justify-between text-xs gap-4 hover:bg-slate-50/50 transition-colors">
-                            <div className="flex-1 space-y-1.5">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-slate-800">{item.name}</h4>
-                                <span className="text-[8px] bg-emerald-50 border border-emerald-250 text-emerald-700 font-mono font-bold px-1.5 py-0.2 rounded-full flex items-center gap-0.5">
-                                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                                  Patna Live Stock Match 🟢
+            {/* Main inventory stock list catalog */}
+            <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+              
+              <div className="md:flex md:items-center md:justify-between gap-4 mb-6">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-indigo-600 text-lg">medication</span>
+                    Pharmacy Inventory &amp; Stock Catalog
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Real-time Patna ecosystem medicine catalog lookup. View expiry dates, FEFO batches, prices, and stock indicators.
+                  </p>
+                </div>
+
+                {/* Search Bar */}
+                <div className="w-full md:w-80 relative mt-3 md:mt-0 select-none">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <span className="material-symbols-outlined text-base">search</span>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search medicine or generic name..."
+                    value={medSearchQuery}
+                    onChange={(e) => setMedSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:bg-white focus:outline-none transition-all shadow-sm"
+                  />
+                  {medSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setMedSearchQuery('')}
+                      className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-650"
+                    >
+                      <span className="material-symbols-outlined text-base">close</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {(() => {
+                const filtered = activeInventory.filter(item => 
+                  item.name.toLowerCase().includes(medSearchQuery.toLowerCase()) ||
+                  item.genericName.toLowerCase().includes(medSearchQuery.toLowerCase()) ||
+                  item.category.toLowerCase().includes(medSearchQuery.toLowerCase())
+                );
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium select-none">
+                      No medicines matched your search query.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono">Medicine Details</th>
+                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono">Category / Mfr</th>
+                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono text-center">Stock Level</th>
+                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono">Batch / Expiry</th>
+                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono text-right">Price (MRP)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((item) => {
+                          const isLowStock = item.stock <= item.threshold && item.stock > 0;
+                          const isOutOfStock = item.stock === 0;
+                          
+                          let stockStatus = "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
+                          let stockText = "In Stock";
+                          if (isOutOfStock) {
+                            stockStatus = "bg-rose-500/10 text-rose-700 border-rose-500/20";
+                            stockText = "Out of Stock";
+                          } else if (isLowStock) {
+                            stockStatus = "bg-amber-500/10 text-amber-700 border-amber-500/20 animate-pulse";
+                            stockText = "Low Stock";
+                          }
+
+                          return (
+                            <tr key={item.id} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 transition-colors">
+                              <td className="p-3.5">
+                                <div className="font-bold text-slate-850">{item.name}</div>
+                                <span className="text-[10px] text-slate-500 block font-medium">{item.genericName}</span>
+                              </td>
+                              <td className="p-3.5">
+                                <span className="font-mono bg-slate-200/60 text-slate-700 font-bold px-1.5 py-0.2 rounded text-[10px]">{item.category}</span>
+                                <span className="text-[10px] text-slate-455 block">{item.manufacturer}</span>
+                              </td>
+                              <td className="p-3.5 text-center">
+                                <div className="font-bold text-slate-800">{item.stock} {item.unit}</div>
+                                <span className={`inline-block px-2 py-0.2 mt-0.5 border rounded-full text-[9px] font-bold uppercase tracking-wider ${stockStatus}`}>
+                                  {stockText}
                                 </span>
-                              </div>
-                              <p className="text-[9px] text-slate-650 font-mono">MRP: ₹{item.mrp} · Batch: {item.batchNumber}</p>
-                              
-                              {/* Bilingual Directions */}
-                              {(() => {
-                                const instr = getBilingualInstruction(item.name, item.dosage);
-                                return (
-                                  <div className="p-2 bg-indigo-50/50 rounded-lg border border-indigo-100/60 text-[10px] space-y-0.5 max-w-sm select-none">
-                                    <span className="font-bold text-indigo-750 block uppercase tracking-widest text-[8px] font-mono">Dosage Directions</span>
-                                    <p className="text-slate-650">🇬🇧 {instr.english}</p>
-                                    <p className="text-indigo-805 font-bold">🇮🇳 {instr.hindi}</p>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleUpdateItemQty(idx, item.quantity - 1)}
-                                  className="px-2 py-0.5 hover:bg-slate-200 text-slate-600 font-bold"
-                                >-</button>
-                                <span className="px-2.5 font-bold text-slate-700">{item.quantity}</span>
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleUpdateItemQty(idx, item.quantity + 1)}
-                                  className="px-2 py-0.5 hover:bg-slate-200 text-slate-600 font-bold"
-                                >+</button>
-                              </div>
-                              <span className="w-16 text-right font-mono font-bold text-slate-800">₹{item.lineTotal.toFixed(2)}</span>
-                              <button 
-                                type="button" 
-                                onClick={() => handleRemoveBillingItem(idx)}
-                                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 p-1 rounded transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Manual search addition */}
-                  <div className="space-y-1">
-                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Add Medicine Manually</label>
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        placeholder="Search medicines from live Patna inventory..."
-                        value={medSearchQuery}
-                        onChange={(e) => setMedSearchQuery(e.target.value)}
-                        className="w-full input-field text-xs pl-10 py-2 bg-slate-50 border-slate-200 text-slate-800 rounded-lg focus:bg-white"
-                      />
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600 h-4 w-4" />
-                      {medSearchQuery && billingSearchMatches.length > 0 && (
-                        <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto border border-slate-200 bg-white rounded-xl shadow-lg z-50 divide-y divide-slate-100">
-                          {billingSearchMatches.map(med => (
-                            <div 
-                              key={med.id}
-                              onClick={() => {
-                                handleSelectMedForBilling(med);
-                                setMedSearchQuery('');
-                              }}
-                              className="p-2.5 hover:bg-indigo-50/60 cursor-pointer flex justify-between items-center text-xs"
-                            >
-                              <div>
-                                <p className="font-bold text-slate-800">{med.name} ({med.dosage})</p>
-                                <p className="text-[9px] text-slate-600 font-mono">Stock: {med.stock} | HSN: {med.hsn}</p>
-                              </div>
-                              <span className="font-mono font-bold text-indigo-600">₹{med.price}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                              </td>
+                              <td className="p-3.5">
+                                <div className="font-mono font-bold text-slate-700">Batch: {item.batchNumber}</div>
+                                <span className={`text-[10px] font-medium block ${new Date(item.expiryDate) < new Date() ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                                  Exp: {new Date(item.expiryDate).toLocaleDateString()}
+                                </span>
+                              </td>
+                              <td className="p-3.5 text-right">
+                                <div className="font-bold text-slate-850">₹{item.price.toFixed(2)}</div>
+                                <span className="text-[9px] text-slate-455 block font-mono">MRP: ₹{item.mrp.toFixed(2)}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
+                );
+              })()}
 
-                  {/* Discount Selectors: 10, 15, 20 */}
-                  {billingItems.length > 0 && (
-                    <div className="space-y-1.5 pt-2 select-none">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Apply Coupon / Special Discount</label>
-                      <div className="flex gap-2">
-                        {[0, 10, 15, 20].map(disc => (
-                          <button
-                            key={disc}
-                            type="button"
-                            onClick={() => setCustomDiscountPercent(disc)}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                              customDiscountPercent === disc
-                                ? 'bg-amber-500 text-slate-800 border-amber-600 shadow-md shadow-amber-500/10'
-                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                            }`}
-                          >
-                            {disc === 0 ? 'No Discount' : `${disc}% OFF`}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Financial Invoice Breakdown */}
-                  {billingItems.length > 0 && (
-                    <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl space-y-2.5 text-xs select-none">
-                      {podEntities.find(pe => pe.entityType === 'pharmacy' && pe.status === 'approved')?.gstin && (
-                        <div className="flex justify-between text-[10.5px] text-slate-500 font-mono border-b border-slate-200 pb-1.5 mb-1.5">
-                          <span>Pharmacy GSTIN:</span>
-                          <span className="font-bold">{podEntities.find(pe => pe.entityType === 'pharmacy' && pe.status === 'approved')?.gstin}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-slate-600">
-                        <span>Subtotal (Net):</span>
-                        <span className="font-semibold">₹{billingTotals.subtotal.toFixed(2)}</span>
-                      </div>
-                      {billingTotals.loyaltyDiscountAmount > 0 && (
-                        <div className="flex justify-between text-emerald-600 font-bold">
-                          <span>Special Discount ({billingTotals.loyaltyDiscountPercent}%):</span>
-                          <span>-₹{billingTotals.loyaltyDiscountAmount.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-slate-600">
-                        <span>GST Tax Amount:</span>
-                        <span className="font-semibold">₹{billingTotals.gstAmount.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between border-t border-slate-200 pt-2.5 text-sm font-bold text-slate-800">
-                        <span>Total Amount Payable:</span>
-                        <span className="text-indigo-600">₹{billingTotals.totalAmount.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Submit Payments Action */}
-                  <button
-                    type="button"
-                    disabled={!billingPatient || !billingPatient.name || !billingPatient.phone || billingItems.length === 0}
-                    onClick={async () => {
-                      if (!billingPatient || billingItems.length === 0) return;
-                      
-                      const pharmacyGstin = podEntities.find(pe => pe.entityType === 'pharmacy' && pe.status === 'approved')?.gstin;
-                      const billId = `bill-${Date.now()}`;
-                      const bill: MedicineBill = {
-                        id: billId,
-                        patientId: billingPatient.id,
-                        patientName: billingPatient.name,
-                        patientPhone: billingPatient.phone,
-                        pharmacyGstin: pharmacyGstin,
-                        items: billingItems,
-                        subtotal: billingTotals.subtotal,
-                        loyaltyDiscountPercent: billingTotals.loyaltyDiscountPercent,
-                        loyaltyDiscountAmount: billingTotals.loyaltyDiscountAmount,
-                        itemDiscountAmount: billingTotals.itemDiscountAmount,
-                        gstAmount: billingTotals.gstAmount,
-                        totalAmount: billingTotals.totalAmount,
-                        paymentMode: 'cash',
-                        upiQrPayload: `upi://pay?pa=mediflow@icici&pn=Mediflow&am=${billingTotals.totalAmount.toFixed(2)}&cu=INR&tn=MF-BILL-${billId.substring(4, 8)}`,
-                        status: 'paid',
-                        source: 'counter',
-                        deliveryType: 'pickup',
-                        createdAt: new Date().toISOString()
-                      };
-
-                      // Register patient if new
-                      const matchedPatient = api.getPatients().find(p => p.phone === billingPatient.phone || p.name.toLowerCase().trim() === billingPatient.name.toLowerCase().trim());
-                      let resolvedPatientId = billingPatient.id;
-                      if (!matchedPatient) {
-                        const reg = api.registerPatient({
-                          name: billingPatient.name,
-                          phone: billingPatient.phone || '9876543210',
-                          age: billingPatient.age || 30,
-                          gender: billingPatient.gender || 'Male',
-                          allergies: [],
-                          chronicConditions: []
-                        });
-                        resolvedPatientId = reg.id;
-                        setPatients(api.getPatients());
-                      } else {
-                        resolvedPatientId = matchedPatient.id;
-                      }
-
-                      api.saveMedicineBill(bill);
-                      api.dispenseMedicineBill(billId);
-
-                      // WhatsApp invoice receipt
-                      let session = sessions.find(s => s.patientPhone === billingPatient.phone);
-                      if (!session) {
-                        session = api.initiateWhatsAppSession(billingPatient.phone);
-                      }
-                      const invoiceText = api.generateMedicineInvoiceMessage(bill);
-
-                      // Vernacular dosage in Hindi/Hinglish
-                      let dosageText = `📋 *दवाई की खुराक की जानकारी (Bilingual Dosage Slip)*\n\nनमस्ते, यहाँ आपकी दवाइयों की खुराक की जानकारी हिंदी/Hinglish में है:\n\n`;
-                      billingItems.forEach(item => {
-                        const instr = getBilingualInstruction(item.name, item.dosage);
-                        
-                        dosageText += `💊 *${item.name}* (${item.dosage || '1 Tab'})\n`;
-                        dosageText += `👉 *Directions:* ${instr.english}\n`;
-                        dosageText += `👉 *खुराक:* ${instr.hindi}\n\n`;
-                      });
-                      dosageText += `⚠️ *Note:* Dawa hamesha doctor ke nirdeshan anusar hi lein.`;
-
-                      api.updateWhatsAppState(billingPatient.phone, 'COMPLETED', {
-                        chatHistory: [
-                          ...(session.sessionData.chatHistory || []),
-                          { sender: 'bot', text: `✅ *PAYMENT RECEIVED (₹${bill.totalAmount.toFixed(2)})*\n\n${invoiceText}`, time: new Date().toISOString() },
-                          { sender: 'bot', text: dosageText, time: new Date().toISOString() }
-                        ],
-                        draftMedicineBill: bill
-                      });
-
-                      const finalPat = api.getPatients().find(p => p.id === resolvedPatientId) || billingPatient;
-                      handleInitiateWhatsAppLoop(finalPat);
-
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          message: `Direct billing complete! Invoice & Hinglish dosage summary sent to WhatsApp.`,
-                          type: 'success',
-                          title: 'POS Settle Complete'
-                        }
-                      }));
-
-                      // Reset fields
-                      setBillingItems([]);
-                      setBillingPatient(null);
-                      setPrescriptionImage(null);
-                      setOcrLogs([]);
-                      setCustomDiscountPercent(0);
-                      syncData();
-                    }}
-                    className={`w-full py-2.5 text-slate-800 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1.5 transition-all ${
-                      (!billingPatient || !billingPatient.name || !billingPatient.phone || billingItems.length === 0)
-                        ? 'bg-slate-400 cursor-not-allowed opacity-50'
-                        : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 shadow-md shadow-indigo-600/10'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[14px]">send_to_mobile</span>
-                    Settle POS &amp; Send WhatsApp Receipt →
-                  </button>
-
-                  {/* ── Allocate Evening Slot ──────────────────────────── */}
-                  {billingPatient && (
-                    <div className="mt-3 border border-indigo-100 rounded-xl p-3 bg-indigo-50/60 space-y-2">
-                      <p className="text-[9px] font-black text-indigo-600 tracking-widest uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[12px]">event_upcoming</span>
-                        Same-Day Evening Follow-up
-                      </p>
-
-                      {(eveningSlot || api.getAppointmentByPatient(billingPatient.id)) ? (
-                        <div className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                          Slot confirmed: {(eveningSlot || api.getAppointmentByPatient(billingPatient.id))?.startTime} – {(eveningSlot || api.getAppointmentByPatient(billingPatient.id))?.endTime}
-                        </div>
-                      ) : (
-                        <button
-                          id="btn-allocate-evening-slot"
-                          type="button"
-                          disabled={isAllocatingSlot}
-                          onClick={async () => {
-                            if (!billingPatient) return;
-                            setIsAllocatingSlot(true);
-                            try {
-                              const slot = await api.createEveningSlot(billingPatient.id, 'doc-1');
-                              if (slot) {
-                                setEveningSlot(slot);
-                                // Notify patient via WhatsApp
-                                api.pushWhatsAppMessageFromBot(
-                                  billingPatient.phone,
-                                  `🕒 *Dr. Sharma ka Evening Appointment (Aaj):*\n\nAapka evening follow-up slot confirm ho gaya hai:\n*${slot.startTime} – ${slot.endTime}*\nKrupaya 5 minute pehle clinic reception par pahunchen. 🏥`
-                                );
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: {
-                                    message: `Evening slot ${slot.startTime}–${slot.endTime} allocated & notified on WhatsApp!`,
-                                    type: 'success',
-                                    title: 'Evening Slot Confirmed 🕒'
-                                  }
-                                }));
-                              } else {
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: 'No evening slots available today (5 PM–8 PM full). Ask patient to call tomorrow.', type: 'warning', title: 'Slots Full' }
-                                }));
-                              }
-                            } catch (err) {
-                              console.error('[EveningSlot] Allocation error:', err);
-                            } finally {
-                              setIsAllocatingSlot(false);
-                            }
-                          }}
-                          className={`w-full py-2 text-[10px] font-bold rounded-lg uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-                            isAllocatingSlot
-                              ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                              : 'bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 active:scale-95 shadow-sm'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-[14px]">schedule</span>
-                          {isAllocatingSlot ? 'Allocating…' : 'Allocate Evening Slot for Patient'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
 
-            {/* Right Column: Active Pharmacy Invoices Queue (consultation splits) */}
-            <div className="lg:col-span-5 space-y-6">
-              <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                
-                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-600 text-base">hourglass_empty</span>
-                  ⏳ Chamber Invoices Queue
-                </h2>
-                
-                <div className="space-y-4">
-                  {api.getInvoices().filter(i => i.type === 'pharmacy').length === 0 ? (
-                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
-                      No active pharmacy invoices found.
-                    </div>
-                  ) : (
-                    api.getInvoices().filter(i => i.type === 'pharmacy').sort((a, b) => {
-                      const apptA = api.getAppointments().find(x => x.id === a.appointmentId);
-                      const apptB = api.getAppointments().find(x => x.id === b.appointmentId);
-                      const isPatA = apptA?.patientId === activePatient?.id;
-                      const isPatB = apptB?.patientId === activePatient?.id;
-                      if (isPatA && !isPatB) return -1;
-                      if (!isPatA && isPatB) return 1;
-                      return 0;
-                    }).map(invoice => {
-                      const appt = api.getAppointments().find(a => a.id === invoice.appointmentId);
-                      const patient = appt ? patients.find(p => p.id === appt.patientId) : null;
-                      const prescription = appt ? api.getPrescriptions().find(p => p.appointmentId === appt.id) : null;
-                      const isActiveInvoice = patient?.id === activePatient?.id;
-
-                      return (
-                        <div 
-                          key={invoice.id} 
-                          className={`p-4 border rounded-xl space-y-4 transition-all duration-350 ${
-                            isActiveInvoice 
-                              ? 'border-amber-500 bg-amber-500/5 shadow-md' 
-                              : 'border-slate-200 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <div>
-                              <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                                {isActiveInvoice && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />}
-                                {patient ? patient.name : 'Unknown Patient'}
-                              </h4>
-                              <p className="text-[9px] text-slate-600 font-mono">Invoice: {invoice.id.substring(0, 8)}... | Date: {new Date(invoice.createdAt).toLocaleDateString()}</p>
-                            </div>
-                            <div className="text-[12px] font-black text-amber-600">₹{invoice.amount}</div>
-                          </div>
-
-                          {prescription && prescription.extractedMedicines && (
-                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-3">
-                              <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase font-mono">Extracted Medicines &amp; Dosages</span>
-                              
-                              <InvoiceCard
-                                invoiceId={invoice.id}
-                                patientName={patient?.name ?? 'Unknown Patient'}
-                                amount={invoice.amount}
-                                status={invoice.status}
-                                onPay={invoice.status === 'unpaid' ? () => {
-                                  api.markInvoicePaid(invoice.id);
-                                  
-                                  // Send receipt and dosage to whatsapp
-                                  if (patient) {
-                                    let session = sessions.find(s => s.patientPhone === patient.phone);
-                                    if (!session) {
-                                      session = api.initiateWhatsAppSession(patient.phone);
-                                    }
-                                    api.pushWhatsAppMessageFromBot(patient.phone, `💳 *PAYMENT SUCCESSFUL* \n\nYour pharmacy bill of *₹${invoice.amount}* has been settled via counter.\n\nThank you! Mediflow POS.`);
-                                    
-                                    // Generate Hinglish dosage summary
-                                    const itemsMapped: MedicineBillItem[] = (prescription.extractedMedicines || []).map(m => ({
-                                      inventoryItemId: 'item-1',
-                                      name: m.name,
-                                      genericName: m.name,
-                                      dosage: m.dosage,
-                                      batchNumber: 'MET-MOCK',
-                                      expiryDate: '2028-12-31',
-                                      quantity: 10,
-                                      mrp: 10,
-                                      sellingPrice: 10,
-                                      discountPercent: 0,
-                                      gstPercent: 5,
-                                      lineTotal: 100
-                                    }));
-                                    
-                                    let dosageText = `📋 *दवाई की खुराक की जानकारी (Bilingual Dosage Slip)*\n\nनमस्ते, यहाँ आपकी दवाइयों की खुराक की जानकारी हिंदी/Hinglish में है:\n\n`;
-                                    itemsMapped.forEach(item => {
-                                      const instr = getBilingualInstruction(item.name, item.dosage);
-                                      dosageText += `💊 *${item.name}* (${item.dosage || '1 Tab'})\n`;
-                                      dosageText += `👉 *Directions:* ${instr.english}\n`;
-                                      dosageText += `👉 *खुराक:* ${instr.hindi}\n\n`;
-                                    });
-                                    api.pushWhatsAppMessageFromBot(patient.phone, dosageText);
-                                    
-                                    handleInitiateWhatsAppLoop(patient);
-                                  }
-
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
-                                      message: 'Invoice marked as PAID and WhatsApp notification sent.',
-                                      type: 'success',
-                                      title: 'Invoice Paid'
-                                    }
-                                  }));
-                                } : undefined}
-                              />
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
-                                {prescription.extractedMedicines.map((m, idx) => (
-                                  <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1">
-                                    <span>💊 {m.name} ({m.dosage})</span>
-                                    <span className="text-[9px] bg-slate-200/50 px-2 py-0.5 rounded text-slate-700 font-semibold">{m.frequency}</span>
-                                  </div>
-                                ))}
-                              </div>
-
-                              {/* Split Ledger payout Details */}
-                              <div className="mt-2.5 pt-2.5 border-t border-slate-200 space-y-1.5 select-none">
-                                <span className="block text-[8px] font-bold text-indigo-750 tracking-widest uppercase font-mono">Dynamic Multi-Vendor Payout Splits</span>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] text-slate-500 font-mono">
-                                  <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
-                                    <span>Platform Fee (3%):</span>
-                                    <span className="font-semibold text-slate-750">₹{(invoice.amount * 0.03).toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between border-b border-dashed border-slate-200/60 pb-0.5">
-                                    <span>Ecosystem Net Payout:</span>
-                                    <span className="font-semibold text-emerald-600">₹{(invoice.amount * 0.97).toFixed(2)}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -4222,26 +2917,23 @@ export const CompounderDashboard: React.FC = () => {
                   </h2>
                   <p className="text-xs text-slate-500 mb-4">
                     {isOphthalmology 
-                      ? 'Daycare admission OT tracker. Collect advance bookings, track lens packages, and print finalized bills.'
-                      : 'Daycare minor OT procedure tracker. Collect payments, track dressing rooms, and print finalized bills.'}
+                      ? 'Daycare admission OT tracker. Track lens packages, surgical preparation, and patient timeline status.'
+                      : 'Daycare minor OT procedure tracker. Track dressing room status and patient timeline status.'}
                   </p>
 
                   <div className="space-y-3.5 max-h-[480px] overflow-y-auto pr-1">
                     {daycarePatients.length === 0 ? (
-                      <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                      <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500 font-medium select-none">
                         {isOphthalmology 
                           ? 'No surgeries currently scheduled by doctors.' 
                           : 'No minor procedures currently scheduled by doctors.'}
                       </div>
                     ) : (
                       daycarePatients.map(p => {
+                        const isSelected = activePatient?.id === p.id;
                         if (isOphthalmology) {
-                          if (!p.vitals) return null;
-                          const booking = p.vitals.surgeryBooking;
+                          const booking = p.vitals?.surgeryBooking;
                           if (!booking) return null;
-                          const balance = booking.price - (booking.advancePaid || 0);
-                          const isSelected = activePatient?.id === p.id;
-
                           return (
                             <div
                               key={p.id}
@@ -4255,48 +2947,22 @@ export const CompounderDashboard: React.FC = () => {
                               <div className="space-y-1.5 flex-1 pr-4 text-left">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <h4 className="font-bold text-xs text-slate-800">{p.name}</h4>
-                                  <span className="text-[8px] font-mono font-bold bg-indigo-50 text-indigo-750 border border-indigo-200 px-1.5 py-0.2 rounded uppercase">
+                                  <span className="text-[8px] font-mono font-bold bg-indigo-50 text-indigo-755 border border-indigo-200 px-1.5 py-0.2 rounded uppercase">
                                     Eye: {booking.eye}
-                                  </span>
-                                  <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded uppercase font-mono border ${
-                                    booking.status === 'paid'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : booking.advancePaid > 0
-                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                                  }`}>
-                                    {booking.status === 'paid'
-                                      ? 'Settled'
-                                      : booking.advancePaid > 0
-                                        ? `Adv Paid (₹${booking.advancePaid})`
-                                        : 'Unpaid'}
                                   </span>
                                 </div>
                                 <p className="text-[10px] text-slate-500">
                                   Package: <strong>{booking.package}</strong> | Date: {booking.date}
                                 </p>
                                 <p className="text-[10px] text-slate-650 font-medium">
-                                  Lens model: {booking.lensType} | Target Power: {booking.iolPower || 'N/A'}
+                                  Lens: {booking.lensType} | Power: {booking.iolPower || 'N/A'}
                                 </p>
-                              </div>
-
-                              <div className="text-right space-y-1">
-                                <div className="text-[12px] font-black text-slate-800">₹{booking.price}</div>
-                                {balance > 0 ? (
-                                  <div className="text-[9px] font-semibold text-rose-600">Due: ₹{balance}</div>
-                                ) : (
-                                  <div className="text-[9px] font-semibold text-emerald-600">Fully Paid</div>
-                                )}
                               </div>
                             </div>
                           );
                         } else {
-                          if (!p.vitals) return null;
-                          const booking = p.vitals.gpProcedureBooking;
+                          const booking = p.vitals?.gpProcedureBooking;
                           if (!booking) return null;
-                          const balance = booking.price - (booking.advancePaid || 0);
-                          const isSelected = activePatient?.id === p.id;
-
                           return (
                             <div
                               key={p.id}
@@ -4311,37 +2977,12 @@ export const CompounderDashboard: React.FC = () => {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <h4 className="font-bold text-xs text-slate-800">{p.name}</h4>
                                   <span className="text-[8px] font-mono font-bold bg-amber-50 text-amber-750 border border-amber-200 px-1.5 py-0.2 rounded uppercase">
-                                    Procedure Room: {booking.room}
-                                  </span>
-                                  <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded uppercase font-mono border ${
-                                    booking.status === 'paid'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      : booking.advancePaid > 0
-                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                        : 'bg-rose-50 text-rose-700 border-rose-200'
-                                  }`}>
-                                    {booking.status === 'paid'
-                                      ? 'Settled'
-                                      : booking.advancePaid > 0
-                                        ? `Adv Paid (₹${booking.advancePaid})`
-                                        : 'Unpaid'}
+                                    Room: {booking.room}
                                   </span>
                                 </div>
                                 <p className="text-[10px] text-slate-500">
                                   Type: <strong>{booking.procedure}</strong> | Date: {booking.date}
                                 </p>
-                                <p className="text-[10px] text-slate-650 font-medium">
-                                  Facility: {booking.room}
-                                </p>
-                              </div>
-
-                              <div className="text-right space-y-1">
-                                <div className="text-[12px] font-black text-slate-800">₹{booking.price}</div>
-                                {balance > 0 ? (
-                                  <div className="text-[9px] font-semibold text-rose-600">Due: ₹{balance}</div>
-                                ) : (
-                                  <div className="text-[9px] font-semibold text-emerald-600">Fully Paid</div>
-                                )}
                               </div>
                             </div>
                           );
@@ -4352,656 +2993,221 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Column: OT/Procedure Billing Worksheet & Payments */}
-              <div className="lg:col-span-6 space-y-6">
-                {activePatient ? (
-                  isOphthalmology && activePatient.vitals?.surgeryBooking && activePatient.vitals.surgeryBooking.eye !== 'None' ? (
-                    (() => {
-                      const booking = activePatient.vitals.surgeryBooking;
-                      const balance = booking.price - (booking.advancePaid || 0);
-                      const surgeonFee = Math.round(booking.price * 0.35);
-                      const lensConsumables = Math.round(booking.price * 0.45);
-                      const anesthetistFee = Math.round(booking.price * 0.10);
-                      const otRent = Math.round(booking.price * 0.10);
-
-                      return (
-                        <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800 space-y-5 animate-fade-in text-left">
-                          <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-600" />
-                          
-                          <div className="flex justify-between items-start border-b border-slate-200 pb-3 flex-wrap gap-2">
-                            <div>
-                              <span className="block text-[8px] font-black text-rose-700 tracking-widest uppercase font-mono">Daycare Surgery Pre-Op Billing</span>
-                              <h3 className="font-bold text-sm text-slate-800 mt-0.5">OT Worksheet: {activePatient.name}</h3>
-                            </div>
-                            <span className="text-[9px] bg-slate-100 text-slate-655 px-2.5 py-0.5 rounded border font-mono">
-                              ID: {activePatient.tokenNumber || 'PAT'}
-                            </span>
+              {/* Right Column: Daycare Room Timelines & Surgeon Schedules */}
+              <div className="lg:col-span-6 space-y-6 text-left select-none animate-fade-in">
+                {/* Scheduled Surgeons list */}
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-650 opacity-60" />
+                  <h3 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider mb-4 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-rose-655 text-sm">hail</span>
+                    Scheduled Surgeons &amp; Specialists Today
+                  </h3>
+                  
+                  <div className="space-y-3.5">
+                    {[
+                      { name: 'Dr. Vivek Sharma', role: 'Chief Ophthalmic Surgeon', status: 'In OT (Eye Room A)', time: '10:00 AM - 02:00 PM', specialty: 'Phacoemulsification & Glaucoma' },
+                      { name: 'Dr. Priya Sen', role: 'Consultant Anesthesiologist', status: 'Pre-op Blocks (Ward B)', time: '09:30 AM - 01:30 PM', specialty: 'Regional & Topical Anesthesia' },
+                      { name: 'Dr. Amit Roy', role: 'General & Laparoscopic Surgeon', status: 'On Call (Minor OT)', time: '12:00 PM - 04:00 PM', specialty: 'Excision & Wound Debridement' }
+                    ].map((s, idx) => (
+                      <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-slate-50 flex items-start gap-3 hover:bg-slate-100/65 transition-all">
+                        <span className="material-symbols-outlined text-rose-500 text-xl mt-0.5">account_circle</span>
+                        <div className="flex-1 space-y-0.5">
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <h4 className="font-bold text-xs text-slate-800">{s.name}</h4>
+                            <span className="text-[9px] bg-rose-50 text-rose-800 border border-rose-150 px-1.5 py-0.2 rounded font-mono font-bold">{s.time}</span>
                           </div>
-
-                          {/* Package Itemized splits */}
-                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5 select-none font-mono">
-                            <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase mb-1">Clinic Package Breakdown splits</span>
-                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
-                              <span>Surgeon Operation Fee (35%):</span>
-                              <span className="font-bold">₹{surgeonFee}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
-                              <span>IOL Lens Implant & OT Consumables (45%):</span>
-                              <span className="font-bold">₹{lensConsumables}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
-                              <span>Anaesthetist Consultation Block (10%):</span>
-                              <span className="font-bold">₹{anesthetistFee}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-600 pb-0.5">
-                              <span>OT Rent & Daycare Ward Rent (10%):</span>
-                              <span className="font-bold">₹{otRent}</span>
-                            </div>
+                          <p className="text-[10px] text-slate-555 font-semibold">{s.role} · <span className="text-slate-455">{s.specialty}</span></p>
+                          <div className="flex items-center gap-1 mt-1 text-[9px] text-emerald-650 font-bold font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            {s.status}
                           </div>
-
-                          {/* Ledger Summary */}
-                          <div className="grid grid-cols-3 gap-3 text-center border-y border-slate-200 py-3.5 select-none">
-                            <div>
-                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Total Package</div>
-                              <div className="text-sm font-black text-slate-800 mt-1">₹{booking.price}</div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Advance Paid</div>
-                              <div className="text-sm font-black text-indigo-750 mt-1">₹{booking.advancePaid || 0}</div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Balance Due</div>
-                              <div className="text-sm font-black text-rose-600 mt-1">₹{balance}</div>
-                            </div>
-                          </div>
-
-                          {/* Payment inputs */}
-                          {balance > 0 && (
-                            <div className="space-y-3.5 border-b border-slate-200 pb-4">
-                              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Record Payment Desk</h4>
-                              
-                              <div className="flex gap-2">
-                                <input
-                                  type="number"
-                                  id="ot-deposit-amount"
-                                  placeholder="Deposit Amount (₹)"
-                                  className="flex-1 input-field text-xs py-2 px-3 focus:ring-1 focus:ring-rose-500 focus:border-rose-500 bg-slate-50 border-slate-200 text-slate-800 rounded-lg outline-none"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const el = document.getElementById('ot-deposit-amount') as HTMLInputElement;
-                                    const amt = parseInt(el?.value || '');
-                                    if (!amt || isNaN(amt) || amt <= 0) {
-                                      alert('Please enter a valid deposit amount.');
-                                      return;
-                                    }
-                                    if (amt > balance) {
-                                      alert(`Deposit amount cannot exceed the balance due of ₹${balance}.`);
-                                      return;
-                                    }
-                                    
-                                    const invoices = api.getInvoices();
-                                    const otInv = invoices.find(i => i.patientId === activePatient.id && i.type === 'ot' && i.status === 'unpaid');
-                                    if (otInv) {
-                                      api.recordOTAdvancePayment(otInv.id, amt);
-                                      el.value = "";
-                                      syncData();
-                                      
-                                      api.pushWhatsAppMessageFromBot(activePatient.phone, 
-                                        `🏥 *OT Package Advance Collected* ✅\n\n` +
-                                        `Hello *${activePatient.name}*, hume aapki surgery booking ke liye *₹${amt}* ka deposit prapt hua hai.\n\n` +
-                                        `💵 *Total Price:* ₹${booking.price}\n` +
-                                        `💰 *Advance Paid:* ₹${booking.advancePaid + amt}\n` +
-                                        `⚖️ *Remaining Due:* ₹${balance - amt}\n\n` +
-                                        `Thank you. Mediflow Daycare.`
-                                      );
-                                      
-                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                        detail: {
-                                          message: `Advance deposit of ₹${amt} successfully recorded.`,
-                                          type: 'success',
-                                          title: 'Advance Recorded'
-                                        }
-                                      }));
-                                    }
-                                  }}
-                                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-slate-850 font-bold rounded-lg text-xs cursor-pointer border-0 active:scale-95 transition-all shrink-0"
-                                >
-                                  Collect Advance
-                                </button>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const invoices = api.getInvoices();
-                                  const otInv = invoices.find(i => i.patientId === activePatient.id && i.type === 'ot' && i.status === 'unpaid');
-                                  if (otInv) {
-                                    api.recordOTAdvancePayment(otInv.id, balance);
-                                    syncData();
-                                    
-                                    api.pushWhatsAppMessageFromBot(activePatient.phone, 
-                                      `🏥 *Daycare Surgery Billing Settled* ✅\n\n` +
-                                      `Hello *${activePatient.name}*, aapka Daycare surgery bill purntah settle ho gaya hai.\n\n` +
-                                      `💵 *Settle Amount:* ₹${balance}\n` +
-                                      `👍 *Status:* FULLY PAID\n\n` +
-                                      `Thank you. Mediflow Daycare.`
-                                    );
-
-                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: {
-                                        message: `Remaining balance of ₹${balance} fully settled.`,
-                                        type: 'success',
-                                        title: 'Worksheet Settled'
-                                      }
-                                    }));
-                                  }
-                                }}
-                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-850 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1 cursor-pointer border-0"
-                              >
-                                <span className="material-symbols-outlined text-[14px]">done_all</span>
-                                Settle Remaining Balance (₹{balance}) &amp; Approve OT Entry
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Daycare Admission Receipt print */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const printWindow = window.open('', '_blank', 'width=800,height=900');
-                              if (!printWindow) return;
-                              
-                              printWindow.document.write(`
-                                <html>
-                                  <head>
-                                    <title>Mediflow Daycare - Daycare OT Admission Receipt</title>
-                                    <style>
-                                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
-                                      .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-                                      .title { font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; }
-                                      .meta-table { width: 100%; margin-bottom: 30px; font-size: 13px; }
-                                      .meta-table td { padding: 6px 12px; }
-                                      .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #dc2626; color: #dc2626; padding-bottom: 6px; margin: 30px 0 15px; }
-                                      table.splits-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                                      table.splits-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; font-weight: 800; color: #475569; }
-                                      table.splits-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-                                      .summary-box { float: right; width: 300px; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 30px; font-size: 13px; }
-                                      .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; }
-                                      .summary-row.total { font-weight: 800; font-size: 16px; border-top: 1.5px solid #e2e8f0; padding-top: 8px; margin-top: 8px; color: #dc2626; }
-                                      .footer { clear: both; text-align: center; margin-top: 80px; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
-                                    </style>
-                                  </head>
-                                  <body>
-                                    <div class="header">
-                                      <div class="title">Mediflow Connected Healthcare Pod</div>
-                                      <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 5px;">DAYCARE SURGERY ADMISSION &amp; OT RECEIPT</div>
-                                    </div>
-                                    <table class="meta-table" width="100%">
-                                      <tr>
-                                        <td><strong>Patient Name:</strong> \${activePatient.name}</td>
-                                        <td><strong>Date:</strong> \${new Date().toLocaleDateString('en-IN')}</td>
-                                      </tr>
-                                      <tr>
-                                        <td><strong>Age / Gender:</strong> \${activePatient.age}y / \${activePatient.gender}</td>
-                                        <td><strong>Token Number:</strong> \${activePatient.tokenNumber || '—'}</td>
-                                      </tr>
-                                      <tr>
-                                        <td><strong>Procedure Type:</strong> \${booking.type}</td>
-                                        <td><strong>Selected Eye:</strong> \${booking.eye}</td>
-                                      </tr>
-                                      <tr>
-                                        <td><strong>Lens Model / IOL power:</strong> \${booking.lensType} (\${booking.iolPower || 'N/A'})</td>
-                                        <td><strong>Assigned OT Charge:</strong> \${booking.coordinator}</td>
-                                      </tr>
-                                    </table>
-
-                                    <div class="section-title">Itemized Package splits (LEDGER DESCRIPTION)</div>
-                                    <table class="splits-table">
-                                      <thead>
-                                        <tr>
-                                          <th>Billing Item / Splitted Category</th>
-                                          <th style="text-align: right;">Amount Charged</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr>
-                                          <td>Surgeon Operation Fee (35%)</td>
-                                          <td style="text-align: right;">₹\${surgeonFee}</td>
-                                        </tr>
-                                        <tr>
-                                          <td>IOL Implant, Viscoelastics &amp; OT Consumables (45%)</td>
-                                          <td style="text-align: right;">₹\${lensConsumables}</td>
-                                        </tr>
-                                        <tr>
-                                          <td>Anesthetist Consultation Block (10%)</td>
-                                          <td style="text-align: right;">₹\${anesthetistFee}</td>
-                                        </tr>
-                                        <tr>
-                                          <td>OT Chamber Ward &amp; Post-Op Care Rent (10%)</td>
-                                          <td style="text-align: right;">₹\${otRent}</td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-
-                                    <div class="summary-box">
-                                      <div class="summary-row">
-                                        <span>Total Package cost:</span>
-                                        <span>₹\${booking.price}</span>
-                                      </div>
-                                      <div class="summary-row">
-                                        <span>Advance Deposit Paid:</span>
-                                        <span style="color: #4f46e5;">₹\${booking.advancePaid || 0}</span>
-                                      </div>
-                                      <div class="summary-row total">
-                                        <span>Balance Due:</span>
-                                        <span>₹\${balance}</span>
-                                      </div>
-                                    </div>
-
-                                    <div class="footer">
-                                      <p>This daycare OT admission receipt is digitally authorized under VitalSync Clinic guidelines.</p>
-                                      <p style="margin-top: 40px; font-weight: bold; color: #475569;">Authorized Registrar Signature / Hospital Seal</p>
-                                    </div>
-                                  </body>
-                                </html>
-                              `);
-                              printWindow.document.close();
-                            }}
-                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">print</span>
-                            Print Daycare Admission &amp; OT Receipt
-                          </button>
                         </div>
-                      );
-                    })()
-                  ) : !isOphthalmology && activePatient.vitals?.gpProcedureBooking && activePatient.vitals.gpProcedureBooking.procedure !== 'None' ? (
-                    (() => {
-                      const booking = activePatient.vitals.gpProcedureBooking;
-                      const balance = booking.price - (booking.advancePaid || 0);
-                      const surgeonFee = Math.round(booking.price * 0.40);
-                      const roomFee = Math.round(booking.price * 0.30);
-                      const consumablesFee = Math.round(booking.price * 0.30);
-
-                      return (
-                        <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800 space-y-5 animate-fade-in text-left">
-                          <div className="absolute top-0 left-0 w-full h-[3px] bg-amber-600" />
-                          
-                          <div className="flex justify-between items-start border-b border-slate-200 pb-3 flex-wrap gap-2">
-                            <div>
-                              <span className="block text-[8px] font-black text-amber-700 tracking-widest uppercase font-mono">Daycare Minor OT &amp; Dressing Billing</span>
-                              <h3 className="font-bold text-sm text-slate-800 mt-0.5">Procedure Worksheet: {activePatient.name}</h3>
-                            </div>
-                            <span className="text-[9px] bg-slate-100 text-slate-655 px-2.5 py-0.5 rounded border font-mono">
-                              ID: {activePatient.tokenNumber || 'PAT'}
-                            </span>
-                          </div>
-
-                          {/* Package Itemized splits */}
-                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5 select-none font-mono">
-                            <span className="block text-[8px] font-black text-slate-600 tracking-widest uppercase mb-1">Procedure Cost Breakdown splits</span>
-                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
-                              <span>Doctor/Surgeon Fee (40%):</span>
-                              <span className="font-bold">₹{surgeonFee}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-600 border-b border-slate-200/50 pb-1.5">
-                              <span>Sterile Dressing Room / Facility Fee (30%):</span>
-                              <span className="font-bold">₹{roomFee}</span>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-600 pb-0.5">
-                              <span>Sterile Consumables &amp; Disposables (30%):</span>
-                              <span className="font-bold">₹{consumablesFee}</span>
-                            </div>
-                          </div>
-
-                          {/* Ledger Summary */}
-                          <div className="grid grid-cols-3 gap-3 text-center border-y border-slate-200 py-3.5 select-none">
-                            <div>
-                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Total Procedure</div>
-                              <div className="text-sm font-black text-slate-800 mt-1">₹{booking.price}</div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Paid Amount</div>
-                              <div className="text-sm font-black text-indigo-755 mt-1">₹{booking.advancePaid || 0}</div>
-                            </div>
-                            <div>
-                              <div className="text-[9px] font-bold text-slate-500 uppercase font-mono">Balance Due</div>
-                              <div className="text-sm font-black text-rose-600 mt-1">₹{balance}</div>
-                            </div>
-                          </div>
-
-                          {/* Payment inputs */}
-                          {balance > 0 ? (
-                            <div className="space-y-3.5 border-b border-slate-200 pb-4">
-                              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Record Payment Desk</h4>
-                              
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const invoices = api.getInvoices();
-                                  const gpInv = invoices.find(i => i.patientId === activePatient.id && i.type === ('gp_procedure' as any) && i.status === 'unpaid');
-                                  if (gpInv) {
-                                    api.recordGPProcedurePayment(gpInv.id, balance);
-                                    syncData();
-                                    
-                                    api.pushWhatsAppMessageFromBot(activePatient.phone, 
-                                      `🏥 *GP Minor Procedure Settled* ✅\n\n` +
-                                      `Hello *${activePatient.name}*, aapka minor procedure bill settle ho gaya hai.\n\n` +
-                                      `💵 *Procedure:* ${booking.procedure}\n` +
-                                      `💰 *Total Amount:* ₹${booking.price}\n` +
-                                      `👍 *Status:* FULLY PAID\n\n` +
-                                      `Thank you. Mediflow Daycare.`
-                                    );
-
-                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: {
-                                        message: `Procedure bill of ₹${balance} fully settled.`,
-                                        type: 'success',
-                                        title: 'Worksheet Settled'
-                                      }
-                                    }));
-                                  }
-                                }}
-                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-850 font-bold rounded-lg uppercase tracking-wider text-[10px] cursor-pointer flex items-center justify-center gap-1 cursor-pointer border-0"
-                              >
-                                <span className="material-symbols-outlined text-[14px]">done_all</span>
-                                Settle Procedure Bill (₹{balance}) &amp; Approve Entry
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="p-3 bg-emerald-50 border border-emerald-250 rounded-xl text-center text-xs text-emerald-800 font-bold font-mono">
-                              🎉 Invoice Settle &amp; Payment Verification Complete
-                            </div>
-                          )}
-
-                          {/* Daycare Admission Receipt print */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const printWindow = window.open('', '_blank', 'width=800,height=900');
-                              if (!printWindow) return;
-                              
-                              printWindow.document.write(`
-                                <html>
-                                  <head>
-                                    <title>Mediflow Daycare - Minor Procedure Admission Receipt</title>
-                                    <style>
-                                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
-                                      .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-                                      .title { font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #d97706; }
-                                      .meta-table { width: 100%; margin-bottom: 30px; font-size: 13px; }
-                                      .meta-table td { padding: 6px 12px; }
-                                      .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #d97706; color: #d97706; padding-bottom: 6px; margin: 30px 0 15px; }
-                                      table.splits-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                                      table.splits-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; font-weight: 800; color: #475569; }
-                                      table.splits-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-                                      .summary-box { float: right; width: 300px; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 30px; font-size: 13px; }
-                                      .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; }
-                                      .summary-row.total { font-weight: 800; font-size: 16px; border-top: 1.5px solid #e2e8f0; padding-top: 8px; margin-top: 8px; color: #d97706; }
-                                      .footer { clear: both; text-align: center; margin-top: 80px; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
-                                    </style>
-                                  </head>
-                                  <body>
-                                    <div class="header">
-                                      <div class="title">Mediflow Connected Healthcare Pod</div>
-                                      <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-top: 5px;">MINOR PROCEDURE ADMISSION &amp; RECEIPT</div>
-                                    </div>
-                                    <table class="meta-table" width="100%">
-                                      <tr>
-                                        <td><strong>Patient Name:</strong> \${activePatient.name}</td>
-                                        <td><strong>Date:</strong> \${new Date().toLocaleDateString('en-IN')}</td>
-                                      </tr>
-                                      <tr>
-                                        <td><strong>Age / Gender:</strong> \${activePatient.age}y / \${activePatient.gender}</td>
-                                        <td><strong>Token Number:</strong> \${activePatient.tokenNumber || '—'}</td>
-                                      </tr>
-                                      <tr>
-                                        <td><strong>Procedure Type:</strong> \${booking.procedure}</td>
-                                        <td><strong>Facility / Room:</strong> \${booking.room}</td>
-                                      </tr>
-                                    </table>
-
-                                    <div class="section-title">Itemized Splits (LEDGER DESCRIPTION)</div>
-                                    <table class="splits-table">
-                                      <thead>
-                                        <tr>
-                                          <th>Billing Item / Splitted Category</th>
-                                          <th style="text-align: right;">Amount Charged</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr>
-                                          <td>Doctor/Surgeon Fee (40%)</td>
-                                          <td style="text-align: right;">₹\${surgeonFee}</td>
-                                        </tr>
-                                        <tr>
-                                          <td>Sterile Dressing Room / Facility Rent (30%)</td>
-                                          <td style="text-align: right;">₹\${roomFee}</td>
-                                        </tr>
-                                        <tr>
-                                          <td>Sterile Consumables &amp; Disposables (30%)</td>
-                                          <td style="text-align: right;">₹\${consumablesFee}</td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-
-                                    <div class="summary-box">
-                                      <div class="summary-row">
-                                        <span>Total Price:</span>
-                                        <span>₹\${booking.price}</span>
-                                      </div>
-                                      <div class="summary-row">
-                                        <span>Amount Paid:</span>
-                                        <span style="color: #4f46e5;">₹\${booking.advancePaid || 0}</span>
-                                      </div>
-                                      <div class="summary-row total">
-                                        <span>Balance Due:</span>
-                                        <span>₹\${balance}</span>
-                                      </div>
-                                    </div>
-
-                                    <div class="footer">
-                                      <p>This minor procedure receipt is digitally authorized under VitalSync Clinic guidelines.</p>
-                                      <p style="margin-top: 40px; font-weight: bold; color: #475569;">Authorized Registrar Signature / Hospital Seal</p>
-                                    </div>
-                                  </body>
-                                </html>
-                              `);
-                              printWindow.document.close();
-                            }}
-                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">print</span>
-                            Print Minor OT Admission &amp; Receipt
-                          </button>
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-indigo-200 rounded-2xl p-8 bg-indigo-50/30 text-center h-[300px]">
-                      <span className="material-symbols-outlined text-3xl text-indigo-400">person_search</span>
-                      <p className="text-xs text-slate-655 font-semibold">
-                        {isOphthalmology 
-                          ? 'Select a patient scheduled for surgery from the list on the left to start OT billing.'
-                          : 'Select a patient scheduled for a minor procedure from the list on the left to start procedure billing.'}
-                      </p>
-                    </div>
-                  )
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-indigo-200 rounded-2xl p-8 bg-indigo-50/30 text-center h-[300px]">
-                    <span className="material-symbols-outlined text-3xl text-indigo-400">person_search</span>
-                    <p className="text-xs text-slate-655 font-semibold">
-                      {isOphthalmology 
-                        ? 'Select a patient scheduled for surgery from the list on the left to start OT billing.'
-                        : 'Select a patient scheduled for a minor procedure from the list on the left to start procedure billing.'}
-                    </p>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+
+                {/* Daycare Room Log Timelines */}
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-655 opacity-60" />
+                  <h3 className="text-xs font-bold text-slate-500 uppercase font-mono tracking-wider mb-4 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-indigo-600 text-sm">schedule</span>
+                    Daycare OT Room Timelines &amp; Pre-op Checks
+                  </h3>
+
+                  <div className="relative border-l border-indigo-100 pl-4 ml-2.5 space-y-5 py-1 text-xs">
+                    {[
+                      { time: '10:15 AM', label: 'Patient admission checks completed', desc: 'Pre-op vitals logged, ABHA consent verified at desk.' },
+                      { time: '11:00 AM', label: 'Local block anesthetic administration', desc: 'Topical anesthetic drops and block administered by Dr. Sen.' },
+                      { time: '11:30 AM', label: 'OT Procedure started (Cataract Phaco)', desc: 'Surgeon Dr. Vivek Sharma started Phaco surgery under microscope.' },
+                      { time: '12:00 PM', label: 'Patient shifted to Recovery Ward', desc: 'IOL lens successfully placed. Shifted to Ward B for monitoring.' },
+                      { time: '12:45 PM', label: 'Discharge clearance & counseling', desc: 'Post-op dosage directions pushed to patient WhatsApp.' }
+                    ].map((t, idx) => (
+                      <div key={idx} className="relative group">
+                        <span className="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white shadow-xs group-hover:scale-125 transition-transform" />
+                        <div className="space-y-0.5">
+                          <span className="font-mono font-bold text-[9px] text-indigo-600 block">{t.time}</span>
+                          <h4 className="font-bold text-slate-800 text-[11px]">{t.label}</h4>
+                          <p className="text-[10px] text-slate-500 leading-normal">{t.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
+
           );
         })()}
 
-        {/* Real-time WhatsApp Loop simulator at the bottom */}
-        <div className="glass-panel border-slate-200 shadow-xl overflow-hidden flex flex-col h-[600px] relative mt-8">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-600 opacity-80" />
-            
-            <div className="bg-[#075e54] p-4 border-b border-[#128c7e]/20 flex items-center justify-between">
-              <div className="flex items-center gap-3 select-none">
-                <div className="h-9 w-9 rounded-full bg-white/10 text-slate-800 flex items-center justify-center font-bold text-sm shrink-0 border border-white/20">
-                  💬
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-800">WhatsApp Live Simulator Sandbox</h3>
-                  <p className="text-[10px] text-emerald-250 flex items-center gap-1 font-semibold tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    ACTIVE VERIFICATION SERVICE
-                  </p>
-                </div>
+      {/* Sliding WhatsApp Chat Drawer */}
+      <div className={`fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-350 ease-in-out transform flex flex-col ${
+        isChatDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        <div className="bg-[#075e54] p-4 text-white flex items-center justify-between shadow-md shrink-0">
+          <div className="flex items-center gap-3 select-none">
+            <div className="h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center font-bold text-sm shrink-0 border border-white/20">
+              💬
+            </div>
+            <div className="text-left">
+              <h3 className="font-bold text-sm text-white">WhatsApp Live Simulator</h3>
+              <p className="text-[9px] text-emerald-250 flex items-center gap-1 font-semibold tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                ACTIVE VERIFICATION SERVICE
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsChatDrawerOpen(false)}
+            className="p-1.5 text-white hover:text-slate-100 rounded-lg hover:bg-white/10 transition cursor-pointer border-0 bg-transparent flex items-center"
+          >
+            <span className="material-symbols-outlined text-sm font-bold text-white-force">close</span>
+          </button>
+        </div>
+
+        {/* Session Selector Dropdown */}
+        <div className="bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800 p-3 flex items-center gap-2 select-none text-left shrink-0">
+          <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider shrink-0">
+            Select Patient Loop:
+          </span>
+          <select
+            value={activeSession?.patientPhone || ''}
+            onChange={(e) => {
+              const phone = e.target.value;
+              const sess = sessions.find(s => s.patientPhone === phone);
+              if (sess) {
+                setActiveSession(sess);
+                const pat = patients.find(p => p.phone === phone);
+                if (pat) {
+                  api.setActivePatient(pat);
+                }
+              } else {
+                setActiveSession(null);
+              }
+            }}
+            className="flex-1 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-[11px] text-slate-700 dark:text-slate-350 outline-none font-medium"
+          >
+            <option value="">-- Select Active Loop --</option>
+            {sessions.map(s => {
+              const pat = patients.find(p => p.phone === s.patientPhone);
+              const name = pat ? pat.name : 'Unknown Patient';
+              return (
+                <option key={s.id} value={s.patientPhone}>
+                  {name} ({s.patientPhone}) - State: {s.currentState.replace('_', ' ')}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {activeSession ? (
+          <div 
+            ref={chatContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 bg-[#efeae2] dark:bg-slate-950 p-4 overflow-y-auto space-y-4 font-sans text-xs"
+          >
+            {(() => {
+                const sessData = activeSession.sessionData || (activeSession as any).session_data || {};
+                const chatHistory = sessData.chatHistory || [];
+                return chatHistory.map((msg: ChatMessage, idx: number) => {
+                  const isBot = msg.sender === 'bot';
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`flex ${isBot ? 'justify-start' : 'justify-end'} animate-fade-in`}
+                    >
+                      <div 
+                        className={`max-w-[85%] p-3 rounded-xl shadow-xs relative leading-relaxed ${
+                          isBot 
+                            ? 'bg-white dark:bg-slate-900 rounded-tl-none text-slate-800 dark:text-slate-250 border border-slate-250/20' 
+                            : 'bg-[#d9fdd3] dark:bg-emerald-950/45 rounded-tr-none text-slate-855 dark:text-slate-200 border border-emerald-500/10'
+                        }`}
+                      >
+                        <p className="leading-relaxed whitespace-pre-line font-mono text-[11px] font-medium">{msg.text}</p>
+                        
+                        {isBot && msg.text.includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
+                          <div className="mt-3 pt-3 border-t border-slate-105 dark:border-slate-850 flex flex-col gap-2 select-none">
+                            <button
+                              onClick={() => {
+                                api.processIncomingWhatsAppMessage(activeSession.patientPhone, '1');
+                                syncData();
+                              }}
+                              className="bg-emerald-655 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                            >
+                              Grant Consent
+                            </button>
+                          </div>
+                        )}
+                        {isBot && msg.text.includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
+                          <div className="mt-2 flex items-center gap-1 text-emerald-600 dark:text-emerald-450 text-[9px] font-bold uppercase tracking-wider select-none">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-655 animate-pulse" /> Consent Registered
+                          </div>
+                        )}
+
+                        <span className="block text-[8px] text-slate-500 text-right mt-1.5 font-mono select-none">
+                          {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 select-none">
+              <span className="material-symbols-outlined text-5xl text-slate-400 animate-pulse">forum</span>
+              <div>
+                <h4 className="font-bold text-slate-705 dark:text-slate-350 text-xs">No Active Chat Loop</h4>
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] mt-1 leading-relaxed">
+                  Search a patient registry or click the WhatsApp button next to a patient to focus simulated chat thread.
+                </p>
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Session Selector Dropdown */}
-            <div className="bg-white border-b border-slate-200/60 p-3 flex items-center gap-2 select-none">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                Select Patient Loop:
-              </span>
-              <select
-                value={activeSession?.patientPhone || ''}
-                onChange={(e) => {
-                  const phone = e.target.value;
-                  const sess = sessions.find(s => s.patientPhone === phone);
-                  if (sess) {
-                    setActiveSession(sess);
-                    const pat = patients.find(p => p.phone === phone);
-                    if (pat) {
-                      api.setActivePatient(pat);
-                    }
-                  } else {
-                    setActiveSession(null);
-                  }
-                }}
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-755 outline-none font-medium text-slate-700"
-              >
-                <option value="">-- Select Active Loop --</option>
-                {sessions.map(s => {
-                  const pat = patients.find(p => p.phone === s.patientPhone);
-                  const name = pat ? pat.name : 'Unknown Patient';
-                  return (
-                    <option key={s.id} value={s.patientPhone}>
-                      {name} ({s.patientPhone}) - State: {s.currentState.replace('_', ' ')}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div 
-              ref={chatContainerRef}
-              onScroll={handleScroll}
-              className="flex-1 bg-[#efeae2] p-4 overflow-y-auto space-y-4 font-sans text-xs"
-            >
-              {activeSession ? (
-                <div className="space-y-4">
-                  <div className="text-center select-none">
-                    <span className="bg-white/10 text-slate-650 px-3 py-1 rounded-md text-[9px] font-bold tracking-widest uppercase font-mono">
-                      TODAY
-                    </span>
-                  </div>
-
-                  <div className="bg-white/90 border border-slate-200/80 p-3.5 rounded-xl flex gap-3 leading-relaxed shadow-sm select-none">
-                    <ShieldAlert className="h-5 w-5 text-indigo-650 flex-shrink-0 mt-0.5" />
-                    <p className="text-slate-605 text-[10px] leading-relaxed">
-                      Time-locked patient clinical consent simulation for <strong>{patients.find(p => p.phone === activeSession.patientPhone)?.name || 'Patient'}</strong> (+91 {activeSession.patientPhone}). Current state: <span className="font-mono text-emerald-600 uppercase font-semibold">{activeSession.currentState.replace('_', ' ')}</span>
-                    </p>
-                  </div>
-
-                  {(() => {
-                    const sessData = activeSession.sessionData || (activeSession as any).session_data || {};
-                    const chatHistory = sessData.chatHistory || [];
-                    return chatHistory.map((msg: ChatMessage, idx: number) => {
-                      const isBot = msg.sender === 'bot';
-                      return (
-                        <div 
-                          key={idx} 
-                          className={`flex ${isBot ? 'justify-start' : 'justify-end'} animate-fade-in`}
-                        >
-                          <div 
-                            className={`max-w-[85%] p-3.5 rounded-2xl shadow-sm relative leading-relaxed ${
-                              isBot 
-                                ? 'bg-white rounded-tl-none text-slate-800' 
-                                : 'bg-[#d9fdd3] rounded-tr-none text-slate-850'
-                            }`}
-                          >
-                            <p className="leading-relaxed whitespace-pre-line font-mono text-[11px] font-medium text-slate-800">{msg.text}</p>
-                            
-                            {isBot && msg.text.includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
-                              <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2 select-none">
-                                <button
-                                  onClick={() => {
-                                    api.processIncomingWhatsAppMessage(activeSession.patientPhone, '1');
-                                    syncData();
-                                  }}
-                                  className="bg-emerald-600 hover:bg-emerald-500 text-slate-800 font-bold py-2 rounded-xl text-center shadow active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer border-0"
-                                >
-                                  Grant Consent ({patients.find(p => p.phone === activeSession.patientPhone)?.name || 'Patient'})
-                                </button>
-                              </div>
-                            )}
-                            {isBot && msg.text.includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
-                              <div className="mt-2 flex items-center gap-1 text-emerald-600 text-[9px] font-bold uppercase tracking-wider select-none">
-                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-655 animate-pulse" /> Consent Registered
-                              </div>
-                            )}
-
-                            <span className="block text-[8px] text-slate-500 text-right mt-1.5 font-mono select-none">
-                              {msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 select-none">
-                  <span className="material-symbols-outlined text-6xl text-slate-600 animate-pulse">forum</span>
-                  <div>
-                    <h4 className="font-bold text-slate-700 text-sm">No Active WhatsApp Loop</h4>
-                    <p className="text-slate-500 text-xs mt-1 leading-relaxed">
-                      Lookup a patient in patient registry lookup or register a new one, then click "SMS opt-in" to trigger simulated messaging sandboxing.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleSendReply} className="bg-[#f0f2f5] p-3 border-t border-slate-200 flex gap-2">
-              <input
-                type="text"
-                value={replyInput}
-                onChange={(e) => setReplyInput(e.target.value)}
-                disabled={!activeSession}
-                placeholder={activeSession ? "Type simulated message (e.g. '1', 'PAY', 'Metformin 30 tabs')..." : "Simulated WhatsApp Sandbox Interface"}
-                className="flex-1 bg-white border border-slate-200/80 rounded-full px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-              />
-              <button 
-                type="submit"
-                disabled={!activeSession || !replyInput.trim()} 
-                className={`p-2.5 rounded-full transition-colors border-0 shrink-0 ${
-                  activeSession && replyInput.trim() 
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-slate-800 cursor-pointer shadow active:scale-95' 
-                    : 'bg-slate-200 text-slate-650'
-                }`}
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </form>
-          </div>
-
+        <form onSubmit={handleSendReply} className="bg-[#f0f2f5] dark:bg-slate-900 p-3 border-t border-slate-205 dark:border-slate-800 flex gap-2 shrink-0">
+          <input
+            type="text"
+            value={replyInput}
+            onChange={(e) => setReplyInput(e.target.value)}
+            disabled={!activeSession}
+            placeholder={activeSession ? "Type simulated message..." : "Select patient loop to type"}
+            className="flex-1 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full px-4 py-2.5 text-xs text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+          />
+          <button 
+            type="submit"
+            disabled={!activeSession || !replyInput.trim()} 
+            className={`p-2.5 rounded-full transition-colors border-0 shrink-0 ${
+              activeSession && replyInput.trim() 
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-slate-855 cursor-pointer shadow active:scale-95' 
+                : 'bg-slate-200 dark:bg-slate-800 text-slate-655'
+            }`}
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </form>
       </div>
 
       {viewingDocUrl && (
@@ -5292,7 +3498,6 @@ export const CompounderDashboard: React.FC = () => {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 dark:bg-[#0b0f19]/95 backdrop-blur-lg border-t border-slate-200/80 dark:border-slate-800/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.5)] px-2 pb-safe-bottom">
         <div className="flex items-center justify-around h-16">
           {[
-            { id: 'intake', label: 'Intake', icon: UserCheck },
             { id: 'patients', label: 'Patients', icon: Users },
             { id: 'tokens', label: 'Tokens', icon: Activity },
             { id: 'labs', label: 'Labs', icon: FileText },

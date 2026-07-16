@@ -48,6 +48,7 @@ export interface Patient {
   pastReportsSummary?: string;
   createdAt: string;
   syncStatus?: 'synced' | 'pending' | 'failed';
+  isPremiumMember?: boolean;
 }
 
 export interface ClinicStaff {

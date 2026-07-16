@@ -47,14 +47,22 @@ export class PatientService {
     const tokensMap = load<Record<string, string>>('tokens_map', {});
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
     const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
+    const premiumMap = load<Record<string, boolean>>('premium_map', {});
     
     return rawPatients.map(p => ({
       ...p,
       vitals: vitalsMap[p.id] || p.vitals,
       tokenNumber: tokensMap[p.id] || p.tokenNumber,
       queueStatus: queueStatusMap[p.id] || p.queueStatus || 'awaiting_vitals',
-      syncStatus: syncStatusMap[p.id] || p.syncStatus || 'synced'
+      syncStatus: syncStatusMap[p.id] || p.syncStatus || 'synced',
+      isPremiumMember: premiumMap[p.id] !== undefined ? premiumMap[p.id] : p.isPremiumMember
     }));
+  }
+
+  static updatePatientPremiumStatus(patientId: string, isPremium: boolean): void {
+    const premiumMap = load<Record<string, boolean>>('premium_map', {});
+    premiumMap[patientId] = isPremium;
+    save('premium_map', premiumMap);
   }
 
   // Self-Healing Background Sync Task Queue Worker
