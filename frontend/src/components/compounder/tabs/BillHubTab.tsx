@@ -569,9 +569,6 @@ export const BillHubTab: React.FC = () => {
             abhaId: '',
             allergies: [],
             chronicConditions: [],
-            height: '',
-            weight: '',
-            bloodGroup: '',
             isPremiumMember: false
           });
           window.dispatchEvent(new CustomEvent('mediflow-toast', {
