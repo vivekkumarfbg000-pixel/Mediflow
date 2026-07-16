@@ -1149,16 +1149,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {handleLaunchVideoConsult && (
-                <button
-                  type="button"
-                  onClick={handleLaunchVideoConsult}
-                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[9px] font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
-                >
-                  <span className="material-symbols-outlined text-[12px] text-white-force animate-pulse">video_call</span>
-                  Launch Video Consult
-                </button>
-              )}
+
               {selectedPatient.abhaId && (
                 <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full font-bold tracking-wider uppercase font-mono">
                   ABHA Verified
