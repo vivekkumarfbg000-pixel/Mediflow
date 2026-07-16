@@ -82,7 +82,7 @@ const getBilingualInstruction = (medicineName: string, dosage?: string) => {
 export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { podEntities } = useClinic();
-  const [activeTab, setActiveTab] = useState<'intake' | 'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing'>('intake');
+  const [activeTab, setActiveTab] = useState<'intake' | 'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('intake');
 
   // Patient Directory Tab Local States
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
@@ -297,7 +297,7 @@ export const CompounderDashboard: React.FC = () => {
 
   // Pathology uploads state
   const [reports, setReports] = useState<PathologyReport[]>([]);
-  const [isInvoiceGeneratorOpen, setIsInvoiceGeneratorOpen] = useState(false);
+
 
   // Lab reports state
   const [fullLabReports, setFullLabReports] = useState<LabReport[]>([]);
@@ -1278,22 +1278,6 @@ export const CompounderDashboard: React.FC = () => {
               <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
               {staffList.find(s => s.id === activeStaffId)?.staffName || 'System Compounder'} · Checked-In
             </span>
-            <button
-              type="button"
-              onClick={() => setIsInvoiceGeneratorOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-clinical-800/50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-clinical-700/50 hover:shadow-md transition-all cursor-pointer"
-            >
-              <Printer className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
-              Invoice Generator
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-rose-700 hover:bg-rose-100 transition cursor-pointer"
-            >
-              <LogOut className="h-3.5 w-3.5 text-rose-600" />
-              Sign Out
-            </button>
           </div>
         </div>
 
@@ -1305,7 +1289,8 @@ export const CompounderDashboard: React.FC = () => {
             { id: 'tokens', label: 'Appointments (अपॉइंटमेंट)', icon: <span className="material-symbols-outlined text-[15px] font-bold text-rose-500">calendar_month</span> },
             { id: 'labs', label: isOphthalmology ? 'Biometry (बायोमेट्री)' : nomenclature.careLoopLabStep, icon: <FileText className="h-4 w-4 text-indigo-500" /> },
             { id: 'pharmacy', label: isOphthalmology ? 'Optical/Rx (चश्मा)' : nomenclature.careLoopPharmacyStep, icon: <QrCode className="h-4 w-4 text-amber-500" /> },
-            { id: 'ot_billing', label: isOphthalmology ? 'Daycare (सर्जरी)' : 'Minor OT (ओटी)', icon: <span className="material-symbols-outlined text-sm font-bold text-rose-600">medical_services</span> }
+            { id: 'ot_billing', label: isOphthalmology ? 'Daycare (सर्जरी)' : 'Minor OT (ओटी)', icon: <span className="material-symbols-outlined text-sm font-bold text-rose-600">medical_services</span> },
+            { id: 'invoice_generator', label: 'Invoices (इनवॉइस)', icon: <Printer className="h-4 w-4 text-slate-500 dark:text-slate-450" /> }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1549,20 +1534,11 @@ export const CompounderDashboard: React.FC = () => {
 
       {/* TAB CONTENT SPACES */}
       <div className="space-y-6">
-        {isInvoiceGeneratorOpen && (
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl animate-fade-in relative">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Invoice Generator</p>
-                <p className="text-xs text-slate-500">Open post-payment invoice workflow for scanned bills and receipts.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsInvoiceGeneratorOpen(false)}
-                className="text-xs font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-900"
-              >
-                Close
-              </button>
+        {activeTab === 'invoice_generator' && (
+          <div className="glass-panel p-6 border-slate-200/60 shadow-xl animate-fade-in relative text-left">
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] font-mono">Invoice Generator Workspace</p>
+              <p className="text-xs text-slate-500">Generate, customize, and print invoices for pharmacy and diagnostic care loops.</p>
             </div>
             <InvoiceGenerator />
           </div>
@@ -5327,7 +5303,8 @@ export const CompounderDashboard: React.FC = () => {
             { id: 'tokens', label: 'Tokens', icon: Activity },
             { id: 'labs', label: 'Labs', icon: FileText },
             { id: 'pharmacy', label: 'Pharmacy', icon: QrCode },
-            { id: 'ot_billing', label: isOphthalmology ? 'Daycare' : 'Minor OT', icon: Stethoscope }
+            { id: 'ot_billing', label: isOphthalmology ? 'Daycare' : 'Minor OT', icon: Stethoscope },
+            { id: 'invoice_generator', label: 'Invoices', icon: Printer }
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
