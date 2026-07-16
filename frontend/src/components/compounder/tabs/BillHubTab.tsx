@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer
+  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { EncounterService } from '../../../services/encounterService';
@@ -27,6 +27,15 @@ export const BillHubTab: React.FC = () => {
     structured: Record<string, string>;
   } | null>(null);
 
+  // Manual Billing & Catalog Search States
+  const [manualItemSearchQuery, setManualItemSearchQuery] = useState('');
+  const [manualMedicinesList, setManualMedicinesList] = useState<Array<{ name: string; mrp: number; price: number; batch: string; stock: number }>>([]);
+  const [manualTestsList, setManualTestsList] = useState<DiagnosticTest[]>([]);
+
+  // Voice Billing States
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+
   // Billing Item States (Toggles & Quantities)
   const [includeConsult, setIncludeConsult] = useState(true);
   const [selectedMedicines, setSelectedMedicines] = useState<Record<string, { selected: boolean; qty: number }>>({});
@@ -48,6 +57,9 @@ export const BillHubTab: React.FC = () => {
       setManualExtractedData(null);
       setDiscountInput(0);
       setIncludeConsult(true);
+      setManualMedicinesList([]);
+      setManualTestsList([]);
+      setVoiceTranscript('');
 
       // Check if there is an active digital prescription / encounter
       const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id);
@@ -90,6 +102,183 @@ export const BillHubTab: React.FC = () => {
     );
   }, [patients, searchQuery]);
 
+  // Catalog item search suggestions
+  const catalogSuggestions = useMemo(() => {
+    const query = manualItemSearchQuery.trim().toLowerCase();
+    if (!query) return [];
+
+    const matchedMeds = inventory
+      .filter(m => m.name.toLowerCase().includes(query) || (m.genericName && m.genericName.toLowerCase().includes(query)))
+      .slice(0, 5)
+      .map(m => ({ id: m.id, name: m.name, type: 'pharmacy' as const, price: m.price, item: m }));
+
+    const matchedTests = MASTER_TEST_CATALOG
+      .filter(t => t.name.toLowerCase().includes(query))
+      .slice(0, 5)
+      .map(t => ({ id: t.loincCode, name: t.name, type: 'lab' as const, price: t.price, item: t }));
+
+    return [...matchedMeds, ...matchedTests];
+  }, [manualItemSearchQuery, inventory]);
+
+  // Add selected item from catalog search
+  const handleAddSuggestedItem = (s: any) => {
+    if (s.type === 'pharmacy') {
+      const med = s.item as PharmacyInventoryItem;
+      if (!manualMedicinesList.some(m => m.name.toLowerCase() === med.name.toLowerCase())) {
+        setManualMedicinesList(prev => [...prev, {
+          name: med.name,
+          mrp: med.mrp,
+          price: med.price,
+          batch: med.batchNumber,
+          stock: med.stock
+        }]);
+      }
+      setSelectedMedicines(prev => ({
+        ...prev,
+        [med.name.toLowerCase()]: { selected: true, qty: 10 }
+      }));
+    } else {
+      const test = s.item as DiagnosticTest;
+      if (!manualTestsList.some(t => t.loincCode === test.loincCode)) {
+        setManualTestsList(prev => [...prev, test]);
+      }
+      setSelectedTests(prev => ({
+        ...prev,
+        [test.loincCode]: true
+      }));
+    }
+    setManualItemSearchQuery('');
+  };
+
+  // Voice Billing NLP Parser
+  const parseVoiceCommand = (text: string) => {
+    const textLower = text.toLowerCase();
+    
+    // Help parse spoken numbers in English
+    const numberWords: Record<string, number> = {
+      one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+      eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, twenty: 20, thirty: 30, fifty: 50
+    };
+
+    const findQty = (sentence: string, defaultValue = 10): number => {
+      const matchDigit = sentence.match(/\b\d+\b/);
+      if (matchDigit) return parseInt(matchDigit[0]);
+      
+      for (const [word, val] of Object.entries(numberWords)) {
+        if (sentence.includes(word)) return val;
+      }
+      return defaultValue;
+    };
+
+    let recognizedItems: string[] = [];
+
+    // 1. Scan pharmacy catalog
+    const newMedsList = [...manualMedicinesList];
+    const newMedsRecord = { ...selectedMedicines };
+
+    inventory.forEach(item => {
+      const nameLower = item.name.toLowerCase();
+      const genericLower = item.genericName ? item.genericName.toLowerCase() : '';
+      
+      if (textLower.includes(nameLower) || (genericLower && textLower.includes(genericLower))) {
+        if (!newMedsList.some(m => m.name.toLowerCase() === item.name.toLowerCase())) {
+          newMedsList.push({
+            name: item.name,
+            mrp: item.mrp,
+            price: item.price,
+            batch: item.batchNumber,
+            stock: item.stock
+          });
+        }
+        
+        const qty = findQty(textLower);
+        newMedsRecord[item.name.toLowerCase()] = { selected: true, qty };
+        recognizedItems.push(`${qty}x ${item.name}`);
+      }
+    });
+
+    // 2. Scan lab tests catalog
+    const newTestsList = [...manualTestsList];
+    const newTestsRecord = { ...selectedTests };
+
+    MASTER_TEST_CATALOG.forEach(test => {
+      const nameLower = test.name.toLowerCase();
+      if (textLower.includes(nameLower) || (textLower.includes('hba1c') && test.name.includes('HbA1c'))) {
+        if (!newTestsList.some(t => t.loincCode === test.loincCode)) {
+          newTestsList.push(test);
+        }
+        newTestsRecord[test.loincCode] = true;
+        recognizedItems.push(test.name);
+      }
+    });
+
+    setManualMedicinesList(newMedsList);
+    setSelectedMedicines(newMedsRecord);
+    setManualTestsList(newTestsList);
+    setSelectedTests(newTestsRecord);
+
+    if (recognizedItems.length > 0) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Voice Billing Success! 🎤',
+          message: `Successfully added: ${recognizedItems.join(', ')}`,
+          type: 'success'
+        }
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Voice Match Alert',
+          message: 'No medicines/tests matched catalog names. Try: "Add Paracetamol" or "Add HbA1c test".',
+          type: 'info'
+        }
+      }));
+    }
+  };
+
+  // Start voice recognition
+  const handleStartVoiceBilling = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { 
+          title: 'Web Speech Not Supported', 
+          message: 'Voice recognition is not supported in this browser. Please use Chrome or Safari.', 
+          type: 'error' 
+        }
+      }));
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceTranscript('Listening... Describe billing details now.');
+    };
+
+    recognition.onerror = (e: any) => {
+      console.error('Speech recognition error:', e);
+      setIsListening(false);
+      setVoiceTranscript('Error capturing audio.');
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setVoiceTranscript(`Transcribed: "${transcript}"`);
+      parseVoiceCommand(transcript);
+    };
+
+    recognition.start();
+  };
+
   // Active items mapping (syncing prices)
   const billingLedger = useMemo(() => {
     if (!selectedPatient) return null;
@@ -100,7 +289,6 @@ export const BillHubTab: React.FC = () => {
       baseConsultFee = activeSop.extractedConfig.doctor_fee;
     }
 
-    // Dynamic fee check
     const feeResult = PatientService.calculateDynamicOPDFee(selectedPatient.id);
     let consultFee = feeResult.amount;
     if (feeResult.type === 'First Visit') {
@@ -116,7 +304,6 @@ export const BillHubTab: React.FC = () => {
       const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id);
       const latest = encounters[encounters.length - 1];
       if (latest) {
-        // Build medicines list matching catalog
         latest.medications.forEach(med => {
           const matched = inventory.find(i => i.name.toLowerCase() === med.medicineName.toLowerCase() || i.genericName.toLowerCase() === med.medicineName.toLowerCase());
           medicinesList.push({
@@ -128,7 +315,6 @@ export const BillHubTab: React.FC = () => {
           });
         });
 
-        // Build tests list matching catalog
         latest.diagnosticTests.forEach(test => {
           const matched = MASTER_TEST_CATALOG.find(t => t.loincCode === test.loincCode);
           testsList.push({
@@ -141,41 +327,52 @@ export const BillHubTab: React.FC = () => {
           });
         });
       }
-    } else if (billingMode === 'manual' && manualExtractedData) {
-      // Parse structured items from OCR
-      Object.entries(manualExtractedData.structured).forEach(([k, v]) => {
-        const itemLower = k.toLowerCase();
-        
-        // Try matching as medicine
-        const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || i.genericName.toLowerCase().includes(itemLower));
-        if (matchedMed) {
-          medicinesList.push({
-            name: matchedMed.name,
-            mrp: matchedMed.mrp,
-            price: matchedMed.price,
-            batch: matchedMed.batchNumber,
-            stock: matchedMed.stock
-          });
-          return;
-        }
+    } else {
+      // Manual billing combines OCR + Manual list additions
+      const combinedMeds = [...manualMedicinesList];
+      const combinedTests = [...manualTestsList];
 
-        // Try matching as lab test
-        const matchedTest = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase().includes(itemLower));
-        if (matchedTest) {
-          testsList.push(matchedTest);
-          return;
-        }
+      if (manualExtractedData) {
+        Object.entries(manualExtractedData.structured).forEach(([k, v]) => {
+          const itemLower = k.toLowerCase();
+          const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || i.genericName.toLowerCase().includes(itemLower));
+          if (matchedMed) {
+            if (!combinedMeds.some(m => m.name.toLowerCase() === matchedMed.name.toLowerCase())) {
+              combinedMeds.push({
+                name: matchedMed.name,
+                mrp: matchedMed.mrp,
+                price: matchedMed.price,
+                batch: matchedMed.batchNumber,
+                stock: matchedMed.stock
+              });
+            }
+            return;
+          }
 
-        // Default fallback if OCR scanned but not in catalog
-        const priceNum = parseFloat(v.replace(/[^0-9.]/g, '')) || 150;
-        medicinesList.push({
-          name: k,
-          mrp: priceNum + 20,
-          price: priceNum,
-          batch: 'GEN-01',
-          stock: 10
+          const matchedTest = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase().includes(itemLower));
+          if (matchedTest) {
+            if (!combinedTests.some(t => t.loincCode === matchedTest.loincCode)) {
+              combinedTests.push(matchedTest);
+            }
+            return;
+          }
+
+          // Fallback
+          const priceNum = parseFloat(v.replace(/[^0-9.]/g, '')) || 150;
+          if (!combinedMeds.some(m => m.name.toLowerCase() === k.toLowerCase())) {
+            combinedMeds.push({
+              name: k,
+              mrp: priceNum + 20,
+              price: priceNum,
+              batch: 'GEN-01',
+              stock: 10
+            });
+          }
         });
-      });
+      }
+
+      medicinesList = combinedMeds;
+      testsList = combinedTests;
     }
 
     // Totals Calculation
@@ -215,7 +412,7 @@ export const BillHubTab: React.FC = () => {
       totalGst,
       finalTotal
     };
-  }, [selectedPatient, billingMode, manualExtractedData, includeConsult, selectedMedicines, selectedTests, discountInput, inventory]);
+  }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, selectedMedicines, selectedTests, discountInput, inventory]);
 
   // Handle OCR file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,7 +431,6 @@ export const BillHubTab: React.FC = () => {
       const result = await api.ocrScan(file);
       setManualExtractedData({ raw: result.extracted_text, structured: result.structured_data });
       
-      // Auto-populate medicines and tests from OCR structured results
       const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
       const initialTests: Record<string, boolean> = {};
 
@@ -445,7 +641,6 @@ export const BillHubTab: React.FC = () => {
     setIsClearing(true);
 
     try {
-      // Create new UnifiedInvoice payload
       const invoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
       const newInvoice: UnifiedInvoice = {
         id: invoiceId,
@@ -464,20 +659,15 @@ export const BillHubTab: React.FC = () => {
         createdAt: new Date().toISOString()
       };
 
-      // Save in LocalStorage & Supabase via BillingService
       BillingService.saveUnifiedInvoice(newInvoice);
-
-      // Trigger standard BillingService payment logic (clears holds, records splits)
       BillingService.clearInvoice(invoiceId, paymentMethod);
 
-      // Increment refreshKey to update UI/vitals list
       setRefreshKey(prev => prev + 1);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: { title: 'Bill Settled! 🧾', message: `Invoice amount of ₹${billingLedger.finalTotal} received via ${paymentMethod.toUpperCase()}.`, type: 'success' }
       }));
 
-      // Open print prompt
       handlePrintSplitInvoice('combined');
       setSelectedPatient(null);
     } catch (err) {
@@ -526,7 +716,6 @@ export const BillHubTab: React.FC = () => {
             const appts = BillingService.getAppointments();
             const activeVirtual = appts.find(a => a.patientId === p.id && a.isVirtual && a.status !== 'completed' && a.status !== 'cancelled');
             
-            // Check if patient has digital prescriptions (encounters)
             const encounters = EncounterService.getEncounters().filter(e => e.patientId === p.id);
             const hasRx = encounters.length > 0;
 
@@ -594,40 +783,118 @@ export const BillHubTab: React.FC = () => {
                       : 'bg-slate-50 dark:bg-slate-950 text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Manual Upload
+                  Manual / Voice
                 </button>
               </div>
             </div>
 
-            {/* OCR Uploader for Manual slip */}
+            {/* Voice & Manual Search Workspace */}
             {billingMode === 'manual' && (
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-4">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-indigo-500" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-350">AI Scan-to-Bill Manual Prescription</span>
+              <div className="p-5 bg-gradient-to-br from-indigo-50/50 via-slate-50/20 to-white border border-indigo-100 dark:border-slate-800 rounded-2xl space-y-4">
+                
+                {/* Voice Section */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4.5 w-4.5 text-indigo-500" />
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">Voice Billing Companion</span>
+                      <span className="block text-[9px] text-slate-400">Speak drugs and tests to auto-fill the bill</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleStartVoiceBilling}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border-0 transition-all cursor-pointer ${
+                      isListening 
+                        ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/20' 
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm hover:shadow'
+                    }`}
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff className="h-4 w-4 animate-spin text-white-force" />
+                        <span>Listening...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-4 w-4 text-white-force" />
+                        <span>Speak Billing</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer shadow-xs transition select-none">
-                    <Upload className="h-4 w-4 text-slate-400" />
-                    <span>{fileName ? fileName : 'Choose image/PDF'}</span>
+
+                {voiceTranscript && (
+                  <div className="p-3 bg-slate-100 dark:bg-slate-950/80 border border-slate-200/50 dark:border-slate-800/60 rounded-xl text-[10px] text-slate-650 dark:text-slate-300 font-medium">
+                    {voiceTranscript}
+                  </div>
+                )}
+
+                {/* Manual Catalog Search Area */}
+                <div className="space-y-2">
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Search & Add Catalog Item manually</span>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
                     <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept="image/*,application/pdf"
-                      className="hidden"
+                      type="text"
+                      placeholder="Type medicine name or lab test name to add..."
+                      value={manualItemSearchQuery}
+                      onChange={(e) => setManualItemSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 border border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs outline-none bg-white text-slate-800"
                     />
-                  </label>
-                  {fileName && (
-                    <button
-                      onClick={handleScan}
-                      disabled={isScanning}
-                      className="btn-primary px-4 py-2 text-xs font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition active:scale-95 disabled:opacity-60 flex items-center gap-2"
-                    >
-                      {isScanning ? 'Extracting Text...' : 'Scan & Sync Price'}
-                    </button>
-                  )}
+                    
+                    {/* Search suggestions dropdown */}
+                    {catalogSuggestions.length > 0 && (
+                      <div className="absolute top-11 left-0 right-0 z-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-h-[220px] overflow-y-auto overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                        {catalogSuggestions.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => handleAddSuggestedItem(s)}
+                            className="w-full px-4 py-2.5 text-left text-xs hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-0 bg-transparent flex items-center justify-between"
+                          >
+                            <div>
+                              <span className="font-bold text-slate-800 dark:text-slate-100">{s.name}</span>
+                              <span className="block text-[9px] text-slate-400 uppercase tracking-widest mt-0.5">{s.type === 'pharmacy' ? 'Medicine Stock' : 'Pathology Lab'}</span>
+                            </div>
+                            <span className="font-black text-indigo-600 dark:text-indigo-400">₹{s.price}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Upload Section */}
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-slate-400" />
+                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Or Scan Written Slip</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer shadow-xs transition select-none">
+                      <span>{fileName ? fileName : 'Choose image'}</span>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                      />
+                    </label>
+                    {fileName && (
+                      <button
+                        onClick={handleScan}
+                        disabled={isScanning}
+                        className="btn-primary px-3 py-1.5 text-[10px] font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition disabled:opacity-60"
+                      >
+                        {isScanning ? 'Scanning...' : 'Process'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -832,7 +1099,6 @@ export const BillHubTab: React.FC = () => {
                         <span className="font-semibold text-slate-800 dark:text-slate-200">₹{billingLedger.totalGst.toFixed(2)}</span>
                       </div>
                       
-                      {/* Discount input field */}
                       <div className="flex items-center justify-between text-slate-500">
                         <span>Discount (₹):</span>
                         <input
