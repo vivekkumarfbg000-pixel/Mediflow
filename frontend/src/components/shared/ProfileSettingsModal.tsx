@@ -471,103 +471,105 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
 
           {/* PASSWORD CHANGE TAB */}
           {activeTab === 'security' && (
-            <form onSubmit={handleUpdatePassword} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
-                  New Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-600" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter new password"
-                    className="w-full pl-9 pr-4 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-600" />
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm new password"
-                    className="w-full pl-9 pr-4 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isUpdatingPassword}
-                className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500/50 text-white rounded-xl font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10"
-              >
-                {isUpdatingPassword ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Updating Password...
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-3.5 w-3.5" />
-                    Change Account Password
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-8 pt-6 border-t border-rose-100 bg-rose-50/20 p-4 rounded-xl space-y-3">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+            <>
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
-                  <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wide">Danger Zone</h4>
-                  <p className="text-[10.5px] font-medium text-rose-700 mt-1">
-                    Permanently delete your user credentials and clinic profile. This action cannot be undone and will cleanly anonymize your historical logs.
-                  </p>
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-600" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      className="w-full pl-9 pr-4 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {!showDeleteConfirm ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-600" />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      className="w-full pl-9 pr-4 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
+                    />
+                  </div>
+                </div>
+
                 <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={isDeletingAccount}
-                  className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] cursor-pointer"
+                  type="submit"
+                  disabled={isUpdatingPassword}
+                  className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500/50 text-white rounded-xl font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10"
                 >
-                  Delete Account...
+                  {isUpdatingPassword ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Updating Password...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-3.5 w-3.5" />
+                      Change Account Password
+                    </>
+                  )}
                 </button>
-              ) : (
-                <div className="space-y-3 animate-fade-in">
-                  <p className="text-[10px] font-bold text-rose-600 text-center uppercase tracking-wide">
-                    ⚠️ Type "DELETE" below to confirm permanent deletion:
-                  </p>
-                  <input
-                    type="text"
-                    onChange={(e) => {
-                      if (e.target.value === 'DELETE') {
-                        handleDeleteAccount();
-                      }
-                    }}
-                    placeholder="Type DELETE"
-                    className="w-full text-center px-4 py-2 text-xs bg-white border border-rose-200 text-rose-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-bold"
-                  />
+              </form>
+
+              <div className="mt-8 pt-6 border-t border-rose-100 bg-rose-50/20 p-4 rounded-xl space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wide">Danger Zone</h4>
+                    <p className="text-[10.5px] font-medium text-rose-700 mt-1">
+                      Permanently delete your user credentials and clinic profile. This action cannot be undone and will cleanly anonymize your historical logs.
+                    </p>
+                  </div>
+                </div>
+
+                {!showDeleteConfirm ? (
                   <button
                     type="button"
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="w-full py-1.5 text-[10px] text-slate-600 hover:text-slate-750 font-bold underline cursor-pointer"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isDeletingAccount}
+                    className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] cursor-pointer"
                   >
-                    Cancel deletion request
+                    Delete Account...
                   </button>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="space-y-3 animate-fade-in">
+                    <p className="text-[10px] font-bold text-rose-600 text-center uppercase tracking-wide">
+                      ⚠️ Type "DELETE" below to confirm permanent deletion:
+                    </p>
+                    <input
+                      type="text"
+                      onChange={(e) => {
+                        if (e.target.value === 'DELETE') {
+                          handleDeleteAccount();
+                        }
+                      }}
+                      placeholder="Type DELETE"
+                      className="w-full text-center px-4 py-2 text-xs bg-white border border-rose-200 text-rose-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="w-full py-1.5 text-[10px] text-slate-600 hover:text-slate-750 font-bold underline cursor-pointer"
+                    >
+                      Cancel deletion request
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* ECOSYSTEM PARTNERS TAB */}
