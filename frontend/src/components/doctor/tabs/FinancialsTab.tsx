@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { FinancialLedgerEntry } from '../../../types';
 import { SettlementWidget } from '../../shared/SettlementWidget';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
@@ -9,6 +9,7 @@ interface FinancialsTabProps {
   setFinancialSearch: (s: string) => void;
   activePod: any;
   activeEntity: any;
+  supabaseClient?: any; // optional — for pool balance fetching
 }
 
 export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
@@ -16,14 +17,33 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   financialSearch,
   setFinancialSearch,
   activePod,
-  activeEntity
+  activeEntity,
+  supabaseClient,
 }) => {
   const apptFees = financialLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
   const pharmacyComm = financialLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
   const labComm = financialLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
   const totalEarnings = apptFees + pharmacyComm + labComm;
 
-  const filteredLedgers = financialLedgers.filter(entry => 
+  // Commission pool balance
+  const [poolBalance, setPoolBalance] = useState<number | null>(null);
+  const [pendingCash, setPendingCash] = useState<number>(0);
+  const [isPoolLow, setIsPoolLow] = useState(false);
+
+  useEffect(() => {
+    if (!supabaseClient || !activePod?.id) return;
+    supabaseClient
+      .rpc('get_pool_status', { p_pod_id: activePod.id })
+      .then(({ data }: any) => {
+        if (data) {
+          setPoolBalance(data.pool_balance ?? 0);
+          setPendingCash(data.pending_cash_balance ?? 0);
+          setIsPoolLow(data.is_low ?? false);
+        }
+      });
+  }, [activePod?.id, supabaseClient]);
+
+  const filteredLedgers = financialLedgers.filter(entry =>
     entry.invoiceId.toLowerCase().includes(financialSearch.toLowerCase()) ||
     entry.transactionType.toLowerCase().includes(financialSearch.toLowerCase())
   );
@@ -31,16 +51,17 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   return (
     <div className="space-y-6 text-slate-800 animate-fade-in text-left">
       {/* Revenue splits grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <PointerGlowCard containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <PointerGlowCard containerClassName="shadow-sm rounded-2xl lg:col-span-2" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
           <div className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">Total Earnings</div>
           <div className="text-2xl font-bold mt-2 text-slate-900 dark:text-white">₹{totalEarnings.toLocaleString()}</div>
-          <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">Consolidated Clinic + Referral Fees</p>
+          <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">Consolidated — Appointments + Pharmacy + Lab</p>
         </PointerGlowCard>
+
         {[
-          { label: "Clinic Fees", val: `₹${apptFees.toLocaleString()}`, split: "100% Payout", icon: "clinical_notes", color: "text-blue-600 dark:text-blue-400" },
-          { label: "Pharmacy Commission", val: `₹${pharmacyComm.toLocaleString()}`, split: "10% Referral Fee", icon: "pill", color: "text-teal-600 dark:text-teal-400" },
-          { label: "Pathology Lab Splits", val: `₹${labComm.toLocaleString()}`, split: "15% Referral Fee", icon: "biotech", color: "text-amber-600 dark:text-amber-400" }
+          { label: 'Appointment Fees', val: `₹${apptFees.toLocaleString()}`, split: '3% of consultation (paid by patient)', icon: 'clinical_notes', color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Pharmacy Commission', val: `₹${pharmacyComm.toLocaleString()}`, split: '3% Platform Commission', icon: 'medication', color: 'text-teal-600 dark:text-teal-400' },
+          { label: 'Lab Commission', val: `₹${labComm.toLocaleString()}`, split: '3% Platform Commission', icon: 'biotech', color: 'text-amber-600 dark:text-amber-400' },
         ].map((item, i) => (
           <PointerGlowCard key={i} containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
             <div className="flex justify-between items-center">
@@ -51,6 +72,47 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
             <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">{item.split}</p>
           </PointerGlowCard>
         ))}
+      </div>
+
+      {/* Commission Pool Status */}
+      <div className={`rounded-2xl border p-4 flex items-center justify-between gap-4 ${
+        isPoolLow
+          ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-700/40'
+          : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700/40'
+      }`}>
+        <div className="flex items-center gap-3">
+          <span className={`material-symbols-outlined text-2xl ${
+            isPoolLow ? 'text-amber-500' : 'text-emerald-500'
+          }`}>
+            {isPoolLow ? 'warning' : 'savings'}
+          </span>
+          <div>
+            <div className="text-xs font-bold text-slate-800 dark:text-white">
+              Commission Pool {isPoolLow ? '— Low Balance' : '— Healthy'}
+            </div>
+            <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+              Cash commissions are deducted from this pool. Pool refills from online payments.
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-6 text-right shrink-0">
+          <div>
+            <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono font-bold">Pool Balance</div>
+            <div className={`text-lg font-bold font-mono ${
+              isPoolLow ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+            }`}>
+              {poolBalance !== null ? `₹${poolBalance.toLocaleString()}` : '—'}
+            </div>
+          </div>
+          {pendingCash > 0 && (
+            <div>
+              <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono font-bold">Deferred</div>
+              <div className="text-lg font-bold font-mono text-rose-600 dark:text-rose-400">
+                ₹{pendingCash.toLocaleString()}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Side-by-side splits & projection dashboard */}

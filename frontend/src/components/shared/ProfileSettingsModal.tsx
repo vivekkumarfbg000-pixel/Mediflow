@@ -40,6 +40,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Partners Editing State
   const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null);
@@ -151,6 +153,28 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
       showToast('Password Change Failed', err.message || 'Failed to update password.', 'error');
     } finally {
       setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const { error } = await supabase.rpc('delete_own_account');
+      if (error) throw error;
+
+      showToast('Account Deleted', 'Your profile and auth credentials have been permanently removed.', 'success');
+      
+      localStorage.clear();
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    } catch (err: any) {
+      console.error('[ProfileSettingsModal] Account deletion failed:', err);
+      setErrorMsg(err.message || 'Failed to delete account. Contact system administrator.');
+      showToast('Deletion Failed', err.message || 'Failed to delete account.', 'error');
+      setIsDeletingAccount(false);
     }
   };
 
@@ -498,6 +522,52 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
                 )}
               </button>
             </form>
+
+            <div className="mt-8 pt-6 border-t border-rose-100 bg-rose-50/20 p-4 rounded-xl space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wide">Danger Zone</h4>
+                  <p className="text-[10.5px] font-medium text-rose-700 mt-1">
+                    Permanently delete your user credentials and clinic profile. This action cannot be undone and will cleanly anonymize your historical logs.
+                  </p>
+                </div>
+              </div>
+
+              {!showDeleteConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isDeletingAccount}
+                  className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  Delete Account...
+                </button>
+              ) : (
+                <div className="space-y-3 animate-fade-in">
+                  <p className="text-[10px] font-bold text-rose-600 text-center uppercase tracking-wide">
+                    ⚠️ Type "DELETE" below to confirm permanent deletion:
+                  </p>
+                  <input
+                    type="text"
+                    onChange={(e) => {
+                      if (e.target.value === 'DELETE') {
+                        handleDeleteAccount();
+                      }
+                    }}
+                    placeholder="Type DELETE"
+                    className="w-full text-center px-4 py-2 text-xs bg-white border border-rose-200 text-rose-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="w-full py-1.5 text-[10px] text-slate-600 hover:text-slate-750 font-bold underline cursor-pointer"
+                  >
+                    Cancel deletion request
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* ECOSYSTEM PARTNERS TAB */}

@@ -5,8 +5,15 @@ import urllib.error
 import json
 from supabase import create_client, Client
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://kguupaybvbngyzyofjun.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtndXVwYXlidmJuZ3l6eW9manVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MTk0MjIsImV4cCI6MjA5NDk5NTQyMn0.3piYD73kK9tjYj8Goxpm2qYO_vXVtLPac79Yt8anyDk"))
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("supabase_url")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or os.getenv("supabase_key")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError(
+        "CRITICAL ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) "
+        "must be set in the environment variables to initialize the scheduler."
+    )
+
 supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def trigger_ai_forecast():
@@ -130,7 +137,7 @@ def trigger_chronic_refills():
                     with urllib.request.urlopen(req) as response:
                         res_body = response.read().decode("utf-8")
                         refills_sent += 1
-                        print(f"📡  [Refill Sent] Alert dispatched to +91 {phone} for {medicine}.")
+                        print("📡  [Refill Sent] Alert dispatched successfully.")
                         
         print(f"\n🎉  [SUCCESS] Chronic refills loop complete. Dispatched {refills_sent} notifications.")
         sys.exit(0)

@@ -40,6 +40,25 @@ export function clearStorageCache(key?: string) {
   }
 }
 
+const STORAGE_KEY_SALT = 'MediflowSecOpsStorageKey2026!';
+
+function obfuscate(text: string): string {
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    result += String.fromCharCode(text.charCodeAt(i) ^ STORAGE_KEY_SALT.charCodeAt(i % STORAGE_KEY_SALT.length));
+  }
+  return btoa(unescape(encodeURIComponent(result)));
+}
+
+function deobfuscate(encoded: string): string {
+  const raw = decodeURIComponent(escape(atob(encoded)));
+  let result = '';
+  for (let i = 0; i < raw.length; i++) {
+    result += String.fromCharCode(raw.charCodeAt(i) ^ STORAGE_KEY_SALT.charCodeAt(i % STORAGE_KEY_SALT.length));
+  }
+  return result;
+}
+
 export function load<T>(key: string, defaultValue: T): T {
   if (storageCache.has(key)) {
     return storageCache.get(key) as T;
@@ -48,11 +67,18 @@ export function load<T>(key: string, defaultValue: T): T {
   let parsed = defaultValue;
   if (data) {
     try {
-      parsed = JSON.parse(data);
+      let decrypted = data;
+      try {
+        decrypted = deobfuscate(data);
+      } catch (deobfErr) {
+        // Fallback for legacy plaintext entries (auto-migrated below on save)
+        console.info(`[Mediflow SecOps] Migrating legacy plaintext storage for key "${key}"`);
+      }
+      parsed = JSON.parse(decrypted);
     } catch (e) {
       console.warn(`[Mediflow Cache] Failed parsing corrupted key "${key}":`, e);
       // Automatically self-heal by writing defaultValue back to storage
-      localStorage.setItem(getStorageKey(key), JSON.stringify(defaultValue));
+      save(key, defaultValue);
     }
   }
   storageCache.set(key, parsed);
@@ -60,7 +86,13 @@ export function load<T>(key: string, defaultValue: T): T {
 }
 
 export function save<T>(key: string, value: T): void {
-  localStorage.setItem(getStorageKey(key), JSON.stringify(value));
+  try {
+    const serialized = JSON.stringify(value);
+    const encrypted = obfuscate(serialized);
+    localStorage.setItem(getStorageKey(key), encrypted);
+  } catch (err) {
+    console.error(`[Mediflow SecOps] Local storage save failed for key "${key}":`, err);
+  }
   storageCache.set(key, value);
 }
 

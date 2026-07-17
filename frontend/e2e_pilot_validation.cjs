@@ -1,10 +1,19 @@
 const { createClient } = require('@supabase/supabase-js');
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, './.env.local') });
+require('dotenv').config({ path: path.resolve(__dirname, './.env') });
 
-// Supabase credentials extracted from frontend VITE environment
-const supabaseUrl = 'https://kguupaybvbngyzyofjun.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtndXVwYXlidmJuZ3l6eW9manVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MTk0MjIsImV4cCI6MjA5NDk5NTQyMn0.3piYD73kK9tjYj8Goxpm2qYO_vXVtLPac79Yt8anyDk';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('CRITICAL: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be configured in environment or .env.local');
+}
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+const TEST_DOCTOR_PASSWORD = process.env.TEST_DOCTOR_PASSWORD || 'password123';
+const TEST_LABTECH_PASSWORD = process.env.TEST_LABTECH_PASSWORD || 'password123';
 
 async function runE2EValidation() {
   console.log('========================================================================');
@@ -15,7 +24,7 @@ async function runE2EValidation() {
     console.log('[Step 0] Authenticating as Doctor Vivek...');
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: 'doctor@mediflow.com',
-      password: 'password123'
+      password: TEST_DOCTOR_PASSWORD
     });
     if (authError) {
       throw new Error('Failed to authenticate as Doctor Vivek: ' + authError.message);
@@ -217,7 +226,7 @@ async function runE2EValidation() {
     // Authenticate as Lab Tech Lalit Prasad
     const { error: labAuthErr } = await supabase.auth.signInWithPassword({
       email: 'labtech@mediflow.com',
-      password: 'password123'
+      password: TEST_LABTECH_PASSWORD
     });
     if (labAuthErr) throw new Error('Failed to authenticate as Lab Tech Lalit: ' + labAuthErr.message);
     console.log('- Success! Authenticated as Lab Tech Lalit Prasad.');
@@ -308,7 +317,7 @@ async function runE2EValidation() {
     // Re-authenticate as Doctor Vivek to allow viewing WhatsApp session
     const { error: docReAuthErr } = await supabase.auth.signInWithPassword({
       email: 'doctor@mediflow.com',
-      password: 'password123'
+      password: TEST_DOCTOR_PASSWORD
     });
     if (docReAuthErr) throw new Error('Failed to re-authenticate as Doctor Vivek: ' + docReAuthErr.message);
 

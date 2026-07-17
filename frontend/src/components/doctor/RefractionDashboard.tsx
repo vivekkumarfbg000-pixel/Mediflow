@@ -24,6 +24,7 @@ import {
   TrendingUp,
   Inbox
 } from 'lucide-react';
+import { ZeroQueueState } from '../shared/EmptyState';
 
 export const RefractionDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
@@ -293,10 +294,7 @@ export const RefractionDashboard: React.FC = () => {
           {/* Queue List */}
           <div className="space-y-2.5 flex-1 overflow-y-auto pr-0.5">
             {filteredPatients.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12 text-center">
-                <Inbox className="h-8 w-8 mb-2 text-slate-300" />
-                <span className="text-xs font-medium">No patients in refraction queue</span>
-              </div>
+              <ZeroQueueState queueType="patient_queue" className="mx-0 h-full" />
             ) : (
               filteredPatients.map(p => {
                 const isSelected = refractionPatient?.id === p.id;

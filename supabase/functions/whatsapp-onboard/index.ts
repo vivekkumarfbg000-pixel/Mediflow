@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isRateLimited } from "../_shared/rate-limit.ts";
 
 // =============================================================================
 // Mediflow — whatsapp-onboard Edge Function
@@ -31,6 +32,14 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
   );
+
+  // Rate Limiter Check (5 onboarding requests/min per client IP)
+  if (await isRateLimited(req, supabase, 5, 60)) {
+    return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   // ── Load owner credentials from Supabase Vault ─────────────────────────────
   const ownerWabaId     = Deno.env.get("OWNER_WABA_ID");
@@ -73,7 +82,7 @@ serve(async (req) => {
       const countryCode = normalizedPhone.substring(0, 2); // e.g. "91"
       const localNumber  = normalizedPhone.substring(2);    // remaining digits
 
-      console.log(`[whatsapp-onboard] Registering clinic: "${clinicName}" | Phone: +${normalizedPhone} | Pod: ${podId}`);
+      console.log(`[whatsapp-onboard] Registering clinic: "${clinicName}" | Phone: +[REDACTED] | Pod: ${podId}`);
 
       // ── Step 1: Add phone number to owner's WABA ───────────────────────────
       const registerRes = await fetch(`${META_BASE_URL}/${ownerWabaId}/phone_numbers`, {
@@ -140,13 +149,13 @@ serve(async (req) => {
         );
       }
 
-      console.log(`[whatsapp-onboard] OTP sent successfully to +${normalizedPhone} via ${otpMethod}`);
+      console.log(`[whatsapp-onboard] OTP sent successfully to +[REDACTED] via ${otpMethod}`);
 
       return new Response(
         JSON.stringify({
           success: true,
           phoneNumberId,
-          message: `Verification code sent to +${normalizedPhone} via ${otpMethod}. Enter the 6-digit code to activate.`
+          message: `Verification code sent to +[REDACTED] via ${otpMethod}. Enter the 6-digit code to activate.`
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

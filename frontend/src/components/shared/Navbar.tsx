@@ -579,134 +579,44 @@ export const Navbar: React.FC<NavbarProps> = ({
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-2.5 shadow-[0_1px_6px_rgba(15,23,42,0.02)] w-full">
-        <div className="max-w-7xl mx-auto flex flex-col gap-2">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2 min-w-0">
-              {/* Mobile Sidebar Drawer Hamburger Trigger */}
-              <button 
-                onClick={() => setIsMobileDrawerOpen(true)}
-                className="p-2 bg-white hover:bg-slate-50 border border-slate-200/60 rounded-lg text-slate-550 hover:text-slate-800 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
-                aria-label="Open Sidebar Drawer"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
+      <nav className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_4px_rgba(15,23,42,0.02)] w-full">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* Mobile Sidebar Drawer Hamburger Trigger */}
+            <button 
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className="p-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 rounded-lg text-slate-550 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center border-0 outline-none"
+              aria-label="Open Sidebar Drawer"
+            >
+              <Menu className="h-4.5 w-4.5" />
+            </button>
 
-              <div className="flex flex-col min-w-0">
-                <h1 className="font-bold text-[9px] uppercase tracking-wider text-slate-700 truncate flex items-center gap-1 leading-none">
-                  {activeProfile?.display_name 
-                    ? (activeProfile.role === 'doctor' && !activeProfile.display_name.toLowerCase().startsWith('dr.')
-                        ? `Dr. ${activeProfile.display_name}`
-                        : activeProfile.display_name)
-                    : 'VitalSync'}
-                  {' · '}
-                  {currentRole === 'doctor' ? 'Doctor Dashboard' :
-                   currentRole === 'compounder' ? 'Compounder Operations' :
-                   currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
-                   currentRole === 'pharmacy' ? (isOphthalmology ? 'Optician' : 'Pharmacy POS') :
-                   currentRole === 'billing' ? 'UPI Ledger' :
-                   currentRole === 'saas_admin' ? 'Platform Admin' : 'Care Dashboard'}
-                  <span className={`flex items-center gap-0.5 text-[7px] font-mono px-1 py-0.2 rounded border transition-all duration-300 shrink-0 ${
-                    isSyncing 
-                      ? 'bg-primary/10 text-primary border-primary/25'
-                      : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
-                  }`}>
-                    <span className={`w-1 h-1 rounded-full ${isSyncing ? 'bg-primary' : 'bg-emerald-500 animate-pulse'}`} />
-                    {isSyncing ? 'Sync' : 'Live'}
-                  </span>
-                </h1>
-                {activePod && (
-                  <p className="text-slate-600 text-[8px] font-medium leading-none mt-0.5 truncate">
-                    Connected: <strong className="text-slate-500 font-semibold">{activeEntity?.name}</strong>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile Actions */}
-            <div className="flex items-center gap-1.5">
-              {/* Theme Toggle Button for Mobile Header */}
-              <button
-                onClick={toggleTheme}
-                className="p-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 rounded-lg text-slate-550 dark:text-zinc-450 hover:text-slate-800 dark:hover:text-white transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
-                aria-label="Toggle Theme"
-              >
-                {isDark ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
-              </button>
-
-              {import.meta.env.DEV && (
-                <button 
-                  onClick={() => onToggleBypass(!isBypassMode)}
-                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                    isBypassMode 
-                      ? 'bg-amber-50 border-amber-200 text-amber-600' 
-                      : 'bg-white border-slate-200 text-slate-600'
-                  }`}
-                >
-                  {isBypassMode ? <ShieldAlert className="h-2.5 w-2.5" /> : <ShieldCheck className="h-2.5 w-2.5" />}
-                  Bypass
-                </button>
-              )}
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <h1 className="font-bold text-[9px] uppercase tracking-wider text-slate-700 dark:text-slate-350 truncate flex items-center gap-1.5 leading-none">
+                {activeProfile?.display_name 
+                  ? (activeProfile.role === 'doctor' && !activeProfile.display_name.toLowerCase().startsWith('dr.')
+                      ? `Dr. ${activeProfile.display_name}`
+                      : activeProfile.display_name)
+                  : 'VitalSync'}
+                {' · '}
+                {currentRole === 'doctor' ? 'Doctor Dashboard' :
+                 currentRole === 'compounder' ? 'Compounder Operations' :
+                 currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
+                 currentRole === 'pharmacy' ? (isOphthalmology ? 'Optician' : 'Pharmacy POS') :
+                 currentRole === 'billing' ? 'UPI Ledger' :
+                 currentRole === 'saas_admin' ? 'Platform Admin' : 'Care Dashboard'}
+              </h1>
+              
+              <span className={`flex items-center gap-0.5 text-[7px] font-mono px-1 py-0.2 rounded border transition-all duration-300 shrink-0 ${
+                isSyncing 
+                  ? 'bg-primary/10 text-primary border-primary/25'
+                  : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
+              }`}>
+                <span className={`w-1 h-1 rounded-full ${isSyncing ? 'bg-primary' : 'bg-emerald-500 animate-pulse'}`} />
+                {isSyncing ? 'Sync' : 'Live'}
+              </span>
             </div>
           </div>
-
-          {/* Unified Care Loop Progress Ribbon */}
-          {activePatient && (
-            <div className="mt-1 pt-2 border-t border-slate-200/50 flex flex-col gap-2 text-[10px] animate-fade-in">
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-600 font-semibold uppercase tracking-wider text-[8px]">Active Loop:</span>
-                <span className="text-slate-700 font-semibold">{activePatient.name}</span>
-                <span className="text-slate-600 font-mono">({activePatient.id.substring(0, 8)})</span>
-              </div>
-              
-              {/* Stepper Steps inside pure white container card */}
-              <div className="bg-white border border-slate-200/50 rounded-lg p-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex items-center gap-1.5 overflow-x-auto scrollbar-none font-semibold text-[9px]">
-                {[
-                  { id: 'registered', label: 'Registered' },
-                  { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
-                  { id: 'lab', label: nomenclature.careLoopLabStep },
-                  { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
-                  { id: 'settled', label: 'Ledger Settled' }
-                ].map((step, idx, arr) => {
-                  const stages = arr.map(s => s.id);
-                  const currentIdx = stages.indexOf(activePatientStage);
-                  const isCompleted = idx < currentIdx;
-                  const isActive = idx === currentIdx;
-                  
-                  return (
-                    <React.Fragment key={step.id}>
-                      <div className={`flex items-center gap-1 transition-all duration-500 ${
-                        isActive 
-                          ? 'text-indigo-600' 
-                          : isCompleted 
-                            ? 'text-emerald-600' 
-                            : 'text-slate-600'
-                      }`}>
-                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border text-[8px] font-semibold transition-all duration-500 ${
-                          isActive 
-                            ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
-                            : isCompleted 
-                              ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                              : 'bg-slate-50 border-slate-100 text-slate-600'
-                        }`}>
-                          {isCompleted ? '✓' : idx + 1}
-                        </div>
-                        <span className="whitespace-nowrap">{step.label}</span>
-                      </div>
-                      
-                      {idx < arr.length - 1 && (
-                        <div className={`w-2 h-[1px] rounded transition-all duration-500 shrink-0 ${
-                          idx < currentIdx 
-                            ? 'bg-emerald-400' 
-                            : 'bg-slate-200'
-                        }`} />
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </nav>
 

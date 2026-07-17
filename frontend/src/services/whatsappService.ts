@@ -32,7 +32,7 @@ export class WhatsAppService {
     variables: Record<string, any>
   ): Promise<boolean> {
     try {
-      console.log(`[Mediflow Outgoing Dispatch] API template: ${templateName} target: ${phone}`, variables);
+      console.log(`[Mediflow Outgoing Dispatch] API template: ${templateName} target: [REDACTED_PHONE]`);
       await new Promise(r => setTimeout(r, 200));
       return true;
     } catch (e) {

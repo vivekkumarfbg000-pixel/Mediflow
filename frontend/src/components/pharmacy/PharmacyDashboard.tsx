@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
+import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 
 export const PharmacyDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
@@ -758,9 +759,7 @@ export const PharmacyDashboard: React.FC = () => {
                           Pending e-Prescriptions (Awaiting Payment) ({filteredPending.length})
                         </h3>
                         {filteredPending.length === 0 ? (
-                          <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                            No pending prescriptions awaiting payment.
-                          </div>
+                          <ZeroQueueState queueType="prescriptions" className="mx-0" />
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filteredPending.map(invoice => {
@@ -2440,9 +2439,12 @@ export const PharmacyDashboard: React.FC = () => {
                     Prescription Holds Awaiting Billing ({Object.keys(holdsByPatient).length} patients)
                   </h3>
                   {Object.keys(holdsByPatient).length === 0 ? (
-                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                      No pending prescription holds require billing.
-                    </div>
+                    <InlineEmptyState
+                      icon="medication"
+                      label="No Prescription Holds"
+                      sublabel="All pending prescription holds have been billed and cleared."
+                      variant="success"
+                    />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {Object.entries(holdsByPatient).map(([patientId, patientHolds]) => {
@@ -2549,9 +2551,7 @@ export const PharmacyDashboard: React.FC = () => {
                     Pending Payment ({pendingBills.length})
                   </h3>
                   {pendingBills.length === 0 ? (
-                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                      No pending bills.
-                    </div>
+                    <ZeroQueueState queueType="billing" className="mx-0" />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {pendingBills.map(bill => (

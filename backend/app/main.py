@@ -6,8 +6,11 @@ import json
 import os
 import aiofiles
 import time
+import uuid
+import re
 from collections import defaultdict
 from supabase import create_client, Client
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Import new production modules
 from app.middleware import setup_logging, RequestContextMiddleware, ApiVersionMiddleware, create_error_response
@@ -30,6 +33,30 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Custom global exception handlers to sanitize error details to clients
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    request_id = getattr(request.state, "request_id", None)
+    logger.error(f"HTTP error {exc.status_code}: {exc.detail}", extra={"request_id": request_id})
+    message = exc.detail if exc.status_code < 500 else "An internal server error occurred."
+    return create_error_response(
+        status_code=exc.status_code,
+        code="HTTP_ERROR",
+        message=message,
+        request_id=request_id
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    request_id = getattr(request.state, "request_id", None)
+    logger.error(f"Unhandled server error: {str(exc)}", exc_info=exc, extra={"request_id": request_id})
+    return create_error_response(
+        status_code=500,
+        code="INTERNAL_SERVER_ERROR",
+        message="An unexpected error occurred. Please try again.",
+        request_id=request_id
+    )
 
 # Register request context logging and version guard middlewares
 app.add_middleware(RequestContextMiddleware)
@@ -101,6 +128,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Security Headers Middleware ──────────────────────────────────────────────
+@app.middleware("http")
+async def add_security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://meet.jit.si; "
+        "style-src 'self' 'unsafe-inline'; "
+        "frame-ancestors 'none';"
+    )
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 # ── Supabase client setup ──────────────────────────────────────────────────
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("supabase_url")
 SUPABASE_KEY = (
@@ -112,14 +156,16 @@ SUPABASE_KEY = (
     or os.getenv("supabase_service_role_key")
 )
 
-supabase_client = None
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("⚠️ WARNING: Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)")
-else:
-    try:
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
-        print(f"❌ ERROR: Failed to initialize Supabase client: {e}")
+    raise RuntimeError(
+        "CRITICAL STARTUP FAILURE: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) "
+        "must be set in the environment variables. Refusing to initialize backend."
+    )
+
+try:
+    supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    raise RuntimeError(f"CRITICAL STARTUP FAILURE: Failed to initialize Supabase client: {e}")
 
 # Models
 class SeasonalForecastRequest(BaseModel):
@@ -203,7 +249,7 @@ async def call_forecast_llm(prompt: str) -> str:
 async def send_whatsapp_message(phone: str, message: str) -> bool:
     # Placeholder: simulate sending via environment variables or configured later
     # In production, this would call the WhatsApp Cloud API.
-    print(f"[WhatsApp Sim] Sending to {phone}: {message}")
+    print("[WhatsApp Sim] Sending message: [REDACTED]")
     return True
 
 # Endpoints
@@ -211,7 +257,11 @@ async def send_whatsapp_message(phone: str, message: str) -> bool:
 @app.post("/api/v1/voice-scribe", response_model=VoiceScribeResponse, tags=["AI"])
 async def voice_scribe(file: UploadFile = File(...)):
     """Transcribe clinical voice notes and summarize into structured Hinglish WhatsApp message."""
-    upload_path = f"./tmp/{file.filename}"
+    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    if ext and not re.match(r"^\.[a-zA-Z0-9]+$", ext):
+        raise HTTPException(status_code=400, detail="Invalid file extension")
+    safe_filename = f"{uuid.uuid4()}{ext}"
+    upload_path = f"./tmp/{safe_filename}"
     os.makedirs(os.path.dirname(upload_path), exist_ok=True)
     async with aiofiles.open(upload_path, "wb") as out_file:
         content = await file.read()
@@ -222,7 +272,7 @@ async def voice_scribe(file: UploadFile = File(...)):
         os.remove(upload_path)
     except OSError:
         pass
-    logger.info(f"[voice-scribe] Processed file: {file.filename}, transcript_len={len(transcript)}")
+    logger.info(f"[voice-scribe] Processed file: {safe_filename}, transcript_len={len(transcript)}")
     return VoiceScribeResponse(summary=summary)
 
 
@@ -230,7 +280,11 @@ async def voice_scribe(file: UploadFile = File(...)):
 @app.post("/api/v1/ocr-scan", response_model=OCRScanResponse, tags=["AI"])
 async def ocr_scan(file: UploadFile = File(...)):
     """Extract and structure data from prescription images or supplier invoices via OCR."""
-    upload_path = f"./tmp/{file.filename}"
+    ext = os.path.splitext(file.filename)[1] if file.filename else ""
+    if ext and not re.match(r"^\.[a-zA-Z0-9]+$", ext):
+        raise HTTPException(status_code=400, detail="Invalid file extension")
+    safe_filename = f"{uuid.uuid4()}{ext}"
+    upload_path = f"./tmp/{safe_filename}"
     os.makedirs(os.path.dirname(upload_path), exist_ok=True)
     async with aiofiles.open(upload_path, "wb") as out_file:
         content = await file.read()
@@ -241,7 +295,7 @@ async def ocr_scan(file: UploadFile = File(...)):
         os.remove(upload_path)
     except OSError:
         pass
-    logger.info(f"[ocr-scan] Processed: {file.filename}, doc_type={structured.get('document_type', 'unknown')}")
+    logger.info(f"[ocr-scan] Processed: {safe_filename}, doc_type={structured.get('document_type', 'unknown')}")
     return OCRScanResponse(extracted_text=extracted, structured_data=structured)
 
 

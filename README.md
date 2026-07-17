@@ -9,6 +9,10 @@ A full-stack connected care platform for clinic operations, partner network onbo
 >   * **Vercel Frontend** (`https://mediflow-ochre.vercel.app/`): Set keys via *Project Settings ➔ Environment Variables*.
 >   * **Hugging Face Backend**: Set keys via *Space Settings ➔ Variables and Secrets*.
 > * **Git Pre-flight Check**: Always run `git diff --cached` before executing a `git push` to audit and guarantee no credentials are accidentally committed.
+>
+> > [!WARNING]
+> > **GIT HISTORY SECURITY WARNING: ROTATE PREVIOUSLY HARDCODED SECRETS IMMEDIATELY**
+> > Legacy commits in the Git history may contain hardcoded developer credentials, Supabase URL defaults, test database passwords, or public API tokens (e.g. `sentryDsn`, `mixpanelToken`, and Supabase `anon` tokens). If you are preparing to deploy this project, **you must rotate all keys and service credentials immediately** in your active Supabase, Sentry, Mixpanel, and Meta developer panels to prevent unauthorized access.
 
 ## Project Structure
 

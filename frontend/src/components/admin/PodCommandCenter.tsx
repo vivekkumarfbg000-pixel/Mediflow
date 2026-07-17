@@ -9,6 +9,7 @@ import { LabService } from '../../services/labService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { PointerGlowCard } from '../ui/PointerGlowCard';
 import { SkeletonMetric, SkeletonCard, SkeletonRow } from '../ui/SkeletonLoader';
+import { ZeroQueueState } from '../shared/EmptyState';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PodCommandCenter.tsx — Mediflow B2B Glassmorphic Matrix Console
@@ -679,10 +680,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                     <SkeletonRow />
                   </>
                 ) : filteredPatients.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12 text-center">
-                    <span className="material-symbols-outlined text-3xl mb-2 text-slate-300">group_off</span>
-                    <span className="text-xs font-medium">No patients in queue</span>
-                  </div>
+                  <ZeroQueueState queueType="patient_queue" className="mx-0" />
                 ) : (
                   filteredPatients.map(p => (
                     <div

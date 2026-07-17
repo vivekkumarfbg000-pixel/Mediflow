@@ -16,6 +16,7 @@ import { OphthalmicRefractionGrid } from './OphthalmicRefractionGrid';
 import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, getAcuityRank, OPHTHALMIC_EYE_CARE_COPY, type RefractionRx, EMPTY_BIOMETRY, serializeBiometry, type BiometryData } from '../../types/ophthalmic';
 
 import { StateHealingEngine } from '../../services/autoHealerAgent';
+import { useConsultationGuard } from '../../hooks/useConsultationGuard';
 import { BiomarkerChart } from './BiomarkerChart';
 import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
 import { PodCommandCenter } from '../admin/PodCommandCenter';
@@ -205,6 +206,17 @@ export const DoctorDashboard: React.FC = () => {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [comparativeTrend, setComparativeTrend] = useState<any>(null);
   const [isGeneratingTrend, setIsGeneratingTrend] = useState(false);
+
+  // Active Patient Loop State Safety Guard
+  const consultGuard = useConsultationGuard({
+    selectedPatientId:   selectedPatient?.id ?? null,
+    selectedPatientName: selectedPatient?.name ?? null,
+    notes,
+    medicationCount:     medications.length,
+    testCount:           selectedTests.length,
+    activeTab,
+    consultationTab:     'consultation',
+  });
 
   // In-Browser HTML5 Local Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
@@ -933,6 +945,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     setMedications([]);
     setSelectedTests([]);
     setRefractionRx(EMPTY_REFRACTION_RX);
+    consultGuard.clearSnapshot(); // Clear crash-recovery snapshot on successful save
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -1641,6 +1654,23 @@ Keep the tone professional, clinical, objective, and precise.`;
           })}
         </div>
       </div>
+
+      {/* Consultation Loop Guard — non-blocking warning banner */}
+      {consultGuard.showNavigationWarning && (
+        <div className="consultation-guard-banner mx-auto max-w-2xl mb-3">
+          <span className="material-symbols-outlined text-base text-amber-600 dark:text-amber-400 shrink-0">warning</span>
+          <span className="flex-1">
+            <strong>Active consultation in progress</strong> — {selectedPatient?.name}'s session data ({consultGuard.warningDetail}) is preserved in memory.
+          </span>
+          <button
+            onClick={consultGuard.dismissWarning}
+            className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition-colors shrink-0"
+            title="Dismiss"
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Tab Render Container */}
       <div className="w-full">

@@ -12,8 +12,8 @@ interface TelemetryContext {
 }
 
 class TelemetryServiceClass {
-  private sentryDsn = 'https://7d8db8f7a840e53a303a27a8e8055620@o4504958197776384.ingest.us.sentry.io/4508920199998176';
-  private mixpanelToken = '4a6b8c8d8e8f90919293949596979899';
+  private sentryDsn = (import.meta.env.VITE_SENTRY_DSN as string) || '';
+  private mixpanelToken = (import.meta.env.VITE_MIXPANEL_TOKEN as string) || '';
   private isSentryInitialized = false;
   private isMixpanelInitialized = false;
 
@@ -24,8 +24,13 @@ class TelemetryServiceClass {
 
   private initSentry() {
     try {
-      // Simulated production DSN registration log for observability auditing
-      console.log(`[Telemetry-Sentry] Connecting to production DSN: ${this.sentryDsn} 🚀`);
+      if (!this.sentryDsn) {
+        console.log('[Telemetry-Sentry] Sentry DSN not configured. Telemetry is disabled.');
+        return;
+      }
+      // Simulated production DSN registration log (sanitized to protect keys)
+      const host = this.sentryDsn.split('@')[1] || 'configured-sentry-dsn';
+      console.log(`[Telemetry-Sentry] Connecting to Sentry host: ${host} 🚀`);
       this.isSentryInitialized = true;
     } catch (e) {
       console.error('[Telemetry-Sentry] Initialization failed safely:', e);
@@ -34,7 +39,12 @@ class TelemetryServiceClass {
 
   private initMixpanel() {
     try {
-      console.log(`[Telemetry-Mixpanel] Armed with active analytics token: ${this.mixpanelToken} 📊`);
+      if (!this.mixpanelToken) {
+        console.log('[Telemetry-Mixpanel] Mixpanel token not configured. Analytics disabled.');
+        return;
+      }
+      const maskedToken = this.mixpanelToken.substring(0, 4) + '...' + this.mixpanelToken.substring(this.mixpanelToken.length - 4);
+      console.log(`[Telemetry-Mixpanel] Armed with active analytics token: ${maskedToken} 📊`);
       this.isMixpanelInitialized = true;
     } catch (e) {
       console.error('[Telemetry-Mixpanel] Initialization failed safely:', e);

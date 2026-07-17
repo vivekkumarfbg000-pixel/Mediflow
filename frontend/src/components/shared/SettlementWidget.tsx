@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { useSplitValidation, SplitValidationGate } from '../../hooks/useSplitValidation.tsx';
+import type { SplitNode } from '../../hooks/useSplitValidation.tsx';
 
 interface SettlementWidgetProps {
   entityId: string;
@@ -132,6 +134,23 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
 
   const isDark = theme === 'dark';
 
+  // Build split nodes from active vendor for validation
+  // SettlementWidget represents a single entity's vendor — we validate its routing address
+  const splitNodes: SplitNode[] = activeVendor
+    ? [{
+        vendor_id: activeVendor.vendor_id ?? null,
+        amount:    1, // placeholder: actual amount comes from invoice; >0 means routing is live
+        label:     entityType === 'pharmacy'
+          ? 'PHARMACY_PARTNER_WALLET'
+          : entityType === 'lab'
+          ? 'LAB_PARTNER_WALLET'
+          : 'CLINIC_WALLET',
+      }]
+    : [];
+
+  // Only validate when a vendor is onboarded; 0 gross = no active payment
+  const splitValidation = useSplitValidation(splitNodes, activeVendor ? 1 : 0);
+
   if (loading) {
     return (
       <div className={`p-6 rounded-2xl flex items-center justify-center ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
@@ -223,6 +242,20 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
             </p>
           </div>
         </div>
+      )}
+
+      {/* Split Routing Validation Gate — shows inline error if vendor_id is null/missing */}
+      {activeVendor && !splitValidation.isValid && (
+        <SplitValidationGate validation={splitValidation} enforced={true}>
+          <div className="text-[10px] text-slate-400 dark:text-slate-600 text-center py-1">
+            Resolve routing errors above to re-enable payment processing for this vendor.
+          </div>
+        </SplitValidationGate>
+      )}
+      {activeVendor && splitValidation.isUnsplit && (
+        <SplitValidationGate validation={splitValidation} enforced={false}>
+          <div />
+        </SplitValidationGate>
       )}
 
       {/* Onboarding Modal */}

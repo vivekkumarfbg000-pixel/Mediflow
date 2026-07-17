@@ -216,7 +216,7 @@ serve(async (req) => {
             });
 
             if (res.ok) {
-              console.log(`[whatsapp-dispatch] Successfully dispatched Meta template to patient ${patientPhone} on attempt ${attempt} ✅`);
+              console.log(`[whatsapp-dispatch] Successfully dispatched Meta template to patient [REDACTED] on attempt ${attempt} ✅`);
               dispatchSuccess = true;
               break;
             }

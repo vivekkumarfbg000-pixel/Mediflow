@@ -7,6 +7,8 @@ import { useClinic } from '../../../context/ClinicContext';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
 import { OphthalmicRefractionGrid } from '../OphthalmicRefractionGrid';
 import { BiometryWorksheet } from '../BiometryWorksheet';
+import { MarkdownText } from '../../ui/MarkdownText';
+import { ZeroQueueState, InlineEmptyState } from '../../shared/EmptyState';
 import { 
   EMPTY_REFRACTION_RX, 
   getAcuityRank, 
@@ -869,9 +871,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
               if (queuePatients.length === 0) {
                 return (
-                  <div className="text-center py-8 text-xs text-slate-400 font-medium">
-                    No active patients in queue
-                  </div>
+                  <ZeroQueueState queueType="patient_queue" className="mx-0" />
                 );
               }
 
@@ -1624,8 +1624,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     PERSISTED CACHE
                   </span>
                 </div>
-                <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium max-h-[300px] overflow-y-auto pr-1">
-                  {aiInsight}
+                <div className="text-xs text-slate-700 leading-relaxed max-h-[300px] scroll-list pr-2">
+                  <MarkdownText content={aiInsight} />
                 </div>
               </div>
             ) : null}
@@ -1754,9 +1754,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   <span className="material-symbols-outlined text-xs">chat</span>
                   Hinglish Clinical Summary
                 </h4>
-                <p className="text-xs text-slate-700 whitespace-pre-line leading-relaxed font-semibold italic">
-                  "{hinglishSummary}"
-                </p>
+                <div className="text-xs text-slate-700 leading-relaxed scroll-list max-h-[200px] pr-1">
+                  <MarkdownText content={hinglishSummary} className="italic" />
+                </div>
                 <button
                   onClick={() => {
                     api.pushWhatsAppMessageFromBot(selectedPatient.phone, hinglishSummary);
@@ -2317,11 +2317,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 ))}
               </div>
             ) : (
-              <div className="p-6 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl text-center flex flex-col items-center justify-center space-y-1.5">
-                <span className="material-symbols-outlined text-slate-400 text-2xl">receipt_long</span>
-                <p className="text-xs text-slate-600 font-medium font-sans">No medications prescribed yet.</p>
-                <p className="text-[10px] text-slate-400 font-medium">Type a medicine name below to generate suggestions.</p>
-              </div>
+              <InlineEmptyState
+                icon="medication"
+                label="No Medications Prescribed"
+                sublabel="Type a medicine name in the form below to get smart suggestions."
+                variant="neutral"
+                className="mx-0"
+              />
             )}
 
             {/* Form to add medication with autocomplete typeahead */}

@@ -96,7 +96,7 @@ serve(async (req) => {
         payload = await req.json();
       }
 
-      console.log("[Meta Webhook] Ingested message event payload:", JSON.stringify(payload));
+      console.log("[Meta Webhook] Ingested message event payload: [REDACTED]");
 
       const entry = payload.entry?.[0];
       const change = entry?.changes?.[0];
@@ -222,7 +222,7 @@ serve(async (req) => {
       });
 
       if (isHumanOverride) {
-        console.log(`[Meta Webhook] humanOverride is active for patient ${patientPhone}. Broadcasted event via Supabase Realtime.`);
+        console.log(`[Meta Webhook] humanOverride is active for patient [REDACTED]. Broadcasted event via Supabase Realtime.`);
         // Message is committed to db, Supabase Realtime notifies the Team Inbox UI automatically
         return new Response("Broadcasted to agent", { status: 200 });
       }
@@ -552,9 +552,8 @@ async function triggerBotReplyPipeline(ctx: {
     });
 
     const result = await response.json();
-    console.log("[Meta Outbound] Dispatched reply success:", result);
+    console.log("[Meta Outbound] Dispatched reply success: [REDACTED]");
   } catch (err) {
     console.error("[Meta Outbound] Failed to dispatch API message:", err);
   }
 }
-

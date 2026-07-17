@@ -105,10 +105,10 @@ body {
   border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
 }
 
-/* Custom premium scrollbar for clinical dashboards */
+/* Custom premium scrollbar for clinical dashboards — light mode */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -116,13 +116,116 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.25);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(148, 163, 184, 0.45);
 }
+
+/* Dark mode scrollbar — matches dark canvas without harsh contrast */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.55);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* .scroll-list — apply to any overflow list container for themed scrollbars */
+.scroll-list {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.dark .scroll-list {
+  scrollbar-color: rgba(71, 85, 105, 0.55) transparent;
+}
+
+.scroll-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scroll-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+.dark .scroll-list::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.55);
+}
+
+/* ─── Alert Badge Utility ────────────────────────────────────────────────────
+   Responsive, non-clipping badge for triage alerts and low-stock indicators.
+   Replaces inline px-2 py-0.5 text-[8px] patterns throughout the dashboard. */
+.alert-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;    /* px-2.5 py-1 */
+  border-radius: 9999px;
+  font-size: 0.625rem;          /* text-[10px] */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+}
+
+@media (min-width: 768px) {
+  .alert-badge {
+    font-size: 0.6875rem;       /* md:text-[11px] */
+    padding: 0.3125rem 0.75rem; /* md:px-3 md:py-1.5 */
+  }
+}
+
+/* Alert badge color variants */
+.alert-badge-triage  { @apply bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300; }
+.alert-badge-warning { @apply bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300; }
+.alert-badge-info    { @apply bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300; }
+.alert-badge-success { @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300; }
+.alert-badge-muted   { @apply bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400; }
+
+/* ─── Dark Mode Border Token System ─────────────────────────────────────────
+   Standardized semi-transparent borders for the dark canvas.
+   Usage: add class to element, replaces ad-hoc border-white / neon borders.
+
+   Hierarchy:
+     .dp-border        → all panel / card containers   (border-white/8)
+     .dp-border-inner  → dividers inside panels        (border-white/6)
+     .dp-border-active → selected / focused states     (border-indigo-500/60)
+     .dp-border-alert  → critical triage only          (border-rose-500/50)
+     .dp-border-accent → UPI/payment active state      (border-emerald-500/40)
+*/
+.dark .dp-border        { border-color: rgba(255, 255, 255, 0.08); }
+.dark .dp-border-inner  { border-color: rgba(255, 255, 255, 0.06); }
+.dark .dp-border-active { border-color: rgba(99, 102, 241, 0.60); }  /* indigo-500/60 */
+.dark .dp-border-alert  { border-color: rgba(244, 63, 94, 0.50); }   /* rose-500/50 */
+.dark .dp-border-accent { border-color: rgba(16, 185, 129, 0.40); }  /* emerald-500/40 */
+
+/* Light mode equivalents (no-op — use Tailwind border utilities directly in light mode) */
+.dp-border        { border-width: 1px; border-style: solid; border-color: rgba(226, 232, 240, 0.85); }
+.dp-border-inner  { border-width: 1px; border-style: solid; border-color: rgba(241, 245, 249, 0.8); }
+.dp-border-active { border-width: 1px; border-style: solid; border-color: rgba(99, 102, 241, 0.4); }
+.dp-border-alert  { border-width: 1px; border-style: solid; border-color: rgba(244, 63, 94, 0.3); }
+.dp-border-accent { border-width: 1px; border-style: solid; border-color: rgba(16, 185, 129, 0.3); }
+
+/* ─── Consultation Guard Warning Banner ──────────────────────────────────────*/
+.consultation-guard-banner {
+  @apply flex items-center gap-2 px-3 py-2 rounded-xl
+         bg-amber-50 border border-amber-200 text-amber-800
+         dark:bg-amber-900/20 dark:border-amber-700/40 dark:text-amber-300
+         text-[11px] font-semibold;
+  animation: fade-in 0.2s ease-out;
+}
+
 
 /* Premium Glassmorphism Panel surface - High-end modern card shadow */
 .glass-panel {
@@ -140,11 +243,182 @@ body {
 /* Dark Mode Glassmorphism Panel */
 .dark .glass-panel {
   background-color: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 
     0 4px 20px -2px rgba(0, 0, 0, 0.3), 
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
+
+/* ─── Premium Panel Surface System ───────────────────────────────────────────
+   Use these instead of ad-hoc bg-slate-900 + border-white combos.
+   Achieves the unified dark mesh surface defined in the design spec.
+
+   .panel-surface      → primary card/panel background (dark canvas tinted)
+   .panel-surface-inner→ secondary inner container (slightly brighter)
+   .panel-card         → complete card with border + blur + shadow pre-applied
+   .panel-card-hover   → adds hover lift animation
+*/
+
+.panel-surface {
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .panel-surface {
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.panel-surface-inner {
+  background-color: rgba(30, 41, 59, 0.50);
+}
+
+.dark .panel-surface-inner {
+  background-color: rgba(30, 41, 59, 0.50);
+}
+
+/* Full card shell — standard use: replace glass-panel on dark-first cards */
+.panel-card {
+  background-color: rgba(15, 23, 42, 0.70);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.35),
+    0 4px 16px -4px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 1.25rem;
+}
+
+/* Light-mode panel card fallback */
+:not(.dark) .panel-card {
+  background-color: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.80);
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.04),
+    0 4px 16px -4px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.panel-card-hover {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel-card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 8px 24px -6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Mobile Input Breathing Room ────────────────────────────────────────────
+   Refraction Desk, Surgical Sheet, FEFO Tracker inputs on narrow viewports. */
+
+.mobile-input-row {
+  display: grid;
+  gap: 0.5rem;      /* gap-2 */
+  align-items: center;
+}
+
+@media (max-width: 479px) {
+  .mobile-input-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.375rem;  /* slightly tighter on very small screens */
+  }
+  .mobile-input-row input,
+  .mobile-input-row select {
+    font-size: 0.6875rem; /* 11px — legible without zooming */
+    padding: 0.4375rem 0.625rem;
+    min-width: 0; /* allow flex shrink */
+  }
+}
+
+.refraction-input-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+@media (max-width: 479px) {
+  .refraction-input-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.375rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .refraction-input-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+  }
+  .refraction-input-grid input {
+    font-size: 0.625rem;
+    padding: 0.375rem 0.5rem;
+  }
+}
+
+/* ─── MarkdownText Dark-Mode Rendering Helpers ───────────────────────────────
+   Ensure strong/em in dark mode renders at high contrast, not default slate. */
+
+.dark .markdown-text strong,
+.dark .markdown-text b {
+  color: #f1f5f9;  /* slate-100 */
+  font-weight: 600;
+}
+
+.dark .markdown-text em,
+.dark .markdown-text i {
+  color: #cbd5e1;  /* slate-300 */
+}
+
+.dark .markdown-text code {
+  background-color: rgba(30, 41, 59, 0.8);
+  color: #a5b4fc;  /* indigo-300 */
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.dark .markdown-text h4,
+.dark .markdown-text h5 {
+  color: #ffffff;
+}
+
+.dark .markdown-text p {
+  color: #cbd5e1;  /* slate-300 */
+}
+
+/* ─── Triage / Alert Subgrid Clipping Fix ────────────────────────────────────
+   Protective padding for any nested sub-grid items in alert/stock blocks.
+   Add .alert-subgrid to the parent container of alert item rows. */
+
+.alert-subgrid {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.alert-subgrid-item {
+  padding: 0.5rem 0.75rem;  /* py-2 px-3 */
+  border-radius: 0.75rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.alert-subgrid-item .alert-label {
+  font-size: 0.6875rem;    /* 11px */
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
 .glass-panel-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

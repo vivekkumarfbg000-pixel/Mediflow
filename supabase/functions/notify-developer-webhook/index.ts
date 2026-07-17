@@ -48,8 +48,7 @@ serve(async (req) => {
   try {
     const payload: TelemetryPayload = await req.json();
     console.log(
-      "[Notify Developer] Received critical telemetry:",
-      JSON.stringify(payload)
+      `[Notify Developer] Received critical telemetry: id=${payload.id}, subsystem=${payload.subsystem}, error_code=${payload.error_code}`
     );
 
     const {

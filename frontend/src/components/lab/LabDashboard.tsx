@@ -6,6 +6,7 @@ import type { ReagentStock } from '../../services/api';
 import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice } from '../../types';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
+import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mediflow Pathology Lab Dashboard  V2.0
@@ -772,9 +773,7 @@ export const LabDashboard: React.FC = () => {
                 Awaiting Sample Collection ({pendingList.length})
               </h2>
               {pendingList.length === 0 ? (
-                <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                  No pending draws. Queue is clear ✓
-                </div>
+                <ZeroQueueState queueType="lab_draws" className="mx-0" />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {pendingList.map(req => {
@@ -2303,9 +2302,12 @@ export const LabDashboard: React.FC = () => {
                     Doctor Requisitions Awaiting Billing ({Object.keys(reqsByPatient).length} patients)
                   </h3>
                   {Object.keys(reqsByPatient).length === 0 ? (
-                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                      No pending test requisitions require billing.
-                    </div>
+                    <InlineEmptyState
+                      icon="receipt_long"
+                      label="No Pending Requisitions"
+                      sublabel="All doctor-ordered test requisitions have been billed."
+                      variant="success"
+                    />
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {Object.entries(reqsByPatient).map(([patientId, patientReqs]) => {

@@ -154,7 +154,25 @@ serve(async (req) => {
         }
       });
 
-// 3. Dispatch secure transaction confirmation message to WhatsApp
+      // 3. Credit commission pool with platform fee earned on this payment
+      // This replenishes the pool that cash billing draws from.
+      try {
+        const platformFee = existingInvoice.platform_fee ?? (totalAmount ? parseFloat((totalAmount * 0.03).toFixed(2)) : 0);
+        if (platformFee > 0 && existingInvoice.pod_id) {
+          await supabase.rpc("credit_commission_pool", {
+            p_pod_id:       existingInvoice.pod_id,
+            p_amount:       platformFee,
+            p_reason:       `Online payment settled — order_id: ${orderId}`,
+            p_reference_id: existingInvoice.id,
+          });
+          console.log(`[cashfree-webhook] Commission pool credited ₹${platformFee} for pod ${existingInvoice.pod_id} ✅`);
+        }
+      } catch (poolErr) {
+        // Non-fatal — payment is already marked cleared
+        console.warn("[cashfree-webhook] Pool credit failed (non-fatal):", poolErr);
+      }
+
+      // 4. Dispatch secure transaction confirmation message to WhatsApp
       try {
         const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
         const dispatchRes = await fetch(dispatchUrl, {

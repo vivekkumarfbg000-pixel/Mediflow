@@ -8,6 +8,7 @@ import { EncounterService } from '../../services/encounterService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
 import { LabService } from '../../services/labService';
+import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import type {
   PharmacyInventoryItem,
   MedicineBill,
@@ -2209,9 +2210,7 @@ export const CompounderDashboard: React.FC = () => {
 
                 <div className="space-y-4">
                   {appointments.length === 0 ? (
-                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-sm text-slate-550">
-                      No appointments booked for today.
-                    </div>
+                    <ZeroQueueState queueType="appointments" className="mx-0" />
                   ) : (
                     appointments.map((appt) => {
                       const patient = patients.find(p => p.id === appt.patientId);
@@ -2622,9 +2621,12 @@ export const CompounderDashboard: React.FC = () => {
                   const reqs = LabService.getLabRequisitions();
                   if (reqs.length === 0) {
                     return (
-                      <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium select-none">
-                        No active pathology orders or lab tests in queue today.
-                      </div>
+                      <InlineEmptyState
+                        icon="biotech"
+                        label="No Lab Orders Today"
+                        sublabel="Doctor-ordered pathology tests and sample collection requests will appear here."
+                        variant="neutral"
+                      />
                     );
                   }
                   return (

@@ -52,7 +52,7 @@ serve(async (req) => {
 
     const { invoiceId, returnUrl } = validationResult.data;
 
-    // Retrieve invoice + patient details
+    // Retrieve invoice + patient details (also fetch fee breakdown for split builder)
     const { data: invoice, error: invError } = await supabase
       .from("unified_invoices")
       .select("*, patient_registry(id, name, email, phone)")
@@ -100,8 +100,28 @@ serve(async (req) => {
     const patient = invoice.patient_registry;
     const amount = Number(invoice.total_amount);
 
-    // 1. Read pre-calculated payment splits from database split_payload
-    const orderSplits = invoice.split_payload || [];
+    // 1. Build split payload dynamically via RPC (reads vendor registry + fee breakdown)
+    // Falls back to empty array if vendors are not yet onboarded on Cashfree.
+    let orderSplits: any[] = [];
+    try {
+      const { data: builtSplits, error: splitsErr } = await supabase.rpc(
+        "build_order_splits",
+        { p_invoice_id: invoiceId }
+      );
+      if (!splitsErr && Array.isArray(builtSplits) && builtSplits.length > 0) {
+        orderSplits = builtSplits;
+        console.log(`[cashfree-order] Dynamic splits built: ${orderSplits.length} vendor(s)`);
+      } else {
+        console.warn("[cashfree-order] No vendor splits available — creating unsplit order. Onboard vendors via cashfree-vendor-sync first.");
+      }
+    } catch (splitsEx) {
+      console.warn("[cashfree-order] build_order_splits RPC failed (non-fatal):", splitsEx);
+    }
+
+    const appId     = Deno.env.get("CASHFREE_APP_ID") ?? "";
+    const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
+    const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? ""; // Must be set to "production" in Vault before go-live
+    const resolvedEnv = cfEnv || "sandbox";
 
     // IDEMPOTENCY: Check if order already exists for this invoice
     if (invoice.cashfree_order_id) {
@@ -134,10 +154,6 @@ serve(async (req) => {
       }
     }
 
-    const appId     = Deno.env.get("CASHFREE_APP_ID") ?? "";
-    const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
-    const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? ""; // Must be set to "production" in Vault before go-live
-
     if (!appId || !secretKey) {
       console.error("[cashfree-order] Credentials missing in vault.");
       return new Response(JSON.stringify({ error: "Payment gateway not configured" }), {
@@ -161,7 +177,6 @@ serve(async (req) => {
       );
     }
 
-    const resolvedEnv = cfEnv || "sandbox";
     const apiBase = resolvedEnv === "production"
       ? "https://api.cashfree.com/pg/orders"
       : "https://sandbox.cashfree.com/pg/orders";
