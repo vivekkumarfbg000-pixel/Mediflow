@@ -58,7 +58,7 @@ export type EmptyStateVariant =
 // ─── Variant Config ───────────────────────────────────────────────────────────
 
 interface VariantConfig {
-  Icon: React.FC<{ className?: string; size?: number }>;
+  Icon: React.FC<{ className?: string; size?: number; strokeWidth?: number }>;
   defaultTitle: string;
   defaultDescription: string;
   // Dark-mode icon ring gradient
