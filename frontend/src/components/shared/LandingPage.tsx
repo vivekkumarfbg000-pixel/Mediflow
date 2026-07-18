@@ -433,9 +433,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         .animate-float-drift-slow {
           animation: float-drift-slow 16s ease-in-out infinite;
         }
-      `}</style>
-
-      {/* Hero Section */}
+      `}</style>      {/* Hero Section */}
       <section className="max-w-6xl mx-auto px-6 pt-16 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
         
         {/* Left Column: Information, Branding & CTAs */}
@@ -450,16 +448,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
           <div className="space-y-4">
             <h1 className="text-4xl lg:text-5xl font-black text-slate-900 leading-[1.1] tracking-tight">
-              Clinical software for<br />
+              High-Reliability<br />
               <span className="bg-gradient-to-r from-cyan-600 to-emerald-600 bg-clip-text text-transparent italic font-extrabold font-serif">
-                small clinic networks
+                Clinical Loop Synchronization
               </span>
             </h1>
 
             <p className="text-sm lg:text-base text-slate-650 leading-relaxed max-w-lg font-medium">
-              VitalSync connects your clinic, pharmacy, and pathology lab under a single secure care loop. 
-              Prescriptions flow directly to the pharmacist. Lab reports land in the doctor's queue. 
-              Billing split calculations resolve instantly.
+              A unified backend infrastructure coordinating real-time clinical data pipelines between doctors, pharmacies, and pathology labs. Automatically resolves multi-tenant split-billing distributions at the database transaction boundary, eliminating administrative latency.
             </p>
           </div>
 
@@ -469,13 +465,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               onClick={handleGetStartedClick}
               className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 cursor-pointer flex items-center gap-2"
             >
-              Get Started <ArrowRight className="h-4 w-4" />
+              Initialize Workspace <ArrowRight className="h-4 w-4" />
             </button>
             <button
               onClick={scrollToGate}
               className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-violet-500/20 cursor-pointer flex items-center gap-2"
             >
-              Console Login <ArrowRight className="h-4 w-4" />
+              Access Console <ArrowRight className="h-4 w-4" />
             </button>
             <button
               onClick={() => {
@@ -484,7 +480,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               }}
               className="px-6 py-3.5 rounded-xl bg-white hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] text-slate-800 border border-slate-200/80 font-extrabold text-xs uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-2"
             >
-              <Presentation className="h-4 w-4 text-indigo-500" /> Interactive Pitch Tour
+              <Presentation className="h-4 w-4 text-indigo-500" /> Interactive Tour
             </button>
           </div>
 
@@ -496,7 +492,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Row-Level Database Isolation</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Each clinic's records are completely isolated at the Postgres database level using strict RLS. Zero cross-tenant data leaks.</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Each tenant's clinical and financial records are completely partitioned at the Postgres database layer using strict Row-Level Security (RLS) policies. This guarantees logical isolation and prevents cross-tenant data leakage under all execution contexts.</p>
               </div>
             </div>
 
@@ -505,8 +501,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <GitBranch className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Unified Role-Aware Dashboards</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Doctor, compounder, lab tech, pharmacist, and administrator — each sees a customized desktop interface operating on a single code repository.</p>
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Unified Role-Aware Architecture</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Rather than operating fragmented, high-maintenance standalone micro-apps, VitalSync serves customized, high-performance interfaces for Doctors, Compounders, Lab Techs, and Pharmacists from a single, optimized monorepo. This approach minimizes bundle sizes, enforces type safety across roles, and guarantees sub-second UI transitions.</p>
               </div>
             </div>
           </div>
@@ -634,7 +630,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Doctor Console</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Patient queue lists, prescription editors, lab requisitions, and WhatsApp sandbox simulator for instant patient contact.
+                Engineered for clinical velocity. Features optimized patient queues, ultra-fast prescription editors, friction-free lab requisitions, and a native sandboxed communication channel for immediate patient engagement.
               </p>
             </div>
 
@@ -642,9 +638,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
                 <Layers className="h-5 w-5 text-cyan-650" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pathology Lab</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pathology Lab Hub</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Incoming diagnostic requests, digital report upload interfaces, and automated injection directly into patient medical charts.
+                Optimized for pipeline automation. Handles incoming diagnostic requests, structured digital report ingestion interfaces, and zero-latency report injection directly into the patient's centralized medical chart.
               </p>
             </div>
 
@@ -652,9 +648,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
                 <Users className="h-5 w-5 text-indigo-650" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pharmacy POS</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pharmacy POS Node</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Receives prescriptions in real-time, manages inventory, and handles split-payment disbursements between the clinic and pharmacy.
+                Built for transaction accuracy. Enforces real-time prescription streaming, automated inventory state updates, and precise automated split-payment distribution logic at the transaction boundary.
               </p>
             </div>
 
@@ -662,9 +658,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
                 <Terminal className="h-5 w-5 text-cyan-650" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Autonomous Healer</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Autonomous Telemetry Engine</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Background telemetry agent detecting state drifts, retrying interrupted database connections, and managing UI integrity 24/7.
+                Ensures high availability. A highly resilient background daemon tracking system state drifts, executing smart retries on interrupted network requests, and proactively enforcing UI state integrity 24/7.
               </p>
             </div>
           </div>
@@ -686,32 +682,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             {[
               {
                 step: '01',
-                title: 'Doctor Registration',
-                desc: "Create an account on the Doctor tab. Copy your uniquely generated Clinic Code (e.g., MF-KANKAR10) from the panel.",
+                title: 'Authentication & Minting',
+                desc: "Register the primary clinical entity to mint a unique, immutable network key (Clinic Code) that acts as the cryptographic root of your pod.",
                 color: 'text-indigo-600',
                 bg: 'bg-indigo-500/10',
                 border: 'border-indigo-500/20'
               },
               {
                 step: '02',
-                title: 'Distribute Code',
-                desc: 'Provide your custom Clinic Code to your adjacent pharmacy partners and diagnostic lab technicians.',
+                title: 'Decentralized Distribution',
+                desc: "Distribute your secure network key directly to trusted local pharmacy and diagnostic laboratory partners via encrypted channels.",
                 color: 'text-cyan-600',
                 bg: 'bg-cyan-500/10',
                 border: 'border-cyan-500/20'
               },
               {
                 step: '03',
-                title: 'Partners Join',
-                desc: "Partners register using the Partner tab, inputting your Clinic Code to request a database connection.",
+                title: 'Handshake Request',
+                desc: "Partner nodes register and input your token to securely request an isolated database pipeline hook back to your clinical workspace.",
                 color: 'text-indigo-600',
                 bg: 'bg-indigo-500/10',
                 border: 'border-indigo-500/20'
               },
               {
                 step: '04',
-                title: 'Authorized Approval',
-                desc: 'Approve incoming partner requests in your Clinic settings to instantly activate the closed prescription loop.',
+                title: 'Cryptographic Approval',
+                desc: "Authorize the pending handshake request inside your admin panel to open the secure synchronization gateway and activate the closed care loop.",
                 color: 'text-cyan-600',
                 bg: 'bg-cyan-500/10',
                 border: 'border-cyan-500/20'
@@ -1065,21 +1061,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
               {/* Dynamic Slides Body */}
               <div className="my-auto py-6 space-y-5">
-                
-                {tourSlide === 0 && (
+                            {tourSlide === 0 && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Eliminate Administrative Friction</h3>
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Friction-Free Administrative Pipelines</h3>
                     <p className="text-xs text-slate-650 leading-relaxed">
-                      Healthcare is collaborative, but clinic software is typically isolated. VitalSync securely connects your clinic to local pharmacies and laboratories. Prescriptions flow instantly, lab reports deliver straight to your screen, and patient communication is completely automated.
+                      Clinical operations require high-precision collaboration across node boundaries. VitalSync eliminates manual handoffs by establishing automated data pipelines between your console, pharmacy POS terminals, and pathology labs.
                     </p>
                     <div className="grid grid-cols-2 gap-3 pt-2">
                       <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl">
-                        <span className="text-xs font-bold text-indigo-700 block">Seamless Loop</span>
-                        <span className="text-[10px] text-slate-500 mt-1 block">Prescriptions, diagnostics, and bills resolve automatically.</span>
+                        <span className="text-xs font-bold text-indigo-700 block">Automated Data Streams</span>
+                        <span className="text-[10px] text-slate-500 mt-1 block">Secure, synchronized transmission of prescriptions, lab reports, and billing data.</span>
                       </div>
                       <div className="p-3.5 bg-cyan-50/50 border border-cyan-100 rounded-2xl">
-                        <span className="text-xs font-bold text-cyan-700 block">Staff Delegation</span>
-                        <span className="text-[10px] text-slate-500 mt-1 block">Custom interfaces allow assistants to handle data entry.</span>
+                        <span className="text-xs font-bold text-cyan-700 block">Delegated Console Control</span>
+                        <span className="text-[10px] text-slate-500 mt-1 block">Granular user roles allow clinical staff to manage queue state and data entry under supervisor auditing.</span>
                       </div>
                     </div>
                   </div>
@@ -1087,23 +1082,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
                 {tourSlide === 1 && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Zero-Time Prescribing (The Compounder Handoff)</h3>
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Optimized Clinical Intake Flow</h3>
                     <p className="text-xs text-slate-650 leading-relaxed">
-                      Doctors don't have time to act as data-entry clerks during a busy OPD. With VitalSync, you do not have to change how you work:
+                      Maximize clinical intake capacity by offloading manual data entry tasks to adjacent staff nodes without altering standard OPD workflows:
                     </p>
                     <div className="space-y-3">
                       <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
                         <div className="h-5 w-5 rounded-full bg-cyan-100 text-cyan-700 font-extrabold text-xs flex items-center justify-center shrink-0">A</div>
                         <div>
-                          <span className="text-xs text-slate-800 font-bold block">The Assistant Handoff</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block">You consult and write or dictate exactly as you always have. Your clinic assistant or compounder enters the details in 30 seconds.</span>
+                          <span className="text-xs text-slate-800 font-bold block">Compounder Ingestion</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block">Focus entirely on patient care while clinical assistants input written or dictated records in real time.</span>
                         </div>
                       </div>
                       <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
                         <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 font-extrabold text-xs flex items-center justify-center shrink-0">B</div>
                         <div>
-                          <span className="text-xs text-slate-800 font-bold block">One-Click Clinical Templates</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block">If you prefer typing, use pre-made dosage templates (e.g. "Standard Follow-up") to prescribe in a single click.</span>
+                          <span className="text-xs text-slate-800 font-bold block">Clinical Templates</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block">Standardize treatment plan creation with one-click prescription macros and customizable dosage matrices.</span>
                         </div>
                       </div>
                     </div>
@@ -1112,23 +1107,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
                 {tourSlide === 2 && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Stop Patient & Referral Leakage</h3>
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Mitigate Care Loop Disruption</h3>
                     <p className="text-xs text-slate-650 leading-relaxed">
-                      Currently, up to 40% of patients take your paper prescriptions or lab slips to unaligned, random entities, breaking their care continuity and leading to revenue loss.
+                      Paper prescriptions and diagnostic slips introduce friction, causing up to 40% of patients to drop out of the aligned network loop, disrupting care continuity and clinical metrics.
                     </p>
                     <div className="space-y-3">
                       <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-3">
                         <Mail className="h-4.5 w-4.5 text-indigo-600 mt-0.5 shrink-0" />
                         <div>
-                          <span className="text-xs font-bold text-indigo-800">Instant WhatsApp Delivery</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Before the patient even leaves your desk, their digital prescription and lab orders land directly on their WhatsApp.</span>
+                          <span className="text-xs font-bold text-indigo-800">Direct WhatsApp Telemetry</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Prescriptions and lab requisitions land instantly on the patient's mobile terminal upon chart finalization.</span>
                         </div>
                       </div>
                       <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-xl flex items-start gap-3">
                         <Sparkles className="h-4.5 w-4.5 text-cyan-600 mt-0.5 shrink-0" />
                         <div>
-                          <span className="text-xs font-bold text-cyan-800">Direct Partner Pickup Options</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">The patient's WhatsApp message guides them: *"Your medications are prepared at [Your Partner Pharmacy]. Tap to confirm pickup or delivery."* They choose convenience.</span>
+                          <span className="text-xs font-bold text-cyan-800">Fulfillment Gateway</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Patients receive automated coordinates for medication pickup and diagnostic scheduling at aligned network partners.</span>
                         </div>
                       </div>
                     </div>
@@ -1147,7 +1142,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold text-slate-700">
                           <span>Patient Volume / Day</span>
-                          <span className="text-indigo-600">{calcPatients} patients</span>
+                          <span className="text-indigo-650">{calcPatients} patients</span>
                         </div>
                         <input
                           type="range"
@@ -1163,7 +1158,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold text-slate-700">
                           <span>Avg Consultation Fee</span>
-                          <span className="text-indigo-600">Rs {calcFee}</span>
+                          <span className="text-indigo-650">Rs {calcFee}</span>
                         </div>
                         <input
                           type="range"
@@ -1179,7 +1174,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold text-slate-700">
                           <span>Avg Lab Fee / Test</span>
-                          <span className="text-indigo-600">Rs {calcLabFee}</span>
+                          <span className="text-indigo-650">Rs {calcLabFee}</span>
                         </div>
                         <input
                           type="range"
@@ -1195,7 +1190,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold text-slate-700">
                           <span>Avg Medicine Sale / Prescription</span>
-                          <span className="text-indigo-600">Rs {calcMedSale}</span>
+                          <span className="text-indigo-650">Rs {calcMedSale}</span>
                         </div>
                         <input
                           type="range"
@@ -1227,9 +1222,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
                 {tourSlide === 4 && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Mutual Benefits for Pharmacy & Lab Partners</h3>
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Unified Partner Nodes</h3>
                     <p className="text-xs text-slate-650 leading-relaxed">
-                      Your local partners will eagerly onboard with you. The network delivers massive efficiency upgrades for them:
+                      Onboard adjacent partner nodes onto your local clinical network to optimize order accuracy and pipeline efficiency:
                     </p>
                     <div className="space-y-3">
                       <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
@@ -1237,8 +1232,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                           <Building2 className="h-4.5 w-4.5" />
                         </div>
                         <div>
-                          <span className="text-xs font-bold text-slate-800">For Your Partner Pharmacy</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Prescriptions land digitally. No handwriting to decipher. Auto stock-alerts let them prepare alternatives if items are low.</span>
+                          <span className="text-xs font-bold text-slate-800">For Aligned Pharmacies</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Real-time prescription ingestion resolves handwriting ambiguity and provides early inventory forecasts.</span>
                         </div>
                       </div>
                       <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
@@ -1246,8 +1241,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                           <FileText className="h-4.5 w-4.5" />
                         </div>
                         <div>
-                          <span className="text-xs font-bold text-slate-800">For Your Partner Laboratory</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Technicians drag-and-drop the PDF report. It instantly populates in your doctor screen, eliminating patients carrying physical chits.</span>
+                          <span className="text-xs font-bold text-slate-800">For Aligned Laboratories</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Technicians upload structured PDF outputs directly into the centralized medical chart, bypassing patient handling.</span>
                         </div>
                       </div>
                     </div>
@@ -1256,23 +1251,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
                 {tourSlide === 5 && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Absolute Data Privacy & Security</h3>
-                    <p className="text-xs text-slate-650 leading-relaxed">
-                      Patient medical confidentiality is paramount. VitalSync uses database-level security to ensure your practice remains private and compliant:
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">PostgreSQL Row-Level Security & Compliance</h3>
+                    <p className="text-xs text-slate-655 leading-relaxed">
+                      Patient data protection is enforced at the storage engine layer. All database schemas are hardened to comply with strict regulatory frameworks.
                     </p>
                     <div className="space-y-3">
                       <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3">
                         <Shield className="h-4.5 w-4.5 text-emerald-600 mt-0.5 shrink-0" />
                         <div>
-                          <span className="text-xs font-bold text-emerald-800">Walled Patient Databases</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Each clinic's patient records are strictly walled off from other practices using database row-isolation rules.</span>
+                          <span className="text-xs font-bold text-emerald-800">Walled Multi-Tenancy</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Strict PostgreSQL Row-Level Security (RLS) partitions data per tenant, preventing cross-tenant access.</span>
                         </div>
                       </div>
                       <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-xl flex items-start gap-3">
                         <Lock className="h-4.5 w-4.5 text-cyan-600 mt-0.5 shrink-0" />
                         <div>
-                          <span className="text-xs font-bold text-cyan-800">HIPAA Compliant Transfer</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">All clinical transmissions and uploads are encrypted end-to-end to protect confidentiality.</span>
+                          <span className="text-xs font-bold text-cyan-800">Encrypted Payload Transmission</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">All clinical telemetry and payload distributions are fully encrypted in transit using TLS 1.3 and at rest using AES-256.</span>
                         </div>
                       </div>
                     </div>

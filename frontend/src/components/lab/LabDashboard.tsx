@@ -13,7 +13,7 @@ import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
    Interconnected clinical node — Doctor › Lab › Pharmacy › WhatsApp
  ───────────────────────────────────────────────────────────────────────────── */
 
-type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'reagents' | 'settlements' | 'pod_network' | 'billing_invoices';
+type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'settlements' | 'pod_network' | 'billing_invoices';
 
 export const LabDashboard: React.FC = () => {
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
@@ -36,24 +36,10 @@ export const LabDashboard: React.FC = () => {
 
   const [requisitions, setRequisitions] = useState<LabRequisition[]>([]);
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
-  const [reagents, setReagents] = useState<ReagentStock[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
   const [walkinFileUrl, setWalkinFileUrl] = useState<string | null>(null);
-
-  // Autopilot states
-  const [autopilotEnabled, setAutopilotEnabled] = useState(
-    () => localStorage.getItem('reagent_autopilot_enabled') !== 'false'
-  );
-  const [autopilotLogs, setAutopilotLogs] = useState<
-    { reagentName: string; volume: number; timestamp: string }[]
-  >([]);
-
-  // Replenishment states
-  const [replenishReagent, setReplenishReagent] = useState('');
-  const [replenishVol, setReplenishVol] = useState<number | ''>('');
-  const [replenishBusy, setReplenishBusy] = useState(false);
 
   // Specimen label / processing states
   const [printLabelReq, setPrintLabelReq] = useState<LabRequisition | null>(null);
@@ -101,41 +87,11 @@ export const LabDashboard: React.FC = () => {
     return () => clearInterval(t);
   }, []);
 
-  /* ─── Initial autopilot history ──────────────────────────────── */
-  useEffect(() => {
-    setAutopilotLogs([
-      {
-        reagentName: 'HbA1c Enzyme Reagent A',
-        volume: 500,
-        timestamp: new Date(Date.now() - 3600000 * 2.5).toISOString()
-      },
-      {
-        reagentName: 'Bilirubin Diazo Reagent',
-        volume: 500,
-        timestamp: new Date(Date.now() - 3600000 * 14.2).toISOString()
-      }
-    ]);
-  }, []);
-
-  /* ─── Autopilot event listener ───────────────────────────────── */
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setAutopilotLogs(prev => [
-        { reagentName: detail.reagentName, volume: detail.replenishedVolume, timestamp: detail.timestamp },
-        ...prev
-      ]);
-    };
-    window.addEventListener('mediflow-reagent-autopilot', handler);
-    return () => window.removeEventListener('mediflow-reagent-autopilot', handler);
-  }, []);
-
   /* ─── Main data sync ─────────────────────────────────────────── */
   useEffect(() => {
     const sync = () => {
       setRequisitions(api.getLabRequisitions());
       setInvoices(api.getUnifiedInvoices());
-      setReagents(api.getReagentStocks());
       setPatients(api.getPatients());
     };
     sync();
@@ -185,21 +141,10 @@ export const LabDashboard: React.FC = () => {
     setJsonPayload(JSON.stringify(data, null, 2));
   }, [activeReqId, hba1cVal, eagVal, creatinineVal, egfrVal, bunVal, hbVal, hctVal, genericVal, genericUnit, activeReq]);
 
-  /* ─── Derived lists with SaaS Gate 2 payment filtering ────────── */
+  /* ─── Derived lists ──────────────────────────────────────────── */
   const gatedRequisitions = useMemo(() => {
-    const labTestBills = api.getLabTestBills();
-    return requisitions.filter(r => {
-      if (r.encounterId === 'walkin') return true;
-      const inv = invoices.find(i => i.encounterId === r.encounterId);
-      if (inv && inv.paymentStatus === 'cleared') return true;
-      
-      // Also allow if paid via a separate LabTestBill
-      const isPaidBill = labTestBills.some(b => b.status === 'paid' && b.items.some(item => item.requisitionId === r.id));
-      if (isPaidBill) return true;
-      
-      return false;
-    });
-  }, [requisitions, invoices]);
+    return requisitions;
+  }, [requisitions]);
 
   const pendingList = useMemo(() => gatedRequisitions.filter(r => r.status === 'pending'), [gatedRequisitions]);
   const collectedList = useMemo(
@@ -238,7 +183,6 @@ export const LabDashboard: React.FC = () => {
       return sum + (test?.price || 0);
     }, 0);
   }, [todayCompleted, testCatalog]);
-  const lowStockCount = useMemo(() => reagents.filter(r => r.stockVolume < 200).length, [reagents]);
   const totalTests = useMemo(() => completedList.length, [completedList]);
   const testBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
@@ -247,38 +191,6 @@ export const LabDashboard: React.FC = () => {
   }, [completedList]);
 
   /* ─── Handlers ───────────────────────────────────────────────── */
-  const toggleAutopilot = () => {
-    const next = !autopilotEnabled;
-    setAutopilotEnabled(next);
-    localStorage.setItem('reagent_autopilot_enabled', String(next));
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        message: next
-          ? 'Autopilot armed! Under-threshold volumes will auto-replenish.'
-          : 'Autopilot deactivated. Manual stock replenishment required.',
-        type: next ? 'success' : 'info',
-        title: next ? 'Autopilot Armed' : 'Autopilot Offline'
-      }
-    }));
-  };
-
-  const handleReplenish = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replenishReagent || !replenishVol || Number(replenishVol) <= 0) return;
-    setReplenishBusy(true);
-    api.replenishReagentStock(replenishReagent, Number(replenishVol));
-    setTimeout(() => {
-      setReplenishBusy(false);
-      setReplenishVol('');
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          message: `Replenished ${replenishVol}ml of ${replenishReagent}. Synced to Supabase.`,
-          type: 'success',
-          title: 'Reagent Replenished'
-        }
-      }));
-    }, 600);
-  };
 
   const handleCollectSample = React.useCallback((req: LabRequisition) => {
     api.collectLabSample(req.id);
@@ -645,7 +557,6 @@ export const LabDashboard: React.FC = () => {
     { id: 'walkin', label: 'Walk-in Register', icon: 'person_add', badge: walkinList.length },
     { id: 'upload_report', label: 'Direct Report Upload', icon: 'upload_file' },
     { id: 'analytics', label: 'Analytics', icon: 'bar_chart' },
-    { id: 'reagents', label: 'Reagent Ledger', icon: 'science', badge: lowStockCount > 0 ? lowStockCount : undefined },
     { id: 'settlements', label: 'Settlements', icon: 'account_balance' },
     { id: 'pod_network', label: 'Pod Network', icon: 'hub' }
   ];
@@ -663,73 +574,6 @@ export const LabDashboard: React.FC = () => {
             </button>
             <h3 className="text-slate-800 font-bold mb-4">Document Preview</h3>
             <iframe src={viewingDocUrl} className="w-full h-[60vh] rounded-lg border border-slate-200" title="Document Viewer" />
-          </div>
-        </div>
-      )}
-
-      {/* ── STATS HEADER ──────────────────────────────────────── */}
-      {activeTab === 'queue' && (
-        <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 via-teal-500 to-accent-500 opacity-70" />
-
-          {/* Title row */}
-          <div className="hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-600 text-[20px]">biotech</span>
-                {nomenclature.labTitle}
-                <span className={`text-[10px] border px-2 py-0.5 rounded-full font-mono ml-1 ${isOnline ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-500 bg-amber-500/10 border-amber-500/20'}`}>
-                  {isOnline ? 'LIVE' : 'OFFLINE'}
-                </span>
-              </h1>
-              <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                Bihar Regional Mediflow Clinical Pod • Lab Tech: Lalit Prasad
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-xl font-bold text-slate-800 font-mono">
-                {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </div>
-              <div className="text-[10px] text-slate-500 font-mono">
-                {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-              </div>
-            </div>
-          </div>
-
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              {
-                icon: 'pending', color: 'amber', label: 'Pending Draws',
-                value: pendingList.length, sub: 'Awaiting collection'
-              },
-              {
-                icon: 'science', color: 'blue', label: 'In Processing',
-                value: collectedList.length, sub: 'Analyzer active'
-              },
-              {
-                icon: 'verified', color: 'emerald', label: "Today's Reports",
-                value: todayCompleted.length, sub: `₹${todayRevenue.toLocaleString('en-IN')} billed`
-              },
-              {
-                icon: 'warning', color: lowStockCount > 0 ? 'rose' : 'slate', label: 'Low Reagents',
-                value: lowStockCount, sub: lowStockCount > 0 ? 'Needs attention' : 'All levels OK'
-              }
-            ].map(kpi => (
-              <div key={kpi.label} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-[18px] ${
-                    kpi.color === 'amber' ? 'text-amber-400' :
-                    kpi.color === 'blue' ? 'text-blue-400' :
-                    kpi.color === 'emerald' ? 'text-emerald-400' :
-                    kpi.color === 'rose' ? 'text-rose-400' : 'text-slate-500'
-                  }`}>{kpi.icon}</span>
-                  <span className="text-[10px] text-slate-650 font-bold uppercase tracking-wider">{kpi.label}</span>
-                </div>
-                <div className="text-3xl font-bold text-slate-800 font-mono">{kpi.value}</div>
-                <div className="text-[10px] text-slate-400 font-mono">{kpi.sub}</div>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -779,6 +623,8 @@ export const LabDashboard: React.FC = () => {
                   {pendingList.map(req => {
                     const isConsentActive = api.isPatientConsentActive(req.patientId);
                     const isWalkin = req.encounterId === 'walkin';
+                    const inv = invoices.find(i => i.encounterId === req.encounterId);
+                    const isUnpaid = !isWalkin && inv && inv.paymentStatus === 'pending' && inv.labFee > 0;
                     return (
                       <div key={req.id} className="p-5 bg-white rounded-xl border border-slate-200 flex flex-col justify-between gap-4 hover:border-slate-300 transition-all duration-300 relative overflow-hidden">
                         {!isConsentActive && !isWalkin && (
@@ -797,9 +643,15 @@ export const LabDashboard: React.FC = () => {
                               {isWalkin && (
                                 <span className="text-[8px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Walk-in</span>
                               )}
-                              <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">
-                                Draw Pending
-                              </span>
+                              {isUnpaid ? (
+                                <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse font-mono">
+                                  UNPAID: ₹{inv.labFee} ⚠️
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                                  PAID ✓
+                                </span>
+                              )}
                             </div>
                           </div>
                           <p className="text-xs font-bold text-indigo-600 mt-2 flex items-center gap-1">
@@ -827,13 +679,51 @@ export const LabDashboard: React.FC = () => {
                             View Scanned Requisition / Rx
                           </button>
                         )}
-                        <button
-                          onClick={() => handleCollectSample(req)}
-                          className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold"
-                        >
-                          <span className="material-symbols-outlined text-sm font-bold">print</span>
-                          Print Barcode &amp; Collect Sample
-                        </button>
+                        {isUnpaid ? (
+                          <div className="space-y-2">
+                            <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider font-mono text-center">Clear Lab Bill to Collect</span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  api.clearInvoice(inv.id, 'cash');
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: `Lab Fee ₹${inv.labFee} cleared via CASH! Split settled in financial ledger.`,
+                                      type: 'success',
+                                      title: 'Lab Fee Cleared'
+                                    }
+                                  }));
+                                }}
+                                className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-slate-900 font-black rounded-xl uppercase tracking-wider text-[9px] cursor-pointer text-center active:scale-95 transition-transform"
+                              >
+                                Cash Payment
+                              </button>
+                              <button
+                                onClick={() => {
+                                  api.clearInvoice(inv.id, 'upi');
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: `Lab Fee ₹${inv.labFee} cleared via UPI! Split settled in financial ledger.`,
+                                      type: 'success',
+                                      title: 'Lab Fee Cleared'
+                                    }
+                                  }));
+                                }}
+                                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl uppercase tracking-wider text-[9px] cursor-pointer text-center active:scale-95 transition-transform"
+                              >
+                                UPI / QR
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleCollectSample(req)}
+                            className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold bg-gradient-to-r from-indigo-600 to-teal-500 border-0"
+                          >
+                            <span className="material-symbols-outlined text-sm font-bold">science</span>
+                            Collect Sample
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -1966,251 +1856,7 @@ export const LabDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════
-          TAB: REAGENT LEDGER
-      ══════════════════════════════════════════════════════════ */}
-      {activeTab === 'reagents' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Gauges + Replenish */}
-          <div className="lg:col-span-8 space-y-5">
-            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-50" />
-              <div className="flex justify-between items-center mb-5">
-                <div>
-                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-indigo-600 text-[16px]">biotech</span>
-                    Volumetric Reagent Stock Ledger
-                  </h2>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Real-time chemical stock volumetric gauges.</p>
-                </div>
-                <button
-                  onClick={toggleAutopilot}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[10px] font-extrabold cursor-pointer hover:scale-105 active:scale-95 ${
-                    autopilotEnabled
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                      : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${autopilotEnabled ? 'bg-emerald-400 animate-ping' : 'bg-clinical-500'}`} />
-                  {autopilotEnabled ? 'AUTOPILOT ARMED' : 'ARM AUTOPILOT'}
-                </button>
-              </div>
 
-              {/* Cylinder gauges */}
-              <div className="relative bg-slate-100 p-4 rounded-2xl border border-slate-200 min-h-[160px] flex items-center justify-center">
-                {reagents.length === 0 ? (
-                  <div className="text-xs text-slate-500 font-medium py-8">No reagents loaded.</div>
-                ) : (
-                  <>
-                    <div className="absolute left-2.5 top-4 flex flex-col justify-between text-[8px] text-slate-400 font-mono font-bold select-none h-[120px] pointer-events-none">
-                      <span>1000ml</span><span>750ml</span><span>500ml</span><span>250ml</span><span>0ml</span>
-                    </div>
-                    <div className="grid grid-cols-5 gap-2.5 w-full pl-7">
-                      {reagents.map((reag, idx) => {
-                        const vol = reag.stockVolume;
-                        const pct = Math.min(100, Math.max(0, (vol / 1000) * 100));
-                        const isLow = vol < 100;
-                        const isWarn = vol < 200;
-                        let fluidColor = 'from-emerald-500/70 to-teal-500/80';
-                        let glowColor = 'shadow-[inset_0_0_12px_rgba(16,185,129,0.5)]';
-                        let badgeColor = 'text-emerald-400 bg-emerald-500/10';
-                        if (isLow) {
-                          fluidColor = 'from-rose-500/80 to-red-600/90 animate-pulse';
-                          glowColor = 'shadow-[inset_0_0_15px_rgba(239,68,68,0.7),0_0_10px_rgba(239,68,68,0.3)]';
-                          badgeColor = 'text-rose-400 bg-rose-500/10 border border-rose-500/20';
-                        } else if (isWarn) {
-                          fluidColor = 'from-amber-400/80 to-orange-500/80';
-                          glowColor = 'shadow-[inset_0_0_12px_rgba(245,158,11,0.6)]';
-                          badgeColor = 'text-amber-400 bg-amber-500/10 border border-amber-500/20';
-                        }
-                        return (
-                          <div key={idx} className="flex flex-col items-center group relative cursor-pointer" title={`${reag.reagentName}: ${vol}ml`}>
-                            <div className="w-7 h-[120px] bg-white/60 rounded-full border border-slate-200/60 relative overflow-hidden shadow-inner flex items-end">
-                              <div className="absolute top-0 bottom-0 left-[20%] w-[1.5px] bg-white/15 z-20 pointer-events-none" />
-                              <div className="absolute inset-0 flex flex-col justify-between py-1 z-10 opacity-30 select-none pointer-events-none">
-                                {[0,1,2,3,4].map(i => <div key={i} className="w-full h-[1px] bg-white/30" />)}
-                              </div>
-                              <div className="absolute bottom-[20%] left-0 right-0 h-[1px] border-b border-dashed border-cyan-400/40 z-10 pointer-events-none" title="Autopilot threshold (200ml)" />
-                              <div
-                                className={`w-full bg-gradient-to-t ${fluidColor} ${glowColor} transition-all duration-700 relative z-0`}
-                                style={{ height: `${pct}%` }}
-                              >
-                                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                                  <span className="bubble absolute w-1 h-1 bg-white/40 rounded-full bottom-0 left-[20%]" style={{ animation: 'rise 3s infinite linear' }} />
-                                  <span className="bubble absolute w-1.5 h-1.5 bg-white/35 rounded-full bottom-0 left-[50%]" style={{ animation: 'rise 2s infinite linear' }} />
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-[7px] text-slate-500 text-center font-bold tracking-tight mt-2 line-clamp-2 leading-[8px] h-4">
-                              {reag.reagentName.replace(' Reagent', '').replace('Picrate B', 'Picrate')}
-                            </span>
-                            <span className={`text-[8px] font-mono font-bold mt-1 px-1.5 py-0.5 rounded ${badgeColor}`}>{vol}ml</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <style>{`
-                @keyframes rise {
-                  0% { transform: translateY(100%) scale(0.5); opacity: 0; }
-                  20% { opacity: 0.8; }
-                  80% { opacity: 0.8; }
-                  100% { transform: translateY(-100px) scale(1.1); opacity: 0; }
-                }
-              `}</style>
-
-              {/* Autopilot logs */}
-              {autopilotLogs.length > 0 && (
-                <div className="border-t border-slate-200 pt-4 mt-4 space-y-2">
-                  <h4 className="text-[9px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-xs text-emerald-400">history</span>
-                    Autopilot Replenishment Log
-                  </h4>
-                  <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
-                    {autopilotLogs.map((log, i) => (
-                      <div key={i} className="flex justify-between items-center p-1.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-[9px] font-mono text-emerald-300">
-                        <span className="truncate max-w-[160px]">{log.reagentName}</span>
-                        <span className="shrink-0 font-bold">+500ml Auto-Restored</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Stock detail table */}
-            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-amber-500 to-rose-500 opacity-40" />
-              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-400 text-[16px]">inventory_2</span>
-                Reagent Stock Detail Table
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
-                    <tr>
-                      <th className="p-3">Reagent Name</th>
-                      <th className="p-3 text-right">Stock</th>
-                      <th className="p-3 text-right">Status</th>
-                      <th className="p-3 text-right">Volume Bar</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200/40">
-                    {reagents.map(r => {
-                      const pct = Math.min(100, (r.stockVolume / 1000) * 100);
-                      const status = r.stockVolume < 100 ? 'critical' : r.stockVolume < 200 ? 'low' : 'ok';
-                      return (
-                        <tr key={r.reagentName} className="hover:bg-white/30 transition-colors">
-                          <td className="p-3 font-semibold text-slate-800">{r.reagentName}</td>
-                          <td className="p-3 text-right font-mono font-bold text-slate-800">{r.stockVolume} ml</td>
-                          <td className="p-3 text-right">
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border font-mono ${
-                              status === 'critical' ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' :
-                              status === 'low' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
-                              'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                            }`}>
-                              {status === 'critical' ? '⚠ Critical' : status === 'low' ? '⚡ Low' : '✓ OK'}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <div className="w-24 h-2 bg-slate-50 rounded-full overflow-hidden ml-auto">
-                              <div
-                                className={`h-full rounded-full transition-all duration-700 ${
-                                  status === 'critical' ? 'bg-rose-500' :
-                                  status === 'low' ? 'bg-amber-400' : 'bg-emerald-400'
-                                }`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          {/* Manual replenish */}
-          <div className="lg:col-span-4 space-y-5">
-            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-50" />
-              <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-teal-600 text-[16px]">add_circle</span>
-                Manual Stock Override
-              </h3>
-              <form onSubmit={handleReplenish} className="space-y-3">
-                <select
-                  required
-                  value={replenishReagent}
-                  onChange={e => setReplenishReagent(e.target.value)}
-                  className="w-full input-field bg-white text-xs py-2 focus:ring-1 focus:ring-teal-400 border border-slate-200"
-                >
-                  <option value="">— Select Reagent —</option>
-                  {reagents.map(r => (
-                    <option key={r.reagentName} value={r.reagentName}>{r.reagentName}</option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    max={5000}
-                    placeholder="Volume (ml)"
-                    value={replenishVol}
-                    onChange={e => setReplenishVol(e.target.value !== '' ? Number(e.target.value) : '')}
-                    className="flex-1 input-field text-xs py-2 focus:ring-1 focus:ring-teal-400 border border-slate-200"
-                  />
-                  <button
-                    type="submit"
-                    disabled={replenishBusy}
-                    className="btn-primary py-2 px-3 text-xs font-bold bg-teal-600 hover:bg-teal-600/80 border-teal-500 text-black hover:scale-105 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    {replenishBusy
-                      ? <span className="material-symbols-outlined text-sm animate-spin">sync</span>
-                      : <span className="material-symbols-outlined text-sm font-bold">add</span>}
-                  </button>
-                </div>
-              </form>
-
-              <div className="mt-5 flex items-start gap-2 bg-indigo-50 border border-indigo-500/10 p-3 rounded-lg text-[10px] text-indigo-600 leading-relaxed">
-                <span className="material-symbols-outlined text-sm mt-0.5 flex-shrink-0">info</span>
-                <span>Autopilot deducts and replenishes reagent volumes automatically at the 200ml safety threshold.</span>
-              </div>
-            </div>
-
-            {/* Interconnect notice */}
-            <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-teal-500 opacity-50" />
-              <h3 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-400 text-[16px]">hub</span>
-                Live Pod Interconnection
-              </h3>
-              <div className="space-y-2.5 text-[10px] text-slate-600">
-                {[
-                  { icon: 'stethoscope', label: 'Doctor Dashboard', desc: 'Requisitions auto-routed via encounter trigger' },
-                  { icon: 'medication', label: 'Pharmacy POS', desc: 'FEFO batch holds fired alongside lab orders' },
-                  { icon: 'chat', label: 'WhatsApp Engine', desc: 'Report dispatch triggered post publish' },
-                  { icon: 'receipt_long', label: 'UPI Billing', desc: 'Lab fee split settled in financial ledger' }
-                ].map(link => (
-                  <div key={link.label} className="flex items-start gap-2.5 p-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
-                    <span className="material-symbols-outlined text-emerald-400 text-[14px] mt-0.5 flex-shrink-0">{link.icon}</span>
-                    <div>
-                      <div className="font-bold text-slate-800">{link.label}</div>
-                      <div className="text-slate-400 leading-relaxed">{link.desc}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TAB: SETTLEMENTS */}
       {activeTab === 'settlements' && (
@@ -2716,7 +2362,6 @@ export const LabDashboard: React.FC = () => {
             { id: 'queue', label: 'Draw Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
             { id: 'walkin', label: 'Walk-in', icon: 'person_add', badge: walkinList.length },
             { id: 'upload_report', label: 'Upload', icon: 'upload_file' },
-            { id: 'reagents', label: 'Reagents', icon: 'science', badge: lowStockCount > 0 ? lowStockCount : undefined },
             { id: 'settlements', label: 'Ledger', icon: 'account_balance' }
           ].map((item) => {
             const isActive = activeTab === item.id;

@@ -103,6 +103,14 @@ export class LabService {
           reagents[rIdx].stockVolume = Number(newStock.toFixed(2));
           save('reagents', reagents);
           
+          // Sync standard stock deduction to Supabase
+          supabase.from('reagent_inventory')
+            .update({ stock_volume: reagents[rIdx].stockVolume })
+            .eq('reagent_name', reagentName)
+            .then(({ error }) => {
+              if (error) console.error('[LabService] Reagent deduction sync failed:', error);
+            });
+
           const autopilotEnabled = localStorage.getItem('reagent_autopilot_enabled') !== 'false';
           if (autopilotEnabled && newStock < 200) {
             const replenishVolume = 500;

@@ -3,7 +3,7 @@ import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { generateSpectaclePdfCard } from '../../utils/pdfGenerator';
-import type { InventoryHold, SeasonalForecast, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
+import type { InventoryHold, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
   Calendar, 
   XCircle,
@@ -16,7 +16,6 @@ import {
   TrendingUp,
   RefreshCw,
   FileSpreadsheet,
-  Camera,
   Download,
   AlertCircle,
   History,
@@ -30,7 +29,7 @@ import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 export const PharmacyDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { activePod, activeEntity, podEntities, refreshClinic } = useClinic();
-  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'ai_demand' | 'settlements' | 'pod_connect' | 'profile_settings' | 'billing_invoices'>('prescription_queue');
+  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'settlements' | 'pod_connect' | 'profile_settings' | 'billing_invoices'>('prescription_queue');
 
   // Pharmacy Profile Settings States
   const [profileName, setProfileName] = useState('');
@@ -88,7 +87,6 @@ export const PharmacyDashboard: React.FC = () => {
   };
   const [inventory, setInventory] = useState<PharmacyInventoryItem[]>([]);
   const [holds, setHolds] = useState<InventoryHold[]>([]);
-  const [forecasts, setForecasts] = useState<SeasonalForecast[]>([]);
   const [whatsAppOrders, setWhatsAppOrders] = useState<WhatsAppDrugOrder[]>([]);
   
   // Real-time Network Resilience State
@@ -149,32 +147,7 @@ export const PharmacyDashboard: React.FC = () => {
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [csvFileName, setCsvFileName] = useState('');
 
-  // OCR Bill Scan State
-  const [isBillScanOpen, setIsBillScanOpen] = useState(false);
-  const [billImage, setBillImage] = useState<string | null>(null);
-  const [isOcrScanning, setIsOcrScanning] = useState(false);
-  const [ocrLogs, setOcrLogs] = useState<string[]>([]);
-  const [ocrResults, setOcrResults] = useState<MedicineImportRow[]>([]);
 
-  // Seasonal Demand State
-  const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
-
-  const handleRegenerateForecast = async () => {
-    setIsGeneratingForecast(true);
-    try {
-      await api.generateSeasonalForecast({
-        pharmacy_entity_id: activeEntity?.id || 'pharmacy-partner-entity',
-        pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-        current_month: 'May',
-        regional_weather: 'Pre-monsoon rainfall and high humidity'
-      });
-      syncData();
-    } catch (err) {
-      console.error('[Forecast UI] Failed to regenerate forecast:', err);
-    } finally {
-      setIsGeneratingForecast(false);
-    }
-  };
 
   // Categories list
   const categories = isOphthalmology ? [
@@ -188,7 +161,6 @@ export const PharmacyDashboard: React.FC = () => {
   const syncData = useCallback(() => {
     setInventory(api.getPharmacyInventory());
     setHolds(api.getInventoryHolds());
-    setForecasts(api.getSeasonalForecasts());
     setWhatsAppOrders(api.getWhatsAppDrugOrders());
   }, []);
 
@@ -447,67 +419,7 @@ export const PharmacyDashboard: React.FC = () => {
     setIsCsvImportOpen(false);
   };
 
-  // OCR suppliers bill scan simulation
-  const handleBillImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBillImage(reader.result as string);
-      setOcrResults([]);
-      setOcrLogs([]);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleTriggerOcrScan = async () => {
-    if (!billImage) return;
-    setIsOcrScanning(true);
-    setOcrLogs([
-      `[${new Date().toLocaleTimeString()}] Activating Gemini-1.5-Pro deep visual model...`,
-      `[${new Date().toLocaleTimeString()}] Parsing suppliers invoice grid structure...`
-    ]);
-
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setOcrLogs(prev => [
-      ...prev,
-      `[${new Date().toLocaleTimeString()}] Segmenting text bounding boxes...`,
-      `[${new Date().toLocaleTimeString()}] Extracted table matching keys: "Brand Name", "Batch No", "Exp", "MRP", "QTY"`
-    ]);
-
-    try {
-      const results = await api.parseSupplierBillOCR(billImage);
-      await new Promise(resolve => setTimeout(resolve, 700));
-      setOcrResults(results);
-      setOcrLogs(prev => [
-        ...prev,
-        `[${new Date().toLocaleTimeString()}] Extraction verified with 98.4% model confidence score!`,
-        `[${new Date().toLocaleTimeString()}] Loaded 3 inventory-ready bulk batches [Preview Table unlocked]`
-      ]);
-    } catch (err: any) {
-      setOcrLogs(prev => [...prev, `[ERROR] OCR scan failed: ${err.message}`]);
-    } finally {
-      setIsOcrScanning(false);
-    }
-  };
-
-  const handleConfirmOcrImport = () => {
-    if (ocrResults.length === 0) return;
-    api.addPharmacyInventoryBulk(ocrResults);
-    
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        message: `AI-extracted supplier bill items successfully recorded in inventory catalog!`,
-        type: 'success',
-        title: 'Bill Extracted Successfully'
-      }
-    }));
-
-    setOcrResults([]);
-    setBillImage(null);
-    setIsBillScanOpen(false);
-  };
 
   // Filtered Inventory computed
   const filteredCatalog = useMemo(() => {
@@ -647,12 +559,6 @@ export const PharmacyDashboard: React.FC = () => {
           >
             <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Bulk CSV Import
           </button>
-          <button 
-            onClick={() => setIsBillScanOpen(true)}
-            className="btn-secondary"
-          >
-            <Camera className="h-4 w-4 text-indigo-500" /> Scan Supplier Invoice
-          </button>
         </div>
       </div>
 
@@ -664,7 +570,6 @@ export const PharmacyDashboard: React.FC = () => {
           { id: 'inventory_catalog', label: 'Inventory Catalog', icon: 'database' },
           { id: 'stock_alerts', label: 'Stock Alerts', icon: 'warning', badge: criticalStockCount, alert: true },
           { id: 'expiry_tracker', label: 'Expiry Tracker', icon: 'event_busy', badge: criticalExpiryCount, warning: true },
-          { id: 'ai_demand', label: 'Gemini Demand AI', icon: 'psychology' },
           { id: 'settlements', label: 'Settlements', icon: 'account_balance' },
           { id: 'pod_connect', label: 'Pod Interconnect', icon: 'hub' },
           { id: 'profile_settings', label: 'Profile & GSTIN', icon: 'settings' }
@@ -1561,117 +1466,7 @@ export const PharmacyDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 5: AI DEMAND RECOMMENDATIONS */}
-        {activeTab === 'ai_demand' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-8 space-y-6">
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                  <div>
-                    <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-[16px]">psychology</span>
-                      Gemini Seasonal Demand Surveillance Forecasts
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Localized Bihar epidemiology and Sewage Pathogen metrics generating automatic stocking levels.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleRegenerateForecast}
-                    disabled={isGeneratingForecast}
-                    className="px-4.5 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-50 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer border-0 text-white-force"
-                  >
-                    {isGeneratingForecast ? (
-                      <>
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-white-force" />
-                        Generating Forecasts...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-3.5 w-3.5 text-white-force" />
-                        ⚡ Run Predictive Demand Analysis
-                      </>
-                    )}
-                  </button>
-                </div>
 
-                <div className="space-y-4">
-                  {forecasts.map(forecast => (
-                    <div 
-                      key={forecast.id} 
-                      className={`p-4 rounded-xl border relative transition-all duration-300 ${
-                        forecast.isActedUpon 
-                          ? 'bg-slate-50 border-slate-200 text-slate-500' 
-                          : 'bg-white border-slate-200 hover:border-primary/40'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start gap-2 mb-2">
-                        <h4 className="font-bold text-xs text-white">{forecast.medicineName}</h4>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase font-mono border ${
-                          forecast.isActedUpon 
-                            ? 'bg-slate-50 text-slate-500 border-slate-200' 
-                            : 'bg-teal-600/10 text-teal-600 border border-teal-500/20'
-                        }`}>
-                          {forecast.isActedUpon ? 'Acted Upon' : `+${forecast.suggestedIncreasePercentage}% Restock`}
-                        </span>
-                      </div>
-                      
-                      <p className="text-[11px] leading-relaxed text-slate-500 mb-3">{forecast.reason}</p>
-                      
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-[9px] text-slate-500 flex items-center gap-1 font-semibold font-mono">
-                          <Lightbulb className="h-3.5 w-3.5 text-teal-600 shrink-0" />
-                          Confidence Level: {Math.floor(forecast.forecastConfidence * 100)}%
-                        </div>
-                        {!forecast.isActedUpon && (
-                          <button
-                            onClick={() => handleActOnForecast(forecast.id, forecast.medicineName)}
-                            className="bg-teal-600 text-black font-black border-0 hover:bg-teal-600/80 text-[9px] tracking-wider uppercase px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer"
-                          >
-                            Authorize B2B Order
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Pathogen density card */}
-            <div className="lg:col-span-4 space-y-6">
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
-                <h4 className="font-bold text-[10px] text-slate-600 uppercase tracking-widest flex items-center gap-1.5 font-mono">
-                  <TrendingUp className="h-4 w-4 text-primary animate-pulse" />
-                  Patna Sewage surveillance
-                </h4>
-                
-                <div className="h-16 flex items-end justify-between gap-2 border-b border-l border-slate-200 pb-1 pl-1 select-none">
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="w-full bg-primary/20 h-4 rounded-t" />
-                    <span className="text-[8px] text-slate-500 font-mono mt-1 uppercase">Mar</span>
-                  </div>
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="w-full bg-primary/40 h-8 rounded-t" />
-                    <span className="text-[8px] text-slate-500 font-mono mt-1 uppercase">Apr</span>
-                  </div>
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="w-full bg-gradient-to-t from-secondary to-primary h-14 rounded-t animate-pulse" />
-                    <span className="text-[8px] text-teal-600 font-mono font-bold mt-1 uppercase">May</span>
-                  </div>
-                </div>
-
-                <p className="text-[9px] text-rose-400 font-bold flex items-center gap-1 leading-normal">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping shrink-0" />
-                  Pre-monsoon sewage surveillance alert.
-                </p>
-                <div className="text-[9px] text-slate-400 font-semibold font-mono border-t border-slate-100 pt-3 leading-relaxed">
-                  Surveillance alerts monitor heavy rainwater waterlogging vectors linked with Cholera, Dengue and Typhoid spikes to prevent stocking shocks.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* TAB 6: SETTLEMENTS */}
         {activeTab === 'settlements' && (
@@ -2267,137 +2062,7 @@ export const PharmacyDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* OCR BILL SCAN PANEL MODAL */}
-      {isBillScanOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="glass-panel max-w-3xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden space-y-4">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
-            
-            <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
-              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
-                <Camera className="h-5 w-5 text-teal-600" />
-                AI Suppliers Invoice OCR Parser
-              </h3>
-              <button onClick={() => setIsBillScanOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-              {/* Photo selector dropzone */}
-              <div className="space-y-3">
-                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Upload Supplier Bill Photo / Challan</label>
-                <div className="relative border-2 border-dashed border-slate-200 hover:border-teal-500/50 rounded-xl h-44 flex flex-col items-center justify-center overflow-hidden bg-slate-800/20 select-none">
-                  {billImage ? (
-                    <>
-                      <img src={billImage} className="w-full h-full object-cover opacity-75" alt="Suppliers bill upload" />
-                      <div className="absolute inset-0 bg-slate-800/40 hover:bg-slate-800/60 flex items-center justify-center transition-colors">
-                        <span className="text-white text-xs font-bold uppercase tracking-wider">Change photo</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <Camera className="h-10 w-10 text-slate-500 mb-2" />
-                      <span className="text-xs text-white font-bold">Select supplier invoice image</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBillImageUpload}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </div>
-                
-                {billImage && (
-                  <button
-                    disabled={isOcrScanning}
-                    onClick={handleTriggerOcrScan}
-                    className="w-full btn-primary py-2.5 text-xs font-bold bg-gradient-to-r from-secondary to-primary text-black font-black border-0 rounded-xl cursor-pointer hover:scale-105 active:scale-95 transition-transform"
-                  >
-                    {isOcrScanning ? 'Analyzing via Gemini...' : 'Scan Bill with AI'}
-                  </button>
-                )}
-              </div>
-
-              {/* Streaming logs panel */}
-              <div className="space-y-3 flex flex-col">
-                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Gemini Extraction Logs</label>
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-mono text-[9px] text-slate-600 space-y-1 h-44 overflow-y-auto flex-1">
-                  {ocrLogs.length === 0 ? (
-                    <div className="text-slate-400 italic">Logs will stream here during billing OCR analysis...</div>
-                  ) : (
-                    ocrLogs.map((log, i) => (
-                      <div key={i} className={log.includes('verified') ? 'text-emerald-400 font-bold font-mono' : log.includes('Gemini') ? 'text-teal-600 font-mono' : 'font-mono'}>
-                        {log}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* OCR Extracted preview table */}
-            {ocrResults.length > 0 && (
-              <div className="space-y-2 select-none border-t border-slate-100 pt-4">
-                <h4 className="font-bold text-[10px] text-slate-600 uppercase tracking-widest font-mono">Extracted Medicines Preview</h4>
-                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto overflow-x-auto responsive-table-container">
-                  <table className="w-full text-[10px] text-left">
-                    <thead className="bg-white text-slate-600 font-mono uppercase font-bold sticky top-0">
-                      <tr>
-                        <th className="p-2">Name</th>
-                        <th className="p-2 font-mono">Batch</th>
-                        <th className="p-2 font-mono">Expiry</th>
-                        <th className="p-2 text-right font-mono">Supplier Price</th>
-                        <th className="p-2 text-center font-mono">QTY</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 bg-slate-50/50 text-white font-mono">
-                      {ocrResults.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-white-highest/20">
-                          <td className="p-2 font-sans font-bold">{row.name}</td>
-                          <td className="p-2">{row.batchNumber}</td>
-                          <td className="p-2">{row.expiryDate}</td>
-                          <td className="p-2 text-right">₹{row.price.toFixed(2)}</td>
-                          <td className="p-2 text-center">{row.stock} {row.unit}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3 justify-end pt-3 border-t border-slate-200/60">
-              <button
-                type="button"
-                onClick={() => {
-                  setOcrResults([]);
-                  setOcrLogs([]);
-                  setBillImage(null);
-                  setIsBillScanOpen(false);
-                }}
-                className="px-4 py-2 bg-white hover:bg-white-highest border border-slate-200 text-slate-600 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={ocrResults.length === 0}
-                onClick={handleConfirmOcrImport}
-                className={`px-5 py-2 rounded-xl text-xs font-black tracking-wider uppercase border-0 cursor-pointer ${
-                  ocrResults.length === 0 
-                    ? 'bg-white-highest text-slate-400 cursor-not-allowed'
-                    : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg active:scale-95 transition-all'
-                }`}
-              >
-                Authorize Stock Entry
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TAB: BILLING & INVOICES */}
       {activeTab === 'billing_invoices' && (

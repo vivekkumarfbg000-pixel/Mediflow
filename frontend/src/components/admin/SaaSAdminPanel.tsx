@@ -480,14 +480,40 @@ export const SaaSAdminPanel: React.FC = () => {
       return;
     }
 
-    // Simulate sending WhatsApp billing reminder to clinic owner via messaging system
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: 'Billing Reminder Sent 💬',
-        message: `Sent WhatsApp invoice reminder for ₹${pendingCash.toFixed(2)} to ${clinicName} owner.`,
-        type: 'success'
-      }
-    }));
+    try {
+      // Fetch clinic owner profile (doctor) phone number dynamically
+      const { data: staff } = await supabase
+        .from('profiles')
+        .select('phone, display_name')
+        .eq('pod_id', podId)
+        .eq('role', 'doctor')
+        .limit(1);
+
+      const phone = staff?.[0]?.phone || '9876543210';
+      const name = staff?.[0]?.display_name || clinicName;
+
+      const reminderText = `Namaste ${name}! 🏥 Mediflow Platform Administration. Aapke clinic pod ka outstanding platform fee pending balance *₹${pendingCash.toFixed(2)}* hai. Please settle this amount to ensure unhindered billing splits routing and live AI services. Thank you!`;
+
+      // Dispatch the real conversational nudge to active session
+      api.pushWhatsAppMessageFromBot(phone, reminderText);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Billing Reminder Sent 💬',
+          message: `Sent WhatsApp invoice reminder for ₹${pendingCash.toFixed(2)} to ${name} (${phone}).`,
+          type: 'success'
+        }
+      }));
+    } catch (err: any) {
+      console.error('[SaaS Admin] Failed to dispatch billing reminder:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Dispatch Failed ⚠️',
+          message: err.message || 'Failed to resolve clinic owner credentials.',
+          type: 'error'
+        }
+      }));
+    }
   };
 
   // Settle Outstanding Cash Balance

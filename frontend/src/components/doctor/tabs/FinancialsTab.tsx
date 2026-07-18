@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import type { FinancialLedgerEntry } from '../../../types';
 import { SettlementWidget } from '../../shared/SettlementWidget';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
@@ -20,10 +20,148 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   activeEntity,
   supabaseClient,
 }) => {
+  const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m' | '12m'>('6m');
+
   const apptFees = financialLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
   const pharmacyComm = financialLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
   const labComm = financialLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
   const totalEarnings = apptFees + pharmacyComm + labComm;
+
+  // Dynamic timeframe data generation
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const result: { label: string; clinic: number; pharmacy: number; lab: number }[] = [];
+
+    if (timeframe === '7d') {
+      // Last 7 Days
+      const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const dayLabel = daysOfWeek[d.getDay()];
+        
+        const dayLedgers = financialLedgers.filter(entry => {
+          const entryDate = new Date(entry.createdAt);
+          return entryDate.getFullYear() === d.getFullYear() &&
+                 entryDate.getMonth() === d.getMonth() &&
+                 entryDate.getDate() === d.getDate();
+        });
+
+        const clinic = dayLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const pharmacy = dayLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
+        const lab = dayLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
+
+        result.push({ label: dayLabel, clinic, pharmacy, lab });
+      }
+    } else if (timeframe === '30d') {
+      // Last 30 Days (grouped into 6 buckets of 5 days)
+      for (let i = 5; i >= 0; i--) {
+        const endDayOffset = i * 5;
+        const startDayOffset = endDayOffset + 4;
+        
+        const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - startDayOffset);
+        const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - endDayOffset);
+        
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const bucketLedgers = financialLedgers.filter(entry => {
+          const entryDate = new Date(entry.createdAt);
+          return entryDate >= startDate && entryDate <= endDate;
+        });
+
+        const clinic = bucketLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const pharmacy = bucketLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
+        const lab = bucketLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
+
+        const label = endDayOffset === 0 ? 'Today' : `D-${endDayOffset}`;
+        result.push({ label, clinic, pharmacy, lab });
+      }
+    } else if (timeframe === '6m') {
+      // Last 6 Months (default)
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthLabel = d.toLocaleString('en-US', { month: 'short' });
+        
+        const monthLedgers = financialLedgers.filter(entry => {
+          const entryDate = new Date(entry.createdAt);
+          return entryDate.getFullYear() === d.getFullYear() &&
+                 entryDate.getMonth() === d.getMonth();
+        });
+
+        const clinic = monthLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const pharmacy = monthLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
+        const lab = monthLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
+
+        result.push({ label: monthLabel, clinic, pharmacy, lab });
+      }
+    } else if (timeframe === '12m') {
+      // Last 12 Months
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthLabel = d.toLocaleString('en-US', { month: 'short' });
+        
+        const monthLedgers = financialLedgers.filter(entry => {
+          const entryDate = new Date(entry.createdAt);
+          return entryDate.getFullYear() === d.getFullYear() &&
+                 entryDate.getMonth() === d.getMonth();
+        });
+
+        const clinic = monthLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const pharmacy = monthLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
+        const lab = monthLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
+
+        result.push({ label: monthLabel, clinic, pharmacy, lab });
+      }
+    }
+
+    return result;
+  }, [timeframe, financialLedgers]);
+
+  // Determine standard grid X coordinates and Y scaling
+  const pointsCount = chartData.length;
+  
+  const xCoords = useMemo(() => {
+    if (pointsCount === 1) return [50];
+    const step = 90 / (pointsCount - 1);
+    return Array.from({ length: pointsCount }, (_, i) => 5 + (i * step));
+  }, [pointsCount]);
+
+  // Find max value to scale the chart dynamically
+  const maxVal = useMemo(() => {
+    const rawMax = Math.max(
+      ...chartData.map(d => Math.max(d.clinic, d.pharmacy, d.lab)),
+      0
+    );
+    return rawMax === 0 ? 500 : rawMax;
+  }, [chartData]);
+
+  // Scale value to Y coordinate: viewBox height is 40. Plot area Y runs from 4 (top) to 34 (bottom)
+  const getY = useCallback((val: number) => {
+    const fraction = val / maxVal;
+    return 34 - (fraction * 30);
+  }, [maxVal]);
+
+  // Generate SVG path strings for each channel
+  const clinicPath = useMemo(() => {
+    return chartData.map((d, index) => {
+      const prefix = index === 0 ? 'M' : 'L';
+      return `${prefix} ${xCoords[index]},${getY(d.clinic)}`;
+    }).join(' ');
+  }, [chartData, xCoords, getY]);
+
+  const pharmacyPath = useMemo(() => {
+    return chartData.map((d, index) => {
+      const prefix = index === 0 ? 'M' : 'L';
+      return `${prefix} ${xCoords[index]},${getY(d.pharmacy)}`;
+    }).join(' ');
+  }, [chartData, xCoords, getY]);
+
+  const labPath = useMemo(() => {
+    return chartData.map((d, index) => {
+      const prefix = index === 0 ? 'M' : 'L';
+      return `${prefix} ${xCoords[index]},${getY(d.lab)}`;
+    }).join(' ');
+  }, [chartData, xCoords, getY]);
 
   // Commission pool balance
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
@@ -119,40 +257,78 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* SVG Revenue projections chart */}
         <div className="lg:col-span-7 glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
-              <h2 className="text-sm font-bold text-slate-800">Ecosystem Revenue Projection (Patna Pod)</h2>
-              <p className="text-[10px] text-slate-600 mt-0.5">Simulated 6-Month Trajectory Trends</p>
+              <h2 className="text-sm font-bold text-slate-800">Ecosystem Revenue Trajectory ({activePod?.name || 'Local Pod'})</h2>
+              <p className="text-[10px] text-slate-500 mt-0.5">Real-Time Earnings Data & Analytics</p>
             </div>
-            <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider font-mono">
-              <span className="flex items-center gap-1.5 text-blue-600">
-                <span className="w-2 h-2 rounded bg-blue-600" /> Clinic
-              </span>
-              <span className="flex items-center gap-1.5 text-teal-600">
-                <span className="w-2 h-2 rounded bg-teal-600" /> Pharmacy
-              </span>
-              <span className="flex items-center gap-1.5 text-amber-600">
-                <span className="w-2 h-2 rounded bg-amber-600" /> Pathology Lab
-              </span>
+            
+            <div className="flex items-center gap-3 self-end sm:self-auto">
+              <select
+                value={timeframe}
+                onChange={(e) => setTimeframe(e.target.value as any)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-[10px] font-bold text-slate-650 outline-none focus:border-slate-350 transition-all cursor-pointer shadow-xs"
+              >
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="6m">Last 6 Months</option>
+                <option value="12m">Last 12 Months</option>
+              </select>
+
+              <div className="flex gap-3 text-[9px] font-bold uppercase tracking-wider font-mono">
+                <span className="flex items-center gap-1 text-blue-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Clinic
+                </span>
+                <span className="flex items-center gap-1 text-teal-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-600" /> Pharmacy
+                </span>
+                <span className="flex items-center gap-1 text-amber-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-600" /> Lab
+                </span>
+              </div>
             </div>
           </div>
 
           <div className="h-44 relative border-l border-b border-slate-200 p-2">
+            {chartData.length === 0 || maxVal === 500 && chartData.every(d => d.clinic === 0 && d.pharmacy === 0 && d.lab === 0) ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                <span className="material-symbols-outlined text-slate-300 text-3xl mb-1.5">monitoring</span>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">No Transaction Data Yet</p>
+                <p className="text-[9px] text-slate-400 max-w-[200px] mt-0.5">Earnings lines will automatically plot here once patient bills are generated.</p>
+              </div>
+            ) : null}
+
             <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none">
-              <line x1="0" y1="10" x2="100" y2="10" stroke="#f1f5f9" strokeWidth="0.5" />
-              <line x1="0" y1="20" x2="100" y2="20" stroke="#f1f5f9" strokeWidth="0.5" />
-              <line x1="0" y1="30" x2="100" y2="30" stroke="#f1f5f9" strokeWidth="0.5" />
+              <line x1="0" y1="9" x2="100" y2="9" stroke="#f8fafc" strokeWidth="0.5" />
+              <line x1="0" y1="19" x2="100" y2="19" stroke="#f8fafc" strokeWidth="0.5" />
+              <line x1="0" y1="29" x2="100" y2="29" stroke="#f8fafc" strokeWidth="0.5" />
 
-              <path d="M 5,28 L 25,24 L 45,22 L 65,18 L 85,14 L 95,10" fill="none" stroke="#0f62fe" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M 5,35 L 25,32 L 45,30 L 65,26 L 85,22 L 95,19" fill="none" stroke="#007d70" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M 5,38 L 25,37 L 45,35 L 65,33 L 85,29 L 95,26" fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" />
+              {/* Dynamic Paths */}
+              <path d={clinicPath} fill="none" stroke="#0f62fe" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={pharmacyPath} fill="none" stroke="#007d70" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={labPath} fill="none" stroke="#d97706" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
 
-              <text x="5" y="39" className="text-[5px] fill-slate-400 font-mono font-bold" textAnchor="middle">Jan</text>
-              <text x="25" y="39" className="text-[5px] fill-slate-400 font-mono font-bold" textAnchor="middle">Feb</text>
-              <text x="45" y="39" className="text-[5px] fill-slate-400 font-mono font-bold" textAnchor="middle">Mar</text>
-              <text x="65" y="39" className="text-[5px] fill-slate-400 font-mono font-bold" textAnchor="middle">Apr</text>
-              <text x="85" y="39" className="text-[5px] fill-slate-400 font-mono font-bold" textAnchor="middle">May</text>
-              <text x="95" y="39" className="text-[5px] fill-slate-400 font-mono font-bold" textAnchor="middle">Jun</text>
+              {/* Data Points */}
+              {chartData.map((d, index) => (
+                <g key={index}>
+                  {d.clinic > 0 && <circle cx={xCoords[index]} cy={getY(d.clinic)} r="0.8" fill="#0f62fe" />}
+                  {d.pharmacy > 0 && <circle cx={xCoords[index]} cy={getY(d.pharmacy)} r="0.8" fill="#007d70" />}
+                  {d.lab > 0 && <circle cx={xCoords[index]} cy={getY(d.lab)} r="0.8" fill="#d97706" />}
+                </g>
+              ))}
+
+              {/* Dynamic Labels */}
+              {chartData.map((d, index) => (
+                <text
+                  key={index}
+                  x={xCoords[index]}
+                  y="38"
+                  className="text-[3.5px] fill-slate-400 font-mono font-bold"
+                  textAnchor="middle"
+                >
+                  {d.label}
+                </text>
+              ))}
             </svg>
           </div>
         </div>

@@ -270,83 +270,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )
           )}
 
-          {/* Unified Care Loop Stepper in Sidebar */}
-          {activePatient && (
-            isSidebarCollapsed ? (
-              <div 
-                className="flex flex-col items-center gap-2 p-2 bg-white border border-slate-200/50 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors"
-                title={`Active Patient Loop: ${activePatient.name}`}
-              >
-                {[
-                  { id: 'registered', label: 'Registered' },
-                  { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
-                  { id: 'lab', label: nomenclature.careLoopLabStep },
-                  { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
-                  { id: 'settled', label: 'Ledger Settled' }
-                ].map((step, idx, arr) => {
-                  const stages = arr.map(s => s.id);
-                  const currentIdx = stages.indexOf(activePatientStage);
-                  const isCompleted = idx < currentIdx;
-                  const isActive = idx === currentIdx;
-                  
-                  return (
-                    <div 
-                      key={step.id} 
-                      title={step.label}
-                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-semibold border transition-all duration-300 ${
-                        isActive 
-                          ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
-                          : isCompleted 
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                            : 'bg-slate-50 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {isCompleted ? '✓' : idx + 1}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-2.5 bg-white border border-slate-200/50 rounded-lg space-y-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Patient Loop</span>
-                  <span className="text-[11px] font-semibold text-slate-800 truncate">{activePatient.name}</span>
-                </div>
-                
-                <div className="flex flex-col gap-1.5 font-medium text-[10px]">
-                  {[
-                    { id: 'registered', label: 'Registered' },
-                    { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
-                    { id: 'lab', label: nomenclature.careLoopLabStep },
-                    { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
-                    { id: 'settled', label: 'Ledger Settled' }
-                  ].map((step, idx, arr) => {
-                    const stages = arr.map(s => s.id);
-                    const currentIdx = stages.indexOf(activePatientStage);
-                    const isCompleted = idx < currentIdx;
-                    const isActive = idx === currentIdx;
-                    
-                    return (
-                      <div key={step.id} className="flex items-center gap-2">
-                        <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center border text-[9px] font-semibold shrink-0 transition-all duration-300 ${
-                          isActive 
-                            ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
-                            : isCompleted 
-                              ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                              : 'bg-slate-50 border-slate-200 text-slate-600'
-                        }`}>
-                          {isCompleted ? '✓' : idx + 1}
-                        </div>
-                        <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-600 font-normal'}`}>
-                          {step.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )
-          )}
+
 
           {/* Vertical Menu Options */}
           <div className="space-y-0.5 pt-2 w-full">
@@ -670,47 +594,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-              {/* Patient Care loop inside drawer */}
-              {activePatient && (
-                <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Patient Loop</span>
-                    <span className="text-xs font-semibold text-slate-800 truncate">{activePatient.name}</span>
-                  </div>
-                  
-                  <div className="flex flex-col gap-2 font-medium text-[11px]">
-                    {[
-                      { id: 'registered', label: 'Registered' },
-                      { id: 'diagnosing', label: isOphthalmology ? 'Refraction (Eye Test)' : 'Diagnosing (CDSS)' },
-                      { id: 'lab', label: nomenclature.careLoopLabStep },
-                      { id: 'pharmacy', label: nomenclature.careLoopPharmacyStep },
-                      { id: 'settled', label: 'Ledger Settled' }
-                    ].map((step, idx, arr) => {
-                      const stages = arr.map(s => s.id);
-                      const currentIdx = stages.indexOf(activePatientStage);
-                      const isCompleted = idx < currentIdx;
-                      const isActive = idx === currentIdx;
-                      
-                      return (
-                        <div key={step.id} className="flex items-center gap-2">
-                          <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center border text-[9px] font-semibold shrink-0 transition-all duration-300 ${
-                            isActive 
-                              ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' 
-                              : isCompleted 
-                                ? 'bg-emerald-50 border-emerald-500 text-emerald-600' 
-                                : 'bg-slate-50 border-slate-200 text-slate-600'
-                          }`}>
-                            {isCompleted ? '✓' : idx + 1}
-                          </div>
-                          <span className={`truncate leading-none ${isActive ? 'text-indigo-600 font-semibold' : isCompleted ? 'text-emerald-700 font-medium' : 'text-slate-600 font-normal'}`}>
-                            {step.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+
 
               {/* Modules Switcher */}
               <div className="space-y-1.5 pt-2">

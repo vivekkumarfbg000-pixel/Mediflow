@@ -211,8 +211,8 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
         <div className="flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-emerald-400 animate-pulse" />
           <div>
-            <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">VitalSync Patient Sandbox</h2>
-            <p className="text-[10px] text-slate-400 mt-0.5">Dual-Screen Conversational Simulator</p>
+            <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">B2B Patient Communication Gateway</h2>
+            <p className="text-[10px] text-slate-400 mt-0.5">Dual-Screen Gateway Console</p>
           </div>
         </div>
         <button
@@ -387,7 +387,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                   className="w-full btn-primary py-2 text-center text-xs font-bold rounded-lg hover:scale-102 transition-transform flex justify-center items-center gap-1.5 text-white-force"
                 >
                   <span className="material-symbols-outlined text-xs">qr_code_scanner</span>
-                  Pay via UPI Split Gateway
+                  Settle Invoice via UPI (Kotak Split Routing)
                 </button>
               </div>
             )}

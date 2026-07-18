@@ -764,7 +764,7 @@ svg line, svg path.domain {
   }
 }
 
-.animate-pulse-wave {
+@utility animate-pulse-wave {
   animation: pulse-wave 2s infinite ease-in-out;
 }
 
@@ -777,7 +777,7 @@ svg line, svg path.domain {
   }
 }
 
-.animate-slow-glow {
+@utility animate-slow-glow {
   animation: slow-glow 3s infinite ease-in-out;
 }
 
@@ -786,7 +786,7 @@ svg line, svg path.domain {
   to { opacity: 1; }
 }
 
-.animate-fade-in {
+@utility animate-fade-in {
   animation: fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
@@ -795,7 +795,7 @@ svg line, svg path.domain {
   to { transform: translateX(0); }
 }
 
-.animate-slide-in-left {
+@utility animate-slide-in-left {
   animation: slide-in-left 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -805,7 +805,7 @@ svg line, svg path.domain {
   }
 }
 
-.animate-dash-flow {
+@utility animate-dash-flow {
   animation: dash 1.5s linear infinite;
 }
 
@@ -838,7 +838,7 @@ svg line, svg path.domain {
   }
 }
 
-.animate-slide-in {
+@utility animate-slide-in {
   animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 

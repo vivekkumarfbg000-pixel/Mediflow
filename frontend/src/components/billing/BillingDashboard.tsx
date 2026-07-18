@@ -669,53 +669,15 @@ export const BillingDashboard: React.FC = () => {
                     UNIFIED UPI SPLIT-WALLET ROUTER
                   </h4>
                   
-                  {/* Dynamic Mock QR Code design */}
-                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xl w-48 h-48 flex items-center justify-center relative overflow-hidden group">
-                    
-                    {/* Simulated scanning laser overlays */}
-                    <div className="absolute left-0 w-full h-[2px] bg-rose-500 shadow-[0_0_12px_#ef4444] laser-line z-10" />
-                    
-                    {/* Dynamic styled visual QR code representation */}
-                    <div className="w-full h-full relative grid grid-cols-5 grid-rows-5 gap-1.5 select-none">
-                      {/* Anchor square TL */}
-                      <div className="col-span-2 row-span-2 bg-slate-900 rounded-lg p-[3px]">
-                        <div className="w-full h-full bg-white rounded-md p-[3px]">
-                           <div className="w-full h-full bg-slate-900 rounded-sm"></div>
-                        </div>
-                      </div>
-                      {/* Pattern dots */}
-                      <div className="bg-slate-900 rounded-sm"></div>
-                      {/* Anchor square TR */}
-                      <div className="col-span-2 row-span-2 col-start-4 bg-slate-900 rounded-lg p-[3px]">
-                        <div className="w-full h-full bg-white rounded-md p-[3px]">
-                           <div className="w-full h-full bg-slate-900 rounded-sm"></div>
-                        </div>
-                      </div>
-                      <div className="bg-slate-900 rounded-sm col-start-3 row-start-2"></div>
-                      {/* Middle dots pattern */}
-                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-1"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-2"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-3"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-4"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-3 col-start-5"></div>
-                      {/* Anchor square BL */}
-                      <div className="col-span-2 row-span-2 row-start-4 bg-slate-900 rounded-lg p-[3px]">
-                        <div className="w-full h-full bg-white rounded-md p-[3px]">
-                           <div className="w-full h-full bg-slate-900 rounded-sm"></div>
-                        </div>
-                      </div>
-                      <div className="bg-slate-900 rounded-sm row-start-4 col-start-3"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-4 col-start-4"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-4 col-start-5"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-5 col-start-3"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-5 col-start-4"></div>
-                      <div className="bg-slate-900 rounded-sm row-start-5 col-start-5"></div>
-                      
-                      {/* Tiny center branding */}
-                      <div className="absolute inset-0 m-auto w-9 h-9 rounded-lg bg-white border border-slate-200 shadow-md flex items-center justify-center font-black text-[8px] text-indigo-600 tracking-tighter">
-                        V-SYNC
-                      </div>
-                    </div>
+                  {/* Dynamic Scannable QR Code */}
+                  <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-2xl w-48 h-48 flex flex-col items-center justify-center relative overflow-hidden group">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+                        `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${selectedInvoice.totalAmount}&cu=INR`
+                      )}`}
+                      alt="Scan to Pay UPI"
+                      className="w-40 h-40 object-contain select-none"
+                    />
                   </div>
 
                   <p className="text-[10px] text-slate-500 font-medium text-center leading-relaxed">
@@ -730,11 +692,11 @@ export const BillingDashboard: React.FC = () => {
                     {isSimulatingPayment ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                        Settling Dynamic UPI Routing...
+                        Processing Split Payout Routings...
                       </>
                     ) : (
                       <>
-                        <QrCode className="h-4.5 w-4.5" /> Simulate UPI Callback Success
+                        <QrCode className="h-4.5 w-4.5" /> Verify & Clear Outstanding Balance (Manual)
                       </>
                     )}
                   </button>

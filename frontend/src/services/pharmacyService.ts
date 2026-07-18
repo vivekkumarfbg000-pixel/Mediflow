@@ -262,6 +262,28 @@ export class PharmacyService {
   static savePharmacyInventory(items: PharmacyInventoryItem[]) {
     save('pharmacy_inventory', items);
     notify();
+
+    // Asynchronously upsert modified inventory items to Supabase
+    (async () => {
+      try {
+        const dbRows = items.map(item => ({
+          id: item.id,
+          pharmacy_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
+          medicine_name: item.name,
+          batch_number: item.batchNumber,
+          expiry_date: item.expiryDate,
+          stock: item.stock,
+          quantity_in_stock: item.stock,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase.from('pharmacy_inventory').upsert(dbRows, { onConflict: 'id' });
+        if (error) console.error('[PharmacyService] Failed to sync inventory to Supabase:', error);
+      } catch (err) {
+        console.error('[PharmacyService] Supabase inventory sync failed:', err);
+      }
+    })();
   }
 
   // Master Drug Database containing common default prescription configurations

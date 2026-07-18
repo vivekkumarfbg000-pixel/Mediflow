@@ -338,10 +338,6 @@ export const CompounderDashboard: React.FC = () => {
   // Search & add manual medicine in billing
   const [medSearchQuery, setMedSearchQuery] = useState('');
   
-  // Simulated prescription OCR scan state
-  const [isPrescriptionScanning, setIsPrescriptionScanning] = useState(false);
-  const [prescriptionImage, setPrescriptionImage] = useState<string | null>(null);
-  const [ocrLogs, setOcrLogs] = useState<string[]>([]);
   // Loyalty & delivery transaction helpers
   const [apptCounterBooked, setApptCounterBooked] = useState(false);
   const [labCounterBooked, setLabCounterBooked] = useState(false);
@@ -767,80 +763,7 @@ export const CompounderDashboard: React.FC = () => {
     }
   };
 
-  // Scan Prescription Simulation
-  const handlePrescriptionImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPrescriptionImage(reader.result as string);
-      setOcrLogs([]);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleTriggerPrescriptionOcr = async () => {
-    if (!prescriptionImage) return;
-    setIsPrescriptionScanning(true);
-    setOcrLogs([
-      `[${new Date().toLocaleTimeString()}] Reading prescription visual bounds...`,
-      `[${new Date().toLocaleTimeString()}] Querying clinical RAG OCR pipeline...`
-    ]);
-
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setOcrLogs(prev => [
-      ...prev,
-      `[${new Date().toLocaleTimeString()}] Extracting handwriting strokes...`,
-      `[${new Date().toLocaleTimeString()}] Parsed medications list from Doctor Vivek`
-    ]);
-
-    try {
-      const parsedData = await api.parsePrescriptionOCR(prescriptionImage);
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      // Match from inventory
-      const matched = api.matchPrescriptionMedicines(parsedData.medications.map((m: any) => m.medicineName));
-      
-      const newItems: MedicineBillItem[] = matched.map(invItem => {
-        const itemTotal = invItem.price * 10;
-        const gst = invItem.hsn === '300410' ? 0.12 : 0.05;
-        
-        return {
-          inventoryItemId: invItem.id,
-          name: invItem.name,
-          genericName: invItem.genericName,
-          dosage: invItem.dosage,
-          batchNumber: invItem.batchNumber,
-          expiryDate: invItem.expiryDate,
-          quantity: 10, // Default prescription qty
-          mrp: invItem.mrp,
-          sellingPrice: invItem.price,
-          discountPercent: 0,
-          gstPercent: gst * 100,
-          lineTotal: itemTotal
-        };
-      });
-
-      setBillingItems(prev => [...prev, ...newItems]);
-      setOcrLogs(prev => [
-        ...prev,
-        `[${new Date().toLocaleTimeString()}] SUCCESS: Digitized ${matched.length} medicines. Auto-populated bill workspace! [OK]`
-      ]);
-      
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          message: `AI OCR parsed prescription: Loaded ${matched.length} medicines matching Patna live inventory!`,
-          type: 'success',
-          title: 'Prescription Parsed Successfully'
-        }
-      }));
-    } catch (err: any) {
-      setOcrLogs(prev => [...prev, `[ERROR] AI OCR failed: ${err.message}`]);
-    } finally {
-      setIsPrescriptionScanning(false);
-    }
-  };
 
   // Add item manually to bill
   const handleSelectMedForBilling = (med: PharmacyInventoryItem) => {
@@ -1311,232 +1234,6 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ACTIVE PATIENT CARE LOOP HUD */}
-      {activePatient ? (
-        <div className="glass-panel p-6 border-indigo-500/20 shadow-xl relative overflow-hidden bg-gradient-to-r from-indigo-500/5 to-teal-500/5">
-          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 to-teal-500" />
-          
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            {/* Left: Patient Profile summary */}
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-lg border border-indigo-500/20 shrink-0">
-                {activePatient.name.charAt(0)}
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-slate-900 leading-none">{activePatient.name}</h3>
-                  <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full font-semibold">
-                    {activePatient.age}y · {activePatient.gender}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px] text-slate-600">phone</span>
-                  +91 {activePatient.phone}
-                  {activePatient.abhaId && (
-                    <span className="ml-2 font-mono text-[10px] text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
-                      ABHA: {activePatient.abhaId}
-                    </span>
-                  )}
-                </p>
-                {activePatient.vitals && (
-                  <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-semibold font-mono">
-                    {isOphthalmology ? (
-                      <>
-                        <span className="bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 rounded">👁️ OD: {activePatient.vitals.temperature}</span>
-                        <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-1.5 py-0.2 rounded">👁️ OS: {activePatient.vitals.bloodPressure}</span>
-                        {activePatient.vitals.weight && activePatient.vitals.weight !== '0' && activePatient.vitals.weight !== '65' && (
-                          <span className="bg-pink-50 border border-pink-200 text-pink-600 px-1.5 py-0.2 rounded">👓 Aided OD: {activePatient.vitals.weight}</span>
-                        )}
-                        {activePatient.vitals.bloodSugar && (
-                          <span className="bg-violet-50 border border-violet-200 text-violet-600 px-1.5 py-0.2 rounded">👓 Aided OS: {activePatient.vitals.bloodSugar}</span>
-                        )}
-                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.2 rounded">🩺 IOP: {activePatient.vitals.pulseRate} mmHg</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 rounded">🌡️ {activePatient.vitals.temperature}°F</span>
-                        <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-1.5 py-0.2 rounded">🩺 {activePatient.vitals.bloodPressure}</span>
-                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.2 rounded">💓 {activePatient.vitals.pulseRate} bpm</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Center: Interactive Stepper */}
-            <div className="flex-1 max-w-xl">
-              <div className="flex items-center justify-between gap-1 select-none overflow-x-auto py-1 scrollbar-none">
-                {[
-                  { id: 'registered', label: '1. Registry', tab: 'patients' },
-                  { id: 'vitals', label: `2. ${isOphthalmology ? 'Eye Exam' : 'Vitals Logged'}`, tab: 'tokens' },
-                  { id: 'diagnosing', label: '3. CDSS Consult', tab: 'tokens' },
-                  { id: 'lab', label: `4. ${isOphthalmology ? 'Scan / Lab' : 'Lab'}`, tab: 'labs' },
-                  { id: 'pharmacy', label: `5. ${isOphthalmology ? 'Optical / Rx' : 'Rx POS'}`, tab: 'pharmacy' },
-                  { id: 'settled', label: '6. Ledger Settled', tab: 'pharmacy' }
-                ].map((step, idx, arr) => {
-                  const stages = ['registered', 'vitals', 'diagnosing', 'lab', 'pharmacy', 'settled'];
-                  
-                  // Compute if this step is completed or active
-                  let isCompleted = false;
-                  let isActive = false;
-                  
-                  const activeIdx = stages.indexOf(activePatientStage);
-                  const currentStepIdx = stages.indexOf(step.id);
-                  
-                  if (step.id === 'vitals') {
-                    isCompleted = !!activePatient.vitals;
-                    isActive = !activePatient.vitals && activePatientStage === 'registered';
-                  } else if (step.id === 'registered') {
-                    isCompleted = true;
-                    isActive = false;
-                  } else {
-                    isCompleted = currentStepIdx < activeIdx || (activePatientStage === 'settled');
-                    isActive = activePatientStage === step.id;
-                  }
-
-                  return (
-                    <React.Fragment key={step.id}>
-                      <button
-                        onClick={() => {
-                          setActiveTab(step.tab as any);
-                          if (step.tab === 'patients') {
-                            setPatientsSubTab('register');
-                          }
-                          if (step.tab === 'tokens') {
-                            setVitalsPatient(activePatient);
-                            setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
-                          }
-                        }}
-                        className={`flex flex-col items-center gap-1 bg-transparent border-0 cursor-pointer p-0 group outline-none`}
-                      >
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center border text-[9px] font-bold transition-all duration-300 ${
-                          isActive 
-                            ? 'bg-indigo-600 border-indigo-600 text-slate-800 shadow-md shadow-indigo-600/20 scale-105' 
-                            : isCompleted 
-                              ? 'bg-emerald-500 border-emerald-500 text-slate-800' 
-                              : 'bg-white border-slate-200 text-slate-600 group-hover:border-slate-400 group-hover:text-slate-600'
-                        }`}>
-                          {isCompleted ? '✓' : idx + 1}
-                        </div>
-                        <span className={`text-[9px] font-bold whitespace-nowrap transition-colors ${
-                          isActive 
-                            ? 'text-indigo-600' 
-                            : isCompleted 
-                              ? 'text-emerald-600' 
-                              : 'text-slate-600 group-hover:text-slate-600'
-                        }`}>
-                          {step.label}
-                        </span>
-                      </button>
-                      
-                      {idx < arr.length - 1 && (
-                        <div className={`flex-1 h-[2px] min-w-[20px] rounded transition-all duration-500 ${
-                          isCompleted 
-                            ? 'bg-emerald-500' 
-                            : 'bg-slate-200'
-                        }`} />
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-            </div>
- 
-            {/* Right: Contextual Actions & Close button */}
-            <div className="flex items-center gap-3 shrink-0">
-              {/* Contextual Action Button */}
-              {(() => {
-                let btnText = "";
-                let targetTab: 'patients' | 'tokens' | 'labs' | 'pharmacy' = "patients";
-                let btnColor = "bg-indigo-600 hover:bg-indigo-500 text-slate-800";
-                
-                if (!activePatient.vitals) {
-                  btnText = "Record Vitals";
-                  targetTab = "tokens";
-                  btnColor = "bg-rose-600 hover:bg-rose-500 text-slate-800 shadow-lg shadow-rose-600/15 animate-pulse-wave";
-                } else if (activePatientStage === 'registered') {
-                  btnText = "Consultation Active";
-                  targetTab = "tokens";
-                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-slate-800";
-                } else if (activePatientStage === 'diagnosing') {
-                  btnText = "Consult Billing";
-                  targetTab = "tokens";
-                  btnColor = "bg-emerald-600 hover:bg-emerald-500 text-slate-800 shadow-lg shadow-emerald-600/15";
-                } else if (activePatientStage === 'lab') {
-                  btnText = "Pathology Lab";
-                  targetTab = "labs";
-                  btnColor = "bg-indigo-600 hover:bg-indigo-500 text-slate-800 shadow-lg shadow-indigo-600/15";
-                } else if (activePatientStage === 'pharmacy') {
-                  btnText = "Pharmacy POS";
-                  targetTab = "pharmacy";
-                  btnColor = "bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/15";
-                } else if (activePatientStage === 'settled') {
-                  btnText = "Care Loop Complete";
-                  targetTab = "patients";
-                  btnColor = "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20";
-                }
- 
-                return (
-                  <button
-                    onClick={() => {
-                      setActiveTab(targetTab);
-                      if (targetTab === 'tokens') {
-                        setVitalsPatient(activePatient);
-                        setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
-                      }
-                    }}
-                    className={`px-4 py-2 text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 active:scale-95 flex items-center gap-1.5 ${btnColor}`}
-                  >
-                    <span className="material-symbols-outlined text-sm">double_arrow</span>
-                    {btnText}
-                  </button>
-                );
-              })()}
-
-
-              {/* Compounder Physical Presence Verification — valid clinical action in all environments */}
-              {!api.isPatientConsentActive(activePatient.id) && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await api.grantInPersonConsent(activePatient.id);
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        message: `In-Person presence verified! Patient records unlocked for consultation.`,
-                        type: 'success',
-                        title: 'Presence Verified'
-                      }
-                    }));
-                  }}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-slate-800 text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 active:scale-95 flex items-center gap-1.5 shadow-md shadow-rose-600/10 text-slate-800-force"
-                  title="Verify patient presence to grant clinical file access to the Doctor"
-                >
-                  <span className="material-symbols-outlined text-sm font-bold text-slate-800-force">how_to_reg</span>
-                  Verify Presence
-                </button>
-              )}
-
-
-              {/* Dismiss patient from HUD */}
-              <button
-                onClick={() => {
-                  api.setActivePatient(null);
-                  setActiveSession(null);
-                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                    detail: { message: 'Cleared active patient loop.', type: 'info', title: 'Loop Cleared' }
-                  }));
-                }}
-                className="p-2 text-slate-600 hover:text-slate-700 bg-white border border-slate-200/80 hover:bg-slate-50 rounded-xl transition-all cursor-pointer shadow-sm"
-                title="Dismiss Active Patient"
-              >
-                <span className="material-symbols-outlined text-[16px] block">close</span>
-              </button>
-            </div>
-
-          </div>
-        </div>
-      ) : null}
 
       {/* TAB CONTENT SPACES */}
       <div className="space-y-6">
@@ -1633,8 +1330,11 @@ export const CompounderDashboard: React.FC = () => {
                             }`}
                           >
                             <div className="space-y-1">
-                              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
                                 {p.name}
+                                <span className="text-[9px] font-black font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 px-2 py-0.5 rounded-md">
+                                  ID: {p.tokenNumber || 'N/A'}
+                                </span>
                                 <span className="text-[10px] text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-semibold">
                                   {p.age}y · {p.gender}
                                 </span>
@@ -3182,7 +2882,7 @@ export const CompounderDashboard: React.FC = () => {
               <div>
                 <h4 className="font-bold text-slate-705 dark:text-slate-350 text-xs">No Active Chat Loop</h4>
                 <p className="text-slate-500 dark:text-slate-400 text-[10px] mt-1 leading-relaxed">
-                  Search a patient registry or click the WhatsApp button next to a patient to focus simulated chat thread.
+                  Search a patient registry or click the WhatsApp button next to a patient to select active chat session.
                 </p>
               </div>
             </div>
@@ -3195,7 +2895,7 @@ export const CompounderDashboard: React.FC = () => {
             value={replyInput}
             onChange={(e) => setReplyInput(e.target.value)}
             disabled={!activeSession}
-            placeholder={activeSession ? "Type simulated message..." : "Select patient loop to type"}
+            placeholder={activeSession ? "Send message over secure gateway..." : "Select patient loop to type"}
             className="flex-1 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full px-4 py-2.5 text-xs text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
           />
           <button 

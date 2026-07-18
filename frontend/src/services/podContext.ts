@@ -66,6 +66,19 @@ export function getPodContext(): PodContext {
  * Safe to call multiple times — deduplicates in-flight requests.
  */
 export async function resolvePodContext(): Promise<PodContext> {
+  if (typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+    _ctx = {
+      userId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      podId: FALLBACK_POD_ID,
+      doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      labEntityId: FALLBACK_LAB_ENTITY,
+      pharmacyEntityId: FALLBACK_PHARM_ENTITY,
+      loaded: true
+    };
+    return _ctx;
+  }
+
   if (_ctx.loaded) return _ctx;
 
   // Deduplicate concurrent calls

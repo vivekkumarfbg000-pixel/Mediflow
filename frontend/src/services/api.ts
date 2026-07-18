@@ -579,11 +579,12 @@ class MediflowApiService {
         }
       }
 
-      // ─── Fire all 13 fetches in parallel ─────────────────────────────────
+      // ─── Fire all 14 fetches in parallel ─────────────────────────────────
       const [
         dbConsents, dbPatients, dbSessions, dbSops,
         dbBills, dbEncounters, dbReqs, dbReagents,
-        dbHolds, dbInvoices, dbForecasts, dbStaff, dbLedgers
+        dbHolds, dbInvoices, dbForecasts, dbStaff, dbLedgers,
+        dbAppointments
       ] = await Promise.all([
         // 1. patient_consents
         supabaseCircuit.execute(async () => {
@@ -654,6 +655,8 @@ class MediflowApiService {
         Promise.resolve(supabase.from('clinic_staff').select('*')).then(r => r.data).catch(() => null),
         // 13. financial_ledgers
         Promise.resolve(supabase.from('financial_ledgers').select('*')).then(r => r.data).catch(() => null),
+        // 14. appointments
+        Promise.resolve(supabase.from('appointments').select('*')).then(r => r.data).catch(() => null),
       ]);
 
       // ─── Process consent IDs (needed to filter patients) ─────────────────
@@ -868,6 +871,23 @@ class MediflowApiService {
             paymentStatus: l.payment_status as FinancialLedgerEntry['paymentStatus'],
             settledAt: l.settled_at, createdAt: l.created_at
           })));
+        }
+
+        // Appointments
+        if (dbAppointments) {
+          const appointments = (dbAppointments as any[]).map(a => ({
+            id: a.id,
+            patientId: a.patient_id,
+            doctorId: a.doctor_id,
+            status: a.status,
+            isVirtual: a.is_virtual ?? false,
+            virtualDate: a.virtual_date || '',
+            virtualTime: a.virtual_time || '',
+            virtualMeetingUrl: a.virtual_meeting_url || '',
+            createdAt: a.created_at,
+            source: a.is_virtual ? 'whatsapp' : 'counter'
+          }));
+          this.save('saas_appointments', appointments);
         }
 
         this.isSyncing = false;
