@@ -1972,13 +1972,16 @@ export const CompounderDashboard: React.FC = () => {
                       return <ZeroQueueState queueType="appointments" className="mx-0" />;
                     }
                     return confirmedAppts.map((appt) => {
-                      const patient = patients.find(p => p.id === appt.patientId) || {
+                      const patient: any = patients.find(p => p.id === appt.patientId) || {
                         id: appt.patientId,
                         name: (appt as any).patientName || 'WhatsApp Patient',
                         phone: (appt as any).patientPhone || 'N/A',
                         age: (appt as any).patientAge || 30,
                         gender: (appt as any).patientGender || 'Male',
-                        queueStatus: 'awaiting_vitals'
+                        queueStatus: 'awaiting_vitals',
+                        allergies: [],
+                        chronicConditions: [],
+                        createdAt: new Date().toISOString()
                       };
 
                       // Find matching consult invoice
