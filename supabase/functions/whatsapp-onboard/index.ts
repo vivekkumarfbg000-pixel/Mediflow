@@ -42,8 +42,8 @@ serve(async (req) => {
   }
 
   // ── Load owner credentials from Supabase Vault ─────────────────────────────
-  const ownerWabaId     = Deno.env.get("OWNER_WABA_ID");
-  const ownerToken      = Deno.env.get("OWNER_SYSTEM_TOKEN");
+  const ownerWabaId     = Deno.env.get("OWNER_WABA_ID") || Deno.env.get("META_WABA_ID");
+  const ownerToken      = Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN");
   const wabaDecryptKey  = Deno.env.get("WABA_DECRYPTION_KEY");
 
   if (!ownerWabaId || !ownerToken || !wabaDecryptKey) {

@@ -50,3 +50,29 @@ Whenever debugging, resolving errors, or fixing bugs, adopt the mindset and stru
 - **Complete Prompt Reading**: Read every user prompt completely to fully understand the query *before* creating a plan or proposing changes.
 - **Visual Selection Priority**: Always inspect the `VISUAL COMPONENT MULTI-SELECTION` metadata (including DOM path, CSS selectors, and inner text) first. Treat it as the definitive target for user-selected UI components, layout modifications, or header changes.
 
+### 5. Mandatory Supabase SQL Generation & Execution Warning
+- **Automatic SQL Script Generation & Prominent Warning**: Whenever a new feature, API upgrade, edge function modification, or schema update requires database schema changes (new tables, columns, indexes, functions, or RLS policies), you MUST:
+  1. Update `supabase/unified_setup.sql` (or corresponding migration files) with idempotent DDL (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`).
+  2. Provide a clean, copy-paste ready SQL snippet in the final response.
+  3. Display a **HIGH-PRIORITY MANDATORY WARNING** directing the user to run the SQL snippet in the Supabase SQL Editor, explaining clearly that backend/edge functions cannot function properly without executing the required SQL first.
+
+### 6. Mandatory Preservation of Mediflow Core USPs (Anti-Regression Rule)
+You MUST NEVER break, remove, alter, or regress any of the following 7 Core USPs:
+1. **Sub-300ms Outbound WhatsApp Response Engine**: Outbound Meta Graph API requests MUST be dispatched FIRST (~250ms latency) before session DB updates or non-blocking activity logs.
+2. **1-Tap Native WhatsApp Reply Buttons (`type: "button"`)**: Main menus, dates, and slots MUST use single-tap reply buttons for instant auto-sending.
+3. **Cashfree Strict Payment Gate**: Unpaid appointments MUST remain in `status: "pending_payment"` and MUST be filtered out from active Doctor EMR and Compounder queues until Cashfree emits `PAYMENT_SUCCESS`.
+4. **Emergency SOS Priority #1 Routing**: SOS bookings charge ₹618.00 and move to Priority #1 position at the top of the Doctor Queue with pulsing red alert banner.
+5. **1-Click Pharmacy Delivery & 3 Reminders**: Chronic prescriptions trigger 1-Click delivery orders and schedule 3 reminders (Day 7, Month 1, Month 3).
+6. **B2B Referral Reward Engine**: Codes (`REF-XXXX`) unlock 10% OFF for referrer and new patient, automatically deducting from checkup and medicine bills.
+7. **360° Realtime Supabase Sync**: `realtimeSyncService.ts` streams live Postgres events to Doctor EMR, Compounder Desk, and Pharmacy Counter without page refreshes.
+
+### 7. Mandatory Preservation of 2-Touchpoint Care Loop & Premium Patient Loyalty Engine
+You MUST NEVER alter or break the 2-Touchpoint Clinical & Monetization Care Loop:
+1. **Touchpoint 1 (Morning Consult)**: Doctor hears symptoms, registers vitals, prescribes initial lab tests.
+2. **Touchpoint 2 (Evening Report Review)**: Upon lab report approval, WhatsApp offers 2 buttons:
+   - `Physical Review at Clinic 🏥` (**Primary / Default**): Assigns 04:00 PM - 06:00 PM evening slot & reserves prescribed medicines at Clinic Counter Pharmacy.
+   - `Virtual Video Review 💻` (**Emergency / Busy Fallback**): Generates Jitsi link for remote video review & dispatches 1-Click home delivery.
+3. **4 Premium Member Benefits**: Paying medicine/lab bills at clinic counter unlocks 1 Free Virtual Consult (15-20 days), 10% OFF Refills, WhatsApp Daily Reminders + AI Longitudinal Report, and Instant PDF Lab Reports.
+
+
+

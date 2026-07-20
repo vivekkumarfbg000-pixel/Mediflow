@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { generateSpectaclePdfCard } from '../../utils/pdfGenerator';
 import type { InventoryHold, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
@@ -88,6 +89,38 @@ export const PharmacyDashboard: React.FC = () => {
   const [inventory, setInventory] = useState<PharmacyInventoryItem[]>([]);
   const [holds, setHolds] = useState<InventoryHold[]>([]);
   const [whatsAppOrders, setWhatsAppOrders] = useState<WhatsAppDrugOrder[]>([]);
+  const [liveMedicineBills, setLiveMedicineBills] = useState<any[]>([]);
+
+  const fetchLiveMedicineBills = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('medicine_bills')
+        .select('*, medicine_bill_items(*), patient_registry(name, phone)')
+        .order('created_at', { ascending: false });
+      if (data) setLiveMedicineBills(data);
+    } catch (err) {
+      console.warn('[PharmacyDashboard] Error fetching live medicine bills:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLiveMedicineBills();
+    const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onMedicineBillChange: (payload) => {
+        console.log('[PharmacyDashboard] Realtime Medicine Bill update:', payload);
+        fetchLiveMedicineBills();
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: '🚚 NEW WHATSAPP MEDICINE ORDER! 📦',
+            message: 'A new 1-Click delivery / refill order has been placed on WhatsApp.',
+            type: 'info'
+          }
+        }));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchLiveMedicineBills]);
   
   // Real-time Network Resilience State
   const [isOnline, setIsOnline] = useState(navigator.onLine);

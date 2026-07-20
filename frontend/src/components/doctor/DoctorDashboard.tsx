@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import type { Patient, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';
 import { 
   Trash2, 
@@ -413,7 +414,39 @@ export const DoctorDashboard: React.FC = () => {
     };
 
     syncDashboardData();
-    return api.subscribe(syncDashboardData);
+
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onAppointmentChange: (payload) => {
+        console.log('[DoctorDashboard] Realtime Appointment update received:', payload);
+        syncDashboardData();
+        if (payload.new?.virtual_time?.includes('EMERGENCY') || payload.new?.status === 'pending_payment') {
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: {
+              title: '🚨 EMERGENCY SOS ALERT! 🚨',
+              message: 'A patient has paid priority fee on WhatsApp. Immediate attention required at Priority #1!',
+              type: 'error'
+            }
+          }));
+        } else {
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: {
+              title: '📅 New WhatsApp Appointment! 🟢',
+              message: 'A patient has booked a consultation via WhatsApp.',
+              type: 'info'
+            }
+          }));
+        }
+      },
+      onPatientChange: () => syncDashboardData(),
+      onMedicineBillChange: () => syncDashboardData(),
+      onLabRequisitionChange: () => syncDashboardData()
+    });
+
+    const apiUnsub = api.subscribe(syncDashboardData);
+    return () => {
+      apiUnsub();
+      unsubscribeRealtime();
+    };
   }, [activePod?.id]);
 
   // Reset selectors and load cached AI results when patient changes

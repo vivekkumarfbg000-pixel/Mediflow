@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { useClinic } from '../../context/ClinicContext';
 import { VISUAL_ACUITY_OPTIONS } from '../../types/ophthalmic';
@@ -236,6 +237,62 @@ export const CompounderDashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  const fetchLiveAppointments = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*, patient_registry(id, name, phone, age, gender)')
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        const mapped = data.map((a: any) => {
+          const patInfo = a.patient_registry || {};
+          return {
+            id: a.id,
+            patientId: a.patient_id,
+            doctorId: a.doctor_id,
+            status: a.status || 'pending_payment',
+            isVirtual: a.is_virtual === true,
+            virtualDate: a.virtual_date,
+            virtualTime: a.virtual_time,
+            virtualMeetingUrl: a.virtual_meeting_url,
+            source: a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical',
+            patientName: patInfo.name || 'WhatsApp Patient',
+            patientPhone: patInfo.phone || 'N/A',
+            patientAge: patInfo.age || 30,
+            patientGender: patInfo.gender || 'Male'
+          };
+        });
+        setAppointments(mapped as any);
+      }
+    } catch (err) {
+      console.warn('[CompounderDashboard] Error fetching live appointments:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLiveAppointments();
+    const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onAppointmentChange: (payload) => {
+        console.log('[CompounderDashboard] Realtime Appointment update:', payload);
+        fetchLiveAppointments();
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: '📅 NEW APPOINTMENT BOOKED! 🟢',
+            message: 'A patient has booked a physical or virtual visit on WhatsApp.',
+            type: 'info'
+          }
+        }));
+      },
+      onPatientChange: () => {
+        setPatients(api.getPatients());
+        fetchLiveAppointments();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchLiveAppointments]);
   
   // Real-time Network Resilience State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -1909,12 +1966,20 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {appointments.length === 0 ? (
-                    <ZeroQueueState queueType="appointments" className="mx-0" />
-                  ) : (
-                    appointments.map((appt) => {
-                      const patient = patients.find(p => p.id === appt.patientId);
-                      if (!patient) return null;
+                  {(() => {
+                    const confirmedAppts = appointments.filter(a => a.status !== 'pending_payment');
+                    if (confirmedAppts.length === 0) {
+                      return <ZeroQueueState queueType="appointments" className="mx-0" />;
+                    }
+                    return confirmedAppts.map((appt) => {
+                      const patient = patients.find(p => p.id === appt.patientId) || {
+                        id: appt.patientId,
+                        name: (appt as any).patientName || 'WhatsApp Patient',
+                        phone: (appt as any).patientPhone || 'N/A',
+                        age: (appt as any).patientAge || 30,
+                        gender: (appt as any).patientGender || 'Male',
+                        queueStatus: 'awaiting_vitals'
+                      };
 
                       // Find matching consult invoice
                       const invoice = api.getInvoices().find(i => i.appointmentId === appt.id && i.type === 'consult');
@@ -1934,11 +1999,13 @@ export const CompounderDashboard: React.FC = () => {
                           <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex items-center gap-2.5">
                               <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-lg border ${
-                                (appt as any).source === 'whatsapp'
+                                appt.isVirtual
                                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
-                                  : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25'
+                                  : (appt as any).source?.includes('whatsapp')
+                                  ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25'
+                                  : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
                               }`}>
-                                {(appt as any).source === 'whatsapp' ? 'WHATSAPP' : 'COUNTER'}
+                                {appt.isVirtual ? '📹 VIRTUAL CALL' : (appt as any).source?.includes('whatsapp') ? '🏥 PHYSICAL VISIT (WA)' : '🏢 COUNTER'}
                               </span>
                               <h4 className="font-bold text-slate-805 text-xs">{patient.name}</h4>
                               <span className="text-slate-500 text-[10px] font-medium">({patient.age}y · {patient.gender})</span>
@@ -2055,7 +2122,7 @@ export const CompounderDashboard: React.FC = () => {
                                     await BillingService.recordInvoicePayment(invoice.id, 'cash');
                                     syncData();
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: { message: 'Cash collected. Patient activated. Record vitals next!', type: 'success', title: 'Payment Settled ✔️' }
+                                      detail: { message: 'Cash collected! 🌟 Mediflow Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
                                     setVitalsPatient(patient);
                                     setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
@@ -2070,7 +2137,7 @@ export const CompounderDashboard: React.FC = () => {
                                     // Full sync: refresh patients + appointments
                                     syncData();
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: { message: 'UPI verified. Patient activated. Record vitals next!', type: 'success', title: 'Payment Settled ✔️' }
+                                      detail: { message: 'UPI verified! 🌟 Mediflow Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
                                     // Auto-open vitals for this patient
                                     setVitalsPatient(patient);
@@ -2123,7 +2190,7 @@ export const CompounderDashboard: React.FC = () => {
                         </div>
                       );
                     })
-                  )}
+                  })()}
                 </div>
               </div>
             </div>

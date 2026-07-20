@@ -60,6 +60,34 @@ CREATE TABLE IF NOT EXISTS public.patient_registry (
     vitals JSONB,
     token_number TEXT,
     queue_status TEXT DEFAULT 'awaiting_vitals',
+    referral_code TEXT,
+    referred_by_patient_id UUID REFERENCES public.patient_registry(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.patient_registry ADD COLUMN IF NOT EXISTS referral_code TEXT;
+ALTER TABLE public.patient_registry ADD COLUMN IF NOT EXISTS referred_by_patient_id UUID REFERENCES public.patient_registry(id);
+
+-- Ensure public.patient_referral_rewards table exists
+CREATE TABLE IF NOT EXISTS public.patient_referral_rewards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+    referred_patient_id UUID REFERENCES public.patient_registry(id) ON DELETE SET NULL,
+    discount_percent NUMERIC(5,2) DEFAULT 10.00,
+    reward_type VARCHAR(50) DEFAULT 'referral_10_percent',
+    status VARCHAR(50) DEFAULT 'active', -- 'active', 'redeemed', 'expired'
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    redeemed_at TIMESTAMPTZ
+);
+
+-- Ensure public.scheduled_reminders table exists
+CREATE TABLE IF NOT EXISTS public.scheduled_reminders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+    encounter_id UUID REFERENCES public.encounters(id) ON DELETE SET NULL,
+    reminder_type VARCHAR(50) NOT NULL, -- 'day_7_adherence', 'month_1_followup', 'month_3_chronic'
+    scheduled_for TIMESTAMPTZ NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'sent', 'cancelled'
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -1231,3 +1259,39 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER) TO service_role;
+
+-- =============================================================================
+-- STEP 18: Strategic Reminders, Viral Referral Engine & Onboarding DDL
+-- =============================================================================
+
+ALTER TABLE public.patient_registry 
+ADD COLUMN IF NOT EXISTS referral_code TEXT,
+ADD COLUMN IF NOT EXISTS referred_by_patient_id UUID REFERENCES public.patient_registry(id);
+
+CREATE TABLE IF NOT EXISTS public.patient_referral_rewards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+    referred_patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+    discount_percent NUMERIC(5,2) DEFAULT 10.00,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'redeemed')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    redeemed_at TIMESTAMPTZ
+);
+
+ALTER TABLE public.patient_referral_rewards ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow service role full access to patient_referral_rewards"
+ON public.patient_referral_rewards FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.scheduled_reminders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+    encounter_id UUID REFERENCES public.encounters(id) ON DELETE CASCADE,
+    reminder_type TEXT CHECK (reminder_type IN ('day_7_adherence', 'month_1_followup', 'month_3_chronic')),
+    scheduled_for TIMESTAMPTZ NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent')),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.scheduled_reminders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow service role full access to scheduled_reminders"
+ON public.scheduled_reminders FOR ALL TO service_role USING (true) WITH CHECK (true);
