@@ -1403,24 +1403,38 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
         </div>
 
         {/* ── Urgent WhatsApp Support Escalation Tickets Banner ────────────────── */}
-        {supportTickets.filter(t => t.status === 'open').length > 0 && (
-          <div className="p-5 bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-rose-500/10 border border-rose-300 rounded-3xl space-y-3 animate-fade-in text-slate-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <ShieldAlert className="h-5 w-5 text-rose-600 shrink-0" />
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    Urgent WhatsApp Escalations — Platform Owner Action Required
-                    <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-extrabold uppercase animate-pulse">
-                      {supportTickets.filter(t => t.status === 'open').length} Open Tickets
-                    </span>
-                  </h4>
-                  <p className="text-[10.5px] text-slate-500 font-medium">WhatsApp Support Bot escalated these client requests for manual owner approval.</p>
-                </div>
+        <div className="p-5 bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-indigo-500/10 border border-rose-300 rounded-3xl space-y-3 animate-fade-in text-slate-800 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="h-5 w-5 text-rose-600 shrink-0" />
+              <div>
+                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  Urgent WhatsApp Support Escalations & Owner Matrix
+                  <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-extrabold uppercase animate-pulse">
+                    {supportTickets.filter(t => t.status === 'open').length} Open Ticket(s)
+                  </span>
+                </h4>
+                <p className="text-[10.5px] text-slate-500 font-medium">WhatsApp Support Bot escalates client platform queries here for 1-click owner action.</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={async () => {
+                await WhatsAppSupportBotService.processSupportQuery(
+                  'Need Cashfree production credential approval & domain CORS setup for new branch',
+                  { name: 'Dr. Sameer Patel', clinicName: 'Patna Heart Institute', role: 'doctor' }
+                );
+              }}
+              className="px-3 py-1.5 rounded-xl border border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-700 text-[10px] font-extrabold uppercase tracking-wider cursor-pointer shadow-2xs flex items-center gap-1 transition-all"
+            >
+              <Plus className="h-3 w-3 text-indigo-600" />
+              Simulate Test Escalation
+            </button>
+          </div>
+
+          {supportTickets.filter(t => t.status === 'open').length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
               {supportTickets.filter(t => t.status === 'open').map(tkt => (
                 <div key={tkt.id} className="p-3.5 bg-white border border-rose-200 rounded-2xl flex flex-col justify-between space-y-2.5 shadow-sm">
                   <div className="flex justify-between items-start">
@@ -1452,8 +1466,13 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-center text-xs font-bold text-emerald-700 flex items-center justify-center gap-2">
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              All support tickets resolved! Zero open escalations.
+            </div>
+          )}
+        </div>
 
         {/* ── Active Workspace Screen ─────────────────────────────────────────── */}
         <div className="space-y-6 pb-20 lg:pb-0">
