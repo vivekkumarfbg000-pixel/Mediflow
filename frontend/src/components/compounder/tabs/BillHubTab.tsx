@@ -175,7 +175,7 @@ export const BillHubTab: React.FC = () => {
       return defaultValue;
     };
 
-    let recognizedItems: string[] = [];
+    const recognizedItems: string[] = [];
 
     // 1. Scan pharmacy catalog
     const newMedsList = [...manualMedicinesList];
@@ -381,7 +381,7 @@ export const BillHubTab: React.FC = () => {
     }
 
     // Totals Calculation
-    let consultTotal = includeConsult ? consultFee : 0;
+    const consultTotal = includeConsult ? consultFee : 0;
     let pharmacySub = 0;
     let labSub = 0;
 

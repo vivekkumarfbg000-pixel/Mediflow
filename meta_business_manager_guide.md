@@ -58,7 +58,7 @@ flowchart TD
 To configure Mediflow’s live integration, the clinic group or tenant administrator must configure an App on the **Meta for Developers** portal.
 
 ### 2.1 Developer App Configuration
-1. Go to the [Meta for Developers Portal](https://developers.facebook.com/).
+1. Go to the [Meta for Developers Portal](://develhttpsopers.facebook.com/).
 2. Click **My Apps** -> **Create App**.
 3. Choose **Other** -> **Business** (this allows access to WhatsApp Business API).
 4. Fill in the App Name (e.g., `Mediflow Messaging Hub`) and link it to your **Meta Business Portfolio (Business Manager)**.

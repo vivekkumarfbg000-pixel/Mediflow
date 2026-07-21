@@ -132,7 +132,9 @@ export function useConsultationGuard(options: ConsultationGuardOptions): Consult
   const clearSnapshot = useCallback(() => {
     try {
       sessionStorage.removeItem(STORAGE_KEY);
-    } catch (_) {}
+    } catch (_) {
+      // ignore clear error
+    }
   }, []);
 
   // Build human-readable warning detail

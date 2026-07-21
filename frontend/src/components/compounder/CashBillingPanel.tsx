@@ -56,7 +56,9 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
           setPoolBalance(data.pool_balance);
           setIsPoolLow(data.is_low);
         }
-      } catch (_) {}
+      } catch (_) {
+        // ignore fetch error
+      }
     };
     fetchPoolStatus();
   }, [podId, supabaseClient]);

@@ -35,9 +35,9 @@ export const PointerGlowCard: React.FC<PointerGlowCardProps> = ({
       title={title}
       className={`pointer-glow-card ${containerClassName}`}
       style={{
-        // @ts-ignore
+        // @ts-expect-error Custom CSS variables on React.CSSProperties
         '--mouse-x': `${coords.x}px`,
-        // @ts-ignore
+        // @ts-expect-error Custom CSS variables on React.CSSProperties
         '--mouse-y': `${coords.y}px`,
       } as React.CSSProperties}
     >

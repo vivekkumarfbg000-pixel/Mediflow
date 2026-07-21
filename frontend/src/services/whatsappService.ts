@@ -52,7 +52,7 @@ export class WhatsAppService {
         // Unregistered patient!
         const welcomeText = `⚠️ *Profile Not Found!* \n\nNamaste! Aapka contact number humare clinic database mein registered nahi hai. \n\nWhatsApp par appointment book karne ke liye, please pehle is link par click karke manually register kijiye: \n🔗 https://mediflow.in/register?phone=${phone} \n\nRegistration complete hone ke baad hume dobara message kijiye!`;
         
-        let sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+        const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
         if (sessionIndex === -1) {
           const newId = crypto.randomUUID();
           const newSession: WhatsAppSession = {
