@@ -159,7 +159,11 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
 
     syncData();
     const unsubscribe = api.subscribe(syncData);
-    return () => unsubscribe();
+    window.addEventListener('mediflow-whatsapp-session-updated', syncData);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('mediflow-whatsapp-session-updated', syncData);
+    };
   }, [selectedPhone]);
 
   useEffect(() => {

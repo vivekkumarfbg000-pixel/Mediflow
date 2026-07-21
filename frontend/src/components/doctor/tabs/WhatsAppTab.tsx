@@ -402,46 +402,57 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       const textToSend = manualChatMsg.trim();
                       setManualChatMsg('');
 
-                      const chatHistory = sessionData.chatHistory ?? [];
+                      const chatHistory = [...(sessionData.chatHistory || [])];
                       const currentTime = new Date().toISOString();
                       
                       chatHistory.push({
                         sender: 'agent',
                         text: textToSend,
-                        timestamp: currentTime
+                        timestamp: currentTime,
+                        time: currentTime
                       });
 
-                      const { error } = await supabase
-                        .from('whatsapp_sessions')
-                        .update({
-                          session_data: { ...sessionData, chatHistory },
-                          last_interaction: currentTime
-                        })
-                        .eq('id', activeChat.id);
+                      const updatedSess = {
+                        ...activeChat,
+                        sessionData: { ...sessionData, chatHistory },
+                        session_data: { ...sessionData, chatHistory }
+                      };
 
-                      if (error) {
-                        alert("Error saving manual message: " + error.message);
-                      } else {
-                        await api.sendWhatsAppMessagePayload(activeChat.patientPhone, 'custom_manual_reply', {
-                          replyText: textToSend
-                        });
+                      // 1. Local-first immediate update
+                      setSelectedChatSession(updatedSess);
+                      setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
 
-                        const updatedSess = {
-                          ...activeChat,
-                          sessionData: { ...sessionData, chatHistory },
-                          session_data: { ...sessionData, chatHistory }
-                        };
-                        setSelectedChatSession(updatedSess);
-                        setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
-                        
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: 'Message Dispatched! ✉️',
-                            message: `Direct message sent to patient WhatsApp queue.`,
-                            type: 'success'
-                          }
-                        }));
+                      // 2. Save to local storage sessions registry
+                      const allSessions = WhatsAppService.getWhatsAppSessions();
+                      const sIdx = allSessions.findIndex(s => s.id === activeChat.id);
+                      if (sIdx !== -1) {
+                        allSessions[sIdx] = updatedSess;
+                        WhatsAppService.saveWhatsAppSessions(allSessions);
                       }
+
+                      // 3. Dispatch payload
+                      await api.sendWhatsAppMessagePayload(activeChat.patientPhone, 'custom_manual_reply', {
+                        replyText: textToSend
+                      });
+
+                      // 4. Non-blocking Supabase sync
+                      try {
+                        await supabase
+                          .from('whatsapp_sessions')
+                          .update({
+                            session_data: { ...sessionData, chatHistory },
+                            last_interaction: currentTime
+                          })
+                          .eq('id', activeChat.id);
+                      } catch (_e) {}
+
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Message Dispatched! ✉️',
+                          message: `Direct message sent to patient WhatsApp queue (${activeChat.patientPhone}).`,
+                          type: 'success'
+                        }
+                      }));
                     }}
                     className="flex gap-3"
                   >

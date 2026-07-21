@@ -55,7 +55,37 @@ export class WhatsAppService {
     return new Promise((resolve) => {
       this.dispatchQueue.push(async () => {
         try {
-          console.log(`[VitalSync Outgoing Dispatch] API template: ${templateName} target: [REDACTED_PHONE]`);
+          console.log(`[VitalSync Outgoing Dispatch] API template: ${templateName} target: ${phone}`);
+
+          // Persist outgoing reply message to local session history for instant patient/doctor sync
+          if (variables?.replyText) {
+            const sessions = this.getWhatsAppSessions();
+            const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+            const now = new Date().toISOString();
+
+            if (sessionIndex !== -1) {
+              const session = sessions[sessionIndex];
+              const sData = session.sessionData || session.session_data || {};
+              const history = [...(sData.chatHistory || [])];
+              
+              history.push({
+                sender: 'agent',
+                text: variables.replyText,
+                timestamp: now,
+                time: now
+              });
+
+              sessions[sessionIndex] = {
+                ...session,
+                lastInteraction: now,
+                sessionData: { ...sData, chatHistory: history },
+                session_data: { ...sData, chatHistory: history }
+              };
+              this.saveWhatsAppSessions(sessions);
+              window.dispatchEvent(new CustomEvent('mediflow-whatsapp-session-updated'));
+            }
+          }
+
           await new Promise(r => setTimeout(r, 50));
           resolve(true);
         } catch (e) {
