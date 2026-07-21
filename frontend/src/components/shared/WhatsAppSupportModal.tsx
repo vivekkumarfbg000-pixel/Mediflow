@@ -75,7 +75,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm flex items-center gap-2">
-                    Mediflow AI WhatsApp Support
+                    VitalSync AI WhatsApp Support
                     <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-[9px] font-black uppercase text-emerald-200 border border-emerald-400/30">
                       24/7 RAG Agent
                     </span>

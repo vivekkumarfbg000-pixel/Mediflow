@@ -18,7 +18,7 @@ export interface SupportEscalationTicket {
 // ── Complete Comprehensive VitalSync SaaS RAG Knowledge Base ──────────────────
 export const VITALSYNC_SAAS_KNOWLEDGE_BASE: Record<string, { keywords: string[]; answer: string }> = {
   prescriptions: {
-    keywords: ['prescription', 'rx', 'medicine', 'scribe', 'dosage', 'prescribe'],
+    keywords: ['1', 'option 1', 'prescription', 'rx', 'medicine', 'scribe', 'dosage', 'prescribe'],
     answer: `📋 *VITALSYNC 1-TAP PRESCRIPTION GUIDE*
 
 1. Open Doctor EMR ➔ Select Patient from Queue.
@@ -27,7 +27,7 @@ export const VITALSYNC_SAAS_KNOWLEDGE_BASE: Record<string, { keywords: string[];
 4. Click *'Dispatch 1-Tap Rx'* ➔ Patient receives instant PDF on WhatsApp & Pharmacy Counter gets 1-Click order lock.`
   },
   queue_tokens: {
-    keywords: ['token', 'queue', 'compounder', 'waiting', 'checkin', 'number'],
+    keywords: ['2', 'option 2', 'token', 'queue', 'compounder', 'waiting', 'checkin', 'number'],
     answer: `🎫 *VITALSYNC QUEUE & TOKEN MANAGEMENT GUIDE*
 
 1. Compounder Desk lists all live tokens (e.g. MF-1001).
@@ -35,12 +35,20 @@ export const VITALSYNC_SAAS_KNOWLEDGE_BASE: Record<string, { keywords: string[];
 3. Emergency SOS bookings (₹618.00) automatically move to *Priority #1 Position* with red pulsing alerts.`
   },
   payments_cashfree: {
-    keywords: ['cashfree', 'payment', 'pending_payment', 'refund', 'upi', 'cash'],
+    keywords: ['3', 'option 3', 'cashfree', 'payment', 'pending_payment', 'refund', 'upi', 'cash'],
     answer: `💳 *VITALSYNC CASHFREE PAYMENT & SETTLEMENT GUIDE*
 
 1. Appointments must reach status *'PAYMENT_SUCCESS'* to unlock EMR queue.
 2. Cash split between Clinic (97.5%) and VitalSync Platform (2.5%) happens automatically via Cashfree Easy Split.
 3. For cash payments at counter, Compounder clicks *'Collect Cash & Verify'* to clear lock.`
+  },
+  pharmacy_delivery: {
+    keywords: ['4', 'option 4', 'pharmacy', 'delivery', 'refill', 'reminder', 'counter'],
+    answer: `💊 *VITALSYNC PHARMACY DELIVERY & REFILL GUIDE*
+
+1. Prescriptions trigger 1-Click pharmacy delivery orders.
+2. Automatic refill reminders are scheduled at *Day 7*, *Month 1*, and *Month 3*.
+3. Pharmacy Counter sees real-time prescription locks instantly.`
   },
   care_loop: {
     keywords: ['care loop', 'touchpoint', 'evening review', 'lab report', 'physical review'],
@@ -58,14 +66,6 @@ export const VITALSYNC_SAAS_KNOWLEDGE_BASE: Record<string, { keywords: string[];
 1. Every patient gets a unique referral code (*REF-XXXX*).
 2. Entering *REF-XXXX* unlocks 10% OFF for both referrer and new patient on checkup & medicine bills.
 3. Paying medicine/lab bills at counter unlocks 1 Free Virtual Consult (15-20 days).`
-  },
-  pharmacy_delivery: {
-    keywords: ['pharmacy', 'delivery', 'refill', 'reminder', 'counter'],
-    answer: `💊 *VITALSYNC PHARMACY DELIVERY & REFILL GUIDE*
-
-1. Prescriptions trigger 1-Click pharmacy delivery orders.
-2. Automatic refill reminders are scheduled at *Day 7*, *Month 1*, and *Month 3*.
-3. Pharmacy Counter sees real-time prescription locks instantly.`
   }
 };
 
