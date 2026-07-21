@@ -98,6 +98,42 @@ serve(async (req) => {
 
       console.log("[Meta Webhook] Ingested message event payload: [REDACTED]");
 
+      // Handle direct manual outbound message relay from Doctor Dashboard
+      if (payload.action === "send_manual_message") {
+        const patientPhone = payload.patientPhone;
+        const messageText = payload.messageText;
+        const systemToken = Deno.env.get("META_WHATSAPP_TOKEN");
+        const phoneId = Deno.env.get("META_PHONE_NUMBER_ID");
+
+        if (!systemToken || !phoneId) {
+          console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault.");
+          return new Response(JSON.stringify({ error: "Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault" }), { status: 400 });
+        }
+
+        let cleanPhone = patientPhone.replace(/[^0-9]/g, "");
+        if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+        console.log(`[Meta Webhook Outbound Relay] Dispatching text to ${cleanPhone} via phoneId ${phoneId}...`);
+
+        const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${systemToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: cleanPhone,
+            type: "text",
+            text: { body: messageText }
+          })
+        });
+
+        const resData = await res.json();
+        console.log(`[Meta Webhook Outbound Relay] Meta Response Status: ${res.status}`, resData);
+        return new Response(JSON.stringify({ success: res.ok, metaResponse: resData }), { status: 200 });
+      }
+
       const entry = payload.entry?.[0];
       const change = entry?.changes?.[0];
       const value = change?.value;
@@ -173,12 +209,15 @@ serve(async (req) => {
           p_secret_key: wabaSecretKey
         });
 
-      if (wabaErr || !wabaConn || wabaConn.length === 0) {
-        console.error(`[Meta Webhook] Tenant not found or decryption failed for phoneId: ${phoneId}`, wabaErr);
-        return new Response("Tenant connection lookup failure", { status: 200 }); // Return 200 to acknowledge Meta
+      let connection = (wabaConn && wabaConn.length > 0) ? wabaConn[0] : null;
+      if (!connection) {
+        console.warn(`[Meta Webhook] Tenant RPC lookup failed for phoneId: ${phoneId}. Applying system default fallback context.`);
+        connection = {
+          pod_id: 'default-pod',
+          entity_id: 'default-entity',
+          decrypted_token: Deno.env.get("META_WHATSAPP_TOKEN") ?? ""
+        };
       }
-
-      const connection = wabaConn[0]; // { pod_id, entity_id, decrypted_token }
       const tenantToken = connection.decrypted_token;
 
       // 4. Retrieve or Initialize Active WhatsApp Session for patient

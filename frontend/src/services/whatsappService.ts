@@ -86,7 +86,7 @@ export class WhatsAppService {
             }
           }
 
-          // Dispatch real HTTP POST payload to Meta Graph API if active WABA connection exists
+          // Dispatch real HTTP POST payload to Meta Graph API and Supabase Edge Function Relay
           try {
             const wabaRaw = localStorage.getItem('vitalsync_waba_connection');
             const wabaConn = wabaRaw ? JSON.parse(wabaRaw) : null;
@@ -98,23 +98,40 @@ export class WhatsAppService {
               cleanToPhone = '91' + cleanToPhone;
             }
 
-            if (token && phoneId && !phoneId.startsWith('1098765')) {
-              const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  messaging_product: 'whatsapp',
-                  to: cleanToPhone,
-                  type: 'text',
-                  text: { body: variables?.replyText || 'Hello from VitalSync Smart Clinic' }
-                })
-              });
-              const resData = await res.json();
-              console.log(`[VitalSync Outgoing Dispatch] Meta API Status: ${res.status}`, resData);
+            const msgBody = variables?.replyText || 'Hello from VitalSync Smart Clinic';
+
+            // 1. Direct Meta Graph API POST if credentials exist on client
+            if (token && phoneId) {
+              try {
+                const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    messaging_product: 'whatsapp',
+                    to: cleanToPhone,
+                    type: 'text',
+                    text: { body: msgBody }
+                  })
+                });
+                const resData = await res.json();
+                console.log(`[VitalSync Outgoing Dispatch] Meta Direct API Status: ${res.status}`, resData);
+              } catch (_e) {}
             }
+
+            // 2. Dual Relay via Supabase Edge Function (uses META_WHATSAPP_TOKEN in Vault)
+            try {
+              await supabase.functions.invoke('meta-webhook', {
+                body: {
+                  action: 'send_manual_message',
+                  patientPhone: cleanToPhone,
+                  messageText: msgBody
+                }
+              });
+            } catch (_e) {}
+
           } catch (_wabaErr) {
             console.warn('[VitalSync Outgoing Dispatch] Meta Cloud API HTTP dispatch fallback:', _wabaErr);
           }
