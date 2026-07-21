@@ -1841,7 +1841,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         });
 
                         // Trigger recompile to clear Vite build cache
-                        api.writeAuditLog('CDSS_LAB_TREND_ANALYSIS', {
+                        await api.writeAuditLog('CDSS_LAB_TREND_ANALYSIS', {
                           patientId: selectedPatient.id,
                           patientName: selectedPatient.name,
                           baselineDate,
