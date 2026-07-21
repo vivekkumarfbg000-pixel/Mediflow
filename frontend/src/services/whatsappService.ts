@@ -65,7 +65,7 @@ export class WhatsAppService {
 
             if (sessionIndex !== -1) {
               const session = sessions[sessionIndex];
-              const sData = session.sessionData || session.session_data || {};
+              const sData = session.sessionData || (session as any).session_data || {};
               const history = [...(sData.chatHistory || [])];
               
               history.push({
@@ -80,7 +80,7 @@ export class WhatsAppService {
                 lastInteraction: now,
                 sessionData: { ...sData, chatHistory: history },
                 session_data: { ...sData, chatHistory: history }
-              };
+              } as any;
               this.saveWhatsAppSessions(sessions);
               window.dispatchEvent(new CustomEvent('mediflow-whatsapp-session-updated'));
             }
