@@ -15,14 +15,19 @@ export class RealtimeSyncService {
   private static lastPingSuccess = Date.now();
   private static currentStatus: 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
   private static savedHandlers: RealtimeSubscriptionHandlers | null = null;
+  private static isManualDisconnect = false;
 
   static subscribeToLiveClinicUpdates(handlers: RealtimeSubscriptionHandlers) {
     this.savedHandlers = handlers;
 
     if (this.activeChannel) {
-      try { supabase.removeChannel(this.activeChannel); } catch (_e) {}
+      try {
+        this.isManualDisconnect = true;
+        supabase.removeChannel(this.activeChannel);
+      } catch (_e) {}
     }
 
+    this.isManualDisconnect = false;
     this.updateStatus('reconnecting');
 
     this.activeChannel = supabase
@@ -68,7 +73,9 @@ export class RealtimeSyncService {
           this.startHeartbeatWatchdog();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           this.updateStatus('reconnecting');
-          this.scheduleAutoReconnect();
+          if (!this.isManualDisconnect) {
+            this.scheduleAutoReconnect();
+          }
         }
       });
 
