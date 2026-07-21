@@ -1295,3 +1295,62 @@ CREATE TABLE IF NOT EXISTS public.scheduled_reminders (
 ALTER TABLE public.scheduled_reminders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow service role full access to scheduled_reminders"
 ON public.scheduled_reminders FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- =============================================================================
+-- STEP 15: High-Performance Database Indexes for Auto-Healing Engine & Ultra-Fast WhatsApp Routing
+-- =============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_phone ON public.whatsapp_sessions(patient_phone);
+CREATE INDEX IF NOT EXISTS idx_waba_connections_phone_id ON public.waba_connections(phone_number_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_status_time ON public.appointments(status, appointment_time);
+CREATE INDEX IF NOT EXISTS idx_patient_registry_phone ON public.patient_registry(phone);
+CREATE INDEX IF NOT EXISTS idx_scheduled_reminders_status_date ON public.scheduled_reminders(status, scheduled_for);
+
+-- =============================================================================
+-- STEP 16: Auto-Healer Autonomous Self-Healing Engine & Telemetry Infrastructure
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.system_health_telemetry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    subsystem TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'error', 'critical')),
+    error_code TEXT,
+    error_stack TEXT,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'healing', 'healed', 'ignored')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.system_health_telemetry ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow service role full access to system_health_telemetry" ON public.system_health_telemetry;
+CREATE POLICY "Allow service role full access to system_health_telemetry"
+ON public.system_health_telemetry FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.self_healing_execution_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    telemetry_id UUID REFERENCES public.system_health_telemetry(id) ON DELETE SET NULL,
+    action_taken TEXT NOT NULL,
+    resolution_details TEXT,
+    healed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.self_healing_execution_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow service role full access to self_healing_execution_logs" ON public.self_healing_execution_logs;
+CREATE POLICY "Allow service role full access to self_healing_execution_logs"
+ON public.self_healing_execution_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- Definer RPC for Autonomous Schema Healing
+CREATE OR REPLACE FUNCTION public.execute_autonomous_db_repair(p_table TEXT, p_column TEXT, p_type TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = p_table AND table_schema = 'public') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = p_table AND column_name = p_column) THEN
+            EXECUTE format('ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS %I %s', p_table, p_column, p_type);
+            RETURN TRUE;
+        END IF;
+    END IF;
+    RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+

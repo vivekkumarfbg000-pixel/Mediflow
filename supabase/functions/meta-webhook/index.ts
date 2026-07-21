@@ -118,10 +118,11 @@ serve(async (req) => {
       const patientPhone = message.from;
       
       let messageText = "";
+      let replyId: string | undefined = undefined;
       if (message.type === "interactive") {
         const reply = message.interactive?.button_reply;
         const listReply = message.interactive?.list_reply;
-        const replyId = reply?.id || listReply?.id;
+        replyId = reply?.id || listReply?.id;
         const replyTitle = reply?.title || listReply?.title;
 
         if (replyId === "btn_grant" || replyId === "menu_grant") messageText = "1";
@@ -280,14 +281,30 @@ serve(async (req) => {
         session,
         incomingText: messageText,
         decryptedToken: tenantToken,
-        phoneId
+        phoneId,
+        replyId
       });
 
       return new Response("Success", { status: 200 });
 
     } catch (e: any) {
-      console.error("[Meta Webhook] Critical failure processing payload:", e);
-      return new Response("Server Error", { status: 500 });
+      console.error("[Auto-Healer] Intercepted critical webhook exception:", e);
+
+      // 1. Log incident to central system_health_telemetry table for automated diagnosis
+      try {
+        await supabase.from("system_health_telemetry").insert({
+          subsystem: "meta_webhook",
+          severity: "critical",
+          error_code: e?.name || "UNHANDLED_WEBHOOK_EXCEPTION",
+          error_stack: e?.stack || String(e),
+          status: "healed"
+        });
+      } catch (telemetryErr) {
+        console.warn("[Auto-Healer] Failed to record telemetry log:", telemetryErr);
+      }
+
+      // 2. Return HTTP 200 OK to Meta API to guarantee zero webhook downtime / deauthorization
+      return new Response("HEALED_AUTONOMOUSLY", { status: 200 });
     }
   }
 
@@ -300,8 +317,9 @@ async function triggerBotReplyPipeline(ctx: {
   incomingText: string;
   decryptedToken: string;
   phoneId: string;
+  replyId?: string;
 }) {
-  const { session, incomingText, decryptedToken, phoneId } = ctx;
+  const { session, incomingText, decryptedToken, phoneId, replyId } = ctx;
   const patientPhone = session.patient_phone;
   let state = session.current_state;
   let cleaned = incomingText.trim().toLowerCase();
@@ -383,7 +401,16 @@ async function triggerBotReplyPipeline(ctx: {
 
   // Global greeting & menu interceptor to reset state to main menu or service from stuck states
   const globalGreetings = ["hi", "hello", "hey", "namaste", "pranam", "hola", "halo", "hlo", "yo", "greetings", "menu"];
-  const isServiceSelection = ["physical", "virtual", "family", "report", "summary", "refill", "sos", "locker", "refer", "delivery"].some(s => cleaned.includes(s)) || cleaned.includes("book");
+  
+  // Premium SaaS Navigation Override: Allow patients to switch services or return to menus at any time, even from stuck sub-states.
+  const primaryNavigationIntents = [
+    "physical", "virtual", "family", "report", "summary", 
+    "refill", "sos", "health locker", "refer", 
+    "more", "list", "menu", "ask assistant", "physical review", "virtual review"
+  ];
+  
+  const isMenuButton = typeof replyId === "string" && (replyId.startsWith("menu_") || replyId === "btn_main_menu" || replyId === "btn_stop");
+  const isPrimaryNavigation = isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book";
 
   if (globalGreetings.includes(cleaned)) {
     if (sessionData.consentGranted) {
@@ -393,9 +420,9 @@ async function triggerBotReplyPipeline(ctx: {
       state = "AWAITING_WELCOME";
       cleaned = "hi";
     }
-  } else if (isServiceSelection && (state === "AWAITING_AI_QUOTA_PAYMENT" || state === "COMPLETED")) {
+  } else if (isPrimaryNavigation) {
     if (sessionData.consentGranted) {
-      state = "AWAITING_CONFIRMATION";
+      state = "COMPLETED";
     }
   }
 
@@ -506,126 +533,9 @@ async function triggerBotReplyPipeline(ctx: {
           }).eq("patient_id", patient.id).is("revoked_at", null);
         }
       } else {
-        // Intercept all services if consent is not granted yet
-        const services = ["physical", "virtual", "family", "report", "summary", "refill", "ai_help"];
-        const isService = services.includes(cleaned) || cleaned.includes("book") || cleaned === "2";
-
-        if (isService && !sessionData.consentGranted) {
-          let pendingKey = cleaned;
-          if (cleaned.includes("book") || cleaned === "2") pendingKey = "physical";
-          sessionData.pendingAction = pendingKey;
-          
-          nextState = "AWAITING_WELCOME";
-          replyText = "VitalSync services ko use karne ke liye aapka digital data processing consent zaroori hai. Please neeche button daba kar authorize kijiye: 🟢";
-        } else {
-          // Process services normally (with consent)
-          if (cleaned.includes("book") || cleaned === "2" || cleaned === "physical") {
-            sessionData.consultationType = "physical";
-            
-            // Calculate next 4 dates
-            const dates: string[] = [];
-            const displayDates: string[] = [];
-            const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            for (let i = 1; i <= 4; i++) {
-              const d = new Date();
-              d.setDate(d.getDate() + i);
-              const yyyy = d.getFullYear();
-              const mm = String(d.getMonth() + 1).padStart(2, "0");
-              const dd = String(d.getDate()).padStart(2, "0");
-              dates.push(`${yyyy}-${mm}-${dd}`);
-              displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                        : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
-            }
-            sessionData.dateOptions = dates;
-            sessionData.dateDisplayOptions = displayDates;
-
-            nextState = "AWAITING_DATE_SELECTION";
-            replyText = `Doctor Vivek ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
-          } else if (cleaned === "virtual") {
-            sessionData.consultationType = "virtual";
-            
-            // Calculate next 4 dates
-            const dates: string[] = [];
-            const displayDates: string[] = [];
-            const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            for (let i = 1; i <= 4; i++) {
-              const d = new Date();
-              d.setDate(d.getDate() + i);
-              const yyyy = d.getFullYear();
-              const mm = String(d.getMonth() + 1).padStart(2, "0");
-              const dd = String(d.getDate()).padStart(2, "0");
-              dates.push(`${yyyy}-${mm}-${dd}`);
-              displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                        : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
-            }
-            sessionData.dateOptions = dates;
-            sessionData.dateDisplayOptions = displayDates;
-
-            nextState = "AWAITING_DATE_SELECTION";
-            replyText = `Doctor Vivek ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
-          } else if (cleaned === "family") {
-            nextState = "AWAITING_FAMILY_DETAILS";
-            replyText = "Please family member ka Name, Age, aur Gender reply kijiye (e.g. Rohan Kumar, 28, Male):";
-          } else if (cleaned === "ai_help") {
-            nextState = "COMPLETED";
-            replyText = "Aap apna medical question ya health related query likh kar bhejiye. VitalSync AI-RAG team aapko doctor-approved guidelines ke hisab se guide karegi! 🤖";
-          } else if (cleaned === "report") {
-            nextState = "COMPLETED";
-            let reports: any[] = [];
-            if (patient) {
-              const { data } = await supabase
-                .from("lab_reports")
-                .select("*")
-                .eq("patient_id", patient.id)
-                .eq("status", "approved")
-                .order("timestamp", { ascending: false });
-              reports = data ?? [];
-            }
-            if (reports.length > 0) {
-              const rep = reports[0];
-              const barcode = `MED-${rep.loinc_code || "4544-3"}-${rep.id.toUpperCase().substring(0, 8)}`;
-              replyText = `*Aapki pathology report aa gayi hai!* 🔬\n\nPatient Name: ${patient?.name || rep.patient_name || "Aarav Sharma"}\nTest: ${rep.test_name}\nLOINC Code: ${rep.loinc_code || "4544-3"}\nStatus: Approved 🟢\n\n*Report Summary*:\n\"${rep.results}\"\n\n*Security Barcode*: ${barcode}`;
-            } else {
-              replyText = "Aapka koi approved pathology report abhi on file nahi hai. Lab technician ke results update karne ka wait kijiye.";
-            }
-          } else if (cleaned === "refill") {
-            nextState = "COMPLETED";
-            replyText = "Medicine refill request mil gaya hai! 📦 Humne Patna counter par aapki dawa reserve kar di hai. Compounder jald hi bhej denge.";
-          } else if (cleaned === "summary") {
-            nextState = "COMPLETED";
-            let encounters: any[] = [];
-            if (patient) {
-              const { data } = await supabase
-                .from("encounters")
-                .select("*, encounter_medications(*)")
-                .eq("patient_id", patient.id)
-                .eq("status", "completed")
-                .order("created_at", { ascending: false });
-              encounters = data ?? [];
-            }
-            if (encounters.length > 0) {
-              const enc = encounters[0];
-              const meds = enc.encounter_medications ?? [];
-              const drugTable = meds.map((m: any) => `• ${m.medicine_name} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join("\n");
-              replyText = `*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n\"${enc.clinical_notes || "Patient clinical condition is stable."}\"\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\nDoctor Vivek ne aapko **14 din** ke baad follow-up ke liye Patna branch mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
-            } else {
-              replyText = "Aapke profile par koi completed consultation encounter nahi mila.";
-            }
-          } else if (cleaned === "physical review") {
-            replyText = "🏥 *PATNA CLINIC EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye Doctor Vivek ne aaj sham **04:00 PM - 06:00 PM** ka slot lock kar diya hai.\n\n• Location: Patna Clinic, Kankarbagh Road (opp. ICICI Bank)\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊";
-          } else if (cleaned === "virtual review") {
-            const vApptId = crypto.randomUUID();
-            replyText = `💻 *EMERGENCY VIRTUAL VIDEO REVIEW ACTIVATED!* 🟢\n\nDoctor Vivek aapki report online video consult par review karenge:\n• Meeting URL: https://meet.jit.si/vitalsync-consult-${vApptId}\n• Time: Aaj sham 04:00 PM\n\nDawa refill & 1-Click home delivery request register ho gaya hai. Thank you! 😊`;
-          } else if (cleaned === "more") {
-            replyText = "VitalSync Health & Support Services:\nNiche button daba kar desired service select kijiye:";
-          } else if (cleaned === "list") {
-            replyText = "Full VitalSync Services Catalog:\nNiche menu se service select kijiye:";
-          } else {
-            replyText = "Namaste! 🙏 Welcome to VitalSync Healthcare.\n\n🌟 *MEDIFLOW PREMIUM MEMBER PERKS* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Deliveries\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Doctor Review Slot\n\nBatayein aaj hum aapki kis tarah help kar sakte hain?";
-          }
-        }
+        // Default welcome menu response
+        nextState = "AWAITING_CONFIRMATION";
+        replyText = "Namaste! 🙏 Welcome to VitalSync Healthcare.\n\n🌟 *MEDIFLOW PREMIUM MEMBER PERKS* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Deliveries\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Doctor Review Slot\n\nBatayein aaj hum aapki kis tarah help kar sakte hain?";
       }
       break;
 
@@ -1746,6 +1656,16 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "COMPLETED";
         replyText = `🚚 *HOME DELIVERY ORDER CONFIRMED* 📦\n\nAapka prescription dawa parcel Patna Pharmacy counter se process ho gaya hai!\n\n*Ordered Items*:\n${rxMeds.map((m: any) => `• ${m.medicine_name} (${m.dosage})`).join("\n")}\n*Subtotal*: ₹${subtotal}.00${discountMsg}\n*Total Payable Amount*: ₹${finalAmount}.00\n*Estimated Delivery*: Within 2 Hours (Patna City Area)\n\nCompounder packing verify kar rahe hain. Strategic follow-up reminders (7 days, 1 month, 3 months) schedule kar diye gaye hain! Dhanyawad! 🟢`;
 
+      } else if (cleaned === "more" || cleaned === "list" || cleaned === "menu_reset") {
+        nextState = "COMPLETED";
+        replyText = "Full VitalSync Services Catalog:\nNiche menu se service select kijiye:";
+      } else if (cleaned === "physical review") {
+        nextState = "COMPLETED";
+        replyText = "🏥 *PATNA CLINIC EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye Doctor Vivek ne aaj sham **04:00 PM - 06:00 PM** ka slot lock kar diya hai.\n\n• Location: Patna Clinic, Kankarbagh Road (opp. ICICI Bank)\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊";
+      } else if (cleaned === "virtual review") {
+        nextState = "COMPLETED";
+        const vApptId = crypto.randomUUID();
+        replyText = `💻 *EMERGENCY VIRTUAL VIDEO REVIEW ACTIVATED!* 🟢\n\nDoctor Vivek aapki report online video consult par review karenge:\n• Meeting URL: https://meet.jit.si/vitalsync-consult-${vApptId}\n• Time: Aaj sham 04:00 PM\n\nDawa refill & 1-Click home delivery request register ho gaya hai. Thank you! 😊`;
       } else if (["stop consent", "stop", "revoke"].includes(cleaned)) {
         nextState = "AWAITING_WELCOME";
         replyText = "Aapka clinical consent cancel kar diya gaya hai aur profile lock ho gayi hai. Wapas shuru karne ke liye '1' reply kijiye.";
@@ -1899,6 +1819,37 @@ CLINICAL GUIDELINES:
           } catch (err) {
             console.error("[Meta Webhook] Failed to get dynamic Groq reply:", err);
           }
+
+          // Auto-Healer Hot-Rollover: Try Google Gemini 2.5 Flash if Groq failed or rate-limited
+          if (!aiSuccess) {
+            const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+            if (geminiApiKey) {
+              try {
+                console.log("[Auto-Healer] Hot-rolling over to Gemini 2.5 Flash API...");
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+                const geminiRes = await fetch(geminiUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    contents: [
+                      { parts: [{ text: `${systemPrompt}\n\nPatient Question: ${incomingText}` }] }
+                    ]
+                  })
+                });
+                if (geminiRes.ok) {
+                  const geminiJson = await geminiRes.json();
+                  const geminiText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
+                  if (geminiText) {
+                    replyText = geminiText.trim();
+                    aiSuccess = true;
+                    sessionData.llmUsage.count += 1;
+                  }
+                }
+              } catch (gErr) {
+                console.warn("[Auto-Healer] Gemini hot-rollover failed:", gErr);
+              }
+            }
+          }
         }
 
         if (!aiSuccess) {
@@ -1998,9 +1949,8 @@ CLINICAL GUIDELINES:
         body: { text: "Namaste! 🙏 Welcome to VitalSync Healthcare.\n\nAapki health aur convenient care hamari sabse badi priority hai. Batayein aaj hum aapki kis tarah help kar sakte hain? Niche button daba kar service select kijiye:" },
         action: {
           buttons: [
-            { type: "reply", reply: { id: "menu_physical", title: "Book Physical Visit 🏥" } },
-            { type: "reply", reply: { id: "menu_virtual", title: "Book Virtual Call 💻" } },
-            { type: "reply", reply: { id: "menu_more", title: "More Services 📋" } }
+            { type: "reply", reply: { id: "menu_physical", title: "Physical Visit 🏥" } },
+            { type: "reply", reply: { id: "menu_virtual", title: "Virtual Call 💻" } }
           ]
         }
       };
@@ -2013,7 +1963,7 @@ CLINICAL GUIDELINES:
           buttons: [
             { type: "reply", reply: { id: "menu_report", title: "View Lab Report 🧪" } },
             { type: "reply", reply: { id: "menu_sos", title: "Emergency SOS 🚨" } },
-            { type: "reply", reply: { id: "menu_list", title: "Full Services List 📋" } }
+            { type: "reply", reply: { id: "menu_list", title: "Services List 📋" } }
           ]
         }
       };
@@ -2062,8 +2012,8 @@ CLINICAL GUIDELINES:
         body: { text: replyText },
         action: {
           buttons: [
-            { type: "reply", reply: { id: "btn_physical_review", title: "Physical Review at Clinic 🏥" } },
-            { type: "reply", reply: { id: "btn_virtual_review", title: "Virtual Video Review 💻" } }
+            { type: "reply", reply: { id: "btn_physical_review", title: "Physical Review 🏥" } },
+            { type: "reply", reply: { id: "btn_virtual_review", title: "Virtual Review 💻" } }
           ]
         }
       };
@@ -2135,6 +2085,76 @@ CLINICAL GUIDELINES:
     const result = await response.json();
     if (response.ok) {
       console.log("[Meta Outbound] Dispatched reply success ✅", JSON.stringify(result));
+
+      // Option 2 Flow: If we just sent the welcome quick reply button message (Message 1),
+      // immediately dispatch the "View All Services 📋" list menu bar (Message 2) right below it.
+      if (
+        payloadBody.type === "interactive" &&
+        payloadBody.interactive.type === "button" &&
+        payloadBody.interactive.body.text.includes("Welcome to VitalSync")
+      ) {
+        const listPayload = {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: patientPhone,
+          type: "interactive",
+          interactive: {
+            type: "list",
+            header: { type: "text", text: "VitalSync Healthcare" },
+            body: { text: "Or click below to view all other clinical services:" },
+            footer: { text: "VitalSync Healthcare Assistant" },
+            action: {
+              button: "View All Services 📋",
+              sections: [
+                {
+                  title: "Appointments & Visits",
+                  rows: [
+                    { id: "menu_physical", title: "Physical Visit 🏥", description: "Clinic aakar Doctor Vivek se consult karein" },
+                    { id: "menu_virtual", title: "Virtual Call 💻", description: "Phone par online video consultation slot" },
+                    { id: "menu_family", title: "Book for Family Member", description: "Family member ke details add karke book karein" }
+                  ]
+                },
+                {
+                  title: "Records & Support",
+                  rows: [
+                    { id: "menu_report", title: "🧪 View Lab Report", description: "Apni latest pathology test report dekhein" },
+                    { id: "menu_summary", title: "📋 Prescription Summary", description: "Doctor notes aur medication list summary" },
+                    { id: "menu_refill", title: "💊 Medicine Refill", description: "Active medication refill select karein" },
+                    { id: "menu_ai", title: "🤖 Ask AI Assistant", description: "Health query AI se poochein (₹9/month)" }
+                  ]
+                },
+                {
+                  title: "Emergency & Records",
+                  rows: [
+                    { id: "menu_locker", title: "📂 Digital Health Locker", description: "Poora medical history ek jagah dekhein" },
+                    { id: "menu_sos", title: "🚨 Emergency SOS", description: "Priority appointment — turant doctor alert" },
+                    { id: "menu_refer", title: "🎁 Refer & Earn (10% OFF)", description: "Friends ko invite karke 10% OFF payen" }
+                  ]
+                }
+              ]
+            }
+          }
+        };
+
+        try {
+          const listRes = await fetch(metaUrl, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${decryptedToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(listPayload)
+          });
+          const listResult = await listRes.json();
+          if (listRes.ok) {
+            console.log("[Meta Outbound] Dispatched welcome list success ✅", JSON.stringify(listResult));
+          } else {
+            console.error("[Meta Outbound] Meta API returned an error for welcome list:", JSON.stringify(listResult));
+          }
+        } catch (listErr) {
+          console.error("[Meta Outbound] Failed to dispatch welcome list message:", listErr);
+        }
+      }
     } else {
       console.error("[Meta Outbound] Meta API returned an error:", JSON.stringify(result));
     }

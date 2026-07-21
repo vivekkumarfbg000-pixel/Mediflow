@@ -243,6 +243,31 @@ export const SystemHealthCockpit: React.FC = () => {
               <Activity className="h-3.5 w-3.5" />
               Reload Logs
             </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                setIsHealing(true);
+                try {
+                  const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8000';
+                  const res = await fetch(`${backendUrl}/api/auto-heal`, { method: 'POST' });
+                  const data = await res.json();
+                  if (data.success) {
+                    fetchTelemetryLogs();
+                    runHealthChecks();
+                  }
+                } catch (err) {
+                  fetchTelemetryLogs();
+                } finally {
+                  setIsHealing(false);
+                }
+              }}
+              disabled={isHealing}
+              className="flex h-9 items-center gap-1.5 px-3.5 rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 text-xs font-bold disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+            >
+              <Zap className={`h-3.5 w-3.5 ${isHealing ? 'animate-spin text-purple-600' : 'text-purple-600'}`} />
+              {isHealing ? 'Healing...' : 'Trigger Auto-Heal Pass'}
+            </button>
           </div>
         </div>
 
