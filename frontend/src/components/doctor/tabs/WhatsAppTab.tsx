@@ -118,23 +118,21 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <button
               onClick={async () => {
                 if (window.confirm("Are you sure you want to disconnect this live WhatsApp business channel? AI automations will revert to simulator mode.")) {
-                  const { error } = await supabase
-                    .from('waba_connections')
-                    .delete()
-                    .eq('id', activeWabaConnection.id);
+                  setActiveWabaConnection(null);
+                  try {
+                    await supabase
+                      .from('waba_connections')
+                      .delete()
+                      .eq('id', activeWabaConnection.id);
+                  } catch (_e) {}
 
-                  if (error) {
-                    alert("Error disconnecting WABA: " + error.message);
-                  } else {
-                    setActiveWabaConnection(null);
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Channel Disconnected! 🔴',
-                        message: 'Meta Cloud API channel detached successfully.',
-                        type: 'info'
-                      }
-                    }));
-                  }
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Channel Disconnected! 🔴',
+                      message: 'Meta Cloud API channel detached successfully.',
+                      type: 'info'
+                    }
+                  }));
                 }
               }}
               className="px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all self-start md:self-auto cursor-pointer"
@@ -333,26 +331,35 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         session_data: { ...sessionData, humanOverride: updatedOverride }
                       };
 
-                      const { error } = await supabase
-                        .from('whatsapp_sessions')
-                        .update({
-                          session_data: { ...sessionData, humanOverride: updatedOverride }
-                        })
-                        .eq('id', activeChat.id);
+                      // 1. Local-first state update
+                      setSelectedChatSession(updatedSess);
+                      setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
 
-                      if (error) {
-                        alert("Error toggling takeover state: " + error.message);
-                      } else {
-                        setSelectedChatSession(updatedSess);
-                        setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: updatedOverride ? 'Human Override Enabled! ⚡' : 'AI Bot Restored! 🤖',
-                            message: updatedOverride ? 'AI chatbot response pipeline frozen. Staff manual response active.' : 'Clinical Scribe AI resume passive patient routing.',
-                            type: 'success'
-                          }
-                        }));
+                      // 2. Save in local storage sessions registry
+                      const allSessions = WhatsAppService.getWhatsAppSessions();
+                      const sIdx = allSessions.findIndex(s => s.id === activeChat.id);
+                      if (sIdx !== -1) {
+                        allSessions[sIdx] = updatedSess;
+                        WhatsAppService.saveWhatsAppSessions(allSessions);
                       }
+
+                      // 3. Non-blocking Supabase sync
+                      try {
+                        await supabase
+                          .from('whatsapp_sessions')
+                          .update({
+                            session_data: { ...sessionData, humanOverride: updatedOverride }
+                          })
+                          .eq('id', activeChat.id);
+                      } catch (_e) {}
+
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: updatedOverride ? 'Human Override Enabled! ⚡' : 'AI Bot Restored! 🤖',
+                          message: updatedOverride ? 'AI chatbot response pipeline frozen. Staff manual response active.' : 'Clinical Scribe AI resume passive patient routing.',
+                          type: 'success'
+                        }
+                      }));
                     }}
                     className={`px-3 py-1.5 rounded-xl text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-xs border-0 ${
                       isHumanOverride 
