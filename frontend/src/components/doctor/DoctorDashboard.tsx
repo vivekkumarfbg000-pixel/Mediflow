@@ -24,6 +24,8 @@ import { PodCommandCenter } from '../admin/PodCommandCenter';
 import { OphthalmologyPatientAnalysisPanel } from './OphthalmologyPatientAnalysisPanel';
 import { CommandPalette } from '../ui/CommandPalette';
 import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
+import { DoctorRegistrationModal } from '../auth/DoctorRegistrationModal';
+import { WhatsAppTestDispatcherModal } from '../shared/WhatsAppTestDispatcherModal';
 
 const ConsultationTab = React.lazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
 const FinancialsTab = React.lazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
@@ -49,6 +51,9 @@ export const DoctorDashboard: React.FC = () => {
   }, []);
 
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
+  const [isTestWhatsAppOpen, setIsTestWhatsAppOpen] = useState(false);
+  const [isPlacardModalOpen, setIsPlacardModalOpen] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1648,6 +1653,33 @@ Keep the tone professional, clinical, objective, and precise.`;
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setIsPlacardModalOpen(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+              title="Generate Printable Reception QR Stand PDF"
+            >
+              <span>🖨️ Reception QR Stand</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsTestWhatsAppOpen(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+              title="Send Live Sample Prescription PDF to WhatsApp"
+            >
+              <span>📱 Test WhatsApp Dispatch</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsRegistrationOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-extrabold transition-all cursor-pointer shadow-xs"
+              title="Register New Clinic Workspace in 30 Seconds"
+            >
+              <span>➕ Register Clinic</span>
+            </button>
+
             {/* Status pill - hidden on small mobile viewports */}
             <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
               <span className="flex h-1.5 w-1.5 relative">
@@ -1768,6 +1800,46 @@ Keep the tone professional, clinical, objective, and precise.`;
           setActiveTab('consultation');
         }}
       />
+
+      {/* 30-Second Doctor Onboarding & Sales Demo Modals */}
+      <DoctorRegistrationModal
+        isOpen={isRegistrationOpen}
+        onClose={() => setIsRegistrationOpen(false)}
+        onSuccess={(data) => {
+          console.log('[Onboarding Success] Clinic Pod Created:', data);
+          window.location.reload();
+        }}
+      />
+
+      <WhatsAppTestDispatcherModal
+        isOpen={isTestWhatsAppOpen}
+        onClose={() => setIsTestWhatsAppOpen(false)}
+        clinicName={activePod?.name || 'Apex Medical Center'}
+        doctorName="Dr. Sharma"
+      />
+
+      {isPlacardModalOpen && (
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in text-slate-800">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+            <button
+              type="button"
+              onClick={() => setIsPlacardModalOpen(false)}
+              className="absolute top-4 right-4 h-8 w-8 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 cursor-pointer"
+            >
+              ✕
+            </button>
+            <ClinicPlacardGenerator podInfo={{
+              id: activePod?.id || 'demo-pod',
+              clinic_code: activePod?.clinicCode || 'MF-PATNA101',
+              name: activePod?.name || 'Apex Super Specialty Care',
+              location: 'Patna, Bihar',
+              is_verified_for_billing: true,
+              lifetime_platform_revenue: 0,
+              pending_cash_balance: 0
+            }} />
+          </div>
+        </div>
+      )}
 
       {/* Floating 24/7 Mediflow AI Support Widget */}
       <WhatsAppSupportModal userRole="doctor" userName="Dr. Doctor" clinicName="Apex Medical Center" />
