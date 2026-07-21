@@ -41,12 +41,21 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
         platform_fee_percent: 2.5
       };
 
-      // Save pod info locally
+      // Save pod info & active WABA connection locally
       localStorage.setItem('vitalsync_active_pod', JSON.stringify(newPod));
       localStorage.setItem('vitalsync_doctor_profile', JSON.stringify({
         name: formData.doctorName,
         phone: formData.phone,
         specialization: formData.specialization
+      }));
+
+      localStorage.setItem('vitalsync_waba_connection', JSON.stringify({
+        id: `waba-${clinicCode}`,
+        phone_number: formData.phone,
+        phone_number_id: `10${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+        waba_id: `waba-act-${Math.floor(100000000 + Math.random() * 900000000)}`,
+        is_active: true,
+        created_at: new Date().toISOString()
       }));
 
       // Trigger workspace update

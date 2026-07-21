@@ -186,6 +186,26 @@ export const DoctorDashboard: React.FC = () => {
   ]);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vitalsync_waba_connection');
+      if (saved) {
+        setActiveWabaConnection(JSON.parse(saved));
+      } else {
+        const defaultConn = {
+          id: 'waba-conn-default',
+          phone_number: '+91 98765 43210',
+          phone_number_id: '109876543210987',
+          waba_id: 'waba-act-987654321',
+          is_active: true,
+          created_at: new Date().toISOString()
+        };
+        localStorage.setItem('vitalsync_waba_connection', JSON.stringify(defaultConn));
+        setActiveWabaConnection(defaultConn);
+      }
+    } catch (_e) {}
+  }, []);
+
+  useEffect(() => {
     const logPool = [
       "POST /webhook - HTTP 200 OK | Latency: 142ms | Payload: 1.2KB",
       "CDSS SCAN: Consent verification check triggered.",
