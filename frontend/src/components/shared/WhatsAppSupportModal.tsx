@@ -19,7 +19,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
   const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'bot'; text: string; category?: string }>>([
     {
       sender: 'bot',
-      text: `🤖 *Namaste ${userName}!* I am your 24/7 Mediflow Autonomous AI Support Sentry.\n\nAsk me how to use any feature, or report a glitch for instant auto-healing!`
+      text: `🤖 *Namaste ${userName}!* I am your 24/7 VitalSync Autonomous AI Support Sentry.\n\nAsk me how to use any feature, or report a glitch for instant auto-healing!`
     }
   ]);
 

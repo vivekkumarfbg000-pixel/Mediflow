@@ -1398,14 +1398,22 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                     <span className="text-[9px] font-mono text-slate-400 shrink-0">{new Date(tkt.created_at).toLocaleTimeString()}</span>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => WhatsAppSupportBotService.resolveTicket(tkt.id, 'Request Approved & Credentials Provisioned.')}
-                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase rounded-lg cursor-pointer shadow-xs transition-all"
-                    >
-                      Approve & Reply WhatsApp
-                    </button>
+                  <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-100">
+                    {tkt.ai_proposed_fix && (
+                      <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-xl text-[10px] text-indigo-700 font-medium">
+                        🤖 <strong>AI Proposed Auto-Fix</strong>: {tkt.ai_proposed_fix}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => WhatsAppSupportBotService.resolveTicket(tkt.id, tkt.ai_proposed_fix || 'Request Approved & Credentials Provisioned.')}
+                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase rounded-lg cursor-pointer shadow-xs transition-all flex items-center gap-1"
+                      >
+                        <Sparkles className="h-3 w-3 text-amber-300" />
+                        AI One-Click Auto-Fix
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
