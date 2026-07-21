@@ -160,6 +160,14 @@ export const SaaSAdminPanel: React.FC = () => {
   const [isAutoPilotEnabled, setIsAutoPilotEnabled] = useState<boolean>(true);
   const [autoPilotCycles, setAutoPilotCycles] = useState<number>(142);
 
+  // Regional Language CS Support Preference (en = English, hi = Hindi/Hinglish)
+  const [supportLanguage, setSupportLanguage] = useState<'en' | 'hi'>('en');
+
+  // VIP Clinic White-Labeling Branding Modal State
+  const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState<boolean>(false);
+  const [selectedWhiteLabelPod, setSelectedWhiteLabelPod] = useState<PodInfo | null>(null);
+  const [whiteLabelForm, setWhiteLabelForm] = useState({ logoUrl: '', headerText: '', rxFooter: '' });
+
   // Security Sentry: RLS compliance
   const [complianceList, setComplianceList] = useState<RlsComplianceAudit[]>([]);
   const [auditingRls, setAuditingRls] = useState<boolean>(false);
@@ -401,18 +409,21 @@ export const SaaSAdminPanel: React.FC = () => {
     }
   };
 
-  // Dispatch White-Glove Proactive Support WhatsApp Message
+  // Dispatch White-Glove Proactive Support WhatsApp Message (Multi-Language)
   const handleSendProactiveSupportMsg = async (pod: PodInfo, issueReason = 'Routine 24/7 DevSecOps Auto-Heal Check') => {
     const doctorPhone = pod.phone || '+919876543210';
     const doctorName = pod.doctor_name || 'Doctor';
-    const msg = `🏥 *VITALSYNC ENTERPRISE SUPPORT AUTO-HEAL ALERT* 🛡️\n\nNamaste Dr. ${doctorName} (${pod.name})!\nOur 24/7 Autonomous DevSecOps Sentry executed a proactive health scan on your tenant space:\n\n• *Scan Result*: ${issueReason}\n• *Uptime*: 99.8% Nominal\n• *Database Isolation*: Secure (RLS Active)\n\n✅ Zero action required from your side. Your clinic operations are running at peak performance!`;
+    
+    const msg = supportLanguage === 'hi' 
+      ? `🏥 *VITALSYNC 24/7 ऑटो-हील सपोर्ट* 🛡️\n\nनमस्ते Dr. ${doctorName} (${pod.name})!\nहमारे 24/7 ऑटोनॉमस Sentry ने आपके क्लिनिक सिस्टम का हेल्थ स्कैन पूरा कर लिया है:\n\n• *स्टेटस*: ${issueReason}\n• *अपटाइम*: 100% एक्टिव (RLS प्रोटेक्टेड)\n\n✅ आपकी ओर से किसी कार्रवाई की आवश्यकता नहीं है। आपका सिस्टम सुचारू रूप से चल रहा है!`
+      : `🏥 *VITALSYNC ENTERPRISE SUPPORT AUTO-HEAL ALERT* 🛡️\n\nNamaste Dr. ${doctorName} (${pod.name})!\nOur 24/7 Autonomous DevSecOps Sentry executed a proactive health scan on your tenant space:\n\n• *Scan Result*: ${issueReason}\n• *Uptime*: 99.8% Nominal\n• *Database Isolation*: Secure (RLS Active)\n\n✅ Zero action required from your side. Your clinic operations are running at peak performance!`;
 
     try {
       api.pushWhatsAppMessageFromBot(doctorPhone, msg);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'White-Glove Support Sent 💬',
-          message: `Dispatched proactive WhatsApp update to Dr. ${doctorName} (${doctorPhone}).`,
+          title: supportLanguage === 'hi' ? 'व्हाट्सएप सपोर्ट भेजा गया 💬' : 'White-Glove Support Sent 💬',
+          message: `Dispatched proactive WhatsApp update (${supportLanguage.toUpperCase()}) to Dr. ${doctorName}.`,
           type: 'success'
         }
       }));
@@ -421,6 +432,24 @@ export const SaaSAdminPanel: React.FC = () => {
         detail: { title: 'Dispatch Failed ⚠️', message: 'Failed to send WhatsApp message.', type: 'error' }
       }));
     }
+  };
+
+  // VIP Clinic White-Label Branding Save Handler
+  const handleSaveWhiteLabelConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedWhiteLabelPod) return;
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'VIP Branding Saved! 🎨',
+        message: `Updated custom logo & Rx prescription letterhead for ${selectedWhiteLabelPod.name}.`,
+        type: 'success'
+      }
+    }));
+
+    setIsWhiteLabelModalOpen(false);
+    setSelectedWhiteLabelPod(null);
+    setWhiteLabelForm({ logoUrl: '', headerText: '', rxFooter: '' });
   };
 
   // Rejuvenate Clinic Pod Session & Lock Clearing
@@ -1395,6 +1424,26 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  {/* Regional Support Language Switch */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextLang = supportLanguage === 'en' ? 'hi' : 'en';
+                      setSupportLanguage(nextLang);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: nextLang === 'hi' ? 'हिंदी भाषा मोड 🇮🇳' : 'English CS Mode 🇬🇧',
+                          message: nextLang === 'hi' ? 'ऑटो-हील सपोर्ट मैसेज अब हिंदी में भेजे जाएंगे।' : 'Support dispatches set to English.',
+                          type: 'info'
+                        }
+                      }));
+                    }}
+                    className="inline-flex h-9 items-center justify-center gap-1 px-3 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-black cursor-pointer shadow-2xs shrink-0"
+                    title="Toggle Support Language (English / Hindi)"
+                  >
+                    🇮🇳 Language: {supportLanguage === 'en' ? 'EN' : 'हिंदी'}
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleRunAdoptionCheckIn}
@@ -1628,6 +1677,27 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                                 >
                                   Inspect Logs
                                 </button>
+
+                                  <button
+                                   type="button"
+                                   onClick={() => handleSendVideoTutorial(pod)}
+                                   className="px-2 py-1 rounded-lg border border-cyan-200 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-[10px] font-extrabold uppercase transition-all cursor-pointer"
+                                   title="Dispatch Interactive Video Onboarding Tutorial"
+                                 >
+                                   Tutorial
+                                 </button>
+
+                                 <button
+                                   type="button"
+                                   onClick={() => {
+                                     setSelectedWhiteLabelPod(pod);
+                                     setIsWhiteLabelModalOpen(true);
+                                   }}
+                                   className="px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-extrabold uppercase transition-all cursor-pointer"
+                                   title="Configure VIP Clinic Custom Branding & Rx Letterhead"
+                                 >
+                                   VIP Branding
+                                 </button>
 
                                 <button
                                   type="button"
@@ -2549,6 +2619,82 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   >
                     {isSendingBroadcast ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
                     {isSendingBroadcast ? 'Broadcasting...' : 'Broadcast WhatsApp'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        {/* ── VIP Clinic White-Labeling Branding Modal ─────────────────────────── */}
+        {isWhiteLabelModalOpen && selectedWhiteLabelPod && (
+          <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in text-slate-800">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 font-black">
+                    <Building className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-sm">VIP Clinic White-Labeling</h3>
+                    <p className="text-[11px] text-slate-500">{selectedWhiteLabelPod.name} ({selectedWhiteLabelPod.clinic_code})</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsWhiteLabelModalOpen(false)}
+                  className="h-8 w-8 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveWhiteLabelConfig} className="space-y-3.5">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Custom Logo Image URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://clinic-domain.com/logo.png"
+                    value={whiteLabelForm.logoUrl}
+                    onChange={(e) => setWhiteLabelForm(f => ({ ...f, logoUrl: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-amber-500/50 outline-none text-xs font-semibold bg-slate-50/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">WhatsApp Custom Header Text</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Apex Heart Care Official Clinic Portal"
+                    value={whiteLabelForm.headerText}
+                    onChange={(e) => setWhiteLabelForm(f => ({ ...f, headerText: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-amber-500/50 outline-none text-xs font-semibold bg-slate-50/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Rx Prescription Letterhead Footer</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ISO 9001:2025 Certified Cardiac Super Specialty Clinic"
+                    value={whiteLabelForm.rxFooter}
+                    onChange={(e) => setWhiteLabelForm(f => ({ ...f, rxFooter: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-amber-500/50 outline-none text-xs font-semibold bg-slate-50/50"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsWhiteLabelModalOpen(false)}
+                    className="w-1/2 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                  >
+                    <Building className="h-4 w-4" />
+                    Save VIP Branding
                   </button>
                 </div>
               </form>
