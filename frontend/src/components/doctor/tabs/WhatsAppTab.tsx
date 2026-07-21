@@ -375,13 +375,14 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               {/* Chat Message Stream */}
               <div className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[360px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
                 {(sessionData.chatHistory ?? []).map((msg: any, idx: number) => {
-                  const isBot = msg.sender === 'bot';
-                  const isPatient = msg.sender === 'patient';
+                  const sRole = (msg.sender || '').toLowerCase();
+                  const isPatient = sRole === 'patient' || sRole === 'user' || sRole === 'customer' || sRole === 'client';
+                  const isBot = sRole === 'bot';
                   
-                  let bubbleStyle = 'bg-primary text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
+                  let bubbleStyle = 'bg-indigo-600 text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
                   if (isPatient) {
                     bubbleStyle = 'bg-white border border-slate-200/80 text-slate-800 mr-auto rounded-tr-2xl rounded-br-2xl rounded-tl-2xl';
-                  } else if (msg.sender === 'agent' || (!isBot && !isPatient)) {
+                  } else if (sRole === 'agent' || sRole === 'doctor') {
                     bubbleStyle = 'bg-amber-500 text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
                   }
 
@@ -390,8 +391,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       <div className={`p-3 text-xs leading-relaxed font-sans shadow-2xs ${bubbleStyle}`}>
                         {msg.text}
                       </div>
-                      <span className={`text-[8px] font-mono text-slate-600 ${isPatient ? 'mr-auto pl-1' : 'ml-auto pr-1'}`}>
-                        {msg.sender.toUpperCase()} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00'}
+                      <span className={`text-[8px] font-mono text-slate-600 ${isPatient ? 'mr-auto pl-1 text-slate-500 font-bold' : 'ml-auto pr-1'}`}>
+                        {isPatient ? '👤 PATIENT' : (sRole === 'agent' || sRole === 'doctor' ? '👨‍⚕️ DOCTOR' : '🤖 AI BOT')} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00')}
                       </span>
                     </div>
                   );

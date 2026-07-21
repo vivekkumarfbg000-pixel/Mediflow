@@ -86,6 +86,33 @@ export class WhatsAppService {
             }
           }
 
+          // Dispatch real HTTP POST payload to Meta Graph API if active WABA connection exists
+          try {
+            const wabaRaw = localStorage.getItem('vitalsync_waba_connection');
+            const wabaConn = wabaRaw ? JSON.parse(wabaRaw) : null;
+            const token = wabaConn?.access_token || (import.meta as any).env?.VITE_META_WHATSAPP_TOKEN;
+            const phoneId = wabaConn?.phone_number_id || (import.meta as any).env?.VITE_META_PHONE_NUMBER_ID;
+
+            if (token && phoneId && !phoneId.startsWith('1098765')) {
+              const cleanToPhone = phone.replace(/[^0-9]/g, '');
+              await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  messaging_product: 'whatsapp',
+                  to: cleanToPhone,
+                  type: 'text',
+                  text: { body: variables?.replyText || 'Hello from VitalSync Smart Clinic' }
+                })
+              });
+            }
+          } catch (_wabaErr) {
+            console.warn('[VitalSync Outgoing Dispatch] Meta Cloud API HTTP dispatch fallback:', _wabaErr);
+          }
+
           await new Promise(r => setTimeout(r, 50));
           resolve(true);
         } catch (e) {
