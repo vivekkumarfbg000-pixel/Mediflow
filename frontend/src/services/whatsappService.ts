@@ -93,9 +93,13 @@ export class WhatsAppService {
             const token = wabaConn?.access_token || (import.meta as any).env?.VITE_META_WHATSAPP_TOKEN;
             const phoneId = wabaConn?.phone_number_id || (import.meta as any).env?.VITE_META_PHONE_NUMBER_ID;
 
+            let cleanToPhone = phone.replace(/[^0-9]/g, '');
+            if (cleanToPhone.length === 10) {
+              cleanToPhone = '91' + cleanToPhone;
+            }
+
             if (token && phoneId && !phoneId.startsWith('1098765')) {
-              const cleanToPhone = phone.replace(/[^0-9]/g, '');
-              await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+              const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -108,6 +112,8 @@ export class WhatsAppService {
                   text: { body: variables?.replyText || 'Hello from VitalSync Smart Clinic' }
                 })
               });
+              const resData = await res.json();
+              console.log(`[VitalSync Outgoing Dispatch] Meta API Status: ${res.status}`, resData);
             }
           } catch (_wabaErr) {
             console.warn('[VitalSync Outgoing Dispatch] Meta Cloud API HTTP dispatch fallback:', _wabaErr);
