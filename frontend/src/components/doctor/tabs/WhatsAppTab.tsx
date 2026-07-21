@@ -81,6 +81,20 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const [otpMethod, setOtpMethod] = useState<'SMS' | 'VOICE'>('SMS');
 
 
+  useEffect(() => {
+    const fetchConnections = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('waba_connections')
+          .select('*');
+        console.log("DIAGNOSTIC: waba_connections in database:", data, error);
+      } catch (err) {
+        console.error("DIAGNOSTIC: Failed to query waba_connections:", err);
+      }
+    };
+    fetchConnections();
+  }, []);
+
   // Filter sessions based on search
   const filteredSessions = whatsAppSessions.filter(s => {
     const matchPhone = s.patientPhone.includes(chatSearch);

@@ -131,7 +131,19 @@ serve(async (req) => {
 
         const resData = await res.json();
         console.log(`[Meta Webhook Outbound Relay] Meta Response Status: ${res.status}`, resData);
-        return new Response(JSON.stringify({ success: res.ok, metaResponse: resData }), { status: 200 });
+        return new Response(JSON.stringify({ 
+          success: res.ok, 
+          status: res.status, 
+          metaResponse: resData,
+          debugInfo: {
+            hasToken: !!systemToken,
+            phoneId,
+            cleanPhone
+          }
+        }), { 
+          status: 200, 
+          headers: { "Content-Type": "application/json" } 
+        });
       }
 
       const entry = payload.entry?.[0];

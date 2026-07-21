@@ -97,13 +97,14 @@ export class WhatsAppService {
 
             // Secure Server-Side Relay via Supabase Edge Function
             const { supabase: sb } = await import('../lib/supabaseClient');
-            await sb.functions.invoke('meta-webhook', {
+            const invokeRes = await sb.functions.invoke('meta-webhook', {
               body: {
                 action: 'send_manual_message',
                 patientPhone: cleanToPhone,
                 messageText: msgBody
               }
             });
+            console.log("DIAGNOSTIC: Edge function invocation result:", invokeRes);
           } catch (_wabaErr) {
             console.warn('[VitalSync Outgoing Dispatch] Edge function dispatch fallback:', _wabaErr);
           }
