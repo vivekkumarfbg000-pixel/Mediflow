@@ -493,7 +493,7 @@ export const SystemHealthCockpit: React.FC = () => {
 
         {/* ── Subsystem Live Diagnostic Inspector Modal ────────────────────────── */}
         {selectedNode && (
-          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 relative">
               {/* Header */}
               <div className="flex items-start justify-between">
@@ -567,7 +567,7 @@ export const SystemHealthCockpit: React.FC = () => {
                     }
                   }}
                   disabled={isTestingNode}
-                  className="flex h-10 items-center gap-2 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs cursor-pointer shadow-md disabled:opacity-50"
+                  className="flex h-10 items-center justify-center gap-2 w-full px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs cursor-pointer shadow-md disabled:opacity-50"
                 >
                   <Zap className={`h-4 w-4 ${isTestingNode ? 'animate-spin' : ''}`} />
                   {isTestingNode ? 'Running Ping...' : 'Run Deep Diagnostic Test'}

@@ -85,7 +85,7 @@ const getLoginAttempts = (): LoginAttempt[] => {
   try {
     const raw = localStorage.getItem('mediflow_login_attempts');
     return raw ? JSON.parse(raw) : [];
-  } catch {
+  } catch (_err) {
     return [];
   }
 };
@@ -709,7 +709,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           setTimeout(() => resolve({ allowed: true }), 5000) // silent pass-through on timeout
         );
         check = await Promise.race([verifyLoginAllowed(email), sentryTimeout]);
-      } catch {
+      } catch (_err) {
         // If sentry check fails entirely, allow login to proceed (don't block on infra issue)
         check = { allowed: true };
       }
@@ -863,7 +863,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           setTimeout(() => resolve({ allowed: true }), 5000)
         );
         check = await Promise.race([verifyLoginAllowed(email), sentryTimeout]);
-      } catch {
+      } catch (_err) {
         check = { allowed: true };
       }
 
