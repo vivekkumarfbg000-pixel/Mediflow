@@ -2691,6 +2691,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
               </form>
             </div>
           </div>
+        )}
+
         {/* ── VIP Clinic White-Labeling Branding Modal ─────────────────────────── */}
         {isWhiteLabelModalOpen && selectedWhiteLabelPod && (
           <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in text-slate-800">
