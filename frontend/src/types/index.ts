@@ -107,6 +107,7 @@ export interface WhatsAppSession {
     | 'AWAITING_RESCHEDULE_TIME';
   lastInteraction: string;
   sessionData: WhatsAppSessionData;
+  session_data?: WhatsAppSessionData;
   isActive?: boolean;
 }
 
