@@ -465,7 +465,40 @@ export const DoctorDashboard: React.FC = () => {
       },
       onPatientChange: () => syncDashboardData(),
       onMedicineBillChange: () => syncDashboardData(),
-      onLabRequisitionChange: () => syncDashboardData()
+      onLabRequisitionChange: () => syncDashboardData(),
+      onWhatsAppSessionChange: (payload) => {
+        console.log('[DoctorDashboard] Realtime WhatsApp Session update received:', payload);
+        const dbSession = payload.new;
+        if (dbSession) {
+          const formatted = {
+            id: dbSession.id,
+            patientPhone: dbSession.patient_phone,
+            patientId: dbSession.patient_id,
+            currentState: dbSession.current_state,
+            lastInteraction: dbSession.last_interaction,
+            sessionData: dbSession.session_data || {},
+            session_data: dbSession.session_data || {}
+          };
+          
+          const allSessions = WhatsAppService.getWhatsAppSessions();
+          const idx = allSessions.findIndex(s => s.id === dbSession.id || s.patientPhone === dbSession.patient_phone);
+          if (idx !== -1) {
+            allSessions[idx] = formatted;
+          } else {
+            allSessions.push(formatted);
+          }
+          WhatsAppService.saveWhatsAppSessions(allSessions);
+
+          // Update active selected chat session panel in real-time
+          setSelectedChatSession((prev: any) => {
+            if (prev && (prev.id === formatted.id || prev.patientPhone === formatted.patientPhone)) {
+              return formatted;
+            }
+            return prev;
+          });
+        }
+        syncDashboardData();
+      }
     });
 
     const apiUnsub = api.subscribe(syncDashboardData);

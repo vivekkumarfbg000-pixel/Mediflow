@@ -5,6 +5,7 @@ export interface RealtimeSubscriptionHandlers {
   onMedicineBillChange?: (payload: any) => void;
   onLabRequisitionChange?: (payload: any) => void;
   onPatientChange?: (payload: any) => void;
+  onWhatsAppSessionChange?: (payload: any) => void;
   onStatusChange?: (status: 'connected' | 'reconnecting' | 'disconnected') => void;
 }
 
@@ -62,6 +63,14 @@ export class RealtimeSyncService {
         (payload) => {
           console.log('[RealtimeSync] Patient Registry change detected:', payload);
           this.savedHandlers?.onPatientChange?.(payload);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whatsapp_sessions' },
+        (payload) => {
+          console.log('[RealtimeSync] WhatsApp Session change detected:', payload);
+          this.savedHandlers?.onWhatsAppSessionChange?.(payload);
         }
       )
       .subscribe((status, err) => {
