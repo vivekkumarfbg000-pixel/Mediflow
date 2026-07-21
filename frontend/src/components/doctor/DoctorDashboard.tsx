@@ -1828,15 +1828,10 @@ Keep the tone professional, clinical, objective, and precise.`;
             >
               ✕
             </button>
-            <ClinicPlacardGenerator podInfo={{
-              id: activePod?.id || 'demo-pod',
-              clinic_code: activePod?.clinicCode || 'MF-PATNA101',
-              name: activePod?.name || 'Apex Super Specialty Care',
-              location: 'Patna, Bihar',
-              is_verified_for_billing: true,
-              lifetime_platform_revenue: 0,
-              pending_cash_balance: 0
-            }} />
+            <ClinicPlacardGenerator
+              clinicName={activePod?.name || 'Apex Super Specialty Care'}
+              activeWabaNumber="+91 98765 43210"
+            />
           </div>
         </div>
       )}
