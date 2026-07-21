@@ -1288,21 +1288,6 @@ export const SaaSAdminPanel: React.FC = () => {
                     </table>
                   </div>
                 </div>
-                                    type="button"
-                                    onClick={() => settleCashBalance(pod.id, pod.name)}
-                                    className="text-[10px] font-black text-indigo-650 hover:text-indigo-850 uppercase cursor-pointer"
-                                  >
-                                    Settle
-                                  </button>
-                                </>
-                              ) : null}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
 
                 {/* Synthetic User Profile Generation Control Panel */}
                 <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
