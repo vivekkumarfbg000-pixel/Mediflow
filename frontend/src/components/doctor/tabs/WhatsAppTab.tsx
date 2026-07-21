@@ -80,11 +80,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const [onboardError, setOnboardError] = useState('');
   const [otpMethod, setOtpMethod] = useState<'SMS' | 'VOICE'>('SMS');
 
-  // Direct Meta Credentials Settings Modal
-  const [isMetaSettingsOpen, setIsMetaSettingsOpen] = useState(false);
-  const [metaPhoneInput, setMetaPhoneInput] = useState(activeWabaConnection?.phone_number || '+91 98765 43210');
-  const [metaPhoneIdInput, setMetaPhoneIdInput] = useState(activeWabaConnection?.phone_number_id || '105829471928374');
-  const [metaTokenInput, setMetaTokenInput] = useState(activeWabaConnection?.access_token || '');
 
   // Filter sessions based on search
   const filteredSessions = whatsAppSessions.filter(s => {
@@ -124,29 +119,28 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <button
               type="button"
               onClick={async () => {
-                  if (window.confirm("Are you sure you want to disconnect this live WhatsApp business channel? AI automations will revert to simulator mode.")) {
-                    setActiveWabaConnection(null);
-                    try {
-                      await supabase
-                        .from('waba_connections')
-                        .delete()
-                        .eq('id', activeWabaConnection.id);
-                    } catch (_e) {}
+                if (window.confirm("Are you sure you want to disconnect this live WhatsApp business channel? AI automations will revert to simulator mode.")) {
+                  setActiveWabaConnection(null);
+                  try {
+                    await supabase
+                      .from('waba_connections')
+                      .delete()
+                      .eq('id', activeWabaConnection.id);
+                  } catch (_e) {}
 
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Channel Disconnected! 🔴',
-                        message: 'Meta Cloud API channel detached successfully.',
-                        type: 'info'
-                      }
-                    }));
-                  }
-                }}
-                className="px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-              >
-                Disconnect Channel
-              </button>
-            </div>
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Channel Disconnected! 🔴',
+                      message: 'Meta Cloud API channel detached successfully.',
+                      type: 'info'
+                    }
+                  }));
+                }
+              }}
+              className="px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+            >
+              Disconnect Channel
+            </button>
           </div>
         ) : (
           <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-xs rounded-3xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
