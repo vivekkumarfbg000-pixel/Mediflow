@@ -5,13 +5,33 @@ import { api } from './services/api';
 import { StateHealingEngine, ProactiveHealthMonitor } from './services/autoHealerAgent';
 import { PwaSyncManager } from './pwa';
 
-const CompounderDashboard = lazy(() => import('./components/compounder/CompounderDashboard').then(m => ({ default: m.CompounderDashboard })));
-const DoctorDashboard = lazy(() => import('./components/doctor/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
-const LabDashboard = lazy(() => import('./components/lab/LabDashboard').then(m => ({ default: m.LabDashboard })));
-const PharmacyDashboard = lazy(() => import('./components/pharmacy/PharmacyDashboard').then(m => ({ default: m.PharmacyDashboard })));
-const BillingDashboard = lazy(() => import('./components/billing/BillingDashboard').then(m => ({ default: m.BillingDashboard })));
-const SaaSAdminPanel = lazy(() => import('./components/admin/SaaSAdminPanel').then(m => ({ default: m.SaaSAdminPanel })));
-const RefractionDashboard = lazy(() => import('./components/doctor/RefractionDashboard').then(m => ({ default: m.RefractionDashboard })));
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    try {
+      const component = await factory();
+      sessionStorage.removeItem('vitalsync_chunk_refreshed');
+      return component;
+    } catch (error: any) {
+      console.warn('[Auto-Healer] Dynamic chunk import failed. Triggering seamless page refresh...');
+      const hasRefreshed = sessionStorage.getItem('vitalsync_chunk_refreshed');
+      if (!hasRefreshed) {
+        sessionStorage.setItem('vitalsync_chunk_refreshed', 'true');
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
+}
+
+const CompounderDashboard = lazyWithRetry(() => import('./components/compounder/CompounderDashboard').then(m => ({ default: m.CompounderDashboard })));
+const DoctorDashboard = lazyWithRetry(() => import('./components/doctor/DoctorDashboard').then(m => ({ default: m.DoctorDashboard })));
+const LabDashboard = lazyWithRetry(() => import('./components/lab/LabDashboard').then(m => ({ default: m.LabDashboard })));
+const PharmacyDashboard = lazyWithRetry(() => import('./components/pharmacy/PharmacyDashboard').then(m => ({ default: m.PharmacyDashboard })));
+const BillingDashboard = lazyWithRetry(() => import('./components/billing/BillingDashboard').then(m => ({ default: m.BillingDashboard })));
+const SaaSAdminPanel = lazyWithRetry(() => import('./components/admin/SaaSAdminPanel').then(m => ({ default: m.SaaSAdminPanel })));
+const RefractionDashboard = lazyWithRetry(() => import('./components/doctor/RefractionDashboard').then(m => ({ default: m.RefractionDashboard })));
 
 import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
