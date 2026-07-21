@@ -88,7 +88,7 @@ export class WhatsAppSupportBotService {
     ) {
       try {
         await supabase.rpc('trigger_devsecops_auto_heal');
-        await StateHealingEngine.healLocalSessionState();
+        await StateHealingEngine.handleException(new Error('WhatsApp Bot Requested On-Demand Pod Auto-Heal Scan'));
       } catch (_e) {}
 
       const autoHealResp = `📊 *VITALSYNC AUTONOMOUS DIAGNOSTIC REPORT* ⚡\n──────────────────────────────────\n🟢 *System Uptime*      : 99.94% Nominal\n⚡ *Database Latency*   : 1.2ms (Zero Drift)\n🔒 *RLS Isolation*      : 100% Verified\n🏥 *Pod Health Status*  : REJUVENATED & OPERATIONAL\n──────────────────────────────────\nNamaste ${senderInfo.name}!\n\nOur 24/7 Autonomous DevSecOps Sentry detected a transient sync lock on your clinic pod (*${senderInfo.clinicName}*) and executed an instant 240ms auto-heal cycle.\n\n✅ *Action Taken*: Flushed orphaned sync locks & rejuvenated active sessions.\n\nPlease refresh your page now!`;
