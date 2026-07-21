@@ -29,7 +29,8 @@ import {
   Trash2,
   LockKeyhole,
   LogOut,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react';
 
 interface OnboardingStats {
