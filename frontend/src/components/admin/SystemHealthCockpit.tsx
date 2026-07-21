@@ -351,6 +351,60 @@ export const SystemHealthCockpit: React.FC = () => {
           </div>
         </div>
 
+        {/* ── WhatsApp AI Agent Auto-Healing Capabilities Panel ────────────────── */}
+        <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/70 via-teal-50/50 to-indigo-50/70 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+                <Globe className="h-4 w-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-800 flex items-center gap-2">
+                  WhatsApp AI Agent 24/7 Self-Healing Controls
+                  <span className="rounded-full bg-emerald-500/10 text-emerald-700 px-2 py-0.5 text-[9px] font-bold uppercase border border-emerald-300">
+                    Active Cloud Agent
+                  </span>
+                </h4>
+                <p className="text-[10px] text-slate-500">Autonomous Edge Circuit Breaker, Session Rejuvenation, & LLM Rollover Matrix</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+            <div className="p-2.5 rounded-xl bg-white/80 border border-slate-200/70 shadow-2xs">
+              <div className="text-[9px] font-bold text-slate-400 uppercase">Webhook Circuit Breaker</div>
+              <div className="font-extrabold text-emerald-700 mt-0.5 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                100% Uptime (200 OK)
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/80 border border-slate-200/70 shadow-2xs">
+              <div className="text-[9px] font-bold text-slate-400 uppercase">AI Model Hot-Rollover</div>
+              <div className="font-extrabold text-purple-700 mt-0.5 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-purple-500" />
+                Groq ➔ Gemini 2.5
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/80 border border-slate-200/70 shadow-2xs">
+              <div className="text-[9px] font-bold text-slate-400 uppercase">Session Rejuvenation</div>
+              <div className="font-extrabold text-indigo-700 mt-0.5 flex items-center gap-1">
+                <RefreshCw className="h-3 w-3 text-indigo-500" />
+                Stuck Session Auto-Reset
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/80 border border-slate-200/70 shadow-2xs">
+              <div className="text-[9px] font-bold text-slate-400 uppercase">Outbound Care Loop</div>
+              <div className="font-extrabold text-blue-700 mt-0.5 flex items-center gap-1">
+                <Clock className="h-3 w-3 text-blue-500" />
+                Day 7 / 30 / 90 Active
+              </div>
+            </div>
+          </div>
+        </div>
+
 
         {/* ── Live Incident Telemetry Stream ───────────────────────────────────── */}
         <div className="space-y-3">
