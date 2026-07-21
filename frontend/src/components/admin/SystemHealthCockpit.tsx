@@ -210,20 +210,20 @@ export const SystemHealthCockpit: React.FC = () => {
       <div className="p-6 space-y-6">
 
         {/* ── Header ──────────────────────────────────────────────────────────── */}
-        <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-slate-50/70 rounded-2xl border border-slate-200/60">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20 shrink-0">
               <Shield className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-800 text-sm tracking-tight flex items-center gap-2 flex-wrap">
+              <h3 className="font-extrabold text-slate-800 text-xs tracking-tight flex items-center gap-2 flex-wrap">
                 VitalSync Auto-Healer Agent
                 <span className="flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-[9px] font-bold text-emerald-700 tracking-wider uppercase animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                   Live 24/7
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              <p className="text-[10.5px] text-slate-500 font-medium mt-0.5">
                 Autonomous DevSecOps self-healing cockpit — real-time incident telemetry stream
               </p>
             </div>
@@ -234,7 +234,7 @@ export const SystemHealthCockpit: React.FC = () => {
               type="button"
               onClick={runHealthChecks}
               disabled={isRefreshing}
-              className="flex h-9 items-center gap-1.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[85px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -244,7 +244,7 @@ export const SystemHealthCockpit: React.FC = () => {
               type="button"
               onClick={() => fetchTelemetryLogs()}
               disabled={isRefreshing}
-              className="flex h-9 items-center gap-1.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[100px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
               <Activity className="h-3.5 w-3.5" />
               Reload Logs
@@ -269,7 +269,7 @@ export const SystemHealthCockpit: React.FC = () => {
                 }
               }}
               disabled={isHealing}
-              className="flex h-9 items-center gap-1.5 px-3.5 rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 text-xs font-bold disabled:opacity-50 transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 items-center justify-center gap-1.5 px-3.5 min-w-[155px] rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 text-[11px] font-extrabold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
               <Zap className={`h-3.5 w-3.5 ${isHealing ? 'animate-spin text-purple-600' : 'text-purple-600'}`} />
               {isHealing ? 'Healing...' : 'Trigger Auto-Heal Pass'}

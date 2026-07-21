@@ -771,20 +771,20 @@ export const SaaSAdminPanel: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
               type="button"
               onClick={fetchSaaSMetrics}
               disabled={metricsLoading}
-              className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 text-xs font-semibold disabled:opacity-50 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-xs"
+              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[110px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
-              <RefreshCw className={`h-3.5 w-3.5 text-indigo-550 ${metricsLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 text-indigo-600 ${metricsLoading ? 'animate-spin' : ''}`} />
               Sync Metrics
             </button>
             <button
               type="button"
               onClick={handleSignOut}
-              className="flex h-9 items-center gap-1.5 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shadow-xs"
+              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[95px] rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sign Out
