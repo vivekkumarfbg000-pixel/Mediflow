@@ -501,6 +501,25 @@ async def generate_consult_room(req: ConsultRoomRequest):
 async def health_check():
     return JSONResponse(content={"status": "ok"})
 
+# Autonomous Auto-Healer Endpoint
+@app.post("/api/auto-heal")
+@app.get("/api/auto-heal")
+async def trigger_auto_healer():
+    try:
+        from app.auto_healer_agent import WhatsAppAutoHealerAgent
+        healer = WhatsAppAutoHealerAgent()
+        health = healer.ping_edge_function()
+        repaired = healer.inspect_and_heal_telemetry()
+        return JSONResponse(content={
+            "success": True,
+            "edge_function_status": health,
+            "incidents_repaired": repaired,
+            "message": "Autonomous auto-healer health pass completed successfully."
+        })
+    except Exception as e:
+        logger.error(f"Auto-healer trigger error: {str(e)}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
 # Root check to handle UptimeRobot HEAD/GET requests
 @app.get("/")
 @app.head("/")
