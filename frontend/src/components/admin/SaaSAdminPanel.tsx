@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { SystemHealthCockpit } from './SystemHealthCockpit';
 import { api } from '../../services/api';
+import { WhatsAppSupportBotService, type SupportEscalationTicket } from '../../services/whatsappSupportBotService';
 import { 
   ShieldAlert, 
   Lock, 
@@ -167,6 +168,18 @@ export const SaaSAdminPanel: React.FC = () => {
   const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState<boolean>(false);
   const [selectedWhiteLabelPod, setSelectedWhiteLabelPod] = useState<PodInfo | null>(null);
   const [whiteLabelForm, setWhiteLabelForm] = useState({ logoUrl: '', headerText: '', rxFooter: '' });
+
+  // WhatsApp Autonomous Support Escalation Tickets State
+  const [supportTickets, setSupportTickets] = useState<SupportEscalationTicket[]>([]);
+
+  useEffect(() => {
+    const loadTickets = () => {
+      setSupportTickets(WhatsAppSupportBotService.getEscalationTickets());
+    };
+    loadTickets();
+    window.addEventListener('mediflow-support-ticket-updated', loadTickets);
+    return () => window.removeEventListener('mediflow-support-ticket-updated', loadTickets);
+  }, []);
 
   // Security Sentry: RLS compliance
   const [complianceList, setComplianceList] = useState<RlsComplianceAudit[]>([]);
@@ -1354,6 +1367,51 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
             })}
           </div>
         </div>
+
+        {/* ── Urgent WhatsApp Support Escalation Tickets Banner ────────────────── */}
+        {supportTickets.filter(t => t.status === 'open').length > 0 && (
+          <div className="p-5 bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-rose-500/10 border border-rose-300 rounded-3xl space-y-3 animate-fade-in text-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <ShieldAlert className="h-5 w-5 text-rose-600 shrink-0" />
+                <div>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    Urgent WhatsApp Escalations — Platform Owner Action Required
+                    <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-extrabold uppercase animate-pulse">
+                      {supportTickets.filter(t => t.status === 'open').length} Open Tickets
+                    </span>
+                  </h4>
+                  <p className="text-[10.5px] text-slate-500 font-medium">WhatsApp Support Bot escalated these client requests for manual owner approval.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {supportTickets.filter(t => t.status === 'open').map(tkt => (
+                <div key={tkt.id} className="p-3.5 bg-white border border-rose-200 rounded-2xl flex flex-col justify-between space-y-2.5 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-mono text-[10px] font-black text-rose-600 uppercase">{tkt.id}</span>
+                      <h5 className="font-extrabold text-xs text-slate-850">{tkt.clinic_name} ({tkt.doctor_name})</h5>
+                      <p className="text-[11px] text-slate-600 leading-snug mt-1 italic font-sans">"{tkt.query_text}"</p>
+                    </div>
+                    <span className="text-[9px] font-mono text-slate-400 shrink-0">{new Date(tkt.created_at).toLocaleTimeString()}</span>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => WhatsAppSupportBotService.resolveTicket(tkt.id, 'Request Approved & Credentials Provisioned.')}
+                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase rounded-lg cursor-pointer shadow-xs transition-all"
+                    >
+                      Approve & Reply WhatsApp
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Active Workspace Screen ─────────────────────────────────────────── */}
         <div className="space-y-6 pb-20 lg:pb-0">

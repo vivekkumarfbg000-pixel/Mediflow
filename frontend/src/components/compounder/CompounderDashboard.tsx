@@ -31,6 +31,7 @@ import type {
 import { BillHubTab } from './tabs/BillHubTab';
 import { InvoiceCard } from '../InvoiceCard';
 import { PatientsDirectoryTab } from '../doctor/tabs/PatientsDirectoryTab';
+import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
 import { 
   Smartphone, 
   Upload, 
@@ -3313,6 +3314,9 @@ export const CompounderDashboard: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Floating 24/7 Mediflow AI Support Widget */}
+      <WhatsAppSupportModal userRole="compounder" userName="Compounder Desk" clinicName="Apex Care Clinic" />
     </div>
   );
 };

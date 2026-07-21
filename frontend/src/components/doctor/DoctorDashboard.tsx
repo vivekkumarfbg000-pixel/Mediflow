@@ -23,6 +23,7 @@ import { ClinicPlacardGenerator } from '../admin/ClinicPlacardGenerator';
 import { PodCommandCenter } from '../admin/PodCommandCenter';
 import { OphthalmologyPatientAnalysisPanel } from './OphthalmologyPatientAnalysisPanel';
 import { CommandPalette } from '../ui/CommandPalette';
+import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
 
 const ConsultationTab = React.lazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
 const FinancialsTab = React.lazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
@@ -1767,6 +1768,9 @@ Keep the tone professional, clinical, objective, and precise.`;
           setActiveTab('consultation');
         }}
       />
+
+      {/* Floating 24/7 Mediflow AI Support Widget */}
+      <WhatsAppSupportModal userRole="doctor" userName="Dr. Doctor" clinicName="Apex Medical Center" />
     </div>
   );
 };
