@@ -86,13 +86,8 @@ export class WhatsAppService {
             }
           }
 
-          // Dispatch real HTTP POST payload to Meta Graph API and Supabase Edge Function Relay
+          // Dispatch real HTTP POST payload via Supabase Edge Function Relay (Vault Secrets)
           try {
-            const wabaRaw = localStorage.getItem('vitalsync_waba_connection');
-            const wabaConn = wabaRaw ? JSON.parse(wabaRaw) : null;
-            const token = wabaConn?.access_token || (import.meta as any).env?.VITE_META_WHATSAPP_TOKEN;
-            const phoneId = wabaConn?.phone_number_id || (import.meta as any).env?.VITE_META_PHONE_NUMBER_ID;
-
             let cleanToPhone = phone.replace(/[^0-9]/g, '');
             if (cleanToPhone.length === 10) {
               cleanToPhone = '91' + cleanToPhone;
@@ -100,40 +95,17 @@ export class WhatsAppService {
 
             const msgBody = variables?.replyText || 'Hello from VitalSync Smart Clinic';
 
-            // 1. Direct Meta Graph API POST if credentials exist on client
-            if (token && phoneId) {
-              try {
-                const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    messaging_product: 'whatsapp',
-                    to: cleanToPhone,
-                    type: 'text',
-                    text: { body: msgBody }
-                  })
-                });
-                const resData = await res.json();
-                console.log(`[VitalSync Outgoing Dispatch] Meta Direct API Status: ${res.status}`, resData);
-              } catch (_e) {}
-            }
-
-            // 2. Dual Relay via Supabase Edge Function (uses META_WHATSAPP_TOKEN in Vault)
-            try {
-              await supabase.functions.invoke('meta-webhook', {
-                body: {
-                  action: 'send_manual_message',
-                  patientPhone: cleanToPhone,
-                  messageText: msgBody
-                }
-              });
-            } catch (_e) {}
-
+            // Secure Server-Side Relay via Supabase Edge Function
+            const { supabase: sb } = await import('../lib/supabaseClient');
+            await sb.functions.invoke('meta-webhook', {
+              body: {
+                action: 'send_manual_message',
+                patientPhone: cleanToPhone,
+                messageText: msgBody
+              }
+            });
           } catch (_wabaErr) {
-            console.warn('[VitalSync Outgoing Dispatch] Meta Cloud API HTTP dispatch fallback:', _wabaErr);
+            console.warn('[VitalSync Outgoing Dispatch] Edge function dispatch fallback:', _wabaErr);
           }
 
           await new Promise(r => setTimeout(r, 50));
