@@ -85,13 +85,49 @@ export function load<T>(key: string, defaultValue: T): T {
   return parsed;
 }
 
+// ── Phase 2: Storage Quota Janitor & LRU Pruner ────────────────────────────
+export function runStorageJanitor(): void {
+  try {
+    console.warn('[VitalSync SecOps] 🧹 Storage quota limit approaching. Executing Autonomous LRU Pruner...');
+    
+    // Prune support tickets older than 7 days
+    const ticketsRaw = localStorage.getItem('vitalsync_support_tickets') || localStorage.getItem('mediflow_support_tickets');
+    if (ticketsRaw) {
+      try {
+        const tickets = JSON.parse(ticketsRaw);
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const freshTickets = tickets.filter((t: any) => new Date(t.created_at).getTime() > sevenDaysAgo);
+        localStorage.setItem('vitalsync_support_tickets', JSON.stringify(freshTickets));
+      } catch (_e) {}
+    }
+
+    // Clear temporary non-critical keys
+    const keysToEvict = ['mediflow_temp_ocr_buffer', 'vitalsync_draft_rx', 'mediflow_telemetry_cache'];
+    keysToEvict.forEach(k => localStorage.removeItem(k));
+  } catch (janitorErr) {
+    console.error('[VitalSync SecOps] Storage janitor failed:', janitorErr);
+  }
+}
+
 export function save<T>(key: string, value: T): void {
   try {
     const serialized = JSON.stringify(value);
     const encrypted = obfuscate(serialized);
     localStorage.setItem(getStorageKey(key), encrypted);
-  } catch (err) {
-    console.error(`[Mediflow SecOps] Local storage save failed for key "${key}":`, err);
+  } catch (err: any) {
+    if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.message?.includes('quota')) {
+      console.warn(`[VitalSync SecOps] QuotaExceededError writing "${key}". Triggering LRU Storage Janitor...`);
+      runStorageJanitor();
+      try {
+        const serialized = JSON.stringify(value);
+        const encrypted = obfuscate(serialized);
+        localStorage.setItem(getStorageKey(key), encrypted);
+      } catch (retryErr) {
+        console.error(`[VitalSync SecOps] Critical storage exhaustion. Key "${key}" saved in-memory only:`, retryErr);
+      }
+    } else {
+      console.error(`[VitalSync SecOps] Local storage save failed for key "${key}":`, err);
+    }
   }
   storageCache.set(key, value);
 }

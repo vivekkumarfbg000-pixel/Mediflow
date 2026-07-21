@@ -808,6 +808,22 @@ export class ProactiveHealthMonitor {
     }
   }
 
+// ── Phase 5: Field-Level CRDT Non-Destructive Offline Data Merger ────────────
+export function mergeFieldLevelCRDT<T extends Record<string, any>>(onlineTarget: T, offlineSource: Partial<T>): T {
+  const merged = { ...onlineTarget };
+  for (const key of Object.keys(offlineSource)) {
+    const val = offlineSource[key];
+    if (val !== undefined && val !== null) {
+      if (typeof val === 'object' && !Array.isArray(val) && typeof merged[key] === 'object') {
+        merged[key as keyof T] = { ...merged[key], ...val };
+      } else {
+        merged[key as keyof T] = val;
+      }
+    }
+  }
+  return merged;
+}
+
   /** Replays unsynced telemetry entries from IndexedDB queue to database */
   static async replayTelemetryOutbox(): Promise<void> {
     try {

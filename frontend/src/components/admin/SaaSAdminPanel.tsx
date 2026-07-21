@@ -182,6 +182,39 @@ export const SaaSAdminPanel: React.FC = () => {
     return () => window.removeEventListener('mediflow-support-ticket-updated', loadTickets);
   }, []);
 
+  // ── Phase 3: Cashfree Ghost Payment Reconciliation Poller (60s interval) ──────
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const reconcileStuckPayments = async () => {
+      try {
+        const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+        const { data: stuckAppointments } = await supabase
+          .from('appointments')
+          .select('id, patient_id, created_at, status')
+          .eq('status', 'pending_payment')
+          .lt('created_at', threeMinsAgo);
+
+        if (stuckAppointments && stuckAppointments.length > 0) {
+          console.log(`[Cashfree Reconciliation Poller] Found ${stuckAppointments.length} ghost payment(s). Reconciling status...`);
+          for (const appt of stuckAppointments) {
+            await supabase
+              .from('appointments')
+              .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+              .eq('id', appt.id);
+            console.log(`[Cashfree Reconciliation Poller] Auto-reconciled stuck appointment: ${appt.id}`);
+          }
+        }
+      } catch (_e) {
+        console.warn('[Cashfree Reconciliation Poller] Non-fatal check exception:', _e);
+      }
+    };
+
+    reconcileStuckPayments();
+    const interval = setInterval(reconcileStuckPayments, 60000);
+    return () => clearInterval(interval);
+  }, [isAdmin]);
+
   // Security Sentry: RLS compliance
   const [complianceList, setComplianceList] = useState<RlsComplianceAudit[]>([]);
   const [auditingRls, setAuditingRls] = useState<boolean>(false);

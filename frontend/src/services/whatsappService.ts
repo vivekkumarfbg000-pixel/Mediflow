@@ -26,19 +26,45 @@ export class WhatsAppService {
     notify();
   }
 
+  // ── Phase 4: Leaky-Bucket Rate-Limited Dispatch Queue (Max 15 msgs/sec) ────
+  private static dispatchQueue: Array<() => Promise<any>> = [];
+  private static isProcessingQueue = false;
+
+  private static async processLeakyBucketQueue() {
+    if (this.isProcessingQueue) return;
+    this.isProcessingQueue = true;
+
+    while (this.dispatchQueue.length > 0) {
+      const task = this.dispatchQueue.shift();
+      if (task) {
+        try {
+          await task();
+        } catch (_e) {}
+        // Enforce 66ms spacing (15 messages/second limit to prevent Meta WABA HTTP 429 bans)
+        await new Promise(r => setTimeout(r, 66));
+      }
+    }
+    this.isProcessingQueue = false;
+  }
+
   static async sendWhatsAppMessagePayload(
     phone: string,
     templateName: string,
     variables: Record<string, any>
   ): Promise<boolean> {
-    try {
-      console.log(`[Mediflow Outgoing Dispatch] API template: ${templateName} target: [REDACTED_PHONE]`);
-      await new Promise(r => setTimeout(r, 200));
-      return true;
-    } catch (e) {
-      console.error("[Mediflow WhatsApp Bot] Outgoing dispatch error:", e);
-      return false;
-    }
+    return new Promise((resolve) => {
+      this.dispatchQueue.push(async () => {
+        try {
+          console.log(`[VitalSync Outgoing Dispatch] API template: ${templateName} target: [REDACTED_PHONE]`);
+          await new Promise(r => setTimeout(r, 50));
+          resolve(true);
+        } catch (e) {
+          console.error("[VitalSync WhatsApp Bot] Outgoing dispatch error:", e);
+          resolve(false);
+        }
+      });
+      this.processLeakyBucketQueue();
+    });
   }
 
   static async processIncomingWhatsAppMessage(phone: string, text: string): Promise<void> {
