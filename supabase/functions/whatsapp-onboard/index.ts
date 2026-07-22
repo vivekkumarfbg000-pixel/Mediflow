@@ -94,6 +94,7 @@ serve(async (req) => {
         body: JSON.stringify({
           cc: countryCode,
           phone_number: localNumber,
+          verified_name: clinicName,
           migrate_whatsapp_number: false // Set true if number was on personal WhatsApp
         })
       });
