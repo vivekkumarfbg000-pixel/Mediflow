@@ -255,12 +255,13 @@ serve(async (req) => {
       const currentTime = new Date().toISOString();
 
       if (sessErr || !session) {
-        // Find patient in registry to link profile
+        // Find patient in registry to link profile (flexible 10-digit/12-digit matching)
+        const clean10Digits = patientPhone.replace(/\D/g, "").slice(-10);
         const { data: patient } = await supabase
           .from("patient_registry")
           .select("id")
-          .eq("phone", patientPhone)
-          .single();
+          .or(`phone.eq.${clean10Digits},phone.eq.${patientPhone},phone.eq.91${clean10Digits},phone.eq.+91${clean10Digits}`)
+          .maybeSingle();
 
         const newId = crypto.randomUUID();
         const { data: newSess, error: createSessErr } = await supabase

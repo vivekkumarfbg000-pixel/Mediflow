@@ -136,8 +136,12 @@ export class WhatsAppService {
       const cleaned = text.trim().toLowerCase();
       const sessions = this.getWhatsAppSessions();
       
-      // Check if patient exists in registry
-      const patient = PatientService.getPatients().find(p => p.phone === phone);
+      // Check if patient exists in registry (flexible 10-digit matching)
+      const incomingLast10 = phone.replace(/\D/g, '').slice(-10);
+      const patient = PatientService.getPatients().find(p => {
+        const pDigits = p.phone.replace(/\D/g, '').slice(-10);
+        return pDigits === incomingLast10;
+      });
       if (!patient) {
         // Unregistered patient!
         const welcomeText = `⚠️ *Profile Not Found!* \n\nNamaste! Aapka contact number humare clinic database mein registered nahi hai. \n\nWhatsApp par appointment book karne ke liye, please pehle is link par click karke manually register kijiye: \n🔗 https://mediflow.in/register?phone=${phone} \n\nRegistration complete hone ke baad hume dobara message kijiye!`;
