@@ -369,18 +369,23 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         WhatsAppService.saveWhatsAppSessions(allSessions);
                       }
 
-                      // 3. Non-blocking Supabase sync
+                      // 3. Non-blocking Supabase sync with patient_phone fallback
                       try {
-                        await supabase
-                          .from('whatsapp_sessions')
-                          .update({
-                            session_data: {
-                              ...sessionData,
-                              humanOverride: updatedOverride,
-                              human_override_started_at: updatedOverride ? new Date().toISOString() : null
-                            }
-                          })
-                          .eq('id', activeChat.id);
+                        const targetDigits = (activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '').replace(/\D/g, '').slice(-10);
+                        const sPayload = {
+                          session_data: {
+                            ...sessionData,
+                            humanOverride: updatedOverride,
+                            human_override_started_at: updatedOverride ? new Date().toISOString() : null
+                          }
+                        };
+
+                        if (activeChat.id) {
+                          await supabase.from('whatsapp_sessions').update(sPayload).eq('id', activeChat.id);
+                        }
+                        if (targetDigits) {
+                          await supabase.from('whatsapp_sessions').update(sPayload).like('patient_phone', `%${targetDigits}%`);
+                        }
                       } catch (_e) {}
 
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {

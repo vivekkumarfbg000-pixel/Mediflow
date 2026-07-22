@@ -350,7 +350,7 @@ serve(async (req) => {
         // Session exists. Update history log.
         const sessionData = session.session_data ?? {};
         const chatHistory = sessionData.chatHistory ?? [];
-        chatHistory.push({ sender: "patient", text: messageText, timestamp: currentTime });
+        chatHistory.push({ sender: "patient", text: messageText, timestamp: currentTime, time: currentTime });
 
         const updatedData = {
           ...sessionData,
