@@ -481,15 +481,19 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         replyText: textToSend
                       });
 
-                      // 4. Non-blocking Supabase sync
+                      // 4. Non-blocking Supabase sync with patient_phone fallback
                       try {
-                        await supabase
-                          .from('whatsapp_sessions')
-                          .update({
-                            session_data: { ...sessionData, chatHistory },
-                            last_interaction: currentTime
-                          })
-                          .eq('id', activeChat.id);
+                        const sPayload = {
+                          session_data: { ...sessionData, chatHistory, humanOverride: true, human_override_started_at: currentTime },
+                          last_interaction: currentTime
+                        };
+
+                        if (activeChat.id) {
+                          await supabase.from('whatsapp_sessions').update(sPayload).eq('id', activeChat.id);
+                        }
+                        if (targetDigits) {
+                          await supabase.from('whatsapp_sessions').update(sPayload).like('patient_phone', `%${targetDigits}%`);
+                        }
                       } catch (_e) {}
 
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
