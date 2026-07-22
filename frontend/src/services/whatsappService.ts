@@ -88,7 +88,12 @@ export class WhatsAppService {
 
           // Dispatch real HTTP POST payload via Supabase Edge Function Relay (Vault Secrets)
           try {
-            let cleanToPhone = phone.replace(/[^0-9]/g, '');
+            let cleanToPhone = (phone || '').replace(/[^0-9]/g, '');
+            if (!cleanToPhone) {
+              console.warn('[VitalSync Outgoing Dispatch] Target phone is empty/undefined. Aborting dispatch.');
+              resolve(false);
+              return;
+            }
             if (cleanToPhone.length === 10) {
               cleanToPhone = '91' + cleanToPhone;
             }

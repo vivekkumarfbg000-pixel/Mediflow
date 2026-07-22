@@ -468,8 +468,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         WhatsAppService.saveWhatsAppSessions(allSessions);
                       }
 
-                      // 3. Dispatch payload
-                      await api.sendWhatsAppMessagePayload(activeChat.patientPhone, 'custom_manual_reply', {
+                      // 3. Dispatch payload with multi-property phone fallback
+                      const targetPhone = activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '';
+                      await api.sendWhatsAppMessagePayload(targetPhone, 'custom_manual_reply', {
                         replyText: textToSend
                       });
 
