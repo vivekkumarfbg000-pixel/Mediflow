@@ -111,11 +111,25 @@ serve(async (req) => {
       if (payload.action === "send_manual_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
-        const systemToken = payload.systemToken || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN");
-        const phoneId = payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID");
+        const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || payload.phoneId || payload.phoneNumberId;
+        let systemToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || payload.systemToken || payload.token;
+
+        // Direct DB fallback query if systemToken is not provided in env vars or payload
+        if (!systemToken && phoneId) {
+          try {
+            const { data: dbConn } = await supabase
+              .from("waba_connections")
+              .select("encrypted_system_user_token")
+              .eq("phone_number_id", phoneId)
+              .maybeSingle();
+            if (dbConn?.encrypted_system_user_token) {
+              systemToken = dbConn.encrypted_system_user_token;
+            }
+          } catch (_e) {}
+        }
 
         if (!systemToken || !phoneId) {
-          console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN/META_ACCESS_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault or payload.");
+          console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault or payload.");
           return new Response(JSON.stringify({ error: "Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault or payload" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -127,7 +141,7 @@ serve(async (req) => {
 
         console.log(`[Meta Webhook Outbound Relay] Dispatching text to ${cleanPhone} via phoneId ${phoneId}...`);
 
-        const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+        const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${systemToken}`,
@@ -154,7 +168,7 @@ serve(async (req) => {
           }
         }), { 
           status: 200, 
-          headers: { "Content-Type": "application/json" } 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
       }
 

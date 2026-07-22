@@ -97,11 +97,15 @@ export class WhatsAppService {
 
             // Secure Server-Side Relay via Supabase Edge Function
             let activePhoneId = '';
+            let activeToken = '';
             try {
               const saved = localStorage.getItem('vitalsync_waba_connection');
               if (saved && saved !== 'disconnected') {
                 const parsed = JSON.parse(saved);
                 if (parsed?.phone_number_id) activePhoneId = parsed.phone_number_id;
+                if (parsed?.encrypted_system_user_token || parsed?.token) {
+                  activeToken = parsed.encrypted_system_user_token || parsed.token;
+                }
               }
             } catch (_sE) {}
 
@@ -112,7 +116,8 @@ export class WhatsAppService {
                 patientPhone: cleanToPhone,
                 messageText: msgBody,
                 phoneId: activePhoneId,
-                phoneNumberId: activePhoneId
+                phoneNumberId: activePhoneId,
+                systemToken: activeToken
               }
             });
             console.log("DIAGNOSTIC: Edge function invocation result:", invokeRes);
