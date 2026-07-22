@@ -851,6 +851,17 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             return;
                           }
                           setOnboardError(result.error ?? 'Failed to send OTP. Please try again.');
+                        } else if (result.alreadyVerified && result.connection) {
+                          setActiveWabaConnection(result.connection);
+                          localStorage.setItem('vitalsync_waba_connection', JSON.stringify(result.connection));
+                          setOnboardStep(3);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'WhatsApp Business API Activated! ⚡',
+                              message: `Number +91${clinicPhoneInput} was already verified on Meta. Channel activated instantly!`,
+                              type: 'success'
+                            }
+                          }));
                         } else {
                           setOnboardPhoneNumberId(result.phoneNumberId);
                           setOnboardStep(2);
