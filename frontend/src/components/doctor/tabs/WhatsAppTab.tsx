@@ -583,9 +583,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       try {
                         const invokeRes = await supabase.functions.invoke('meta-webhook', {
                           body: {
-                            action: 'send_broadcast_message',
+                            action: 'send_manual_message',
                             patientPhone: formattedPhone,
-                            messageText: messageContent,
+                            messageText: `📢 [BROADCAST CAMPAIGN]\n${messageContent}`,
                             phoneId: activePhoneId || undefined,
                             phoneNumberId: activePhoneId || undefined,
                             systemToken: activeToken || undefined
