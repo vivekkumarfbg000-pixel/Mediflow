@@ -4,11 +4,71 @@ import { PatientService } from './patientService';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
 
 export const MASTER_TEST_CATALOG: DiagnosticTest[] = [
+  // Diabetology & Metabolic
   { loincCode: '4544-3', name: 'HbA1c (Glycated Hemoglobin)', category: 'Diabetology', normalRange: '4.0 - 5.6', unit: '%', price: 350 },
-  { loincCode: '2160-0', name: 'Serum Creatinine', category: 'Renal Panel', normalRange: '0.6 - 1.2', unit: 'mg/dL', price: 250 },
+  { loincCode: '1558-6', name: 'Fasting Blood Sugar (FBS)', category: 'Diabetology', normalRange: '70 - 99', unit: 'mg/dL', price: 100 },
+  { loincCode: '1521-4', name: 'Postprandial Blood Sugar (PPBS)', category: 'Diabetology', normalRange: '70 - 140', unit: 'mg/dL', price: 100 },
+  { loincCode: '2339-0', name: 'Random Blood Sugar (RBS)', category: 'Diabetology', normalRange: '70 - 140', unit: 'mg/dL', price: 80 },
+  { loincCode: '20448-7', name: 'Fasting Insulin', category: 'Diabetology', normalRange: '2.6 - 24.9', unit: 'μIU/mL', price: 600 },
+
+  // Hematology & CBC
+  { loincCode: '58410-2', name: 'Complete Blood Count (CBC)', category: 'Hematology', normalRange: 'LOINC Multi-Panel', unit: 'panel', price: 300 },
   { loincCode: '3024-7', name: 'Total Hemoglobin', category: 'Hematology', normalRange: '12.0 - 16.0', unit: 'g/dL', price: 150 },
-  { loincCode: '2947-0', name: 'Serum Sodium', category: 'Electrolytes', normalRange: '135 - 145', unit: 'mEq/L', price: 200 },
-  { loincCode: '1975-2', name: 'Total Bilirubin', category: 'Liver Function', normalRange: '0.2 - 1.2', unit: 'mg/dL', price: 300 }
+  { loincCode: '30341-2', name: 'Erythrocyte Sedimentation Rate (ESR)', category: 'Hematology', normalRange: '0 - 20', unit: 'mm/hr', price: 120 },
+  { loincCode: '883-9', name: 'ABO & Rh Blood Typing', category: 'Hematology', normalRange: 'A/B/AB/O (Rh+/-)', unit: 'group', price: 150 },
+  { loincCode: '26515-7', name: 'Platelet Count', category: 'Hematology', normalRange: '150 - 450', unit: '10^3/μL', price: 150 },
+
+  // Kidney Function Panel (KFT / RFT)
+  { loincCode: '2160-0', name: 'Serum Creatinine', category: 'Renal Panel', normalRange: '0.6 - 1.2', unit: 'mg/dL', price: 250 },
+  { loincCode: '3094-0', name: 'Blood Urea Nitrogen (BUN)', category: 'Renal Panel', normalRange: '7 - 20', unit: 'mg/dL', price: 200 },
+  { loincCode: '3084-1', name: 'Serum Uric Acid', category: 'Renal Panel', normalRange: '3.5 - 7.2', unit: 'mg/dL', price: 220 },
+  { loincCode: '2947-0', name: 'Serum Sodium (Na+)', category: 'Electrolytes', normalRange: '135 - 145', unit: 'mEq/L', price: 200 },
+  { loincCode: '2823-3', name: 'Serum Potassium (K+)', category: 'Electrolytes', normalRange: '3.5 - 5.1', unit: 'mEq/L', price: 200 },
+  { loincCode: '2075-0', name: 'Serum Chloride (Cl-)', category: 'Electrolytes', normalRange: '96 - 106', unit: 'mEq/L', price: 200 },
+
+  // Liver Function Panel (LFT)
+  { loincCode: '1920-8', name: 'SGOT / AST (Aspartate Aminotransferase)', category: 'Liver Function', normalRange: '8 - 45', unit: 'U/L', price: 220 },
+  { loincCode: '1742-6', name: 'SGPT / ALT (Alanine Aminotransferase)', category: 'Liver Function', normalRange: '7 - 56', unit: 'U/L', price: 220 },
+  { loincCode: '6768-6', name: 'Alkaline Phosphatase (ALP)', category: 'Liver Function', normalRange: '44 - 147', unit: 'U/L', price: 250 },
+  { loincCode: '1975-2', name: 'Total Bilirubin', category: 'Liver Function', normalRange: '0.2 - 1.2', unit: 'mg/dL', price: 300 },
+  { loincCode: '1968-7', name: 'Direct Bilirubin', category: 'Liver Function', normalRange: '0.0 - 0.3', unit: 'mg/dL', price: 200 },
+  { loincCode: '2885-2', name: 'Serum Total Protein', category: 'Liver Function', normalRange: '6.0 - 8.3', unit: 'g/dL', price: 200 },
+  { loincCode: '1751-7', name: 'Serum Albumin', category: 'Liver Function', normalRange: '3.5 - 5.0', unit: 'g/dL', price: 200 },
+
+  // Lipid Profile Panel
+  { loincCode: '2093-3', name: 'Total Cholesterol', category: 'Lipid Profile', normalRange: '< 200', unit: 'mg/dL', price: 250 },
+  { loincCode: '2571-8', name: 'Triglycerides', category: 'Lipid Profile', normalRange: '< 150', unit: 'mg/dL', price: 250 },
+  { loincCode: '2085-9', name: 'HDL Cholesterol', category: 'Lipid Profile', normalRange: '> 40', unit: 'mg/dL', price: 250 },
+  { loincCode: '2089-1', name: 'LDL Cholesterol (Calculated)', category: 'Lipid Profile', normalRange: '< 100', unit: 'mg/dL', price: 250 },
+
+  // Thyroid Panel
+  { loincCode: '3016-3', name: 'TSH (Thyroid Stimulating Hormone)', category: 'Thyroid Profile', normalRange: '0.45 - 4.5', unit: 'μIU/mL', price: 350 },
+  { loincCode: '3049-4', name: 'Total T3 (Triiodothyronine)', category: 'Thyroid Profile', normalRange: '80 - 200', unit: 'ng/dL', price: 300 },
+  { loincCode: '3053-6', name: 'Total T4 (Thyroxine)', category: 'Thyroid Profile', normalRange: '4.5 - 12.0', unit: 'μg/dL', price: 300 },
+  { loincCode: '3026-2', name: 'Free T3 (FT3)', category: 'Thyroid Profile', normalRange: '2.0 - 4.4', unit: 'pg/mL', price: 400 },
+  { loincCode: '3024-7-T4', name: 'Free T4 (FT4)', category: 'Thyroid Profile', normalRange: '0.93 - 1.7', unit: 'ng/dL', price: 400 },
+
+  // Fever, Infection & Urine
+  { loincCode: '1988-5', name: 'C-Reactive Protein (hs-CRP)', category: 'Infection / Fever', normalRange: '< 3.0', unit: 'mg/L', price: 400 },
+  { loincCode: '41624-8', name: 'Dengue NS1 Antigen Rapid', category: 'Infection / Fever', normalRange: 'Negative', unit: 'qual', price: 600 },
+  { loincCode: '41625-5', name: 'Dengue IgM & IgG Antibodies', category: 'Infection / Fever', normalRange: 'Negative', unit: 'qual', price: 750 },
+  { loincCode: '41626-3', name: 'Typhoid Widal Slide Test', category: 'Infection / Fever', normalRange: '< 1:80 Titer', unit: 'titer', price: 250 },
+  { loincCode: '41627-1', name: 'Malaria Rapid Antigen (Pf/Pv)', category: 'Infection / Fever', normalRange: 'Negative', unit: 'qual', price: 300 },
+  { loincCode: '24357-6', name: 'Urine Routine & Microscopy (U/R)', category: 'Urine Analysis', normalRange: 'LOINC Multi-Panel', unit: 'panel', price: 150 },
+
+  // Vitamins, Minerals & Cardiac
+  { loincCode: '14635-7', name: 'Vitamin D3 (25-OH Total)', category: 'Vitamins & Minerals', normalRange: '30 - 100', unit: 'ng/mL', price: 1200 },
+  { loincCode: '2132-9', name: 'Vitamin B12 (Cyanocobalamin)', category: 'Vitamins & Minerals', normalRange: '211 - 911', unit: 'pg/mL', price: 900 },
+  { loincCode: '17861-6', name: 'Serum Calcium (Total)', category: 'Vitamins & Minerals', normalRange: '8.5 - 10.5', unit: 'mg/dL', price: 200 },
+  { loincCode: '2276-4', name: 'Serum Ferritin', category: 'Vitamins & Minerals', normalRange: '30 - 400', unit: 'ng/mL', price: 650 },
+  { loincCode: '10839-9', name: 'Troponin-I (Cardiac Marker)', category: 'Cardiac Panel', normalRange: '< 0.04', unit: 'ng/mL', price: 1000 },
+
+  // Radiology & Imaging Scans
+  { loincCode: '36574-2', name: 'Chest X-Ray PA View', category: 'Radiology Imaging', normalRange: 'Normal lung fields & cardiothoracic ratio', unit: 'film', price: 400 },
+  { loincCode: '36575-9', name: 'USG Abdomen & Pelvis', category: 'Radiology Imaging', normalRange: 'Normal organ echotexture', unit: 'scan', price: 1000 },
+  { loincCode: '8099-7', name: 'ECG 12-Lead Standard', category: 'Cardiology', normalRange: 'Normal Sinus Rhythm', unit: 'trace', price: 300 },
+  { loincCode: '36576-7', name: 'CT Scan Brain / Head Plain', category: 'Radiology Imaging', normalRange: 'No acute hemorrhage or infarct', unit: 'scan', price: 2500 },
+  { loincCode: '36577-5', name: 'MRI Brain Plain & Contrast', category: 'Radiology Imaging', normalRange: 'Normal brain parenchyma', unit: 'scan', price: 5500 }
 ];
 
 export const OPHTHALMIC_TEST_CATALOG: DiagnosticTest[] = [

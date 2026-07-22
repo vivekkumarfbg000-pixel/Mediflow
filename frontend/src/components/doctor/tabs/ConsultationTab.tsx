@@ -2492,33 +2492,75 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* Diagnostic Requisitions Section */}
           <div className="space-y-3 text-left">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-xs text-primary">biotech</span>
-              Diagnostic Panel Requisition (LOINC-Coded)
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {testCatalog.map((test: DiagnosticTest) => {
-                const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode);
+            <div className="flex justify-between items-center">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-xs text-primary">biotech</span>
+                Diagnostic Panel & Radiology Requisitions ({selectedTests.length} Selected)
+              </label>
+            </div>
+
+            {/* Quick search & custom test creator */}
+            <div className="relative">
+              <span className="material-symbols-outlined text-slate-400 absolute left-3 top-2.5 text-sm">search</span>
+              <input
+                type="text"
+                placeholder="Search blood tests, fever panels, X-Ray, USG, MRI or type custom test..."
+                value={testSearchQuery}
+                onChange={(e) => setTestSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-24 py-2 bg-slate-50 border border-slate-200/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/25 rounded-xl text-xs outline-none font-sans"
+              />
+              {testSearchQuery.trim() && !testCatalog.some(t => t.name.toLowerCase() === testSearchQuery.trim().toLowerCase()) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const customTest: DiagnosticTest = {
+                      loincCode: `CUSTOM-${Date.now()}`,
+                      name: testSearchQuery.trim(),
+                      category: 'Custom Requisition',
+                      normalRange: 'As per lab spec',
+                      unit: 'unit',
+                      price: 400
+                    };
+                    handleToggleTest(customTest);
+                    setTestSearchQuery('');
+                  }}
+                  className="absolute right-1.5 top-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer border-0 text-white-force"
+                >
+                  + Add Custom
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+              {testCatalog
+                .filter((test: DiagnosticTest) => 
+                  !testSearchQuery || 
+                  test.name.toLowerCase().includes(testSearchQuery.toLowerCase()) || 
+                  (test.category && test.category.toLowerCase().includes(testSearchQuery.toLowerCase())) ||
+                  test.loincCode.toLowerCase().includes(testSearchQuery.toLowerCase())
+                )
+                .map((test: DiagnosticTest) => {
+                const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode || t.name.toLowerCase() === test.name.toLowerCase());
                 return (
                   <button
                     key={test.loincCode}
                     onClick={() => handleToggleTest(test)}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border text-left text-xs transition-all duration-300 ${
+                    className={`flex items-center justify-between p-3 rounded-xl border text-left text-xs transition-all duration-200 cursor-pointer ${
                       isChecked
-                        ? 'bg-primary-container/20 border-primary text-slate-800 shadow-sm'
-                        : 'bg-slate-50 border-slate-200/50 text-slate-500 hover:bg-slate-100'
+                        ? 'bg-indigo-50/80 border-indigo-400 text-slate-900 shadow-xs'
+                        : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100/80'
                     }`}
                   >
-                    <div>
-                      <span className="font-bold block text-slate-700">{test.name}</span>
-                      <span className="text-[8px] text-slate-400 font-mono mt-1 inline-block uppercase bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded">
-                        LOINC: {test.loincCode}
+                    <div className="truncate pr-2">
+                      <span className="font-bold block text-slate-800 text-[11px] truncate">{test.name}</span>
+                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 inline-block uppercase">
+                        {test.category || 'General'} • LOINC: {test.loincCode}
                       </span>
                     </div>
-                    <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
-                      isChecked ? 'bg-primary border-primary text-slate-800' : 'border-slate-300 bg-white'
+                    <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
+                      isChecked ? 'bg-indigo-600 border-indigo-600 text-white-force' : 'border-slate-300 bg-white'
                     }`}>
-                      {isChecked && <span className="material-symbols-outlined text-xs font-bold text-slate-800-force">check</span>}
+                      {isChecked && <span className="material-symbols-outlined text-xs font-bold text-white-force">check</span>}
                     </div>
                   </button>
                 );
