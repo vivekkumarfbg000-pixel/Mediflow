@@ -1895,8 +1895,8 @@ Keep the tone professional, clinical, objective, and precise.`;
               ✕
             </button>
             <ClinicPlacardGenerator
-              clinicName={activePod?.name || 'Apex Super Specialty Care'}
-              activeWabaNumber="+91 98765 43210"
+              clinicName={activePod?.name || 'VitalSync Smart Clinic'}
+              activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || localStorage.getItem('vitalsync_waba_number') || '+918986426029'}
             />
           </div>
         </div>

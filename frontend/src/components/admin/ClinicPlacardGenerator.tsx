@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Printer, QrCode, Sparkles, Settings, Smartphone } from 'lucide-react';
 
 interface ClinicPlacardGeneratorProps {
@@ -16,6 +16,18 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
   const [themeColor, setThemeColor] = useState<'emerald' | 'blue' | 'indigo' | 'violet'>('emerald');
   const [showSettings, setShowSettings] = useState(false);
   const placardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeWabaNumber && activeWabaNumber !== '+91 90000 00000') {
+      setPhoneNumber(activeWabaNumber.replace(/[^0-9+]/g, ''));
+    }
+  }, [activeWabaNumber]);
+
+  useEffect(() => {
+    if (clinicName) {
+      setCustomClinicName(clinicName);
+    }
+  }, [clinicName]);
 
   // Generate wa.me link
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
