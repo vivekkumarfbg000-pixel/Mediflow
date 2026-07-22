@@ -1284,6 +1284,9 @@ async function triggerBotReplyPipeline(ctx: {
         } else {
           replyText = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime} (Doctor Vivek starts at 10:00 AM)\n• Address: Patna Clinic, Kankarbagh Road (opp. ICICI Bank).\n\n🌟 *MEDIFLOW PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you! 😊`;
         }
+      } else if (cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned.includes("register") || cleaned.includes("onboard") || cleaned.includes("hello") || cleaned.includes("menu") || cleaned === "0") {
+        nextState = "IDLE";
+        replyText = `🏥 *INSTANT PAPERLESS ABHA CHECK-IN SUCCESSFUL!* 🟢\n\nNamaste! Welcome to *VitalSync Smart Clinic*.\n\nAapka OPD registration & check-in process start ho gaya hai. Please Neeche diye gaye menu se service choose karein:`;
       } else if (["stop consent", "stop", "revoke"].includes(cleaned)) {
         replyText = "Dues pending rehne par consent cancel nahi kiya ja sakta. Please pehle apna payment clear kijiye.";
       } else {

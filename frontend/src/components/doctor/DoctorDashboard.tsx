@@ -1712,32 +1712,16 @@ Keep the tone professional, clinical, objective, and precise.`;
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
-            <button
-              type="button"
-              onClick={() => setIsPlacardModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
-              title="Generate Printable Reception QR Stand PDF"
-            >
-              <span>🖨️ Reception QR Stand</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsTestWhatsAppOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
-              title="Send Live Sample Prescription PDF to WhatsApp"
-            >
-              <span>📱 Test WhatsApp Dispatch</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsRegistrationOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-extrabold transition-all cursor-pointer shadow-xs"
-              title="Register New Clinic Workspace in 30 Seconds"
-            >
-              <span>➕ Register Clinic</span>
-            </button>
+            {!activePod && (
+              <button
+                type="button"
+                onClick={() => setIsRegistrationOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-extrabold transition-all cursor-pointer shadow-xs"
+                title="Register New Clinic Workspace"
+              >
+                <span>➕ Register Clinic</span>
+              </button>
+            )}
 
             {/* Status pill - hidden on small mobile viewports */}
             <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">

@@ -85,6 +85,10 @@
   }
 }
 
+@utility animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out forwards;
+}
+
 html,
 body,
 #root {
