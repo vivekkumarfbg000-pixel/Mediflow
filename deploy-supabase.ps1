@@ -67,7 +67,8 @@ $functions = @(
     "cashfree-vendor-sync",
     "meta-webhook",
     "whatsapp-dispatch",
-    "notify-developer-webhook"
+    "notify-developer-webhook",
+    "whatsapp-onboard"
 )
 
 foreach ($fn in $functions) {

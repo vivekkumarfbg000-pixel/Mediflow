@@ -1093,7 +1093,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                             type: 'success'
                           }
                         }));
-                      } catch (err: any) {
+                      } catch (err) {
                         console.error('[Consent Bypass] Failed to record physical consent:', err);
                       }
                     }}

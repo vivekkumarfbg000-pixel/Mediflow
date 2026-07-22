@@ -824,8 +824,27 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             })
                           }
                         );
-                        const result = await res.json();
+                        let result: any = {};
+                        try {
+                          result = await res.json();
+                        } catch (_jErr) {
+                          result = { error: `Server response error: ${res.status} (${res.statusText || 'Unknown'})` };
+                        }
                         if (!res.ok || result.error) {
+                          if (import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === 'true') {
+                            console.warn('[WhatsApp Onboarding] Backend Edge Function call failed. Activating Sandbox Mock Onboarding Mode...', result.error);
+                            setOnboardPhoneNumberId('mock-phone-num-id-12345');
+                            setOnboardStep(2);
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Verification Code Sent (Sandbox Mode) 💬',
+                                message: `OTP dispatched to +91${clinicPhoneInput} via SMS (Mocked for testing). Enter '123456' to verify.`,
+                                type: 'warning'
+                              }
+                            }));
+                            setIsOnboarding(false);
+                            return;
+                          }
                           setOnboardError(result.error ?? 'Failed to send OTP. Please try again.');
                         } else {
                           setOnboardPhoneNumberId(result.phoneNumberId);
@@ -838,7 +857,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             }
                           }));
                         }
-                      } catch (err: any) {
+                      } catch (err) {
                         setOnboardError('Network error. Please check your connection and try again.');
                       } finally {
                         setIsOnboarding(false);
@@ -917,8 +936,29 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             })
                           }
                         );
-                        const result = await res.json();
+                        let result: any = {};
+                        try {
+                          result = await res.json();
+                        } catch (_jErr) {
+                          result = { error: `Server response error: ${res.status} (${res.statusText || 'Unknown'})` };
+                        }
                         if (!res.ok || result.error) {
+                          if ((import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === 'true') && otpCode === '123456') {
+                            console.warn('[WhatsApp Onboarding] Sandbox Verification active.');
+                            const conn = {
+                              id: `waba-conn-${Date.now()}`,
+                              phone_number: `+91${clinicPhoneInput}`,
+                              phone_number_id: onboardPhoneNumberId || 'mock-phone-num-id-12345',
+                              waba_id: 'mock-waba-id-67890',
+                              is_active: true,
+                              created_at: new Date().toISOString()
+                            };
+                            setActiveWabaConnection(conn);
+                            localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
+                            setOnboardStep(3);
+                            setIsOnboarding(false);
+                            return;
+                          }
                           setOnboardError(result.error ?? 'OTP verification failed. Please try again.');
                         } else {
                           const conn = result.connection || {
@@ -933,7 +973,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
                           setOnboardStep(3);
                         }
-                      } catch (err: any) {
+                      } catch (err) {
                         setOnboardError('Network error. Please check your connection and try again.');
                       } finally {
                         setIsOnboarding(false);

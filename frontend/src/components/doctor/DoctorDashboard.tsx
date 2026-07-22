@@ -303,7 +303,7 @@ export const DoctorDashboard: React.FC = () => {
           type: 'info'
         }
       }));
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Mediflow] Failed to capture microphone:', err);
       alert('Microphone access is required to record instructions.');
     }
@@ -808,7 +808,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         setAiInsight(synthesizedInsight);
         persistRAGResult(synthesizedInsight, modelUsed);
 
-      } catch (err: any) {
+      } catch (err) {
         console.warn("[Mistral Live RAG Synthesis Failed, falling back to static]:", err);
         clearTimeout(timeoutId);
         
