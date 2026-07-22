@@ -256,6 +256,7 @@ export interface Pod {
   clinicCode: string;
   isActive: boolean;
   createdAt: string;
+  doctor_name?: string;
 }
 
 export interface Entity {
