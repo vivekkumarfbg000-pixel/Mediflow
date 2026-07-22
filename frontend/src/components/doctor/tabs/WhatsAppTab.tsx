@@ -528,11 +528,28 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         WhatsAppService.saveWhatsAppSessions(allSessions);
                       }
 
-                      // 3. Dispatch payload with multi-property phone fallback
-                      const targetPhone = activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '';
-                      await api.sendWhatsAppMessagePayload(targetPhone, 'custom_manual_reply', {
-                        replyText: textToSend
-                      });
+                      // 3. Direct Edge Function Dispatch to Meta Graph API for instant delivery
+                      try {
+                        const targetPhone = (activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '').replace(/[^0-9]/g, '');
+                        const cleanToPhone = targetPhone.length === 10 ? '91' + targetPhone : targetPhone;
+
+                        let activePhoneId = activeWabaConnection?.phone_number_id || '';
+                        let activeToken = activeWabaConnection?.encrypted_system_user_token || '';
+
+                        const invokeRes = await supabase.functions.invoke('meta-webhook', {
+                          body: {
+                            action: 'send_manual_message',
+                            patientPhone: cleanToPhone,
+                            messageText: textToSend,
+                            phoneId: activePhoneId || undefined,
+                            phoneNumberId: activePhoneId || undefined,
+                            systemToken: activeToken || undefined
+                          }
+                        });
+                        console.log('[WhatsAppTab Direct Dispatch] Edge function response:', invokeRes);
+                      } catch (dispatchErr) {
+                        console.error('[WhatsAppTab Direct Dispatch] Error:', dispatchErr);
+                      }
 
                       // 4. Non-blocking Supabase sync with patient_phone fallback
                       try {
