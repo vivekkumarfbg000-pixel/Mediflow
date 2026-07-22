@@ -805,18 +805,32 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     onClick={async () => {
                       setIsOnboarding(true);
                       setOnboardError('');
+
+                      // Global 8s watchdog: Guarantee spinner is turned off no matter what fails or hangs
+                      const watchdog = setTimeout(() => {
+                        setIsOnboarding(false);
+                      }, 8000);
+
                       try {
-                        const { supabase: sb } = await import('../../../lib/supabaseClient');
-                        const { data: { session } } = await sb.auth.getSession();
+                        let token = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                        try {
+                          const sessionPromise = supabase.auth.getSession();
+                          const sessionTimeout = new Promise<any>(res => setTimeout(() => res({ data: { session: null } }), 1500));
+                          const { data: { session } } = await Promise.race([sessionPromise, sessionTimeout]);
+                          if (session?.access_token) {
+                            token = session.access_token;
+                          }
+                        } catch (_sErr) {}
+
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 10000);
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
                         const res = await fetch(
                           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
                           {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json',
-                              'Authorization': `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                              'Authorization': `Bearer ${token}`
                             },
                             body: JSON.stringify({
                               action: 'request_otp',
@@ -876,6 +890,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       } catch (err) {
                         setOnboardError('Network error. Please check your connection and try again.');
                       } finally {
+                        clearTimeout(watchdog);
                         setIsOnboarding(false);
                       }
                     }}
@@ -930,18 +945,31 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     onClick={async () => {
                       setIsOnboarding(true);
                       setOnboardError('');
+
+                      const watchdog = setTimeout(() => {
+                        setIsOnboarding(false);
+                      }, 8000);
+
                       try {
-                        const { supabase: sb } = await import('../../../lib/supabaseClient');
-                        const { data: { session } } = await sb.auth.getSession();
+                        let token = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                        try {
+                          const sessionPromise = supabase.auth.getSession();
+                          const sessionTimeout = new Promise<any>(res => setTimeout(() => res({ data: { session: null } }), 1500));
+                          const { data: { session } } = await Promise.race([sessionPromise, sessionTimeout]);
+                          if (session?.access_token) {
+                            token = session.access_token;
+                          }
+                        } catch (_sErr) {}
+
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 10000);
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
                         const res = await fetch(
                           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
                           {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json',
-                              'Authorization': `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                              'Authorization': `Bearer ${token}`
                             },
                             body: JSON.stringify({
                               action: 'verify_otp',
@@ -996,6 +1024,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       } catch (err) {
                         setOnboardError('Network error. Please check your connection and try again.');
                       } finally {
+                        clearTimeout(watchdog);
                         setIsOnboarding(false);
                       }
                     }}
