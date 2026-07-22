@@ -92,6 +92,53 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const [otpMethod, setOtpMethod] = useState<'SMS' | 'VOICE'>('SMS');
 
 
+  // Dedicated direct Supabase Realtime channel for continuous multi-message sync
+  useEffect(() => {
+    const targetPhone = activeChat?.patientPhone || activeChat?.patient_phone || activeChat?.phone || '';
+    const targetDigits = targetPhone.replace(/\D/g, '').slice(-10);
+    if (!targetDigits) return;
+
+    const channelName = `live-chat-room-${targetDigits}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whatsapp_sessions' },
+        (payload: any) => {
+          console.log('[WhatsAppTab Direct Realtime] Incoming session update:', payload);
+          const dbSession = payload.new;
+          if (dbSession) {
+            const dbDigits = (dbSession.patient_phone || '').replace(/\D/g, '').slice(-10);
+            if (dbDigits === targetDigits) {
+              const formatted = {
+                id: dbSession.id,
+                patientPhone: dbSession.patient_phone,
+                patient_phone: dbSession.patient_phone,
+                phone: dbSession.patient_phone,
+                patientId: dbSession.patient_id,
+                currentState: dbSession.current_state,
+                lastInteraction: dbSession.last_interaction,
+                sessionData: dbSession.session_data || {},
+                session_data: dbSession.session_data || {}
+              };
+              setSelectedChatSession(formatted);
+              setWhatsAppSessions(prev => prev.map(s => {
+                const sDigits = (s.patientPhone || s.patient_phone || s.phone || '').replace(/\D/g, '').slice(-10);
+                return sDigits === targetDigits ? formatted : s;
+              }));
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log(`[WhatsAppTab Direct Realtime] Subscription status for ${channelName}:`, status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeChat?.patientPhone, activeChat?.patient_phone, activeChat?.phone]);
+
   useEffect(() => {
     const fetchConnections = async () => {
       try {
