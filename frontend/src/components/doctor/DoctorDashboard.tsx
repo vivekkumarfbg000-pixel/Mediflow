@@ -26,6 +26,7 @@ import { CommandPalette } from '../ui/CommandPalette';
 import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
 import { DoctorRegistrationModal } from '../auth/DoctorRegistrationModal';
 import { WhatsAppTestDispatcherModal } from '../shared/WhatsAppTestDispatcherModal';
+import { WhatsAppService } from '../../services/whatsappService';
 
 const ConsultationTab = React.lazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
 const FinancialsTab = React.lazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
@@ -481,7 +482,7 @@ export const DoctorDashboard: React.FC = () => {
           };
           
           const allSessions = WhatsAppService.getWhatsAppSessions();
-          const idx = allSessions.findIndex(s => s.id === dbSession.id || s.patientPhone === dbSession.patient_phone);
+          const idx = allSessions.findIndex((s: any) => s.id === dbSession.id || s.patientPhone === dbSession.patient_phone);
           if (idx !== -1) {
             allSessions[idx] = formatted;
           } else {
