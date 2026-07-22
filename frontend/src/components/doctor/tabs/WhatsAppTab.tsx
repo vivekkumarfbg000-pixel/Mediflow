@@ -93,9 +93,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
 
   // Dedicated direct Supabase Realtime channel for continuous multi-message sync
+  const targetPhone = activeChat?.patientPhone || activeChat?.patient_phone || activeChat?.phone || '';
+  const targetDigits = targetPhone.replace(/\D/g, '').slice(-10);
+
   useEffect(() => {
-    const targetPhone = activeChat?.patientPhone || activeChat?.patient_phone || activeChat?.phone || '';
-    const targetDigits = targetPhone.replace(/\D/g, '').slice(-10);
     if (!targetDigits) return;
 
     const channelName = `live-chat-room-${targetDigits}`;
@@ -137,7 +138,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeChat?.patientPhone, activeChat?.patient_phone, activeChat?.phone]);
+  }, [targetDigits]);
 
   useEffect(() => {
     const fetchConnections = async () => {
