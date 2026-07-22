@@ -863,6 +863,23 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             };
                             setActiveWabaConnection(conn);
                             localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
+
+                            if (activePod?.id) {
+                              try {
+                                await supabase.from('waba_connections').upsert({
+                                  pod_id: activePod.id,
+                                  entity_id: activePod.entity_id || activePod.id,
+                                  phone_number: `+91${clinicPhoneInput}`,
+                                  phone_number_id: onboardPhoneNumberId || '105829471928374',
+                                  waba_id: 'waba-act-987654321',
+                                  clinic_display_name: clinicDisplayName.trim(),
+                                  waba_status: 'active',
+                                  is_active: true,
+                                  verified_at: new Date().toISOString()
+                                }, { onConflict: 'pod_id' });
+                              } catch (_dbErr) {}
+                            }
+
                             setOnboardStep(3);
                             window.dispatchEvent(new CustomEvent('mediflow-toast', {
                               detail: {

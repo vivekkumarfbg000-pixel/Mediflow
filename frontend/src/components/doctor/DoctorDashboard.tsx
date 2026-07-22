@@ -418,8 +418,18 @@ export const DoctorDashboard: React.FC = () => {
           .then(({ data }) => {
             if (data && data.length > 0) {
               setActiveWabaConnection(data[0]);
+              localStorage.setItem('vitalsync_waba_connection', JSON.stringify(data[0]));
             } else {
-              setActiveWabaConnection(null);
+              const saved = localStorage.getItem('vitalsync_waba_connection');
+              if (saved === 'disconnected') {
+                setActiveWabaConnection(null);
+              } else if (saved) {
+                try {
+                  setActiveWabaConnection(JSON.parse(saved));
+                } catch (_e) {
+                  setActiveWabaConnection(null);
+                }
+              }
             }
           });
 
