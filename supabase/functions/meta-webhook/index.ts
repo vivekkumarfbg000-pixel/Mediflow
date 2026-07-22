@@ -71,32 +71,42 @@ serve(async (req) => {
         let phoneId = (payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
         let systemToken = (payload.systemToken || payload.token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
 
-        // Filter out dummy/demo mock Phone IDs
-        if (phoneId === "105829471928374" || phoneId.startsWith("demo-")) {
-          phoneId = "";
-          systemToken = "";
-        }
-
-        // Direct DB fallback query if phoneId or systemToken is missing or dummy mock ID
-        if (!systemToken || !phoneId) {
+        // If phoneId is a dummy mock ID or missing, attempt to fetch real production credentials from DB
+        if (phoneId === "105829471928374" || phoneId.startsWith("demo-") || !phoneId || !systemToken) {
           try {
             const { data: dbConn } = await supabase
               .from("waba_connections")
               .select("phone_number_id, encrypted_system_user_token")
-              .neq("phone_number_id", "105829471928374")
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
+
             if (dbConn) {
-              if (dbConn.phone_number_id) phoneId = dbConn.phone_number_id;
-              if (dbConn.encrypted_system_user_token) systemToken = dbConn.encrypted_system_user_token;
+              if (dbConn.phone_number_id && dbConn.phone_number_id !== "105829471928374") {
+                phoneId = dbConn.phone_number_id;
+              } else if (!phoneId || phoneId === "105829471928374") {
+                phoneId = dbConn.phone_number_id || phoneId;
+              }
+              if (dbConn.encrypted_system_user_token) {
+                systemToken = dbConn.encrypted_system_user_token;
+              }
             }
           } catch (_e) {}
         }
 
+        // Final fallback to environment secrets
+        if (!phoneId || phoneId === "105829471928374") {
+          phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
+        }
+        if (!systemToken) {
+          systemToken = (Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+        }
+
         if (!systemToken || !phoneId) {
           console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault or payload.");
-          return new Response(JSON.stringify({ error: "Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault or payload" }), {
+          return new Response(JSON.stringify({ 
+            error: "Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID. Please connect your clinic Meta WhatsApp account in Doctor Dashboard -> Activate Clinic WhatsApp (or set META_WHATSAPP_TOKEN and META_PHONE_NUMBER_ID in Supabase Vault)." 
+          }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
           });
@@ -158,6 +168,41 @@ serve(async (req) => {
               }
             }
           } catch (_retryErr) {}
+        }
+
+        // Automatic 24-Hour Window Bypass: Fallback to Meta Approved Template if Error 131047 (Re-engagement message) occurs
+        const resStr = JSON.stringify(resData);
+        if (!res.ok && (resStr.includes("131047") || resStr.includes("Re-engagement message"))) {
+          console.log(`[Meta Webhook Outbound Relay] 24-Hour Customer Window Expired (Meta Error 131047). Retrying via pre-approved Meta Template 'hello_world'...`);
+          try {
+            const templateName = payload.templateName || Deno.env.get("META_DEFAULT_TEMPLATE") || "hello_world";
+            const templateLang = payload.templateLanguage || "en_US";
+
+            const templateRes = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${systemToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                messaging_product: "whatsapp",
+                to: cleanPhone,
+                type: "template",
+                template: {
+                  name: templateName,
+                  language: { code: templateLang }
+                }
+              })
+            });
+            const templateData = await templateRes.json();
+            console.log(`[Meta Webhook Outbound Relay] Template Fallback Status: ${templateRes.status}`, templateData);
+            if (templateRes.ok) {
+              res = templateRes;
+              resData = templateData;
+            }
+          } catch (_tplErr) {
+            console.error("[Meta Webhook Outbound Relay] Template Fallback Error:", _tplErr);
+          }
         }
 
         // Update database session to maintain active Human Takeover mode & refresh timer

@@ -2350,7 +2350,7 @@ export const PharmacyDashboard: React.FC = () => {
       )}
 
       {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Pharmacy Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 dark:bg-[#0b0f19]/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] px-2 pb-safe-bottom">
         <div className="flex items-center justify-around h-16">
           {[
             { id: 'prescription_queue', label: 'Rx Queue', icon: History, badge: holds.filter(h => h.holdStatus === 'held').length },
@@ -2371,27 +2371,27 @@ export const PharmacyDashboard: React.FC = () => {
                 onClick={() => setActiveTab(item.id as any)}
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
-                    ? 'text-indigo-600 font-bold' 
-                    : 'text-slate-600 hover:text-slate-600'
+                    ? 'text-indigo-400 font-black' 
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <div className={`p-1.5 rounded-lg transition-all duration-200 relative ${
+                <div className={`p-1.5 rounded-xl transition-all duration-200 relative ${
                   isActive 
-                    ? 'bg-indigo-50 text-indigo-600 scale-105 shadow-sm' 
-                    : 'bg-transparent text-slate-600'
+                    ? 'bg-indigo-500/20 text-indigo-400 scale-105 shadow-sm border border-indigo-500/30' 
+                    : 'bg-transparent text-slate-400'
                 }`}>
                   <Icon className="h-5 w-5" />
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse shadow-sm">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-bold mt-1 tracking-wide leading-none">
+                <span className="text-[10px] font-extrabold mt-1 tracking-wide leading-none">
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600" />
+                  <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-xs shadow-indigo-500" />
                 )}
               </button>
             );
