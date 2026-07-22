@@ -1062,6 +1062,21 @@ Keep the tone professional, clinical, objective, and precise.`;
 
       const finalMsg = whatsAppMsg + eveningSlotNote;
       api.pushWhatsAppMessageFromBot(selectedPatient.phone, finalMsg);
+
+      // Direct Edge Function Invoke for Sub-250ms WhatsApp Delivery to Meta Graph API
+      try {
+        const targetPhone = (selectedPatient.phone || '').replace(/[^0-9]/g, '');
+        const cleanToPhone = targetPhone.length === 10 ? '91' + targetPhone : targetPhone;
+        await supabase.functions.invoke('meta-webhook', {
+          body: {
+            action: 'send_manual_message',
+            patientPhone: cleanToPhone,
+            messageText: finalMsg
+          }
+        });
+      } catch (_dispatchErr) {
+        console.warn('[DoctorDashboard Direct WhatsApp] Edge dispatch fallback:', _dispatchErr);
+      }
     } catch (e) {
       console.error('[WhatsApp Auto-dispatch failed]:', e);
     }

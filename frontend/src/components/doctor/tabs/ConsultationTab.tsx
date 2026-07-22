@@ -164,7 +164,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   // Interactive Prescription Pad Workspace States
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [testSearchQuery, setTestSearchQuery] = useState('');
-  const [activeSubTab, setActiveSubTab] = useState<'workup' | 'prescription'>('workup');
+  const [activeSubTab, setActiveSubTab] = useState<'workup' | 'prescription'>('prescription');
 
   useEffect(() => {
     if (isSelectingFromDropdown) {
@@ -1602,33 +1602,6 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* Electronic Consultation Record Gating, Suggestions, and AI Summaries */}
           <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-6 shadow-sm text-left">
-            {/* Live AI Clinical RAG Advisory */}
-            {isAiLoading ? (
-              <div className="p-5 bg-indigo-50/40 border border-indigo-100 rounded-2xl animate-pulse space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-500 animate-spin text-sm">sync</span>
-                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider font-mono">Running Live RAG Clinical Advisory Prompt...</span>
-                </div>
-                <div className="h-2 bg-slate-200/60 rounded w-3/4 animate-pulse"></div>
-                <div className="h-2 bg-slate-200/60 rounded w-5/6 animate-pulse"></div>
-                <div className="h-2 bg-slate-200/60 rounded w-1/2 animate-pulse"></div>
-              </div>
-            ) : aiInsight ? (
-              <div className="p-5 bg-indigo-50/40 border border-indigo-150 rounded-2xl space-y-3 animate-fade-in text-left">
-                <div className="flex justify-between items-center border-b border-indigo-100 pb-2">
-                  <h3 className="text-xs font-black text-indigo-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm font-bold text-indigo-700">psychology</span>
-                    Live RAG Clinical Advisory (Active Care Support)
-                  </h3>
-                  <span className="text-[8px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-mono">
-                    PERSISTED CACHE
-                  </span>
-                </div>
-                <div className="text-xs text-slate-700 leading-relaxed max-h-[300px] scroll-list pr-2">
-                  <MarkdownText content={aiInsight} />
-                </div>
-              </div>
-            ) : null}
 
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
