@@ -235,12 +235,27 @@ serve(async (req) => {
 
       let connection = (wabaConn && wabaConn.length > 0) ? wabaConn[0] : null;
       if (!connection) {
-        console.warn(`[Meta Webhook] Tenant RPC lookup failed for phoneId: ${phoneId}. Applying system default fallback context.`);
-        connection = {
-          pod_id: 'default-pod',
-          entity_id: 'default-entity',
-          decrypted_token: Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || ""
-        };
+        // Fallback query directly on waba_connections table if RPC returns null
+        const { data: directConn } = await supabase
+          .from("waba_connections")
+          .select("*")
+          .eq("phone_number_id", phoneId)
+          .maybeSingle();
+
+        if (directConn) {
+          connection = {
+            pod_id: directConn.pod_id,
+            entity_id: directConn.entity_id,
+            decrypted_token: directConn.encrypted_system_user_token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || ""
+          };
+        } else {
+          console.warn(`[Meta Webhook] Tenant lookup failed for phoneId: ${phoneId}. Applying system default fallback context.`);
+          connection = {
+            pod_id: 'default-pod',
+            entity_id: 'default-entity',
+            decrypted_token: Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || ""
+          };
+        }
       }
       const decryptedToken = connection.decrypted_token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
       const tenantToken = decryptedToken;
@@ -323,15 +338,20 @@ serve(async (req) => {
 
       // Auto-revert Human Takeover back to AI Bot Mode after 10 minutes of clinician inactivity
       if (isHumanOverride) {
-        const lastInteractionTime = new Date(session.last_interaction || 0).getTime();
+        const overrideStartTime = new Date(sessionData.human_override_started_at || sessionData.last_doctor_reply_at || session.created_at || 0).getTime();
         const nowTime = new Date().getTime();
-        const elapsedMinutes = (nowTime - lastInteractionTime) / (1000 * 60);
+        const elapsedMinutes = (nowTime - overrideStartTime) / (1000 * 60);
 
-        if (elapsedMinutes > 10) {
-          console.log(`[Meta Webhook] Human override inactive for ${elapsedMinutes.toFixed(1)} mins. Auto-reverting to AI Bot Mode.`);
+        if (elapsedMinutes >= 10 || !sessionData.human_override_started_at) {
+          console.log(`[Meta Webhook] Human override cleared/expired (${elapsedMinutes.toFixed(1)} mins). Auto-reverting to AI Bot Mode.`);
           isHumanOverride = false;
           sessionData.humanOverride = false;
           sessionData.override_reverted_at = new Date().toISOString();
+
+          await supabase
+            .from("whatsapp_sessions")
+            .update({ session_data: sessionData })
+            .eq("id", session.id);
         }
       }
 
