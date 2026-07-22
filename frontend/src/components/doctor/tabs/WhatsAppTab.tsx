@@ -56,7 +56,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   activePod,
   telemetryLogs
 }) => {
-  const [rightTab, setRightTab] = useState<'chat' | 'broadcast'>('chat');
+  const [rightTab, setRightTab] = useState<'chat' | 'broadcast'>('broadcast');
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'diabetes' | 'hypertension' | 'opd'>('all');
   const [broadcastLogs, setBroadcastLogs] = useState<any[]>([]);
@@ -349,19 +349,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
         </div>
       </div>
 
-      {/* Right Pane: Live Active Conversation Detail & Takeover Console */}
+      {/* Right Pane: Apollo 24/7 Broadcast Campaigns & Passive Audit Stream */}
       <div className="lg:col-span-8 flex flex-col space-y-4">
         {/* Tab Selector */}
         <div className="flex gap-2 p-1 bg-slate-100/80 border border-slate-200/50 rounded-2xl self-start">
-          <button
-            type="button"
-            onClick={() => setRightTab('chat')}
-            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              rightTab === 'chat' ? 'bg-primary text-white text-white-force' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            💬 Patient Chat
-          </button>
           <button
             type="button"
             onClick={() => setRightTab('broadcast')}
@@ -370,6 +361,15 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             }`}
           >
             📢 Broadcast Campaigns
+          </button>
+          <button
+            type="button"
+            onClick={() => setRightTab('chat')}
+            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              rightTab === 'chat' ? 'bg-primary text-white text-white-force' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            👁️ Passive Chat Audit Log
           </button>
         </div>
 
@@ -383,84 +383,23 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 <div>
                   <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                     {patients.find(p => p.id === activeChat.patientId)?.name ?? 'Linked Patient'}
-                    <span className={`w-2 h-2 rounded-full ${isHumanOverride ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`} />
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   </h3>
                   <span className="text-[10px] text-slate-404 font-mono">{activeChat.patientPhone}</span>
                 </div>
 
-                {/* Takeover Control Toggle */}
-                <div className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-200/40 rounded-2xl">
-                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    isHumanOverride ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    {isHumanOverride ? '⚡ Human Takeover' : '🤖 AI Agent Active'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const updatedOverride = !isHumanOverride;
-                      const updatedSess = {
-                        ...activeChat,
-                        sessionData: { ...sessionData, humanOverride: updatedOverride },
-                        session_data: { ...sessionData, humanOverride: updatedOverride }
-                      };
-
-                      // 1. Local-first state update
-                      setSelectedChatSession(updatedSess);
-                      setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
-
-                      // 2. Save in local storage sessions registry
-                      const allSessions = WhatsAppService.getWhatsAppSessions();
-                      const sIdx = allSessions.findIndex(s => s.id === activeChat.id);
-                      if (sIdx !== -1) {
-                        allSessions[sIdx] = updatedSess;
-                        WhatsAppService.saveWhatsAppSessions(allSessions);
-                      }
-
-                      // 3. Non-blocking Supabase sync with patient_phone fallback
-                      try {
-                        const targetDigits = (activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '').replace(/\D/g, '').slice(-10);
-                        const sPayload = {
-                          session_data: {
-                            ...sessionData,
-                            humanOverride: updatedOverride,
-                            human_override_started_at: updatedOverride ? new Date().toISOString() : null
-                          }
-                        };
-
-                        if (activeChat.id) {
-                          await supabase.from('whatsapp_sessions').update(sPayload).eq('id', activeChat.id);
-                        }
-                        if (targetDigits) {
-                          await supabase.from('whatsapp_sessions').update(sPayload).like('patient_phone', `%${targetDigits}%`);
-                        }
-                      } catch (_e) {}
-
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: updatedOverride ? 'Human Override Enabled (10-Min Auto-Revert) ⚡' : 'AI Bot Restored! 🤖',
-                          message: updatedOverride ? 'AI chatbot paused. If no manual reply is sent for 10 minutes, AI Bot will resume automatically.' : 'Clinical Scribe AI resumed passive patient routing.',
-                          type: 'success'
-                        }
-                      }));
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-xs border-0 ${
-                      isHumanOverride 
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
-                        : 'bg-amber-600 hover:bg-amber-500 text-white'
-                    }`}
-                  >
-                    {isHumanOverride ? 'Restore AI Bot' : 'Take Over Chat'}
-                  </button>
+                {/* Autonomous AI Chatbot Badge */}
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/60 rounded-full text-[10px] font-bold text-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  🤖 VitalSync AI Scribe Active 24/7
                 </div>
               </div>
 
               {/* Chat Message Stream */}
-              <div ref={chatScrollRef} className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[360px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[390px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
                 {(sessionData.chatHistory ?? []).map((msg: any, idx: number) => {
                   const sRole = (msg.sender || '').toLowerCase();
                   const isPatient = sRole === 'patient' || sRole === 'user' || sRole === 'customer' || sRole === 'client';
-                  const isBot = sRole === 'bot';
                   
                   let bubbleStyle = 'bg-indigo-600 text-white ml-auto rounded-tl-2xl rounded-bl-2xl rounded-tr-2xl';
                   if (isPatient) {
@@ -475,133 +414,24 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         {msg.text}
                       </div>
                       <span className={`text-[8px] font-mono text-slate-600 ${isPatient ? 'mr-auto pl-1 text-slate-500 font-bold' : 'ml-auto pr-1'}`}>
-                        {isPatient ? '👤 PATIENT' : (sRole === 'agent' || sRole === 'doctor' ? '👨‍⚕️ DOCTOR' : '🤖 AI BOT')} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00')}
+                        {isPatient ? '👤 PATIENT' : (sRole === 'agent' || sRole === 'doctor' ? '📢 BROADCAST' : '🤖 AI BOT')} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.time ? new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '00:00')}
                       </span>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Outbound Messaging Inputs Panel */}
+              {/* Autonomous AI Notice */}
               <div className="border-t border-slate-100 pt-3">
-                {isHumanOverride ? (
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!manualChatMsg.trim()) return;
-
-                      const textToSend = manualChatMsg.trim();
-                      setManualChatMsg('');
-
-                      const chatHistory = [...(sessionData.chatHistory || [])];
-                      const currentTime = new Date().toISOString();
-                      
-                      chatHistory.push({
-                        sender: 'agent',
-                        text: textToSend,
-                        timestamp: currentTime,
-                        time: currentTime
-                      });
-
-                      const updatedSess = {
-                        ...activeChat,
-                        sessionData: { ...sessionData, chatHistory },
-                        session_data: { ...sessionData, chatHistory }
-                      };
-
-                      // 1. Local-first immediate update
-                      const targetDigits = (activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '').replace(/\D/g, '').slice(-10);
-                      setSelectedChatSession(updatedSess);
-                      setWhatsAppSessions(prev => prev.map(s => {
-                        const sDigits = (s.patientPhone || s.patient_phone || s.phone || '').replace(/\D/g, '').slice(-10);
-                        return (s.id === activeChat.id || (sDigits && sDigits === targetDigits)) ? updatedSess : s;
-                      }));
-
-                      // 2. Save to local storage sessions registry
-                      const allSessions = WhatsAppService.getWhatsAppSessions();
-                      const sIdx = allSessions.findIndex(s => {
-                        const sDigits = (s.patientPhone || (s as any).patient_phone || (s as any).phone || '').replace(/\D/g, '').slice(-10);
-                        return s.id === activeChat.id || (sDigits && sDigits === targetDigits);
-                      });
-                      if (sIdx !== -1) {
-                        allSessions[sIdx] = updatedSess;
-                        WhatsAppService.saveWhatsAppSessions(allSessions);
-                      }
-
-                      // 3. Direct Edge Function Dispatch to Meta Graph API for instant delivery
-                      try {
-                        const targetPhone = (activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '').replace(/[^0-9]/g, '');
-                        const cleanToPhone = targetPhone.length === 10 ? '91' + targetPhone : targetPhone;
-
-                        let activePhoneId = activeWabaConnection?.phone_number_id || '';
-                        let activeToken = activeWabaConnection?.encrypted_system_user_token || '';
-
-                        const invokeRes = await supabase.functions.invoke('meta-webhook', {
-                          body: {
-                            action: 'send_manual_message',
-                            patientPhone: cleanToPhone,
-                            messageText: textToSend,
-                            phoneId: activePhoneId || undefined,
-                            phoneNumberId: activePhoneId || undefined,
-                            systemToken: activeToken || undefined
-                          }
-                        });
-                        console.log('[WhatsAppTab Direct Dispatch] Edge function response:', invokeRes);
-                      } catch (dispatchErr) {
-                        console.error('[WhatsAppTab Direct Dispatch] Error:', dispatchErr);
-                      }
-
-                      // 4. Non-blocking Supabase sync with patient_phone fallback
-                      try {
-                        const sPayload = {
-                          session_data: { ...sessionData, chatHistory, humanOverride: true, human_override_started_at: currentTime },
-                          last_interaction: currentTime
-                        };
-
-                        if (activeChat.id) {
-                          await supabase.from('whatsapp_sessions').update(sPayload).eq('id', activeChat.id);
-                        }
-                        if (targetDigits) {
-                          await supabase.from('whatsapp_sessions').update(sPayload).like('patient_phone', `%${targetDigits}%`);
-                        }
-                      } catch (_e) {}
-
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Message Dispatched! ✉️',
-                          message: `Direct message sent to patient WhatsApp queue (${activeChat.patientPhone}).`,
-                          type: 'success'
-                        }
-                      }));
-                    }}
-                    className="flex gap-3"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Type a manual response to takeover the patient session..."
-                      value={manualChatMsg}
-                      onChange={(e) => setManualChatMsg(e.target.value)}
-                      className="flex-1 px-4.5 py-3 border border-slate-200/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/25 rounded-2xl text-xs outline-none bg-slate-50/50"
-                    />
-                    <button
-                      type="submit"
-                      className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-amber-500-force border-0"
-                    >
-                      <span className="material-symbols-outlined text-sm font-bold text-white-force">send</span>
-                      Send Message
-                    </button>
-                  </form>
-                ) : (
-                  <div className="p-3 bg-blue-50/50 border border-blue-100/60 rounded-2xl text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
-                    <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                      <span className="material-symbols-outlined text-sm text-blue-500 animate-pulse">lock</span>
-                      AI chatbot agent is actively handling this patient care session
-                    </div>
-                    <p className="text-[10px] text-slate-404">
-                      Click the "Take Over Chat" button at the top header to halt AI automations and send manual updates.
-                    </p>
+                <div className="p-3.5 bg-blue-50/60 border border-blue-100/80 rounded-2xl text-center text-xs text-slate-600 flex flex-col items-center justify-center gap-1">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <span className="material-symbols-outlined text-base text-blue-600">smart_toy</span>
+                    100% Autonomous AI Chatbot Operating 24/7
                   </div>
-                )}
+                  <p className="text-[10px] text-slate-500">
+                    VitalSync AI Scribe handles patient check-in, bookings, payments, and refill reminders automatically. To send messages to patients, use the <b>📢 Broadcast Campaigns</b> tab.
+                  </p>
+                </div>
               </div>
 
             </div>
