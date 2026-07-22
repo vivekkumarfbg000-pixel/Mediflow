@@ -67,10 +67,21 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const sessionData = activeChat?.sessionData ?? activeChat?.session_data ?? {};
 
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    if (rightTab === 'chat' && chatScrollRef.current) {
+      const scrollContainer = chatScrollRef.current;
+      requestAnimationFrame(() => {
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      });
+      const timer = setTimeout(() => {
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  }, [selectedChatSession, sessionData.chatHistory]);
+  }, [rightTab, selectedChatSession, sessionData.chatHistory]);
 
   useEffect(() => {
     const logs = localStorage.getItem('whatsapp_broadcast_logs');
