@@ -194,18 +194,11 @@ export const DoctorDashboard: React.FC = () => {
       } else if (saved) {
         setActiveWabaConnection(JSON.parse(saved));
       } else {
-        const defaultConn = {
-          id: 'waba-conn-default',
-          phone_number: '+91 98765 43210',
-          phone_number_id: '109876543210987',
-          waba_id: 'waba-act-987654321',
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
-        localStorage.setItem('vitalsync_waba_connection', JSON.stringify(defaultConn));
-        setActiveWabaConnection(defaultConn);
+        setActiveWabaConnection(null);
       }
-    } catch (_e) {}
+    } catch (_e) {
+      setActiveWabaConnection(null);
+    }
   }, []);
 
   useEffect(() => {
