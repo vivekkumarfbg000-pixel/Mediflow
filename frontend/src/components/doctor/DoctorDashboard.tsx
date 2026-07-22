@@ -1873,8 +1873,8 @@ Keep the tone professional, clinical, objective, and precise.`;
       <WhatsAppTestDispatcherModal
         isOpen={isTestWhatsAppOpen}
         onClose={() => setIsTestWhatsAppOpen(false)}
-        clinicName={activePod?.name || 'Apex Medical Center'}
-        doctorName="Dr. Sharma"
+        clinicName={activePod?.name || 'VitalSync Smart Clinic'}
+        doctorName={activePod?.doctor_name || 'Dr. Doctor'}
       />
 
       {isPlacardModalOpen && (
@@ -1896,7 +1896,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       )}
 
       {/* Floating 24/7 Mediflow AI Support Widget */}
-      <WhatsAppSupportModal userRole="doctor" userName="Dr. Doctor" clinicName="Apex Medical Center" />
+      <WhatsAppSupportModal userRole="doctor" userName={activePod?.doctor_name || 'Dr. Doctor'} clinicName={activePod?.name || 'VitalSync Smart Clinic'} />
     </div>
   );
 };
