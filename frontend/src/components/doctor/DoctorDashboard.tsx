@@ -403,6 +403,29 @@ export const DoctorDashboard: React.FC = () => {
       setFinancialLedgers(api.getFinancialLedgers());
       setWhatsAppSessions(api.getWhatsAppSessions());
 
+      // Fetch live whatsapp_sessions from Supabase Cloud DB
+      supabase
+        .from('whatsapp_sessions')
+        .select('*')
+        .order('last_interaction', { ascending: false })
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            const formattedList = data.map((dbSession: any) => ({
+              id: dbSession.id,
+              patientPhone: dbSession.patient_phone,
+              patient_phone: dbSession.patient_phone,
+              phone: dbSession.patient_phone,
+              patientId: dbSession.patient_id,
+              currentState: dbSession.current_state,
+              lastInteraction: dbSession.last_interaction,
+              sessionData: dbSession.session_data || {},
+              session_data: dbSession.session_data || {}
+            }));
+            WhatsAppService.saveWhatsAppSessions(formattedList);
+            setWhatsAppSessions(formattedList);
+          }
+        });
+
       if (activePod?.id) {
         supabase
           .from('waba_connections')
