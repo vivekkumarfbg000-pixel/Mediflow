@@ -68,19 +68,21 @@ serve(async (req) => {
       if (payload?.action === "send_manual_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
-        const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || payload.phoneId || payload.phoneNumberId;
-        let systemToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || payload.systemToken || payload.token;
+        let phoneId = (payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
+        let systemToken = (payload.systemToken || payload.token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
 
-        // Direct DB fallback query if systemToken is not provided in env vars or payload
-        if (!systemToken && phoneId) {
+        // Direct DB fallback query if phoneId or systemToken is missing or empty
+        if (!systemToken || !phoneId) {
           try {
             const { data: dbConn } = await supabase
               .from("waba_connections")
-              .select("encrypted_system_user_token")
-              .eq("phone_number_id", phoneId)
+              .select("phone_number_id, encrypted_system_user_token")
+              .order("created_at", { ascending: false })
+              .limit(1)
               .maybeSingle();
-            if (dbConn?.encrypted_system_user_token) {
-              systemToken = dbConn.encrypted_system_user_token;
+            if (dbConn) {
+              if (!phoneId && dbConn.phone_number_id) phoneId = dbConn.phone_number_id;
+              if (!systemToken && dbConn.encrypted_system_user_token) systemToken = dbConn.encrypted_system_user_token;
             }
           } catch (_e) {}
         }

@@ -124,9 +124,9 @@ export class WhatsAppService {
                 action: 'send_manual_message',
                 patientPhone: cleanToPhone,
                 messageText: msgBody,
-                phoneId: activePhoneId,
-                phoneNumberId: activePhoneId,
-                systemToken: activeToken
+                phoneId: activePhoneId || undefined,
+                phoneNumberId: activePhoneId || undefined,
+                systemToken: activeToken || undefined
               }
             });
             console.log("DIAGNOSTIC: Edge function invocation result:", invokeRes);
