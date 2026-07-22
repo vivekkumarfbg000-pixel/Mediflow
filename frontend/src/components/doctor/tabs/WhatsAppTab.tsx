@@ -585,9 +585,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     if (broadcastTarget === 'all') {
                       targets = patients;
                     } else if (broadcastTarget === 'diabetes') {
-                      targets = patients.filter(p => p.chronicConditions.some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar')));
+                      targets = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('diabetes') || (c || '').toLowerCase().includes('sugar')));
                     } else if (broadcastTarget === 'hypertension') {
-                      targets = patients.filter(p => p.chronicConditions.some(c => c.toLowerCase().includes('hypertension') || c.toLowerCase().includes('bp')));
+                      targets = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('hypertension') || (c || '').toLowerCase().includes('bp')));
                     } else if (broadcastTarget === 'opd') {
                       targets = patients.filter(p => p.queueStatus && p.queueStatus !== 'completed');
                     }
