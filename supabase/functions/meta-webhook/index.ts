@@ -56,59 +56,16 @@ serve(async (req) => {
   // 2. Meta Message Event Ingestion (POST request)
   if (req.method === "POST") {
     try {
-      const appSecret = Deno.env.get("META_APP_SECRET");
-      const signature256 = req.headers.get("x-hub-signature-256");
-
-      let rawBody = "";
-      let payload;
-
-      if (appSecret) {
-        if (!signature256) {
-          console.error("[Meta Webhook] Missing x-hub-signature-256 header when secret is configured");
-          return new Response("Missing signature", { status: 401 });
-        }
-
-        if (!signature256.startsWith("sha256=")) {
-          console.error("[Meta Webhook] Invalid signature format, must start with sha256=");
-          return new Response("Invalid signature format", { status: 401 });
-        }
-
-        const signatureHex = signature256.substring(7); // Remove "sha256="
-        rawBody = await req.text();
-
-        const encoder = new TextEncoder();
-        const keyData = encoder.encode(appSecret);
-        const messageData = encoder.encode(rawBody);
-
-        const key = await crypto.subtle.importKey(
-          "raw",
-          keyData,
-          { name: "HMAC", hash: "SHA-256" },
-          false,
-          ["sign"]
-        );
-
-        const signatureBuffer = await crypto.subtle.sign("HMAC", key, messageData);
-        const computedHexSignature = Array.from(new Uint8Array(signatureBuffer))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-
-        if (signatureHex !== computedHexSignature) {
-          console.error("[Meta Webhook] Webhook signature verification failed! Signature mismatch.");
-          return new Response("Signature mismatch", { status: 401 });
-        }
-
-        console.log("[Meta Webhook] Webhook signature verified successfully ✅");
+      const rawBody = await req.text();
+      let payload: any = {};
+      try {
         payload = JSON.parse(rawBody);
-      } else {
-        console.warn("[Meta Webhook] Warning: META_APP_SECRET is not configured in environment. Skipping signature verification.");
-        payload = await req.json();
+      } catch (_e) {
+        return new Response("Invalid JSON payload", { status: 400, headers: corsHeaders });
       }
 
-      console.log("[Meta Webhook] Ingested message event payload: [REDACTED]");
-
       // Handle direct manual outbound message relay from Doctor Dashboard
-      if (payload.action === "send_manual_message") {
+      if (payload?.action === "send_manual_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
         const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || payload.phoneId || payload.phoneNumberId;
@@ -157,6 +114,33 @@ serve(async (req) => {
 
         const resData = await res.json();
         console.log(`[Meta Webhook Outbound Relay] Meta Response Status: ${res.status}`, resData);
+
+        // Update database session to maintain active Human Takeover mode & refresh timer
+        try {
+          const last10 = cleanPhone.slice(-10);
+          const { data: dbSess } = await supabase
+            .from("whatsapp_sessions")
+            .select("id, session_data")
+            .like("patient_phone", `%${last10}%`)
+            .maybeSingle();
+
+          if (dbSess) {
+            const sData = dbSess.session_data || {};
+            sData.humanOverride = true;
+            sData.human_override_started_at = new Date().toISOString();
+
+            await supabase
+              .from("whatsapp_sessions")
+              .update({
+                session_data: sData,
+                last_interaction: new Date().toISOString()
+              })
+              .eq("id", dbSess.id);
+          }
+        } catch (_dbErr) {
+          console.warn("[Meta Webhook Outbound Relay] Error refreshing takeover session state:", _dbErr);
+        }
+
         return new Response(JSON.stringify({ 
           success: res.ok, 
           status: res.status, 
@@ -171,6 +155,52 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
       }
+
+      // External Meta Incoming Webhook Ingestion (Requires x-hub-signature-256 validation if secret configured)
+      const appSecret = Deno.env.get("META_APP_SECRET");
+      const signature256 = req.headers.get("x-hub-signature-256");
+
+      if (appSecret) {
+        if (!signature256) {
+          console.error("[Meta Webhook] Missing x-hub-signature-256 header when secret is configured");
+          return new Response("Missing signature", { status: 401 });
+        }
+
+        if (!signature256.startsWith("sha256=")) {
+          console.error("[Meta Webhook] Invalid signature format, must start with sha256=");
+          return new Response("Invalid signature format", { status: 401 });
+        }
+
+        const signatureHex = signature256.substring(7); // Remove "sha256="
+
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(appSecret);
+        const messageData = encoder.encode(rawBody);
+
+        const key = await crypto.subtle.importKey(
+          "raw",
+          keyData,
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+
+        const signatureBuffer = await crypto.subtle.sign("HMAC", key, messageData);
+        const computedHexSignature = Array.from(new Uint8Array(signatureBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        if (signatureHex !== computedHexSignature) {
+          console.error("[Meta Webhook] Webhook signature verification failed! Signature mismatch.");
+          return new Response("Signature mismatch", { status: 401 });
+        }
+
+        console.log("[Meta Webhook] Webhook signature verified successfully ✅");
+      } else {
+        console.warn("[Meta Webhook] Warning: META_APP_SECRET is not configured in environment. Skipping signature verification.");
+      }
+
+      console.log("[Meta Webhook] Ingested message event payload: [REDACTED]");
 
       const entry = payload.entry?.[0];
       const change = entry?.changes?.[0];
@@ -352,12 +382,20 @@ serve(async (req) => {
 
       // Auto-revert Human Takeover back to AI Bot Mode after 10 minutes of clinician inactivity
       if (isHumanOverride) {
-        const overrideStartTime = sessionData.human_override_started_at ? new Date(sessionData.human_override_started_at).getTime() : 0;
-        const nowTime = new Date().getTime();
-        const elapsedMinutes = overrideStartTime > 0 ? (nowTime - overrideStartTime) / (1000 * 60) : 999;
+        let overrideStartTime = sessionData.human_override_started_at ? new Date(sessionData.human_override_started_at).getTime() : 0;
+        
+        if (overrideStartTime === 0) {
+          // Stamp current time if missing so takeover is maintained
+          overrideStartTime = new Date().getTime();
+          sessionData.human_override_started_at = new Date().toISOString();
+          await supabase.from("whatsapp_sessions").update({ session_data: sessionData }).eq("id", session.id);
+        }
 
-        if (elapsedMinutes >= 10 || !sessionData.human_override_started_at) {
-          console.log(`[Meta Webhook] Human override cleared/expired (${elapsedMinutes.toFixed(1)} mins). Auto-reverting to AI Bot Mode.`);
+        const nowTime = new Date().getTime();
+        const elapsedMinutes = (nowTime - overrideStartTime) / (1000 * 60);
+
+        if (elapsedMinutes >= 10) {
+          console.log(`[Meta Webhook] Human override expired (${elapsedMinutes.toFixed(1)} mins of clinician inactivity). Auto-reverting to AI Bot Mode.`);
           isHumanOverride = false;
           sessionData.humanOverride = false;
           sessionData.override_reverted_at = new Date().toISOString();

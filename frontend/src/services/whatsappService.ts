@@ -60,7 +60,11 @@ export class WhatsAppService {
           // Persist outgoing reply message to local session history for instant patient/doctor sync
           if (variables?.replyText) {
             const sessions = this.getWhatsAppSessions();
-            const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+            const targetDigits = phone.replace(/\D/g, '').slice(-10);
+            const sessionIndex = sessions.findIndex(s => {
+              const sPhone = (s.patientPhone || (s as any).patient_phone || (s as any).phone || '').replace(/\D/g, '').slice(-10);
+              return sPhone === targetDigits;
+            });
             const now = new Date().toISOString();
 
             if (sessionIndex !== -1) {

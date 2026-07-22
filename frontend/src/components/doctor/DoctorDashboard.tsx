@@ -479,6 +479,8 @@ export const DoctorDashboard: React.FC = () => {
           const formatted = {
             id: dbSession.id,
             patientPhone: dbSession.patient_phone,
+            patient_phone: dbSession.patient_phone,
+            phone: dbSession.patient_phone,
             patientId: dbSession.patient_id,
             currentState: dbSession.current_state,
             lastInteraction: dbSession.last_interaction,
@@ -487,7 +489,11 @@ export const DoctorDashboard: React.FC = () => {
           };
           
           const allSessions = WhatsAppService.getWhatsAppSessions();
-          const idx = allSessions.findIndex((s: any) => s.id === dbSession.id || s.patientPhone === dbSession.patient_phone);
+          const targetDigits = (dbSession.patient_phone || '').replace(/\D/g, '').slice(-10);
+          const idx = allSessions.findIndex((s: any) => {
+            const sDigits = (s.patientPhone || s.patient_phone || s.phone || '').replace(/\D/g, '').slice(-10);
+            return s.id === dbSession.id || (sDigits && sDigits === targetDigits);
+          });
           if (idx !== -1) {
             allSessions[idx] = formatted;
           } else {
@@ -497,7 +503,9 @@ export const DoctorDashboard: React.FC = () => {
 
           // Update active selected chat session panel in real-time
           setSelectedChatSession((prev: any) => {
-            if (prev && (prev.id === formatted.id || prev.patientPhone === formatted.patientPhone)) {
+            if (!prev) return formatted;
+            const prevDigits = (prev.patientPhone || prev.patient_phone || prev.phone || '').replace(/\D/g, '').slice(-10);
+            if (prev.id === formatted.id || (prevDigits && prevDigits === targetDigits)) {
               return formatted;
             }
             return prev;

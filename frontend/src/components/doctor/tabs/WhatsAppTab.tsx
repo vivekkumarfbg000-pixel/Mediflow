@@ -457,12 +457,19 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       };
 
                       // 1. Local-first immediate update
+                      const targetDigits = (activeChat.patientPhone || activeChat.patient_phone || activeChat.phone || '').replace(/\D/g, '').slice(-10);
                       setSelectedChatSession(updatedSess);
-                      setWhatsAppSessions(prev => prev.map(s => s.id === activeChat.id ? updatedSess : s));
+                      setWhatsAppSessions(prev => prev.map(s => {
+                        const sDigits = (s.patientPhone || s.patient_phone || s.phone || '').replace(/\D/g, '').slice(-10);
+                        return (s.id === activeChat.id || (sDigits && sDigits === targetDigits)) ? updatedSess : s;
+                      }));
 
                       // 2. Save to local storage sessions registry
                       const allSessions = WhatsAppService.getWhatsAppSessions();
-                      const sIdx = allSessions.findIndex(s => s.id === activeChat.id);
+                      const sIdx = allSessions.findIndex(s => {
+                        const sDigits = (s.patientPhone || (s as any).patient_phone || (s as any).phone || '').replace(/\D/g, '').slice(-10);
+                        return s.id === activeChat.id || (sDigits && sDigits === targetDigits);
+                      });
                       if (sIdx !== -1) {
                         allSessions[sIdx] = updatedSess;
                         WhatsAppService.saveWhatsAppSessions(allSessions);
