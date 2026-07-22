@@ -102,11 +102,11 @@ serve(async (req) => {
       if (payload.action === "send_manual_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
-        const systemToken = Deno.env.get("META_WHATSAPP_TOKEN");
-        const phoneId = Deno.env.get("META_PHONE_NUMBER_ID");
+        const systemToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN");
+        const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID");
 
         if (!systemToken || !phoneId) {
-          console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault.");
+          console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN/META_ACCESS_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault.");
           return new Response(JSON.stringify({ error: "Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault" }), { status: 400 });
         }
 
@@ -227,10 +227,11 @@ serve(async (req) => {
         connection = {
           pod_id: 'default-pod',
           entity_id: 'default-entity',
-          decrypted_token: Deno.env.get("META_WHATSAPP_TOKEN") ?? ""
+          decrypted_token: Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || ""
         };
       }
-      const tenantToken = connection.decrypted_token;
+      const decryptedToken = connection.decrypted_token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
+      const tenantToken = decryptedToken;
 
       // 4. Retrieve or Initialize Active WhatsApp Session for patient
       let { data: session, error: sessErr } = await supabase
