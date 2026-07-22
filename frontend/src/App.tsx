@@ -396,13 +396,10 @@ function AppContent({
       {typeof window !== 'undefined' && getIsLocal(window.location.hostname) && (
         <button
           onClick={() => setIsSimulatorOpen(true)}
-          className="fixed bottom-14 right-6 z-[80] bg-emerald-500 hover:bg-emerald-600 text-white p-3.5 rounded-full shadow-2xl flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all group duration-300 border border-emerald-400/25 cursor-pointer text-white-force"
+          className="fixed bottom-32 md:bottom-20 right-3 md:right-6 z-[80] h-9 w-9 md:h-10 md:w-10 rounded-full bg-emerald-600/70 hover:bg-emerald-600 backdrop-blur-md opacity-75 hover:opacity-100 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 hover:scale-110 active:scale-95 transition-all duration-300 border border-white/30 cursor-pointer text-white-force"
           title="Open Patient WhatsApp Simulator"
         >
-          <span className="material-symbols-outlined text-2xl font-bold animate-pulse text-white-force">chat</span>
-          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-out whitespace-nowrap text-xs font-bold uppercase tracking-wider text-white-force">
-            Simulate WhatsApp Sandbox
-          </span>
+          <span className="material-symbols-outlined text-sm md:text-base font-bold animate-pulse text-white-force">chat</span>
         </button>
       )}
 

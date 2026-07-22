@@ -55,11 +55,11 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 right-5 z-[9990] h-14 w-14 rounded-full bg-gradient-to-tr from-emerald-600 to-green-500 hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-2xl shadow-emerald-600/40 cursor-pointer border-2 border-white/20 transition-all group"
+        className="fixed bottom-20 md:bottom-6 right-3 md:right-6 z-[9990] h-9 w-9 md:h-10 md:w-10 rounded-full bg-emerald-600/70 hover:bg-emerald-600 backdrop-blur-md opacity-75 hover:opacity-100 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 cursor-pointer border border-white/30 transition-all duration-300 hover:scale-110 active:scale-95 group"
         title="Open 24/7 Mediflow AI WhatsApp Support"
       >
-        <MessageSquare className="h-6 w-6 group-hover:rotate-12 transition-transform" />
-        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-400 border-2 border-white animate-pulse" />
+        <MessageSquare className="h-4 w-4 md:h-5 md:w-5 group-hover:rotate-12 transition-transform" />
+        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-amber-400 border border-white animate-pulse" />
       </button>
 
       {/* ── Support Drawer Modal ──────────────────────────────────────────────── */}
