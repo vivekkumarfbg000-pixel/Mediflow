@@ -158,6 +158,96 @@ serve(async (req) => {
         });
       }
 
+      // Handle batch broadcast campaign dispatch from Doctor Dashboard
+      if (payload?.action === "send_broadcast_message") {
+        const patientPhone = payload.patientPhone;
+        const messageText = payload.messageText;
+        let phoneId = (payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
+        let systemToken = (payload.systemToken || payload.token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+
+        if (!systemToken || !phoneId) {
+          try {
+            const { data: dbConn } = await supabase
+              .from("waba_connections")
+              .select("phone_number_id, encrypted_system_user_token")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (dbConn) {
+              if (!phoneId && dbConn.phone_number_id) phoneId = dbConn.phone_number_id;
+              if (!systemToken && dbConn.encrypted_system_user_token) systemToken = dbConn.encrypted_system_user_token;
+            }
+          } catch (_e) {}
+        }
+
+        if (!systemToken || !phoneId || !patientPhone || !messageText) {
+          return new Response(JSON.stringify({ error: "Missing required broadcast parameters" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+
+        let cleanPhone = patientPhone.replace(/[^0-9]/g, "");
+        if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+        const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${systemToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: cleanPhone,
+            type: "text",
+            text: { body: messageText }
+          })
+        });
+
+        const resData = await res.json();
+        console.log(`[Meta Webhook Broadcast Relay] Status to ${cleanPhone}: ${res.status}`, resData);
+
+        // Record broadcast message in session history
+        try {
+          const last10 = cleanPhone.slice(-10);
+          const currentTime = new Date().toISOString();
+          const { data: dbSess } = await supabase
+            .from("whatsapp_sessions")
+            .select("id, session_data")
+            .like("patient_phone", `%${last10}%`)
+            .maybeSingle();
+
+          if (dbSess) {
+            const sData = dbSess.session_data || {};
+            const chatHistory = sData.chatHistory || [];
+            chatHistory.push({
+              sender: "agent",
+              text: `📢 [BROADCAST CAMPAIGN]\n${messageText}`,
+              timestamp: currentTime,
+              time: currentTime
+            });
+            sData.chatHistory = chatHistory;
+
+            await supabase
+              .from("whatsapp_sessions")
+              .update({
+                session_data: sData,
+                last_interaction: currentTime
+              })
+              .eq("id", dbSess.id);
+          }
+        } catch (_bErr) {}
+
+        return new Response(JSON.stringify({ 
+          success: res.ok, 
+          status: res.status, 
+          metaResponse: resData 
+        }), { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
+
       // External Meta Incoming Webhook Ingestion (Requires x-hub-signature-256 validation if secret configured)
       const appSecret = Deno.env.get("META_APP_SECRET");
       const signature256 = req.headers.get("x-hub-signature-256");

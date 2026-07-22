@@ -651,6 +651,41 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 </div>
               </div>
 
+              {/* Apollo 24/7 Preset Campaign Templates */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">⚡ Apollo 24/7 Standard Preset Templates</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBroadcastMsg(`Namaste! ${activePod?.name || 'VitalSync Smart Clinic'} will remain CLOSED on Sunday for maintenance. For emergency OPD, please reply SOS or scan clinic QR.`)}
+                    className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl text-[9px] font-bold text-slate-700 text-left transition-all cursor-pointer"
+                  >
+                    📢 Clinic Holiday Notice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBroadcastMsg(`Namaste! Join our FREE Health Checkup Camp (BP, Blood Sugar, Vitals) this Sunday 9 AM - 1 PM at ${activePod?.name || 'VitalSync Clinic'}. Reply 1 to register!`)}
+                    className="p-2 bg-emerald-50/50 hover:bg-emerald-100/50 border border-emerald-200/80 rounded-xl text-[9px] font-bold text-emerald-800 text-left transition-all cursor-pointer"
+                  >
+                    🩺 Free Health Camp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBroadcastMsg(`Namaste! Dengue & Typhoid fever cases are rising in your area. Stay hydrated, use mosquito repellents, and contact ${activePod?.name || 'VitalSync Clinic'} if fever exceeds 100°F.`)}
+                    className="p-2 bg-blue-50/50 hover:bg-blue-100/50 border border-blue-200/80 rounded-xl text-[9px] font-bold text-blue-800 text-left transition-all cursor-pointer"
+                  >
+                    🌧️ Monsoon Dengue Alert
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBroadcastMsg(`Namaste! Your monthly chronic medicine prescription is due for refill. Reply REFILL or tap 1-Click Refill to reserve medicines at clinic counter.`)}
+                    className="p-2 bg-amber-50/50 hover:bg-amber-100/50 border border-amber-200/80 rounded-xl text-[9px] font-bold text-amber-800 text-left transition-all cursor-pointer"
+                  >
+                    💊 Chronic Refill Notice
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Campaign Message Draft</label>
                 <textarea
@@ -665,7 +700,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!broadcastMsg.trim()) return;
                     let targets: Patient[] = [];
                     if (broadcastTarget === 'all') {
@@ -683,28 +718,69 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       return;
                     }
 
-                    targets.forEach(p => {
-                      WhatsAppService.pushWhatsAppMessageFromBot(p.phone, broadcastMsg);
-                    });
+                    const messageContent = broadcastMsg.trim();
+                    setBroadcastMsg('');
+
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'Broadcasting Started... 📢',
+                        message: `Dispatching campaign to ${targets.length} patient(s) via Meta Graph API...`,
+                        type: 'info'
+                      }
+                    }));
+
+                    let successCount = 0;
+                    let failCount = 0;
+                    let activePhoneId = activeWabaConnection?.phone_number_id || '';
+                    let activeToken = activeWabaConnection?.encrypted_system_user_token || '';
+
+                    for (let i = 0; i < targets.length; i++) {
+                      const p = targets[i];
+                      const cleanPhone = (p.phone || '').replace(/[^0-9]/g, '');
+                      const formattedPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+
+                      try {
+                        const invokeRes = await supabase.functions.invoke('meta-webhook', {
+                          body: {
+                            action: 'send_broadcast_message',
+                            patientPhone: formattedPhone,
+                            messageText: messageContent,
+                            phoneId: activePhoneId || undefined,
+                            phoneNumberId: activePhoneId || undefined,
+                            systemToken: activeToken || undefined
+                          }
+                        });
+
+                        if (invokeRes?.data?.success) {
+                          successCount++;
+                        } else {
+                          failCount++;
+                        }
+                      } catch (_err) {
+                        failCount++;
+                      }
+
+                      // Rate-limited 66ms spacing (15 messages/second limit to prevent Meta WABA rate limit errors)
+                      await new Promise(r => setTimeout(r, 66));
+                    }
 
                     const newLog = {
                       id: `bc-${Date.now()}`,
                       date: new Date().toISOString(),
                       target: broadcastTarget,
-                      message: broadcastMsg,
+                      message: messageContent,
                       count: targets.length,
-                      status: 'Sent ✅'
+                      status: `Sent ✅ (${successCount} delivered, ${failCount} failed)`
                     };
 
                     const updatedLogs = [newLog, ...broadcastLogs];
                     setBroadcastLogs(updatedLogs);
                     localStorage.setItem('whatsapp_broadcast_logs', JSON.stringify(updatedLogs));
-                    setBroadcastMsg('');
 
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
-                        title: 'Broadcast Dispatched! 📢',
-                        message: `Campaign message sent to ${targets.length} patient(s) successfully.`,
+                        title: 'Broadcast Campaign Completed! 🎉',
+                        message: `Dispatched to ${targets.length} patient(s). ${successCount} Delivered, ${failCount} Failed.`,
                         type: 'success'
                       }
                     }));
