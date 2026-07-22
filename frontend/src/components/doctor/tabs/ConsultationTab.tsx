@@ -2042,48 +2042,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </div>
             )}
 
-            {/* AI Generation History List */}
-            <div className="mt-4 p-5 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <h4 className="font-bold text-[10px] text-slate-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-xs">history</span>
-                  AI Generation History ({aiHistory.length})
-                </h4>
-                {aiHistory.length > 0 && (
-                  <span className="text-[8px] bg-slate-200 text-slate-650 px-2 py-0.5 rounded font-mono">
-                    Offline Resilient
-                  </span>
-                )}
-              </div>
-              {aiHistory.length === 0 ? (
-                <p className="text-[10px] text-slate-400 italic">No previously saved AI outputs for this patient.</p>
-              ) : (
-                <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
-                  {aiHistory.map((h: any) => (
-                    <div key={h.id} className="p-3 bg-white border border-slate-200/60 rounded-xl text-[10px] text-slate-650 leading-relaxed font-sans space-y-2 hover:shadow-xs transition-all">
-                      <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 font-mono">
-                        <span className="flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                          {h.output_type.replace(/_/g, ' ')}
-                        </span>
-                        <span>{new Date(h.created_at).toLocaleString()}</span>
-                      </div>
-                      <div className="text-slate-800 font-medium whitespace-pre-line bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 max-h-40 overflow-y-auto text-[10px] leading-relaxed">
-                        {h.output_data}
-                      </div>
-                      <div className="flex justify-between items-center text-[8px] text-slate-400 font-medium">
-                        <span>Model: {h.model_used}</span>
-                        {h.input_data && (
-                          <span className="truncate max-w-[200px]" title={h.input_data}>
-                            Input: "{h.input_data}"
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* AI Generation History List Removed for Clean Professional UI */}
           </div>
 
         {/* Clinical Notes (placed at the bottom of the workup tab) */}
