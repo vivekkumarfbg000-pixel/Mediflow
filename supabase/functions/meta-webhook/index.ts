@@ -111,12 +111,15 @@ serve(async (req) => {
       if (payload.action === "send_manual_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
-        const systemToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN");
-        const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID");
+        const systemToken = payload.systemToken || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN");
+        const phoneId = payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID");
 
         if (!systemToken || !phoneId) {
-          console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN/META_ACCESS_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault.");
-          return new Response(JSON.stringify({ error: "Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault" }), { status: 400 });
+          console.error("[Meta Webhook Outbound Relay] Error: Missing META_WHATSAPP_TOKEN/META_ACCESS_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault or payload.");
+          return new Response(JSON.stringify({ error: "Missing META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID in Supabase Vault or payload" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
         }
 
         let cleanPhone = patientPhone.replace(/[^0-9]/g, "");

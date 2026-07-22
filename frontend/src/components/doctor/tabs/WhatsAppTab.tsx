@@ -114,8 +114,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
     return matchPhone || matchName;
   });
 
-  const activeChat = whatsAppSessions.find(s => s.id === selectedChatSession?.id) ?? selectedChatSession;
-  const sessionData = activeChat?.sessionData || activeChat?.session_data || {};
   const isHumanOverride = sessionData.humanOverride === true;
 
   return (

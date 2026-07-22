@@ -96,12 +96,23 @@ export class WhatsAppService {
             const msgBody = variables?.replyText || 'Hello from VitalSync Smart Clinic';
 
             // Secure Server-Side Relay via Supabase Edge Function
+            let activePhoneId = '';
+            try {
+              const saved = localStorage.getItem('vitalsync_waba_connection');
+              if (saved && saved !== 'disconnected') {
+                const parsed = JSON.parse(saved);
+                if (parsed?.phone_number_id) activePhoneId = parsed.phone_number_id;
+              }
+            } catch (_sE) {}
+
             const { supabase: sb } = await import('../lib/supabaseClient');
             const invokeRes = await sb.functions.invoke('meta-webhook', {
               body: {
                 action: 'send_manual_message',
                 patientPhone: cleanToPhone,
-                messageText: msgBody
+                messageText: msgBody,
+                phoneId: activePhoneId,
+                phoneNumberId: activePhoneId
               }
             });
             console.log("DIAGNOSTIC: Edge function invocation result:", invokeRes);
