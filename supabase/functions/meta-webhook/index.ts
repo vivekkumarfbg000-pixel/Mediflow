@@ -338,9 +338,9 @@ serve(async (req) => {
 
       // Auto-revert Human Takeover back to AI Bot Mode after 10 minutes of clinician inactivity
       if (isHumanOverride) {
-        const overrideStartTime = new Date(sessionData.human_override_started_at || sessionData.last_doctor_reply_at || session.created_at || 0).getTime();
+        const overrideStartTime = sessionData.human_override_started_at ? new Date(sessionData.human_override_started_at).getTime() : 0;
         const nowTime = new Date().getTime();
-        const elapsedMinutes = (nowTime - overrideStartTime) / (1000 * 60);
+        const elapsedMinutes = overrideStartTime > 0 ? (nowTime - overrideStartTime) / (1000 * 60) : 999;
 
         if (elapsedMinutes >= 10 || !sessionData.human_override_started_at) {
           console.log(`[Meta Webhook] Human override cleared/expired (${elapsedMinutes.toFixed(1)} mins). Auto-reverting to AI Bot Mode.`);

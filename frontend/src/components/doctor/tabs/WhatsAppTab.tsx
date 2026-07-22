@@ -374,7 +374,11 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         await supabase
                           .from('whatsapp_sessions')
                           .update({
-                            session_data: { ...sessionData, humanOverride: updatedOverride }
+                            session_data: {
+                              ...sessionData,
+                              humanOverride: updatedOverride,
+                              human_override_started_at: updatedOverride ? new Date().toISOString() : null
+                            }
                           })
                           .eq('id', activeChat.id);
                       } catch (_e) {}
