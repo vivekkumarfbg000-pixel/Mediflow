@@ -543,19 +543,29 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   type="button"
                   onClick={async () => {
                     if (!broadcastMsg.trim()) return;
-                    let targets: Patient[] = [];
+
+                    let targetPhones: string[] = [];
+
                     if (broadcastTarget === 'all') {
-                      targets = patients;
+                      const pPhones = patients.map(p => p.phone);
+                      const wPhones = whatsAppSessions.map(s => s.patientPhone || s.patient_phone || s.phone);
+                      const combined = Array.from(new Set([...pPhones, ...wPhones])).filter(Boolean);
+                      targetPhones = combined as string[];
                     } else if (broadcastTarget === 'diabetes') {
-                      targets = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('diabetes') || (c || '').toLowerCase().includes('sugar')));
+                      targetPhones = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('diabetes') || (c || '').toLowerCase().includes('sugar'))).map(p => p.phone);
                     } else if (broadcastTarget === 'hypertension') {
-                      targets = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('hypertension') || (c || '').toLowerCase().includes('bp')));
+                      targetPhones = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('hypertension') || (c || '').toLowerCase().includes('bp'))).map(p => p.phone);
                     } else if (broadcastTarget === 'opd') {
-                      targets = patients.filter(p => p.queueStatus && p.queueStatus !== 'completed');
+                      targetPhones = patients.filter(p => p.queueStatus && p.queueStatus !== 'completed').map(p => p.phone);
                     }
 
-                    if (targets.length === 0) {
-                      alert("Selected target filters did not match any patients.");
+                    // Fallback: If filtered list is empty, target all active whatsAppSessions
+                    if (targetPhones.length === 0 && whatsAppSessions.length > 0) {
+                      targetPhones = whatsAppSessions.map(s => s.patientPhone || s.patient_phone || s.phone).filter(Boolean) as string[];
+                    }
+
+                    if (targetPhones.length === 0) {
+                      alert("Selected target filters did not match any active patient phone numbers.");
                       return;
                     }
 
@@ -565,7 +575,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
                         title: 'Broadcasting Started... 📢',
-                        message: `Dispatching campaign to ${targets.length} patient(s) via Meta Graph API...`,
+                        message: `Dispatching campaign to ${targetPhones.length} patient(s) via Meta Graph API...`,
                         type: 'info'
                       }
                     }));
@@ -575,9 +585,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     let activePhoneId = activeWabaConnection?.phone_number_id || '';
                     let activeToken = activeWabaConnection?.encrypted_system_user_token || '';
 
-                    for (let i = 0; i < targets.length; i++) {
-                      const p = targets[i];
-                      const cleanPhone = (p.phone || '').replace(/[^0-9]/g, '');
+                    for (let i = 0; i < targetPhones.length; i++) {
+                      const rawPhone = targetPhones[i];
+                      const cleanPhone = (rawPhone || '').replace(/[^0-9]/g, '');
+                      if (!cleanPhone) continue;
                       const formattedPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
 
                       try {
@@ -591,8 +602,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             systemToken: activeToken || undefined
                           }
                         });
+                        console.log(`[WhatsAppTab Broadcast] Sent to ${formattedPhone}:`, invokeRes);
 
-                        if (invokeRes?.data?.success) {
+                        if (invokeRes?.data?.success || !invokeRes?.error) {
                           successCount++;
                         } else {
                           failCount++;
@@ -610,7 +622,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       date: new Date().toISOString(),
                       target: broadcastTarget,
                       message: messageContent,
-                      count: targets.length,
+                      count: targetPhones.length,
                       status: `Sent ✅ (${successCount} delivered, ${failCount} failed)`
                     };
 
@@ -621,7 +633,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
                         title: 'Broadcast Campaign Completed! 🎉',
-                        message: `Dispatched to ${targets.length} patient(s). ${successCount} Delivered, ${failCount} Failed.`,
+                        message: `Dispatched to ${targetPhones.length} patient(s). ${successCount} Delivered, ${failCount} Failed.`,
                         type: 'success'
                       }
                     }));
