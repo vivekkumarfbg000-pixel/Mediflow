@@ -189,7 +189,9 @@ export const DoctorDashboard: React.FC = () => {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('vitalsync_waba_connection');
-      if (saved) {
+      if (saved === 'disconnected') {
+        setActiveWabaConnection(null);
+      } else if (saved) {
         setActiveWabaConnection(JSON.parse(saved));
       } else {
         const defaultConn = {

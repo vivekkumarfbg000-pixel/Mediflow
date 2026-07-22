@@ -134,6 +134,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               type="button"
               onClick={async () => {
                 if (window.confirm("Are you sure you want to disconnect this live WhatsApp business channel? AI automations will revert to simulator mode.")) {
+                  localStorage.setItem('vitalsync_waba_connection', 'disconnected');
                   setActiveWabaConnection(null);
                   try {
                     await supabase
@@ -807,6 +808,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       try {
                         const { supabase: sb } = await import('../../../lib/supabaseClient');
                         const { data: { session } } = await sb.auth.getSession();
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 10000);
                         const res = await fetch(
                           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
                           {
@@ -821,9 +824,11 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                               clinicName: clinicDisplayName.trim(),
                               podId: activePod?.id,
                               otpMethod
-                            })
+                            }),
+                            signal: controller.signal
                           }
                         );
+                        clearTimeout(timeoutId);
                         let result: any = {};
                         try {
                           result = await res.json();
@@ -917,6 +922,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       try {
                         const { supabase: sb } = await import('../../../lib/supabaseClient');
                         const { data: { session } } = await sb.auth.getSession();
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 10000);
                         const res = await fetch(
                           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
                           {
@@ -933,9 +940,11 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                               clinicName: clinicDisplayName.trim(),
                               podId: activePod?.id,
                               entityId: activePod?.entity_id
-                            })
+                            }),
+                            signal: controller.signal
                           }
                         );
+                        clearTimeout(timeoutId);
                         let result: any = {};
                         try {
                           result = await res.json();
