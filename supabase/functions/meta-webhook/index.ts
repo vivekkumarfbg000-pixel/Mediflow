@@ -71,18 +71,25 @@ serve(async (req) => {
         let phoneId = (payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
         let systemToken = (payload.systemToken || payload.token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
 
-        // Direct DB fallback query if phoneId or systemToken is missing or empty
+        // Filter out dummy/demo mock Phone IDs
+        if (phoneId === "105829471928374" || phoneId.startsWith("demo-")) {
+          phoneId = "";
+          systemToken = "";
+        }
+
+        // Direct DB fallback query if phoneId or systemToken is missing or dummy mock ID
         if (!systemToken || !phoneId) {
           try {
             const { data: dbConn } = await supabase
               .from("waba_connections")
               .select("phone_number_id, encrypted_system_user_token")
+              .neq("phone_number_id", "105829471928374")
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
             if (dbConn) {
-              if (!phoneId && dbConn.phone_number_id) phoneId = dbConn.phone_number_id;
-              if (!systemToken && dbConn.encrypted_system_user_token) systemToken = dbConn.encrypted_system_user_token;
+              if (dbConn.phone_number_id) phoneId = dbConn.phone_number_id;
+              if (dbConn.encrypted_system_user_token) systemToken = dbConn.encrypted_system_user_token;
             }
           } catch (_e) {}
         }
@@ -100,7 +107,7 @@ serve(async (req) => {
 
         console.log(`[Meta Webhook Outbound Relay] Dispatching text to ${cleanPhone} via phoneId ${phoneId}...`);
 
-        const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+        let res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${systemToken}`,
@@ -114,8 +121,44 @@ serve(async (req) => {
           })
         });
 
-        const resData = await res.json();
+        let resData = await res.json();
         console.log(`[Meta Webhook Outbound Relay] Meta Response Status: ${res.status}`, resData);
+
+        // Automatic Self-Healing Retry using Production DB Credentials if primary attempt returned HTTP 400
+        if (!res.ok) {
+          try {
+            const { data: realConn } = await supabase
+              .from("waba_connections")
+              .select("phone_number_id, encrypted_system_user_token")
+              .neq("phone_number_id", "105829471928374")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (realConn && realConn.phone_number_id && realConn.encrypted_system_user_token && realConn.phone_number_id !== phoneId) {
+              console.log(`[Meta Webhook Outbound Relay] Retrying dispatch via production DB phoneId ${realConn.phone_number_id}...`);
+              const retryRes = await fetch(`https://graph.facebook.com/v21.0/${realConn.phone_number_id}/messages`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${realConn.encrypted_system_user_token}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  messaging_product: "whatsapp",
+                  to: cleanPhone,
+                  type: "text",
+                  text: { body: messageText }
+                })
+              });
+              const retryData = await retryRes.json();
+              console.log(`[Meta Webhook Outbound Relay] Retry Response Status: ${retryRes.status}`, retryData);
+              if (retryRes.ok) {
+                res = retryRes;
+                resData = retryData;
+              }
+            }
+          } catch (_retryErr) {}
+        }
 
         // Update database session to maintain active Human Takeover mode & refresh timer
         try {
