@@ -18,8 +18,17 @@ if (!wabaSecretKey) {
 // Initialize Supabase Client with service key to bypass RLS for administrative routing
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 serve(async (req) => {
   const url = new URL(req.url);
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   // 1. Meta Webhook Hub Handshake Verification (GET request)
   if (req.method === "GET") {
@@ -306,7 +315,21 @@ serve(async (req) => {
 
       // 5. Route to AI chatbot pipeline OR notify Human Team Inbox
       const sessionData = session.session_data ?? {};
-      const isHumanOverride = sessionData.humanOverride === true;
+      let isHumanOverride = sessionData.humanOverride === true;
+
+      // Auto-revert Human Takeover back to AI Bot Mode after 10 minutes of clinician inactivity
+      if (isHumanOverride) {
+        const lastInteractionTime = new Date(session.last_interaction || 0).getTime();
+        const nowTime = new Date().getTime();
+        const elapsedMinutes = (nowTime - lastInteractionTime) / (1000 * 60);
+
+        if (elapsedMinutes > 10) {
+          console.log(`[Meta Webhook] Human override inactive for ${elapsedMinutes.toFixed(1)} mins. Auto-reverting to AI Bot Mode.`);
+          isHumanOverride = false;
+          sessionData.humanOverride = false;
+          sessionData.override_reverted_at = new Date().toISOString();
+        }
+      }
 
       // Non-blocking background activity logging
       supabase.from("activity_logs").insert({

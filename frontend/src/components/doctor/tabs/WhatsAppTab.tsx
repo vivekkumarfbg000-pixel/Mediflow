@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../../services/api';
 import { supabase } from '../../../lib/supabaseClient';
 import type { Patient } from '../../../types';
@@ -60,6 +60,17 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'diabetes' | 'hypertension' | 'opd'>('all');
   const [broadcastLogs, setBroadcastLogs] = useState<any[]>([]);
+
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  const activeChat = selectedChatSession ?? (whatsAppSessions.length > 0 ? whatsAppSessions[0] : null);
+  const sessionData = activeChat?.sessionData ?? activeChat?.session_data ?? {};
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [selectedChatSession, sessionData.chatHistory]);
 
   useEffect(() => {
     const logs = localStorage.getItem('whatsapp_broadcast_logs');
@@ -372,8 +383,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                         detail: {
-                          title: updatedOverride ? 'Human Override Enabled! ⚡' : 'AI Bot Restored! 🤖',
-                          message: updatedOverride ? 'AI chatbot response pipeline frozen. Staff manual response active.' : 'Clinical Scribe AI resume passive patient routing.',
+                          title: updatedOverride ? 'Human Override Enabled (10-Min Auto-Revert) ⚡' : 'AI Bot Restored! 🤖',
+                          message: updatedOverride ? 'AI chatbot paused. If no manual reply is sent for 10 minutes, AI Bot will resume automatically.' : 'Clinical Scribe AI resumed passive patient routing.',
                           type: 'success'
                         }
                       }));
@@ -390,7 +401,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               </div>
 
               {/* Chat Message Stream */}
-              <div className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[360px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[360px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
                 {(sessionData.chatHistory ?? []).map((msg: any, idx: number) => {
                   const sRole = (msg.sender || '').toLowerCase();
                   const isPatient = sRole === 'patient' || sRole === 'user' || sRole === 'customer' || sRole === 'client';
