@@ -952,10 +952,10 @@ export class BillingService {
 
     const activeSop = this.getActiveSop();
     const labDoctorSplit = activeSop?.extractedConfig?.splits?.doctor ?? 50; // 50% SOP
-    const medDoctorSplit = activeSop?.extractedConfig?.splits?.pharmacyDoctor ?? 20; // 20% SOP
+    const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20; // 20% SOP
 
     paidInvoices.forEach(inv => {
-      const isCash = inv.paymentMethod === 'cash';
+      const isCash = (inv as any).paymentMethod === 'cash';
       const amt = inv.amount || 0;
 
       if (inv.type === 'consult') {

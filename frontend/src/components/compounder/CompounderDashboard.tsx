@@ -2154,7 +2154,7 @@ export const CompounderDashboard: React.FC = () => {
                               }
 
                               // 4. Update patient queue status
-                              api.updatePatientQueueStatus(selectedApptPatient.id, 'registered');
+                              api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
 
                               // 5. Save reference & reset patient search selection
                               const bookedPatient = selectedApptPatient;

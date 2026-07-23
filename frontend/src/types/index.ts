@@ -252,6 +252,7 @@ export interface FinancialLedgerEntry {
 export interface Pod {
   id: string;
   name: string;
+  clinicName?: string;
   location?: string;
   clinicCode: string;
   isActive: boolean;
@@ -403,6 +404,8 @@ export interface ClinicSop {
       doctor: number;
       platform: number;
       lab: number;
+      pharmacyDoctor?: number;
+      pharmacy?: number;
     };
     guidelines: string[];
   };
@@ -415,7 +418,7 @@ export interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
-  status: 'pending_payment' | 'ready_for_consult' | 'completed' | 'scheduled' | 'cancelled';
+  status: 'pending_payment' | 'ready_for_consult' | 'completed' | 'scheduled' | 'cancelled' | 'confirmed' | string;
   appointmentTime?: string;  // ISO datetime for same-day evening slot
   endTime?: string;          // ISO datetime, 30 min after appointmentTime
   createdAt: string;
@@ -424,6 +427,13 @@ export interface Appointment {
   virtualTime?: string;
   virtualMeetingUrl?: string;
   virtualTimeAllocated?: boolean;
+  tokenNumber?: string;
+  token_number?: string;
+  is_virtual?: boolean;
+  virtual_date?: string;
+  virtual_time?: string;
+  virtual_meeting_url?: string;
+  source?: string;
 }
 
 export interface EveningSlot {
@@ -444,6 +454,7 @@ export interface Invoice {
   status: 'unpaid' | 'paid';
   createdAt: string;
   patientId?: string;
+  paymentMethod?: 'cash' | 'upi' | 'card' | string;
   metadata?: any;
 }
 

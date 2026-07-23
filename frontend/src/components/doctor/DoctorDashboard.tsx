@@ -368,15 +368,16 @@ export const DoctorDashboard: React.FC = () => {
 
     // Must be horizontal swipe: deltaX magnitude must be much larger than deltaY to prevent vertical scroll conflicts
     if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
-      const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'> = [
+      const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule'> = [
         'pod_view',
         'consultation', 
         'financials', 
         'patients',
         'whatsapp',
-        'sop'
+        'sop',
+        'virtual_schedule'
       ];
-      const currentIdx = tabs.indexOf(activeTab);
+      const currentIdx = tabs.indexOf(activeTab as any);
       
       if (deltaX > 0) {
         // Swipe Right -> Previous Tab
@@ -1933,7 +1934,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       <div className="hidden lg:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Mediflow Realtime Engine · {activePod?.clinicName || 'Apex Care Clinic'} Node</span>
+          <span>Mediflow Realtime Engine · {activePod?.name || activePod?.clinicName || 'Apex Care Clinic'} Node</span>
         </div>
         <div className="flex items-center gap-4">
           <span>Sub-300ms Outbound WhatsApp</span>
