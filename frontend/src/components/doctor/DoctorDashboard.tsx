@@ -1193,7 +1193,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                       const virtualAppts = appointments.filter((a: Appointment) => a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') : false));
                       const displayList: Array<{ appt: Appointment; patient: Patient; isFreeLoyalty: boolean }> = virtualAppts.length > 0 
                         ? virtualAppts.map((a: Appointment) => {
-                            const p = patients.find((pat: Patient) => pat.id === a.patientId) || { id: a.patientId, name: 'Virtual Patient', phone: 'N/A', age: '30', gender: 'M' } as Patient;
+                            const p = patients.find((pat: Patient) => pat.id === a.patientId) || ({ id: a.patientId, name: 'Virtual Patient', phone: 'N/A', age: '30', gender: 'M', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() } as unknown as Patient);
                             const isFreeLoyalty = a.amount === 0 || a.fee_status === 'waived_loyalty' || (a.source ? a.source.includes('loyalty') : false);
                             return { appt: a, patient: p, isFreeLoyalty };
                           })
