@@ -367,11 +367,23 @@ export class StateHealingEngine {
 
         let repairCount = 0;
         for (const col of requiredColumns) {
-          const { data: repairDone } = await supabase.rpc('execute_autonomous_db_repair', {
-            p_table:  col.table,
-            p_column: col.column,
-            p_type:   col.type,
-          });
+          let repairDone = false;
+          try {
+            const { data: res } = await supabase.rpc('heal_schema_drift', {
+              p_table_name: col.table,
+              p_column_name: col.column,
+              p_column_type: col.type,
+            });
+            if (res && res.success) repairDone = true;
+          } catch (_e) {
+            const { data: res } = await supabase.rpc('execute_autonomous_db_repair', {
+              p_table:  col.table,
+              p_column: col.column,
+              p_type:   col.type,
+            });
+            if (res) repairDone = true;
+          }
+
           if (repairDone) {
             repairCount++;
             healingSteps.push(`✅ Repaired: ${col.table}.${col.column} (${col.type})`);
@@ -1066,5 +1078,64 @@ export class SafeStorage {
       console.error(`[Auto-Healer] SafeStorage setItem failed for key '${key}':`, err);
       return false;
     }
+  }
+}
+
+// ── Phase 7: Zero Data-Loss Form & Consultation Draft Auto-Recovery ─────────
+export class FormDraftAutoHealer {
+  private static saveTimer: any = null;
+  private static DRAFT_PREFIX = 'vitalsync_form_draft_';
+
+  /** Enable auto-saving all active form input fields into sessionStorage every 2 seconds */
+  static startAutoSave(formId: string) {
+    if (typeof window === 'undefined') return;
+    if (this.saveTimer) clearInterval(this.saveTimer);
+
+    // Initial restore of previous draft if present
+    this.restoreDraft(formId);
+
+    this.saveTimer = setInterval(() => {
+      try {
+        const inputs = document.querySelectorAll(`[data-draft-form="${formId}"] input, [data-draft-form="${formId}"] textarea, [data-draft-form="${formId}"] select`);
+        if (inputs.length === 0) return;
+
+        const draftData: Record<string, string> = {};
+        inputs.forEach((el: any) => {
+          if (el.name || el.id) {
+            const key = el.name || el.id;
+            draftData[key] = el.value;
+          }
+        });
+
+        if (Object.keys(draftData).length > 0) {
+          sessionStorage.setItem(`${this.DRAFT_PREFIX}${formId}`, JSON.stringify(draftData));
+        }
+      } catch (_e) {}
+    }, 2000);
+  }
+
+  /** Restore form input values from sessionStorage */
+  static restoreDraft(formId: string) {
+    try {
+      const raw = sessionStorage.getItem(`${this.DRAFT_PREFIX}${formId}`);
+      if (!raw) return;
+      const draftData = JSON.parse(raw);
+      
+      setTimeout(() => {
+        Object.keys(draftData).forEach(key => {
+          const el = document.querySelector(`[data-draft-form="${formId}"] [name="${key}"], [data-draft-form="${formId}"] #${key}`) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+          if (el && draftData[key] && !el.value) {
+            el.value = draftData[key];
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+        console.log(`[FormDraftAutoHealer] Successfully restored draft state for form '${formId}' 📝`);
+      }, 300);
+    } catch (_e) {}
+  }
+
+  /** Clear draft state after successful form submission */
+  static clearDraft(formId: string) {
+    sessionStorage.removeItem(`${this.DRAFT_PREFIX}${formId}`);
   }
 }
