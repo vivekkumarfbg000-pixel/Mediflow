@@ -89,7 +89,9 @@ export class WhatsAppSupportBotService {
       try {
         await supabase.rpc('trigger_devsecops_auto_heal');
         await StateHealingEngine.handleException(new Error('WhatsApp Bot Requested On-Demand Pod Auto-Heal Scan'));
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore rpc fallback */
+      }
 
       const autoHealResp = `📊 *VITALSYNC AUTONOMOUS DIAGNOSTIC REPORT* ⚡\n──────────────────────────────────\n🟢 *System Uptime*      : 99.94% Nominal\n⚡ *Database Latency*   : 1.2ms (Zero Drift)\n🔒 *RLS Isolation*      : 100% Verified\n🏥 *Pod Health Status*  : REJUVENATED & OPERATIONAL\n──────────────────────────────────\nNamaste ${senderInfo.name}!\n\nOur 24/7 Autonomous DevSecOps Sentry detected a transient sync lock on your clinic pod (*${senderInfo.clinicName}*) and executed an instant 240ms auto-heal cycle.\n\n✅ *Action Taken*: Flushed orphaned sync locks & rejuvenated active sessions.\n\nPlease refresh your page now!`;
 
@@ -187,11 +189,15 @@ export class WhatsAppSupportBotService {
       existing.unshift(newTicket);
       localStorage.setItem('vitalsync_support_tickets', JSON.stringify(existing));
       window.dispatchEvent(new CustomEvent('mediflow-support-ticket-updated'));
-    } catch (_e) {}
+    } catch (_e) {
+      /* ignore storage fallback */
+    }
 
     try {
       await supabase.from('support_escalations').insert([newTicket]);
-    } catch (_e) {}
+    } catch (_e) {
+      /* ignore db insert error */
+    }
   }
 
   // ── Fetch Tickets for SaaS Admin Cockpit ────────────────────────────────────
@@ -244,6 +250,8 @@ export class WhatsAppSupportBotService {
       if (ticket && resolutionMsg) {
         api.pushWhatsAppMessageFromBot('+919876543210', `✅ *VITALSYNC PLATFORM OWNER RESOLUTION*\n\nRe: Ticket ${ticket.id} (${ticket.query_text})\n\nResolution: ${resolutionMsg}\n\nThank you for trusting VitalSync Connected Care Network!`);
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* ignore resolve error */
+    }
   }
 }

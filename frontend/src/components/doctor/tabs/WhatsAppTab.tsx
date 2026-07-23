@@ -209,7 +209,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       .from('waba_connections')
                       .delete()
                       .eq('id', activeWabaConnection.id);
-                  } catch (_e) {}
+                  } catch (_e) {
+                    /* ignore db fallback */
+                  }
 
                   window.dispatchEvent(new CustomEvent('mediflow-toast', {
                     detail: {
@@ -582,8 +584,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                     let successCount = 0;
                     let failCount = 0;
-                    let activePhoneId = activeWabaConnection?.phone_number_id || '';
-                    let activeToken = activeWabaConnection?.encrypted_system_user_token || '';
+                    const activePhoneId = activeWabaConnection?.phone_number_id || '';
+                    const activeToken = activeWabaConnection?.encrypted_system_user_token || '';
 
                     for (let i = 0; i < targetPhones.length; i++) {
                       const rawPhone = targetPhones[i];
@@ -844,7 +846,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           if (session?.access_token) {
                             token = session.access_token;
                           }
-                        } catch (_sErr) {}
+                        } catch (_sErr) {
+                          /* ignore session timeout */
+                        }
 
                         const controller = new AbortController();
                         const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -901,7 +905,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                                   is_active: true,
                                   verified_at: new Date().toISOString()
                                 }, { onConflict: 'pod_id' });
-                              } catch (_dbErr) {}
+                              } catch (_dbErr) {
+                                // ignore db error
+                              }
                             }
 
                             setOnboardStep(3);
@@ -1025,7 +1031,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           if (session?.access_token) {
                             token = session.access_token;
                           }
-                        } catch (_sErr) {}
+                        } catch (_sErr) {
+                          /* ignore session timeout */
+                        }
 
                         const controller = new AbortController();
                         const timeoutId = setTimeout(() => controller.abort(), 6000);

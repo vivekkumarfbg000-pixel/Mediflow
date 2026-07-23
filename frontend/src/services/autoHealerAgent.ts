@@ -1073,7 +1073,9 @@ export class SafeStorage {
       console.warn(`[Auto-Healer] SafeStorage caught corrupted local JSON key '${key}'. Auto-healing to default baseline:`, err);
       try {
         localStorage.setItem(key, JSON.stringify(fallback));
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore fallback error */
+      }
       return fallback;
     }
   }
@@ -1118,7 +1120,9 @@ export class FormDraftAutoHealer {
         if (Object.keys(draftData).length > 0) {
           sessionStorage.setItem(`${this.DRAFT_PREFIX}${formId}`, JSON.stringify(draftData));
         }
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore element read error */
+      }
     }, 2000);
   }
 
@@ -1139,7 +1143,9 @@ export class FormDraftAutoHealer {
         });
         console.log(`[FormDraftAutoHealer] Successfully restored draft state for form '${formId}' 📝`);
       }, 300);
-    } catch (_e) {}
+    } catch (_e) {
+      /* ignore draft restore error */
+    }
   }
 
   /** Clear draft state after successful form submission */
@@ -1219,7 +1225,9 @@ export class TabSyncAutoHealer {
     if (this.channel) {
       try {
         this.channel.postMessage({ eventType, data, timestamp: Date.now() });
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore postMessage error */
+      }
     }
   }
 }
@@ -1245,7 +1253,9 @@ export class WabaTokenAutoHealer {
           return { healedCount: brokenConns.length };
         }
       }
-    } catch (_e) {}
+    } catch (_e) {
+      /* ignore waba heal error */
+    }
     return { healedCount: 0 };
   }
 }

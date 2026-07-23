@@ -98,7 +98,9 @@ export function runStorageJanitor(): void {
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const freshTickets = tickets.filter((t: any) => new Date(t.created_at).getTime() > sevenDaysAgo);
         localStorage.setItem('vitalsync_support_tickets', JSON.stringify(freshTickets));
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore parse error */
+      }
     }
 
     // Clear temporary non-critical keys

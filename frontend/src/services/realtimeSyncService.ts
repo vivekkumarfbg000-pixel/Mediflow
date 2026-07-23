@@ -33,7 +33,9 @@ export class RealtimeSyncService {
         try {
           supabase.removeChannel(this.activeChannel);
           this.activeChannel = null;
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore removeChannel error */
+        }
         this.updateStatus('disconnected');
       }
     };
@@ -129,7 +131,7 @@ export class RealtimeSyncService {
       console.log(`[RealtimeSync Watchdog] 🔄 Executing automated WebSocket reconnect sequence (attempt ${this.reconnectAttempts}, backoff: ${backoffMs}ms)...`);
       if (this.subscribers.size > 0) {
         if (this.activeChannel) {
-          try { supabase.removeChannel(this.activeChannel); } catch (_e) {}
+          try { supabase.removeChannel(this.activeChannel); } catch (_e) { /* ignore error */ }
           this.activeChannel = null;
         }
         this.initGlobalChannel();

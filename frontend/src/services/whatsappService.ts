@@ -39,7 +39,9 @@ export class WhatsAppService {
       if (task) {
         try {
           await task();
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore task error */
+        }
         // Enforce 66ms spacing (15 messages/second limit to prevent Meta WABA HTTP 429 bans)
         await new Promise(r => setTimeout(r, 66));
       }
@@ -116,7 +118,9 @@ export class WhatsAppService {
                   activeToken = parsed.encrypted_system_user_token || parsed.token;
                 }
               }
-            } catch (_sE) {}
+            } catch (_sE) {
+              /* ignore parse error */
+            }
 
             const { supabase: sb } = await import('../lib/supabaseClient');
             const invokeRes = await sb.functions.invoke('meta-webhook', {
@@ -309,7 +313,7 @@ export class WhatsAppService {
                 
                 nextState = 'COMPLETED';
                 const voiceUrl = `https://vitalsync.in/api/voice-slips/VS-VOICE-${patientInvoices[0].id.substring(0, 5)}.mp3`;
-                replyMessage = `✅ *Payment Received!* \n\nAapka care pod invoice settle ho gaya hai. Vitals telemetry aur e-Rx status local counter par clear kar diya gaya hai. Thank you!\n\n🔊 *Listen to Doctor's dosage advice*:\n${voiceUrl}`;
+                replyMessage = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\nAapka VitalSync care pod invoice settle ho gaya hai. Physical visit token Patna Clinic counter par active hai.\n\nThank you for choosing VitalSync! 😊\n\n🔊 *Listen to Doctor's dosage advice*:\n${voiceUrl}`;
               } else {
                 nextState = 'COMPLETED';
                 replyMessage = "No unpaid invoices found on your profile. Safe to proceed!";
