@@ -28,11 +28,26 @@ import { DoctorRegistrationModal } from '../auth/DoctorRegistrationModal';
 import { WhatsAppTestDispatcherModal } from '../shared/WhatsAppTestDispatcherModal';
 import { WhatsAppService } from '../../services/whatsappService';
 
-const ConsultationTab = React.lazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
-const FinancialsTab = React.lazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
-const PatientsDirectoryTab = React.lazy(() => import('./tabs/PatientsDirectoryTab').then(m => ({ default: m.PatientsDirectoryTab })));
-const WhatsAppTab = React.lazy(() => import('./tabs/WhatsAppTab').then(m => ({ default: m.WhatsAppTab })));
-const SopConfigTab = React.lazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
+const safeLazy = (importFn: () => Promise<any>) =>
+  React.lazy(() =>
+    importFn().catch((err) => {
+      console.warn('[VitalSync] Dynamic chunk load failed (fresh build deployment detected). Executing auto-recovery reload...', err);
+      if (typeof window !== 'undefined') {
+        const reloaded = sessionStorage.getItem('vitalsync_chunk_reloaded');
+        if (!reloaded) {
+          sessionStorage.setItem('vitalsync_chunk_reloaded', 'true');
+          window.location.reload();
+        }
+      }
+      return importFn();
+    })
+  );
+
+const ConsultationTab = safeLazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
+const FinancialsTab = safeLazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
+const PatientsDirectoryTab = safeLazy(() => import('./tabs/PatientsDirectoryTab').then(m => ({ default: m.PatientsDirectoryTab })));
+const WhatsAppTab = safeLazy(() => import('./tabs/WhatsAppTab').then(m => ({ default: m.WhatsAppTab })));
+const SopConfigTab = safeLazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
 
 export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule'>('pod_view');
