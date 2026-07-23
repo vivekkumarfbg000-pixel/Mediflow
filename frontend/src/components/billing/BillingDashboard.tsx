@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import type { UnifiedInvoice, FinancialLedgerEntry } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { 
   QrCode, 
   Coins, 
@@ -99,7 +100,17 @@ export const BillingDashboard: React.FC = () => {
     };
 
     syncBilling();
-    return api.subscribe(syncBilling);
+    const unsubscribeApi = api.subscribe(syncBilling);
+
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onMedicineBillChange: () => syncBilling(),
+      onAppointmentChange: () => syncBilling()
+    });
+
+    return () => {
+      unsubscribeApi();
+      unsubscribeRealtime();
+    };
   }, []);
 
   const handleSelectInvoice = (inv: UnifiedInvoice) => {

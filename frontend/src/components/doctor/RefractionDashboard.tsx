@@ -13,6 +13,7 @@ import {
   type BiometryData 
 } from '../../types/ophthalmic';
 import type { Patient, PatientVitals } from '../../types';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { 
   Activity, 
   Smartphone, 
@@ -36,6 +37,21 @@ export const RefractionDashboard: React.FC = () => {
   
   // Workspace Patient
   const [refractionPatient, setRefractionPatient] = useState<Patient | null>(null);
+
+  // Subscribe to live 360-degree Realtime updates
+  useEffect(() => {
+    const syncData = () => {
+      setPatients(api.getPatients());
+    };
+    syncData();
+
+    const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onPatientChange: () => syncData(),
+      onAppointmentChange: () => syncData()
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Vitals & Diagnostics States
   const [vaOD, setVaOD] = useState('6/6');

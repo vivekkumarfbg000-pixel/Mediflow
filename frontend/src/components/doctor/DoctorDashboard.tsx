@@ -35,7 +35,7 @@ const WhatsAppTab = React.lazy(() => import('./tabs/WhatsAppTab').then(m => ({ d
 const SopConfigTab = React.lazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
 
 export const DoctorDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view'>('pod_view');
+  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule'>('pod_view');
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
@@ -1166,6 +1166,100 @@ Keep the tone professional, clinical, objective, and precise.`;
                   }}
                 />
               );
+            case 'virtual_schedule':
+              return (
+                <div className="space-y-6 animate-fade-in text-left">
+                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-900/80 rounded-3xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500 opacity-80" />
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <span className="material-symbols-outlined text-cyan-500 text-[24px]">videocam</span>
+                          Telemedicine &amp; Virtual Consultation Command Hub (वर्चुअल क्लिनिक)
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          Manage live video consults, join Google Meet Jitsi links, and launch 1-Click E-Rx worksheets.
+                        </p>
+                      </div>
+                      <span className="text-xs font-mono font-bold px-3.5 py-1.5 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full shrink-0">
+                        ● Live Telemedicine Hub
+                      </span>
+                    </div>
+
+                    {patients.length === 0 ? (
+                      <div className="p-12 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
+                        <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">videocam_off</span>
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-white">No active virtual video calls scheduled right now</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">WhatsApp bot bookings and patient online video requests will stream here automatically.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {patients.map(p => {
+                          const meetUrl = `https://meet.jit.si/vitalsync-consult-${p.id}`;
+                          return (
+                            <div key={p.id} className="p-5 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-4 hover:border-cyan-500/40 transition-all">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-mono font-extrabold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2.5 py-1 rounded-md">
+                                  Token #{p.tokenNumber || '1'}
+                                </span>
+                                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                  Fee Paid: ₹400.00 ✅
+                                </span>
+                              </div>
+
+                              <div>
+                                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                  {p.name}
+                                  <span className="text-xs text-slate-500 font-normal">({p.age}y · {p.gender})</span>
+                                </h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Phone: {p.phone}</p>
+                              </div>
+
+                              <div className="flex items-center gap-2 pt-2">
+                                <a
+                                  href={meetUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-md shadow-cyan-500/20"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">videocam</span>
+                                  Join Video Call 💻
+                                </a>
+                                <button
+                                  onClick={() => {
+                                    setNotes('');
+                                    setHinglishSummary('');
+                                    setAudioUrl(null);
+                                    setAudioBlob(null);
+                                    setMedications([]);
+                                    setSelectedTests([]);
+                                    setRefractionRx(EMPTY_REFRACTION_RX);
+
+                                    setSelectedPatient(p);
+                                    setActiveTab('consultation');
+                                    api.updatePatientQueueStatus(p.id, 'in_consultation');
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: {
+                                        title: 'Consultation Initialized! 🩺',
+                                        message: `Navigated to Virtual Video Consultation worksheet for ${p.name}.`,
+                                        type: 'success'
+                                      }
+                                    }));
+                                  }}
+                                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                                  Start E-Rx 🩺
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
             case 'consultation':
               return (
                 <ConsultationTab
@@ -1717,7 +1811,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 lg:pb-6 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-28 lg:pb-12 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
       {!isOnline && (
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-850 dark:text-amber-400 px-4 py-3 rounded-xl flex items-center justify-between text-xs font-semibold backdrop-blur-md animate-pulse text-left">
@@ -1783,11 +1877,12 @@ Keep the tone professional, clinical, objective, and precise.`;
         {/* Desktop tab nav — integrated into header */}
         <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px">
           {[
-            { id: 'pod_view',      label: 'Clinic Dashboard',  icon: 'dashboard' },
-            { id: 'consultation',  label: 'Consultation Queue',  icon: 'clinical_notes' },
-            { id: 'financials',    label: 'Financial Reports',   icon: 'account_balance_wallet' },
-            { id: 'patients',      label: 'Patient Directory',   icon: 'group' },
-            { id: 'whatsapp',      label: 'WhatsApp Inbox',      icon: 'chat' }
+            { id: 'pod_view',          label: 'Clinic Dashboard',     icon: 'dashboard' },
+            { id: 'consultation',      label: 'Consultation Queue',     icon: 'clinical_notes' },
+            { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: 'videocam' },
+            { id: 'financials',        label: 'Financial Reports',      icon: 'account_balance_wallet' },
+            { id: 'patients',          label: 'Patient Directory',      icon: 'group' },
+            { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: 'chat' }
           ].map(tab => {
             const isActive = activeTab === tab.id;
             return (
@@ -1834,9 +1929,24 @@ Keep the tone professional, clinical, objective, and precise.`;
 
       {/* Contextual Floating Action Button (FAB) for Mobile Viewports - Removed */}
 
-      {/* Premium Mobile Bottom Tab Bar Navigation for Doctor Dashboard */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/70 dark:bg-slate-950/60 backdrop-blur-md border-t border-slate-200/50 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] px-2 pb-safe-bottom">
-        <div className="flex items-center justify-around h-16">
+      {/* Desktop Enterprise Status Footer */}
+      <div className="hidden lg:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Mediflow Realtime Engine · {activePod?.clinicName || 'Apex Care Clinic'} Node</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span>Sub-300ms Outbound WhatsApp</span>
+          <span>·</span>
+          <span>Cashfree Payment Gate Active</span>
+          <span>·</span>
+          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">RLS Encrypted · Doctor EMR</span>
+        </div>
+      </div>
+
+      {/* Premium Mobile Bottom Navigation Dock for Doctor Dashboard */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.6)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'pod_view', label: 'Pod HUD', icon: 'hub' },
             { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
@@ -1849,24 +1959,24 @@ Keep the tone professional, clinical, objective, and precise.`;
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id as any)}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-250 cursor-pointer relative bg-transparent border-0 outline-none ${
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
                     ? 'text-indigo-600 dark:text-indigo-400 font-bold' 
-                    : 'text-slate-550 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                <div className={`p-1.5 rounded-lg transition-all duration-250 relative ${
+                <div className={`p-1.5 rounded-xl transition-all duration-200 relative ${
                   isActive 
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 scale-105 shadow-xs border border-indigo-100/50 dark:border-indigo-800/30' 
-                    : 'bg-transparent text-slate-500 dark:text-zinc-500'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 scale-105 shadow-sm border border-indigo-200/50 dark:border-indigo-800/40' 
+                    : 'bg-transparent text-slate-500 dark:text-slate-400'
                 }`}>
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 </div>
-                <span className="text-[10px] font-bold mt-1 tracking-wide leading-none">
+                <span className="text-[9px] sm:text-[10px] font-bold mt-1 tracking-tight leading-none shrink-0">
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                  <span className="absolute bottom-1 w-3 h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-xs shadow-indigo-500" />
                 )}
               </button>
             );

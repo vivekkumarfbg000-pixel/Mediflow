@@ -64,6 +64,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('connected');
+
+  useEffect(() => {
+    const handleStatus = (e: any) => {
+      if (e.detail?.status) {
+        setRealtimeStatus(e.detail.status);
+      }
+    };
+    window.addEventListener('vitalsync-realtime-status', handleStatus);
+    return () => window.removeEventListener('vitalsync-realtime-status', handleStatus);
+  }, []);
 
   useEffect(() => {
     const handleDoctorTabChange = (e: Event) => {
@@ -262,9 +273,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)] animate-fade-in">
                 <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Workspace</span>
                 <span className="block text-xs font-semibold text-slate-800 truncate">{activeEntity?.name}</span>
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-                  Code: <span className="font-semibold text-slate-700 font-mono">{activePod.clinicCode}</span>
+                <div className="flex items-center justify-between gap-1 text-[10px] text-slate-500 font-medium">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                    Code: <span className="font-semibold text-slate-700 font-mono">{activePod.clinicCode}</span>
+                  </div>
+                  <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-md border flex items-center gap-1 uppercase ${
+                    realtimeStatus === 'connected'
+                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-600 border-amber-500/20 animate-pulse'
+                  }`}>
+                    <span className={`w-1 h-1 rounded-full ${realtimeStatus === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    {realtimeStatus === 'connected' ? '360° Live' : 'Reconnecting'}
+                  </span>
                 </div>
               </div>
             )

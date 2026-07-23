@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import type { FinancialLedgerEntry } from '../../../types';
 import { SettlementWidget } from '../../shared/SettlementWidget';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
+import { BillingService } from '../../../services/billingService';
 
 interface FinancialsTabProps {
   financialLedgers: FinancialLedgerEntry[];
@@ -22,10 +23,15 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m' | '12m'>('6m');
 
-  const apptFees = financialLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
-  const pharmacyComm = financialLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
-  const labComm = financialLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
-  const totalEarnings = apptFees + pharmacyComm + labComm;
+  // Compute SOP-Driven Commission Pool & Multi-Party Split
+  const poolStats = useMemo(() => {
+    return BillingService.calculateCommissionPoolBalance();
+  }, [financialLedgers]);
+
+  const apptFees = poolStats.doctorConsultsEarned;
+  const pharmacyComm = poolStats.doctorMedicineReferralsEarned;
+  const labComm = poolStats.doctorLabReferralsEarned;
+  const totalEarnings = poolStats.totalDoctorEarned;
 
   // Dynamic timeframe data generation
   const chartData = useMemo(() => {
@@ -191,15 +197,15 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       {/* Revenue splits grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <PointerGlowCard containerClassName="shadow-sm rounded-2xl lg:col-span-2" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
-          <div className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">Total Earnings</div>
+          <div className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">Total Doctor Net Earnings</div>
           <div className="text-2xl font-bold mt-2 text-slate-900 dark:text-white">₹{totalEarnings.toLocaleString()}</div>
-          <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">Consolidated — Appointments + Pharmacy + Lab</p>
+          <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">SOP Consolidated — 100% Consults + 50% Lab + 20% Pharmacy</p>
         </PointerGlowCard>
 
         {[
-          { label: 'Appointment Fees', val: `₹${apptFees.toLocaleString()}`, split: '3% of consultation (paid by patient)', icon: 'clinical_notes', color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Pharmacy Commission', val: `₹${pharmacyComm.toLocaleString()}`, split: '3% Platform Commission', icon: 'medication', color: 'text-teal-600 dark:text-teal-400' },
-          { label: 'Lab Commission', val: `₹${labComm.toLocaleString()}`, split: '3% Platform Commission', icon: 'biotech', color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Doctor Consultation Fees', val: `₹${apptFees.toLocaleString()}`, split: '100% Doctor Fee (0% Platform Deducted)', icon: 'clinical_notes', color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Medicine Referral Income', val: `₹${pharmacyComm.toLocaleString()}`, split: '20% SOP Doctor Referral Share', icon: 'medication', color: 'text-teal-600 dark:text-teal-400' },
+          { label: 'Lab Test Referral Income', val: `₹${labComm.toLocaleString()}`, split: '50% SOP Doctor Referral Share', icon: 'biotech', color: 'text-amber-600 dark:text-amber-400' },
         ].map((item, i) => (
           <PointerGlowCard key={i} containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
             <div className="flex justify-between items-center">
@@ -212,44 +218,74 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         ))}
       </div>
 
-      {/* Commission Pool Status */}
-      <div className={`rounded-2xl border p-4 flex items-center justify-between gap-4 ${
-        isPoolLow
-          ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-700/40'
-          : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700/40'
-      }`}>
-        <div className="flex items-center gap-3">
-          <span className={`material-symbols-outlined text-2xl ${
-            isPoolLow ? 'text-amber-500' : 'text-emerald-500'
-          }`}>
-            {isPoolLow ? 'warning' : 'savings'}
-          </span>
-          <div>
-            <div className="text-xs font-bold text-slate-800 dark:text-white">
-              Commission Pool {isPoolLow ? '— Low Balance' : '— Healthy'}
-            </div>
-            <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-              Cash commissions are deducted from this pool. Pool refills from online payments.
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-6 text-right shrink-0">
-          <div>
-            <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono font-bold">Pool Balance</div>
-            <div className={`text-lg font-bold font-mono ${
-              isPoolLow ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
-            }`}>
-              {poolBalance !== null ? `₹${poolBalance.toLocaleString()}` : '—'}
-            </div>
-          </div>
-          {pendingCash > 0 && (
+      {/* Pilot Commission Pool Status Card */}
+      <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-900/10 via-slate-900/40 to-slate-950 p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-3xl text-indigo-400 bg-indigo-500/10 p-2.5 rounded-2xl border border-indigo-500/20">
+              account_balance_wallet
+            </span>
             <div>
-              <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono font-bold">Deferred</div>
-              <div className="text-lg font-bold font-mono text-rose-600 dark:text-rose-400">
-                ₹{pendingCash.toLocaleString()}
+              <div className="text-sm font-bold text-white flex items-center gap-2">
+                Pilot Commission Pool Balance
+                <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold uppercase">
+                  3% Fixed Platform Engine
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Offline cash sales decrease pool debt (-3%). Online WhatsApp bookings offset &amp; refill balance (+).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6 text-right">
+            <div>
+              <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono font-bold">Net Pool Balance</div>
+              <div className={`text-2xl font-bold font-mono ${
+                poolStats.netPoolBalance < 0 ? 'text-rose-400' : 'text-emerald-400'
+              }`}>
+                ₹{poolStats.netPoolBalance.toLocaleString()}
               </div>
             </div>
-          )}
+
+            <button
+              onClick={() => {
+                const ref = prompt('Enter Bank Settlement Transaction Reference (NEFT/IMPS/UPI):');
+                if (ref) {
+                  const amtStr = prompt('Enter Settle Amount (₹):', Math.abs(poolStats.netPoolBalance).toString());
+                  const amt = parseFloat(amtStr || '0');
+                  if (amt > 0) {
+                    BillingService.recordPoolSettlement(amt, ref);
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        message: `Settlement of ₹${amt} recorded with reference ${ref}. Commission Pool balance updated!`,
+                        type: 'success',
+                        title: 'Manual Settlement Logged 💳'
+                      }
+                    }));
+                  }
+                }
+              }}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-indigo-500/20 border-0 cursor-pointer"
+            >
+              Settle Pool &amp; Transfer 💳
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-white/10 text-xs">
+          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+            <span className="text-[10px] text-slate-400 font-mono font-semibold uppercase block">Accrued Cash Debt (-3%)</span>
+            <span className="text-sm font-bold text-rose-400 font-mono">₹{poolStats.totalCashCommissionOwed.toLocaleString()}</span>
+          </div>
+          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+            <span className="text-[10px] text-slate-400 font-mono font-semibold uppercase block">Online WhatsApp Receipts (+)</span>
+            <span className="text-sm font-bold text-emerald-400 font-mono">₹{poolStats.totalOnlineOffsetReceived.toLocaleString()}</span>
+          </div>
+          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+            <span className="text-[10px] text-slate-400 font-mono font-semibold uppercase block">Manual Bank Settled</span>
+            <span className="text-sm font-bold text-cyan-400 font-mono">₹{poolStats.manualSettledTotal.toLocaleString()}</span>
+          </div>
         </div>
       </div>
 

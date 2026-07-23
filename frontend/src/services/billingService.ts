@@ -940,6 +940,85 @@ export class BillingService {
     return sops.find(s => s.isActive) || null;
   }
 
+  static calculateCommissionPoolBalance() {
+    const invoices = this.getInvoices();
+    const paidInvoices = invoices.filter(inv => inv.status === 'paid');
+
+    let totalCashCommissionOwed = 0;   // 3% cash sales commission accrued debt (-)
+    let totalOnlineOffsetReceived = 0; // Online receipts (+)
+    let doctorConsultsEarned = 0;      // 100% doctor consult fee
+    let doctorLabReferralsEarned = 0;   // 50% lab test referral (SOP)
+    let doctorMedicineReferralsEarned = 0; // 20% medicine referral (SOP)
+
+    const activeSop = this.getActiveSop();
+    const labDoctorSplit = activeSop?.extractedConfig?.splits?.doctor ?? 50; // 50% SOP
+    const medDoctorSplit = activeSop?.extractedConfig?.splits?.pharmacyDoctor ?? 20; // 20% SOP
+
+    paidInvoices.forEach(inv => {
+      const isCash = inv.paymentMethod === 'cash';
+      const amt = inv.amount || 0;
+
+      if (inv.type === 'consult') {
+        doctorConsultsEarned += amt;
+        if (!isCash) {
+          totalOnlineOffsetReceived += amt; // Online consult receipt offsets cash debt
+        }
+      } else if (inv.type === 'lab' || (inv as any).type === 'pathology') {
+        const docFee = Math.round(amt * (labDoctorSplit / 100));
+        doctorLabReferralsEarned += docFee;
+        const platFee = Math.round(amt * 0.03); // Fixed 3% VitalSync Commission
+        if (isCash) {
+          totalCashCommissionOwed += platFee;
+        } else {
+          totalOnlineOffsetReceived += (amt - platFee);
+        }
+      } else if (inv.type === 'pharmacy' || (inv as any).type === 'medicine') {
+        const docFee = Math.round(amt * (medDoctorSplit / 100));
+        doctorMedicineReferralsEarned += docFee;
+        const platFee = Math.round(amt * 0.03); // Fixed 3% VitalSync Commission
+        if (isCash) {
+          totalCashCommissionOwed += platFee;
+        } else {
+          totalOnlineOffsetReceived += (amt - platFee);
+        }
+      }
+    });
+
+    // Check manual settlement adjustments
+    const settlements = load<any[]>('vitalsync_pool_settlements', []);
+    let manualSettledTotal = 0;
+    settlements.forEach(s => {
+      manualSettledTotal += (s.amount || 0);
+    });
+
+    const netPoolBalance = (totalOnlineOffsetReceived + manualSettledTotal) - totalCashCommissionOwed;
+
+    return {
+      netPoolBalance,
+      totalCashCommissionOwed,
+      totalOnlineOffsetReceived,
+      manualSettledTotal,
+      doctorConsultsEarned,
+      doctorLabReferralsEarned,
+      doctorMedicineReferralsEarned,
+      totalDoctorEarned: doctorConsultsEarned + doctorLabReferralsEarned + doctorMedicineReferralsEarned
+    };
+  }
+
+  static recordPoolSettlement(amount: number, referenceNumber: string, notes?: string): void {
+    const settlements = load<any[]>('vitalsync_pool_settlements', []);
+    const newEntry = {
+      id: `set-${Date.now()}`,
+      amount,
+      referenceNumber,
+      notes: notes || 'Manual Bank Settlement',
+      createdAt: new Date().toISOString()
+    };
+    settlements.push(newEntry);
+    save('vitalsync_pool_settlements', settlements);
+    notify();
+  }
+
   static saveUnifiedInvoice(invoice: UnifiedInvoice): void {
     const invoices = this.getUnifiedInvoices();
     const idx = invoices.findIndex(i => i.id === invoice.id);

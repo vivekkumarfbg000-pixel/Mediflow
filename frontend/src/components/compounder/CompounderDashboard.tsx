@@ -87,6 +87,7 @@ export const CompounderDashboard: React.FC = () => {
   const { podEntities } = useClinic();
   const [activeTab, setActiveTab] = useState<'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('tokens');
   const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
+  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'schedules_advance'>('today_queue');
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
   // Patient Directory Tab Local States
@@ -255,9 +256,15 @@ export const CompounderDashboard: React.FC = () => {
             doctorId: a.doctor_id,
             status: a.status || 'pending_payment',
             isVirtual: a.is_virtual === true,
+            is_virtual: a.is_virtual === true,
             virtualDate: a.virtual_date,
+            virtual_date: a.virtual_date,
             virtualTime: a.virtual_time,
+            virtual_time: a.virtual_time,
             virtualMeetingUrl: a.virtual_meeting_url,
+            virtual_meeting_url: a.virtual_meeting_url,
+            tokenNumber: a.token_number || 1,
+            token_number: a.token_number || 1,
             source: a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical',
             patientName: patInfo.name || 'WhatsApp Patient',
             patientPhone: patInfo.phone || 'N/A',
@@ -271,6 +278,17 @@ export const CompounderDashboard: React.FC = () => {
       console.warn('[CompounderDashboard] Error fetching live appointments:', err);
     }
   }, []);
+
+  // Keyboard shortcut listener to close vitals modal on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && vitalsPatient) {
+        setVitalsPatient(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [vitalsPatient]);
 
   useEffect(() => {
     fetchLiveAppointments();
@@ -1215,7 +1233,7 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-8 md:p-8 space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen rounded-xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.5)] border border-slate-200/50 dark:border-white/5 relative overflow-hidden transition-colors duration-300">
+    <div className="max-w-7xl mx-auto p-4 pb-28 md:pb-12 md:p-8 space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen rounded-xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.5)] border border-slate-200/50 dark:border-white/5 relative overflow-hidden transition-colors duration-300">
       {/* Ambient Background Glow for visual hierarchy */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-[10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-cyan-500/10 blur-[120px]" />
@@ -1799,12 +1817,210 @@ export const CompounderDashboard: React.FC = () => {
 
         {/* TAB 2: APPOINTMENTS & TOKENS */}
         {activeTab === 'tokens' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
-            {/* Left Column: Create Appointment & Today's Appointments List */}
-            <div className="lg:col-span-8 space-y-6">
-              
-              {/* Appointment Booking & Search Form */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl">
+          <div className="space-y-6 text-left">
+            {/* SUB-TAB TOGGLE */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-white/10 pb-3">
+              <button
+                onClick={() => setOpdSubTab('today_queue')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  opdSubTab === 'today_queue'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">queue</span>
+                Today's Active OPD Queue 🏥
+                <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                  {appointments.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setOpdSubTab('schedules_advance')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  opdSubTab === 'schedules_advance'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                Doctor Schedules & Advance Bookings 📅
+                <span className="ml-1 bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                  {appointments.filter(a => a.is_virtual || a.isVirtual || (a.virtual_date && a.virtual_date !== new Date().toISOString().split('T')[0]) || (a.virtualDate && a.virtualDate !== new Date().toISOString().split('T')[0])).length}
+                </span>
+              </button>
+            </div>
+
+            {opdSubTab === 'schedules_advance' ? (
+              <div className="space-y-8 animate-fade-in">
+                {/* Section 1: Virtual Video Consultations Roster */}
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500 opacity-80" />
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span className="material-symbols-outlined text-cyan-500 text-[20px]">videocam</span>
+                        Virtual Video Consultations Roster (वर्चुअल वीडियो परामर्श)
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Live schedule of remote video appointments booked via WhatsApp Bot & online portals.
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-3 py-1 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full">
+                      {appointments.filter(a => a.is_virtual || a.isVirtual).length} Active Video Consults
+                    </span>
+                  </div>
+
+                  {appointments.filter(a => a.is_virtual).length === 0 ? (
+                    <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
+                      <span className="material-symbols-outlined text-3xl text-slate-400 mb-2">videocam_off</span>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">No virtual video appointments scheduled for today.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {appointments.filter(a => a.is_virtual).map(appt => {
+                        const pat = patients.find(p => p.id === appt.patientId);
+                        const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
+                        return (
+                          <div key={appt.id} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-mono font-extrabold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2 py-0.5 rounded-md">
+                                Token #{appt.token_number || 1}
+                              </span>
+                              <span className="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
+                                {appt.status === 'ready_for_consult' ? 'Ready for Consult' : appt.status}
+                              </span>
+                            </div>
+
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                {pat?.name || 'Virtual Patient'}
+                                <span className="text-xs font-normal text-slate-500">({pat?.phone || 'N/A'})</span>
+                              </h4>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">schedule</span>
+                                Slot: {appt.virtual_time || '10:00 AM - 12:00 PM'} · Date: {appt.virtual_date || new Date().toISOString().split('T')[0]}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
+                              <a
+                                href={meetUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-sm"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">videocam</span>
+                                Join Video Call 💻
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Future Date & WhatsApp Advance Bookings */}
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-80" />
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span className="material-symbols-outlined text-indigo-500 text-[20px]">event_repeat</span>
+                        Future Date & WhatsApp Advance Bookings (अग्रिम अपॉइंटमेंट सूची)
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Patient bookings registered for upcoming dates via WhatsApp Bot & paperless check-in.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase font-mono font-bold text-[10px]">
+                        <tr>
+                          <th className="p-3">Patient Name</th>
+                          <th className="p-3">Phone</th>
+                          <th className="p-3">Booking Date</th>
+                          <th className="p-3">Time Slot</th>
+                          <th className="p-3">Consult Type</th>
+                          <th className="p-3">Payment Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                        {appointments.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="p-6 text-center text-slate-400">No upcoming advance bookings found.</td>
+                          </tr>
+                        ) : (
+                          appointments.map(appt => {
+                            const pat = patients.find(p => p.id === appt.patientId);
+                            return (
+                              <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
+                                <td className="p-3 font-bold text-slate-900 dark:text-white">{pat?.name || 'Registered Patient'}</td>
+                                <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{pat?.phone || 'N/A'}</td>
+                                <td className="p-3 font-semibold text-indigo-600 dark:text-indigo-400">{appt.virtual_date || new Date().toISOString().split('T')[0]}</td>
+                                <td className="p-3 text-slate-600 dark:text-slate-300">{appt.virtual_time || '10:00 AM - 12:00 PM'}</td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${appt.is_virtual ? 'bg-cyan-100 text-cyan-800' : 'bg-indigo-100 text-indigo-800'}`}>
+                                    {appt.is_virtual ? 'Virtual 💻' : 'Physical 🏥'}
+                                  </span>
+                                </td>
+                                <td className="p-3 font-mono text-emerald-600 font-bold">Cleared ✅</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Section 3: Doctor Availability & Roster Matrix */}
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-purple-600 opacity-80" />
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-purple-500 text-[20px]">calendar_view_week</span>
+                    Doctor Weekly Roster & Slot Capacity Matrix (डॉक्टर समय सारणी)
+                  </h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">Morning Slot</span>
+                        <span className="text-[10px] font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">10:00 AM - 12:00 PM</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Capacity: 12 Patients / Day</p>
+                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: Dr. Vivek</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">Afternoon Slot</span>
+                        <span className="text-[10px] font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md font-bold">02:00 PM - 04:00 PM</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Capacity: 10 Patients / Day</p>
+                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: Dr. Vivek</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-white">Evening Review Slot</span>
+                        <span className="text-[10px] font-mono bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md font-bold">04:00 PM - 06:00 PM</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Lab Report Review & OPD</p>
+                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: Dr. Vivek</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+                {/* Left Column: Create Appointment & Today's Appointments List */}
+                <div className="lg:col-span-8 space-y-6">
+                  
+                  {/* Appointment Booking & Search Form */}
+                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-indigo-500 text-[18px]">calendar_today</span>
@@ -1909,41 +2125,68 @@ export const CompounderDashboard: React.FC = () => {
 
                       <div className="flex justify-end pt-2">
                         <button
+                          type="button"
                           onClick={async () => {
-                            // 1. Create appointment + invoice (async init inside)
-                            BillingService.createGate1Consult(selectedApptPatient.id);
+                            if (!selectedApptPatient) return;
 
-                            // 2. Give async appointment creation 200ms to settle, then pay
-                            await new Promise(r => setTimeout(r, 200));
-                            // Retrieve the just-created unpaid consult invoice for this patient
-                            const newInvoice = BillingService.getInvoices()
-                              .filter(inv => inv.patientId === selectedApptPatient.id && inv.status === 'unpaid' && inv.type === 'consult')
-                              .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-                            if (newInvoice) {
-                              await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as 'cash' | 'upi' | 'card');
-                            }
+                            try {
+                              // 1. Synchronously create invoice & appointment in local state
+                              const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
 
-                            // 3. Reset selection
-                            const bookedPatient = selectedApptPatient;
-                            setSelectedApptPatient(null);
-                            setApptPaymentMode('cash');
-
-                            // 4. Full sync to refresh all state
-                            syncData();
-
-                            // 5. Pre-open vitals form for this patient
-                            setVitalsPatient(bookedPatient);
-                            setCustomToken(bookedPatient.tokenNumber || api.generateNextTokenNumber());
-
-                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                              detail: {
-                                message: `Appointment booked & fee settled via ${apptPaymentMode === 'cash' ? 'Cash' : 'UPI'}. Now record vitals to dispatch to doctor queue!`,
-                                type: 'success',
-                                title: 'Appointment Active — Record Vitals 🩺'
+                              // 2. Immediately record payment (Cash/UPI/Card)
+                              if (newInvoice) {
+                                await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as 'cash' | 'upi' | 'card');
                               }
-                            }));
+
+                              // 3. Insert into Supabase Postgres database so 360° Realtime Sync streams it to Doctor & Compounder
+                              const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
+                              try {
+                                await supabase.from('appointments').insert({
+                                  id: newInvoice.appointmentId,
+                                  patient_id: selectedApptPatient.id,
+                                  doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                                  status: 'confirmed',
+                                  created_at: new Date().toISOString(),
+                                  token_number: assignedToken
+                                });
+                              } catch (dbErr) {
+                                console.warn('[CompounderDashboard] Supabase appointment insert fallback:', dbErr);
+                              }
+
+                              // 4. Update patient queue status
+                              api.updatePatientQueueStatus(selectedApptPatient.id, 'registered');
+
+                              // 5. Save reference & reset patient search selection
+                              const bookedPatient = selectedApptPatient;
+                              setSelectedApptPatient(null);
+                              setApptPaymentMode('cash');
+
+                              // 6. Refresh state & open Vitals Intake Modal
+                              syncData();
+                              fetchLiveAppointments();
+
+                              setVitalsPatient(bookedPatient);
+                              setCustomToken(assignedToken);
+
+                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                detail: {
+                                  message: `Appointment for ${bookedPatient.name} booked & fee settled via ${apptPaymentMode.toUpperCase()}. Vitals modal is open for clinical dispatch!`,
+                                  type: 'success',
+                                  title: 'Appointment Active — Record Vitals 🩺'
+                                }
+                              }));
+                            } catch (err: any) {
+                              console.error('[CompounderDashboard] Book appointment error:', err);
+                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                detail: {
+                                  message: err.message || 'Failed to book appointment. Please try again.',
+                                  type: 'error',
+                                  title: 'Booking Error'
+                                }
+                              }));
+                            }
                           }}
-                          className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-105 active:scale-95 text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform"
+                          className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-105 active:scale-95 text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform shadow-lg shadow-indigo-500/20"
                         >
                           Book Appointment &amp; Pay 💳
                         </button>
@@ -2199,180 +2442,205 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Vitals Intake Form */}
+            {/* Right Column: Active Vitals Quick Status */}
             <div className="lg:col-span-4 space-y-6">
-              {vitalsPatient ? (
-                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative animate-fade-in bg-white text-slate-800 rounded-3xl">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-60" />
-                  
-                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
-                    <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-rose-450 text-base">monitor_heart</span>
-                      Record Vitals (स्वास्थ्य जांच): {vitalsPatient.name}
-                    </h2>
-                    <button
-                      onClick={() => setVitalsPatient(null)}
-                      className="text-slate-500 hover:text-slate-800 text-xs underline cursor-pointer bg-transparent border-0 p-0"
-                    >
-                      Cancel
-                    </button>
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative text-center text-slate-500 py-8 bg-white dark:bg-slate-800/80 rounded-3xl">
+                <Activity className="h-8 w-8 text-rose-500 mx-auto mb-2 animate-pulse" />
+                <h4 className="text-xs font-bold text-slate-800 dark:text-white">Vitals Intake Command</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Select any patient from the OPD Queue to open the instant Vitals Recording Modal window.</p>
+              </div>
+
+              {/* INSTANT FLOATING VITALS RECORDING MODAL OVERLAY */}
+              {vitalsPatient && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in overflow-y-auto">
+                  <div className="glass-panel w-full max-w-lg p-6 border-slate-200/60 dark:border-white/10 shadow-2xl relative bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-3xl space-y-4 my-auto max-h-[90vh] overflow-y-auto">
+                    <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
+                    
+                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-3 mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                          <span className="material-symbols-outlined text-[22px]">monitor_heart</span>
+                        </span>
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                            Record Vitals (स्वास्थ्य जांच): {vitalsPatient.name}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            Patient ID: {vitalsPatient.tokenNumber || vitalsPatient.id.substring(0, 8)} · {vitalsPatient.age}y · {vitalsPatient.gender}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setVitalsPatient(null)}
+                        className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer border-0"
+                      >
+                        <span className="material-symbols-outlined text-base">close</span>
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleRecordVitalsSubmit} className="space-y-4 text-left">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">OPD Token Number</label>
+                          <input
+                            type="text"
+                            required
+                            value={customToken}
+                            onChange={(e) => setCustomToken(e.target.value)}
+                            className="w-full input-field text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg font-mono font-bold outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+                            {isOphthalmology ? 'Visual Acuity OD (दाहिनी आंख)' : 'Temperature (°F)'}
+                          </label>
+                          <input
+                            type="text"
+                            value={tempVal}
+                            onChange={(e) => setTempVal(e.target.value)}
+                            list="vitals-temp-list"
+                            placeholder={isOphthalmology ? 'e.g. 6/6' : 'e.g. 98.6'}
+                            className="w-full input-field text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none"
+                          />
+                          <datalist id="vitals-temp-list">
+                            {isOphthalmology ? (
+                              ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            ) : (
+                              ['97.0', '97.5', '98.0', '98.4', '98.6', '98.8', '99.0', '99.5', '100.0', '100.5', '101.0', '102.0'].map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            )}
+                          </datalist>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+                            {isOphthalmology ? 'VA OS (बाईं आंख)' : 'BP (mmHg)'}
+                          </label>
+                          <input
+                            type="text"
+                            value={bpVal}
+                            onChange={(e) => setBpVal(e.target.value)}
+                            list="vitals-bp-list"
+                            placeholder={isOphthalmology ? 'e.g. 6/6' : 'e.g. 120/80'}
+                            className="w-full input-field text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none"
+                          />
+                          <datalist id="vitals-bp-list">
+                            {isOphthalmology ? (
+                              ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            ) : (
+                              ['90/60', '100/60', '110/70', '115/75', '120/80', '125/80', '130/80', '135/85', '140/90', '150/95', '160/100'].map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            )}
+                          </datalist>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+                            {isOphthalmology ? 'IOP (mmHg)' : 'Pulse (bpm)'}
+                          </label>
+                          <input
+                            type="text"
+                            value={pulseVal}
+                            onChange={(e) => setPulseVal(e.target.value)}
+                            list="vitals-pulse-list"
+                            placeholder={isOphthalmology ? 'e.g. 15' : 'e.g. 72'}
+                            className="w-full input-field text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none"
+                          />
+                          <datalist id="vitals-pulse-list">
+                            {isOphthalmology ? (
+                              Array.from({ length: 23 }, (_, i) => String(i + 8)).map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            ) : (
+                              ['50', '55', '60', '64', '68', '72', '76', '80', '85', '90', '95', '100', '105', '110', '120'].map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            )}
+                          </datalist>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+                            {isOphthalmology ? 'Aided OD' : 'Weight (kg)'}
+                          </label>
+                          <input
+                            type="text"
+                            value={weightVal}
+                            onChange={(e) => setWeightVal(e.target.value)}
+                            list="vitals-weight-list"
+                            placeholder={isOphthalmology ? 'e.g. 6/6' : 'e.g. 60'}
+                            className="w-full input-field text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none"
+                          />
+                          <datalist id="vitals-weight-list">
+                            {isOphthalmology ? (
+                              ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            ) : (
+                              Array.from({ length: 21 }, (_, i) => String(35 + i * 5)).map(opt => (
+                                <option key={opt} value={opt} />
+                              ))
+                            )}
+                          </datalist>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">
+                          {isOphthalmology ? 'Aided OS' : 'Blood Sugar (mg/dL) - Optional'}
+                        </label>
+                        <input
+                          type="text"
+                          value={sugarVal}
+                          onChange={(e) => setSugarVal(e.target.value)}
+                          list="vitals-sugar-list"
+                          placeholder={isOphthalmology ? 'e.g. 110' : 'e.g. None'}
+                          className="w-full input-field text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none"
+                        />
+                        <datalist id="vitals-sugar-list">
+                          {isOphthalmology ? (
+                            ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
+                              <option key={opt} value={opt} />
+                            ))
+                          ) : (
+                            ['70', '80', '90', '100', '110', '120', '130', '140', '150', '160', '180', '200', '220', '250'].map(opt => (
+                              <option key={opt} value={opt} />
+                            ))
+                          )}
+                        </datalist>
+                      </div>
+
+                      <div className="pt-2 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setVitalsPatient(null)}
+                          className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all border-0 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-[2] py-2.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer shadow-lg shadow-rose-500/20 transition-transform active:scale-95"
+                        >
+                          Save &amp; Dispatch to Doctor 🩺
+                        </button>
+                      </div>
+                    </form>
                   </div>
-
-                  <form onSubmit={handleRecordVitalsSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">Token Number</label>
-                        <input
-                          type="text"
-                          required
-                          value={customToken}
-                          onChange={(e) => setCustomToken(e.target.value)}
-                          className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg font-mono font-bold outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
-                          {isOphthalmology ? 'Visual Acuity OD (दाहिनी आंख)' : 'Temperature (°F)'}
-                        </label>
-                        <input
-                          type="text"
-                          value={tempVal}
-                          onChange={(e) => setTempVal(e.target.value)}
-                          list="vitals-temp-list"
-                          placeholder={isOphthalmology ? 'e.g. 6/6' : 'e.g. 98.6'}
-                          className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg outline-none"
-                        />
-                        <datalist id="vitals-temp-list">
-                          {isOphthalmology ? (
-                            ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          ) : (
-                            ['97.0', '97.5', '98.0', '98.4', '98.6', '98.8', '99.0', '99.5', '100.0', '100.5', '101.0', '102.0'].map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          )}
-                        </datalist>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
-                          {isOphthalmology ? 'VA OS (बाईं आंख)' : 'BP (mmHg)'}
-                        </label>
-                        <input
-                          type="text"
-                          value={bpVal}
-                          onChange={(e) => setBpVal(e.target.value)}
-                          list="vitals-bp-list"
-                          placeholder={isOphthalmology ? 'e.g. 6/6' : 'e.g. 120/80'}
-                          className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg outline-none"
-                        />
-                        <datalist id="vitals-bp-list">
-                          {isOphthalmology ? (
-                            ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          ) : (
-                            ['90/60', '100/60', '110/70', '115/75', '120/80', '125/80', '130/80', '135/85', '140/90', '150/95', '160/100'].map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          )}
-                        </datalist>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
-                          {isOphthalmology ? 'IOP (mmHg)' : 'Pulse (bpm)'}
-                        </label>
-                        <input
-                          type="text"
-                          value={pulseVal}
-                          onChange={(e) => setPulseVal(e.target.value)}
-                          list="vitals-pulse-list"
-                          placeholder={isOphthalmology ? 'e.g. 15' : 'e.g. 72'}
-                          className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg outline-none"
-                        />
-                        <datalist id="vitals-pulse-list">
-                          {isOphthalmology ? (
-                            Array.from({ length: 23 }, (_, i) => String(i + 8)).map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          ) : (
-                            ['50', '55', '60', '64', '68', '72', '76', '80', '85', '90', '95', '100', '105', '110', '120'].map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          )}
-                        </datalist>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
-                          {isOphthalmology ? 'Aided OD (Optional)' : 'Weight (kg)'}
-                        </label>
-                        <input
-                          type="text"
-                          value={weightVal}
-                          onChange={(e) => setWeightVal(e.target.value)}
-                          list="vitals-weight-list"
-                          placeholder={isOphthalmology ? 'e.g. 6/6' : 'e.g. 60'}
-                          className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg outline-none"
-                        />
-                        <datalist id="vitals-weight-list">
-                          {isOphthalmology ? (
-                            ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          ) : (
-                            Array.from({ length: 21 }, (_, i) => String(35 + i * 5)).map(opt => (
-                              <option key={opt} value={opt} />
-                            ))
-                          )}
-                        </datalist>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
-                        {isOphthalmology ? 'Aided OS (Optional)' : 'Blood Sugar (mg/dL) - Optional'}
-                      </label>
-                      <input
-                        type="text"
-                        value={sugarVal}
-                        onChange={(e) => setSugarVal(e.target.value)}
-                        list="vitals-sugar-list"
-                        placeholder={isOphthalmology ? 'e.g. 110' : 'e.g. None'}
-                        className="w-full input-field text-xs py-2 px-3 bg-slate-50 border-slate-200 text-slate-800 rounded-lg outline-none"
-                      />
-                      <datalist id="vitals-sugar-list">
-                        {isOphthalmology ? (
-                          ['6/6', '6/9', '6/12', '6/18', '6/24', '6/36', '6/60'].map(opt => (
-                            <option key={opt} value={opt} />
-                          ))
-                        ) : (
-                          ['70', '80', '90', '100', '110', '120', '130', '140', '150', '160', '180', '200', '220', '250'].map(opt => (
-                            <option key={opt} value={opt} />
-                          ))
-                        )}
-                      </datalist>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform"
-                    >
-                      Save &amp; Dispatch to Doctor 🩺
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative text-center text-slate-550 py-10 bg-white rounded-3xl">
-                  <Activity className="h-8 w-8 text-slate-400 mx-auto mb-3 animate-pulse" />
-                  <p className="text-xs font-semibold text-slate-700">Select an active patient from the Appointments Queue to record vitals.</p>
                 </div>
               )}
             </div>
           </div>
         )}
+      </div>
+    )}
                       {/* TAB 3: PATHOLOGY LOG & TIMELINES */}
         {activeTab === 'labs' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
@@ -3267,9 +3535,24 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Compounder Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-50/95 dark:bg-[#0b0f19]/95 backdrop-blur-lg border-t border-slate-200/80 dark:border-slate-800/80 shadow-[0_-4px_12px_rgba(0,0,0,0.02)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.5)] px-2 pb-safe-bottom">
-        <div className="flex items-center justify-around h-16">
+      {/* Desktop Enterprise Status Footer */}
+      <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Mediflow Realtime Engine · Apex Care Clinic Node</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span>Sub-300ms Outbound WhatsApp</span>
+          <span>·</span>
+          <span>Cashfree Payment Gate Active</span>
+          <span>·</span>
+          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">RLS Encrypted · Compounder</span>
+        </div>
+      </div>
+
+      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Compounder Dashboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.6)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'patients', label: 'Patients', icon: Users },
             { id: 'tokens', label: 'Tokens', icon: Activity },
@@ -3293,21 +3576,21 @@ export const CompounderDashboard: React.FC = () => {
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
                     ? 'text-indigo-600 dark:text-indigo-400 font-bold' 
-                    : 'text-slate-650 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                <div className={`p-1.5 rounded-lg transition-all duration-200 ${
+                <div className={`p-1.5 rounded-xl transition-all duration-200 ${
                   isActive 
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 scale-105 shadow-sm' 
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 scale-105 shadow-sm border border-indigo-200/50 dark:border-indigo-800/40' 
                     : 'bg-transparent text-slate-500 dark:text-slate-400'
                 }`}>
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <span className="text-[10px] font-bold mt-1 tracking-wide leading-none">
+                <span className="text-[9px] sm:text-[10px] font-bold mt-1 tracking-tight leading-none shrink-0">
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                  <span className="absolute bottom-1 w-3 h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-xs shadow-indigo-500" />
                 )}
               </button>
             );

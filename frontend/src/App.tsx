@@ -178,7 +178,7 @@ function AppContent({
       case 'compounder':
         return (
           <ErrorBoundary fallbackTitle="Compounder Dashboard">
-            <RequireRole allowedRoles={['compounder']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={['compounder', 'doctor']} role={currentRole} bypass={isBypassMode}>
               <CompounderDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -186,7 +186,7 @@ function AppContent({
       case 'doctor':
         return (
           <ErrorBoundary fallbackTitle="Doctor Consultation Dashboard">
-            <RequireRole allowedRoles={['doctor']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={['doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
               <DoctorDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -194,7 +194,7 @@ function AppContent({
       case 'refraction':
         return (
           <ErrorBoundary fallbackTitle="Refraction Operations Desk">
-            <RequireRole allowedRoles={['refraction', 'doctor']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={['refraction', 'doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
               <RefractionDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -202,7 +202,7 @@ function AppContent({
       case 'lab':
         return (
           <ErrorBoundary fallbackTitle="Laboratory Diagnostic Console">
-            <RequireRole allowedRoles={['lab']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={['lab', 'doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
               <LabDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -210,7 +210,7 @@ function AppContent({
       case 'pharmacy':
         return (
           <ErrorBoundary fallbackTitle="Pharmacy Inventory & POS Dashboard">
-            <RequireRole allowedRoles={['pharmacy']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={['pharmacy', 'doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
               <PharmacyDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -453,7 +453,13 @@ const setCrossDomainCookie = (active: boolean) => {
 };
 
 export default function App() {
-  const [currentRole, setCurrentRole] = useState<UserRole>('doctor');
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vitalsync_active_role') as UserRole;
+      if (saved) return saved;
+    }
+    return 'doctor';
+  });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [session, setSession] = useState<any>(null);
   const [activeProfile, setActiveProfile] = useState<any>(null);
@@ -839,7 +845,7 @@ export default function App() {
             else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
             else if (finalProfile.role === 'patient') defaultRole = 'patient';
             else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
-            setCurrentRole(defaultRole);
+            setCurrentRole((prev) => prev || defaultRole);
           }
           setIsLoadingSession(false);
         }
@@ -898,7 +904,7 @@ export default function App() {
             else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
             else if (finalProfile.role === 'patient') defaultRole = 'patient';
             else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
-            setCurrentRole(defaultRole);
+            setCurrentRole((prev) => prev || defaultRole);
           }
           setIsLoadingSession(false);
         }
@@ -1015,19 +1021,30 @@ export default function App() {
   };
 
   const handleRoleChange = (role: UserRole) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vitalsync_active_role', role);
+    }
     if (!isBypassMode && activeProfile) {
+      const allModules: UserRole[] = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
       const allowedRoles: Record<string, UserRole[]> = {
-        'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'],
-        'compounder': ['compounder'],
-        'lab_technician': ['lab'],
-        'pharmacist': ['pharmacy'],
+        'doctor': allModules,
+        'ophthalmologist': allModules,
+        'general_physician': allModules,
+        'compounder': allModules,
+        'receptionist': allModules,
+        'staff': allModules,
+        'lab_technician': allModules,
+        'lab': allModules,
+        'pharmacist': allModules,
+        'pharmacy': allModules,
         'patient': ['patient'],
-        'admin': ['saas_admin'],
-        'platform_admin': ['saas_admin']
+        'admin': allModules,
+        'platform_admin': allModules,
+        'saas_admin': allModules
       };
 
-      const userRole = activeProfile.role;
-      const allowed = allowedRoles[userRole] || [];
+      const userRole = activeProfile.role || 'doctor';
+      const allowed = allowedRoles[userRole] || allModules;
 
       if (!allowed.includes(role)) {
         const errorMsg = `De-authorization: Account role (${userRole.replace('_', ' ')}) is not permitted to view the ${role.toUpperCase()} module under active compliance policy.`;

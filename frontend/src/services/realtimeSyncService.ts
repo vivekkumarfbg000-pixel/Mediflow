@@ -10,25 +10,36 @@ export interface RealtimeSubscriptionHandlers {
 }
 
 export class RealtimeSyncService {
+  private static subscribers = new Set<RealtimeSubscriptionHandlers>();
   private static activeChannel: any = null;
   private static heartbeatTimer: any = null;
   private static reconnectTimer: any = null;
   private static lastPingSuccess = Date.now();
   private static currentStatus: 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
-  private static savedHandlers: RealtimeSubscriptionHandlers | null = null;
-  private static isManualDisconnect = false;
 
   static subscribeToLiveClinicUpdates(handlers: RealtimeSubscriptionHandlers) {
-    this.savedHandlers = handlers;
+    this.subscribers.add(handlers);
+    
+    // Notify immediate current status
+    handlers.onStatusChange?.(this.currentStatus);
 
-    if (this.activeChannel) {
-      try {
-        this.isManualDisconnect = true;
-        supabase.removeChannel(this.activeChannel);
-      } catch (_e) {}
+    if (!this.activeChannel) {
+      this.initGlobalChannel();
     }
 
-    this.isManualDisconnect = false;
+    return () => {
+      this.subscribers.delete(handlers);
+      if (this.subscribers.size === 0 && this.activeChannel) {
+        try {
+          supabase.removeChannel(this.activeChannel);
+          this.activeChannel = null;
+        } catch (_e) {}
+        this.updateStatus('disconnected');
+      }
+    };
+  }
+
+  private static initGlobalChannel() {
     this.updateStatus('reconnecting');
 
     this.activeChannel = supabase
@@ -38,7 +49,7 @@ export class RealtimeSyncService {
         { event: '*', schema: 'public', table: 'appointments' },
         (payload) => {
           console.log('[RealtimeSync] Appointment change detected:', payload);
-          this.savedHandlers?.onAppointmentChange?.(payload);
+          this.subscribers.forEach(s => s.onAppointmentChange?.(payload));
         }
       )
       .on(
@@ -46,7 +57,7 @@ export class RealtimeSyncService {
         { event: '*', schema: 'public', table: 'medicine_bills' },
         (payload) => {
           console.log('[RealtimeSync] Medicine Bill change detected:', payload);
-          this.savedHandlers?.onMedicineBillChange?.(payload);
+          this.subscribers.forEach(s => s.onMedicineBillChange?.(payload));
         }
       )
       .on(
@@ -54,7 +65,7 @@ export class RealtimeSyncService {
         { event: '*', schema: 'public', table: 'lab_requisitions' },
         (payload) => {
           console.log('[RealtimeSync] Lab Requisition change detected:', payload);
-          this.savedHandlers?.onLabRequisitionChange?.(payload);
+          this.subscribers.forEach(s => s.onLabRequisitionChange?.(payload));
         }
       )
       .on(
@@ -62,7 +73,7 @@ export class RealtimeSyncService {
         { event: '*', schema: 'public', table: 'patient_registry' },
         (payload) => {
           console.log('[RealtimeSync] Patient Registry change detected:', payload);
-          this.savedHandlers?.onPatientChange?.(payload);
+          this.subscribers.forEach(s => s.onPatientChange?.(payload));
         }
       )
       .on(
@@ -70,7 +81,7 @@ export class RealtimeSyncService {
         { event: '*', schema: 'public', table: 'whatsapp_sessions' },
         (payload) => {
           console.log('[RealtimeSync] WhatsApp Session change detected:', payload);
-          this.savedHandlers?.onWhatsAppSessionChange?.(payload);
+          this.subscribers.forEach(s => s.onWhatsAppSessionChange?.(payload));
         }
       )
       .subscribe((status, err) => {
@@ -82,15 +93,9 @@ export class RealtimeSyncService {
           this.startHeartbeatWatchdog();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           this.updateStatus('reconnecting');
-          if (!this.isManualDisconnect) {
-            this.scheduleAutoReconnect();
-          }
+          this.scheduleAutoReconnect();
         }
       });
-
-    return () => {
-      this.cleanup();
-    };
   }
 
   // ── Heartbeat Ping/Pong Watchdog Timer (10s interval) ──────────────────────
@@ -100,7 +105,6 @@ export class RealtimeSyncService {
     this.heartbeatTimer = setInterval(() => {
       const elapsedSincePing = Date.now() - this.lastPingSuccess;
 
-      // If ping hasn't responded in >25 seconds or navigator is offline, trigger auto-reconnect!
       if (elapsedSincePing > 25000 || !navigator.onLine) {
         console.warn(`[RealtimeSync Watchdog] ⚠️ WebSocket heartbeat timed out (${Math.round(elapsedSincePing / 1000)}s). Forcing clean auto-reconnect...`);
         this.updateStatus('reconnecting');
@@ -111,14 +115,18 @@ export class RealtimeSyncService {
     }, 10000);
   }
 
-  // ── Schedule Auto-Reconnect with Exponential Backoff ───────────────────────
+  // ── Schedule Auto-Reconnect ────────────────────────────────────────────────
   private static scheduleAutoReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 
     this.reconnectTimer = setTimeout(() => {
       console.log('[RealtimeSync Watchdog] 🔄 Executing automated WebSocket reconnect sequence...');
-      if (this.savedHandlers) {
-        this.subscribeToLiveClinicUpdates(this.savedHandlers);
+      if (this.subscribers.size > 0) {
+        if (this.activeChannel) {
+          try { supabase.removeChannel(this.activeChannel); } catch (_e) {}
+          this.activeChannel = null;
+        }
+        this.initGlobalChannel();
       }
     }, 800);
   }
@@ -126,22 +134,8 @@ export class RealtimeSyncService {
   // ── Update Connection Status & Broadcast UI Events ───────────────────────
   private static updateStatus(status: 'connected' | 'reconnecting' | 'disconnected') {
     this.currentStatus = status;
-    this.savedHandlers?.onStatusChange?.(status);
+    this.subscribers.forEach(s => s.onStatusChange?.(status));
     window.dispatchEvent(new CustomEvent('vitalsync-realtime-status', { detail: { status } }));
-  }
-
-  // ── Clean Up Timers & Subscriptions ───────────────────────────────────────
-  private static cleanup() {
-    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.heartbeatTimer = null;
-    this.reconnectTimer = null;
-
-    if (this.activeChannel) {
-      try { supabase.removeChannel(this.activeChannel); } catch (_e) {}
-      this.activeChannel = null;
-    }
-    this.updateStatus('disconnected');
   }
 
   static getStatus() {
