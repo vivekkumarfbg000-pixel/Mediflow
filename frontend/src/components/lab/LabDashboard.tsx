@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { supabase } from '../../lib/supabaseClient';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import type { ReagentStock } from '../../services/api';
 import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice } from '../../types';
 import { useClinic } from '../../context/ClinicContext';
@@ -534,9 +535,9 @@ export const LabDashboard: React.FC = () => {
               {Object.entries(data.biomarkers)
                 .filter(([k]) => !unitKeys.has(k) && k !== 'unit')
                 .map(([k, v]) => (
-                  <div key={k} className="flex justify-between items-center gap-2 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded text-teal-600 font-bold">
+                  <div key={k} className="flex justify-between items-center gap-2 bg-teal-500/20 border border-teal-500/40 px-2 py-1 rounded text-teal-700 dark:text-teal-300 font-bold">
                     <span>{labelMap[k] || k}:</span>
-                    <span>{String(v)}{unitMap[k] || (k === 'resultValue' ? ` ${data.biomarkers.unit || ''}` : '')}</span>
+                    <span className="font-extrabold text-teal-800 dark:text-teal-200">{String(v)}{unitMap[k] || (k === 'resultValue' ? ` ${data.biomarkers.unit || ''}` : '')}</span>
                   </div>
                 ))}
             </div>
@@ -545,7 +546,7 @@ export const LabDashboard: React.FC = () => {
       }
     } catch (_) { /* noop */ }
     return (
-      <span className="font-bold text-teal-600 bg-teal-50 border border-teal-200 px-3 py-1 rounded-lg font-mono text-center block">
+      <span className="font-extrabold text-teal-800 dark:text-teal-300 bg-teal-500/20 border border-teal-500/40 px-3 py-1 rounded-lg font-mono text-center block">
         {resultStr}
       </span>
     );
@@ -565,7 +566,7 @@ export const LabDashboard: React.FC = () => {
      RENDER
   ══════════════════════════════════════════════════════════════ */
   return (
-    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-6 md:p-6 space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto p-4 pb-28 md:pb-12 md:p-6 space-y-6 animate-fade-in">
       {viewingDocUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-800/80 backdrop-blur-md">
           <div className="bg-white rounded-2xl w-full max-w-2xl p-6 border border-slate-200 shadow-2xl relative">
@@ -801,19 +802,19 @@ export const LabDashboard: React.FC = () => {
             {/* Completed reports table */}
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-indigo-500 opacity-50" />
-              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-teal-600 text-[16px]">verified</span>
                 Completed Diagnostic Report Cards
               </h2>
               {completedList.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-sm">No completed tests logged today.</div>
               ) : (
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden">
                   
                   {/* Desktop Table View */}
                   <div className="hidden md:block overflow-x-auto responsive-table-container">
                     <table className="w-full text-xs text-left">
-                      <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
+                      <thead className="bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-white/10 font-bold uppercase tracking-wider text-[10px]">
                         <tr>
                           <th className="p-3.5">Patient</th>
                           <th className="p-3.5">Test</th>
@@ -822,18 +823,18 @@ export const LabDashboard: React.FC = () => {
                           <th className="p-3.5 text-right">Report File</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200 bg-white">
+                      <tbody className="divide-y divide-slate-200 dark:divide-white/5 bg-white dark:bg-slate-950">
                         {completedList.map(req => (
-                          <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-3.5 font-semibold text-slate-800">
+                          <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-colors">
+                            <td className="p-3.5 font-semibold text-slate-800 dark:text-white">
                               <div>{req.patientName}</div>
                               {req.encounterId === 'walkin' && (
                                 <span className="text-[8px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-full uppercase font-mono">Walk-in</span>
                               )}
                             </td>
-                            <td className="p-3.5 text-slate-600">
-                              <div className="font-semibold text-slate-800">{req.testName}</div>
-                              <div className="text-[9px] text-slate-500 mt-1 uppercase font-mono tracking-wider">
+                            <td className="p-3.5 text-slate-600 dark:text-slate-300">
+                              <div className="font-semibold text-slate-800 dark:text-white">{req.testName}</div>
+                              <div className="text-[9px] text-slate-500 dark:text-slate-400 mt-1 uppercase font-mono tracking-wider">
                                 LOINC: {req.testCode}
                               </div>
                             </td>
@@ -2355,9 +2356,24 @@ export const LabDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Lab Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 dark:bg-[#0b0f19]/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] px-2 pb-safe-bottom">
-        <div className="flex items-center justify-around h-16">
+      {/* Desktop Enterprise Status Footer */}
+      <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Mediflow Realtime Engine · Pathology & Diagnostic Lab Node</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span>AI Longitudinal Report Analysis</span>
+          <span>·</span>
+          <span>WhatsApp PDF Auto-Dispatch</span>
+          <span>·</span>
+          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">RLS Encrypted · Pathology</span>
+        </div>
+      </div>
+
+      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Lab Dashboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.6)] px-2 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'queue', label: 'Draw Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
             { id: 'walkin', label: 'Walk-in', icon: 'person_add', badge: walkinList.length },
@@ -2371,27 +2387,27 @@ export const LabDashboard: React.FC = () => {
                 onClick={() => setActiveTab(item.id as any)}
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
-                    ? 'text-indigo-400 font-black' 
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 <div className={`p-1.5 rounded-xl transition-all duration-200 relative ${
                   isActive 
-                    ? 'bg-indigo-500/20 text-indigo-400 scale-105 shadow-sm border border-indigo-500/30' 
-                    : 'bg-transparent text-slate-400'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 scale-105 shadow-sm border border-indigo-200/50 dark:border-indigo-800/40' 
+                    : 'bg-transparent text-slate-500 dark:text-slate-400'
                 }`}>
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse shadow-sm">
+                    <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse shadow-sm">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-extrabold mt-1 tracking-wide leading-none">
+                <span className="text-[9px] sm:text-[10px] font-bold mt-1 tracking-tight leading-none shrink-0">
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-xs shadow-indigo-500" />
+                  <span className="absolute bottom-1 w-3 h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-xs shadow-indigo-500" />
                 )}
               </button>
             );
