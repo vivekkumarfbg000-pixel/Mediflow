@@ -270,7 +270,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 placeholder="Search by name or phone..."
                 value={chatSearch}
                 onChange={(e) => setChatSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-slate-200/80 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-2xl text-xs outline-none bg-slate-50/50"
+                className="w-full pl-9 pr-4 py-2 border border-slate-200/80 dark:border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-2xl text-xs outline-none bg-slate-50/50 dark:bg-slate-950/80 text-slate-800 dark:text-white"
               />
             </div>
 
@@ -288,11 +288,11 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   const lastMsg = sSessData.chatHistory?.[sSessData.chatHistory.length - 1]?.text ?? 'Session initialized';
                   const isSelected = activeChat?.id === s.id;
 
-                  let stateBadge = 'bg-slate-100 text-slate-500';
-                  if (s.currentState === 'AWAITING_PAYMENT') stateBadge = 'bg-amber-100 text-amber-700';
-                  else if (s.currentState === 'COMPLETED') stateBadge = 'bg-emerald-100 text-emerald-700';
-                  else if (s.currentState === 'FAILED_DELIVERY') stateBadge = 'bg-rose-100 text-rose-700';
-                  else if (s.currentState === 'AWAITING_CONFIRMATION') stateBadge = 'bg-blue-100 text-blue-700';
+                  let stateBadge = 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
+                  if (s.currentState === 'AWAITING_PAYMENT') stateBadge = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+                  else if (s.currentState === 'COMPLETED') stateBadge = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+                  else if (s.currentState === 'FAILED_DELIVERY') stateBadge = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
+                  else if (s.currentState === 'AWAITING_CONFIRMATION') stateBadge = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
 
                   return (
                     <button
@@ -300,8 +300,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       onClick={() => setSelectedChatSession(s)}
                       className={`w-full text-left p-3.5 rounded-2xl border transition-all duration-300 relative group overflow-hidden ${
                         isSelected 
-                          ? 'bg-blue-50/40 border-primary/50 shadow-xs' 
-                          : 'bg-slate-50/40 border-slate-200/60 hover:bg-slate-50'
+                          ? 'bg-blue-50/40 dark:bg-blue-950/40 border-primary/50 shadow-xs' 
+                          : 'bg-slate-50/40 dark:bg-slate-950/60 border-slate-200/60 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-900/60'
                       }`}
                     >
                       {isSelected && (
@@ -479,15 +479,15 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   <select
                     value={broadcastTarget}
                     onChange={(e) => setBroadcastTarget(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-950/80 text-slate-800 dark:text-white"
                   >
-                    <option value="all">All Registered Patients</option>
-                    <option value="diabetes">Diabetic Patients (Chronic)</option>
-                    <option value="hypertension">Hypertensive Patients (Chronic)</option>
-                    <option value="opd">Currently Active OPD Queue</option>
+                    <option value="all" className="dark:bg-slate-900 dark:text-white">All Registered Patients</option>
+                    <option value="diabetes" className="dark:bg-slate-900 dark:text-white">Diabetic Patients (Chronic)</option>
+                    <option value="hypertension" className="dark:bg-slate-900 dark:text-white">Hypertensive Patients (Chronic)</option>
+                    <option value="opd" className="dark:bg-slate-900 dark:text-white">Currently Active OPD Queue</option>
                   </select>
                 </div>
-                <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center text-[10px] text-blue-700 font-sans leading-relaxed">
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 rounded-xl flex items-center text-[10px] text-blue-700 dark:text-blue-300 font-sans leading-relaxed">
                   💡 *Hinglish / Bilingual Templates* are highly recommended to maximize readability and patient engagement.
                 </div>
               </div>
@@ -499,28 +499,28 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   <button
                     type="button"
                     onClick={() => setBroadcastMsg(`Namaste! ${activePod?.name || 'VitalSync Smart Clinic'} will remain CLOSED on Sunday for maintenance. For emergency OPD, please reply SOS or scan clinic QR.`)}
-                    className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 rounded-xl text-[9px] font-bold text-slate-700 text-left transition-all cursor-pointer"
+                    className="p-2 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 rounded-xl text-[9px] font-bold text-slate-700 dark:text-slate-300 text-left transition-all cursor-pointer"
                   >
                     📢 Clinic Holiday Notice
                   </button>
                   <button
                     type="button"
                     onClick={() => setBroadcastMsg(`Namaste! Join our FREE Health Checkup Camp (BP, Blood Sugar, Vitals) this Sunday 9 AM - 1 PM at ${activePod?.name || 'VitalSync Clinic'}. Reply 1 to register!`)}
-                    className="p-2 bg-emerald-50/50 hover:bg-emerald-100/50 border border-emerald-200/80 rounded-xl text-[9px] font-bold text-emerald-800 text-left transition-all cursor-pointer"
+                    className="p-2 bg-emerald-50/50 dark:bg-emerald-950/40 hover:bg-emerald-100/50 border border-emerald-200/80 dark:border-emerald-900/40 rounded-xl text-[9px] font-bold text-emerald-800 dark:text-emerald-300 text-left transition-all cursor-pointer"
                   >
                     🩺 Free Health Camp
                   </button>
                   <button
                     type="button"
                     onClick={() => setBroadcastMsg(`Namaste! Dengue & Typhoid fever cases are rising in your area. Stay hydrated, use mosquito repellents, and contact ${activePod?.name || 'VitalSync Clinic'} if fever exceeds 100°F.`)}
-                    className="p-2 bg-blue-50/50 hover:bg-blue-100/50 border border-blue-200/80 rounded-xl text-[9px] font-bold text-blue-800 text-left transition-all cursor-pointer"
+                    className="p-2 bg-blue-50/50 dark:bg-blue-950/40 hover:bg-blue-100/50 border border-blue-200/80 dark:border-blue-900/40 rounded-xl text-[9px] font-bold text-blue-800 dark:text-blue-300 text-left transition-all cursor-pointer"
                   >
                     🌧️ Monsoon Dengue Alert
                   </button>
                   <button
                     type="button"
                     onClick={() => setBroadcastMsg(`Namaste! Your monthly chronic medicine prescription is due for refill. Reply REFILL or tap 1-Click Refill to reserve medicines at clinic counter.`)}
-                    className="p-2 bg-amber-50/50 hover:bg-amber-100/50 border border-amber-200/80 rounded-xl text-[9px] font-bold text-amber-800 text-left transition-all cursor-pointer"
+                    className="p-2 bg-amber-50/50 dark:bg-amber-950/40 hover:bg-amber-100/50 border border-amber-200/80 dark:border-amber-900/40 rounded-xl text-[9px] font-bold text-amber-800 dark:text-amber-300 text-left transition-all cursor-pointer"
                   >
                     💊 Chronic Refill Notice
                   </button>
@@ -534,7 +534,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   placeholder="Type your WhatsApp broadcast campaign message here..."
                   value={broadcastMsg}
                   onChange={(e) => setBroadcastMsg(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 font-sans leading-relaxed"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-950/80 text-slate-800 dark:text-white font-sans leading-relaxed"
                 />
               </div>
 
