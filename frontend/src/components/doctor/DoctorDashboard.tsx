@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
-import type { Patient, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';
+import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';
 import { 
   Trash2, 
   CheckCircle2, 
@@ -95,6 +95,7 @@ export const DoctorDashboard: React.FC = () => {
   
   // Real-time API States
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [pharmacyInventory, setPharmacyInventory] = useState<PharmacyInventoryItem[]>([]);
   const [whatsAppOrders, setWhatsAppOrders] = useState<WhatsAppDrugOrder[]>([]);
   const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>([]);
@@ -398,6 +399,7 @@ export const DoctorDashboard: React.FC = () => {
     const syncDashboardData = () => {
       const registered = api.getPatients();
       setPatients(registered);
+      setAppointments(api.getAppointments());
       setPharmacyInventory(api.getPharmacyInventory());
       setWhatsAppOrders(api.getWhatsAppDrugOrders());
       setPathologyReports(api.getPathologyReports());
@@ -1188,14 +1190,14 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </div>
 
                     {(() => {
-                      const virtualAppts = appointments.filter(a => a.is_virtual || a.isVirtual || a.source?.includes('virtual') || a.source?.includes('loyalty'));
-                      const displayList = virtualAppts.length > 0 
-                        ? virtualAppts.map(a => {
-                            const p = patients.find(pat => pat.id === a.patientId) || { id: a.patientId, name: 'Virtual Patient', phone: 'N/A', age: '30', gender: 'M' };
-                            const isFreeLoyalty = a.amount === 0 || a.fee_status === 'waived_loyalty' || a.source?.includes('loyalty');
+                      const virtualAppts = appointments.filter((a: Appointment) => a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') : false));
+                      const displayList: Array<{ appt: Appointment; patient: Patient; isFreeLoyalty: boolean }> = virtualAppts.length > 0 
+                        ? virtualAppts.map((a: Appointment) => {
+                            const p = patients.find((pat: Patient) => pat.id === a.patientId) || { id: a.patientId, name: 'Virtual Patient', phone: 'N/A', age: '30', gender: 'M' } as Patient;
+                            const isFreeLoyalty = a.amount === 0 || a.fee_status === 'waived_loyalty' || (a.source ? a.source.includes('loyalty') : false);
                             return { appt: a, patient: p, isFreeLoyalty };
                           })
-                        : patients.map((p, idx) => ({
+                        : patients.map((p: Patient, idx: number) => ({
                             appt: {
                               id: `v-${p.id}`,
                               patientId: p.id,
@@ -1207,7 +1209,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                               token_number: p.tokenNumber || String(idx + 1),
                               amount: 0,
                               source: 'whatsapp_free_loyalty'
-                            },
+                            } as Appointment,
                             patient: p,
                             isFreeLoyalty: true
                           }));
@@ -1224,7 +1226,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
                       return (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {displayList.map(({ appt, patient, isFreeLoyalty }) => {
+                          {displayList.map(({ appt, patient, isFreeLoyalty }: { appt: Appointment; patient: Patient; isFreeLoyalty: boolean }) => {
                             const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${patient.id}`;
                             const tokenNo = appt.token_number || patient.tokenNumber || '1';
 
