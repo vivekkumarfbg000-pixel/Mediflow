@@ -1853,7 +1853,7 @@ export const CompounderDashboard: React.FC = () => {
             {opdSubTab === 'schedules_advance' ? (
               <div className="space-y-8 animate-fade-in">
                 {/* Section 1: Virtual Video Consultations Roster */}
-                <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl relative overflow-hidden">
+                <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500 opacity-80" />
                   <div className="flex items-center justify-between gap-4 mb-4">
                     <div>
@@ -1921,7 +1921,7 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
 
                 {/* Section 2: Future Date & WhatsApp Advance Bookings */}
-                <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl relative overflow-hidden">
+                <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-80" />
                   <div className="flex items-center justify-between gap-4 mb-4">
                     <div>
@@ -1977,7 +1977,7 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
 
                 {/* Section 3: Doctor Availability & Roster Matrix */}
-                <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl relative overflow-hidden">
+                <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-purple-600 opacity-80" />
                   <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <span className="material-symbols-outlined text-purple-500 text-[20px]">calendar_view_week</span>
@@ -2020,7 +2020,7 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="lg:col-span-8 space-y-6">
                   
                   {/* Appointment Booking & Search Form */}
-                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-800/80 text-slate-800 rounded-3xl">
+                  <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                 <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-indigo-500 text-[18px]">calendar_today</span>
@@ -2197,10 +2197,10 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               {/* Today's Appointments List */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800 rounded-3xl">
+              <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
-                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                     <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
                     Today's Appointments Queue (दैनिक नियुक्तियां)
                   </h2>
