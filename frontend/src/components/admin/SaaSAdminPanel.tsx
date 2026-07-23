@@ -379,7 +379,9 @@ export const SaaSAdminPanel: React.FC = () => {
 
       try {
         await supabase.from('pods').insert([newPod]);
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore pod insert fallback */
+      }
 
       setPodsList(prev => [newPod, ...prev]);
 
@@ -395,7 +397,9 @@ export const SaaSAdminPanel: React.FC = () => {
       const msg = `🏥 *WELCOME TO MEDIFLOW PLATFORM!* 🚀\n\nNamaste ${provisionForm.doctorName}!\nAapki clinic *${provisionForm.name}* (${generatedCode}) Mediflow Platform Operations par onboard ho gayi hai.\n\n🔑 *Portal Access Credentials*:\n• Clinic Code: ${generatedCode}\n• Platform Commission: ${provisionForm.platformFee}%\n• Location: ${provisionForm.location || 'Patna, Bihar'}\n\nYour 24/7 DevSecOps Auto-Healer & WhatsApp Care Loop are live!`;
       try {
         api.pushWhatsAppMessageFromBot(provisionForm.phone, msg);
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore whatsapp dispatch error */
+      }
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -543,7 +547,9 @@ export const SaaSAdminPanel: React.FC = () => {
         try {
           api.pushWhatsAppMessageFromBot(phone, broadcastMsg);
           successCount++;
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore broadcast dispatch error */
+        }
       }
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -650,7 +656,9 @@ export const SaaSAdminPanel: React.FC = () => {
       for (const item of abusiveIps) {
         try {
           await supabase.from('blacklisted_ips').insert([item]);
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore ip insert error */
+        }
       }
 
       setBlacklistedIps(prev => [...abusiveIps.map(i => ({ ...i, created_at: new Date().toISOString() })), ...prev]);
@@ -678,7 +686,9 @@ export const SaaSAdminPanel: React.FC = () => {
     setTimeout(async () => {
       try {
         await supabase.rpc('trigger_devsecops_auto_heal');
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore auto heal rpc error */
+      }
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -739,7 +749,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
         try {
           api.pushWhatsAppMessageFromBot(phone, dunningMsg);
           remindedCount++;
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore dunning dispatch error */
+        }
       }
     }
 
@@ -782,7 +794,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
       try {
         api.pushWhatsAppMessageFromBot(phone, nudgeMsg);
         checkInCount++;
-      } catch (_e) {}
+      } catch (_e) {
+        /* ignore nudge dispatch error */
+      }
     }
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
