@@ -152,12 +152,49 @@ export class StateHealingEngine {
       }
     });
 
+    // Capture image & asset loading 404 failures globally
+    window.addEventListener('error', (event) => {
+      const target = event.target as HTMLElement;
+      if (target && target.tagName === 'IMG') {
+        const img = target as HTMLImageElement;
+        if (!img.dataset.healed) {
+          img.dataset.healed = 'true';
+          console.warn('[Auto-Healer] Intercepted 404 broken image link:', img.src);
+          img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/><path d="m21 15-5-5-11 11"/></svg>';
+        }
+      }
+    }, true);
+
     window.addEventListener('unhandledrejection', (event) => {
       if (!isOnCooldown('frontend')) {
         console.warn('[Auto-Healer] Caught unhandled promise rejection:', event.reason);
         this.handleException(
           event.reason instanceof Error ? event.reason : new Error(String(event.reason))
         );
+      }
+    });
+
+    // Auto-flush offline telemetry outbox when network connectivity returns
+    window.addEventListener('online', async () => {
+      console.log('[Auto-Healer] Network connectivity restored 🟢 — flushing offline telemetry outbox...');
+      try {
+        const entries = await telemetryDB.getAll();
+        for (const entry of entries) {
+          const { error } = await supabase.from('system_health_telemetry').insert({
+            pod_id: entry.pod_id,
+            subsystem: entry.subsystem,
+            severity: entry.severity,
+            error_code: entry.error_code,
+            error_stack: entry.error_stack,
+            status: 'healed',
+            healing_attempts: entry.healing_attempts
+          });
+          if (!error) {
+            await telemetryDB.remove(entry.id);
+          }
+        }
+      } catch (err) {
+        console.warn('[Auto-Healer] Offline telemetry flush warning:', err);
       }
     });
 
@@ -179,8 +216,9 @@ export class StateHealingEngine {
   /** Classify error message into subsystem */
   private static classifySubsystem(
     errMsg: string
-  ): 'frontend' | 'backend' | 'database' | 'whatsapp_api' | 'agentic_ai' {
+  ): 'frontend' | 'backend' | 'database' | 'whatsapp_api' | 'agentic_ai' | 'auth' {
     const msg = errMsg.toLowerCase();
+    if (msg.includes('jwt') || msg.includes('token') || msg.includes('401') || msg.includes('unauthorized') || msg.includes('session expired')) return 'auth';
     if (msg.includes('column') || msg.includes('relation') || msg.includes('rpc') || msg.includes('schema') || msg.includes('schema drift')) return 'database';
     if (msg.includes('webhook') || msg.includes('429') || msg.includes('rate-limit') || msg.includes('http')) return 'backend';
     if (msg.includes('whatsapp') || msg.includes('waba') || msg.includes('meta graph')) return 'whatsapp_api';
@@ -538,6 +576,23 @@ export class StateHealingEngine {
           healingSteps.push('✅ WABA connections status check passed: All connections active.');
         }
         healingSuccess = true;
+
+      } else if (subsystem === 'auth') {
+        healingSteps.push('🔐 Authentication token expiration / 401 claim anomaly detected.');
+        healingSteps.push('🔄 Triggering background session token renewal sequence...');
+        try {
+          const { data: refreshRes, error: refreshErr } = await supabase.auth.refreshSession();
+          if (!refreshErr && refreshRes?.session) {
+            healingSteps.push('✅ Supabase JWT Auth session renewed successfully 🟢.');
+            healingSuccess = true;
+          } else {
+            healingSteps.push('⚠️ Session refresh failed. Preserving local state and prompting soft authentication renewal.');
+            healingSuccess = false;
+          }
+        } catch (_authErr) {
+          healingSteps.push('⚠️ Auth renewal Exception handled safely.');
+          healingSuccess = false;
+        }
 
       } else {
         // agentic_ai
@@ -985,4 +1040,31 @@ export function mergeFieldLevelCRDT<T extends Record<string, any>>(onlineTarget:
     }
   }
   return merged;
+}
+
+// ── Phase 6: SafeStorage Corrupted JSON Sanitizer & Auto-Healer ──────────────
+export class SafeStorage {
+  static getItem<T>(key: string, fallback: T): T {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return fallback;
+      return JSON.parse(item) as T;
+    } catch (err) {
+      console.warn(`[Auto-Healer] SafeStorage caught corrupted local JSON key '${key}'. Auto-healing to default baseline:`, err);
+      try {
+        localStorage.setItem(key, JSON.stringify(fallback));
+      } catch (_e) {}
+      return fallback;
+    }
+  }
+
+  static setItem(key: string, value: any): boolean {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (err) {
+      console.error(`[Auto-Healer] SafeStorage setItem failed for key '${key}':`, err);
+      return false;
+    }
+  }
 }

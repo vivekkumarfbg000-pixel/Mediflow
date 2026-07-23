@@ -89,6 +89,7 @@ export class RealtimeSyncService {
 
         if (status === 'SUBSCRIBED') {
           this.lastPingSuccess = Date.now();
+          this.reconnectAttempts = 0;
           this.updateStatus('connected');
           this.startHeartbeatWatchdog();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -115,12 +116,17 @@ export class RealtimeSyncService {
     }, 10000);
   }
 
+  private static reconnectAttempts = 0;
+
   // ── Schedule Auto-Reconnect ────────────────────────────────────────────────
   private static scheduleAutoReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 
+    this.reconnectAttempts++;
+    const backoffMs = Math.min(800 * Math.pow(2, Math.min(this.reconnectAttempts - 1, 4)), 10000); // 800ms, 1.6s, 3.2s, 6.4s, max 10s
+
     this.reconnectTimer = setTimeout(() => {
-      console.log('[RealtimeSync Watchdog] 🔄 Executing automated WebSocket reconnect sequence...');
+      console.log(`[RealtimeSync Watchdog] 🔄 Executing automated WebSocket reconnect sequence (attempt ${this.reconnectAttempts}, backoff: ${backoffMs}ms)...`);
       if (this.subscribers.size > 0) {
         if (this.activeChannel) {
           try { supabase.removeChannel(this.activeChannel); } catch (_e) {}
@@ -128,7 +134,7 @@ export class RealtimeSyncService {
         }
         this.initGlobalChannel();
       }
-    }, 800);
+    }, backoffMs);
   }
 
   // ── Update Connection Status & Broadcast UI Events ───────────────────────
