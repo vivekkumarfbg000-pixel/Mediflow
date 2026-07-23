@@ -1259,3 +1259,99 @@ export class WabaTokenAutoHealer {
     return { healedCount: 0 };
   }
 }
+
+// ── Phase 11: Solo-Founder Multi-Tenant Pod Health Rejuvenator ────────────
+export class SoloFounderPodRejuvenator {
+  static async reconcileUserPodAssociation(): Promise<{ success: boolean; pod_id?: string }> {
+    try {
+      const { data, error } = await supabase.rpc('reconcile_tenant_pod_association');
+      if (!error && data?.success) {
+        console.log('[SoloFounderPodRejuvenator] 🏬 Reconciled tenant pod association:', data);
+        return { success: true, pod_id: data.pod_id };
+      }
+    } catch (_e) {
+      /* ignore pod reconcile error */
+    }
+    return { success: false };
+  }
+}
+
+// ── Phase 12: WhatsApp Bot Idle Session Self-Unstick ──────────────────────
+export class WabaBotSelfUnstick {
+  static async auditAndUnstickStaleSessions(): Promise<{ resetCount: number }> {
+    try {
+      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const { data: staleSessions } = await supabase
+        .from('whatsapp_sessions')
+        .select('id, patient_phone, current_state')
+        .not('current_state', 'in', '("MAIN_MENU","COMPLETED","CANCELLED")')
+        .lt('last_interaction', fifteenMinsAgo);
+
+      if (staleSessions && staleSessions.length > 0) {
+        console.log(`[WabaBotSelfUnstick] Found ${staleSessions.length} idle WhatsApp session(s). Resetting to MAIN_MENU...`);
+        const { error } = await supabase
+          .from('whatsapp_sessions')
+          .update({ current_state: 'MAIN_MENU', updated_at: new Date().toISOString() })
+          .in('id', staleSessions.map(s => s.id));
+
+        if (!error) {
+          console.log(`[WabaBotSelfUnstick] Successfully reset ${staleSessions.length} stale sessions 🟢.`);
+          return { resetCount: staleSessions.length };
+        }
+      }
+    } catch (_e) {
+      /* ignore unstick error */
+    }
+    return { resetCount: 0 };
+  }
+}
+
+// ── Phase 13: Cashfree Expired Payment Link Auto-Regenerator ───────────────
+export class PaymentGateAutoHealer {
+  static async regenerateExpiredPaymentLink(orderId: string, amount: number, customerPhone: string): Promise<string | null> {
+    try {
+      console.log(`[PaymentGateAutoHealer] Regenerating Cashfree payment link for order '${orderId}'...`);
+      const { data, error } = await supabase.functions.invoke('cashfree-order', {
+        body: {
+          action: 'create_order',
+          orderId: `ORD-${Date.now()}`,
+          orderAmount: amount,
+          customerPhone
+        }
+      });
+      if (!error && data?.payment_session_id) {
+        return `https://payments.cashfree.com/order/#${data.payment_session_id}`;
+      }
+    } catch (_e) {
+      /* ignore payment link regen error */
+    }
+    return null;
+  }
+}
+
+// ── Phase 14: Database Deadlock & Lock Timeout Retry Circuit ───────────────
+export class QueryCircuitAutoHealer {
+  static async executeWithRetry<T>(queryFn: () => Promise<T>, maxRetries = 3): Promise<T> {
+    let lastError: any;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await queryFn();
+      } catch (err: any) {
+        lastError = err;
+        const isLockOrTimeout = err?.message?.toLowerCase().includes('lock') || 
+                                err?.message?.toLowerCase().includes('timeout') || 
+                                err?.message?.toLowerCase().includes('deadlock') ||
+                                err?.code === '40P01' || err?.code === '55P03';
+
+        if (isLockOrTimeout && attempt < maxRetries) {
+          const backoff = 50 * Math.pow(2, attempt - 1); // 50ms, 100ms, 200ms
+          console.warn(`[QueryCircuitAutoHealer] Transient DB lock/timeout caught (attempt ${attempt}/${maxRetries}). Retrying after ${backoff}ms...`);
+          await new Promise(r => setTimeout(r, backoff));
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw lastError;
+  }
+}
