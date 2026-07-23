@@ -118,6 +118,14 @@ class TelemetryIndexedDB {
       localStorage.setItem('telemetry_mem_outbox', JSON.stringify(filtered));
     }
   }
+
+  async getAll(): Promise<QueuedTelemetry[]> {
+    return this.getUnsyncedEntries();
+  }
+
+  async remove(id: string): Promise<void> {
+    return this.deleteEntry(id);
+  }
 }
 
 export const telemetryDB = new TelemetryIndexedDB();
@@ -178,7 +186,7 @@ export class StateHealingEngine {
     window.addEventListener('online', async () => {
       console.log('[Auto-Healer] Network connectivity restored 🟢 — flushing offline telemetry outbox...');
       try {
-        const entries = await telemetryDB.getAll();
+        const entries = await telemetryDB.getUnsyncedEntries();
         for (const entry of entries) {
           const { error } = await supabase.from('system_health_telemetry').insert({
             pod_id: entry.pod_id,
@@ -190,7 +198,7 @@ export class StateHealingEngine {
             healing_attempts: entry.healing_attempts
           });
           if (!error) {
-            await telemetryDB.remove(entry.id);
+            await telemetryDB.deleteEntry(entry.id);
           }
         }
       } catch (err) {
