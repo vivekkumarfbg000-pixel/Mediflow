@@ -504,7 +504,7 @@ export default function App() {
 
   useEffect(() => {
     PwaSyncManager.registerServiceWorker();
-    StateHealingEngine.initGlobalListener();
+    StateHealingEngine.startAutonomous247Sentinel();
     // Delay health monitor startup by 10 seconds so it doesn't compete with auth
     // session initialization and the first critical render on page load.
     setTimeout(() => ProactiveHealthMonitor.start(), 10_000);
