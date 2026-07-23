@@ -1187,77 +1187,122 @@ Keep the tone professional, clinical, objective, and precise.`;
                       </span>
                     </div>
 
-                    {patients.length === 0 ? (
-                      <div className="p-12 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
-                        <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">videocam_off</span>
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-white">No active virtual video calls scheduled right now</h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">WhatsApp bot bookings and patient online video requests will stream here automatically.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {patients.map(p => {
-                          const meetUrl = `https://meet.jit.si/vitalsync-consult-${p.id}`;
-                          return (
-                            <div key={p.id} className="p-5 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-4 hover:border-cyan-500/40 transition-all">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-mono font-extrabold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2.5 py-1 rounded-md">
-                                  Token #{p.tokenNumber || '1'}
-                                </span>
-                                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                                  Fee Paid: ₹400.00 ✅
-                                </span>
-                              </div>
+                    {(() => {
+                      const virtualAppts = appointments.filter(a => a.is_virtual || a.isVirtual || a.source?.includes('virtual') || a.source?.includes('loyalty'));
+                      const displayList = virtualAppts.length > 0 
+                        ? virtualAppts.map(a => {
+                            const p = patients.find(pat => pat.id === a.patientId) || { id: a.patientId, name: 'Virtual Patient', phone: 'N/A', age: '30', gender: 'M' };
+                            const isFreeLoyalty = a.amount === 0 || a.fee_status === 'waived_loyalty' || a.source?.includes('loyalty');
+                            return { appt: a, patient: p, isFreeLoyalty };
+                          })
+                        : patients.map((p, idx) => ({
+                            appt: {
+                              id: `v-${p.id}`,
+                              patientId: p.id,
+                              doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                              status: 'confirmed',
+                              createdAt: new Date().toISOString(),
+                              is_virtual: true,
+                              virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${p.id}`,
+                              token_number: p.tokenNumber || String(idx + 1),
+                              amount: 0,
+                              source: 'whatsapp_free_loyalty'
+                            },
+                            patient: p,
+                            isFreeLoyalty: true
+                          }));
 
-                              <div>
-                                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                  {p.name}
-                                  <span className="text-xs text-slate-500 font-normal">({p.age}y · {p.gender})</span>
-                                </h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Phone: {p.phone}</p>
-                              </div>
+                      if (displayList.length === 0) {
+                        return (
+                          <div className="p-12 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
+                            <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">videocam_off</span>
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-white">No active virtual video calls scheduled right now</h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">WhatsApp bot bookings and patient online video requests will stream here automatically.</p>
+                          </div>
+                        );
+                      }
 
-                              <div className="flex items-center gap-2 pt-2">
-                                <a
-                                  href={meetUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-md shadow-cyan-500/20"
-                                >
-                                  <span className="material-symbols-outlined text-[18px]">videocam</span>
-                                  Join Video Call 💻
-                                </a>
-                                <button
-                                  onClick={() => {
-                                    setNotes('');
-                                    setHinglishSummary('');
-                                    setAudioUrl(null);
-                                    setAudioBlob(null);
-                                    setMedications([]);
-                                    setSelectedTests([]);
-                                    setRefractionRx(EMPTY_REFRACTION_RX);
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {displayList.map(({ appt, patient, isFreeLoyalty }) => {
+                            const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${patient.id}`;
+                            const tokenNo = appt.token_number || patient.tokenNumber || '1';
 
-                                    setSelectedPatient(p);
-                                    setActiveTab('consultation');
-                                    api.updatePatientQueueStatus(p.id, 'in_consultation');
-                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: {
-                                        title: 'Consultation Initialized! 🩺',
-                                        message: `Navigated to Virtual Video Consultation worksheet for ${p.name}.`,
-                                        type: 'success'
-                                      }
-                                    }));
-                                  }}
-                                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
-                                >
-                                  <span className="material-symbols-outlined text-[18px]">edit_note</span>
-                                  Start E-Rx 🩺
-                                </button>
+                            return (
+                              <div key={appt.id} className="p-5 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-4 hover:border-cyan-500/40 transition-all relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-cyan-500" />
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-mono font-extrabold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2.5 py-1 rounded-md">
+                                    Token #{tokenNo}
+                                  </span>
+                                  {isFreeLoyalty ? (
+                                    <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-full flex items-center gap-1 animate-pulse">
+                                      💎 Free Virtual Followup Member (₹0.00)
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-full">
+                                      Paid Virtual: ₹618.00 ✅
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    {patient.name}
+                                    <span className="text-xs text-slate-500 font-normal">({patient.age || '30'}y · {patient.gender || 'M'})</span>
+                                  </h3>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+                                    <span>Phone: {patient.phone || 'N/A'}</span>
+                                    <span>·</span>
+                                    <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold">
+                                      Slot: {appt.virtual_time || '10:00 AM - 12:00 PM'}
+                                    </span>
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
+                                  <a
+                                    href={meetUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined text-[18px]">videocam</span>
+                                    Join Video Call 💻
+                                  </a>
+                                  <button
+                                    onClick={() => {
+                                      setNotes('');
+                                      setHinglishSummary('');
+                                      setAudioUrl(null);
+                                      setAudioBlob(null);
+                                      setMedications([]);
+                                      setSelectedTests([]);
+                                      setRefractionRx(EMPTY_REFRACTION_RX);
+
+                                      setSelectedPatient(patient);
+                                      setActiveTab('consultation');
+                                      api.updatePatientQueueStatus(patient.id, 'in_consultation');
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                        detail: {
+                                          title: 'Consultation Initialized! 🩺',
+                                          message: `Navigated to Virtual Video Consultation worksheet for ${patient.name}.`,
+                                          type: 'success'
+                                        }
+                                      }));
+                                    }}
+                                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                                    Start E-Rx 🩺
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );

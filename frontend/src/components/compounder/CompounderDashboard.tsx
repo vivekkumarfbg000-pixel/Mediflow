@@ -1877,18 +1877,25 @@ export const CompounderDashboard: React.FC = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {appointments.filter(a => a.is_virtual).map(appt => {
+                      {appointments.filter(a => a.is_virtual || a.isVirtual).map(appt => {
                         const pat = patients.find(p => p.id === appt.patientId);
                         const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
+                        const isFreeLoyalty = appt.amount === 0 || appt.fee_status === 'waived_loyalty' || appt.source?.includes('loyalty');
                         return (
-                          <div key={appt.id} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-3">
+                          <div key={appt.id} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-3 relative overflow-hidden">
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-mono font-extrabold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2 py-0.5 rounded-md">
-                                Token #{appt.token_number || 1}
+                                Token #{appt.token_number || appt.tokenNumber || 1}
                               </span>
-                              <span className="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
-                                {appt.status === 'ready_for_consult' ? 'Ready for Consult' : appt.status}
-                              </span>
+                              {isFreeLoyalty ? (
+                                <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                                  💎 Free Member (₹0.00)
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
+                                  {appt.status === 'ready_for_consult' ? 'Ready for Consult' : appt.status}
+                                </span>
+                              )}
                             </div>
 
                             <div>

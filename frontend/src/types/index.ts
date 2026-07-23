@@ -434,6 +434,8 @@ export interface Appointment {
   virtual_time?: string;
   virtual_meeting_url?: string;
   source?: string;
+  fee_status?: string;
+  amount?: number;
 }
 
 export interface EveningSlot {
