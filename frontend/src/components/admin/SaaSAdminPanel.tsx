@@ -1388,6 +1388,29 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           </div>
         </div>
 
+        {/* ── Virtual Operations Team Navigation (Mobile Touch Bar) ───────────── */}
+        <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-2.5 mb-4 scrollbar-none border-b border-slate-200/40">
+          {agents.map(agent => {
+            const Icon = agent.icon;
+            const isActive = activeTab === agent.id;
+            return (
+              <button
+                key={agent.id}
+                type="button"
+                onClick={() => setActiveTab(agent.id)}
+                className={`flex items-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  isActive 
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/15' 
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span>{agent.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── Virtual Operations Team Navigation (Laptop Header) ───────────────── */}
         <div className="hidden lg:flex items-center gap-3 bg-slate-50/50 p-2.5 rounded-2xl border border-slate-200/60 mb-6 flex-wrap">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 mr-2">
