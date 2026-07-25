@@ -2371,11 +2371,11 @@ export const LabDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Lab Dashboard (Ultra-Slim SaaS Dock) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white/98 dark:bg-[#0b0f19]/98 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-1 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-12 after:bg-white dark:after:bg-[#0b0f19]">
-        <div className="flex items-center justify-around h-12 max-w-md mx-auto">
+      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Lab Dashboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-[#0b0f19]">
+        <div className="flex items-center justify-between h-14 max-w-md mx-auto">
           {[
-            { id: 'queue', label: 'Draw Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
+            { id: 'queue', label: 'Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
             { id: 'walkin', label: 'Walk-in', icon: 'person_add', badge: walkinList.length },
             { id: 'upload_report', label: 'Upload', icon: 'upload_file' },
             { id: 'settlements', label: 'Ledger', icon: 'account_balance' }
@@ -2384,27 +2384,25 @@ export const LabDashboard: React.FC = () => {
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => setActiveTab(item.id as any)}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-0.5 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none ${
+                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
                   isActive 
                     ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                <div className={`transition-all duration-150 relative ${isActive ? 'scale-110 text-indigo-600 dark:text-indigo-400' : ''}`}>
-                  <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
+                <div className={`flex items-center justify-center h-5 transition-transform duration-150 relative ${isActive ? 'scale-110' : ''}`}>
+                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                   {item.badge !== undefined && item.badge > 0 && (
                     <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[7.5px] font-black flex items-center justify-center animate-pulse">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
                 </div>
-                <span className={`text-[8.5px] tracking-tight leading-none mt-0.5 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
+                <span className={`text-[10px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                   {item.label}
                 </span>
-                {isActive && (
-                  <span className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-0.5 shadow-xs" />
-                )}
               </button>
             );
           })}

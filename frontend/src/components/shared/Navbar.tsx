@@ -768,15 +768,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation (Ultra-Slim SaaS Dock) */}
+      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
       {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && currentRole !== 'saas_admin' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white/98 dark:bg-slate-950/98 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-1 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-12 after:bg-white dark:after:bg-slate-950">
-          <div className="flex items-center justify-around h-12">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-slate-950">
+          <div className="flex items-center justify-between h-14 max-w-md mx-auto">
             {visibleRoles.map((r) => {
               const Icon = r.icon;
               const isActive = currentRole === r.id;
               
-              // Map role ID to a short professional label for the bottom nav
               let label = r.name;
               if (r.id === 'compounder') label = 'Comp.';
               else if (r.id === 'doctor') label = 'Doctor';
@@ -788,22 +787,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               return (
                 <button
                   key={r.id}
+                  type="button"
                   onClick={() => onChangeRole(r.id as UserRole)}
-                  className={`flex flex-col items-center justify-center flex-1 h-full py-0.5 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none ${
+                  className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
                     isActive 
                       ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
-                  <div className={`transition-all duration-150 ${isActive ? 'scale-110 text-indigo-600 dark:text-indigo-400' : ''}`}>
+                  <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <span className={`text-[8.5px] tracking-tight leading-none mt-0.5 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
+                  <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                     {label}
                   </span>
-                  {isActive && (
-                    <span className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-0.5 shadow-xs" />
-                  )}
                 </button>
               );
             })}
