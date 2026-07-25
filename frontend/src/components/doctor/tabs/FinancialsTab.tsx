@@ -3,6 +3,7 @@ import type { FinancialLedgerEntry } from '../../../types';
 import { SettlementWidget } from '../../shared/SettlementWidget';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
 import { BillingService } from '../../../services/billingService';
+import { RealtimeSyncService } from '../../../services/realtimeSyncService';
 
 interface FinancialsTabProps {
   financialLedgers: FinancialLedgerEntry[];
@@ -22,11 +23,28 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   supabaseClient,
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m' | '12m'>('6m');
+  const [, setSyncVersion] = useState(0);
+
+  useEffect(() => {
+    const unsub = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onFinancialLedgerChange: () => setSyncVersion(v => v + 1),
+      onUnifiedInvoiceChange: () => setSyncVersion(v => v + 1),
+      onPatientChange: () => setSyncVersion(v => v + 1),
+      onPoolSettlementChange: () => setSyncVersion(v => v + 1),
+      onClinicSopChange: () => setSyncVersion(v => v + 1),
+    });
+    const handleLocalStateChange = () => setSyncVersion(v => v + 1);
+    window.addEventListener('mediflow-state-change', handleLocalStateChange);
+    return () => {
+      unsub();
+      window.removeEventListener('mediflow-state-change', handleLocalStateChange);
+    };
+  }, []);
 
   // Compute SOP-Driven Commission Pool & Multi-Party Split
   const poolStats = useMemo(() => {
     return BillingService.calculateCommissionPoolBalance();
-  }, [financialLedgers]);
+  }, [financialLedgers, syncVersion]);
 
   const apptFees = poolStats.doctorConsultsEarned;
   const pharmacyComm = poolStats.doctorMedicineReferralsEarned;
@@ -191,9 +209,9 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   const docLabSplit = activeSop?.extractedConfig?.splits?.doctor ?? 40;
   const docMedSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
 
-  const invoices = useMemo(() => BillingService.getUnifiedInvoices(), [financialLedgers]);
-  const patients = useMemo(() => BillingService.getPatients(), [financialLedgers]);
-  const appointments = useMemo(() => BillingService.getAppointments(), [financialLedgers]);
+  const invoices = useMemo(() => BillingService.getUnifiedInvoices(), [financialLedgers, syncVersion]);
+  const patients = useMemo(() => BillingService.getPatients(), [financialLedgers, syncVersion]);
+  const appointments = useMemo(() => BillingService.getAppointments(), [financialLedgers, syncVersion]);
 
   const getPatientName = useCallback((entry: FinancialLedgerEntry) => {
     if (entry.patientName) return entry.patientName;
