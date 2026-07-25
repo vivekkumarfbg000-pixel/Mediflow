@@ -445,6 +445,7 @@ export const DoctorDashboard: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .then(({ data, error }) => {
+          if (data && data.length > 0) {
             const existingPats = api.getPatients();
             const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
 
@@ -489,6 +490,7 @@ export const DoctorDashboard: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .then(({ data, error }) => {
+          if (data && data.length > 0) {
             const existingPats = api.getPatients();
             const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
 
