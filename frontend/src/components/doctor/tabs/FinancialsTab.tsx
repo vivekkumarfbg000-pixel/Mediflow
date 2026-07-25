@@ -243,17 +243,119 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     return 'UPI / QR Code 📱';
   }, [invoices, appointments]);
 
-  const filteredLedgers = financialLedgers.filter(entry => {
-    const pName = getPatientName(entry).toLowerCase();
-    const pMode = getPaymentModeLabel(entry).toLowerCase();
-    const query = financialSearch.toLowerCase();
-    return (
-      pName.includes(query) ||
-      pMode.includes(query) ||
-      entry.invoiceId.toLowerCase().includes(query) ||
-      entry.transactionType.toLowerCase().includes(query)
-    );
-  });
+  const filteredLedgers = useMemo(() => {
+    return financialLedgers
+      .filter(entry => {
+        const pName = getPatientName(entry).toLowerCase();
+        const pMode = getPaymentModeLabel(entry).toLowerCase();
+        const query = financialSearch.toLowerCase();
+        return (
+          pName.includes(query) ||
+          pMode.includes(query) ||
+          entry.invoiceId.toLowerCase().includes(query) ||
+          entry.transactionType.toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [financialLedgers, financialSearch, getPatientName, getPaymentModeLabel]);
+
+  const exportFinancialLedgersPDF = useCallback(() => {
+    const printWin = window.open('', '_blank');
+    if (!printWin) return;
+
+    const rowsHtml = filteredLedgers.map(entry => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #0f172a;">${getPatientName(entry)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace; color: #475569;">${getPaymentModeLabel(entry)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; text-transform: uppercase; font-size: 11px;">${entry.transactionType.replace('_', ' ')}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${entry.grossAmount.toFixed(2)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace;">${(entry.commissionRate * 100).toFixed(0)}%</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; font-family: monospace; color: #0f172a;">₹${entry.netPayout.toFixed(2)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #059669; text-transform: uppercase; font-size: 10px;">${entry.paymentStatus}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Financial Sales Ledger & Payout Statement</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #1e293b; background: #ffffff; }
+          .header { border-bottom: 2px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+          .title { font-size: 22px; font-weight: 800; color: #1e1b4b; margin: 0; }
+          .subtitle { font-size: 12px; color: #64748b; margin-top: 4px; }
+          .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; }
+          .meta-box { font-size: 11px; }
+          .meta-label { color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; }
+          .meta-val { font-size: 16px; font-weight: 800; color: #0f172a; margin-top: 4px; font-family: monospace; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+          th { background: #f1f5f9; padding: 10px; text-align: left; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; }
+          .footer { margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 10px; color: #94a3b8; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="title">VitalSync Connected Care Network</h1>
+            <div class="subtitle">Dr. Sharma's Care Clinic — Official Sales Mapping & Financial Payout Ledger</div>
+          </div>
+          <div style="text-align: right; font-size: 11px; color: #64748b;">
+            <div><strong>Statement Date:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            <div><strong>Clinic Code:</strong> ${activePod?.clinicCode || 'MF-A1B2'}</div>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-box">
+            <div class="meta-label">Total Doctor Net Earnings</div>
+            <div class="meta-val">₹${totalEarnings.toLocaleString()}</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">OPD Consult Fees</div>
+            <div class="meta-val">₹${apptFees.toLocaleString()}</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">Commission Pool Net Balance</div>
+            <div class="meta-val">₹${poolStats.netPoolBalance.toLocaleString()}</div>
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">Total Transactions Recorded</div>
+            <div class="meta-val">${filteredLedgers.length}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Patient Name / Customer</th>
+              <th>Payment Mode / Channel</th>
+              <th>Type</th>
+              <th style="text-align: right;">Gross Amount</th>
+              <th style="text-align: center;">Comm. Rate</th>
+              <th style="text-align: right;">Net Payout</th>
+              <th style="text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          VitalSync 360° Real-Time Financial Statement • Generated electronically for Dr. Vivek Kumar • Verified via Supabase Postgres CDC
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => {
+      printWin.print();
+    }, 400);
+  }, [filteredLedgers, getPatientName, getPaymentModeLabel, totalEarnings, apptFees, poolStats, activePod]);
 
   return (
     <div className="space-y-6 text-slate-800 animate-fade-in text-left">
@@ -530,16 +632,30 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       {/* Financial ledger logs table */}
       <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h2 className="text-sm font-bold text-slate-800">Sales Mappings &amp; Transaction Ledger</h2>
-          <div className="relative w-full md:w-72">
-            <input
-              type="text"
-              placeholder="Search by Patient Name, Payment Mode..."
-              value={financialSearch}
-              onChange={e => setFinancialSearch(e.target.value)}
-              className="w-full input-field py-1.5 pl-9 text-xs"
-            />
-            <span className="material-symbols-outlined text-slate-600 absolute left-3 top-2 text-sm">search</span>
+          <div>
+            <h2 className="text-sm font-bold text-slate-800">Sales Mappings &amp; Transaction Ledger</h2>
+            <p className="text-[10px] text-slate-500 mt-0.5">Sorted Newest First • Real-Time Postgres CDC Stream</p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <button
+              onClick={exportFinancialLedgersPDF}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-500/30 transition-all cursor-pointer shadow-xs"
+            >
+              <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+              Download PDF Statement 📄
+            </button>
+
+            <div className="relative flex-1 md:w-64">
+              <input
+                type="text"
+                placeholder="Search by Patient Name, Payment Mode..."
+                value={financialSearch}
+                onChange={e => setFinancialSearch(e.target.value)}
+                className="w-full input-field py-1.5 pl-9 text-xs"
+              />
+              <span className="material-symbols-outlined text-slate-600 absolute left-3 top-2 text-sm">search</span>
+            </div>
           </div>
         </div>
 
