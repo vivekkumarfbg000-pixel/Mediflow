@@ -80,10 +80,12 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const splitDocMatch = text.match(/(?:doctor|physician|referring)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
     const splitPlatMatch = text.match(/(?:platform|vitalsync|software|app)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
     const splitLabMatch = text.match(/(?:lab|laboratory|pathology)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
+    const splitPharmaDocMatch = text.match(/(?:medicine|pharmacy|drug)\s*(?:commission|referral|split|share)[^0-9]*(\d+(?:\.\d+)?)\s*%/i);
 
     const splitDoc = splitDocMatch ? parseFloat(splitDocMatch[1]) : activeSop?.extractedConfig?.splits?.doctor ?? 40;
     const splitPlat = splitPlatMatch ? parseFloat(splitPlatMatch[1]) : activeSop?.extractedConfig?.splits?.platform ?? 3;
     const splitLab = splitLabMatch ? parseFloat(splitLabMatch[1]) : activeSop?.extractedConfig?.splits?.lab ?? 57;
+    const splitPharmaDoc = splitPharmaDocMatch ? parseFloat(splitPharmaDocMatch[1]) : (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
 
     // Parse test prices
     const testPrices: Record<string, number> = { ...activeSop?.extractedConfig?.test_prices };
@@ -106,7 +108,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const config = {
       doctor_fee: docFee,
       test_prices: testPrices,
-      splits: { doctor: splitDoc, platform: splitPlat, lab: splitLab },
+      splits: { doctor: splitDoc, platform: splitPlat, lab: splitLab, pharmacyDoctor: splitPharmaDoc },
       guidelines: guidelineLines.length > 0 ? guidelineLines : activeSop?.extractedConfig?.guidelines ?? []
     };
 

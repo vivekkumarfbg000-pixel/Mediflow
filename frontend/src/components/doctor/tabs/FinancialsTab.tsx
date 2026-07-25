@@ -187,6 +187,10 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       });
   }, [activePod?.id, supabaseClient]);
 
+  const activeSop = api.getActiveSop();
+  const docLabSplit = activeSop?.extractedConfig?.splits?.doctor ?? 40;
+  const docMedSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
+
   const filteredLedgers = financialLedgers.filter(entry =>
     entry.invoiceId.toLowerCase().includes(financialSearch.toLowerCase()) ||
     entry.transactionType.toLowerCase().includes(financialSearch.toLowerCase())
@@ -199,13 +203,13 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         <PointerGlowCard containerClassName="shadow-sm rounded-2xl lg:col-span-2" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
           <div className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">Total Doctor Net Earnings</div>
           <div className="text-2xl font-bold mt-2 text-slate-900 dark:text-white">₹{totalEarnings.toLocaleString()}</div>
-          <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">SOP Consolidated — 100% Consults + 50% Lab + 20% Pharmacy</p>
+          <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">SOP Consolidated — 100% Consults + {docLabSplit}% Lab + {docMedSplit}% Pharmacy</p>
         </PointerGlowCard>
 
         {[
           { label: 'Doctor Consultation Fees', val: `₹${apptFees.toLocaleString()}`, split: '100% Doctor Fee (0% Platform Deducted)', icon: 'clinical_notes', color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Medicine Referral Income', val: `₹${pharmacyComm.toLocaleString()}`, split: '20% SOP Doctor Referral Share', icon: 'medication', color: 'text-teal-600 dark:text-teal-400' },
-          { label: 'Lab Test Referral Income', val: `₹${labComm.toLocaleString()}`, split: '50% SOP Doctor Referral Share', icon: 'biotech', color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Medicine Referral Income', val: `₹${pharmacyComm.toLocaleString()}`, split: `${docMedSplit}% SOP Doctor Referral Share`, icon: 'medication', color: 'text-teal-600 dark:text-teal-400' },
+          { label: 'Lab Test Referral Income', val: `₹${labComm.toLocaleString()}`, split: `${docLabSplit}% SOP Doctor Referral Share`, icon: 'biotech', color: 'text-amber-600 dark:text-amber-400' },
         ].map((item, i) => (
           <PointerGlowCard key={i} containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
             <div className="flex justify-between items-center">

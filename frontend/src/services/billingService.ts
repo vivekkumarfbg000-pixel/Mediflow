@@ -539,9 +539,13 @@ export class BillingService {
       };
       listToSave.push(platformLedger, docLedger, labLedger);
     } else if (type === 'pharmacy') {
+      const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20; // 20% SOP Doctor Referral Share
       const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
       platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-      const pharmaAmt = parseFloat((amount - platformAmt).toFixed(2));
+
+      const remainingAmt = amount - platformAmt;
+      const docMedAmt = parseFloat((remainingAmt * (medDoctorSplit / 100)).toFixed(2));
+      const pharmaAmt = parseFloat((remainingAmt - docMedAmt).toFixed(2));
 
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
@@ -557,6 +561,20 @@ export class BillingService {
         createdAt: new Date().toISOString()
       };
 
+      const docMedLedger: FinancialLedgerEntry = {
+        id: `tx-doc-med-${crypto.randomUUID().substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: 'clinic-admin-entity',
+        destinationEntityId: 'clinic-admin-entity',
+        transactionType: 'medicine_commission',
+        grossAmount: amount,
+        commissionRate: medDoctorSplit / 100,
+        netPayout: docMedAmt,
+        paymentStatus: 'cleared',
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+
       const pharmacyLedger: FinancialLedgerEntry = {
         id: `tx-pharma-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
@@ -564,13 +582,13 @@ export class BillingService {
         destinationEntityId: 'pharmacy-partner-entity',
         transactionType: 'medicine_commission',
         grossAmount: amount,
-        commissionRate: 1 - splitPlat / 100,
+        commissionRate: (100 - splitPlat - medDoctorSplit) / 100,
         netPayout: pharmaAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
-      listToSave.push(platformLedger, pharmacyLedger);
+      listToSave.push(platformLedger, docMedLedger, pharmacyLedger);
     }
 
     if (listToSave.length > 0) {
