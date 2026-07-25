@@ -442,7 +442,7 @@ class MediflowApiService {
           case 'REGISTER_PATIENT': {
             const { payload } = entry;
             const { error } = await supabase.from('patient_registry').insert({
-              id: entry.id,
+              id: payload.id || entry.id,
               name: payload.name,
               phone: payload.phone,
               age: payload.age,
@@ -683,9 +683,9 @@ class MediflowApiService {
         this.save('active_consent_ids', Array.from(activePatientIds));
 
         // Patients
-        if (dbPatients) {
+        if (dbPatients && dbPatients.length > 0) {
           const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin', 'refraction'].includes(this.simulatedRole);
-          const patients = dbPatients
+          const incomingPatients = dbPatients
             .filter((p: any) => isClinicalRole || activePatientIds.has(p.id))
             .map((p: any) => ({
               id: p.id, name: p.name, phone: p.phone, age: p.age,
@@ -699,11 +699,19 @@ class MediflowApiService {
               pastReportsSummary: p.pastReportsSummary || p.past_reports_summary || undefined,
               createdAt: p.createdAt || p.created_at
             }));
-          this.save('patients', patients);
+          
+          const currentPatients = this.getPatients();
+          const mergedPatients = incomingPatients.slice();
+          currentPatients.forEach(cp => {
+            if (!mergedPatients.some(mp => mp.id === cp.id)) {
+              mergedPatients.push(cp);
+            }
+          });
+          this.save('patients', mergedPatients);
         }
 
         // WhatsApp sessions
-        if (dbSessions) {
+        if (dbSessions && dbSessions.length > 0) {
           const sessions = dbSessions.map((s: any) => {
             const sessionData = s.session_data || s.sessionData || {};
             return {
@@ -718,7 +726,7 @@ class MediflowApiService {
         }
 
         // Clinic SOPs
-        if (dbSops) {
+        if (dbSops && dbSops.length > 0) {
           const sops: ClinicSop[] = (dbSops as any[]).map(s => ({
             id: s.id, entityId: s.entity_id, sopFileName: s.sop_file_name || '',
             sopText: s.sop_text || '', extractedConfig: s.extracted_config || {},
@@ -728,7 +736,7 @@ class MediflowApiService {
         }
 
         // Medicine bills
-        if (dbBills) {
+        if (dbBills && dbBills.length > 0) {
           const bills = (dbBills as any[]).map(b => ({
             id: b.id, patientId: b.patient_id,
             patientName: (Array.isArray(b.patient) ? (b.patient[0] as any)?.name : (b.patient as any)?.name) || 'WhatsApp Patient',
@@ -753,7 +761,7 @@ class MediflowApiService {
         }
 
         // Encounters
-        if (dbEncounters) {
+        if (dbEncounters && dbEncounters.length > 0) {
           const encounters = (dbEncounters as unknown as DBEncounter[]).map((e: DBEncounter) => ({
             id: e.id, patientId: e.patient_id, patientName: e.patient?.name || 'Unknown',
             doctorId: e.doctor_id, clinicalNotes: e.clinical_notes || '',
@@ -785,7 +793,7 @@ class MediflowApiService {
         }
 
         // Lab requisitions
-        if (dbReqs) {
+        if (dbReqs && dbReqs.length > 0) {
           const getReagents = (loinc: string) => {
             switch (loinc) {
               case '4544-3': return [{ reagentName: 'HbA1c Enzyme Reagent A', volumeDeducted: 1.5, unit: 'ml' }];
@@ -812,12 +820,12 @@ class MediflowApiService {
         }
 
         // Reagents
-        if (dbReagents) {
+        if (dbReagents && dbReagents.length > 0) {
           this.save('reagents', (dbReagents as any[]).map(r => ({ reagentName: r.reagent_name, stockVolume: Number(r.stock_volume), unit: r.unit })));
         }
 
         // Inventory holds
-        if (dbHolds) {
+        if (dbHolds && dbHolds.length > 0) {
           this.save('inventory_holds', (dbHolds as any[]).map(h => ({
             id: h.id, pharmacyId: h.pharmacy_entity_id, patientId: h.patient_id,
             medicineName: h.medicine_name, dosage: h.dosage || '', quantity: h.quantity,
@@ -827,7 +835,7 @@ class MediflowApiService {
         }
 
         // Unified invoices
-        if (dbInvoices) {
+        if (dbInvoices && dbInvoices.length > 0) {
           const invoices = (dbInvoices as unknown as DBInvoice[]).map((i: DBInvoice) => ({
             id: i.id, encounterId: i.encounter_id, patientId: i.patient_id,
             patientName: i.patient?.name || 'Unknown', patientPhone: i.patient?.phone || '',
@@ -839,11 +847,18 @@ class MediflowApiService {
               : ((i.payment_status === 'paid' || i.payment_status === 'cleared') ? 'cleared' : i.payment_status as any),
             createdAt: i.created_at
           }));
-          this.save('unified_invoices', invoices);
+          const currentInvoices = this.getUnifiedInvoices();
+          const mergedInvoices = invoices.slice();
+          currentInvoices.forEach(ci => {
+            if (!mergedInvoices.some(mi => mi.id === ci.id)) {
+              mergedInvoices.push(ci);
+            }
+          });
+          this.save('unified_invoices', mergedInvoices);
         }
 
         // Seasonal forecasts
-        if (dbForecasts) {
+        if (dbForecasts && dbForecasts.length > 0) {
           this.save('seasonal_forecasts', (dbForecasts as any[]).map(f => ({
             id: f.id, pharmacyId: f.pharmacy_entity_id, medicineName: f.medicine_name,
             suggestedIncreasePercentage: f.suggested_increase_percentage, reason: f.reason,
@@ -852,7 +867,7 @@ class MediflowApiService {
         }
 
         // Clinic staff
-        if (dbStaff) {
+        if (dbStaff && dbStaff.length > 0) {
           this.save('clinic_staff', (dbStaff as any[]).map(s => ({
             id: s.id, entityId: s.entity_id, userId: s.user_id || undefined,
             staffName: s.staff_name, role: s.role as ClinicStaff['role'],
@@ -861,8 +876,8 @@ class MediflowApiService {
         }
 
         // Financial ledgers
-        if (dbLedgers) {
-          this.save('financial_ledgers', (dbLedgers as any[]).map(l => ({
+        if (dbLedgers && dbLedgers.length > 0) {
+          const incomingLedgers = (dbLedgers as any[]).map(l => ({
             id: l.id, invoiceId: l.invoice_id, sourceEntityId: l.source_entity_id,
             destinationEntityId: l.destination_entity_id,
             transactionType: l.transaction_type as FinancialLedgerEntry['transactionType'],
@@ -870,12 +885,20 @@ class MediflowApiService {
             netPayout: Number(l.net_payout),
             paymentStatus: l.payment_status as FinancialLedgerEntry['paymentStatus'],
             settledAt: l.settled_at, createdAt: l.created_at
-          })));
+          }));
+          const currentLedgers = this.getFinancialLedgers();
+          const mergedLedgers = incomingLedgers.slice();
+          currentLedgers.forEach(cl => {
+            if (!mergedLedgers.some(ml => ml.id === cl.id)) {
+              mergedLedgers.push(cl);
+            }
+          });
+          this.save('financial_ledgers', mergedLedgers);
         }
 
         // Appointments
-        if (dbAppointments) {
-          const appointments = (dbAppointments as any[]).map(a => ({
+        if (dbAppointments && dbAppointments.length > 0) {
+          const incomingAppts = (dbAppointments as any[]).map(a => ({
             id: a.id,
             patientId: a.patient_id,
             doctorId: a.doctor_id,
@@ -887,7 +910,14 @@ class MediflowApiService {
             createdAt: a.created_at,
             source: a.is_virtual ? 'whatsapp' : 'counter'
           }));
-          this.save('saas_appointments', appointments);
+          const currentAppts = this.getAppointments();
+          const mergedAppts = incomingAppts.slice();
+          currentAppts.forEach(ca => {
+            if (!mergedAppts.some(ma => ma.id === ca.id)) {
+              mergedAppts.push(ca);
+            }
+          });
+          this.save('saas_appointments', mergedAppts);
         }
 
         this.isSyncing = false;
