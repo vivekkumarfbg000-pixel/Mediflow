@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { StateHealingEngine, ProactiveHealthMonitor, type ServiceHealth } from '../../services/autoHealerAgent';
 import {

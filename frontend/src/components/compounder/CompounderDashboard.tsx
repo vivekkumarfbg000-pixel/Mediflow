@@ -122,6 +122,12 @@ export const CompounderDashboard: React.FC = () => {
   const [customToken, setCustomToken] = useState('');
   
   // Interactive Workflow Modal State
+  const [activeWorkflowDetail, setActiveWorkflowDetail] = useState<{
+    type: 'prescription' | 'lab' | 'summary';
+    patientId: string;
+    patientName: string;
+  } | null>(null);
+
   // Registry state
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
@@ -135,7 +141,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(e.patientId)!.push(e);
     });
     return map;
-  }, [appointments]);
+  }, []);
 
   const cachedLabReqsMap = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -144,7 +150,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(r.patientId)!.push(r);
     });
     return map;
-  }, [appointments]);
+  }, []);
 
   const cachedLabReportsMap = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -153,7 +159,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(r.patientId)!.push(r);
     });
     return map;
-  }, [appointments]);
+  }, []);
 
   const cachedWhatsAppPhoneMap = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -164,7 +170,7 @@ export const CompounderDashboard: React.FC = () => {
       if (s.patientPhone) map.set(s.patientPhone, hasMsg);
     });
     return map;
-  }, [appointments]);
+  }, []);
 
   const cachedMedicineBillsMap = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -173,7 +179,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(b.patientId)!.push(b);
     });
     return map;
-  }, [appointments]);
+  }, []);
 
   // High-Speed Memoized Dynamic Patient Workflow Calculator (< 3ms)
   const getPatientWorkflowState = useCallback((patient: Patient, appt: Appointment) => {
