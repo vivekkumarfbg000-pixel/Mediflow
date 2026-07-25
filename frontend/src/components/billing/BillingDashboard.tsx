@@ -104,7 +104,9 @@ export const BillingDashboard: React.FC = () => {
 
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onMedicineBillChange: () => syncBilling(),
-      onAppointmentChange: () => syncBilling()
+      onAppointmentChange: () => syncBilling(),
+      onFinancialLedgerChange: () => syncBilling(),
+      onUnifiedInvoiceChange: () => syncBilling()
     });
 
     return () => {

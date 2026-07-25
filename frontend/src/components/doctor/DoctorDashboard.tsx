@@ -513,6 +513,8 @@ export const DoctorDashboard: React.FC = () => {
       onPatientChange: () => syncDashboardData(),
       onMedicineBillChange: () => syncDashboardData(),
       onLabRequisitionChange: () => syncDashboardData(),
+      onFinancialLedgerChange: () => syncDashboardData(),
+      onUnifiedInvoiceChange: () => syncDashboardData(),
       onWhatsAppSessionChange: (payload) => {
         console.log('[DoctorDashboard] Realtime WhatsApp Session update received:', payload);
         const dbSession = payload.new;

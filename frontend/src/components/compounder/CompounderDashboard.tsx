@@ -307,6 +307,14 @@ export const CompounderDashboard: React.FC = () => {
       onPatientChange: () => {
         setPatients(api.getPatients());
         fetchLiveAppointments();
+      },
+      onFinancialLedgerChange: () => {
+        syncData();
+        fetchLiveAppointments();
+      },
+      onUnifiedInvoiceChange: () => {
+        syncData();
+        fetchLiveAppointments();
       }
     });
 

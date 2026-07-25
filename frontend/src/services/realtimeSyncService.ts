@@ -6,6 +6,8 @@ export interface RealtimeSubscriptionHandlers {
   onLabRequisitionChange?: (payload: any) => void;
   onPatientChange?: (payload: any) => void;
   onWhatsAppSessionChange?: (payload: any) => void;
+  onFinancialLedgerChange?: (payload: any) => void;
+  onUnifiedInvoiceChange?: (payload: any) => void;
   onStatusChange?: (status: 'connected' | 'reconnecting' | 'disconnected') => void;
 }
 
@@ -84,6 +86,22 @@ export class RealtimeSyncService {
         (payload) => {
           console.log('[RealtimeSync] WhatsApp Session change detected:', payload);
           this.subscribers.forEach(s => s.onWhatsAppSessionChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'financial_ledgers' },
+        (payload) => {
+          console.log('[RealtimeSync] Financial Ledger change detected:', payload);
+          this.subscribers.forEach(s => s.onFinancialLedgerChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'unified_invoices' },
+        (payload) => {
+          console.log('[RealtimeSync] Unified Invoice change detected:', payload);
+          this.subscribers.forEach(s => s.onUnifiedInvoiceChange?.(payload));
         }
       )
       .subscribe((status, err) => {

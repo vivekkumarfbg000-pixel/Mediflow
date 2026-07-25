@@ -21,6 +21,9 @@ export class BillingService {
       const inv = invoices[idx];
       const invoiceAmount = inv.totalAmount || 500;
 
+      // Always trigger core invoice settlement & financial ledger splits creation
+      this.recordInvoicePayment(invoiceId, paymentMethod);
+
       const sessions = load<any[]>('whatsapp_sessions', []);
       const session = sessions.find(s => s.patientPhone === inv.patientPhone);
       if (session?.sessionData?.referral) {
@@ -200,6 +203,17 @@ export class BillingService {
     };
     this.saveInvoice(newInvoice);
     
+    // SYNCHRONOUSLY save initial appointment so recordInvoicePayment never race-conditions with undefined appt
+    const newAppt: Appointment = {
+      id: apptId,
+      patientId,
+      doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      status: 'pending_payment',
+      createdAt: new Date().toISOString(),
+      source
+    } as any;
+    this.saveAppointment(newAppt);
+
     const runInit = async () => {
       let resolvedDoctorId = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'; // fallback
       try {
@@ -212,21 +226,18 @@ export class BillingService {
           .maybeSingle();
         if (doctorProfile?.id) {
           resolvedDoctorId = doctorProfile.id;
+          // Update Doctor ID if dynamically resolved
+          const appts = this.getAppointments();
+          const targetAppt = appts.find(a => a.id === apptId);
+          if (targetAppt) {
+            targetAppt.doctorId = resolvedDoctorId;
+            this.saveAppointment(targetAppt);
+          }
         }
       } catch (err) {
         console.warn('[BillingService] Failed to dynamically look up doctor for consult:', err);
       }
- 
-      const newAppt: Appointment = {
-        id: apptId,
-        patientId,
-        doctorId: resolvedDoctorId,
-        status: 'pending_payment',
-        createdAt: new Date().toISOString(),
-        source
-      } as any;
-      this.saveAppointment(newAppt);
- 
+
       const patient = PatientService.getPatients().find(p => p.id === patientId);
       if (patient) {
         // Direct push WhatsApp message bot history logic
