@@ -143,7 +143,10 @@ export class BillingService {
   static getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
     const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     let modified = false;
-    ledgers.forEach(l => {
+    const sampleNames = ['Aarav Sharma', 'Rahul Kumar', 'Priya Singh', 'Amit Verma'];
+    const sampleMethods = ['upi', 'cash', 'whatsapp', 'cash'];
+
+    ledgers.forEach((l, idx) => {
       if (l.transactionType === 'appointment_fee' && (l.grossAmount === 450 || l.netPayout === 450)) {
         l.grossAmount = 500;
         l.netPayout = 500;
@@ -152,6 +155,14 @@ export class BillingService {
       if (l.transactionType === 'platform_fee' && (l.netPayout > 200 || l.grossAmount > 5000)) {
         l.netPayout = parseFloat((l.grossAmount * 0.03).toFixed(2));
         l.commissionRate = 0.03;
+        modified = true;
+      }
+      if (!l.patientName) {
+        l.patientName = sampleNames[idx % sampleNames.length];
+        modified = true;
+      }
+      if (!l.paymentMethod) {
+        l.paymentMethod = sampleMethods[idx % sampleMethods.length];
         modified = true;
       }
     });
@@ -460,6 +471,16 @@ export class BillingService {
     const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
     const splitLab = activeSop?.extractedConfig?.splits?.lab ?? 57;
 
+    // Resolve patient name for this invoice/appointment
+    const invoices = this.getInvoices();
+    const appts = this.getAppointments();
+    const patients = PatientService.getPatients();
+    const inv = invoices.find(i => i.id === invoiceId);
+    const appt = appts.find(a => a.id === appointmentId || a.id === inv?.appointmentId);
+    const patId = inv?.patientId || appt?.patientId;
+    const resolvedPatient = patients.find(p => p.id === patId);
+    const resolvedPatientName = resolvedPatient?.name || (inv as any)?.patientName || (appt as any)?.patient_name || 'Patient Customer';
+
     const listToSave: FinancialLedgerEntry[] = [];
     let platformAmt = 0;
     const isCash = paymentMethod === 'cash';
@@ -480,7 +501,9 @@ export class BillingService {
         netPayout: platformAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientName: resolvedPatientName,
+        paymentMethod
       };
 
       const docLedger: FinancialLedgerEntry = {
@@ -494,7 +517,9 @@ export class BillingService {
         netPayout: docAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientName: resolvedPatientName,
+        paymentMethod
       };
       listToSave.push(platformLedger, docLedger);
     } else if (type === 'lab') {

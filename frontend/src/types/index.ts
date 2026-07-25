@@ -247,6 +247,8 @@ export interface FinancialLedgerEntry {
   paymentStatus: 'pending' | 'cleared' | 'disputed';
   settledAt: string | null;
   createdAt: string;
+  patientName?: string;
+  paymentMethod?: string;
 }
 
 export interface Pod {

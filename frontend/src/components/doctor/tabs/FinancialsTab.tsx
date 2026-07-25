@@ -196,6 +196,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   const appointments = useMemo(() => BillingService.getAppointments(), [financialLedgers]);
 
   const getPatientName = useCallback((entry: FinancialLedgerEntry) => {
+    if (entry.patientName) return entry.patientName;
     const inv = invoices.find(i => i.id === entry.invoiceId || i.encounterId === entry.invoiceId);
     const appt = appointments.find(a => a.id === entry.invoiceId || (inv && a.id === inv.encounterId));
     const patientId = inv?.patientId || appt?.patientId;
@@ -209,9 +210,12 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   }, [invoices, appointments, patients]);
 
   const getPaymentModeLabel = useCallback((entry: FinancialLedgerEntry) => {
+    const mode = entry.paymentMethod || (invoices.find(i => i.id === entry.invoiceId)?.paymentMethod);
+    if (mode === 'cash') return 'Cash Counter 💵';
+    if (mode === 'whatsapp') return 'WhatsApp UPI 💬';
+    if (mode === 'card') return 'Card POS 💳';
     const inv = invoices.find(i => i.id === entry.invoiceId || i.encounterId === entry.invoiceId);
     const appt = appointments.find(a => a.id === entry.invoiceId || (inv && a.id === inv.encounterId));
-    
     if (inv?.paymentMethod === 'cash' || (appt as any)?.payment_method === 'cash') {
       return 'Cash Counter 💵';
     }
