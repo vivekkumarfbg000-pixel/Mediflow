@@ -445,26 +445,33 @@ export const DoctorDashboard: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .then(({ data, error }) => {
-          if (data && data.length > 0) {
-            const dbAppts: Appointment[] = data.map((a: any) => ({
-              id: a.id,
-              patientId: a.patient_id,
-              patient_id: a.patient_id,
-              patientName: a.patient_name || 'Patient',
-              patient_name: a.patient_name || 'Patient',
-              doctorId: a.doctor_id,
-              doctor_id: a.doctor_id,
-              status: a.status,
-              createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
-              is_virtual: a.is_virtual,
-              isVirtual: a.is_virtual,
-              virtualDate: a.virtual_date,
-              virtual_date: a.virtual_date,
-              virtualTime: a.virtual_time,
-              virtual_time: a.virtual_time,
-              virtual_meeting_url: a.virtual_meeting_url,
-              source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
-            } as any));
+            const existingPats = api.getPatients();
+            const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
+
+            const dbAppts: Appointment[] = data.map((a: any) => {
+              const resolvedName = (a.patient_name && a.patient_name !== 'Patient') ? a.patient_name : (patNameMap.get(a.patient_id) || 'WhatsApp Patient');
+              const apptDate = a.appointment_date || a.virtual_date || (a.created_at ? a.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
+              return {
+                id: a.id,
+                patientId: a.patient_id,
+                patient_id: a.patient_id,
+                patientName: resolvedName,
+                patient_name: resolvedName,
+                doctorId: a.doctor_id,
+                doctor_id: a.doctor_id,
+                status: a.status || 'scheduled',
+                date: apptDate,
+                createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
+                is_virtual: Boolean(a.is_virtual),
+                isVirtual: Boolean(a.is_virtual),
+                virtualDate: a.virtual_date || apptDate,
+                virtual_date: a.virtual_date || apptDate,
+                virtualTime: a.virtual_time || '10:00 AM',
+                virtual_time: a.virtual_time || '10:00 AM',
+                virtual_meeting_url: a.virtual_meeting_url,
+                source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
+              } as any;
+            });
 
             const localAppts = api.getAppointments();
             const mergedMap = new Map();
@@ -482,23 +489,29 @@ export const DoctorDashboard: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .then(({ data, error }) => {
-          if (data && data.length > 0) {
-            const dbLedgers: FinancialLedgerEntry[] = data.map((fl: any) => ({
-              id: fl.id,
-              invoiceId: fl.invoice_id,
-              appointmentId: fl.appointment_id,
-              patientId: fl.patient_id,
-              doctorId: fl.doctor_id,
-              entryType: fl.entry_type || 'appointment_fee',
-              grossAmount: fl.gross_amount || 500,
-              commissionRate: fl.commission_rate || 0,
-              platformFee: fl.platform_fee || 0,
-              netDoctorPayout: fl.net_doctor_payout || 500,
-              settlementStatus: fl.settlement_status || 'pending_payout',
-              paymentMethod: fl.payment_method || 'upi',
-              patientName: fl.patient_name || 'Patient',
-              createdAt: fl.created_at || new Date().toISOString()
-            } as any));
+            const existingPats = api.getPatients();
+            const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
+
+            const dbLedgers: FinancialLedgerEntry[] = data.map((fl: any) => {
+              const resolvedPatName = (fl.patient_name && fl.patient_name !== 'Patient') ? fl.patient_name : (patNameMap.get(fl.patient_id) || 'WhatsApp Patient');
+              return {
+                id: fl.id,
+                invoiceId: fl.invoice_id,
+                appointmentId: fl.appointment_id,
+                patientId: fl.patient_id,
+                doctorId: fl.doctor_id,
+                entryType: fl.entry_type || 'appointment_fee',
+                grossAmount: fl.gross_amount || 500,
+                commissionRate: fl.commission_rate || 0,
+                platformFee: fl.platform_fee || 0,
+                netDoctorPayout: fl.net_doctor_payout || 500,
+                settlementStatus: fl.settlement_status || 'pending_payout',
+                paymentMethod: fl.payment_method || 'upi',
+                patientName: resolvedPatName,
+                patient_name: resolvedPatName,
+                createdAt: fl.created_at || new Date().toISOString()
+              } as any;
+            });
 
             const localLedgers = api.getFinancialLedgers();
             const mergedMap = new Map();

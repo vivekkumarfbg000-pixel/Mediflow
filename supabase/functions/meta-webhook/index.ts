@@ -1433,17 +1433,22 @@ async function triggerBotReplyPipeline(ctx: {
           let newApptId = crypto.randomUUID();
           try {
             if (bookingPatId) {
+              const targetPatName = sessionData.familyDetails?.name || patient?.name || "WhatsApp Patient";
               await supabase.from("appointments").insert({
                 id: newApptId,
                 patient_id: bookingPatId,
+                patient_name: targetPatName,
                 doctor_id: doctorId,
                 status: "ready_for_consult",
                 appointment_time: apptTimestamp,
+                appointment_date: selectedDate,
+                source: "whatsapp",
                 is_virtual: true,
                 virtual_date: selectedDate,
                 virtual_time: slotText,
                 virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${newApptId}`,
-                pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
+                pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
+                entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
               });
             }
           } catch (err) {
@@ -1477,17 +1482,22 @@ async function triggerBotReplyPipeline(ctx: {
           let newApptId = crypto.randomUUID();
           try {
             if (bookingPatId) {
+              const targetPatName = sessionData.familyDetails?.name || patient?.name || "WhatsApp Patient";
               const { error: apptErr } = await supabase.from("appointments").insert({
                 id: newApptId,
                 patient_id: bookingPatId,
+                patient_name: targetPatName,
                 doctor_id: doctorId,
                 status: "pending_payment",
                 appointment_time: apptTimestamp,
+                appointment_date: selectedDate,
+                source: "whatsapp",
                 is_virtual: isVirtualSlot,
                 virtual_date: selectedDate,
                 virtual_time: slotText,
                 virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
-                pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
+                pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
+                entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
               });
               if (apptErr) console.error("[Meta Webhook] Database Appointment Insert Error:", apptErr);
             }
@@ -1559,7 +1569,8 @@ async function triggerBotReplyPipeline(ctx: {
               net_doctor_payout: feeAmount,
               settlement_status: "pending_payout",
               payment_method: "upi",
-              patient_name: patient?.name || sessionData.patientName || "WhatsApp Patient",
+              patient_name: sessionData.familyDetails?.name || patient?.name || sessionData.patientName || "WhatsApp Patient",
+              source_entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
               pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
               created_at: new Date().toISOString()
             });
