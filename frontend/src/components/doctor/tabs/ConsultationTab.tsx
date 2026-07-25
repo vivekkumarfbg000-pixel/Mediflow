@@ -134,19 +134,25 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   handleLaunchVideoConsult
 }) => {
   const { activePod } = useClinic();
-  const appointments: Appointment[] = api.getAppointments();
+  const [appointments, setAppointments] = useState<Appointment[]>(api.getAppointments());
   const [aiHistory, setAiHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    const refreshHistory = () => {
+    const refreshData = () => {
+      setAppointments(api.getAppointments());
       if (selectedPatient) {
         setAiHistory(api.getAIResults(selectedPatient.id));
       } else {
         setAiHistory([]);
       }
     };
-    refreshHistory();
-    return api.subscribe(refreshHistory);
+    refreshData();
+    window.addEventListener('mediflow-state-change', refreshData);
+    const unsubscribe = api.subscribe(refreshData);
+    return () => {
+      window.removeEventListener('mediflow-state-change', refreshData);
+      unsubscribe();
+    };
   }, [selectedPatient, hinglishSummary, comparativeTrend, aiInsight]);
 
   const [virtualDateInput, setVirtualDateInput] = useState('');

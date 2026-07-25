@@ -244,7 +244,11 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   }, [invoices, appointments]);
 
   const filteredLedgers = useMemo(() => {
-    return financialLedgers
+    const activeLedgers = financialLedgers && financialLedgers.length > 0 
+      ? financialLedgers 
+      : BillingService.getFinancialLedgers();
+
+    return activeLedgers
       .filter(entry => {
         const pName = getPatientName(entry).toLowerCase();
         const pMode = getPaymentModeLabel(entry).toLowerCase();
@@ -257,7 +261,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         );
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [financialLedgers, financialSearch, getPatientName, getPaymentModeLabel]);
+  }, [financialLedgers, financialSearch, syncVersion, getPatientName, getPaymentModeLabel]);
 
   const exportFinancialLedgersPDF = useCallback(() => {
     const printWin = window.open('', '_blank');
