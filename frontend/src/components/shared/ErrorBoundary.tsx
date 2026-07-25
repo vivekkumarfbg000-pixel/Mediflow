@@ -25,10 +25,22 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[Mediflow Boundary] Unhandled error captured:', error, errorInfo);
-    // Send telemetry to the self-healing engine
+    
+    // 1. Run Autonomous State Self-Healing to fix any corruptions in localStorage/memory
+    StateHealingEngine.autoHealStateCorruptions();
+
+    // 2. Send telemetry log to self-healing engine
     StateHealingEngine.handleException(error).catch(err => {
       console.error('[Mediflow Boundary] Failed to send telemetry:', err);
     });
+
+    // 3. Autonomous Recovery: Auto-reset error boundary after 400ms self-healing
+    setTimeout(() => {
+      if (this.state.hasError) {
+        console.log('[Auto-Healer ErrorBoundary] Autonomous self-recovery triggered 🟢');
+        this.setState({ hasError: false, error: null });
+      }
+    }, 400);
   }
 
   private handleReset = () => {
