@@ -435,7 +435,7 @@ export class BillingService {
     if (type === 'consult') {
       const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
       platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-      const docAmt = parseFloat((amount - platformAmt).toFixed(2));
+      const docAmt = amount;
 
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,

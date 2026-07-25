@@ -37,42 +37,42 @@ export const BillingDashboard: React.FC = () => {
     const labFeePaise = Math.round(inv.labFee * 100);
     const pharmacyFeePaise = Math.round(inv.pharmacyFee * 100);
 
-    // Compute TDS (10%) in integer paise
-    const docTdsPaise = Math.round(doctorFeePaise * 0.10);
-    const labTdsPaise = Math.round(labFeePaise * 0.10);
-    const pharmaTdsPaise = Math.round(pharmacyFeePaise * 0.10);
+    // Compute TDS (0%) - Direct 100% full payout
+    const docTdsPaise = 0;
+    const labTdsPaise = 0;
+    const pharmaTdsPaise = 0;
 
-    // Compute CGST (9%) and SGST (9%) in integer paise
-    const docCgstPaise = Math.round(doctorFeePaise * 0.09);
-    const docSgstPaise = Math.round(doctorFeePaise * 0.09);
-    const labCgstPaise = Math.round(labFeePaise * 0.09);
-    const labSgstPaise = Math.round(labFeePaise * 0.09);
-    const pharmaCgstPaise = Math.round(pharmacyFeePaise * 0.09);
-    const pharmaSgstPaise = Math.round(pharmacyFeePaise * 0.09);
+    // Compute CGST (0%) and SGST (0%)
+    const docCgstPaise = 0;
+    const docSgstPaise = 0;
+    const labCgstPaise = 0;
+    const labSgstPaise = 0;
+    const pharmaCgstPaise = 0;
+    const pharmaSgstPaise = 0;
 
-    // Compute Net Credits in integer paise
-    const docNetPaise = doctorFeePaise - docTdsPaise;
-    const labNetPaise = labFeePaise - labTdsPaise;
-    const pharmaNetPaise = pharmacyFeePaise - pharmaTdsPaise;
+    // Compute Net Credits in integer paise (100% full fee)
+    const docNetPaise = doctorFeePaise;
+    const labNetPaise = labFeePaise;
+    const pharmaNetPaise = pharmacyFeePaise;
 
     // Convert back to Rupees (divided by 100)
-    const docTds = Math.round(docTdsPaise / 100);
-    const labTds = Math.round(labTdsPaise / 100);
-    const pharmaTds = Math.round(pharmaTdsPaise / 100);
+    const docTds = 0;
+    const labTds = 0;
+    const pharmaTds = 0;
 
-    const docCgst = Math.round(docCgstPaise / 100);
-    const docSgst = Math.round(docSgstPaise / 100);
-    const labCgst = Math.round(labCgstPaise / 100);
-    const labSgst = Math.round(labSgstPaise / 100);
-    const pharmaCgst = Math.round(pharmaCgstPaise / 100);
-    const pharmaSgst = Math.round(pharmaSgstPaise / 100);
+    const docCgst = 0;
+    const docSgst = 0;
+    const labCgst = 0;
+    const labSgst = 0;
+    const pharmaCgst = 0;
+    const pharmaSgst = 0;
 
     const docNet = Math.round(docNetPaise / 100);
     const labNet = Math.round(labNetPaise / 100);
     const pharmaNet = Math.round(pharmaNetPaise / 100);
 
-    const totalTds = docTds + labTds + pharmaTds;
-    const totalGst = (docCgst + docSgst) + (labCgst + labSgst) + (pharmaCgst + pharmaSgst);
+    const totalTds = 0;
+    const totalGst = 0;
 
     return {
       docTds, docCgst, docSgst, docNet,
