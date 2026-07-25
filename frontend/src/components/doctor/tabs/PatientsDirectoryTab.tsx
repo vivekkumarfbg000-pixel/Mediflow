@@ -1,5 +1,6 @@
 import React from 'react';
 import { api } from '../../../services/api';
+import { BillingService } from '../../../services/billingService';
 import type { Patient } from '../../../types';
 
 interface PatientsDirectoryTabProps {
