@@ -222,21 +222,21 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         ))}
       </div>
 
-      {/* Pilot Commission Pool Status Card */}
-      <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-900/10 via-slate-900/40 to-slate-950 p-6 space-y-4">
+      {/* Commission Pool Status Card */}
+      <div className="rounded-2xl border border-indigo-200/80 dark:border-indigo-500/20 bg-white dark:bg-slate-950/80 p-6 space-y-4 shadow-sm text-slate-800 dark:text-white">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-3xl text-indigo-400 bg-indigo-500/10 p-2.5 rounded-2xl border border-indigo-500/20">
+            <span className="material-symbols-outlined text-3xl text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 p-2.5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
               account_balance_wallet
             </span>
             <div>
-              <div className="text-sm font-bold text-white flex items-center gap-2">
-                Pilot Commission Pool Balance
-                <span className="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold uppercase">
+              <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                Commission Pool Balance
+                <span className="text-[9px] bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/20 font-bold uppercase">
                   3% Fixed Platform Engine
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                 Compounder OPD consults add ₹0 debt. 3% platform fee on cash Lab/Pharmacy sales accrues pool debt (-). Online WhatsApp bookings offset debt (+), keeping Total Doctor Earnings 100% intact.
               </p>
             </div>
@@ -244,9 +244,9 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
 
           <div className="flex items-center gap-6 text-right">
             <div>
-              <div className="text-[9px] text-slate-400 uppercase tracking-widest font-mono font-bold">Net Pool Balance</div>
+              <div className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-mono font-bold">Net Pool Balance</div>
               <div className={`text-2xl font-bold font-mono ${
-                poolStats.netPoolBalance < 0 ? 'text-rose-400' : 'text-emerald-400'
+                poolStats.netPoolBalance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
               }`}>
                 ₹{poolStats.netPoolBalance.toLocaleString()}
               </div>
@@ -270,25 +270,25 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                   }
                 }
               }}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-indigo-500/20 border-0 cursor-pointer"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-500/20 border-0 cursor-pointer"
             >
               Settle Pool &amp; Transfer 💳
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-white/10 text-xs">
-          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-            <span className="text-[10px] text-slate-400 font-mono font-semibold uppercase block">Accrued Cash Debt (-3%)</span>
-            <span className="text-sm font-bold text-rose-400 font-mono">₹{poolStats.totalCashCommissionOwed.toLocaleString()}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-200/80 dark:border-white/10 text-xs">
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Accrued Cash Debt (-3%)</span>
+            <span className="text-sm font-bold text-rose-600 dark:text-rose-400 font-mono">₹{poolStats.totalCashCommissionOwed.toLocaleString()}</span>
           </div>
-          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-            <span className="text-[10px] text-slate-400 font-mono font-semibold uppercase block">Online WhatsApp Receipts (+)</span>
-            <span className="text-sm font-bold text-emerald-400 font-mono">₹{poolStats.totalOnlineOffsetReceived.toLocaleString()}</span>
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Online WhatsApp Receipts (+)</span>
+            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">₹{poolStats.totalOnlineOffsetReceived.toLocaleString()}</span>
           </div>
-          <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-            <span className="text-[10px] text-slate-400 font-mono font-semibold uppercase block">Manual Bank Settled</span>
-            <span className="text-sm font-bold text-cyan-400 font-mono">₹{poolStats.manualSettledTotal.toLocaleString()}</span>
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Manual Bank Settled</span>
+            <span className="text-sm font-bold text-indigo-600 dark:text-cyan-400 font-mono">₹{poolStats.manualSettledTotal.toLocaleString()}</span>
           </div>
         </div>
       </div>
