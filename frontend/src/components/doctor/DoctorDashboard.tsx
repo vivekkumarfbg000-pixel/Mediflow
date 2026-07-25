@@ -1224,7 +1224,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </div>
 
                     {(() => {
-                      const virtualAppts = appointments.filter((a: Appointment) => a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') : false));
+                      const virtualAppts = appointments.filter((a: Appointment) => a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') || a.source.includes('whatsapp') : false));
                       const displayList: Array<{ appt: Appointment; patient: Patient; isFreeLoyalty: boolean }> = virtualAppts.length > 0 
                         ? virtualAppts.map((a: Appointment) => {
                             const p = patients.find((pat: Patient) => pat.id === a.patientId) || ({ id: a.patientId, name: 'Virtual Patient', phone: 'N/A', age: '30', gender: 'M', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() } as unknown as Patient);
@@ -1919,7 +1919,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 {isOphthalmology ? "Dr. Amit Arya's Eye Care Console" : "Dr. Sharma's Care Dashboard"}
               </h1>
               <p className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
-                Mediflow Pod Tenant Host
+                VitalSync Pod Tenant Host
                 <span className="text-slate-600">·</span>
                 Clinic Code:
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">

@@ -864,6 +864,23 @@ export class WhatsAppService {
                 };
                 BillingService.saveAppointment(newAppt);
 
+                // Create Invoice & Financial Ledger Entry for WhatsApp Booking (₹500.00)
+                const invoiceId = `inv-wa-${apptId.substring(0, 8)}`;
+                const newInvoice: any = {
+                  id: invoiceId,
+                  appointmentId: apptId,
+                  patientId: currentPat.id,
+                  type: 'consult',
+                  amount: 500,
+                  status: 'paid',
+                  paymentMethod: 'upi',
+                  createdAt: new Date().toISOString(),
+                  patientName: currentPat.name,
+                  source: 'whatsapp'
+                };
+                BillingService.saveInvoice(newInvoice);
+                BillingService.createLedgerSplitsForInvoiceFields(invoiceId, apptId, 'consult', 500, 'upi');
+
                 try {
                   const { error } = await supabase.from('appointments').insert({
                     id: apptId,
@@ -884,7 +901,7 @@ export class WhatsAppService {
             }
 
             nextState = 'COMPLETED';
-            replyMessage = `🎉 *Virtual Appointment Booked!* \n\nSlot: *${selectedSlotText}* (Tomorrow)\n\nWe have notified Dr. Vivek. He will allocate your exact consultation timing shortly and we will notify you here with the virtual meeting link. \n\nThank you! 🩺`;
+            replyMessage = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details:*\n • Token Number: #${apptId.substring(0, 3).toUpperCase()}\n • Date: Tomorrow (${new Date(Date.now() + 24 * 3600 * 1000).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })})\n • Approximate Time: ${selectedSlotText}\n • Address: Patna Clinic, Kankarbagh Road (opp. ICICI Bank)\n\n⭐ *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* ⭐\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n\nThank you for choosing VitalSync! 🩺`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
