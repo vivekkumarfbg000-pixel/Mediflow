@@ -252,32 +252,58 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
               </div>
             </div>
 
+            {poolStats.transferableDoctorPayout > 0 && (
+              <div>
+                <div className="text-[9px] text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-mono font-bold">Transferable Payout (&gt;₹1k)</div>
+                <div className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                  ₹{poolStats.transferableDoctorPayout.toLocaleString()}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => {
-                const ref = prompt('Enter Bank Settlement Transaction Reference (NEFT/IMPS/UPI):');
-                if (ref) {
-                  const amtStr = prompt('Enter Settle Amount (₹):', Math.abs(poolStats.netPoolBalance).toString());
-                  const amt = parseFloat(amtStr || '0');
-                  if (amt > 0) {
-                    BillingService.recordPoolSettlement(amt, ref);
+                if (poolStats.transferableDoctorPayout > 0) {
+                  const ref = prompt(`Transfer ₹${poolStats.transferableDoctorPayout.toLocaleString()} (amount above ₹1,000 buffer) to Doctor Bank Account?\n\nEnter Payout UTR / Ref Number:`, `PAYOUT-${Date.now().toString().substring(5)}`);
+                  if (ref) {
+                    BillingService.recordPoolSettlement(-poolStats.transferableDoctorPayout, ref, 'VitalSync Automated Bank Payout (>₹1k)');
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
-                        message: `Settlement of ₹${amt} recorded with reference ${ref}. Commission Pool balance updated!`,
+                        message: `Payout of ₹${poolStats.transferableDoctorPayout.toLocaleString()} transferred to Doctor bank account with UTR ${ref}!`,
                         type: 'success',
-                        title: 'Manual Settlement Logged 💳'
+                        title: 'Doctor Payout Transferred 💳'
                       }
                     }));
+                  }
+                } else {
+                  const ref = prompt('Enter Bank Settlement Transaction Reference (NEFT/IMPS/UPI):');
+                  if (ref) {
+                    const amtStr = prompt('Enter Settle Amount (₹):', Math.abs(poolStats.netPoolBalance).toString());
+                    const amt = parseFloat(amtStr || '0');
+                    if (amt > 0) {
+                      BillingService.recordPoolSettlement(amt, ref, 'Manual Debt Offset');
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          message: `Settlement of ₹${amt} recorded with reference ${ref}. Commission Pool balance updated!`,
+                          type: 'success',
+                          title: 'Manual Settlement Logged 💳'
+                        }
+                      }));
+                    }
                   }
                 }
               }}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-500/20 border-0 cursor-pointer"
             >
-              Settle Pool &amp; Transfer 💳
+              {poolStats.transferableDoctorPayout > 0
+                ? `Payout Doctor ₹${poolStats.transferableDoctorPayout.toLocaleString()} 💳`
+                : 'Settle Debt / Offset 💳'
+              }
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-200/80 dark:border-white/10 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-3 border-t border-slate-200/80 dark:border-white/10 text-xs">
           <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
             <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Accrued Cash Debt (-3%)</span>
             <span className="text-sm font-bold text-rose-600 dark:text-rose-400 font-mono">₹{poolStats.totalCashCommissionOwed.toLocaleString()}</span>
@@ -287,8 +313,12 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
             <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">₹{poolStats.totalOnlineOffsetReceived.toLocaleString()}</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Manual Bank Settled</span>
-            <span className="text-sm font-bold text-indigo-600 dark:text-cyan-400 font-mono">₹{poolStats.manualSettledTotal.toLocaleString()}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Buffer Retained (Max ₹1k)</span>
+            <span className="text-sm font-bold text-amber-600 dark:text-amber-400 font-mono">₹{Math.min(1000, Math.max(0, poolStats.netPoolBalance)).toLocaleString()}</span>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Doctor Bank Transfer (&gt;₹1k)</span>
+            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 font-mono">₹{poolStats.transferableDoctorPayout.toLocaleString()}</span>
           </div>
         </div>
       </div>

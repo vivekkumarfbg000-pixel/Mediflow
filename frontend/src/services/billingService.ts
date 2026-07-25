@@ -1083,9 +1083,13 @@ export class BillingService {
     });
 
     const netPoolBalance = (totalOnlineOffsetReceived + manualSettledTotal) - totalCashCommissionOwed;
+    const poolBufferThreshold = 1000;
+    const transferableDoctorPayout = Math.max(0, netPoolBalance - poolBufferThreshold);
 
     return {
       netPoolBalance,
+      poolBufferThreshold,
+      transferableDoctorPayout,
       totalCashCommissionOwed,
       totalOnlineOffsetReceived,
       manualSettledTotal,
