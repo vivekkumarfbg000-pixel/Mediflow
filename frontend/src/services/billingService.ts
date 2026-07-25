@@ -1023,7 +1023,7 @@ export class BillingService {
     paidInvoices.forEach(inv => {
       const amt = inv.amount || 0;
       const appt = allAppointments.find(a => a.id === inv.appointmentId);
-      const isWhatsAppBooking = inv.source === 'whatsapp' || (inv as any).channel === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual === true;
+      const isWhatsAppBooking = (inv as any).source === 'whatsapp' || (inv as any).channel === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual === true;
 
       if (inv.type === 'consult') {
         doctorConsultsEarned += amt; // ALWAYS added to Total Doctor Net Earnings!
