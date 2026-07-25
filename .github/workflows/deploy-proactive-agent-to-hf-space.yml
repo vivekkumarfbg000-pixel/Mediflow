@@ -11,6 +11,8 @@ on:
       - "scratch/hf_monitor_agent.py"
       - "scratch/requirements.txt"
       - "scratch/upload_hf_space.py"
+      - "frontend/src/services/autoHealerAgent.ts"
+      - "frontend/src/components/shared/ErrorBoundary.tsx"
       - ".github/workflows/deploy-proactive-agent-to-hf-space.yml"
   workflow_dispatch:
 
