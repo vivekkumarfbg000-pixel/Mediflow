@@ -1084,8 +1084,12 @@ export class BillingService {
       totalCashCommissionOwed = 0;
     }
 
-    // Check manual settlement adjustments
-    const settlements = load<any[]>('vitalsync_pool_settlements', []);
+    // Check manual settlement adjustments & auto-heal legacy test entries (< -5000)
+    let settlements = load<any[]>('vitalsync_pool_settlements', []);
+    if (settlements.some(s => s.amount < -5000)) {
+      settlements = settlements.filter(s => s.amount >= -5000);
+      save('vitalsync_pool_settlements', settlements);
+    }
     let manualSettledTotal = 0;
     settlements.forEach(s => {
       manualSettledTotal += (s.amount || 0);
