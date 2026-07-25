@@ -105,10 +105,20 @@ export const PharmacyDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchLiveMedicineBills();
-    const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
+    const syncLocal = () => {
+      setInventory(api.getPharmacyInventory());
+      setHolds(api.getInventoryHolds());
+      setWhatsAppOrders(api.getWhatsAppDrugOrders());
+      setPatients(api.getPatients());
+    };
+    syncLocal();
+
+    const unsubscribeApi = api.subscribe(syncLocal);
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onMedicineBillChange: (payload) => {
         console.log('[PharmacyDashboard] Realtime Medicine Bill update:', payload);
         fetchLiveMedicineBills();
+        syncLocal();
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
             title: '🚚 NEW WHATSAPP MEDICINE ORDER! 📦',
@@ -116,10 +126,15 @@ export const PharmacyDashboard: React.FC = () => {
             type: 'info'
           }
         }));
-      }
+      },
+      onInventoryHoldChange: () => syncLocal(),
+      onPatientChange: () => syncLocal()
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeApi();
+      unsubscribeRealtime();
+    };
   }, [fetchLiveMedicineBills]);
   
   // Real-time Network Resilience State

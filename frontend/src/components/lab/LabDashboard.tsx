@@ -96,7 +96,19 @@ export const LabDashboard: React.FC = () => {
       setPatients(api.getPatients());
     };
     sync();
-    return api.subscribe(sync);
+
+    const unsubscribeApi = api.subscribe(sync);
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onLabRequisitionChange: () => sync(),
+      onPatientChange: () => sync(),
+      onUnifiedInvoiceChange: () => sync(),
+      onPathologyReportChange: () => sync()
+    });
+
+    return () => {
+      unsubscribeApi();
+      unsubscribeRealtime();
+    };
   }, []);
 
   /* ─── Set active patient when selecting a requisition ────────── */

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../../services/api';
 import type { Patient, LabRequisition, InventoryHold, FinancialLedgerEntry, WhatsAppSession, PathologyReport } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ProactiveHealthMonitor } from '../../services/autoHealerAgent';
 import { PatientService } from '../../services/patientService';
 import { WhatsAppService } from '../../services/whatsappService';
@@ -72,7 +73,22 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       setPathologyReports(api.getPathologyReports());
     };
     sync();
-    return api.subscribe(sync);
+
+    const unsubscribeApi = api.subscribe(sync);
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onAppointmentChange: () => sync(),
+      onMedicineBillChange: () => sync(),
+      onLabRequisitionChange: () => sync(),
+      onPatientChange: () => sync(),
+      onWhatsAppSessionChange: () => sync(),
+      onFinancialLedgerChange: () => sync(),
+      onUnifiedInvoiceChange: () => sync()
+    });
+
+    return () => {
+      unsubscribeApi();
+      unsubscribeRealtime();
+    };
   }, []);
 
   /* ─── Computed Metrics ─────────────────────────────────────────── */
@@ -95,10 +111,17 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }), [inventoryHolds, pharmacyInventory, todayStr]);
 
   const financialMetrics = useMemo(() => {
+    if (financials.length === 0) {
+      const uInvoices = api.getUnifiedInvoices();
+      const grossRev = uInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+      const cleared = uInvoices.filter(i => i.paymentStatus === 'cleared' || i.paymentStatus === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
+      const pending = uInvoices.filter(i => i.paymentStatus === 'pending' || i.paymentStatus === 'unpaid').reduce((s, i) => s + (i.totalAmount || 0), 0);
+      return { grossRev, cleared, pending, todayLedgers: uInvoices.length };
+    }
     const today = financials.filter(l => l.createdAt?.startsWith(todayStr));
-    const grossRev = financials.reduce((s, l) => s + l.netPayout, 0);
-    const cleared = financials.filter(l => l.paymentStatus === 'cleared').reduce((s, l) => s + l.netPayout, 0);
-    const pending = financials.filter(l => l.paymentStatus === 'pending').reduce((s, l) => s + l.netPayout, 0);
+    const grossRev = financials.reduce((s, l) => s + (l.netPayout || l.grossAmount || 0), 0);
+    const cleared = financials.filter(l => (l.paymentStatus || 'cleared') === 'cleared').reduce((s, l) => s + (l.netPayout || l.grossAmount || 0), 0);
+    const pending = financials.filter(l => l.paymentStatus === 'pending').reduce((s, l) => s + (l.netPayout || l.grossAmount || 0), 0);
     const todayLedgers = today.length;
     return { grossRev, cleared, pending, todayLedgers };
   }, [financials, todayStr]);
