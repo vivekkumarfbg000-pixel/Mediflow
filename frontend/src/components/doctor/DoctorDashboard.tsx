@@ -428,7 +428,7 @@ export const DoctorDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    StateHealingEngine.initGlobalListener();
+    StateHealingEngine.startAutonomous247Sentinel();
     const syncDashboardData = () => {
       const registered = api.getPatients();
       setPatients(registered);
