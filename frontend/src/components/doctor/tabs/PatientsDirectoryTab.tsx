@@ -346,6 +346,20 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                             discountEligible: false
                           };
                           api.saveAppointment(newAppt);
+                          const invId = `inv-dir-${newAppt.id.substring(0, 8)}`;
+                          const newInv: any = {
+                            id: invId,
+                            appointmentId: newAppt.id,
+                            patientId: selectedDirectoryPatient.id,
+                            type: 'consult',
+                            amount: 500,
+                            status: 'paid',
+                            paymentMethod: 'upi',
+                            createdAt: new Date().toISOString(),
+                            patientName: selectedDirectoryPatient.name
+                          };
+                          BillingService.saveInvoice(newInv);
+                          BillingService.createLedgerSplitsForInvoiceFields(invId, newAppt.id, 'consult', 500, 'upi');
                           setRefreshKey(prev => prev + 1);
                           
                           window.dispatchEvent(new CustomEvent('mediflow-toast', {

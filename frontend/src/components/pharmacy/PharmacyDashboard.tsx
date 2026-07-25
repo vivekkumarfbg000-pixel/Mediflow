@@ -1039,7 +1039,7 @@ export const PharmacyDashboard: React.FC = () => {
 </style></head>
 <body><div class="page">
   <div class="header">
-    <div><div class="clinic">Mediflow Pharmacy</div><div class="sub">${activeEntity?.name || 'Mediflow Clinic Pharmacy'}</div>${activeEntity?.gstin ? `<div class="sub" style="margin-top:2px">GSTIN: ${activeEntity.gstin}</div>` : ''}</div>
+    <div><div class="clinic">VitalSync Pharmacy</div><div class="sub">${activeEntity?.name || 'VitalSync Clinic Pharmacy'}</div>${activeEntity?.gstin ? `<div class="sub" style="margin-top:2px">GSTIN: ${activeEntity.gstin}</div>` : ''}</div>
     <div style="text-align:right">
       <div class="badge">PAID ✅</div>
       <div class="sub" style="margin-top:4px">Date: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
@@ -1057,7 +1057,7 @@ export const PharmacyDashboard: React.FC = () => {
   <table><thead><tr><th>#</th><th>Medicine</th><th>Dosage</th><th>Frequency</th></tr></thead>
   <tbody>${meds.map((m,i) => `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.dosage||'As directed'}</td><td>${m.frequency||'—'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#9ca3af;font-size:11px;">No medicine details on record.</p>'}
   <div class="total">Total Paid: ₹${invoice.pharmacyFee}</div>
-  <div class="footer">Medicines dispensed by verified compounder. Keep this slip for reference. | Mediflow Ecosystem &copy; ${new Date().getFullYear()}</div>
+  <div class="footer">Medicines dispensed by verified compounder. Keep this slip for reference. | VitalSync Ecosystem &copy; ${new Date().getFullYear()}</div>
 </div><script>window.onload=function(){window.print()}<\/script></body></html>`;
                                         const win = window.open('','_blank','width=720,height=800');
                                         if (win) { win.document.write(html); win.document.close(); }

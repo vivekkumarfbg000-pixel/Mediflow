@@ -1411,7 +1411,7 @@ export const LabDashboard: React.FC = () => {
 </style></head>
 <body><div class="page">
   <div class="header">
-    <div><div class="clinic">Mediflow Diagnostics</div><div class="sub">Walk-in Laboratory Bill Receipt</div></div>
+    <div><div class="clinic">VitalSync Diagnostics</div><div class="sub">Walk-in Laboratory Bill Receipt</div></div>
     <div style="text-align:right">
       <div class="badge">PAID ✅</div>
       <div class="sub" style="margin-top:4px">Date: ${new Date(inv.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
@@ -1428,7 +1428,7 @@ export const LabDashboard: React.FC = () => {
   <table><thead><tr><th>#</th><th>Test Name</th><th>LOINC Code</th><th>Price</th></tr></thead>
   <tbody><tr><td>1</td><td><b>${req.testName}</b></td><td>${req.testCode}</td><td>₹${inv.labFee}</td></tr></tbody></table>
   <div class="total">Total Paid (incl. platform commission): ₹${inv.totalAmount}</div>
-  <div class="footer">Diagnostics bill cleared at counter. Test results will sync to physician console. Mediflow Pod network &copy; ${new Date().getFullYear()}</div>
+  <div class="footer">Diagnostics bill cleared at counter. Test results will sync to physician console. VitalSync Pod network &copy; ${new Date().getFullYear()}</div>
 </div><script>window.onload=function(){window.print()}<\/script></body></html>`;
                                   const win = window.open('','_blank','width=720,height=800');
                                   if (win) { win.document.write(html); win.document.close(); }

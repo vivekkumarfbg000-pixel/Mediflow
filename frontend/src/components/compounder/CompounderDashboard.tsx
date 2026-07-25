@@ -2384,7 +2384,7 @@ export const CompounderDashboard: React.FC = () => {
                                     await BillingService.recordInvoicePayment(invoice.id, 'cash');
                                     syncData();
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: { message: 'Cash collected! 🌟 Mediflow Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
+                                      detail: { message: 'Cash collected! 🌟 VitalSync Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
                                     setVitalsPatient(patient);
                                     setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
