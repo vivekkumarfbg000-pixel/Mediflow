@@ -1453,4 +1453,58 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- ─── 360° SUPABASE REALTIME CDC PUBLICATION ENROLLMENT (IDEMPOTENT) ─────────────────────────
+-- Ensures that Postgres CDC changes broadcast live to frontend RealtimeSyncService across all 13 core tables
+
+DO $$ 
+DECLARE
+  t text;
+  tables text[] := ARRAY[
+    'appointments',
+    'financial_ledgers',
+    'unified_invoices',
+    'patient_registry',
+    'whatsapp_sessions',
+    'medicine_bills',
+    'lab_requisitions',
+    'inventory_holds',
+    'pathology_reports',
+    'saas_invoices',
+    'saas_prescriptions',
+    'vitalsync_pool_settlements',
+    'clinic_sops'
+  ];
+BEGIN
+  -- Create publication if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+
+  -- Add tables idempotently ignoring duplicate enrollment errors (ERROR 42710)
+  FOREACH t IN ARRAY tables LOOP
+    BEGIN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
+    EXCEPTION 
+      WHEN duplicate_object THEN NULL; -- Ignore if already member
+      WHEN OTHERS THEN NULL;           -- Ignore if table does not exist
+    END;
+  END LOOP;
+END $$;
+
+-- Ensure public select policies exist for realtime CDC consumption
+DROP POLICY IF EXISTS "Allow public select on appointments" ON public.appointments;
+CREATE POLICY "Allow public select on appointments" ON public.appointments FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public select on financial_ledgers" ON public.financial_ledgers;
+CREATE POLICY "Allow public select on financial_ledgers" ON public.financial_ledgers FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public select on unified_invoices" ON public.unified_invoices;
+CREATE POLICY "Allow public select on unified_invoices" ON public.unified_invoices FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public select on patient_registry" ON public.patient_registry;
+CREATE POLICY "Allow public select on patient_registry" ON public.patient_registry FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public select on whatsapp_sessions" ON public.whatsapp_sessions;
+CREATE POLICY "Allow public select on whatsapp_sessions" ON public.whatsapp_sessions FOR SELECT USING (true);
+
 
