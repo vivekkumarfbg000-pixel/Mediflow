@@ -1109,10 +1109,10 @@ export class BillingService {
       totalCashCommissionOwed = 0;
     }
 
-    // Check manual settlement adjustments & auto-heal legacy test entries (< -5000)
+    // Check manual settlement adjustments & auto-heal legacy seed entries (> 5000 or < -5000)
     let settlements = load<any[]>('vitalsync_pool_settlements', []);
-    if (settlements.some(s => s.amount < -5000)) {
-      settlements = settlements.filter(s => s.amount >= -5000);
+    if (settlements.some(s => Math.abs(s.amount) > 5000)) {
+      settlements = settlements.filter(s => Math.abs(s.amount) <= 5000);
       save('vitalsync_pool_settlements', settlements);
     }
     let manualSettledTotal = 0;
