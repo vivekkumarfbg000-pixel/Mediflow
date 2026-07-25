@@ -1536,7 +1536,79 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
             <div className="animate-fade-in space-y-6">
 
               {/* ── Autonomous Onboarding Action Banner ────────────────────────────── */}
-              <div className="p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-cyan-500/10 border border-indigo-200/80 rounded-3xl flex flex-col lg:flex-row justify-between lg:items-center gap-3">
+              {/* Mobile Native Action Header (Mobile Screens) */}
+              <div className="block lg:hidden p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-cyan-500/10 border border-indigo-200/80 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+                      <Building className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 tracking-tight">Onboarding Agent</h4>
+                      <p className="text-[10px] text-slate-500 font-medium">Provision isolated clinic pods</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsProvisionModalOpen(true)}
+                    className="inline-flex h-8 items-center gap-1 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-[10.5px] cursor-pointer shadow-sm shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Provision
+                  </button>
+                </div>
+
+                {/* Mobile Scrollable Quick Action Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextLang = supportLanguage === 'en' ? 'hi' : 'en';
+                      setSupportLanguage(nextLang);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: nextLang === 'hi' ? 'हिंदी भाषा मोड 🇮🇳' : 'English CS Mode 🇬🇧',
+                          message: nextLang === 'hi' ? 'ऑटो-हील सपोर्ट मैसेज अब हिंदी में भेजे जाएंगे।' : 'Support dispatches set to English.',
+                          type: 'info'
+                        }
+                      }));
+                    }}
+                    className="inline-flex h-8 items-center gap-1 px-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-[10px] font-black shrink-0"
+                  >
+                    🇮🇳 {supportLanguage === 'en' ? 'EN' : 'हिंदी'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRunAdoptionCheckIn}
+                    className="inline-flex h-8 items-center gap-1 px-2.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-[10px] font-extrabold whitespace-nowrap shrink-0"
+                  >
+                    <Users className="h-3.5 w-3.5 text-purple-600" />
+                    Nudges
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsBroadcastModalOpen(true)}
+                    className="inline-flex h-8 items-center gap-1 px-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-[10px] font-extrabold whitespace-nowrap shrink-0"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />
+                    Broadcast
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleExportSlaReport}
+                    className="inline-flex h-8 items-center gap-1 px-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-[10px] font-extrabold whitespace-nowrap shrink-0"
+                  >
+                    <Terminal className="h-3.5 w-3.5 text-emerald-600" />
+                    SLA Export
+                  </button>
+                </div>
+              </div>
+
+              {/* Desktop Action Banner (Desktop Screens) */}
+              <div className="hidden lg:flex p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-cyan-500/10 border border-indigo-200/80 rounded-3xl justify-between items-center gap-3">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-md shadow-indigo-500/20 shrink-0">
                     <Building className="h-5 w-5" />
@@ -1559,7 +1631,6 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
-                  {/* Regional Support Language Switch */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1574,7 +1645,6 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                       }));
                     }}
                     className="inline-flex h-9 items-center justify-center gap-1 px-3 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-black cursor-pointer shadow-2xs shrink-0"
-                    title="Toggle Support Language (English / Hindi)"
                   >
                     🇮🇳 Language: {supportLanguage === 'en' ? 'EN' : 'हिंदी'}
                   </button>
@@ -1620,20 +1690,20 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
               {/* Stats Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
                 {[
-                  { label: 'Total Clinics (Pods)', value: onboardingStats.total_pods, desc: 'Active isolated tenant spaces', icon: Building, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-                  { label: 'Total Storefronts', value: onboardingStats.total_entities, desc: 'Clinics, pharmacies, and labs', icon: Layers, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
-                  { label: 'Active User Accounts', value: onboardingStats.total_profiles, desc: 'Doctors, compounders, staff', icon: Users, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                  { label: 'Total Clinics (Pods)', value: onboardingStats.total_pods, desc: 'Active isolated pods', icon: Building, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                  { label: 'Total Storefronts', value: onboardingStats.total_entities, desc: 'Clinics, Rx, and labs', icon: Layers, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
+                  { label: 'Active Accounts', value: onboardingStats.total_profiles, desc: 'Doctors, staff, users', icon: Users, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
                 ].map(stat => {
                   const Icon = stat.icon;
                   return (
-                    <div key={stat.label} className={`p-5 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
+                    <div key={stat.label} className={`p-3.5 sm:p-5 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
+                        <span className="text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
                         <Icon className="h-4 w-4" />
                       </div>
-                      <div className="mt-4">
-                        <h4 className="text-2xl font-black text-slate-800">{stat.value}</h4>
-                        <p className="text-[10px] text-slate-500 mt-0.5 leading-none">{stat.desc}</p>
+                      <div className="mt-2.5 sm:mt-4">
+                        <h4 className="text-xl sm:text-2xl font-black text-slate-800">{stat.value}</h4>
+                        <p className="text-[9.5px] text-slate-500 mt-0.5 leading-none">{stat.desc}</p>
                       </div>
                     </div>
                   );
@@ -1641,20 +1711,20 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
               </div>
 
                 {/* Subsystem breakdown */}
-                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                <div className="p-4 sm:p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
                     <Users className="h-4.5 w-4.5 text-indigo-500" />
                     Storefront Categories Allocation
                   </h4>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     {[
-                      { label: 'Connected Clinics', value: onboardingStats.clinics, bg: 'bg-indigo-500' },
-                      { label: 'Adjacent Pharmacies', value: onboardingStats.pharmacies, bg: 'bg-emerald-500' },
-                      { label: 'Referral Laboratories', value: onboardingStats.labs, bg: 'bg-blue-500' }
+                      { label: 'Clinics', value: onboardingStats.clinics, bg: 'bg-indigo-500' },
+                      { label: 'Pharmacies', value: onboardingStats.pharmacies, bg: 'bg-emerald-500' },
+                      { label: 'Laboratories', value: onboardingStats.labs, bg: 'bg-blue-500' }
                     ].map(type => (
-                      <div key={type.label} className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 text-center">
-                        <div className="text-lg font-extrabold text-slate-800">{type.value}</div>
-                        <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{type.label}</div>
+                      <div key={type.label} className="p-2.5 sm:p-3 bg-slate-50 rounded-xl border border-slate-200/60 text-center">
+                        <div className="text-base sm:text-lg font-extrabold text-slate-800">{type.value}</div>
+                        <div className="text-[8.5px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{type.label}</div>
                         <div className="w-full h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
                           <div className={`h-full ${type.bg}`} style={{ width: onboardingStats.total_entities > 0 ? `${(type.value / onboardingStats.total_entities) * 100}%` : '0%' }} />
                         </div>
@@ -1664,10 +1734,10 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 </div>
 
                 {/* Security Sentry Auditor Panel */}
-                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                <div className="p-4 sm:p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <LockKeyhole className="h-5 w-5 text-indigo-600" />
+                      <LockKeyhole className="h-5 w-5 text-indigo-600 shrink-0" />
                       <div>
                         <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Security Sentry: RLS Policy Auditor</h4>
                         <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">Verify schema Row-Level Security isolation across multi-tenant clinical pods.</p>
@@ -1677,7 +1747,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                       type="button"
                       onClick={runRlsComplianceScan}
                       disabled={auditingRls}
-                      className="flex h-8 items-center gap-1.5 px-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-750 text-[10px] font-bold uppercase tracking-widest disabled:opacity-50 cursor-pointer shadow-sm transition-all"
+                      className="flex h-8 items-center justify-center gap-1.5 px-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-750 text-[10px] font-bold uppercase tracking-widest disabled:opacity-50 cursor-pointer shadow-sm transition-all"
                     >
                       {auditingRls ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -1689,48 +1759,82 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   </div>
 
                   {complianceList.length > 0 ? (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto overflow-x-auto responsive-table-container">
-                      <table className="w-full text-left text-[11px] font-medium text-slate-600">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
-                            <th className="p-2.5 pl-3">Table Name</th>
-                            <th className="p-2.5">RLS Config</th>
-                            <th className="p-2.5 text-center">Policies</th>
-                            <th className="p-2.5">Pod Isolation</th>
-                            <th className="p-2.5 pr-3 text-right">Audit Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {complianceList.map(table => (
-                            <tr key={table.table_name} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                              <td className="p-2.5 pl-3 font-mono font-bold text-slate-750">{table.table_name}</td>
-                              <td className="p-2.5">
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                                  table.rls_enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600 font-black animate-pulse'
+                    <>
+                      {/* Mobile Native App Cards for RLS Policy Scan */}
+                      <div className="block md:hidden space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                        {complianceList.map(table => (
+                          <div key={table.table_name} className="p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2 text-left">
+                            <div>
+                              <div className="font-mono text-xs font-bold text-slate-800">{table.table_name}</div>
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <span className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold uppercase tracking-wider ${
+                                  table.rls_enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700 font-black'
                                 }`}>
-                                  {table.rls_enabled ? 'Active' : 'Missing RLS'}
+                                  {table.rls_enabled ? 'Active RLS' : 'Missing'}
                                 </span>
-                              </td>
-                              <td className="p-2.5 text-center font-bold">{table.policy_count}</td>
-                              <td className="p-2.5">
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                                  table.has_pod_isolation ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'
+                                <span className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold uppercase tracking-wider ${
+                                  table.has_pod_isolation ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'
                                 }`}>
                                   {table.has_pod_isolation ? 'Isolated' : 'Cross-Pod'}
                                 </span>
-                              </td>
-                              <td className="p-2.5 pr-3 text-right">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                                  table.status === 'secure' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                }`}>
-                                  {table.status}
-                                </span>
-                              </td>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                table.status === 'secure' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+                              }`}>
+                                {table.status}
+                              </span>
+                              <div className="text-[9px] text-slate-400 font-bold mt-1">{table.policy_count} policies</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto overflow-x-auto responsive-table-container">
+                        <table className="w-full text-left text-[11px] font-medium text-slate-600">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                              <th className="p-2.5 pl-3">Table Name</th>
+                              <th className="p-2.5">RLS Config</th>
+                              <th className="p-2.5 text-center">Policies</th>
+                              <th className="p-2.5">Pod Isolation</th>
+                              <th className="p-2.5 pr-3 text-right">Audit Status</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {complianceList.map(table => (
+                              <tr key={table.table_name} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                <td className="p-2.5 pl-3 font-mono font-bold text-slate-750">{table.table_name}</td>
+                                <td className="p-2.5">
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                    table.rls_enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600 font-black animate-pulse'
+                                  }`}>
+                                    {table.rls_enabled ? 'Active' : 'Missing RLS'}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 text-center font-bold">{table.policy_count}</td>
+                                <td className="p-2.5">
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                    table.has_pod_isolation ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'
+                                  }`}>
+                                    {table.has_pod_isolation ? 'Isolated' : 'Cross-Pod'}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 pr-3 text-right">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                    table.status === 'secure' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                  }`}>
+                                    {table.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   ) : (
                     <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[11px] font-semibold">
                       Security policy metrics not loaded. Click "Scan Policies" to audit RLS configurations.
