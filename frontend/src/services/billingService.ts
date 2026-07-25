@@ -1018,34 +1018,31 @@ export class BillingService {
     const labDoctorSplit = activeSop?.extractedConfig?.splits?.doctor ?? 50; // 50% SOP
     const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20; // 20% SOP
 
+    const allAppointments = this.getAppointments();
+
     paidInvoices.forEach(inv => {
-      const isCash = (inv as any).paymentMethod === 'cash';
       const amt = inv.amount || 0;
+      const appt = allAppointments.find(a => a.id === inv.appointmentId);
+      const isWhatsAppBooking = inv.source === 'whatsapp' || (inv as any).channel === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual === true;
 
       if (inv.type === 'consult') {
-        doctorConsultsEarned += amt;
-        if (!isCash) {
-          totalOnlineOffsetReceived += amt; // Online WhatsApp consult receipt offsets pool debt & refills pool
+        doctorConsultsEarned += amt; // ALWAYS added to Total Doctor Net Earnings!
+        
+        // ONLY WhatsApp bookings add to Commission Pool Balance (Online Receipts)!
+        if (isWhatsAppBooking) {
+          totalOnlineOffsetReceived += amt;
         }
-        // Compounder counter OPD consults add ZERO debt to commission pool
+        // Compounder / Counter appointments add ₹0 debt and ₹0 to Commission Pool balance!
       } else if (inv.type === 'lab' || (inv as any).type === 'pathology') {
         const docFee = Math.round(amt * (labDoctorSplit / 100));
         doctorLabReferralsEarned += docFee;
-        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee on lab sales
-        if (isCash) {
-          totalCashCommissionOwed += platFee;
-        } else {
-          totalOnlineOffsetReceived += (amt - platFee);
-        }
+        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee deducted on lab sales
+        totalCashCommissionOwed += platFee;
       } else if (inv.type === 'pharmacy' || (inv as any).type === 'medicine') {
         const docFee = Math.round(amt * (medDoctorSplit / 100));
         doctorMedicineReferralsEarned += docFee;
-        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee on medicine sales
-        if (isCash) {
-          totalCashCommissionOwed += platFee;
-        } else {
-          totalOnlineOffsetReceived += (amt - platFee);
-        }
+        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee deducted on medicine sales
+        totalCashCommissionOwed += platFee;
       }
     });
 
@@ -1053,24 +1050,22 @@ export class BillingService {
     const uInvoices = this.getUnifiedInvoices();
     uInvoices.forEach(uInv => {
       if (uInv.paymentStatus === 'cleared') {
-        const isCash = uInv.paymentMethod === 'cash';
+        const appt = allAppointments.find(a => a.id === uInv.encounterId);
+        const isWhatsAppBooking = (uInv as any).source === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual === true;
+
         if (uInv.doctorFee > 0 && paidInvoices.every(i => i.appointmentId !== uInv.encounterId)) {
           doctorConsultsEarned += uInv.doctorFee;
-          if (!isCash) {
+          if (isWhatsAppBooking) {
             totalOnlineOffsetReceived += uInv.doctorFee;
           }
         }
         if (uInv.labFee > 0) {
           const platFee = Math.round(uInv.labFee * 0.03);
-          if (isCash) {
-            totalCashCommissionOwed += platFee;
-          }
+          totalCashCommissionOwed += platFee;
         }
         if (uInv.pharmacyFee > 0) {
           const platFee = Math.round(uInv.pharmacyFee * 0.03);
-          if (isCash) {
-            totalCashCommissionOwed += platFee;
-          }
+          totalCashCommissionOwed += platFee;
         }
       }
     });
