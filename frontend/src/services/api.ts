@@ -685,7 +685,7 @@ class MediflowApiService {
         // Patients
         if (dbPatients && dbPatients.length > 0) {
           const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin', 'refraction'].includes(this.simulatedRole);
-          const incomingPatients = dbPatients
+          const incomingPatients: Patient[] = dbPatients
             .filter((p: any) => isClinicalRole || activePatientIds.has(p.id))
             .map((p: any) => ({
               id: p.id, name: p.name, phone: p.phone, age: p.age,
@@ -701,7 +701,7 @@ class MediflowApiService {
             }));
           
           const currentPatients = this.getPatients();
-          const mergedPatients = incomingPatients.slice();
+          const mergedPatients: Patient[] = incomingPatients.slice();
           currentPatients.forEach(cp => {
             if (!mergedPatients.some(mp => mp.id === cp.id)) {
               mergedPatients.push(cp);
@@ -836,7 +836,7 @@ class MediflowApiService {
 
         // Unified invoices
         if (dbInvoices && dbInvoices.length > 0) {
-          const invoices = (dbInvoices as unknown as DBInvoice[]).map((i: DBInvoice) => ({
+          const invoices: UnifiedInvoice[] = (dbInvoices as unknown as DBInvoice[]).map((i: DBInvoice) => ({
             id: i.id, encounterId: i.encounter_id, patientId: i.patient_id,
             patientName: i.patient?.name || 'Unknown', patientPhone: i.patient?.phone || '',
             doctorFee: Number(i.doctor_fee), labFee: Number(i.lab_fee),
@@ -848,7 +848,7 @@ class MediflowApiService {
             createdAt: i.created_at
           }));
           const currentInvoices = this.getUnifiedInvoices();
-          const mergedInvoices = invoices.slice();
+          const mergedInvoices: UnifiedInvoice[] = invoices.slice();
           currentInvoices.forEach(ci => {
             if (!mergedInvoices.some(mi => mi.id === ci.id)) {
               mergedInvoices.push(ci);
@@ -877,7 +877,7 @@ class MediflowApiService {
 
         // Financial ledgers
         if (dbLedgers && dbLedgers.length > 0) {
-          const incomingLedgers = (dbLedgers as any[]).map(l => ({
+          const incomingLedgers: FinancialLedgerEntry[] = (dbLedgers as any[]).map(l => ({
             id: l.id, invoiceId: l.invoice_id, sourceEntityId: l.source_entity_id,
             destinationEntityId: l.destination_entity_id,
             transactionType: l.transaction_type as FinancialLedgerEntry['transactionType'],
@@ -887,7 +887,7 @@ class MediflowApiService {
             settledAt: l.settled_at, createdAt: l.created_at
           }));
           const currentLedgers = this.getFinancialLedgers();
-          const mergedLedgers = incomingLedgers.slice();
+          const mergedLedgers: FinancialLedgerEntry[] = incomingLedgers.slice();
           currentLedgers.forEach(cl => {
             if (!mergedLedgers.some(ml => ml.id === cl.id)) {
               mergedLedgers.push(cl);
@@ -898,7 +898,7 @@ class MediflowApiService {
 
         // Appointments
         if (dbAppointments && dbAppointments.length > 0) {
-          const incomingAppts = (dbAppointments as any[]).map(a => ({
+          const incomingAppts: Appointment[] = (dbAppointments as any[]).map(a => ({
             id: a.id,
             patientId: a.patient_id,
             doctorId: a.doctor_id,
@@ -911,7 +911,7 @@ class MediflowApiService {
             source: a.is_virtual ? 'whatsapp' : 'counter'
           }));
           const currentAppts = this.getAppointments();
-          const mergedAppts = incomingAppts.slice();
+          const mergedAppts: Appointment[] = incomingAppts.slice();
           currentAppts.forEach(ca => {
             if (!mergedAppts.some(ma => ma.id === ca.id)) {
               mergedAppts.push(ca);
