@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { MASTER_TEST_CATALOG } from './labService';
-import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop } from '../types';
+import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient } from '../types';
 import { getPodContext } from './podContext';
 
 export class BillingService {
