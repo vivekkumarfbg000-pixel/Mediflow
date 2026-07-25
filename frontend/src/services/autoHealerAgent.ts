@@ -196,11 +196,62 @@ export class StateHealingEngine {
     return false;
   }
 
+  /** 💰 Phase 22: Autonomous Financial Ledger Integrity Reconciler */
+  static reconcileFinancialLedgerSplits(): boolean {
+    let healed = false;
+    try {
+      const rawLedgers = localStorage.getItem('financial_ledgers');
+      const rawInvoices = localStorage.getItem('unified_invoices');
+      if (rawInvoices) {
+        const ledgers = rawLedgers ? JSON.parse(rawLedgers) : [];
+        const invoices = rawInvoices ? JSON.parse(rawInvoices) : [];
+        const existingInvoiceIds = new Set(ledgers.map((l: any) => l.invoiceId));
+        let added = false;
+
+        invoices.forEach((inv: any) => {
+          if (inv && inv.id && !existingInvoiceIds.has(inv.id)) {
+            ledgers.push({
+              id: `fl-auto-${inv.id}`,
+              invoiceId: inv.id,
+              patientId: inv.patientId || 'unknown-patient',
+              doctorId: inv.doctorId || 'doc-1',
+              entryType: 'appointment_fee',
+              transactionType: 'appointment_fee',
+              grossAmount: inv.totalAmount || 500,
+              commissionRate: 0,
+              platformFee: 0,
+              netPayout: inv.totalAmount || 500,
+              netDoctorPayout: inv.totalAmount || 500,
+              paymentStatus: inv.paymentStatus || 'cleared',
+              settlementStatus: 'pending_payout',
+              paymentMethod: inv.paymentMethod || 'upi',
+              createdAt: inv.createdAt || new Date().toISOString()
+            });
+            existingInvoiceIds.add(inv.id);
+            added = true;
+          }
+        });
+
+        if (added) {
+          localStorage.setItem('financial_ledgers', JSON.stringify(ledgers));
+          this.totalHealedCount++;
+          healed = true;
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Auto-Healer v5.0] Financial ledger reconciliation notice:', e);
+    }
+    return healed;
+  }
+
   /** 📊 Diagnostic Telemetry Audit Report */
   static getSelfHealingReport() {
     return {
       status: 'ACTIVE_24_7',
-      version: 'v4.0 Ultra Power',
+      version: 'v5.0 Solo-Founder Autonomous Edition',
       totalHealedCount: this.totalHealedCount,
       sentinelOnline: true,
       lastAuditTimestamp: new Date().toISOString()
@@ -377,6 +428,8 @@ export class StateHealingEngine {
     // Periodic 60-second background self-healing audit loop
     setInterval(async () => {
       try {
+        this.autoHealStateCorruptions();
+        this.reconcileFinancialLedgerSplits();
         await WabaTokenAutoHealer.auditAndHealWabaConnections();
         await WabaBotSelfUnstick.auditAndUnstickStaleSessions();
         await SoloFounderPodRejuvenator.reconcileUserPodAssociation();
