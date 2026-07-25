@@ -840,13 +840,23 @@ export class WhatsAppService {
                   console.error('[WhatsApp Booking] Doctor lookup failed:', lookupErr);
                 }
 
-                const newAppt: Appointment = {
+                const newAppt: any = {
                   id: apptId,
                   patientId: currentPat.id,
+                  patient_id: currentPat.id,
+                  patientName: currentPat.name,
+                  patient_name: currentPat.name,
+                  patientPhone: currentPat.phone,
+                  patient_phone: currentPat.phone,
                   doctorId: resolvedDoctorId ?? '',
-                  status: 'ready_for_consult',
+                  doctor_id: resolvedDoctorId ?? '',
+                  status: 'confirmed',
+                  source: 'whatsapp',
+                  channel: 'whatsapp',
                   createdAt: new Date().toISOString(),
+                  created_at: new Date().toISOString(),
                   isVirtual: true,
+                  is_virtual: true,
                   virtualDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0],
                   virtualTime: selectedSlotText,
                   virtualMeetingUrl: `https://meet.jit.si/vitalsync-consult-${apptId}`,
@@ -858,8 +868,11 @@ export class WhatsAppService {
                   const { error } = await supabase.from('appointments').insert({
                     id: apptId,
                     patient_id: currentPat.id,
+                    patient_name: currentPat.name,
                     doctor_id: resolvedDoctorId,
-                    status: 'ready_for_consult',
+                    status: 'confirmed',
+                    source: 'whatsapp',
+                    is_virtual: true,
                     created_at: new Date().toISOString()
                   });
                   if (error) console.error('[WhatsApp Booking] Error creating virtual appt in Supabase:', error);

@@ -24,6 +24,9 @@ export function subscribe(listener: () => void) {
 
 export function notify() {
   listeners.forEach(cb => cb());
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+  }
 }
 
 export function getStorageKey(key: string): string {
