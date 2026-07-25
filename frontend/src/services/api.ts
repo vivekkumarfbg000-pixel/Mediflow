@@ -1510,6 +1510,11 @@ class MediflowApiService {
     this.notify();
   }
 
+  savePatients(patients: Patient[]): void {
+    PatientService.savePatients(patients);
+    this.notify();
+  }
+
   saveFinancialLedgers(entries: FinancialLedgerEntry[]): void {
     BillingService.saveFinancialLedgers(entries);
     this.notify();

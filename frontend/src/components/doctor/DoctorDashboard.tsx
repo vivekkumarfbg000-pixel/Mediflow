@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
+import { BillingService } from '../../services/billingService';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';

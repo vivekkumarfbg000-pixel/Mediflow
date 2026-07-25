@@ -41,6 +41,10 @@ export const INITIAL_PATIENTS: Patient[] = [
 ];
 
 export class PatientService {
+  static savePatients(patients: Patient[]): void {
+    save('patient_registry', patients);
+    notify();
+  }
   static getPatients(): Patient[] {
     const rawPatients = load<Patient[]>('patients', INITIAL_PATIENTS);
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
