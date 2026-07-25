@@ -684,6 +684,48 @@ async function triggerBotReplyPipeline(ctx: {
     console.warn("[Meta Webhook] Parallel fetch error:", pErr);
   }
 
+  // Dynamically resolve active Doctor Profile (display_name, consultation_fee) and Clinic Name for this session/pod
+  let resolvedDoctorName = "Doctor Vivek";
+  let resolvedClinicName = "Patna Clinic";
+  let resolvedConsultationFee = 500;
+
+  try {
+    let docQuery = supabase
+      .from("profiles")
+      .select("id, display_name, consultation_fee, pod_id, entity_id")
+      .eq("role", "doctor");
+
+    if (session.pod_id && session.pod_id !== "default-pod") {
+      docQuery = docQuery.eq("pod_id", session.pod_id);
+    }
+    const { data: docProfile } = await docQuery.limit(1).maybeSingle();
+
+    if (docProfile) {
+      if (docProfile.display_name) {
+        resolvedDoctorName = docProfile.display_name.startsWith("Dr.") ? docProfile.display_name : `Doctor ${docProfile.display_name}`;
+      }
+      if (docProfile.consultation_fee && Number(docProfile.consultation_fee) > 0) {
+        resolvedConsultationFee = Number(docProfile.consultation_fee);
+      }
+    }
+
+    if (session.pod_id && session.pod_id !== "default-pod") {
+      const { data: podEntity } = await supabase
+        .from("entities")
+        .select("name")
+        .eq("pod_id", session.pod_id)
+        .eq("entity_type", "clinic")
+        .limit(1)
+        .maybeSingle();
+
+      if (podEntity?.name) {
+        resolvedClinicName = podEntity.name;
+      }
+    }
+  } catch (lookupErr) {
+    console.warn("[Meta Webhook] Error resolving doctor profile or clinic entity:", lookupErr);
+  }
+
   // devsecops consent check: check patient_consents for explicit revocation
   if (patient?.id) {
     const hasRevoked = consents?.some((c: any) => c.revoked_at !== null);
@@ -1143,6 +1185,7 @@ async function triggerBotReplyPipeline(ctx: {
       if (cleaned.includes("virtual") || cleaned.includes("physical") || cleaned.includes("clinic") || cleaned.includes("visit")) {
         const isVirtual = cleaned.includes("virtual");
         sessionData.consultationType = isVirtual ? "virtual" : "physical";
+        sessionData.isSos = false; // Reset SOS flag for standard appointments
         
         // Create/retrieve family member patient profile in DB using a unique phone suffix slug
         const fName = sessionData.familyDetails?.name || "Family Member";
@@ -1265,7 +1308,7 @@ async function triggerBotReplyPipeline(ctx: {
       if (slotText) {
         sessionData.selectedSlot = slotText;
         const isVirtualSlot = sessionData.consultationType === "virtual";
-        let feeAmount = isVirtualSlot ? 400 : 500;
+        let feeAmount = isVirtualSlot ? Math.round(resolvedConsultationFee * 0.8) : resolvedConsultationFee;
         let appliedDiscountNote = "";
         try {
           if (patient) {
@@ -1327,6 +1370,9 @@ async function triggerBotReplyPipeline(ctx: {
 
         sessionData.tokenNumber = tokenNumber;
         sessionData.approxTime = approxTime;
+        sessionData.doctorName = resolvedDoctorName;
+        sessionData.clinicName = resolvedClinicName;
+        sessionData.feeAmount = feeAmount;
 
         // Parse slot timing string into a Clean Timestamp
         let apptTimestamp = `${selectedDate}T10:00:00.000Z`;
@@ -1421,7 +1467,7 @@ async function triggerBotReplyPipeline(ctx: {
             console.error("[Meta Webhook] Error creating free virtual invoice record:", err);
           }
 
-          replyText = `Aapki free virtual follow-up booking confirm ho gayi hai! 🟢\n\n*Appointment Details*:\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime} (Doctor Vivek starts at 10:00 AM)\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${newApptId}\n\nDoctor Vivek ke saath checkup time par start hoga. Thank you! 😊`;
+          replyText = `Aapki free virtual follow-up booking confirm ho gayi hai! 🟢\n\n*Appointment Details*:\n• Doctor: ${resolvedDoctorName}\n• Clinic Node: ${resolvedClinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${newApptId}\n\n${resolvedDoctorName} ke saath checkup time par start hoga. Thank you! 😊`;
         } else {
           // Normal Paid Consultation Flow
           nextState = "AWAITING_PAYMENT";
@@ -1470,8 +1516,9 @@ async function triggerBotReplyPipeline(ctx: {
 
           sessionData.pendingApptId = newApptId;
           sessionData.pendingInvoiceId = newInvoiceId;
+          sessionData.isSos = false; // Reset SOS flag for regular appointments
 
-          replyText = `Doctor Vivek ke liye checkup slot *${slotText}* on *${selectedDisplay}* lock kar diya gaya hai. Total Fee (Appointment + Platform): ₹${feeAmount}.00.\n\nSecure booking ke liye please is UPI link ka use kijiye ya QR code scan kijiye:\n\n${upiPayload}\n\nPayment karne ke baad please **PAY** reply kijiye, hum turant meeting link aur token number bhej denge! 🧾`;
+          replyText = `${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai. Total Fee (Appointment + Platform): ₹${feeAmount}.00.${appliedDiscountNote}\n\nSecure booking ke liye please is UPI link ka use kijiye ya QR code scan kijiye:\n\n${upiPayload}\n\nPayment karne ke baad please **PAY** reply kijiye, hum turant meeting link aur token number bhej denge! 🧾`;
         }
       } else {
         replyText = "Invalid slot timing choice. Please Timing select karne ke liye type kijiye:\n1️⃣ Morning (10am-12pm)\n2️⃣ Afternoon (2pm-4pm)\n3️⃣ Evening (6pm-8pm)\n\nType 1, 2, ya 3! ⏱️";
@@ -1485,6 +1532,9 @@ async function triggerBotReplyPipeline(ctx: {
         const tokenNumber = sessionData.tokenNumber || 1;
         const approxTime = sessionData.approxTime || "10:00 AM";
         const selectedDisplay = sessionData.selectedDateDisplay || new Date().toISOString().split("T")[0];
+        const doctorName = sessionData.doctorName || resolvedDoctorName;
+        const clinicName = sessionData.clinicName || resolvedClinicName;
+        const feeAmount = sessionData.feeAmount || resolvedConsultationFee;
         
         if (invoiceId) {
           const { error: invErr } = await supabase
@@ -1506,15 +1556,17 @@ async function triggerBotReplyPipeline(ctx: {
 
         nextState = "COMPLETED";
         const isVirtualSlot = sessionData.consultationType === "virtual";
-        const isSosBooking = sessionData.isSos === true;
-        sessionData.isSos = false; // Reset flag
+        // Guard isSosBooking: Only true if consultationType is explicitly "sos" AND isSos flag is true
+        const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
+        sessionData.isSos = false; // Reset flag explicitly
+        delete sessionData.isSos;
 
         if (isSosBooking) {
-          replyText = `🚨 *EMERGENCY SOS CONFIRMED & PAID* 🚨\n\nAapka emergency case Doctor Vivek ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00 (₹600 Doctor Priority Consult + ₹18 Platform Fee)\n\nPlease *abhi* Patna Clinic emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Time waste na karein aur desk se contact karein. Dhanyawad! 🙏`;
+          replyText = `🚨 *EMERGENCY SOS CONFIRMED & PAID* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00 (₹600 Doctor Priority Consult + ₹18 Platform Fee)\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Time waste na karein aur desk se contact karein. Dhanyawad! 🙏`;
         } else if (isVirtualSlot) {
-          replyText = `🎉 *PAYMENT CONFIRMED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime} (Doctor Vivek starts at 10:00 AM)\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\n🌟 *MEDIFLOW PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare partner lab & pharmacy counter par billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nThank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *PAYMENT CONFIRMED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\n🌟 *VITALSENC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare partner lab & pharmacy counter par billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nThank you for choosing VitalSync! 😊`;
         } else {
-          replyText = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime} (Doctor Vivek starts at 10:00 AM)\n• Address: Patna Clinic, Kankarbagh Road (opp. ICICI Bank).\n\n🌟 *MEDIFLOW PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you! 😊`;
+          replyText = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Fee Paid: ₹${feeAmount}.00\n• Address: ${clinicName}, Kankarbagh Road (opp. ICICI Bank).\n\n🌟 *VITALSENC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you for choosing VitalSync! 😊`;
         }
       } else if (cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned.includes("register") || cleaned.includes("onboard") || cleaned.includes("hello") || cleaned.includes("menu") || cleaned === "0") {
         nextState = "IDLE";
@@ -1822,6 +1874,7 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.pendingApptId = sosApptId;
         sessionData.pendingInvoiceId = sosInvoiceId;
         sessionData.isSos = true;
+        sessionData.consultationType = "sos";
         nextState = "AWAITING_PAYMENT";
 
         replyText = `🚨 *EMERGENCY SOS CONSULT ROUTING* 🚨\n\nDoctor Vivek ke queue mein top *PRIORITY #1* position reserve karne ke liye emergency fee pay karein:\n\n• Doctor Consult Fee: ₹${doctorSosFee.toFixed(2)} (Includes 20% Doctor Priority Charge)\n• VitalSync Platform Fee (+3%): ₹${platformFeeSos.toFixed(2)}\n• *Total Amount Payable*: ₹${totalSosFee.toFixed(2)}\n\nSecure UPI Payment Link:\n${upiPayload}\n\nPayment complete hone ke baad **PAY** reply kijiye! Real-time verification ke baad aapka case turant Priority #1 status par active ho jayega. 🟢`;
