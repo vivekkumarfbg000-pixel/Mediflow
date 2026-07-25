@@ -361,6 +361,7 @@ export const SystemHealthCockpit: React.FC = () => {
                         👉 Recommended: {alert.actionRequired}
                       </div>
                     )}
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <a
                       href="https://github.com/vivekkumarfbg000-pixel/Mediflow/pulls"
