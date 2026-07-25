@@ -1,0 +1,69 @@
+name: 🔒 Auto-Healer — Weekly Dependency Security Audit
+
+on:
+  schedule:
+    # Run every Monday at 02:00 AM UTC (Off-peak chaos window)
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    name: 🛡️ NPM CVE Scan & Automated Security Patching
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 🔒 Audit Frontend Dependencies
+        working-directory: frontend
+        run: |
+          echo "Scanning frontend dependencies for HIGH/CRITICAL vulnerabilities..."
+          npm audit --audit-level=high --json > ../frontend-audit.json || true
+          cat ../frontend-audit.json | grep -i "vulnerabilities" || true
+
+      - name: 🌐 Trigger Supabase Edge NPM Security Audit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            curl -s -X POST "$SUPABASE_URL/functions/v1/npm-security-audit" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -d '{"packages": {"axios": "^1.6.0", "react": "^18.2.0", "@supabase/supabase-js": "^2.39.0"}}' || true
+          fi
+
+      - name: 🛠️ Attempt Safe Non-Breaking Security Fixes
+        working-directory: frontend
+        run: |
+          npm audit fix --only=prod || true
+
+      - name: 📢 Open Security Fix Pull Request if Changes Generated
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "security(auto-healer): automated dependency vulnerability fix"
+          title: "[Auto-Healer] 🔒 Weekly Security Patch — Fix Vulnerable Dependencies"
+          body: |
+            ## 🛡️ Weekly Automated Security Audit & Remediation
+            
+            This Pull Request was generated automatically by **Mediflow Auto-Healer v14.0**.
+            
+            ### Actions Executed:
+            - Scanned `frontend/package.json` against NPM Registry CVE Advisory database
+            - Executed non-breaking `npm audit fix --only=prod`
+            - Dispatched security audit metrics to Supabase Edge Function \`npm-security-audit\`
+            
+            *Please review and merge if CI checks pass.*
+          branch: auto-healer/security-patches
+          delete-branch: true
+          labels: |
+            security
+            dependencies
+            auto-healer

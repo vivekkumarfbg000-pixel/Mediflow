@@ -1,0 +1,36 @@
+name: 🔄 Auto-Healer — Deployment Rollback Sentinel
+
+on:
+  schedule:
+    # Runs every 5 minutes to check for Supabase rollback signals
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-and-rollback:
+    name: 🩺 Poll Supabase Rollback Signal & Revert Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📡 Poll Supabase Edge Deployment Rollback Agent
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            RESPONSE=$(curl -s -X POST "$SUPABASE_URL/functions/v1/deployment-rollback-agent" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -d '{"action": "check_and_rollback"}')
+            
+            echo "Response from deployment-rollback-agent:"
+            echo "$RESPONSE"
+          else
+            echo "Supabase credentials not configured in secrets. Skipping rollback poll."
+          fi

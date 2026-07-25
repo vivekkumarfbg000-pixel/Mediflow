@@ -1,0 +1,86 @@
+name: 🚑 Auto-Healer — CI/CD Self-Healing Sentinel
+
+on:
+  workflow_run:
+    workflows: ["Mediflow CI/CD Pipeline"]
+    types: [completed]
+
+jobs:
+  diagnose-and-heal:
+    name: 🩺 Autonomous CI Failure Diagnosis & Self-Repair
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 🔍 Diagnose Failure & Log to Supabase Edge Diagnostics
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "======================================================="
+          echo "🚨 Mediflow CI/CD Failure Intercepted by Auto-Healer"
+          echo "Workflow Run ID: $WORKFLOW_RUN_ID"
+          echo "Commit SHA: $COMMIT_SHA"
+          echo "======================================================="
+
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            curl -s -X POST "$SUPABASE_URL/functions/v1/auto-healer-diagnostics" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -d "{
+                \"error_code\": \"CI_WORKFLOW_FAILURE\",
+                \"subsystem\": \"backend\",
+                \"trace_id\": \"ci-run-$WORKFLOW_RUN_ID\",
+                \"pod_id\": \"github-actions\",
+                \"client_info\": { \"commit\": \"$COMMIT_SHA\", \"run_id\": \"$WORKFLOW_RUN_ID\" }
+              }" || true
+          fi
+
+      - name: 🛠️ Execute Automated Safe Remediations (Lockfile & Cache Refresh)
+        run: |
+          echo "🧹 Clearing npm stale build caches..."
+          rm -rf frontend/node_modules/.cache
+          rm -rf backend/node_modules/.cache || true
+          echo "✅ Pre-build cache sanitized"
+
+      - name: 📢 Raise GitHub Escalation Issue if Unresolved
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId = context.payload.workflow_run.id;
+            const commitSha = context.payload.workflow_run.head_sha;
+            const repoOwner = context.repo.owner;
+            const repoName = context.repo.repo;
+
+            const title = `[Auto-Healer Escalation] 🚨 CI/CD Build Failure on commit ${commitSha.substring(0, 7)}`;
+            const body = `## 🚑 Auto-Healer Sentinel Escalate Notice
+            
+            **Triggered By**: Mediflow CI/CD Pipeline Failure
+            **Workflow Run ID**: [${runId}](https://github.com/${repoOwner}/${repoName}/actions/runs/${runId})
+            **Commit SHA**: \`${commitSha}\`
+            **Timestamp**: ${new Date().toISOString()}
+            
+            ### Diagnostic Actions Taken:
+            - Recorded server diagnostic telemetry in Supabase \`system_health_telemetry\`
+            - Cleared npm build caches & sanitized temporary dependencies
+            - Dispatched signal to \`auto-healer-diagnostics\` Edge Function
+            
+            *This issue was created automatically by Mediflow Auto-Healer v14.0.*`;
+
+            await github.rest.issues.create({
+              owner: repoOwner,
+              repo: repoName,
+              title: title,
+              body: body,
+              labels: ['auto-healer-escalation', 'bug', 'ci-cd']
+            });

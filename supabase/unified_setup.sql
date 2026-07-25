@@ -202,6 +202,9 @@ GRANT EXECUTE ON FUNCTION public.get_user_pod() TO authenticated;
 -- Populate existing records and apply NOT NULL constraints safely using dynamic SQL
 DO $$ 
 BEGIN
+  -- Temporarily disable user triggers on encounters during backfill to avoid firing clinical submission triggers
+  EXECUTE 'ALTER TABLE public.encounters DISABLE TRIGGER USER';
+
   -- Populate existing records based on parent-child reference chains
   EXECUTE 'UPDATE public.patient_registry pr SET pod_id = COALESCE((SELECT pod_id FROM public.entities e WHERE e.id = pr.registered_at_entity LIMIT 1), ''dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'')';
   EXECUTE 'UPDATE public.encounters enc SET pod_id = COALESCE((SELECT pod_id FROM public.entities e WHERE e.id = enc.entity_id LIMIT 1), ''dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'')';
@@ -212,6 +215,9 @@ BEGIN
   EXECUTE 'UPDATE public.activity_logs al SET pod_id = COALESCE((SELECT pod_id FROM public.entities e WHERE e.id = al.entity_id LIMIT 1), ''dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'')';
   EXECUTE 'UPDATE public.clinic_staff cs SET pod_id = COALESCE((SELECT pod_id FROM public.entities e WHERE e.id = cs.entity_id LIMIT 1), ''dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'')';
 
+  -- Re-enable user triggers
+  EXECUTE 'ALTER TABLE public.encounters ENABLE TRIGGER USER';
+
   -- Apply strict NOT NULL constraints
   EXECUTE 'ALTER TABLE public.patient_registry ALTER COLUMN pod_id SET NOT NULL';
   EXECUTE 'ALTER TABLE public.encounters ALTER COLUMN pod_id SET NOT NULL';
@@ -221,6 +227,9 @@ BEGIN
   EXECUTE 'ALTER TABLE public.whatsapp_sessions ALTER COLUMN pod_id SET NOT NULL';
   EXECUTE 'ALTER TABLE public.activity_logs ALTER COLUMN pod_id SET NOT NULL';
   EXECUTE 'ALTER TABLE public.clinic_staff ALTER COLUMN pod_id SET NOT NULL';
+EXCEPTION WHEN OTHERS THEN
+  EXECUTE 'ALTER TABLE public.encounters ENABLE TRIGGER USER';
+  RAISE;
 END $$;
 
 DO $$ 
@@ -644,7 +653,8 @@ BEGIN
         INSERT INTO public.lab_requisitions (encounter_id, patient_id, lab_entity_id, loinc_code, test_name, barcode, assigned_technician_id)
         VALUES (NEW.id, NEW.patient_id, v_lab_entity_id, diag.loinc_code, diag.test_name,
                 'BAR-' || upper(substring(NEW.id::text, 1, 8)) || '-' || diag.loinc_code,
-                'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002');
+                'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002')
+        ON CONFLICT (barcode) DO NOTHING;
                 
         lab_fee := lab_fee + v_test_price;
     END LOOP;
@@ -1379,6 +1389,7 @@ CREATE TABLE IF NOT EXISTS public.patient_referral_rewards (
 );
 
 ALTER TABLE public.patient_referral_rewards ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow service role full access to patient_referral_rewards" ON public.patient_referral_rewards;
 CREATE POLICY "Allow service role full access to patient_referral_rewards"
 ON public.patient_referral_rewards FOR ALL TO service_role USING (true) WITH CHECK (true);
 
@@ -1507,4 +1518,34 @@ CREATE POLICY "Allow public select on patient_registry" ON public.patient_regist
 DROP POLICY IF EXISTS "Allow public select on whatsapp_sessions" ON public.whatsapp_sessions;
 CREATE POLICY "Allow public select on whatsapp_sessions" ON public.whatsapp_sessions FOR SELECT USING (true);
 
+-- =============================================================================
+-- STEP 15: Auto-Healer v14.0 Server-Side & CI/CD Telemetry Tables
+-- =============================================================================
 
+CREATE TABLE IF NOT EXISTS public.deployment_health (
+  id TEXT PRIMARY KEY DEFAULT 'current',
+  rollback_requested BOOLEAN DEFAULT FALSE,
+  trigger_reason TEXT,
+  triggered_at TIMESTAMPTZ,
+  resolved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.deployment_health ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow service role and public read on deployment_health" ON public.deployment_health;
+CREATE POLICY "Allow service role and public read on deployment_health" ON public.deployment_health FOR ALL USING (true);
+
+CREATE TABLE IF NOT EXISTS public.ci_healer_log (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  workflow_name TEXT,
+  job_name TEXT,
+  failure_reason TEXT,
+  fix_applied TEXT,
+  fix_succeeded BOOLEAN,
+  github_run_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.ci_healer_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow service role and public write on ci_healer_log" ON public.ci_healer_log;
+CREATE POLICY "Allow service role and public write on ci_healer_log" ON public.ci_healer_log FOR ALL USING (true);
