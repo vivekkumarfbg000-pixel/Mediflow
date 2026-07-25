@@ -177,6 +177,10 @@ export class BillingService {
     notify();
   }
 
+  static getPatients(): Patient[] {
+    return PatientService.getPatients();
+  }
+
   static getInvoices(): Invoice[] {
     return load<Invoice[]>('saas_invoices', []);
   }

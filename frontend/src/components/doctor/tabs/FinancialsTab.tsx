@@ -200,9 +200,11 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     const appt = appointments.find(a => a.id === entry.invoiceId || (inv && a.id === inv.encounterId));
     const patientId = inv?.patientId || appt?.patientId;
     if (patientId) {
-      const p = patients.find(patient => patient.id === patientId);
+      const p = patients.find((patient: any) => patient.id === patientId);
       if (p && p.name) return p.name;
     }
+    if ((inv as any)?.patientName) return (inv as any).patientName;
+    if ((appt as any)?.patient_name) return (appt as any).patient_name;
     return `Patient #${entry.invoiceId.substring(0, 6).toUpperCase()}`;
   }, [invoices, appointments, patients]);
 
