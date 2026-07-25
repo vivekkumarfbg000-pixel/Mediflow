@@ -1433,7 +1433,7 @@ async function triggerBotReplyPipeline(ctx: {
           let newApptId = crypto.randomUUID();
           try {
             if (bookingPatId) {
-              const targetPatName = sessionData.familyDetails?.name || patient?.name || "WhatsApp Patient";
+              const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
               await supabase.from("appointments").insert({
                 id: newApptId,
                 patient_id: bookingPatId,
@@ -1482,7 +1482,7 @@ async function triggerBotReplyPipeline(ctx: {
           let newApptId = crypto.randomUUID();
           try {
             if (bookingPatId) {
-              const targetPatName = sessionData.familyDetails?.name || patient?.name || "WhatsApp Patient";
+              const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
               const { error: apptErr } = await supabase.from("appointments").insert({
                 id: newApptId,
                 patient_id: bookingPatId,
@@ -1569,7 +1569,7 @@ async function triggerBotReplyPipeline(ctx: {
               net_doctor_payout: feeAmount,
               settlement_status: "pending_payout",
               payment_method: "upi",
-              patient_name: sessionData.familyDetails?.name || patient?.name || sessionData.patientName || "WhatsApp Patient",
+              patient_name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || sessionData.patientName || "WhatsApp Patient",
               source_entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
               pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
               created_at: new Date().toISOString()
