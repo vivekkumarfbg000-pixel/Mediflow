@@ -202,7 +202,7 @@ export class BillingService {
     const apptId = crypto.randomUUID();
     const ctx = getPodContext();
  
-    // Fetch dynamic consultation fee from active SOP config (default: 450)
+    // Fetch dynamic consultation fee from active SOP config (default: 500)
     const activeSop = this.getActiveSop();
     const baseFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
  
