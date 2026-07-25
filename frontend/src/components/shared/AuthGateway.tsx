@@ -705,9 +705,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // 1. Verify lockout and rate limit via database sentry (with 5s timeout fallback)
       let check: { allowed: boolean; errorCode?: string; msg?: string } = { allowed: true };
       try {
-        const sentryTimeout = new Promise<{ allowed: boolean }>((resolve) =>
-          setTimeout(() => resolve({ allowed: true }), 5000) // silent pass-through on timeout
-        );
+        const sentryTimeout = new Promise<{ allowed: boolean }>((resolve) => {
+          setTimeout(() => resolve({ allowed: true }), 5000);
+        });
         check = await Promise.race([verifyLoginAllowed(email), sentryTimeout]);
       } catch (_err) {
         // If sentry check fails entirely, allow login to proceed (don't block on infra issue)

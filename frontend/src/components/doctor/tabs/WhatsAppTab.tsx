@@ -312,7 +312,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       <div className="flex justify-between items-start gap-1">
                         <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors truncate">{name}</div>
                         <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 uppercase ${stateBadge}`}>
-                          {s.currentState.replace('_', ' ')}
+                          {(s.currentState || '').replace('_', ' ')}
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-600 font-mono mt-1">{s.patientPhone}</div>

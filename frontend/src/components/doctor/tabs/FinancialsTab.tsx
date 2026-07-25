@@ -271,10 +271,10 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       <tr>
         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #0f172a;">${getPatientName(entry)}</td>
         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace; color: #475569;">${getPaymentModeLabel(entry)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; text-transform: uppercase; font-size: 11px;">${entry.transactionType.replace('_', ' ')}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${entry.grossAmount.toFixed(2)}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace;">${(entry.commissionRate * 100).toFixed(0)}%</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; font-family: monospace; color: #0f172a;">₹${entry.netPayout.toFixed(2)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; text-transform: uppercase; font-size: 11px;">${(entry.transactionType || 'fee').replace('_', ' ')}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${(entry.grossAmount || 0).toFixed(2)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace;">${((entry.commissionRate || 0) * 100).toFixed(0)}%</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; font-family: monospace; color: #0f172a;">₹${(entry.netPayout || 0).toFixed(2)}</td>
         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: bold; color: #059669; text-transform: uppercase; font-size: 10px;">${entry.paymentStatus}</td>
       </tr>
     `).join('');
@@ -689,12 +689,12 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                         ? 'bg-teal-50 text-teal-700'
                         : 'bg-amber-50 text-amber-700'
                     }`}>
-                      {entry.transactionType.replace('_', ' ')}
+                      {(entry.transactionType || 'fee').replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="p-3.5 text-right font-mono text-slate-600">₹{entry.grossAmount.toFixed(2)}</td>
-                  <td className="p-3.5 text-center font-mono text-slate-600">{(entry.commissionRate * 100).toFixed(0)}%</td>
-                  <td className="p-3.5 text-right font-mono text-slate-800 font-bold">₹{entry.netPayout.toFixed(2)}</td>
+                  <td className="p-3.5 text-right font-mono text-slate-600">₹{(entry.grossAmount || 0).toFixed(2)}</td>
+                  <td className="p-3.5 text-center font-mono text-slate-600">{((entry.commissionRate || 0) * 100).toFixed(0)}%</td>
+                  <td className="p-3.5 text-right font-mono text-slate-800 font-bold">₹{(entry.netPayout || 0).toFixed(2)}</td>
                   <td className="p-3.5 text-center">
                     <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider font-mono">
                       {entry.paymentStatus}

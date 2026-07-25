@@ -106,7 +106,7 @@
   }
 }
 
-@utility animate-fade-in {
+.animate-fade-in {
   animation: fadeIn 0.3s ease-in-out forwards;
 }
 
@@ -852,13 +852,7 @@ svg line, svg path.domain {
   to { opacity: 1; }
 }
 
-@utility animate-fade-in {
-  animation: fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
+/* animate-fade-in defined above */
 
 @keyframes slide-in-left {
   from { transform: translateX(-100%); }

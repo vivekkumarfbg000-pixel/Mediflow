@@ -843,6 +843,52 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const compReport = activeHistory?.find(h => h.date === comparisonDate) ?? (activeHistory ? activeHistory[activeHistory.length - 1] : null);
   const isConsentActive = true;
 
+  const handleGenerateLabTrend = async () => {
+    if (!compReport || !selectedPatient) return;
+    setIsGeneratingTrend(true);
+    try {
+      const trend = await api.generateComparativeLabTrend(selectedPatient.id, baselineDate, comparisonDate);
+      setComparativeTrend(trend);
+      
+      const taskId = `task-trend-${selectedPatient.id}-${Date.now()}`;
+      await api.saveAIResult({
+        id: crypto.randomUUID(),
+        user_id: 'doctor-uuid-placeholder',
+        task_id: taskId,
+        patient_id: selectedPatient.id,
+        input_data: `Comparative trend: baseline=${baselineDate || 'None'}, comparison=${comparisonDate || 'None'}`,
+        output_data: trend.summaryText,
+        output_type: 'COMPARATIVE_TREND',
+        status: 'SUCCESS',
+        created_at: new Date().toISOString(),
+        model_used: 'gemini-1.5-flash',
+        duration_ms: 1000
+      });
+
+      await api.writeAuditLog('CDSS_LAB_TREND_ANALYSIS', {
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.name,
+        baselineDate,
+        comparisonDate,
+        gfr: trend.gfr,
+        citationsCount: trend.citations?.length || 0,
+        suggestedCompositionsCount: trend.suggestedCompositions?.length || 0
+      }, selectedPatient.id);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Lab Trend Analyzed! 📊',
+          message: 'Comparative trend calculated successfully.',
+          type: 'success'
+        }
+      }));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingTrend(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
       {/* LEFT COLUMN: Patient queue, CDSS Analyzer */}
@@ -1119,7 +1165,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <div className="flex items-center gap-2.5">
                 <span className="material-symbols-outlined text-amber-600 text-lg">shield_with_heart</span>
                 <div className="text-[10px] text-amber-955 leading-relaxed font-sans">
-                  <span className="font-bold text-amber-955">Active Physical Consent</span> • Purpose: <span className="font-semibold text-amber-900">{activePhysicalConsent.consent_purpose.replace(/_/g, ' ')}</span>
+                  <span className="font-bold text-amber-955">Active Physical Consent</span> • Purpose: <span className="font-semibold text-amber-900">{(activePhysicalConsent.consent_purpose || '').replace(/_/g, ' ')}</span>
                   <span className="block text-[9px] text-amber-800 mt-0.5 font-medium font-mono">Expires in: {remainingTime} ({new Date(activePhysicalConsent.expires_at).toLocaleTimeString()})</span>
                 </div>
               </div>
@@ -1797,52 +1843,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
                 <div className="flex gap-3">
                   <button
-                    onClick={async () => {
-                      if (!compReport) return;
-                      setIsGeneratingTrend(true);
-                      try {
-                        const trend = await api.generateComparativeLabTrend(selectedPatient.id, baselineDate, comparisonDate);
-                        setComparativeTrend(trend);
-                        
-                        const taskId = `task-trend-${selectedPatient.id}-${Date.now()}`;
-                        await api.saveAIResult({
-                          id: crypto.randomUUID(),
-                          user_id: 'doctor-uuid-placeholder',
-                          task_id: taskId,
-                          patient_id: selectedPatient.id,
-                          input_data: `Comparative trend: baseline=${baselineDate || 'None'}, comparison=${comparisonDate || 'None'}`,
-                          output_data: trend.summaryText,
-                          output_type: 'COMPARATIVE_TREND',
-                          status: 'SUCCESS',
-                          created_at: new Date().toISOString(),
-                          model_used: 'gemini-1.5-flash',
-                          duration_ms: 1000
-                        });
-
-                        // Trigger recompile to clear Vite build cache
-                        await api.writeAuditLog('CDSS_LAB_TREND_ANALYSIS', {
-                          patientId: selectedPatient.id,
-                          patientName: selectedPatient.name,
-                          baselineDate,
-                          comparisonDate,
-                          gfr: trend.gfr,
-                          citationsCount: trend.citations?.length || 0,
-                          suggestedCompositionsCount: trend.suggestedCompositions?.length || 0
-                        }, selectedPatient.id);
-
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: 'Lab Trend Analyzed! 📊',
-                            message: 'Comparative trend calculated successfully.',
-                            type: 'success'
-                          }
-                        }));
-                      } catch (e) {
-                        console.error(e);
-                      } finally {
-                        setIsGeneratingTrend(false);
-                      }
-                    }}
+                    type="button"
+                    onClick={handleGenerateLabTrend}
                     disabled={isGeneratingTrend}
                     className="w-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-white-force border-0"
                   >
