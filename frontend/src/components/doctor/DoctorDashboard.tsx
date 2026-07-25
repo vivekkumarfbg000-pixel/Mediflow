@@ -1874,7 +1874,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-32 lg:pb-12 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-32 lg:pb-12 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
       {!isOnline && (
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-850 dark:text-amber-400 px-4 py-3 rounded-xl flex items-center justify-between text-xs font-semibold backdrop-blur-md animate-pulse text-left">

@@ -296,7 +296,7 @@ function AppContent({
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f1a] text-slate-800 dark:text-zinc-100 flex flex-col font-sans select-none relative overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f1a] text-slate-800 dark:text-zinc-100 flex flex-col font-sans select-none relative">
       {/* Ambient Glowing Blobs for Premium SaaS Aesthetic */}
       <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-500/15 dark:bg-indigo-500/10 blur-[120px] pointer-events-none z-0 animate-ambient-float-1" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/15 dark:bg-teal-500/10 blur-[130px] pointer-events-none z-0 animate-ambient-float-2" />

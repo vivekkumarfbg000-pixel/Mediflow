@@ -566,7 +566,7 @@ export const LabDashboard: React.FC = () => {
      RENDER
   ══════════════════════════════════════════════════════════════ */
   return (
-    <div className="max-w-7xl mx-auto p-4 pb-32 md:pb-12 md:p-6 space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-32 md:pb-12 space-y-6 animate-fade-in">
       {viewingDocUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-800/80 backdrop-blur-md">
           <div className="bg-white rounded-2xl w-full max-w-2xl p-6 border border-slate-200 shadow-2xl relative">
