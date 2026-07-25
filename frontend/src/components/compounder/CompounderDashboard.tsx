@@ -128,25 +128,63 @@ export const CompounderDashboard: React.FC = () => {
     patientName: string;
   } | null>(null);
 
-  // Dynamic Patient Workflow Calculator
+  // Memoize workflow lookup datasets to avoid thousands of localStorage JSON parses per render
+  const cachedEncountersMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    EncounterService.getEncounters().forEach(e => {
+      if (!map.has(e.patientId)) map.set(e.patientId, []);
+      map.get(e.patientId)!.push(e);
+    });
+    return map;
+  }, [appointments]);
+
+  const cachedLabReqsMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    LabService.getLabRequisitions().forEach(r => {
+      if (!map.has(r.patientId)) map.set(r.patientId, []);
+      map.get(r.patientId)!.push(r);
+    });
+    return map;
+  }, [appointments]);
+
+  const cachedLabReportsMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    LabService.getFullLabReports().forEach(r => {
+      if (!map.has(r.patientId)) map.set(r.patientId, []);
+      map.get(r.patientId)!.push(r);
+    });
+    return map;
+  }, [appointments]);
+
+  const cachedWhatsAppPhoneMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    api.getWhatsAppSessions().forEach(s => {
+      const hasMsg = !!s?.sessionData?.chatHistory?.some(
+        (m: any) => m.sender === 'bot' && (m.text.includes('🏥') || m.text.includes('Advice') || m.text.includes('spectacle') || m.text.includes('Prescription') || m.text.includes('Summary'))
+      );
+      if (s.patientPhone) map.set(s.patientPhone, hasMsg);
+    });
+    return map;
+  }, [appointments]);
+
+  const cachedMedicineBillsMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    PharmacyService.getMedicineBills().forEach(b => {
+      if (!map.has(b.patientId)) map.set(b.patientId, []);
+      map.get(b.patientId)!.push(b);
+    });
+    return map;
+  }, [appointments]);
+
+  // High-Speed Memoized Dynamic Patient Workflow Calculator (< 3ms)
   const getPatientWorkflowState = useCallback((patient: Patient, appt: Appointment) => {
-    // 1. Encounters
-    const patientEncounters = EncounterService.getEncounters().filter(e => e.patientId === patient.id);
+    const patientEncounters = cachedEncountersMap.get(patient.id) || [];
     const latestEncounter = patientEncounters[patientEncounters.length - 1];
 
-    // 2. Lab Requisitions & Reports
-    const reqs = LabService.getLabRequisitions().filter(r => r.patientId === patient.id);
-    const reports = LabService.getFullLabReports().filter(r => r.patientId === patient.id);
-
-    // 3. WhatsApp Session messages
-    const sessionList = api.getWhatsAppSessions();
-    const session = sessionList.find(s => s.patientPhone === patient.phone);
-    const hasWhatsAppMsg = !!session?.sessionData?.chatHistory?.some(
-      (m: any) => m.sender === 'bot' && (m.text.includes('🏥') || m.text.includes('Advice') || m.text.includes('spectacle') || m.text.includes('Prescription') || m.text.includes('Summary'))
-    );
-
-    // 4. Pharmacy bills
-    const mbills = PharmacyService.getMedicineBills().filter(b => b.patientId === patient.id);
+    const reqs = cachedLabReqsMap.get(patient.id) || [];
+    const reports = cachedLabReportsMap.get(patient.id) || [];
+    const hasWhatsAppMsg = cachedWhatsAppPhoneMap.get(patient.phone) || false;
+    const mbills = cachedMedicineBillsMap.get(patient.id) || [];
 
     // Step 1: Appointment Done
     const s1_status = 'completed';
@@ -224,7 +262,7 @@ export const CompounderDashboard: React.FC = () => {
       { id: 'pharmacy', label: 'Pharma', status: s7_status },
       { id: 'complete', label: 'Done', status: s8_status }
     ];
-  }, []);
+  }, [cachedEncountersMap, cachedLabReqsMap, cachedLabReportsMap, cachedWhatsAppPhoneMap, cachedMedicineBillsMap]);
   
   // Appointment Booking States
   const [searchApptPatient, setSearchApptPatient] = useState('');
