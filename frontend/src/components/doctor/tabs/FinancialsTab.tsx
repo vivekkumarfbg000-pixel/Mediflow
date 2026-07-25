@@ -187,7 +187,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       });
   }, [activePod?.id, supabaseClient]);
 
-  const activeSop = api.getActiveSop();
+  const activeSop = BillingService.getActiveSop();
   const docLabSplit = activeSop?.extractedConfig?.splits?.doctor ?? 40;
   const docMedSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
 
