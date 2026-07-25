@@ -3558,7 +3558,7 @@ export const CompounderDashboard: React.FC = () => {
       </div>
 
       {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Compounder Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-40 after:bg-white dark:after:bg-[#0b0f19]">
         <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'patients', label: 'Patients', icon: Users },
