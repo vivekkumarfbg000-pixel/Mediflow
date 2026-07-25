@@ -22,6 +22,16 @@ export class BillingService {
     return invoices;
   }
 
+  static saveFinancialLedgers(entries: FinancialLedgerEntry[]): void {
+    save('financial_ledgers', entries);
+    notify('financial_ledgers');
+  }
+
+  static saveAppointments(appointments: Appointment[]): void {
+    save('saas_appointments', appointments);
+    notify('saas_appointments');
+  }
+
   static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): void {
     const invoices = this.getUnifiedInvoices();
     const idx = invoices.findIndex(i => i.id === invoiceId);

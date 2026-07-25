@@ -438,7 +438,107 @@ export const DoctorDashboard: React.FC = () => {
       setFinancialLedgers(api.getFinancialLedgers());
       setWhatsAppSessions(api.getWhatsAppSessions());
 
-      // Fetch live whatsapp_sessions from Supabase Cloud DB
+      // 1. Fetch live appointments from Supabase Cloud DB
+      supabase
+        .from('appointments')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            const dbAppts: Appointment[] = data.map((a: any) => ({
+              id: a.id,
+              patientId: a.patient_id,
+              patient_id: a.patient_id,
+              patientName: a.patient_name || 'Patient',
+              patient_name: a.patient_name || 'Patient',
+              doctorId: a.doctor_id,
+              doctor_id: a.doctor_id,
+              status: a.status,
+              createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
+              is_virtual: a.is_virtual,
+              isVirtual: a.is_virtual,
+              virtualDate: a.virtual_date,
+              virtual_date: a.virtual_date,
+              virtualTime: a.virtual_time,
+              virtual_time: a.virtual_time,
+              virtual_meeting_url: a.virtual_meeting_url,
+              source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
+            } as any));
+
+            const localAppts = api.getAppointments();
+            const mergedMap = new Map();
+            localAppts.forEach(la => mergedMap.set(la.id, la));
+            dbAppts.forEach(da => mergedMap.set(da.id, da));
+            const finalAppts = Array.from(mergedMap.values());
+            BillingService.saveAppointments(finalAppts);
+            setAppointments(finalAppts);
+          }
+        });
+
+      // 2. Fetch live financial_ledgers from Supabase Cloud DB
+      supabase
+        .from('financial_ledgers')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            const dbLedgers: FinancialLedgerEntry[] = data.map((fl: any) => ({
+              id: fl.id,
+              invoiceId: fl.invoice_id,
+              appointmentId: fl.appointment_id,
+              patientId: fl.patient_id,
+              doctorId: fl.doctor_id,
+              entryType: fl.entry_type || 'appointment_fee',
+              grossAmount: fl.gross_amount || 500,
+              commissionRate: fl.commission_rate || 0,
+              platformFee: fl.platform_fee || 0,
+              netDoctorPayout: fl.net_doctor_payout || 500,
+              settlementStatus: fl.settlement_status || 'pending_payout',
+              paymentMethod: fl.payment_method || 'upi',
+              patientName: fl.patient_name || 'Patient',
+              createdAt: fl.created_at || new Date().toISOString()
+            } as any));
+
+            const localLedgers = api.getFinancialLedgers();
+            const mergedMap = new Map();
+            localLedgers.forEach(ll => mergedMap.set(ll.id, ll));
+            dbLedgers.forEach(dl => mergedMap.set(dl.id, dl));
+            const finalLedgers = Array.from(mergedMap.values());
+            BillingService.saveFinancialLedgers(finalLedgers);
+            setFinancialLedgers(finalLedgers);
+          }
+        });
+
+      // 3. Fetch live patient_registry from Supabase Cloud DB
+      supabase
+        .from('patient_registry')
+        .select('*')
+        .order('registered_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            const dbPatients: Patient[] = data.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              phone: p.phone,
+              age: String(p.age || 30),
+              gender: p.gender || 'Male',
+              referral_code: p.referral_code,
+              allergies: [],
+              chronicConditions: [],
+              createdAt: p.registered_at || new Date().toISOString()
+            } as any));
+
+            const localPatients = api.getPatients();
+            const mergedMap = new Map();
+            localPatients.forEach(lp => mergedMap.set(lp.id, lp));
+            dbPatients.forEach(dp => mergedMap.set(dp.id, dp));
+            const finalPatients = Array.from(mergedMap.values());
+            api.savePatients(finalPatients);
+            setPatients(finalPatients);
+          }
+        });
+
+      // 4. Fetch live whatsapp_sessions from Supabase Cloud DB
       supabase
         .from('whatsapp_sessions')
         .select('*')

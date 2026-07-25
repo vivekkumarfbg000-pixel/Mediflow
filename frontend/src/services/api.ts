@@ -1505,6 +1505,16 @@ class MediflowApiService {
     return BillingService.getAppointments();
   }
 
+  saveAppointments(appointments: Appointment[]): void {
+    BillingService.saveAppointments(appointments);
+    this.notify();
+  }
+
+  saveFinancialLedgers(entries: FinancialLedgerEntry[]): void {
+    BillingService.saveFinancialLedgers(entries);
+    this.notify();
+  }
+
   saveAppointment(appt: Appointment): void {
     BillingService.saveAppointment(appt);
     this.notify();
