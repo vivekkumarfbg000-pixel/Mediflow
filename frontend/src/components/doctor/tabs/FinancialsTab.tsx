@@ -191,10 +191,45 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   const docLabSplit = activeSop?.extractedConfig?.splits?.doctor ?? 40;
   const docMedSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
 
-  const filteredLedgers = financialLedgers.filter(entry =>
-    entry.invoiceId.toLowerCase().includes(financialSearch.toLowerCase()) ||
-    entry.transactionType.toLowerCase().includes(financialSearch.toLowerCase())
-  );
+  const invoices = useMemo(() => BillingService.getUnifiedInvoices(), [financialLedgers]);
+  const patients = useMemo(() => BillingService.getPatients(), [financialLedgers]);
+  const appointments = useMemo(() => BillingService.getAppointments(), [financialLedgers]);
+
+  const getPatientName = useCallback((entry: FinancialLedgerEntry) => {
+    const inv = invoices.find(i => i.id === entry.invoiceId || i.encounterId === entry.invoiceId);
+    const appt = appointments.find(a => a.id === entry.invoiceId || (inv && a.id === inv.encounterId));
+    const patientId = inv?.patientId || appt?.patientId;
+    if (patientId) {
+      const p = patients.find(patient => patient.id === patientId);
+      if (p && p.name) return p.name;
+    }
+    return `Patient #${entry.invoiceId.substring(0, 6).toUpperCase()}`;
+  }, [invoices, appointments, patients]);
+
+  const getPaymentModeLabel = useCallback((entry: FinancialLedgerEntry) => {
+    const inv = invoices.find(i => i.id === entry.invoiceId || i.encounterId === entry.invoiceId);
+    const appt = appointments.find(a => a.id === entry.invoiceId || (inv && a.id === inv.encounterId));
+    
+    if (inv?.paymentMethod === 'cash' || (appt as any)?.payment_method === 'cash') {
+      return 'Cash Counter 💵';
+    }
+    if ((inv as any)?.source === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual) {
+      return 'WhatsApp UPI 💬';
+    }
+    return 'UPI / QR Code 📱';
+  }, [invoices, appointments]);
+
+  const filteredLedgers = financialLedgers.filter(entry => {
+    const pName = getPatientName(entry).toLowerCase();
+    const pMode = getPaymentModeLabel(entry).toLowerCase();
+    const query = financialSearch.toLowerCase();
+    return (
+      pName.includes(query) ||
+      pMode.includes(query) ||
+      entry.invoiceId.toLowerCase().includes(query) ||
+      entry.transactionType.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="space-y-6 text-slate-800 animate-fade-in text-left">
@@ -445,7 +480,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 <circle cx="260" cy="95" r="16" fill="#e6f6f4" stroke="#0d9488" strokeWidth="2.5" />
                 <text x="260" y="99" textAnchor="middle" className="text-[9px] font-extrabold fill-teal-600 font-sans" stroke="none">RX</text>
                 <text x="284" y="93" className="text-[9px] font-extrabold fill-slate-700 font-sans" stroke="none">Pharmacy</text>
-                <text x="284" y="103" className="text-[8px] font-mono fill-teal-600 font-bold" stroke="none">₹{pharmacyComm.toLocaleString()} (10%)</text>
+                <text x="284" y="103" className="text-[8px] font-mono fill-teal-600 font-bold" stroke="none">₹{pharmacyComm.toLocaleString()} ({docMedSplit}%)</text>
               </g>
 
               {/* Lab Node */}
@@ -453,7 +488,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 <circle cx="260" cy="150" r="16" fill="#fffbeb" stroke="#d97706" strokeWidth="2.5" />
                 <text x="260" y="154" textAnchor="middle" className="text-[8px] font-extrabold fill-amber-600 font-sans" stroke="none">LAB</text>
                 <text x="284" y="148" className="text-[9px] font-extrabold fill-slate-700 font-sans" stroke="none">Pathology</text>
-                <text x="284" y="158" className="text-[8px] font-mono fill-amber-600 font-bold" stroke="none">₹{labComm.toLocaleString()} (15%)</text>
+                <text x="284" y="158" className="text-[8px] font-mono fill-amber-600 font-bold" stroke="none">₹{labComm.toLocaleString()} ({docLabSplit}%)</text>
               </g>
 
               {/* Platform Cut Node */}
@@ -461,7 +496,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 <circle cx="260" cy="205" r="16" fill="#eef2ff" stroke="#4f46e5" strokeWidth="2.5" />
                 <text x="260" y="209" textAnchor="middle" className="text-[9px] font-extrabold fill-indigo-600 font-sans" stroke="none">MF</text>
                 <text x="284" y="203" className="text-[9px] font-extrabold fill-slate-700 font-sans" stroke="none">Platform Fee</text>
-                <text x="284" y="213" className="text-[8px] font-mono fill-indigo-600 font-bold" stroke="none">₹{(financialLedgers.filter(e => e.transactionType === 'platform_fee').reduce((acc, e) => acc + e.netPayout, 0)).toLocaleString()} (INR 9)</text>
+                <text x="284" y="213" className="text-[8px] font-mono fill-indigo-600 font-bold" stroke="none">₹{poolStats.totalCashCommissionOwed.toLocaleString()} (3% Engine)</text>
               </g>
             </svg>
           </div>
@@ -471,11 +506,11 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       {/* Financial ledger logs table */}
       <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h2 className="text-sm font-bold text-slate-800">Sales Mappings & Transaction Ledger</h2>
+          <h2 className="text-sm font-bold text-slate-800">Sales Mappings &amp; Transaction Ledger</h2>
           <div className="relative w-full md:w-72">
             <input
               type="text"
-              placeholder="Search ledger by Invoice ID..."
+              placeholder="Search by Patient Name, Payment Mode..."
               value={financialSearch}
               onChange={e => setFinancialSearch(e.target.value)}
               className="w-full input-field py-1.5 pl-9 text-xs"
@@ -488,8 +523,8 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-100 font-bold uppercase tracking-wider text-[9px]">
               <tr>
-                <th className="p-3.5">Transaction ID</th>
-                <th className="p-3.5">Invoice ID</th>
+                <th className="p-3.5">Patient Name / Customer</th>
+                <th className="p-3.5">Payment Mode / Channel</th>
                 <th className="p-3.5">Type</th>
                 <th className="p-3.5 text-right">Gross Amount</th>
                 <th className="p-3.5 text-center">Comm. Rate</th>
@@ -500,8 +535,8 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
             <tbody className="divide-y divide-slate-100 bg-white">
               {filteredLedgers.length > 0 ? filteredLedgers.map(entry => (
                 <tr key={entry.id} className="hover:bg-slate-55/50 transition-colors">
-                  <td className="p-3.5 font-mono text-slate-600 text-[10px] font-bold">{entry.id}</td>
-                  <td className="p-3.5 font-mono text-slate-600 text-[9px]">{entry.invoiceId}</td>
+                  <td className="p-3.5 font-sans font-bold text-slate-900 text-xs">{getPatientName(entry)}</td>
+                  <td className="p-3.5 font-mono text-slate-700 text-[11px] font-semibold">{getPaymentModeLabel(entry)}</td>
                   <td className="p-3.5">
                     <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider font-mono ${
                       entry.transactionType === 'appointment_fee'
