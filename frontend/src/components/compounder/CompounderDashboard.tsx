@@ -122,11 +122,10 @@ export const CompounderDashboard: React.FC = () => {
   const [customToken, setCustomToken] = useState('');
   
   // Interactive Workflow Modal State
-  const [activeWorkflowDetail, setActiveWorkflowDetail] = useState<{
-    type: 'prescription' | 'lab' | 'summary';
-    patientId: string;
-    patientName: string;
-  } | null>(null);
+  // Registry state
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
 
   // Memoize workflow lookup datasets to avoid thousands of localStorage JSON parses per render
   const cachedEncountersMap = useMemo(() => {
@@ -272,11 +271,6 @@ export const CompounderDashboard: React.FC = () => {
   // Vernacular Dosage Assistant States
   const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');
   const [dosageTemplate, setDosageTemplate] = useState<'od' | 'bd' | 'tds' | 'sos'>('od');
-
-  // Registry Registry state
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
 
   const fetchLiveAppointments = useCallback(async () => {
     try {
