@@ -7,7 +7,19 @@ import { getPodContext } from './podContext';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
-    return load<UnifiedInvoice[]>('unified_invoices', []);
+    const invoices = load<UnifiedInvoice[]>('unified_invoices', []);
+    let modified = false;
+    invoices.forEach(i => {
+      if (i.doctorFee === 450) {
+        i.doctorFee = 500;
+        i.totalAmount = (i.doctorFee || 500) + (i.labFee || 0) + (i.pharmacyFee || 0);
+        modified = true;
+      }
+    });
+    if (modified) {
+      save('unified_invoices', invoices);
+    }
+    return invoices;
   }
 
   static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): void {
@@ -130,6 +142,17 @@ export class BillingService {
 
   static getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
     const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    let modified = false;
+    ledgers.forEach(l => {
+      if (l.transactionType === 'appointment_fee' && (l.grossAmount === 450 || l.netPayout === 450)) {
+        l.grossAmount = 500;
+        l.netPayout = 500;
+        modified = true;
+      }
+    });
+    if (modified) {
+      save('financial_ledgers', ledgers);
+    }
     if (invoiceId) {
       return ledgers.filter(l => l.invoiceId === invoiceId);
     }
@@ -898,9 +921,9 @@ export class BillingService {
       id: 'sop-standard-1',
       entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
       sopFileName: 'Kankarbagh_Clinic_Standard_SOP.txt',
-      sopText: 'Doctor consultation fee: INR 450. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 3% Platform, 57% Lab.',
+      sopText: 'Doctor consultation fee: INR 500. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 3% Platform, 57% Lab.',
       extractedConfig: {
-        doctor_fee: 450,
+        doctor_fee: 500,
         test_prices: { '4544-3': 350, '2160-0': 250, '3024-7': 150, '2947-0': 200, '1975-2': 300 },
         splits: { doctor: 40, platform: 3, lab: 57 },
         guidelines: [
@@ -913,7 +936,19 @@ export class BillingService {
       isActive: true,
       createdAt: new Date().toISOString()
     };
-    return load<ClinicSop[]>('clinic_sops', [defaultSop]);
+    const sops = load<ClinicSop[]>('clinic_sops', [defaultSop]);
+    let modified = false;
+    sops.forEach(s => {
+      if (s.extractedConfig && s.extractedConfig.doctor_fee === 450) {
+        s.extractedConfig.doctor_fee = 500;
+        s.sopText = s.sopText?.replace(/450/g, '500');
+        modified = true;
+      }
+    });
+    if (modified) {
+      save('clinic_sops', sops);
+    }
+    return sops;
   }
 
   static saveClinicSops(sops: ClinicSop[]) {
