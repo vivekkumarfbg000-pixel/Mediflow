@@ -1418,8 +1418,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           </div>
         </div>
 
-        {/* ── Urgent WhatsApp Support Escalation Tickets Banner ────────────────── */}
-        <div className="p-5 bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-indigo-500/10 border border-rose-300 rounded-3xl space-y-3 animate-fade-in text-slate-800 mb-6">
+        {/* ── Urgent WhatsApp Support Escalation Tickets Banner (Shows on mobile only in Health tab) ────────────────── */}
+        <div className={`p-5 bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-indigo-500/10 border border-rose-300 rounded-3xl space-y-3 animate-fade-in text-slate-800 mb-6 ${activeTab === 'saas_health' ? 'block' : 'hidden lg:block'}`}>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
               <ShieldAlert className="h-5 w-5 text-rose-600 shrink-0" />
@@ -2231,47 +2231,86 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                       <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
                     </div>
                   ) : failedSettlements.length > 0 ? (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
-                      <table className="w-full text-left text-[11px] font-medium text-slate-655">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
-                            <th className="p-2.5 pl-3">Source Clinic</th>
-                            <th className="p-2.5">Destination Partner</th>
-                            <th className="p-2.5">Type</th>
-                            <th className="p-2.5">Gross (₹)</th>
-                            <th className="p-2.5">Net (₹)</th>
-                            <th className="p-2.5">Fail Time</th>
-                            <th className="p-2.5 pr-3 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {failedSettlements.map(ledger => (
-                            <tr key={ledger.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                              <td className="p-2.5 pl-3 font-bold text-slate-750">{ledger.source_entity_name}</td>
-                              <td className="p-2.5 font-bold text-slate-700">{ledger.destination_entity_name}</td>
-                              <td className="p-2.5 font-mono text-slate-500">{ledger.transaction_type}</td>
-                              <td className="p-2.5 text-slate-800 font-bold">{Number(ledger.gross_amount).toFixed(2)}</td>
-                              <td className="p-2.5 text-rose-600 font-extrabold">{Number(ledger.net_payout).toFixed(2)}</td>
-                              <td className="p-2.5 text-slate-400 font-mono">{new Date(ledger.created_at).toLocaleString()}</td>
-                              <td className="p-2.5 pr-3 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => handleForceRetrySplit(ledger.id)}
-                                  disabled={retryingId === ledger.id}
-                                  className="h-7 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-1 inline-flex"
-                                >
-                                  {retryingId === ledger.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    'Force Retry'
-                                  )}
-                                </button>
-                              </td>
+                    <>
+                      {/* Mobile App Cards View for Failed Split Settlements */}
+                      <div className="block md:hidden space-y-2.5">
+                        {failedSettlements.map(ledger => (
+                          <div key={ledger.id} className="p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-2 text-left">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-extrabold text-xs text-slate-800">{ledger.source_entity_name}</div>
+                                <div className="text-[9.5px] text-slate-500 font-medium mt-0.5">➡️ {ledger.destination_entity_name}</div>
+                              </div>
+                              <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 bg-slate-200 rounded text-slate-700">{ledger.transaction_type}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] p-2 bg-white rounded-lg border border-slate-200/50">
+                              <div>
+                                <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Gross</span>
+                                <span className="font-mono font-bold text-slate-700">₹{Number(ledger.gross_amount).toFixed(2)}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Net Payout</span>
+                                <span className="font-mono font-extrabold text-rose-600">₹{Number(ledger.net_payout).toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 pt-1">
+                              <span className="text-[9px] font-mono text-slate-400">{new Date(ledger.created_at).toLocaleTimeString()}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleForceRetrySplit(ledger.id)}
+                                disabled={retryingId === ledger.id}
+                                className="h-7 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-lg text-[9.5px] font-extrabold uppercase transition-all"
+                              >
+                                {retryingId === ledger.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Force Retry'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop Table View for Failed Settlements */}
+                      <div className="hidden md:block border border-slate-100 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
+                        <table className="w-full text-left text-[11px] font-medium text-slate-655">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
+                              <th className="p-2.5 pl-3">Source Clinic</th>
+                              <th className="p-2.5">Destination Partner</th>
+                              <th className="p-2.5">Type</th>
+                              <th className="p-2.5">Gross (₹)</th>
+                              <th className="p-2.5">Net (₹)</th>
+                              <th className="p-2.5">Fail Time</th>
+                              <th className="p-2.5 pr-3 text-right">Actions</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {failedSettlements.map(ledger => (
+                              <tr key={ledger.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                <td className="p-2.5 pl-3 font-bold text-slate-750">{ledger.source_entity_name}</td>
+                                <td className="p-2.5 font-bold text-slate-700">{ledger.destination_entity_name}</td>
+                                <td className="p-2.5 font-mono text-slate-500">{ledger.transaction_type}</td>
+                                <td className="p-2.5 text-slate-800 font-bold">{Number(ledger.gross_amount).toFixed(2)}</td>
+                                <td className="p-2.5 text-rose-600 font-extrabold">{Number(ledger.net_payout).toFixed(2)}</td>
+                                <td className="p-2.5 text-slate-400 font-mono">{new Date(ledger.created_at).toLocaleString()}</td>
+                                <td className="p-2.5 pr-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleForceRetrySplit(ledger.id)}
+                                    disabled={retryingId === ledger.id}
+                                    className="h-7 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-1 inline-flex"
+                                  >
+                                    {retryingId === ledger.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      'Force Retry'
+                                    )}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   ) : (
                     <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[11px] font-semibold">
                       🎉 Operations cleared. No failed settlements found in payment split retry ledger.
@@ -2314,20 +2353,20 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                   {[
                     { label: 'WhatsApp Msg count', value: costStats.waba_msgs_sent, desc: 'Outbound templates sent', icon: MessageSquare, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-                    { label: 'WABA message costs', value: `₹${parseFloat(costStats.waba_cost.toString()).toFixed(2)}`, desc: 'Meta conversation usage fees', icon: Coins, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+                    { label: 'WABA message costs', value: `₹${parseFloat(costStats.waba_cost.toString()).toFixed(2)}`, desc: 'Meta conversation fees', icon: Coins, color: 'text-rose-600 bg-rose-50 border-rose-100' },
                     { label: 'AI Summaries run', value: costStats.ai_tasks_run, desc: 'Agent Scribe completions', icon: Cpu, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
-                    { label: 'Est. OpenAI/LLM cost', value: `₹${parseFloat(costStats.ai_cost.toString()).toFixed(2)}`, desc: '₹0.50 per clinical script execution', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                    { label: 'Est. OpenAI/LLM cost', value: `₹${parseFloat(costStats.ai_cost.toString()).toFixed(2)}`, desc: '₹0.50 per clinical execution', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
                   ].map(stat => {
                     const Icon = stat.icon;
                     return (
-                      <div key={stat.label} className={`p-4 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
+                      <div key={stat.label} className={`p-3.5 sm:p-4 rounded-2xl border ${stat.color} flex flex-col justify-between`}>
                         <div className="flex justify-between items-center">
                           <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 leading-none">{stat.label}</span>
-                          <Icon className="h-4.5 w-4.5 shrink-0" />
+                          <Icon className="h-4 w-4 shrink-0" />
                         </div>
-                        <div className="mt-4">
-                          <h4 className="text-xl font-black text-slate-850 leading-none">{stat.value}</h4>
-                          <p className="text-[9px] text-slate-500 mt-1 leading-none">{stat.desc}</p>
+                        <div className="mt-3">
+                          <h4 className="text-lg sm:text-xl font-black text-slate-850 leading-none">{stat.value}</h4>
+                          <p className="text-[8.5px] sm:text-[9px] text-slate-500 mt-1 leading-none">{stat.desc}</p>
                         </div>
                       </div>
                     );
@@ -2335,16 +2374,92 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 </div>
 
                 {/* Clinic Daily Spending cap controller */}
-                <div className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
+                <div className="p-4 sm:p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
                   <div className="flex items-center gap-2">
-                    <Sliders className="h-5 w-5 text-indigo-600" />
+                    <Sliders className="h-5 w-5 text-indigo-600 shrink-0" />
                     <div>
                       <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">Cost Guard: Clinic Spending Threshold Controller</h4>
                       <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">Enforce hard spending budget ceilings (AI processing + WhatsApp logs billing) dynamically per-clinic pod.</p>
                     </div>
                   </div>
 
-                  <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
+                  {/* Mobile App Cards View for Cost Guard (Mobile Screens) */}
+                  <div className="block md:hidden space-y-3">
+                    {podsList.map(pod => {
+                      const budget = pod.daily_cost_budget ?? 500.00;
+                      const pct = Math.min((pod.daily_spend / budget) * 100, 100);
+                      const inputVal = budgetInputs[pod.id] || '';
+                      
+                      return (
+                        <div key={pod.id} className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-3 shadow-2xs text-left">
+                          <div className="flex justify-between items-start gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono text-xs font-black text-indigo-600">{pod.clinic_code}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wider ${
+                                  pct >= 100 
+                                    ? 'bg-rose-100 text-rose-700' 
+                                    : pct >= 85 
+                                      ? 'bg-amber-100 text-amber-700' 
+                                      : 'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                  {pct >= 100 ? 'Paused (Cap)' : pct >= 85 ? 'Gemini Flash' : 'Gemini Pro'}
+                                </span>
+                              </div>
+                              <h5 className="font-extrabold text-xs text-slate-850 mt-1">{pod.name}</h5>
+                            </div>
+                            <span className="font-mono text-xs font-black text-emerald-600">
+                              ₹{Number(pod.daily_spend).toFixed(2)}
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 bg-white rounded-xl border border-slate-200/60 space-y-1.5">
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-slate-500 font-bold uppercase text-[9px]">Daily Budget Usage</span>
+                              <span className="font-mono font-bold text-slate-700">{pct.toFixed(0)}%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    pct >= 90 ? 'bg-rose-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                                  }`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">Cap (₹):</span>
+                              <input
+                                type="text"
+                                value={inputVal}
+                                onChange={(e) => setBudgetInputs(prev => ({ ...prev, [pod.id]: e.target.value }))}
+                                className="w-20 px-2 py-1 bg-white border border-slate-200 focus:border-indigo-500 outline-none rounded-lg text-center text-xs font-mono font-bold"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdatePodBudget(pod.id)}
+                              disabled={updatingBudgetPodId === pod.id}
+                              className="h-8 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10.5px] font-extrabold uppercase cursor-pointer transition-all disabled:opacity-50"
+                            >
+                              {updatingBudgetPodId === pod.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                'Save Cap'
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table View for Cost Guard */}
+                  <div className="hidden md:block border border-slate-100 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
                     <table className="w-full text-left text-[11px] font-medium text-slate-650">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
