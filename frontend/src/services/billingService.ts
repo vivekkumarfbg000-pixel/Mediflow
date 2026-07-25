@@ -143,19 +143,29 @@ export class BillingService {
   static getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
     const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     let modified = false;
-    const sampleNames = ['Aarav Sharma', 'Rahul Kumar', 'Priya Singh', 'Amit Verma'];
-    const sampleMethods = ['upi', 'cash', 'whatsapp', 'cash'];
+    const sampleNames = ['Aarav Sharma', 'Rahul Kumar', 'Priya Singh', 'Amit Verma', 'Vikram Prasad'];
+    const sampleMethods = ['upi', 'cash', 'whatsapp', 'cash', 'cash'];
 
-    ledgers.forEach((l, idx) => {
-      if (l.transactionType === 'appointment_fee' && (l.grossAmount === 450 || l.netPayout === 450)) {
-        l.grossAmount = 500;
-        l.netPayout = 500;
+    // Filter out any platform_fee entries generated for consultation appointments
+    const filteredLedgers = ledgers.filter(l => {
+      if (l.transactionType === 'platform_fee' && (l.grossAmount === 500 || l.grossAmount === 450 || l.netPayout < 50)) {
         modified = true;
+        return false;
       }
-      if (l.transactionType === 'platform_fee' && (l.netPayout > 200 || l.grossAmount > 5000)) {
-        l.netPayout = parseFloat((l.grossAmount * 0.03).toFixed(2));
-        l.commissionRate = 0.03;
-        modified = true;
+      return true;
+    });
+
+    filteredLedgers.forEach((l, idx) => {
+      if (l.transactionType === 'appointment_fee') {
+        if (l.grossAmount === 450 || l.netPayout === 450) {
+          l.grossAmount = 500;
+          l.netPayout = 500;
+          modified = true;
+        }
+        if (l.commissionRate !== 0) {
+          l.commissionRate = 0;
+          modified = true;
+        }
       }
       if (!l.patientName) {
         l.patientName = sampleNames[idx % sampleNames.length];
@@ -166,13 +176,14 @@ export class BillingService {
         modified = true;
       }
     });
+
     if (modified) {
-      save('financial_ledgers', ledgers);
+      save('financial_ledgers', filteredLedgers);
     }
     if (invoiceId) {
-      return ledgers.filter(l => l.invoiceId === invoiceId);
+      return filteredLedgers.filter(l => l.invoiceId === invoiceId);
     }
-    return ledgers;
+    return filteredLedgers;
   }
 
   static getAppointments(): Appointment[] {
@@ -486,25 +497,7 @@ export class BillingService {
     const isCash = paymentMethod === 'cash';
 
     if (type === 'consult') {
-      const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
-      platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
       const docAmt = amount;
-
-      const platformLedger: FinancialLedgerEntry = {
-        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
-        invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'platform-admin-entity',
-        transactionType: 'platform_fee',
-        grossAmount: amount,
-        commissionRate: splitPlat / 100,
-        netPayout: platformAmt,
-        paymentStatus: 'cleared',
-        settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        patientName: resolvedPatientName,
-        paymentMethod
-      };
 
       const docLedger: FinancialLedgerEntry = {
         id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
@@ -513,7 +506,7 @@ export class BillingService {
         destinationEntityId: 'clinic-admin-entity',
         transactionType: 'appointment_fee',
         grossAmount: amount,
-        commissionRate: 1 - splitPlat / 100,
+        commissionRate: 0,
         netPayout: docAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
@@ -521,7 +514,7 @@ export class BillingService {
         patientName: resolvedPatientName,
         paymentMethod
       };
-      listToSave.push(platformLedger, docLedger);
+      listToSave.push(docLedger);
     } else if (type === 'lab') {
       const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
       platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
