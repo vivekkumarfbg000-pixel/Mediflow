@@ -149,6 +149,11 @@ export class BillingService {
         l.netPayout = 500;
         modified = true;
       }
+      if (l.transactionType === 'platform_fee' && (l.netPayout > 200 || l.grossAmount > 5000)) {
+        l.netPayout = parseFloat((l.grossAmount * 0.03).toFixed(2));
+        l.commissionRate = 0.03;
+        modified = true;
+      }
     });
     if (modified) {
       save('financial_ledgers', ledgers);
@@ -1069,6 +1074,11 @@ export class BillingService {
         }
       }
     });
+
+    // If there are no lab or pharmacy sales recorded, accrued cash debt must be 0 (preventing legacy OPD debt leakage)
+    if (doctorLabReferralsEarned === 0 && doctorMedicineReferralsEarned === 0) {
+      totalCashCommissionOwed = 0;
+    }
 
     // Check manual settlement adjustments
     const settlements = load<any[]>('vitalsync_pool_settlements', []);
