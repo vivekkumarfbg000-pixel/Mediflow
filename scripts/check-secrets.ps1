@@ -24,10 +24,10 @@ foreach ($pattern in $leakPatterns) {
   }
 }
 
-# Verify .env files are not tracked
-$envFiles = git ls-files | Select-String -Pattern '^\.env|\/\.env'
+# Verify private .env files are not tracked (allow .env.example templates)
+$envFiles = git ls-files | Select-String -Pattern '^\.env|\/\.env' | Where-Object { $_ -notmatch '\.example$' }
 if ($envFiles) {
-  Write-Host "🚨 CRITICAL: .env file is tracked by git!" -ForegroundColor Red
+  Write-Host "🚨 CRITICAL: Real .env secret file is tracked by git!" -ForegroundColor Red
   Write-Host $envFiles -ForegroundColor Yellow
   $foundLeaks = $true
 }

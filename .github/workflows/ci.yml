@@ -45,13 +45,13 @@ jobs:
 
       - name: 🛑 Verify .env Files Are Not Tracked by Git
         run: |
-          ENV_FILES=$(git ls-files | grep -E '^\.env|\/\.env' || true)
+          ENV_FILES=$(git ls-files | grep -E '^\.env|\/\.env' | grep -v '\.example$' || true)
           if [ -n "$ENV_FILES" ]; then
-            echo "🚨 CRITICAL: .env file is tracked in git repository:"
+            echo "🚨 CRITICAL: Real .env secret file is tracked in git repository:"
             echo "$ENV_FILES"
             exit 1
           fi
-          echo "✅ Zero tracked .env files."
+          echo "✅ Zero tracked private .env secret files."
 
   # ─── Job 1: Frontend Quality Gate ────────────────────────────────────────────
   frontend-quality:
