@@ -247,11 +247,66 @@ export class StateHealingEngine {
     return healed;
   }
 
+  /** 💾 Phase 25: Storage Quota Auto-Compressor */
+  static compressStorageQuota(): boolean {
+    try {
+      let totalBytes = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          totalBytes += (localStorage.getItem(key) || '').length;
+        }
+      }
+      if (totalBytes > 3.5 * 1024 * 1024) {
+        console.warn('[Auto-Healer v6.0] Storage quota approaching capacity — pruning non-essential logs');
+        localStorage.removeItem('telemetry_mem_outbox');
+        localStorage.removeItem('wal_mem_outbox');
+        this.totalHealedCount++;
+        return true;
+      }
+    } catch (e) {
+      /* ignore quota check warning */
+    }
+    return false;
+  }
+
+  /** 💳 Phase 26: Cashfree Payment Gate Audit Sentinel */
+  static auditCashfreePaymentGate(): boolean {
+    let healed = false;
+    try {
+      const rawAppts = localStorage.getItem('saas_appointments');
+      if (rawAppts) {
+        const appts = JSON.parse(rawAppts);
+        if (Array.isArray(appts)) {
+          let modified = false;
+          const cleaned = appts.map((a: any) => {
+            if (a && a.paymentStatus === 'unpaid' && a.status === 'in_consultation') {
+              a.status = 'pending_payment';
+              modified = true;
+            }
+            return a;
+          });
+          if (modified) {
+            localStorage.setItem('saas_appointments', JSON.stringify(cleaned));
+            this.totalHealedCount++;
+            healed = true;
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      /* ignore cashfree gate audit notice */
+    }
+    return healed;
+  }
+
   /** 📊 Diagnostic Telemetry Audit Report */
   static getSelfHealingReport() {
     return {
       status: 'ACTIVE_24_7',
-      version: 'v5.0 Solo-Founder Autonomous Edition',
+      version: 'v6.0 God-Mode Sovereign Edition',
       totalHealedCount: this.totalHealedCount,
       sentinelOnline: true,
       lastAuditTimestamp: new Date().toISOString()
@@ -430,6 +485,8 @@ export class StateHealingEngine {
       try {
         this.autoHealStateCorruptions();
         this.reconcileFinancialLedgerSplits();
+        this.compressStorageQuota();
+        this.auditCashfreePaymentGate();
         await WabaTokenAutoHealer.auditAndHealWabaConnections();
         await WabaBotSelfUnstick.auditAndUnstickStaleSessions();
         await SoloFounderPodRejuvenator.reconcileUserPodAssociation();
