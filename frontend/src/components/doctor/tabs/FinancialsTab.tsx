@@ -23,7 +23,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   supabaseClient,
 }) => {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '6m' | '12m'>('6m');
-  const [, setSyncVersion] = useState(0);
+  const [syncVersion, setSyncVersion] = useState(0);
 
   useEffect(() => {
     const unsub = RealtimeSyncService.subscribeToLiveClinicUpdates({
