@@ -58,6 +58,20 @@ export const SystemHealthCockpit: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<SystemNode | null>(null);
   const [isTestingNode, setIsTestingNode] = useState(false);
   const [nodeTestOutput, setNodeTestOutput] = useState<string | null>(null);
+  const [founderAlerts, setFounderAlerts] = useState<any[]>([]);
+
+  const loadFounderAlerts = useCallback(() => {
+    try {
+      const raw = localStorage.getItem('founder_alerts');
+      if (raw) {
+        setFounderAlerts(JSON.parse(raw));
+      } else {
+        setFounderAlerts([]);
+      }
+    } catch {
+      setFounderAlerts([]);
+    }
+  }, []);
 
   const [nodes, setNodes] = useState<SystemNode[]>([
     { key: 'database',   label: 'Database Node',     icon: Database,     status: 'active' },
@@ -138,6 +152,9 @@ export const SystemHealthCockpit: React.FC = () => {
       )
       .subscribe();
 
+    // Initial load of founder alerts from localStorage
+    loadFounderAlerts();
+
     // Listen for auto-healing events from the agent
     const handleAutoHealed = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -155,15 +172,30 @@ export const SystemHealthCockpit: React.FC = () => {
       setHealthResults(results);
     };
 
+    // Listen for Founder HITL Alert events
+    const handleFounderAlertEvent = () => {
+      loadFounderAlerts();
+    };
+
     window.addEventListener('mediflow-auto-healed', handleAutoHealed);
     window.addEventListener('mediflow-health-update', handleHealthUpdate);
+    window.addEventListener('mediflow-founder-alert', handleFounderAlertEvent);
+    window.addEventListener('mediflow-spending-alert', handleFounderAlertEvent);
+    window.addEventListener('mediflow-rollback-signal', handleFounderAlertEvent);
+    window.addEventListener('mediflow-vitals-breach', handleFounderAlertEvent);
+    window.addEventListener('mediflow-memory-pressure', handleFounderAlertEvent);
 
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('mediflow-auto-healed', handleAutoHealed);
       window.removeEventListener('mediflow-health-update', handleHealthUpdate);
+      window.removeEventListener('mediflow-founder-alert', handleFounderAlertEvent);
+      window.removeEventListener('mediflow-spending-alert', handleFounderAlertEvent);
+      window.removeEventListener('mediflow-rollback-signal', handleFounderAlertEvent);
+      window.removeEventListener('mediflow-vitals-breach', handleFounderAlertEvent);
+      window.removeEventListener('mediflow-memory-pressure', handleFounderAlertEvent);
     };
-  }, [fetchTelemetryLogs, runHealthChecks]);
+  }, [fetchTelemetryLogs, runHealthChecks, loadFounderAlerts]);
 
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -276,6 +308,86 @@ export const SystemHealthCockpit: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* ── Founder HITL Escalation Command Card (Fires after 3 auto-heal failures) ─ */}
+        {founderAlerts.length > 0 && (
+          <div className="rounded-2xl border-2 border-rose-300 bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50 p-4 space-y-3 shadow-md animate-pulse">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                  <AlertTriangle className="h-5 w-5 animate-bounce" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-rose-900 flex items-center gap-2">
+                    🚨 Founder HITL Escalation Alert ({founderAlerts.length} Active Notice)
+                    <span className="rounded-full bg-rose-600 text-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
+                      Action Required
+                    </span>
+                  </h4>
+                  <p className="text-[10.5px] text-rose-700 font-medium">
+                    Auto-Healer exhausted 3 remediation attempts — escalated to founder dashboard for review
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem('founder_alerts');
+                  setFounderAlerts([]);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold transition-all cursor-pointer shadow-xs whitespace-nowrap"
+              >
+                Clear All Alerts
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {founderAlerts.map((alert, idx) => (
+                <div key={idx} className="p-3 rounded-xl bg-white/90 border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                        [{alert.subsystem || alert.type || 'SYSTEM'}]
+                      </span>
+                      <span className="text-xs font-extrabold text-slate-800">
+                        {alert.errorSummary || alert.message || 'Operational anomaly requires manual inspection'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono">
+                      Failed attempts: <span className="font-bold text-rose-600">{alert.attempts || alert.failedAttempts || 3}</span> • {alert.createdAt || alert.timestamp ? new Date(alert.createdAt || alert.timestamp).toLocaleTimeString() : 'Just now'}
+                    </div>
+                    {alert.actionRequired && (
+                      <div className="text-[10px] text-amber-700 font-semibold italic">
+                        👉 Recommended: {alert.actionRequired}
+                      </div>
+                    )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href="https://github.com/vivekkumarfbg000-pixel/Mediflow/pulls"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <Sparkles className="h-3 w-3 text-purple-600" />
+                      View AI PR Fix ➔
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = founderAlerts.filter((_, i) => i !== idx);
+                        localStorage.setItem('founder_alerts', JSON.stringify(updated));
+                        setFounderAlerts(updated);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 border border-slate-200 text-[10px] font-bold transition-all cursor-pointer"
+                    >
+                      ✓ Acknowledge & Resolve
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Summary Stats Row (Clickable Filters) ────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

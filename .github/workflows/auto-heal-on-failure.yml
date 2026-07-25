@@ -44,6 +44,16 @@ jobs:
                 \"pod_id\": \"github-actions\",
                 \"client_info\": { \"commit\": \"$COMMIT_SHA\", \"run_id\": \"$WORKFLOW_RUN_ID\" }
               }" || true
+
+            curl -s -X POST "$SUPABASE_URL/functions/v1/ai-code-patcher" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -d "{
+                \"error_summary\": \"CI/CD Workflow Build Failure on commit $COMMIT_SHA\",
+                \"error_stack\": \"Workflow run $WORKFLOW_RUN_ID failed during step execution\",
+                \"subsystem\": \"backend\",
+                \"github_repo\": \"$GITHUB_REPOSITORY\"
+              }" || true
           fi
 
       - name: 🛠️ Execute Automated Safe Remediations (Lockfile & Cache Refresh)
