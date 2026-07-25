@@ -237,7 +237,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Offline cash sales decrease pool debt (-3%). Online WhatsApp bookings offset &amp; refill balance (+).
+                Compounder OPD consults add ₹0 debt. 3% platform fee on cash Lab/Pharmacy sales accrues pool debt (-). Online WhatsApp bookings offset debt (+), keeping Total Doctor Earnings 100% intact.
               </p>
             </div>
           </div>

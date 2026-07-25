@@ -1025,12 +1025,13 @@ export class BillingService {
       if (inv.type === 'consult') {
         doctorConsultsEarned += amt;
         if (!isCash) {
-          totalOnlineOffsetReceived += amt; // Online consult receipt offsets cash debt
+          totalOnlineOffsetReceived += amt; // Online WhatsApp consult receipt offsets pool debt & refills pool
         }
+        // Compounder counter OPD consults add ZERO debt to commission pool
       } else if (inv.type === 'lab' || (inv as any).type === 'pathology') {
         const docFee = Math.round(amt * (labDoctorSplit / 100));
         doctorLabReferralsEarned += docFee;
-        const platFee = Math.round(amt * 0.03); // Fixed 3% VitalSync Commission
+        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee on lab sales
         if (isCash) {
           totalCashCommissionOwed += platFee;
         } else {
@@ -1039,11 +1040,37 @@ export class BillingService {
       } else if (inv.type === 'pharmacy' || (inv as any).type === 'medicine') {
         const docFee = Math.round(amt * (medDoctorSplit / 100));
         doctorMedicineReferralsEarned += docFee;
-        const platFee = Math.round(amt * 0.03); // Fixed 3% VitalSync Commission
+        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee on medicine sales
         if (isCash) {
           totalCashCommissionOwed += platFee;
         } else {
           totalOnlineOffsetReceived += (amt - platFee);
+        }
+      }
+    });
+
+    // Also process cleared Unified Invoices to ensure real-time consistency
+    const uInvoices = this.getUnifiedInvoices();
+    uInvoices.forEach(uInv => {
+      if (uInv.paymentStatus === 'cleared') {
+        const isCash = uInv.paymentMethod === 'cash';
+        if (uInv.doctorFee > 0 && paidInvoices.every(i => i.appointmentId !== uInv.encounterId)) {
+          doctorConsultsEarned += uInv.doctorFee;
+          if (!isCash) {
+            totalOnlineOffsetReceived += uInv.doctorFee;
+          }
+        }
+        if (uInv.labFee > 0) {
+          const platFee = Math.round(uInv.labFee * 0.03);
+          if (isCash) {
+            totalCashCommissionOwed += platFee;
+          }
+        }
+        if (uInv.pharmacyFee > 0) {
+          const platFee = Math.round(uInv.pharmacyFee * 0.03);
+          if (isCash) {
+            totalCashCommissionOwed += platFee;
+          }
         }
       }
     });
