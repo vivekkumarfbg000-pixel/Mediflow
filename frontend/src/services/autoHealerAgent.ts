@@ -175,7 +175,9 @@ export class StateHealingEngine {
               healed = true;
             }
           }
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore json parse error */
+        }
       }
 
       // 2. Heal saas_appointments partition
@@ -197,7 +199,9 @@ export class StateHealingEngine {
               healed = true;
             }
           }
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore json parse error */
+        }
       }
 
       // 3. Heal whatsapp_sessions partition
@@ -218,7 +222,9 @@ export class StateHealingEngine {
               healed = true;
             }
           }
-        } catch (_e) {}
+        } catch (_e) {
+          /* ignore json parse error */
+        }
       }
 
       if (healed && typeof window !== 'undefined') {
