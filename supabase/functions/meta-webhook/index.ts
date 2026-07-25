@@ -908,7 +908,7 @@ async function triggerBotReplyPipeline(ctx: {
       } else {
         // Default welcome menu response
         nextState = "AWAITING_CONFIRMATION";
-        replyText = "Namaste! 🙏 Welcome to VitalSync Healthcare.\n\n🌟 *MEDIFLOW PREMIUM MEMBER PERKS* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Deliveries\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Doctor Review Slot\n\nBatayein aaj hum aapki kis tarah help kar sakte hain?";
+        replyText = "Namaste! 🙏 Welcome to VitalSync Healthcare.\n\n🌟 *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Deliveries\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Doctor Review Slot\n\nBatayein aaj hum aapki kis tarah help kar sakte hain?";
       }
       break;
 
@@ -1542,6 +1542,30 @@ async function triggerBotReplyPipeline(ctx: {
             .update({ payment_status: "cleared" })
             .eq("id", invoiceId);
           if (invErr) console.error("[Meta Webhook] Failed to clear invoice:", invErr);
+
+          // Insert Financial Ledger Split for WhatsApp UPI Payment (0% Comm Rate, ₹500 Gross, 100% Doctor Payout)
+          try {
+            const ledgerId = `fl-${crypto.randomUUID()}`;
+            await supabase.from("financial_ledgers").insert({
+              id: ledgerId,
+              invoice_id: invoiceId,
+              appointment_id: apptId,
+              patient_id: sessionData.bookingPatientId || session.patient_id,
+              doctor_id: doctorId,
+              entry_type: "appointment_fee",
+              gross_amount: feeAmount,
+              commission_rate: 0,
+              platform_fee: 0,
+              net_doctor_payout: feeAmount,
+              settlement_status: "pending_payout",
+              payment_method: "upi",
+              patient_name: patient?.name || sessionData.patientName || "WhatsApp Patient",
+              pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
+              created_at: new Date().toISOString()
+            });
+          } catch (ledgErr) {
+            console.error("[Meta Webhook] Failed to insert financial ledger split:", ledgErr);
+          }
         }
         
         if (apptId) {
@@ -1564,9 +1588,9 @@ async function triggerBotReplyPipeline(ctx: {
         if (isSosBooking) {
           replyText = `🚨 *EMERGENCY SOS CONFIRMED & PAID* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00 (₹600 Doctor Priority Consult + ₹18 Platform Fee)\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Time waste na karein aur desk se contact karein. Dhanyawad! 🙏`;
         } else if (isVirtualSlot) {
-          replyText = `🎉 *PAYMENT CONFIRMED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\n🌟 *VITALSENC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare partner lab & pharmacy counter par billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nThank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *PAYMENT CONFIRMED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\n🌟 *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare partner lab & pharmacy counter par billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nThank you for choosing VitalSync! 😊`;
         } else {
-          replyText = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Fee Paid: ₹${feeAmount}.00\n• Address: ${clinicName}, Kankarbagh Road (opp. ICICI Bank).\n\n🌟 *VITALSENC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Fee Paid: ₹${feeAmount}.00\n• Address: ${clinicName}, Kankarbagh Road (opp. ICICI Bank).\n\n🌟 *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you for choosing VitalSync! 😊`;
         }
       } else if (cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned.includes("register") || cleaned.includes("onboard") || cleaned.includes("hello") || cleaned.includes("menu") || cleaned === "0") {
         nextState = "IDLE";
