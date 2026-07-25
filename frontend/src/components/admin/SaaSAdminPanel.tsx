@@ -2543,8 +2543,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
         </div>
 
         {/* ── Virtual Operations Team Navigation (Mobile Footer) ───────────────── */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom">
-          <div className="flex justify-around items-center h-16 max-w-md mx-auto">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white/98 dark:bg-slate-950/98 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-1 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-12 after:bg-white dark:after:bg-slate-950">
+          <div className="flex justify-around items-center h-12 max-w-md mx-auto">
             {agents.map(agent => {
               const Icon = agent.icon;
               const isActive = activeTab === agent.id;
@@ -2563,12 +2563,19 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   key={agent.id}
                   type="button"
                   onClick={() => setActiveTab(agent.id)}
-                  className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all cursor-pointer ${
-                    isActive ? 'text-slate-900 dark:text-white font-extrabold scale-105' : 'text-slate-400 dark:text-zinc-500 font-semibold'
+                  className={`flex flex-col items-center justify-center flex-1 h-full py-0.5 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none ${
+                    isActive ? 'text-indigo-600 dark:text-cyan-400 font-extrabold' : 'text-slate-500 dark:text-slate-400'
                   }`}
                 >
-                  <Icon className={`h-5 w-5 mb-0.5 ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500'}`} />
-                  <span className="text-[10px] font-bold uppercase tracking-wide leading-none">{shortLabel}</span>
+                  <div className={`transition-all duration-150 ${isActive ? 'scale-110 text-indigo-600 dark:text-cyan-400' : ''}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className={`text-[8.5px] tracking-tight leading-none mt-0.5 ${isActive ? 'font-black text-indigo-600 dark:text-cyan-400' : 'font-semibold'}`}>
+                    {shortLabel}
+                  </span>
+                  {isActive && (
+                    <span className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-cyan-400 mt-0.5 shadow-xs" />
+                  )}
                 </button>
               );
             })}

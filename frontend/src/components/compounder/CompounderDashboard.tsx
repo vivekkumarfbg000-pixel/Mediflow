@@ -3557,9 +3557,9 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Compounder Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-40 after:bg-white dark:after:bg-[#0b0f19]">
-        <div className="flex items-center justify-around h-16 max-w-md mx-auto">
+      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Compounder Dashboard (Ultra-Slim SaaS Dock) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white/98 dark:bg-[#0b0f19]/98 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-1 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-12 after:bg-white dark:after:bg-[#0b0f19]">
+        <div className="flex items-center justify-around h-12 max-w-md mx-auto">
           {[
             { id: 'patients', label: 'Patients', icon: Users },
             { id: 'tokens', label: 'Tokens', icon: Activity },
@@ -3580,24 +3580,20 @@ export const CompounderDashboard: React.FC = () => {
                     setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
                   }
                 }}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
+                className={`flex flex-col items-center justify-center flex-1 h-full py-0.5 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none ${
                   isActive 
-                    ? 'text-indigo-600 dark:text-indigo-400 font-bold' 
+                    ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                <div className={`p-1.5 rounded-xl transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 scale-105 shadow-sm border border-indigo-200/50 dark:border-indigo-800/40' 
-                    : 'bg-transparent text-slate-500 dark:text-slate-400'
-                }`}>
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <div className={`transition-all duration-150 ${isActive ? 'scale-110 text-indigo-600 dark:text-indigo-400' : ''}`}>
+                  <Icon className="h-4 w-4" />
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-bold mt-1 tracking-tight leading-none shrink-0">
+                <span className={`text-[8.5px] tracking-tight leading-none mt-0.5 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-3 h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-xs shadow-indigo-500" />
+                  <span className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-0.5 shadow-xs" />
                 )}
               </button>
             );
