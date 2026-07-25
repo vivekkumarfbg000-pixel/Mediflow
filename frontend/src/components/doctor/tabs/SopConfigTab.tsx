@@ -75,7 +75,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
     const docFeeMatch = text.match(/(?:doctor|consultation|doctor's|physician)\s*(?:fee|charge|rate)[^0-9]*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)/i) ||
                         text.match(/(?:rs\.?|inr|₹)\s*(\d+(?:\.\d+)?)\s*(?:doctor|consultation)/i);
-    const docFee = docFeeMatch ? parseFloat(docFeeMatch[1]) : activeSop?.extractedConfig?.doctor_fee ?? 450;
+    const docFee = docFeeMatch ? parseFloat(docFeeMatch[1]) : activeSop?.extractedConfig?.doctor_fee ?? 500;
 
     const splitDocMatch = text.match(/(?:doctor|physician|referring)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
     const splitPlatMatch = text.match(/(?:platform|vitalsync|software|app)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
