@@ -230,9 +230,9 @@ export const SystemHealthCockpit: React.FC = () => {
     label: s === 'active' ? 'Operational' : s === 'warning' ? 'Warning' : 'Down',
   });
 
-  const totalHealed   = incidents.filter(i => i.status === 'healed').length;
-  const totalFailed   = incidents.filter(i => i.status === 'failed').length;
-  const totalUnresolved = incidents.filter(i => i.status === 'unresolved').length;
+  const totalHealed     = useMemo(() => incidents.filter(i => i.status === 'healed').length, [incidents]);
+  const totalFailed     = useMemo(() => incidents.filter(i => i.status === 'failed').length, [incidents]);
+  const totalUnresolved = useMemo(() => incidents.filter(i => i.status === 'unresolved').length, [incidents]);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm font-sans text-slate-800">
