@@ -806,9 +806,9 @@ export class WhatsAppService {
               '3': 'Evening Slot (5:00 PM - 6:30 PM)'
             };
             const selectedSlotText = slotMap[cleaned] || 'Morning Slot (10:00 AM - 11:30 AM)';
+            const apptId = `appt-virt-${Date.now()}`;
 
             if (currentPat) {
-              const apptId = `appt-virt-${Date.now()}`;
 
               // BUG-08 FIX: Resolve the active doctor for this patient's pod dynamically.
               // Never hardcode a seeded UUID — that would assign all WhatsApp appointments
