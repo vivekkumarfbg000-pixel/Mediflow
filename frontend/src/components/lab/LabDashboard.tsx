@@ -566,7 +566,7 @@ export const LabDashboard: React.FC = () => {
      RENDER
   ══════════════════════════════════════════════════════════════ */
   return (
-    <div className="max-w-7xl mx-auto p-4 pb-28 md:pb-12 md:p-6 space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto p-4 pb-32 md:pb-12 md:p-6 space-y-6 animate-fade-in">
       {viewingDocUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-800/80 backdrop-blur-md">
           <div className="bg-white rounded-2xl w-full max-w-2xl p-6 border border-slate-200 shadow-2xl relative">
@@ -2372,7 +2372,7 @@ export const LabDashboard: React.FC = () => {
       </div>
 
       {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Lab Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.6)] px-2 pb-safe-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom">
         <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'queue', label: 'Draw Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },

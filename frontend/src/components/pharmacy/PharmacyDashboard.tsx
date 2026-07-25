@@ -549,7 +549,7 @@ export const PharmacyDashboard: React.FC = () => {
   const criticalExpiryCount = consolidatedExpiryBatches.filter(b => b.tier === 'EXPIRED' || b.tier === 'CRITICAL').length;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 pb-20 md:pb-8 md:p-8 space-y-8 animate-fade-in relative">
+    <div className="max-w-7xl mx-auto p-4 pb-32 md:pb-12 md:p-8 space-y-8 animate-fade-in relative">
       <style>{`
         @keyframes laser-sweep {
           0% { top: 0%; opacity: 0.3; }
@@ -2349,9 +2349,24 @@ export const PharmacyDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation for Pharmacy Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 dark:bg-[#0b0f19]/95 backdrop-blur-xl border-t border-slate-800/80 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] px-2 pb-safe-bottom">
-        <div className="flex items-center justify-around h-16">
+      {/* Desktop Enterprise Status Footer */}
+      <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Mediflow Realtime Engine · Pharmacy Counter Node</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span>1-Click Refill Dispatches</span>
+          <span>·</span>
+          <span>Batch Expiry Radar Active</span>
+          <span>·</span>
+          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">RLS Encrypted · Pharmacy</span>
+        </div>
+      </div>
+
+      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Pharmacy Dashboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'prescription_queue', label: 'Rx Queue', icon: History, badge: holds.filter(h => h.holdStatus === 'held').length },
             { id: 'inventory_catalog', label: 'Catalog', icon: Search },
@@ -2371,27 +2386,27 @@ export const PharmacyDashboard: React.FC = () => {
                 onClick={() => setActiveTab(item.id as any)}
                 className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer relative bg-transparent border-0 outline-none ${
                   isActive 
-                    ? 'text-indigo-400 font-black' 
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 <div className={`p-1.5 rounded-xl transition-all duration-200 relative ${
                   isActive 
-                    ? 'bg-indigo-500/20 text-indigo-400 scale-105 shadow-sm border border-indigo-500/30' 
-                    : 'bg-transparent text-slate-400'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 scale-105 shadow-sm border border-indigo-200/50 dark:border-indigo-800/40' 
+                    : 'bg-transparent text-slate-500 dark:text-slate-400'
                 }`}>
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse shadow-sm">
+                    <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center animate-pulse shadow-sm">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-extrabold mt-1 tracking-wide leading-none">
+                <span className="text-[9px] sm:text-[10px] font-bold mt-1 tracking-tight leading-none shrink-0">
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-xs shadow-indigo-500" />
+                  <span className="absolute bottom-1 w-3 h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-xs shadow-indigo-500" />
                 )}
               </button>
             );

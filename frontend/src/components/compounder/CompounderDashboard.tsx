@@ -1233,7 +1233,7 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 pb-28 md:pb-12 md:p-8 space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen rounded-xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.5)] border border-slate-200/50 dark:border-white/5 relative overflow-hidden transition-colors duration-300">
+    <div className="max-w-7xl mx-auto p-4 pb-32 md:pb-12 md:p-8 space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen rounded-xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.5)] border border-slate-200/50 dark:border-white/5 relative overflow-hidden transition-colors duration-300">
       {/* Ambient Background Glow for visual hierarchy */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-[10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-cyan-500/10 blur-[120px]" />
@@ -3558,7 +3558,7 @@ export const CompounderDashboard: React.FC = () => {
       </div>
 
       {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Compounder Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.6)] px-2 pb-safe-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom">
         <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'patients', label: 'Patients', icon: Users },

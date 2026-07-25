@@ -1874,7 +1874,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-28 lg:pb-12 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="max-w-7xl mx-auto p-4 md:p-6 pb-32 lg:pb-12 space-y-5 animate-fade-in text-slate-800" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
       {!isOnline && (
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-850 dark:text-amber-400 px-4 py-3 rounded-xl flex items-center justify-between text-xs font-semibold backdrop-blur-md animate-pulse text-left">
@@ -2008,7 +2008,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       </div>
 
       {/* Premium Mobile Bottom Navigation Dock for Doctor Dashboard */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#0b0f19]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.6)] px-2 pb-safe-bottom">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom">
         <div className="flex items-center justify-around h-16 max-w-md mx-auto">
           {[
             { id: 'pod_view', label: 'Pod HUD', icon: 'hub' },

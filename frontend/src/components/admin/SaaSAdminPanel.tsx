@@ -1323,27 +1323,28 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
     ];
 
     return (
-      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+      <div className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-5 pb-32">
         
         {/* ── Top Header Control Bar ───────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200/10 pb-5">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
               <Terminal className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
-                VitalSync Platform Operations
-                <span className="flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 text-[9px] font-bold text-indigo-700 tracking-wider uppercase animate-pulse">
-                  Platform Owner View
+              <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+                VitalSync Admin Console
+                <span className="flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/40 px-2 py-0.5 text-[8.5px] sm:text-[9px] font-extrabold text-indigo-700 dark:text-indigo-400 tracking-wider uppercase animate-pulse">
+                  Platform Owner
                 </span>
               </h2>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-extrabold mt-0.5">
-                SaaS System Administration Control Panel
+              <p className="text-[9.5px] sm:text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-extrabold mt-0.5">
+                SaaS System Operations Cockpit
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
+
+          <div className="grid grid-cols-3 sm:flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -1357,58 +1358,36 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   }
                 }));
               }}
-              className={`inline-flex h-8 items-center justify-center gap-1.5 px-3 rounded-xl border text-xs font-extrabold cursor-pointer transition-all shrink-0 ${
+              className={`inline-flex h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border text-[11px] font-extrabold cursor-pointer transition-all shrink-0 ${
                 isAutoPilotEnabled 
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 shadow-2xs' 
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400 shadow-2xs' 
+                  : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
               }`}
               title="Toggle Master AI Auto-Pilot Engine"
             >
               <span className={`w-2 h-2 rounded-full ${isAutoPilotEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              Auto-Pilot: {isAutoPilotEnabled ? 'ONLINE' : 'PAUSED'}
+              <span className="hidden xs:inline">Auto-Pilot: </span>{isAutoPilotEnabled ? 'ONLINE' : 'PAUSED'}
             </button>
 
             <button
               type="button"
               onClick={fetchSaaSMetrics}
               disabled={metricsLoading}
-              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[110px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold disabled:opacity-50 transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
-              <RefreshCw className={`h-3.5 w-3.5 text-indigo-600 ${metricsLoading ? 'animate-spin' : ''}`} />
-              Sync Metrics
+              <RefreshCw className={`h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 ${metricsLoading ? 'animate-spin' : ''}`} />
+              <span>Sync</span>
             </button>
+
             <button
               type="button"
               onClick={handleSignOut}
-              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[95px] rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
               <LogOut className="h-3.5 w-3.5" />
-              Sign Out
+              <span>Sign Out</span>
             </button>
           </div>
-        </div>
-
-        {/* ── Virtual Operations Team Navigation (Mobile Touch Bar) ───────────── */}
-        <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-2.5 mb-4 scrollbar-none border-b border-slate-200/40">
-          {agents.map(agent => {
-            const Icon = agent.icon;
-            const isActive = activeTab === agent.id;
-            return (
-              <button
-                key={agent.id}
-                type="button"
-                onClick={() => setActiveTab(agent.id)}
-                className={`flex items-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                  isActive 
-                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/15' 
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{agent.label}</span>
-              </button>
-            );
-          })}
         </div>
 
         {/* ── Virtual Operations Team Navigation (Laptop Header) ───────────────── */}
@@ -1639,7 +1618,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
                 {[
                   { label: 'Total Clinics (Pods)', value: onboardingStats.total_pods, desc: 'Active isolated tenant spaces', icon: Building, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
                   { label: 'Total Storefronts', value: onboardingStats.total_entities, desc: 'Clinics, pharmacies, and labs', icon: Layers, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
@@ -1774,7 +1753,86 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                     </span>
                   </div>
 
-                  <div className="overflow-x-auto responsive-table-container">
+                  {/* Mobile App Cards View for Tenant Pods (Mobile Screens) */}
+                  <div className="block md:hidden space-y-3">
+                    {podsList.map(pod => {
+                      const health = pod.health_score ?? 99;
+                      return (
+                        <div key={pod.id} className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-3 shadow-2xs">
+                          <div className="flex justify-between items-start gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono text-xs font-black text-indigo-600">{pod.clinic_code}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wider ${
+                                  pod.is_verified_for_billing 
+                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/50' 
+                                    : 'bg-rose-50 text-rose-600 border border-rose-200/50 animate-pulse'
+                                }`}>
+                                  {pod.is_verified_for_billing ? 'Verified' : 'Pending'}
+                                </span>
+                              </div>
+                              <h5 className="font-extrabold text-xs text-slate-850 mt-1">{pod.name}</h5>
+                              <p className="text-[10px] text-slate-400 font-medium">{pod.location || 'Patna, Bihar'}</p>
+                            </div>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                              health >= 95 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' : 'bg-amber-50 text-amber-700 border border-amber-200/50'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${health >= 95 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                              {health}%
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-white border border-slate-200/60 text-[10px]">
+                            <div>
+                              <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Fee %</span>
+                              <span className="font-mono font-bold text-slate-700">
+                                {pod.platform_fee_percent !== undefined ? `${pod.platform_fee_percent}%` : '2.5%'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Rev (₹)</span>
+                              <span className="font-mono font-bold text-emerald-600">
+                                ₹{pod.lifetime_platform_revenue !== undefined ? Number(pod.lifetime_platform_revenue).toFixed(0) : '0'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Pending</span>
+                              <span className="font-mono font-bold text-rose-600">
+                                ₹{pod.pending_cash_balance !== undefined ? Number(pod.pending_cash_balance).toFixed(0) : '0'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-1.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleInspectPodTelemetry(pod)}
+                              className="px-2 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-[9.5px] font-extrabold uppercase text-center transition-all cursor-pointer"
+                            >
+                              Logs
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSendVideoTutorial(pod)}
+                              className="px-2 py-1.5 rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 text-[9.5px] font-extrabold uppercase text-center transition-all cursor-pointer"
+                            >
+                              Tutorial
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSendProactiveSupportMsg(pod)}
+                              className="px-2 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[9.5px] font-extrabold uppercase text-center transition-all cursor-pointer"
+                            >
+                              WhatsApp
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table View for Tenant Pods */}
+                  <div className="hidden md:block overflow-x-auto responsive-table-container">
                     <table className="w-full text-left text-xs font-medium text-slate-600">
                       <thead>
                         <tr className="border-b border-slate-200/60 text-[10px] uppercase text-slate-400 font-bold">
@@ -2021,7 +2079,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
             {activeTab === 'revenue' && revenueStats && (
               <div className="animate-fade-in space-y-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
                   {[
                     { label: 'Ecosystem sales (GMV)', value: `₹${revenueStats.total_gmv}`, desc: 'Total sales from clinics + medicine', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
                     { label: 'Platform Commissions', value: `₹${revenueStats.platform_commission}`, desc: 'Dynamic transaction-based revenue splits', icon: Coins, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
@@ -2149,7 +2207,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
             {activeTab === 'costs' && costStats && (
               <div className="animate-fade-in space-y-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                   {[
                     { label: 'WhatsApp Msg count', value: costStats.waba_msgs_sent, desc: 'Outbound templates sent', icon: MessageSquare, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
                     { label: 'WABA message costs', value: `₹${parseFloat(costStats.waba_cost.toString()).toFixed(2)}`, desc: 'Meta conversation usage fees', icon: Coins, color: 'text-rose-600 bg-rose-50 border-rose-100' },
@@ -2485,7 +2543,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
         </div>
 
         {/* ── Virtual Operations Team Navigation (Mobile Footer) ───────────────── */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg border-t border-slate-200/50 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] px-2 pb-safe-bottom">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.8)] px-1 pb-safe-bottom">
           <div className="flex justify-around items-center h-16 max-w-md mx-auto">
             {agents.map(agent => {
               const Icon = agent.icon;
