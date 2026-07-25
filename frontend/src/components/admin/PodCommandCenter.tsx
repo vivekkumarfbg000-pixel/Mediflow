@@ -114,8 +114,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     if (financials.length === 0) {
       const uInvoices = api.getUnifiedInvoices();
       const grossRev = uInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
-      const cleared = uInvoices.filter(i => i.paymentStatus === 'cleared' || i.paymentStatus === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
-      const pending = uInvoices.filter(i => i.paymentStatus === 'pending' || i.paymentStatus === 'unpaid').reduce((s, i) => s + (i.totalAmount || 0), 0);
+      const cleared = uInvoices.filter(i => (i.paymentStatus as string) === 'cleared' || (i.paymentStatus as string) === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
+      const pending = uInvoices.filter(i => (i.paymentStatus as string) === 'pending' || (i.paymentStatus as string) === 'unpaid').reduce((s, i) => s + (i.totalAmount || 0), 0);
       return { grossRev, cleared, pending, todayLedgers: uInvoices.length };
     }
     const today = financials.filter(l => l.createdAt?.startsWith(todayStr));

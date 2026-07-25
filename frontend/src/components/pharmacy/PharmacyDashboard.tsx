@@ -109,7 +109,6 @@ export const PharmacyDashboard: React.FC = () => {
       setInventory(api.getPharmacyInventory());
       setHolds(api.getInventoryHolds());
       setWhatsAppOrders(api.getWhatsAppDrugOrders());
-      setPatients(api.getPatients());
     };
     syncLocal();
 
