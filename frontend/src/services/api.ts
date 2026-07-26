@@ -275,12 +275,12 @@ class MediflowApiService {
         { event: '*', schema: 'public' },
         (payload) => {
           console.log('[Mediflow Realtime] Event received:', payload.table, payload.eventType);
-          // Debounce: collapse rapid successive DB events into one sync cycle
+          // Sub-300ms Realtime Engine: collapse rapid successive DB events into ultra-low latency sync cycle
           if (this.realtimeSyncTimer) clearTimeout(this.realtimeSyncTimer);
           this.realtimeSyncTimer = setTimeout(() => {
             this.realtimeSyncTimer = null;
             this.syncFromSupabase().catch(err => console.error('[Mediflow API] Realtime-triggered sync failed:', err));
-          }, 2000);
+          }, 250);
         }
       )
       .subscribe((status) => {
