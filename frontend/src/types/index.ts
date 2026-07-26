@@ -401,6 +401,7 @@ export interface ClinicSop {
   sopText: string;
   extractedConfig: {
     doctor_fee: number;
+    emergency_sos_fee?: number;
     test_prices: Record<string, number>;
     splits: {
       doctor: number;
