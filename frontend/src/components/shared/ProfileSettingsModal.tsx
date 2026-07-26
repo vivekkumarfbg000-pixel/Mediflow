@@ -21,21 +21,39 @@ import {
 } from 'lucide-react';
 import type { Entity } from '../../types';
 
+export type SettingsTabType = 'profile' | 'clinic' | 'preferences' | 'security' | 'partners';
+
 interface ProfileSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: SettingsTabType;
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
-type TabType = 'profile' | 'security' | 'partners';
-
-export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onClose }) => {
+export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ 
+  isOpen, 
+  onClose,
+  initialTab = 'profile',
+  isDarkMode = false,
+  onToggleDarkMode
+}) => {
   useBodyScrollLock(isOpen);
   const { podEntities, activeEntity, activePod, refreshClinic, isLoading: isClinicLoading } = useClinic();
-  const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [activeTab, setActiveTab] = useState<SettingsTabType>(initialTab);
   const [activeProfile, setActiveProfile] = useState<any>(null);
+  
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   
   // Profile State
   const [displayName, setDisplayName] = useState('');
+  const [medicalRegistrationNo, setMedicalRegistrationNo] = useState('MCI-REG-987421');
+  const [doctorQualification, setDoctorQualification] = useState('MBBS, MS (Ophthal)');
+  const [vernacularLanguage, setVernacularLanguage] = useState<'hindi' | 'bhojpuri' | 'english'>('hindi');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   // Security State
@@ -366,39 +384,61 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
         )}
 
         {/* Workspace Tab Switcher Navigation */}
-        <div className="flex border-b border-slate-200 gap-1 mb-5 shrink-0">
+        <div className="flex border-b border-slate-200 gap-1 mb-5 shrink-0 overflow-x-auto no-scrollbar">
           <button
             onClick={() => { setActiveTab('profile'); setErrorMsg(null); setSuccessMsg(null); }}
-            className={`px-4 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'profile'
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-600 hover:text-slate-700'
             }`}
           >
             <User className="h-4 w-4" />
-            Profile Details
+            Profile & License
+          </button>
+          <button
+            onClick={() => { setActiveTab('clinic'); setErrorMsg(null); setSuccessMsg(null); }}
+            className={`px-3 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'clinic'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-600 hover:text-slate-700'
+            }`}
+          >
+            <Building2 className="h-4 w-4" />
+            Clinic Pod
+          </button>
+          <button
+            onClick={() => { setActiveTab('preferences'); setErrorMsg(null); setSuccessMsg(null); }}
+            className={`px-3 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'preferences'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-600 hover:text-slate-700'
+            }`}
+          >
+            <Globe className="h-4 w-4" />
+            Preferences
           </button>
           <button
             onClick={() => { setActiveTab('security'); setErrorMsg(null); setSuccessMsg(null); }}
-            className={`px-4 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'security'
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-600 hover:text-slate-700'
             }`}
           >
             <Lock className="h-4 w-4" />
-            Security & Pass
+            Security
           </button>
           <button
             onClick={() => { setActiveTab('partners'); setErrorMsg(null); setSuccessMsg(null); }}
-            className={`px-4 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 border-b-2 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'partners'
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-slate-600 hover:text-slate-700'
             }`}
           >
             <Share2 className="h-4 w-4" />
-            Ecosystem Partners
+            Partners
           </button>
         </div>
 
@@ -469,6 +509,94 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOp
                 )}
               </button>
             </form>
+          )}
+
+          {/* CLINIC POD TAB */}
+          {activeTab === 'clinic' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Active Clinic Pod</span>
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono text-[9px] font-black uppercase">
+                    {activePod?.clinicCode || 'MF-PATNA101'}
+                  </span>
+                </div>
+                <h4 className="text-sm font-black text-slate-850">{activeEntity?.name || 'Apex Care Clinic'}</h4>
+                <p className="text-xs text-slate-600 font-medium">{activeEntity?.address || 'Patna Main Branch, Bihar, India'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">GSTIN / Tax ID</span>
+                  <span className="text-xs font-mono font-bold text-slate-800">10AAAAA0000A1Z5</span>
+                </div>
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Default Currency</span>
+                  <span className="text-xs font-bold text-slate-800">₹ INR (Indian Rupee)</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-emerald-950">Cashfree Easy Split Active</h5>
+                    <p className="text-[10px] text-emerald-700 font-medium">Automatic doctor & pharmacy revenue settlements linked</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-mono text-[9px] font-black uppercase">Verified</span>
+              </div>
+            </div>
+          )}
+
+          {/* PREFERENCES & THEME TAB */}
+          {activeTab === 'preferences' && (
+            <div className="space-y-5 animate-fade-in">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">Appearance & Theme</h4>
+                    <p className="text-[11px] text-slate-500">Toggle dark mode contract across all clinical consoles</p>
+                  </div>
+                  {onToggleDarkMode && (
+                    <button
+                      type="button"
+                      onClick={onToggleDarkMode}
+                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all cursor-pointer shadow-sm"
+                    >
+                      {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <h4 className="text-xs font-bold text-slate-800">Vernacular Dosage Assistant</h4>
+                <p className="text-[11px] text-slate-500">Default audio voice language for patient instruction dispatches</p>
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  {[
+                    { id: 'hindi', label: 'Hindi 🇮🇳' },
+                    { id: 'bhojpuri', label: 'Bhojpuri 🌾' },
+                    { id: 'english', label: 'English 🇬🇧' }
+                  ].map(lang => (
+                    <button
+                      key={lang.id}
+                      type="button"
+                      onClick={() => setVernacularLanguage(lang.id as any)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        vernacularLanguage === lang.id
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* PASSWORD CHANGE TAB */}

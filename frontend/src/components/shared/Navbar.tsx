@@ -24,7 +24,7 @@ import {
   Moon
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
-import { ProfileSettingsModal } from './ProfileSettingsModal';
+import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
 import { BrandMark } from './BrandMark';
 
 export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient' | 'saas_admin' | 'refraction';
@@ -38,6 +38,8 @@ interface NavbarProps {
   onToggleBypass: (bypass: boolean) => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebarCollapse?: (collapsed: boolean) => void;
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
@@ -48,7 +50,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   isBypassMode,
   onToggleBypass,
   isSidebarCollapsed = false,
-  onToggleSidebarCollapse
+  onToggleSidebarCollapse,
+  isDarkMode = false,
+  onToggleDarkMode
 }) => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const displayRole = (role: string) => {
@@ -64,6 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileModalInitialTab, setProfileModalInitialTab] = useState<SettingsTabType>('profile');
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('connected');
 
   useEffect(() => {
@@ -598,12 +603,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => setIsMobileDrawerOpen(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg text-slate-550 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {onToggleDarkMode && (
+                    <button
+                      type="button"
+                      onClick={onToggleDarkMode}
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg text-slate-600 dark:text-zinc-300 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center border-0 outline-none"
+                      aria-label="Toggle Dark Mode"
+                      title="Toggle Dark Mode"
+                    >
+                      {isDarkMode ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5 text-slate-600 dark:text-zinc-300" />}
+                    </button>
+                  )}
+
+                  <button 
+                    type="button"
+                    onClick={() => setIsMobileDrawerOpen(false)}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg text-slate-550 dark:text-zinc-400 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center border-0 outline-none"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Active Workspace */}
@@ -722,10 +742,96 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
 
                     {isSettingsOpen && (
-                      <div className="p-2.5 space-y-2.5 border-t border-slate-200/40 bg-transparent animate-fade-in w-full">
-                        {/* Dev Bypass Trigger — DEV ONLY, hidden in production builds */}
+                      <div className="p-2 space-y-2 border-t border-slate-200/40 dark:border-white/5 bg-transparent animate-fade-in w-full">
+                        {/* 1. Appearance / Dark Mode Tile */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onToggleDarkMode) onToggleDarkMode();
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
+                            Appearance & Theme
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-mono text-[9px]">
+                            {isDarkMode ? 'Dark' : 'Light'}
+                          </span>
+                        </button>
+
+                        {/* 2. Doctor Identity Profile Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileModalInitialTab('profile');
+                            setIsProfileModalOpen(true);
+                            setIsMobileDrawerOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                            Doctor Profile & License
+                          </span>
+                          <ChevronRight className="h-3 w-3 text-slate-400" />
+                        </button>
+
+                        {/* 3. Clinic Pod Workspace Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileModalInitialTab('clinic');
+                            setIsProfileModalOpen(true);
+                            setIsMobileDrawerOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <FileText className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                            Clinic Pod & Storefront
+                          </span>
+                          <ChevronRight className="h-3 w-3 text-slate-400" />
+                        </button>
+
+                        {/* 4. Display & Vernacular Preferences Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileModalInitialTab('preferences');
+                            setIsProfileModalOpen(true);
+                            setIsMobileDrawerOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Settings className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
+                            Vernacular & Display
+                          </span>
+                          <ChevronRight className="h-3 w-3 text-slate-400" />
+                        </button>
+
+                        {/* 5. Security & Password Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileModalInitialTab('security');
+                            setIsProfileModalOpen(true);
+                            setIsMobileDrawerOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <ShieldCheck className="h-3.5 w-3.5 text-rose-500" />
+                            Security & Password
+                          </span>
+                          <ChevronRight className="h-3 w-3 text-slate-400" />
+                        </button>
+
+                        {/* Dev Bypass Trigger — DEV ONLY */}
                         {import.meta.env.DEV && (
                           <button 
+                            type="button"
                             onClick={() => {
                               onToggleBypass(!isBypassMode);
                               setIsMobileDrawerOpen(false);
@@ -749,18 +855,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                             )}
                           </button>
                         )}
-
-                        {/* Profile & Partners settings button */}
-                        <button
-                          onClick={() => {
-                            setIsProfileModalOpen(true);
-                            setIsMobileDrawerOpen(false);
-                          }}
-                          className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 hover:text-indigo-850 rounded-md transition-all duration-200 font-semibold text-[10px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
-                        >
-                          <User className="h-3.5 w-3.5 text-indigo-600" />
-                          Profile & Partners
-                        </button>
                       </div>
                     )}
                   </div>
@@ -961,6 +1055,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       <ProfileSettingsModal 
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 
+        initialTab={profileModalInitialTab}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={onToggleDarkMode}
       />
     </>
   );

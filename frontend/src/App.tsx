@@ -311,6 +311,19 @@ function AppContent({
         onToggleBypass={handleToggleBypass}
         isSidebarCollapsed={isSidebarCollapsed}
         onToggleSidebarCollapse={setIsSidebarCollapsed}
+        isDarkMode={isDark}
+        onToggleDarkMode={() => {
+          const next = !isDark;
+          setIsDark(next);
+          if (next) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+          }
+          window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: next } }));
+        }}
       />
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
