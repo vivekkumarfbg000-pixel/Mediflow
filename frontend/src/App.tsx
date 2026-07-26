@@ -858,7 +858,8 @@ export default function App() {
             else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
             else if (finalProfile.role === 'patient') defaultRole = 'patient';
             else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
-            setCurrentRole((prev) => prev || defaultRole);
+            setCurrentRole(defaultRole);
+            localStorage.setItem('vitalsync_active_role', defaultRole);
           }
           setIsLoadingSession(false);
         }
@@ -917,7 +918,8 @@ export default function App() {
             else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
             else if (finalProfile.role === 'patient') defaultRole = 'patient';
             else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
-            setCurrentRole((prev) => prev || defaultRole);
+            setCurrentRole(defaultRole);
+            localStorage.setItem('vitalsync_active_role', defaultRole);
           }
           setIsLoadingSession(false);
         }
