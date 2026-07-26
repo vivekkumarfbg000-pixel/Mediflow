@@ -82,3 +82,8 @@ You are helping a developer integrate Cashfree Payments.
 - **Strict Column Alignment**: Always query and insert using actual database column names (`consented_at`, `registered_at`, `payment_status`, `data_sharing_consent`).
 - **Local Timestamp Cache**: Always maintain local timestamp caches (`local_consent_timestamps`) to prevent background database sync routines from overwriting active local states.
 
+### 5. Mandatory SQL Script Generation & Edge Function Rules
+- **Idempotent DDL Requirement**: Whenever any feature requires database schema changes (new tables, columns, indexes, or RLS policies), AI agents MUST generate idempotent DDL (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
+- **High-Priority Supabase Editor Warning**: AI agents MUST display a prominent warning directing the user to execute the SQL snippet in the Supabase SQL Editor before running backend or Edge Functions.
+- **Zero Secret Exposure**: Secrets and API keys MUST NEVER be committed to Git or exposed in client bundles.
+

@@ -97,5 +97,8 @@
 
 - **Domain Whitelisting**: `https://app.vitalsync.in` added to Cashfree Merchant Dashboard under *Payment Gateway > Developers > Whitelisting*.
 - **API Keys**: Production environment variables set to `PROD_` credentials (`CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`).
-- **Webhook HMAC Verification**: SHA256 signature verification active in `/cashfree-webhook-handler`.
-- **Order Re-Verification**: S2S verification active via `/pg/orders/{order_id}`.
+## 7. Mandatory SQL Script Generation & Edge Function Rules
+
+- **Idempotent DDL Requirement**: Whenever any feature requires database schema changes (new tables, columns, indexes, or RLS policies), AI agents MUST generate idempotent DDL (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
+- **High-Priority Supabase Editor Warning**: AI agents MUST display a prominent warning directing the user to execute the SQL snippet in the Supabase SQL Editor before running backend or Edge Functions.
+- **Zero Secret Exposure**: Secrets and API keys MUST NEVER be committed to Git or exposed in client bundles.
