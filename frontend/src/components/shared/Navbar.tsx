@@ -121,6 +121,20 @@ export const Navbar: React.FC<NavbarProps> = ({
       window.removeEventListener('mediflow-admin-tab-changed', handleAdminTabChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (currentRole === 'compounder') {
+      setActiveCompounderTab('tokens');
+    } else if (currentRole === 'pharmacy') {
+      setActivePharmacyTab('prescription_queue');
+    } else if (currentRole === 'lab') {
+      setActiveLabTab('queue');
+    } else if (currentRole === 'saas_admin') {
+      setActiveAdminTab('saas_health');
+    } else if (currentRole === 'doctor') {
+      setActiveDoctorTab('pod_view');
+    }
+  }, [currentRole]);
   
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
