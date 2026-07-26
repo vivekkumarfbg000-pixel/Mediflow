@@ -54,7 +54,7 @@ You are helping a developer integrate Cashfree Payments.
 - Latest PG API version: `2025-01-01`
 
 
-## 🏛️ VitalSync Master Architecture & SOP Rules
+## 🏛️ VitalSync Google/Meta Big Tech Engineering Master SOP Directive
 
 ### 1. System Architecture & Realtime CDC Data Flow Contract
 - **Engine Latency**: All Supabase Postgres Change Data Capture (CDC) events MUST be debounced at **`250ms`** in `src/services/api.ts` to ensure sub-300ms live synchronization across all active dashboards.
