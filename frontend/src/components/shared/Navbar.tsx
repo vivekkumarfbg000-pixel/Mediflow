@@ -792,7 +792,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: t.id }))}
+                    onClick={() => {
+                      setActiveDoctorTab(t.id);
+                      window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: t.id }));
+                      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: t.id }));
+                    }}
                     className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
                       isActive ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}

@@ -87,11 +87,13 @@ export const DoctorDashboard: React.FC = () => {
     const handleTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
-        setActiveTab(customEvent.detail as any);
+        setActiveTab(prev => (prev === customEvent.detail ? prev : (customEvent.detail as any)));
       }
     };
+    window.addEventListener('mediflow-doctor-tab-changed', handleTabChange);
     window.addEventListener('mediflow-change-tab', handleTabChange);
     return () => {
+      window.removeEventListener('mediflow-doctor-tab-changed', handleTabChange);
       window.removeEventListener('mediflow-change-tab', handleTabChange);
     };
   }, []);
