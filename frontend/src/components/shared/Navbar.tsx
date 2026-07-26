@@ -244,8 +244,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     'refraction': ['refraction'],
   };
 
-  const activeUserRole = activeProfile?.role || 'compounder';
-  const allowedList = allowedRolesMap[activeUserRole] || [];
+  const activeUserRole = activeProfile?.role || (currentRole === 'lab' ? 'lab_technician' : currentRole === 'pharmacy' ? 'pharmacist' : currentRole);
+  const allowedList = allowedRolesMap[activeUserRole] || [currentRole];
 
   const visibleRoles = isBypassMode 
     ? roles 
@@ -341,59 +341,62 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
           {/* Vertical Menu Options */}
-          <div className="space-y-0.5 pt-2 w-full">
-            {!isSidebarCollapsed && (
-              <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-2 mb-1.5 animate-fade-in">Ecosystem Modules</span>
-            )}
-            {visibleRoles.map((r) => {
-              const Icon = r.icon;
-              const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
-              return (
-                <button
-                  key={r.id}
-                  onClick={(e) => {
-                    if (r.id === 'doctor' && activeDoctorTab === 'sop') {
-                      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
-                    }
-                    if (isSidebarCollapsed) {
-                      e.stopPropagation();
-                      onChangeRole(r.id as UserRole);
-                      onToggleSidebarCollapse?.(false);
-                    } else {
-                      onChangeRole(r.id as UserRole);
-                    }
-                  }}
-                  className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
-                    isActive
-                      ? 'bg-indigo-50/80 text-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.08)] border border-indigo-100/40'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-                  }`}
-                  title={isSidebarCollapsed ? undefined : r.name}
-                >
-                  {/* Left accent indicator line on active */}
-                  {isActive && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-indigo-600 rounded-r" />
-                  )}
-                  
-                  <Icon className={`h-4 w-4 shrink-0 transition-colors ${
-                    isActive 
-                      ? 'text-indigo-600' 
-                      : 'text-slate-600 group-hover:text-slate-600'
-                  }`} />
-                  
-                  {!isSidebarCollapsed && (
-                    <span className="flex-1 text-left animate-fade-in">{r.name}</span>
-                  )}
+          {visibleRoles.length > 1 && (
+            <div className="space-y-0.5 pt-2 w-full">
+              {!isSidebarCollapsed && (
+                <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-2 mb-1.5 animate-fade-in">Ecosystem Modules</span>
+              )}
+              {visibleRoles.map((r) => {
+                const Icon = r.icon;
+                const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
+                return (
+                  <button
+                    key={r.id}
+                    onClick={(e) => {
+                      if (r.id === 'doctor' && activeDoctorTab === 'sop') {
+                        window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
+                      }
+                      if (isSidebarCollapsed) {
+                        e.stopPropagation();
+                        onChangeRole(r.id as UserRole);
+                        onToggleSidebarCollapse?.(false);
+                      } else {
+                        onChangeRole(r.id as UserRole);
+                      }
+                    }}
+                    className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+                      isActive
+                        ? 'bg-indigo-50/80 text-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.08)] border border-indigo-100/40'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                    }`}
+                    title={isSidebarCollapsed ? undefined : r.name}
+                  >
+                    {/* Left accent indicator line on active */}
+                    {isActive && (
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-indigo-600 rounded-r" />
+                    )}
+                    
+                    <Icon className={`h-4 w-4 shrink-0 transition-colors ${
+                      isActive 
+                        ? 'text-indigo-600' 
+                        : 'text-slate-600 group-hover:text-slate-600'
+                    }`} />
+                    
+                    {!isSidebarCollapsed && (
+                      <span className="flex-1 text-left animate-fade-in">{r.name}</span>
+                    )}
 
-                  {/* Collapsed Tooltip Overlay */}
-                  {isSidebarCollapsed && (
-                    <div className="absolute left-16 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
-                      {r.name}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+                    {/* Collapsed Tooltip Overlay */}
+                    {isSidebarCollapsed && (
+                      <div className="absolute left-16 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
+                        {r.name}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
             
             {currentRole === 'doctor' && (
               <button
@@ -680,40 +683,41 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-
-
               {/* Modules Switcher */}
-              <div className="space-y-1.5 pt-2">
-                <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
-                {visibleRoles.map((r) => {
-                  const Icon = r.icon;
-                  const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
-                  return (
-                    <button
-                      key={r.id}
-                      onClick={() => {
-                        if (r.id === 'doctor' && activeDoctorTab === 'sop') {
-                          window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
-                        }
-                        onChangeRole(r.id as UserRole);
-                        setIsMobileDrawerOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
-                        isActive
-                          ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-                      }`}
-                    >
-                      {isActive && (
-                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
-                      )}
-                      <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
-                        isActive ? 'text-indigo-600' : 'text-slate-600 group-hover:text-slate-600'
-                      }`} />
-                      <span className="flex-1 text-left">{r.name}</span>
-                    </button>
-                  );
-                })}
+              {visibleRoles.length > 1 && (
+                <div className="space-y-1.5 pt-2">
+                  <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
+                  {visibleRoles.map((r) => {
+                    const Icon = r.icon;
+                    const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
+                    return (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          if (r.id === 'doctor' && activeDoctorTab === 'sop') {
+                            window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
+                          }
+                          onChangeRole(r.id as UserRole);
+                          setIsMobileDrawerOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                        }`}
+                      >
+                        {isActive && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
+                        )}
+                        <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
+                          isActive ? 'text-indigo-600' : 'text-slate-600 group-hover:text-slate-600'
+                        }`} />
+                        <span className="flex-1 text-left">{r.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
                 
                 {currentRole === 'doctor' && (
                   <button
