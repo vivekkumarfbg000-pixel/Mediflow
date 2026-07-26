@@ -187,6 +187,59 @@ export class BillingService {
       }
     });
 
+    // Ensure all paid invoices have corresponding financial ledger entries
+    const paidInvoices = load<Invoice[]>('saas_invoices', []).filter(i => i.status === 'paid');
+    const existingInvoiceIds = new Set(filteredLedgers.map(l => l.invoiceId));
+
+    paidInvoices.forEach(inv => {
+      if (!existingInvoiceIds.has(inv.id)) {
+        const appts = load<Appointment[]>('saas_appointments', []);
+        const appt = appts.find(a => a.id === inv.appointmentId);
+        const patId = inv.patientId || appt?.patientId;
+        const patients = PatientService.getPatients();
+        const patient = patients.find(p => p.id === patId);
+        const patientName = patient?.name || (inv as any).patientName || (appt as any)?.patient_name || 'Patient Customer';
+
+        let grossAmount = inv.amount || 0;
+        let transactionType: FinancialLedgerEntry['transactionType'] = 'appointment_fee';
+        let commissionRate = 0;
+        let netPayout = grossAmount;
+
+        const activeSop = this.getActiveSop();
+        const labDoctorSplit = activeSop?.extractedConfig?.splits?.doctor ?? 50;
+        const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
+
+        if (inv.type === 'lab' || (inv as any).type === 'pathology') {
+          transactionType = 'lab_commission';
+          commissionRate = labDoctorSplit / 100;
+          netPayout = Math.round(grossAmount * commissionRate);
+        } else if (inv.type === 'pharmacy' || (inv as any).type === 'medicine') {
+          transactionType = 'medicine_commission';
+          commissionRate = medDoctorSplit / 100;
+          netPayout = Math.round(grossAmount * commissionRate);
+        }
+
+        const newLedger: FinancialLedgerEntry = {
+          id: `tx-auto-${inv.id.substring(0, 8)}`,
+          invoiceId: inv.id,
+          sourceEntityId: 'clinic-admin-entity',
+          destinationEntityId: 'clinic-admin-entity',
+          transactionType,
+          grossAmount,
+          commissionRate,
+          netPayout,
+          paymentStatus: 'cleared',
+          settledAt: inv.createdAt || new Date().toISOString(),
+          createdAt: inv.createdAt || new Date().toISOString(),
+          patientName,
+          paymentMethod: (inv as any).paymentMethod || 'cash'
+        };
+
+        filteredLedgers.unshift(newLedger);
+        modified = true;
+      }
+    });
+
     if (modified) {
       save('financial_ledgers', filteredLedgers);
     }

@@ -694,9 +694,16 @@ export const DoctorDashboard: React.FC = () => {
     });
 
     const apiUnsub = api.subscribe(syncDashboardData);
+    const handleFinancialUpdate = () => {
+      console.log('[DoctorDashboard] mediflow-financial-update received, refreshing ledgers...');
+      setFinancialLedgers(api.getFinancialLedgers());
+    };
+    window.addEventListener('mediflow-financial-update', handleFinancialUpdate);
+
     return () => {
       apiUnsub();
       unsubscribeRealtime();
+      window.removeEventListener('mediflow-financial-update', handleFinancialUpdate);
     };
   }, [activePod?.id]);
 

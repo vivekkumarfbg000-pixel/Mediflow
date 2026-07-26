@@ -68,6 +68,9 @@ export class RealtimeSyncService {
         }
       }
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+      if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'vitalsync_pool_settlements'].includes(tableName)) {
+        window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+      }
     } catch (e) {
       console.warn('[RealtimeSync] Auto-ingest payload warning:', e);
     }

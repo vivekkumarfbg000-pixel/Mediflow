@@ -35,9 +35,11 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     });
     const handleLocalStateChange = () => setSyncVersion(v => v + 1);
     window.addEventListener('mediflow-state-change', handleLocalStateChange);
+    window.addEventListener('mediflow-financial-update', handleLocalStateChange);
     return () => {
       unsub();
       window.removeEventListener('mediflow-state-change', handleLocalStateChange);
+      window.removeEventListener('mediflow-financial-update', handleLocalStateChange);
     };
   }, []);
 
@@ -244,9 +246,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   }, [invoices, appointments]);
 
   const filteredLedgers = useMemo(() => {
-    const activeLedgers = financialLedgers && financialLedgers.length > 0 
-      ? financialLedgers 
-      : BillingService.getFinancialLedgers();
+    const activeLedgers = BillingService.getFinancialLedgers();
 
     return activeLedgers
       .filter(entry => {
