@@ -745,7 +745,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 )}
               </div>
-            </div>
 
             {/* Bottom active profile and workspace actions inside drawer */}
             <div className="space-y-3 pt-4 border-t border-slate-200/60">
