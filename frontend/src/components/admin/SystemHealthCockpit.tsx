@@ -18,6 +18,9 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
+  Copy,
+  X
 } from 'lucide-react';
 
 interface IncidentLog {
@@ -59,6 +62,36 @@ export const SystemHealthCockpit: React.FC = () => {
   const [isTestingNode, setIsTestingNode] = useState(false);
   const [nodeTestOutput, setNodeTestOutput] = useState<string | null>(null);
   const [founderAlerts, setFounderAlerts] = useState<any[]>([]);
+  const [expandedAlertLogIdx, setExpandedAlertLogIdx] = useState<number | null>(null);
+  const [copiedAlertIdx, setCopiedAlertIdx] = useState<number | null>(null);
+  const [activeAiRepairModalAlert, setActiveAiRepairModalAlert] = useState<any | null>(null);
+
+  const handleCopyAlertErrorLog = (alert: any, idx: number) => {
+    const rawTraceback = alert.errorStack || alert.stack || alert.details || alert.rawLog || alert.trace || JSON.stringify(alert, null, 2);
+    const formattedLog = `### 🚨 MEDIFLOW AUTO-HEALER ESCALATION REPORT
+- **Subsystem**: ${alert.subsystem || alert.type || 'SYSTEM'}
+- **Summary**: ${alert.errorSummary || alert.message || 'Operational anomaly'}
+- **Timestamp**: ${alert.createdAt || alert.timestamp || new Date().toISOString()}
+- **Failed Remediation Attempts**: ${alert.attempts || alert.failedAttempts || 3}
+- **Recommended Action**: ${alert.actionRequired || 'Manual inspection required'}
+
+#### 📋 RAW EXCEPTION TRACEBACK LOG:
+\`\`\`text
+${rawTraceback}
+\`\`\``;
+
+    navigator.clipboard.writeText(formattedLog);
+    setCopiedAlertIdx(idx);
+    setTimeout(() => setCopiedAlertIdx(null), 2500);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Error Log Copied 📋',
+        message: 'Raw error trace & diagnostic summary copied to clipboard! Ready to paste to AI developer.',
+        type: 'success'
+      }
+    }));
+  };
 
   const loadFounderAlerts = useCallback(() => {
     try {
@@ -341,51 +374,124 @@ export const SystemHealthCockpit: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-2">
-              {founderAlerts.map((alert, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-white/90 border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
-                        [{alert.subsystem || alert.type || 'SYSTEM'}]
-                      </span>
-                      <span className="text-xs font-extrabold text-slate-800">
-                        {alert.errorSummary || alert.message || 'Operational anomaly requires manual inspection'}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-mono">
-                      Failed attempts: <span className="font-bold text-rose-600">{alert.attempts || alert.failedAttempts || 3}</span> • {alert.createdAt || alert.timestamp ? new Date(alert.createdAt || alert.timestamp).toLocaleTimeString() : 'Just now'}
-                    </div>
-                    {alert.actionRequired && (
-                      <div className="text-[10px] text-amber-700 font-semibold italic">
-                        👉 Recommended: {alert.actionRequired}
+            <div className="space-y-3">
+              {founderAlerts.map((alert, idx) => {
+                const isExpanded = expandedAlertLogIdx === idx;
+                const isCopied = copiedAlertIdx === idx;
+                const rawLog = alert.errorStack || alert.stack || alert.details || alert.rawLog || alert.trace || `Diagnostic Code: ERR_${alert.subsystem || 'SYS'}_EXHAUSTED\nTimestamp: ${alert.createdAt || alert.timestamp || new Date().toISOString()}\nRemediation Attempts: ${alert.attempts || alert.failedAttempts || 3} failed\nRecommended Action: ${alert.actionRequired || 'Manual inspection required'}`;
+
+                return (
+                  <div key={idx} className="p-3.5 rounded-xl bg-white/95 border border-rose-200 shadow-xs space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300 tracking-wider">
+                            [{alert.subsystem || alert.type || 'SYSTEM'}]
+                          </span>
+                          <span className="text-xs font-black text-slate-800">
+                            {alert.errorSummary || alert.message || 'Operational anomaly requires manual inspection'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2 flex-wrap">
+                          <span>Failed attempts: <strong className="text-rose-600 font-black">{alert.attempts || alert.failedAttempts || 3}</strong></span>
+                          <span>•</span>
+                          <span>{alert.createdAt || alert.timestamp ? new Date(alert.createdAt || alert.timestamp).toLocaleTimeString() : 'Just now'}</span>
+                        </div>
+                        {alert.actionRequired && (
+                          <div className="text-[10px] text-amber-800 font-semibold italic flex items-center gap-1 mt-0.5">
+                            <span>👉 Recommended:</span> {alert.actionRequired}
+                          </div>
+                        )}
                       </div>
-                    )}
+
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                        {/* 1. Copy Error Log Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyAlertErrorLog(alert, idx)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer inline-flex items-center gap-1 ${
+                            isCopied
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                          }`}
+                          title="Copy raw error log & stack trace to clipboard"
+                        >
+                          {isCopied ? (
+                            <>
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              Copied Log 📋
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3 text-slate-600" />
+                              Copy Error Log
+                            </>
+                          )}
+                        </button>
+
+                        {/* 2. View AI PR Fix / Modal Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (alert.prUrl || alert.githubUrl) {
+                              window.open(alert.prUrl || alert.githubUrl, '_blank');
+                            } else {
+                              setActiveAiRepairModalAlert(alert);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <Sparkles className="h-3 w-3 text-purple-600" />
+                          View AI PR Fix ➔
+                        </button>
+
+                        {/* 3. Acknowledge & Resolve */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = founderAlerts.filter((_, i) => i !== idx);
+                            localStorage.setItem('founder_alerts', JSON.stringify(updated));
+                            setFounderAlerts(updated);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold transition-all cursor-pointer"
+                        >
+                          ✓ Resolve
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Toggle Button for Raw Traceback Log */}
+                    <div className="pt-1 border-t border-rose-100">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedAlertLogIdx(isExpanded ? null : idx)}
+                        className="text-[10px] font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 cursor-pointer"
+                      >
+                        {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        {isExpanded ? 'Hide Raw Exception Traceback' : 'Show Raw Exception Traceback & Diagnostic Log'}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="mt-2 space-y-1.5 animate-fade-in">
+                          <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono">
+                            <span>RAW DIAGNOSTIC LOG (CLICK COPY OR SELECT ALL)</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyAlertErrorLog(alert, idx)}
+                              className="text-indigo-600 hover:underline font-bold"
+                            >
+                              Copy Full Block 📋
+                            </button>
+                          </div>
+                          <pre className="p-3 bg-slate-950 text-rose-300 font-mono text-[10px] rounded-lg border border-slate-800 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed select-all">
+                            {rawLog}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href="https://github.com/vivekkumarfbg000-pixel/Mediflow/pulls"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1"
-                    >
-                      <Sparkles className="h-3 w-3 text-purple-600" />
-                      View AI PR Fix ➔
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = founderAlerts.filter((_, i) => i !== idx);
-                        localStorage.setItem('founder_alerts', JSON.stringify(updated));
-                        setFounderAlerts(updated);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 border border-slate-200 text-[10px] font-bold transition-all cursor-pointer"
-                    >
-                      ✓ Acknowledge & Resolve
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -684,6 +790,112 @@ export const SystemHealthCockpit: React.FC = () => {
                 >
                   <Zap className={`h-4 w-4 ${isTestingNode ? 'animate-spin' : ''}`} />
                   {isTestingNode ? 'Running Ping...' : 'Run Deep Diagnostic Test'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── AI Repair Inspector Modal ─────────────────────────────────────── */}
+        {activeAiRepairModalAlert && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 dark:text-zinc-100 text-sm">
+                      AI Auto-Repair & Diagnostic Inspector
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-mono">
+                      Subsystem: [{activeAiRepairModalAlert.subsystem || activeAiRepairModalAlert.type || 'SYSTEM'}]
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveAiRepairModalAlert(null)}
+                  className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Anomaly Summary Card */}
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 space-y-1">
+                <div className="text-[10px] font-black uppercase text-rose-800 dark:text-rose-400">Intercepted Exception</div>
+                <div className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+                  {activeAiRepairModalAlert.errorSummary || activeAiRepairModalAlert.message || 'Operational anomaly requires manual inspection'}
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Failed attempts: {activeAiRepairModalAlert.attempts || 3} • Logged at: {activeAiRepairModalAlert.createdAt || activeAiRepairModalAlert.timestamp || 'Just now'}
+                </div>
+              </div>
+
+              {/* Proposed AI Remediation Strategy */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  Proposed Remediation & Safe Patch Strategy
+                </h4>
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-zinc-300 space-y-2">
+                  <p>
+                    <strong>Recommended Action:</strong> {activeAiRepairModalAlert.actionRequired || 'Purge stale temporary build caches, apply nullish guard, and re-trigger GitHub Actions workflow.'}
+                  </p>
+                  <div className="text-[10.5px] text-slate-500 font-mono">
+                    Target Pipeline: <code>.github/workflows/auto-heal-on-failure.yml</code>
+                  </div>
+                </div>
+              </div>
+
+              {/* Raw Traceback Console */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                  <span>RAW EXCEPTION STACK TRACE</span>
+                  <button
+                    onClick={() => handleCopyAlertErrorLog(activeAiRepairModalAlert, 0)}
+                    className="text-purple-600 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="h-3 w-3" /> Copy Raw Log
+                  </button>
+                </div>
+                <pre className="p-3 bg-slate-950 text-rose-300 font-mono text-[10.5px] rounded-2xl border border-slate-800 overflow-x-auto max-h-44 whitespace-pre-wrap leading-relaxed select-all font-sans">
+                  {activeAiRepairModalAlert.errorStack || activeAiRepairModalAlert.stack || activeAiRepairModalAlert.details || activeAiRepairModalAlert.rawLog || activeAiRepairModalAlert.trace || JSON.stringify(activeAiRepairModalAlert, null, 2)}
+                </pre>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <a
+                    href="https://github.com/vivekkumarfbg000-pixel/Mediflow/pulls"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 text-[11px] font-bold transition-all text-center cursor-pointer"
+                  >
+                    GitHub PRs ➔
+                  </a>
+                  <a
+                    href="https://github.com/vivekkumarfbg000-pixel/Mediflow/issues"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-[11px] font-bold transition-all text-center cursor-pointer"
+                  >
+                    GitHub Issues ➔
+                  </a>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCopyAlertErrorLog(activeAiRepairModalAlert, 0);
+                    setActiveAiRepairModalAlert(null);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-md"
+                >
+                  Copy Log & Close Modal 📋
                 </button>
               </div>
             </div>
