@@ -524,7 +524,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       </aside>
 
       {/* Mobile Top Header Navigation */}
-      <nav className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_4px_rgba(15,23,42,0.02)] w-full">
+      <nav 
+        className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_4px_rgba(15,23,42,0.02)] w-full"
+        style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {/* Mobile Sidebar Drawer Hamburger Trigger */}
@@ -768,11 +771,154 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Premium PWA Mobile Fixed Bottom Tab Bar Navigation */}
-      {currentRole !== 'doctor' && currentRole !== 'compounder' && currentRole !== 'lab' && currentRole !== 'pharmacy' && currentRole !== 'saas_admin' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-slate-950">
-          <div className="flex items-center justify-between h-14 max-w-md mx-auto">
-            {visibleRoles.map((r) => {
+      {/* Premium Unified Root-Level Mobile Bottom Navigation Dock (Outside <main>) */}
+      <div 
+        className="md:hidden fixed bottom-0 left-0 right-0 w-full z-[9999] bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-white/10 shadow-[0_-2px_10px_rgba(0,0,0,0.08)] px-2 after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-slate-950"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
+      >
+        <div className="flex items-center justify-between h-14 max-w-md mx-auto">
+          {(() => {
+            if (currentRole === 'doctor') {
+              const docTabs = [
+                { id: 'pod_view', label: 'Pod', icon: 'hub' },
+                { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
+                { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
+                { id: 'patients', label: 'Patients', icon: 'group' },
+                { id: 'whatsapp', label: 'WhatsApp', icon: 'chat' }
+              ];
+              return docTabs.map(t => {
+                const isActive = activeDoctorTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: t.id }))}
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                      isActive ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                      <span className="material-symbols-outlined text-[20px]">{t.icon}</span>
+                    </div>
+                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              });
+            }
+
+            if (currentRole === 'compounder') {
+              const compTabs = [
+                { id: 'patients', label: 'Patients', icon: User },
+                { id: 'tokens', label: 'Tokens', icon: Stethoscope },
+                { id: 'labs', label: 'Labs', icon: Beaker },
+                { id: 'pharmacy', label: 'Pharmacy', icon: ShoppingBag },
+                { id: 'ot_billing', label: isOphthalmology ? 'Daycare' : 'OT', icon: QrCode },
+                { id: 'invoice_generator', label: 'Invoices', icon: FileText }
+              ];
+              return compTabs.map(t => {
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: t.id }))}
+                    className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  >
+                    <div className="flex items-center justify-center h-5 transition-transform duration-150">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              });
+            }
+
+            if (currentRole === 'pharmacy') {
+              const pharmaTabs = [
+                { id: 'prescription_queue', label: 'Queue', icon: FileText },
+                { id: 'inventory_catalog', label: 'Catalog', icon: ShoppingBag },
+                { id: 'expiry_tracker', label: 'Expiry', icon: ShieldAlert },
+                { id: 'settlements', label: 'Ledger', icon: QrCode },
+                { id: 'profile_settings', label: 'Settings', icon: Settings }
+              ];
+              return pharmaTabs.map(t => {
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-pharmacy-tab-changed', { detail: t.id }))}
+                    className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  >
+                    <div className="flex items-center justify-center h-5 transition-transform duration-150">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              });
+            }
+
+            if (currentRole === 'lab') {
+              const labTabs = [
+                { id: 'queue', label: 'Queue', icon: 'biotech' },
+                { id: 'walkin', label: 'Walk-in', icon: 'person_add' },
+                { id: 'upload_report', label: 'Upload', icon: 'upload_file' },
+                { id: 'settlements', label: 'Ledger', icon: 'account_balance' }
+              ];
+              return labTabs.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('mediflow-lab-tab-changed', { detail: t.id }))}
+                  className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                >
+                  <div className="flex items-center justify-center h-5 transition-transform duration-150">
+                    <span className="material-symbols-outlined text-[20px]">{t.icon}</span>
+                  </div>
+                  <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
+                    {t.label}
+                  </span>
+                </button>
+              ));
+            }
+
+            if (currentRole === 'saas_admin') {
+              const adminTabs = [
+                { id: 'saas_health', label: 'Health', icon: Settings },
+                { id: 'onboarding', label: 'Onboard', icon: UserPlus },
+                { id: 'revenue', label: 'Finance', icon: QrCode },
+                { id: 'costs', label: 'Costs', icon: FileText },
+                { id: 'firewall', label: 'Sentry', icon: ShieldCheck }
+              ];
+              return adminTabs.map(t => {
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-admin-tab-changed', { detail: t.id }))}
+                    className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  >
+                    <div className="flex items-center justify-center h-5 transition-transform duration-150">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              });
+            }
+
+            // Default role switcher view for billing / patient / fallback
+            return visibleRoles.map((r) => {
               const Icon = r.icon;
               const isActive = currentRole === r.id;
               
@@ -803,10 +949,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 </button>
               );
-            })}
-          </div>
+            });
+          })()}
         </div>
-      )}
+      </div>
 
       <ProfileSettingsModal 
         isOpen={isProfileModalOpen} 

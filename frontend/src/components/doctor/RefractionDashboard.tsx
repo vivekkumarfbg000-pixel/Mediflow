@@ -238,7 +238,7 @@ export const RefractionDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Top Banner Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="glass-panel p-4 bg-white border border-slate-200/80 shadow-sm flex items-center justify-between rounded-2xl">

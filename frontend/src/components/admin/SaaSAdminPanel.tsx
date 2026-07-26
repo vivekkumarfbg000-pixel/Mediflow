@@ -1223,6 +1223,17 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
   }, [checkRole]);
 
   useEffect(() => {
+    const handleAdminTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail as any);
+      }
+    };
+    window.addEventListener('mediflow-admin-tab-changed', handleAdminTabChange);
+    return () => window.removeEventListener('mediflow-admin-tab-changed', handleAdminTabChange);
+  }, []);
+
+  useEffect(() => {
     if (isAdmin) {
       fetchSaaSMetrics();
     }
@@ -1323,7 +1334,10 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
     ];
 
     return (
-      <div className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-5 pb-32">
+      <div 
+        className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-5 pb-32"
+        style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+      >
         
         {/* ── Top Header Control Bar ───────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4">
@@ -2761,42 +2775,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
             )}
         </div>
 
-        {/* ── Virtual Operations Team Navigation (Mobile Footer) ───────────────── */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-slate-950">
-          <div className="flex justify-between items-center h-14 max-w-md mx-auto">
-            {agents.map(agent => {
-              const Icon = agent.icon;
-              const isActive = activeTab === agent.id;
-              
-              const shortLabels: Record<string, string> = {
-                saas_health: 'Health',
-                onboarding: 'Onboard',
-                revenue: 'Finance',
-                costs: 'Costs',
-                firewall: 'Sentry'
-              };
-              const shortLabel = shortLabels[agent.id] || agent.label;
 
-              return (
-                <button
-                  key={agent.id}
-                  type="button"
-                  onClick={() => setActiveTab(agent.id)}
-                  className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
-                    isActive ? 'text-indigo-600 dark:text-cyan-400 font-extrabold' : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-cyan-400' : 'font-semibold'}`}>
-                    {shortLabel}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* ── Enterprise Tenant Telemetry & CS Inspector Modal ───────────────── */}
         {selectedPodForInspection && (

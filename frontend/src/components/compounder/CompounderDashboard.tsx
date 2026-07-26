@@ -317,6 +317,17 @@ export const CompounderDashboard: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const handleCompounderTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail as any);
+      }
+    };
+    window.addEventListener('mediflow-compounder-tab-changed', handleCompounderTabChange);
+    return () => window.removeEventListener('mediflow-compounder-tab-changed', handleCompounderTabChange);
+  }, []);
+
   // Keyboard shortcut listener to close vitals modal on Escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1279,7 +1290,10 @@ export const CompounderDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen transition-colors duration-300">
+    <div 
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen transition-colors duration-300"
+      style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+    >
       {/* Ambient Background Glow for visual hierarchy */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-[10%] -left-[5%] w-[40%] h-[40%] rounded-full bg-cyan-500/10 blur-[120px]" />
@@ -2505,7 +2519,7 @@ export const CompounderDashboard: React.FC = () => {
 
               {/* INSTANT FLOATING VITALS RECORDING MODAL OVERLAY */}
               {vitalsPatient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in overflow-y-auto">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in overflow-y-auto">
                   <div className="glass-panel w-full max-w-lg p-6 border-slate-200/60 dark:border-white/10 shadow-2xl relative bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-3xl space-y-4 my-auto max-h-[90vh] overflow-y-auto">
                     <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
                     
@@ -3343,7 +3357,7 @@ export const CompounderDashboard: React.FC = () => {
 
       {/* Interactive Workflow Document Viewer Modal */}
       {activeWorkflowDetail && (
-        <div className="fixed inset-0 z-55 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] text-slate-800 dark:text-slate-100">
             {/* Header */}
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-rose-500 to-emerald-500" />
@@ -3603,47 +3617,7 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Compounder Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-[#0b0f19]">
-        <div className="flex items-center justify-between h-14 max-w-md mx-auto">
-          {[
-            { id: 'patients', label: 'Patients', icon: Users },
-            { id: 'tokens', label: 'Tokens', icon: Activity },
-            { id: 'labs', label: 'Labs', icon: FileText },
-            { id: 'pharmacy', label: 'Pharmacy', icon: QrCode },
-            { id: 'ot_billing', label: isOphthalmology ? 'Daycare' : 'OT', icon: Stethoscope },
-            { id: 'invoice_generator', label: 'Invoices', icon: Printer }
-          ].map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(item.id as any);
-                  if (item.id === 'tokens' && activePatient) {
-                    setVitalsPatient(activePatient);
-                    setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
-                  }
-                }}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
-                  isActive 
-                    ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                }`}
-              >
-                <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+
 
       {/* Floating 24/7 Mediflow AI Support Widget */}
       <WhatsAppSupportModal userRole="compounder" userName="Compounder Desk" clinicName="Apex Care Clinic" />

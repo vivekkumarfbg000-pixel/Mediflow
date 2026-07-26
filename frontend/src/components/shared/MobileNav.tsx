@@ -44,7 +44,10 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   return (
     <>
       {/* 1. Header Bar Component */}
-      <header className="pt-7 pb-3.5 px-5 bg-zinc-950 border-b border-white/5 flex justify-between items-center shrink-0 z-40">
+      <header 
+        className="pt-7 pb-3.5 px-5 bg-zinc-950 border-b border-white/5 flex justify-between items-center shrink-0 z-40"
+        style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+      >
         <div className="flex items-center gap-2">
           <div className="relative flex items-center justify-center">
             <div className={`w-2.5 h-2.5 rounded-full ${isPodConnected ? 'bg-emerald-500 shadow-[0_0_12px_#10b981]' : 'bg-rose-500'}`} />
@@ -71,7 +74,10 @@ export const MobileNav: React.FC<MobileNavProps> = ({
       </header>
 
       {/* 2. Bottom Tab Navigation Bar Component */}
-      <nav className="bg-zinc-950/90 backdrop-blur-xl border-t border-slate-200/60 py-2.5 px-4 flex justify-between items-center shrink-0 z-40">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 w-full z-[9999] bg-zinc-950/95 backdrop-blur-xl border-t border-slate-200/60 py-2.5 px-4 flex justify-between items-center shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.08)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
+      >
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

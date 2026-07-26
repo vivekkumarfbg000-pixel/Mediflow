@@ -250,7 +250,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
       {/* Toast stack — fixed top-right corner */}
       <div
-        className="fixed top-4 right-4 z-[9999] flex flex-col gap-2.5 w-full max-w-sm pointer-events-none"
+        className="fixed top-4 right-4 z-[100000] flex flex-col gap-2.5 w-full max-w-sm pointer-events-none"
         aria-label="Notifications"
       >
         {toasts.map(t => (

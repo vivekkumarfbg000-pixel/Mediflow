@@ -294,7 +294,7 @@ export const PatientMobileDashboard: React.FC = () => {
             />
 
             {/* Simulated App Screens Container */}
-            <div className="flex-1 overflow-y-auto px-4 py-3.5 space-y-4">
+            <div className="flex-1 overflow-y-auto px-4 py-3.5 pb-24 space-y-4">
               
               {/* TAB 1: HOME */}
               {activeTab === 'home' && (

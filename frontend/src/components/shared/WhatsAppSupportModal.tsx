@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { MessageSquare, Send, Sparkles, RefreshCw, X, ShieldAlert, CheckCircle, HelpCircle } from 'lucide-react';
 import { WhatsAppSupportBotService } from '../../services/whatsappSupportBotService';
 
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+
 interface Props {
   userRole?: 'doctor' | 'compounder' | 'pharmacy' | 'patient';
   userName?: string;
@@ -14,6 +16,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
   clinicName = 'Mediflow Care Clinic'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  useBodyScrollLock(isOpen);
   const [queryText, setQueryText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'bot'; text: string; category?: string }>>([
@@ -55,7 +58,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 md:bottom-6 right-3 md:right-6 z-[9990] h-9 w-9 md:h-10 md:w-10 rounded-full bg-emerald-600/80 hover:bg-emerald-600 backdrop-blur-md opacity-85 hover:opacity-100 text-white flex items-center justify-center shadow-lg shadow-emerald-950/30 cursor-pointer border border-white/30 transition-all duration-300 hover:scale-110 active:scale-95 group"
+        className="fixed bottom-[80px] right-[16px] md:bottom-6 md:right-6 z-[9990] h-9 w-9 md:h-10 md:w-10 rounded-full bg-emerald-600/80 hover:bg-emerald-600 backdrop-blur-md opacity-85 hover:opacity-100 text-white flex items-center justify-center shadow-lg shadow-emerald-950/30 cursor-pointer border border-white/30 transition-all duration-300 hover:scale-110 active:scale-95 group"
         title="Open 24/7 Mediflow AI WhatsApp Support"
       >
         <MessageSquare className="h-4 w-4 md:h-5 md:w-5 group-hover:rotate-12 transition-transform" />
@@ -64,7 +67,10 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
 
       {/* ── Support Drawer Modal ──────────────────────────────────────────────── */}
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in text-slate-800">
+        <div 
+          className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in text-slate-800"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+        >
           <div className="bg-white rounded-t-3xl sm:rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full h-[600px] flex flex-col relative overflow-hidden">
             
             {/* Header */}

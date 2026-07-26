@@ -464,7 +464,7 @@ export function ErrorState({ onRetry, message }: { onRetry?: () => void; message
 
 export function OfflineState() {
   return (
-    <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50">
+    <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-[9990]">
       <div className="flex items-center gap-3 px-4 py-3 bg-orange-950/90 border border-orange-500/30 backdrop-blur-xl rounded-2xl shadow-xl">
         <Wifi size={16} className="text-orange-400 flex-shrink-0 animate-pulse" />
         <div>

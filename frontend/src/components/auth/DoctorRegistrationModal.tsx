@@ -8,7 +8,10 @@ interface Props {
   onSuccess: (clinicData: { name: string; doctorName: string; clinicCode: string }) => void;
 }
 
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+
 export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
+  useBodyScrollLock(isOpen);
   const [formData, setFormData] = useState({
     clinicName: '',
     doctorName: '',
@@ -78,7 +81,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
 
   return (
     <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in text-slate-800">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6 relative overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto">
         
         {/* Glow accent */}
         <div className="absolute -top-12 -right-12 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />

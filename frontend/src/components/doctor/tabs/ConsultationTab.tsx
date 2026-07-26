@@ -2912,7 +2912,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
       {/* ── INTERACTIVE E-PRESCRIPTION PAD WORKSPACE MODAL ── */}
       {isPrescriptionModalOpen && selectedPatient && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 md:p-6 md:pl-[272px] overflow-hidden animate-fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 md:p-6 overflow-hidden animate-fade-in">
           <div className="glass-panel max-w-6xl w-full p-6 md:p-8 border-slate-200 shadow-2xl relative bg-white text-slate-800 rounded-3xl flex flex-col max-h-[92vh] overflow-hidden">
             
             {/* Top gradient accent line */}

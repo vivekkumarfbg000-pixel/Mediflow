@@ -9,12 +9,15 @@ interface Props {
   doctorName?: string;
 }
 
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+
 export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
   isOpen,
   onClose,
   clinicName = 'Apex Medical Center',
   doctorName = 'Dr. Rajesh Verma'
 }) => {
+  useBodyScrollLock(isOpen);
   const [phone, setPhone] = useState('');
   const [testType, setTestType] = useState<'rx_pdf' | 'token' | 'care_loop'>('rx_pdf');
   const [isSending, setIsSending] = useState(false);
@@ -52,7 +55,7 @@ export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in text-slate-800">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 relative overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 relative overflow-hidden max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
         <div className="flex items-center justify-between">

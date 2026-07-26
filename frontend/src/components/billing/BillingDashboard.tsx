@@ -151,7 +151,7 @@ export const BillingDashboard: React.FC = () => {
   const clearedInvoices = invoices.filter(i => i.paymentStatus === 'cleared');
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in print-hidden">
+    <div className="max-w-7xl mx-auto p-4 md:p-8 pb-24 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in print-hidden">
       
       {/* V2.0 High Precision Printable Styles & Keyframes */}
       <style>{`

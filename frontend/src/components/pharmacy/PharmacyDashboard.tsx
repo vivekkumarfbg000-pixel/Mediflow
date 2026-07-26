@@ -104,6 +104,17 @@ export const PharmacyDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const handlePharmacyTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail as any);
+      }
+    };
+    window.addEventListener('mediflow-pharmacy-tab-changed', handlePharmacyTabChange);
+    return () => window.removeEventListener('mediflow-pharmacy-tab-changed', handlePharmacyTabChange);
+  }, []);
+
+  useEffect(() => {
     fetchLiveMedicineBills();
     const syncLocal = () => {
       setInventory(api.getPharmacyInventory());
@@ -563,7 +574,10 @@ export const PharmacyDashboard: React.FC = () => {
   const criticalExpiryCount = consolidatedExpiryBatches.filter(b => b.tier === 'EXPIRED' || b.tier === 'CRITICAL').length;
 
   return (
-    <div className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 animate-fade-in">
+    <div 
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 animate-fade-in"
+      style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+    >
       <style>{`
         @keyframes laser-sweep {
           0% { top: 0%; opacity: 0.3; }
@@ -2378,49 +2392,7 @@ export const PharmacyDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Pharmacy Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-[#0b0f19]">
-        <div className="flex items-center justify-between h-14 max-w-md mx-auto">
-          {[
-            { id: 'prescription_queue', label: 'Queue', icon: History, badge: holds.filter(h => h.holdStatus === 'held').length },
-            { id: 'inventory_catalog', label: 'Catalog', icon: Search },
-            { id: 'expiry_tracker', label: 'Expiry', icon: AlertCircle, badge: inventory.filter(i => {
-                const isExp = new Date(i.expiryDate) < new Date();
-                const isNear = !isExp && new Date(i.expiryDate) < new Date(Date.now() + 30 * 24 * 3600000);
-                return isExp || isNear;
-              }).length },
-            { id: 'settlements', label: 'Ledger', icon: Coins },
-            { id: 'profile_settings', label: 'Settings', icon: Settings }
-          ].map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id as any)}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
-                  isActive 
-                    ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                }`}
-              >
-                <div className={`flex items-center justify-center h-5 transition-transform duration-150 relative ${isActive ? 'scale-110' : ''}`}>
-                  <Icon className="h-4 w-4" />
-                  {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[7.5px] font-black flex items-center justify-center animate-pulse">
-                      {item.badge > 9 ? '9+' : item.badge}
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+
     </div>
   );
 };

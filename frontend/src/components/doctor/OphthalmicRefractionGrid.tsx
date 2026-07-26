@@ -32,16 +32,22 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
   onChange,
   readOnly = false
 }) => {
+  const safeValue: RefractionRx = {
+    od: { sph: 'Plano', cyl: '0.00', axis: '0', add: '', va: '6/6', ...value?.od },
+    os: { sph: 'Plano', cyl: '0.00', axis: '0', add: '', va: '6/6', ...value?.os },
+    pd: value?.pd || '62',
+    remarks: value?.remarks || ''
+  };
 
   const updateEye = (eye: 'od' | 'os', field: string, val: string) => {
     onChange({
-      ...value,
-      [eye]: { ...value[eye], [field]: val }
+      ...safeValue,
+      [eye]: { ...safeValue[eye], [field]: val }
     });
   };
 
   const renderEyeRow = (eye: 'od' | 'os', label: string, emoji: string) => {
-    const data = value[eye];
+    const data = safeValue[eye];
     return (
       <div className="space-y-2">
         <div className="flex items-center gap-2">

@@ -253,7 +253,7 @@ function AppContent({
       <>
         <PendingApprovalScreen onSignOut={handleSignOut} />
         {/* Toast notifications for real-time status updates */}
-        <div className="fixed top-24 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+        <div className="fixed top-24 right-4 z-[100000] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
           {toasts.map(toast => (
             <div key={toast.id} className="pointer-events-auto flex items-start gap-3 p-4 rounded-2xl bg-clinical-950/80 backdrop-blur-xl border border-amber-500/20 shadow-lg shadow-amber-500/10 transition-all duration-300 animate-slide-in w-full">
               <ClockIcon className="h-5 w-5 text-amber-400 mt-0.5 animate-pulse" />
@@ -345,7 +345,7 @@ function AppContent({
       </main>
 
       {/* Premium Glassmorphic Toast Notifications Overlay */}
-      <div className="fixed top-24 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none dense-theme">
+      <div className="fixed top-24 right-4 z-[100000] flex flex-col gap-3 w-full max-w-sm pointer-events-none dense-theme">
         {toasts.map(toast => {
           let icon = <Info className="h-5 w-5 text-blue-400" />;
           let borderClass = 'border-blue-500/30';
@@ -396,7 +396,7 @@ function AppContent({
       {typeof window !== 'undefined' && getIsLocal(window.location.hostname) && (
         <button
           onClick={() => setIsSimulatorOpen(true)}
-          className="fixed bottom-32 md:bottom-20 right-3 md:right-6 z-[80] h-9 w-9 md:h-10 md:w-10 rounded-full bg-emerald-600/70 hover:bg-emerald-600 backdrop-blur-md opacity-75 hover:opacity-100 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 hover:scale-110 active:scale-95 transition-all duration-300 border border-white/30 cursor-pointer text-white-force"
+          className="fixed bottom-[80px] right-[16px] md:bottom-20 md:right-6 z-[9990] h-9 w-9 md:h-10 md:w-10 rounded-full bg-emerald-600/70 hover:bg-emerald-600 backdrop-blur-md opacity-75 hover:opacity-100 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 hover:scale-110 active:scale-95 transition-all duration-300 border border-white/30 cursor-pointer text-white-force"
           title="Open Patient WhatsApp Simulator"
         >
           <span className="material-symbols-outlined text-sm md:text-base font-bold animate-pulse text-white-force">chat</span>

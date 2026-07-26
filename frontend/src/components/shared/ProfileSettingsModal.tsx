@@ -28,6 +28,7 @@ interface ProfileSettingsModalProps {
 type TabType = 'profile' | 'security' | 'partners';
 
 export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onClose }) => {
+  useBodyScrollLock(isOpen);
   const { podEntities, activeEntity, activePod, refreshClinic, isLoading: isClinicLoading } = useClinic();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [activeProfile, setActiveProfile] = useState<any>(null);

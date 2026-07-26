@@ -44,11 +44,11 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
     let list = patients;
     
     if (query) {
-      list = patients.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        p.phone.includes(query) ||
-        p.id.toLowerCase().includes(query) ||
-        (p.abhaId && p.abhaId.toLowerCase().includes(query))
+      list = (patients || []).filter(p => 
+        (p?.name || '').toLowerCase().includes(query) ||
+        (p?.phone || '').includes(query) ||
+        (p?.id || '').toLowerCase().includes(query) ||
+        ((p?.abhaId || '').toLowerCase().includes(query))
       );
     }
 

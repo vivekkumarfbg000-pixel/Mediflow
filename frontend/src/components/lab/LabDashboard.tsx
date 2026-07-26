@@ -82,10 +82,15 @@ export const LabDashboard: React.FC = () => {
     [activeReqId, requisitions]
   );
 
-  /* ─── Live Clock ──────────────────────────────────────────────── */
   useEffect(() => {
-    const t = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(t);
+    const handleLabTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail as any);
+      }
+    };
+    window.addEventListener('mediflow-lab-tab-changed', handleLabTabChange);
+    return () => window.removeEventListener('mediflow-lab-tab-changed', handleLabTabChange);
   }, []);
 
   /* ─── Main data sync ─────────────────────────────────────────── */
@@ -578,7 +583,10 @@ export const LabDashboard: React.FC = () => {
      RENDER
   ══════════════════════════════════════════════════════════════ */
   return (
-    <div className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-32 md:pb-12 space-y-6 animate-fade-in">
+    <div 
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-32 md:pb-12 space-y-6 animate-fade-in"
+      style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+    >
       {viewingDocUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-800/80 backdrop-blur-md">
           <div className="bg-white rounded-2xl w-full max-w-2xl p-6 border border-slate-200 shadow-2xl relative">
@@ -2383,43 +2391,7 @@ export const LabDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Premium PWA Mobile Fixed Bottom Navigation Dock for Lab Dashboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[9990] bg-white dark:bg-[#0b0f19] border-t border-slate-200/80 dark:border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 pb-safe-bottom after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-[#0b0f19]">
-        <div className="flex items-center justify-between h-14 max-w-md mx-auto">
-          {[
-            { id: 'queue', label: 'Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
-            { id: 'walkin', label: 'Walk-in', icon: 'person_add', badge: walkinList.length },
-            { id: 'upload_report', label: 'Upload', icon: 'upload_file' },
-            { id: 'settlements', label: 'Ledger', icon: 'account_balance' }
-          ].map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id as any)}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
-                  isActive 
-                    ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                }`}
-              >
-                <div className={`flex items-center justify-center h-5 transition-transform duration-150 relative ${isActive ? 'scale-110' : ''}`}>
-                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-                  {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[7.5px] font-black flex items-center justify-center animate-pulse">
-                      {item.badge > 9 ? '9+' : item.badge}
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[10px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+
     </div>
   );
 };
