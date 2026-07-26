@@ -3,7 +3,7 @@
 > **Executive Engineering Standard & Operational Blueprint**
 > **Product**: VitalSync / Mediflow Enterprise SaaS Ecosystem
 > **Authority**: Senior Full-Stack Lead & Big Tech Engineering Council
-> **Version**: 30.0 (Big Tech Engineering Directive)
+> **Version**: 35.0 (Ultimate Big Tech Master Specification)
 
 ---
 
@@ -30,10 +30,6 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 ### 2.2 Fault-Tolerant Outbox & Circuit Breaker State Machine
 - **Write-Ahead Log (WAL) Outbox**: Offline operations MUST be queued locally in `vitalsync_wal_outbox` and automatically replayed when network reconnects (`window.addEventListener('online')`).
 - **Circuit Breaker Fallback**: If database latency spikes or network drops occur, the circuit breaker (`mediflow-circuit-open`) MUST fall back to local standby buffers without throwing unhandled exceptions or blank screens.
-
-### 2.3 Cross-Subdomain Session Management & Isolation
-- Domain isolation MUST be enforced across `vitalsync.in` (Landing Page), `app.vitalsync.in` (Clinical Consoles), and `admin.vitalsync.in` (SaaS Admin Console).
-- Single-session guardrails (`mediflow_sw_auto_reloaded` in `pwa.ts`) MUST prevent infinite page refresh loops.
 
 ---
 
@@ -74,25 +70,47 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 
 ---
 
-## 4. Meta WhatsApp Graph API Engine & 2-Touchpoint Care Loop
+## 4. Multi-Specialty, Command Palette & Enterprise Architecture
 
-### 4.1 WhatsApp Meta Graph API Protocol
+### 4.1 Multi-Specialty Clinical Engine (`SpecializationContext.tsx`)
+- Supports 5 specialized clinical modules: Ophthalmology (Refraction Grid), Cardiology (ECG & BP trends), Pediatrics (Growth charts), General Medicine, and Dermatology.
+- Dynamic UI layout adapting depending on clinic specialization configuration.
+
+### 4.2 Global Command Palette (`CommandBar.tsx`)
+- Keyboard shortcut `Ctrl+K` / `Cmd+K` command palette for instant patient search, OPD token generation, prescription creation, and quick navigation across all 5 consoles.
+
+### 4.3 Multi-Tenant Pod Isolation & Bank Onboarding (`multi_tenant_bank_onboarding.sql`)
+- Multi-tenant clinic pod data isolation via Supabase RLS policies.
+- Automated bank account verification (IFSC + Account Number validation via Cashfree Secure ID).
+
+### 4.4 Cashfree Easy Split & B2B Vendor Settlement Engine (`cashfree-vendor-sync`)
+- Automated vendor split calculations disaggregating Doctor consultation fees, pharmacy revenue, and lab referral fees into vendor settlement pools.
+
+### 4.5 Edge Function Security & Rate Limiting (`rate-limit.ts` & `cors.ts`)
+- Token-bucket rate limiting across all Edge Functions (max 100 req/min per IP).
+- Strict CORS origin whitelisting (`https://app.vitalsync.in`, `https://vitalsync.in`).
+
+---
+
+## 5. Meta WhatsApp Graph API Engine & 2-Touchpoint Care Loop
+
+### 5.1 WhatsApp Meta Graph API Protocol
 - **Outbound Dispatch First**: Meta Graph API request executed FIRST (~250ms), async DB logging SECOND.
 - **1-Tap Native Reply Buttons (`type: "button"`)**: Main menus, booking dates, slot selection, and lab report downloads MUST use single-tap reply buttons for instant auto-sending.
 
-### 4.2 2-Touchpoint Clinical & Monetization Care Loop
+### 5.2 2-Touchpoint Clinical & Monetization Care Loop
 - **Touchpoint 1 (Morning Consult)**: Doctor hears symptoms, registers vitals, prescribes initial lab tests.
 - **Touchpoint 2 (Evening Report Review)**: Upon lab report approval, WhatsApp offers 2 buttons:
   - `Physical Review at Clinic 🏥` (**Primary / Default**): Assigns 04:00 PM - 06:00 PM evening slot & reserves prescribed medicines at Clinic Counter Pharmacy.
   - `Virtual Video Review 💻` (**Emergency / Busy Fallback**): Generates Jitsi link for remote video review & dispatches 1-Click home delivery.
 - **4 Premium Member Benefits**: Paying medicine/lab bills at clinic counter unlocks 1 Free Virtual Consult (15-20 days), 10% OFF Refills, WhatsApp Daily Reminders + AI Longitudinal Report, and Instant PDF Lab Reports.
 
-### 4.3 B2B Referral Reward Engine
+### 5.3 B2B Referral Reward Engine
 - Referral codes (`REF-XXXX`) unlock 10% OFF for referrer and new patient, automatically deducting from checkup and medicine bills.
 
 ---
 
-## 5. Mandatory 7 Core USPs (Anti-Regression Rules)
+## 6. Mandatory 7 Core USPs (Anti-Regression Rules)
 
 > [!CAUTION]
 > AI agents MUST NEVER break, remove, or alter any of the following 7 Core USPs:
@@ -107,7 +125,7 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 
 ---
 
-## 6. Database Schemas, DDL Contracts & Query Alignment Rules
+## 7. Database Schemas, DDL Contracts & Query Alignment Rules
 
 - **Strict Column Alignment**: Always query and insert using actual database column names (`consented_at`, `registered_at`, `payment_status`, `data_sharing_consent`).
 - **Hardened Filters**: Never include query filters targeting columns that do not exist in the database schema.
@@ -115,7 +133,7 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 
 ---
 
-## 7. Design System, UI/UX Standards & Viewport Scrolling Guardrails
+## 8. Design System, UI/UX Standards & Viewport Scrolling Guardrails
 
 - **Theme & Palette**: Curated dark-mode glassmorphism styling (`bg-slate-950/80`, `border-slate-800`, `text-zinc-100`).
 - **Typography**: Google Fonts Inter & Outfit typography — no browser defaults.
@@ -123,7 +141,7 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 
 ---
 
-## 8. Cashfree Payment Gateway Go-Live Checklist
+## 9. Cashfree Payment Gateway Go-Live Checklist
 
 - **Domain Whitelisting**: `https://app.vitalsync.in` added to Cashfree Merchant Dashboard under *Payment Gateway > Developers > Whitelisting*.
 - **API Keys**: Production environment variables set to `PROD_` credentials (`CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`).
@@ -132,7 +150,7 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 
 ---
 
-## 9. Mandatory SQL Script Generation & Edge Function Rules
+## 10. Mandatory SQL Script Generation & Edge Function Rules
 
 - **Idempotent DDL Requirement**: Whenever any feature requires database schema changes (new tables, columns, indexes, or RLS policies), AI agents MUST generate idempotent DDL (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
 - **High-Priority Supabase Editor Warning**: AI agents MUST display a prominent warning directing the user to execute the SQL snippet in the Supabase SQL Editor before running backend or Edge Functions.
