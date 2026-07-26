@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
-import { resolvePodContext } from './podContext';
+import { getPodContext, resolvePodContext } from './podContext';
 import { PatientService } from './patientService';
 import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
 
@@ -12,6 +12,7 @@ export class EncounterService {
   static createEncounter(encounterData: Omit<Encounter, 'id' | 'createdAt' | 'status'>): Encounter {
     const encounters = this.getEncounters();
     const encounterId = crypto.randomUUID();
+    const ctx = getPodContext();
     const newEncounter: Encounter = {
       ...encounterData,
       id: encounterId,
@@ -76,7 +77,7 @@ export class EncounterService {
         const holdId = crypto.randomUUID();
         const newHold = {
           id: holdId,
-          pharmacyId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // Seeded pharmacy
+          pharmacyId: ctx.pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           patientId: newEncounter.patientId,
           medicineName: med.medicineName,
           dosage: med.dosage || '',
