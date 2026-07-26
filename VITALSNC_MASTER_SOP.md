@@ -50,7 +50,7 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 2. **Multi-Parameter Vitals Matrix**: Blood pressure (Systolic/Diastolic), pulse, SpO2, temp (°F), blood sugar (Fasting/PP/Random), weight (kg), height (cm), and automated BMI calculation (`kg/m²`).
 3. **Cash & UPI Payment Counter**: Cash collection logging, UPI QR code display, Cashfree payment status verification.
 4. **Eye Dilation Timer Engine**: 15-minute eye dilation countdown timer per patient with automated visual/audio cues (Blue -> Yellow -> Green).
-5. **Emergency SOS Priority Routing**: ₹618.00 priority fee payment instantly moves patient to **Priority #1** with a pulsing red alert banner on Doctor Queue.
+5. **Emergency SOS Priority Routing**: Dynamically extracts the custom emergency fee from `clinic_sops.extractedConfig.emergency_sos_fee` (e.g. ₹618.00 or clinic SOP rate). Payment clearance instantly moves patient to **Priority #1** with a pulsing red alert banner on Doctor Queue.
 
 ### 3.3 Pharmacy Fulfillment Engine (`PharmacyDashboard.tsx`)
 1. **FEFO Batch Inventory Engine**: Automated First-Expiry-First-Out medicine batch management (`BATCH-2026-X1`), expiry date validation, minimum stock alerts.
@@ -118,7 +118,7 @@ All AI agents acting on this repository MUST operate as a senior Big Tech engine
 1. **Sub-300ms Outbound WhatsApp Response Engine**: Outbound Meta Graph API requests MUST be dispatched FIRST (~250ms latency) before session DB updates or non-blocking activity logs.
 2. **1-Tap Native WhatsApp Reply Buttons (`type: "button"`)**: Main menus, dates, and slots MUST use single-tap reply buttons for instant auto-sending.
 3. **Cashfree Strict Payment Gate**: Unpaid appointments MUST remain in `status: "pending_payment"` and MUST be filtered out from active Doctor EMR and Compounder queues until Cashfree emits `PAYMENT_SUCCESS`.
-4. **Emergency SOS Priority #1 Routing**: SOS bookings charge ₹618.00 and move to Priority #1 position at the top of the Doctor Queue with pulsing red alert banner.
+4. **Emergency SOS Priority #1 Routing**: SOS bookings dynamically extract the clinic's custom emergency fee from `clinic_sops.extractedConfig.emergency_sos_fee` and move the patient to Priority #1 position at the top of the Doctor Queue with a pulsing red alert banner.
 5. **1-Click Pharmacy Delivery & 3 Reminders**: Chronic prescriptions trigger 1-Click delivery orders and schedule 3 reminders (Day 7, Month 1, Month 3).
 6. **B2B Referral Reward Engine**: Codes (`REF-XXXX`) unlock 10% OFF for referrer and new patient, automatically deducting from checkup and medicine bills.
 7. **360° Realtime Supabase Sync**: `realtimeSyncService.ts` streams live Postgres events to Doctor EMR, Compounder Desk, and Pharmacy Counter without page refreshes.
