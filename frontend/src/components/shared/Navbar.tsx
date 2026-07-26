@@ -907,12 +907,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </aside>
-        </div>
-      )}
+                )}
+              </div>
+            </aside>
+          </div>
+        )}
 
       {/* Premium Unified Root-Level Mobile Bottom Navigation Dock (Outside <main>) */}
       <div 
