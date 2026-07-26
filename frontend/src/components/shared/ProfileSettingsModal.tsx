@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useClinic } from '../../context/ClinicContext';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { 
   X, 
   User, 

@@ -33,10 +33,21 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
   readOnly = false
 }) => {
   const safeValue: RefractionRx = {
-    od: { sph: 'Plano', cyl: '0.00', axis: '0', add: '', va: '6/6', ...value?.od },
-    os: { sph: 'Plano', cyl: '0.00', axis: '0', add: '', va: '6/6', ...value?.os },
-    pd: value?.pd || '62',
-    remarks: value?.remarks || ''
+    od: {
+      sph: value?.od?.sph ?? 'Plano',
+      cyl: value?.od?.cyl ?? '0.00',
+      axis: value?.od?.axis ?? '0',
+      add: value?.od?.add ?? ''
+    },
+    os: {
+      sph: value?.os?.sph ?? 'Plano',
+      cyl: value?.os?.cyl ?? '0.00',
+      axis: value?.os?.axis ?? '0',
+      add: value?.os?.add ?? ''
+    },
+    pd: value?.pd ?? '62',
+    lensType: value?.lensType || 'Single Vision',
+    notes: value?.notes ?? ''
   };
 
   const updateEye = (eye: 'od' | 'os', field: string, val: string) => {
