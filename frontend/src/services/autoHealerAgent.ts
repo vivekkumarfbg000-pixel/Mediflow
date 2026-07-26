@@ -2083,7 +2083,10 @@ export class ServiceWorkerCacheAgent {
       const reg = await navigator.serviceWorker.getRegistration('/');
       if (reg?.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        window.location.reload();
+        if (typeof window !== 'undefined' && !sessionStorage.getItem('mediflow_sw_activated_reload')) {
+          sessionStorage.setItem('mediflow_sw_activated_reload', 'true');
+          window.location.reload();
+        }
       }
     } catch { /* ignore activation error */ }
   }

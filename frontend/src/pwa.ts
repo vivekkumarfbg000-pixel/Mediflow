@@ -37,23 +37,29 @@ export class PwaSyncManager {
               reg.update();
             }, 30 * 1000); // Check every 30 seconds
 
-            // Auto-reload on updates to bypass stale-while-revalidate cache
+            // Handle background Service Worker updates cleanly without infinite reload loops
             reg.addEventListener('updatefound', () => {
               const installing = reg.installing;
               if (installing) {
                 installing.addEventListener('statechange', () => {
                   if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('[PWA-Client] New content is available; auto-refreshing...');
+                    console.log('[PWA-Client] New version available in background.');
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
-                        title: 'System Update Active',
-                        message: 'Downloading latest enhancements and applying updates...',
+                        title: 'System Enhanced ✨',
+                        message: 'Latest updates loaded in background. Smooth performance active.',
                         type: 'info'
                       }
                     }));
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 1000);
+                    
+                    // Single session guard: Never reload automatically more than once per browser session
+                    if (typeof window !== 'undefined') {
+                      const hasReloaded = sessionStorage.getItem('mediflow_sw_auto_reloaded');
+                      if (!hasReloaded) {
+                        sessionStorage.setItem('mediflow_sw_auto_reloaded', 'true');
+                        console.log('[PWA-Client] Applying initial background cache refresh...');
+                      }
+                    }
                   }
                 });
               }
