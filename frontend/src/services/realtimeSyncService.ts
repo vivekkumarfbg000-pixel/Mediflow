@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { load, save, clearStorageCache } from './apiHelper';
 
 export interface RealtimeSubscriptionHandlers {
   onAppointmentChange?: (payload: any) => void;
@@ -25,46 +26,46 @@ export class RealtimeSyncService {
   private static lastPingSuccess = Date.now();
   private static currentStatus: 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
 
-  // Synchronously auto-ingest incoming Postgres CDC payloads into localStorage cache
+  // Synchronously auto-ingest incoming Postgres CDC payloads into apiHelper load/save storage
   private static autoIngestPayload(tableName: string, payload: any) {
     try {
       const record = payload.new || payload.old;
       if (!record) return;
 
-      const storageMap: Record<string, string> = {
-        'appointments': 'saas_appointments',
-        'financial_ledgers': 'financial_ledgers',
-        'unified_invoices': 'unified_invoices',
-        'patient_registry': 'saas_patients',
-        'whatsapp_sessions': 'whatsapp_sessions',
-        'medicine_bills': 'saas_medicine_bills',
-        'lab_requisitions': 'saas_lab_requisitions',
-        'inventory_holds': 'saas_inventory_holds',
-        'pathology_reports': 'saas_pathology_reports',
-        'saas_invoices': 'saas_invoices',
-        'saas_prescriptions': 'saas_prescriptions',
-        'vitalsync_pool_settlements': 'vitalsync_pool_settlements',
-        'clinic_sops': 'clinic_sops'
+      const storageMap: Record<string, string[]> = {
+        'appointments': ['appointments'],
+        'financial_ledgers': ['financial_ledgers'],
+        'unified_invoices': ['unified_invoices'],
+        'patient_registry': ['patients', 'patient_registry'],
+        'whatsapp_sessions': ['whatsapp_sessions'],
+        'medicine_bills': ['medicine_bills'],
+        'lab_requisitions': ['lab_requisitions'],
+        'inventory_holds': ['inventory_holds'],
+        'pathology_reports': ['pathology_reports'],
+        'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
+        'clinic_sops': ['clinic_sops']
       };
 
-      const storageKey = storageMap[tableName];
-      if (storageKey) {
-        const currentData = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        if (Array.isArray(currentData)) {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const idx = currentData.findIndex((item: any) => item.id === record.id || item.invoiceId === record.invoice_id);
-            if (idx >= 0) {
-              currentData[idx] = { ...currentData[idx], ...record };
-            } else {
-              currentData.push(record);
+      const storageKeys = storageMap[tableName];
+      if (storageKeys) {
+        for (const storageKey of storageKeys) {
+          clearStorageCache(storageKey);
+          const currentData = load<any[]>(storageKey, []);
+          if (Array.isArray(currentData)) {
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const idx = currentData.findIndex((item: any) => item.id === record.id || item.invoiceId === record.invoice_id);
+              if (idx >= 0) {
+                currentData[idx] = { ...currentData[idx], ...record };
+              } else {
+                currentData.push(record);
+              }
+            } else if (payload.eventType === 'DELETE') {
+              const filtered = currentData.filter((item: any) => item.id !== record.id);
+              save(storageKey, filtered);
+              continue;
             }
-          } else if (payload.eventType === 'DELETE') {
-            const filtered = currentData.filter((item: any) => item.id !== record.id);
-            localStorage.setItem(storageKey, JSON.stringify(filtered));
-            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
-            return;
+            save(storageKey, currentData);
           }
-          localStorage.setItem(storageKey, JSON.stringify(currentData));
         }
       }
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
