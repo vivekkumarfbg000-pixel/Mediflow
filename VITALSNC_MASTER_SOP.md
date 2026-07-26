@@ -1,8 +1,8 @@
-# VitalSync Master Architecture & SOP Rulebook
+# VitalSync Master Architecture & Granular SOP Rulebook
 
 > **Authoritative Specification & Operational Blueprint**
 > **Product**: VitalSync / Mediflow Enterprise SaaS Ecosystem
-> **Version**: 24.0 (Production Master)
+> **Version**: 25.0 (Exhaustive Master Specification)
 
 ---
 
@@ -31,38 +31,62 @@
 
 ---
 
-## 2. 5 Role Console Specifications
+## 2. Granular 5 Role Console & Feature Map Specifications
 
 ### 2.1 Doctor EMR Console (`DoctorDashboard.tsx`)
-- **Tabs**: Consultation, Financials, Patients Directory, WhatsApp, SOP Config.
-- **CDSS AI Scribe**: Groq Llama-3 70B primary model with Gemini Flash fallback for real-time symptom analysis.
-- **Refraction Grid**: Standardized visual acuity (RE/LE Sph, Cyl, Axis, VA), IOP, and Fundus documentation.
-- **Financial Overview**: SOP-driven commission pool balance, 100% consult fee + lab referral split + medicine referral split.
+1. **Consultation Queue**: OPD patient list displays real-time queue status (`awaiting_vitals`, `awaiting_consultation`, `in_consultation`, `completed`). Includes emergency SOS priority indicator.
+2. **CDSS AI Scribe**: Natural language symptom processing powered by Groq Llama-3 70B & Gemini Flash fallback for differential diagnosis and RAG longitudinal patient summaries.
+3. **Ophthalmic Refraction Grid**: Standardized visual acuity (RE/LE Sph, Cyl, Axis, VA), IOP (Tonometry), Fundus, and Slit Lamp examination notes.
+4. **Digital Prescriptions**: Drug dosage (`1-0-1`), duration, special instructions, FEFO stock validation, instant PDF generation & WhatsApp dispatch.
+5. **Financials Tab**: SOP-driven commission pool balance, doctor net earnings (100% consult + 40% lab + 20% pharmacy split), downloadable PDF ledger statements in 100% agreement.
+6. **Patients Directory**: Searchable registry, ABHA ID linking (`12-3456-7890-1234`), allergy tracking, chronic condition tags, 360-degree patient timeline.
+7. **WhatsApp Chat Tab**: Live patient session messages, automated bot fallback toggle, manual doctor reply overrides.
+8. **SOP Config Tab**: Custom clinic fee setup, SOP guidelines editor, doctor/lab/pharmacy referral percentage splits.
 
 ### 2.2 Compounder Desk (`CompounderDashboard.tsx`)
-- **OPD Token Generator**: Sequential token assignment (`#TK-001`) with automated queue status update (`awaiting_vitals`).
-- **Vitals Capture**: Blood pressure, pulse, SpO2, temperature, blood sugar, BMI logging.
-- **Emergency SOS Routing**: ₹618.00 priority fee payment instantly moves patient to **Priority #1** with a pulsing red alert banner.
-- **Dilation Timer**: 15-minute eye dilation timer with automated visual/audio alerts.
+1. **OPD Token Generator**: Sequential token assignment (`#TK-001`) with automated queue status update (`awaiting_vitals`).
+2. **Vitals Capture**: Blood pressure (Systolic/Diastolic), pulse, SpO2, temp (°F), blood sugar (Fasting/PP/Random), weight (kg), height (cm), and automated BMI calculation (`kg/m²`).
+3. **Cash & UPI Payment Counter**: Cash collection logging, UPI QR code display, Cashfree payment status verification.
+4. **Eye Dilation Timer**: 15-minute eye dilation countdown timer per patient with automated visual/audio alerts (Blue -> Yellow -> Green).
+5. **Emergency SOS Priority Routing**: ₹618.00 priority fee payment instantly moves patient to **Priority #1** with a pulsing red alert banner on Doctor Queue.
 
 ### 2.3 Pharmacy Counter (`PharmacyDashboard.tsx`)
-- **FEFO Inventory Engine**: First-Expiry-First-Out batch tracking (`BATCH-2026-X1`).
-- **Dispensing Worklist**: Real-time prescription item queue ready for 1-click counter dispensing.
-- **1-Click Refill Delivery**: Chronic care delivery dispatch with automated Day 7, Month 1, and Month 3 WhatsApp reminders.
+1. **FEFO Inventory Tracking**: Automated First-Expiry-First-Out medicine batch management (`BATCH-2026-X1`), expiry date validation, minimum stock alerts.
+2. **Dispensing Worklist**: Real-time prescription item queue ready for 1-click counter dispensing.
+3. **1-Click Refill Delivery**: Chronic care delivery dispatch with automated Day 7, Month 1, and Month 3 WhatsApp reminders.
 
 ### 2.4 Pathology Lab (`LabDashboard.tsx`)
-- **LOINC Requisition Queue**: Standardized LOINC test catalog (`4544-3` HbA1c, `2160-0` Creatinine).
-- **Sample Verification**: Barcode sample collection verification by lab technician.
-- **PDF Report Generation**: Instant electronic lab report PDF dispatch to patient WhatsApp.
+1. **LOINC Requisition Queue**: Standardized LOINC test catalog (`4544-3` HbA1c, `2160-0` Creatinine, `3024-7` Lipid Profile, `1975-2` Bilirubin), automatic test pricing from SOP.
+2. **Sample Verification**: Sample barcode generation (`BAR-XXXX`), sample collection timestamp, technician verification (Lalit Prasad).
+3. **PDF Lab Report Generator**: Instant electronic PDF report creation dispatched directly to patient WhatsApp.
 
 ### 2.5 SaaS Admin Console (`SaaSAdminPanel.tsx` & `PodCommandCenter.tsx`)
-- **Pod Command Center**: Live pod operational health, revenue metrics, WABA connections.
-- **Auto-Healer Sentinel**: 24/7 self-healing monitor with write-permitted GitHub CI/CD PR creation (`auto-heal-on-failure.yml`).
-- **HITL Escalation Cockpit**: Collapsible raw traceback log containers, 1-click **Copy Error Log 📋** button, and interactive **AI Repair Inspector Modal**.
+1. **Pod Command Center**: Live pod operational health, revenue metrics, WABA connections.
+2. **System Health Cockpit**: 6-node live pings (Database, Frontend, Network, Sync Queue, Meta Webhooks, CDSS AI), latency metrics, incident telemetry logs.
+3. **Auto-Healer Sentinel**: 24/7 autonomous self-healing monitoring with write-permitted GitHub CI/CD PR creation (`auto-heal-on-failure.yml`).
+4. **HITL Escalation Cockpit**: Collapsible raw exception stack trace console, 1-click **Copy Error Log 📋** button, and interactive **AI Repair Inspector Modal**.
 
 ---
 
-## 3. Mandatory 7 Core USPs (Anti-Regression Rules)
+## 3. WhatsApp Engine & 2-Touchpoint Care Loop
+
+### 3.1 WhatsApp Meta Graph API Rules
+- **Outbound Dispatch First**: Meta Graph API request executed FIRST (~250ms), async DB logging SECOND.
+- **1-Tap Native Reply Buttons (`type: "button"`)**: Main menus, booking dates, slot selection, and lab report downloads MUST use single-tap reply buttons for instant auto-sending.
+
+### 3.2 2-Touchpoint Clinical & Monetization Care Loop
+- **Touchpoint 1 (Morning Consult)**: Doctor hears symptoms, registers vitals, prescribes initial lab tests.
+- **Touchpoint 2 (Evening Report Review)**: Upon lab report approval, WhatsApp offers 2 buttons:
+  - `Physical Review at Clinic 🏥` (**Primary / Default**): Assigns 04:00 PM - 06:00 PM evening slot & reserves prescribed medicines at Clinic Counter Pharmacy.
+  - `Virtual Video Review 💻` (**Emergency / Busy Fallback**): Generates Jitsi link for remote video review & dispatches 1-Click home delivery.
+- **4 Premium Member Benefits**: Paying medicine/lab bills at clinic counter unlocks 1 Free Virtual Consult (15-20 days), 10% OFF Refills, WhatsApp Daily Reminders + AI Longitudinal Report, and Instant PDF Lab Reports.
+
+### 3.3 B2B Referral Reward Engine
+- Referral codes (`REF-XXXX`) unlock 10% OFF for referrer and new patient, automatically deducting from checkup and medicine bills.
+
+---
+
+## 4. Mandatory 7 Core USPs (Anti-Regression Rules)
 
 > [!CAUTION]
 > AI agents MUST NEVER break, remove, or alter any of the following 7 Core USPs:
@@ -77,7 +101,7 @@
 
 ---
 
-## 4. Database Schema & Query Alignment Rules
+## 5. Database Schema & Query Alignment Rules
 
 - **Strict Column Alignment**: Always query and insert using actual database column names (`consented_at`, `registered_at`, `payment_status`, `data_sharing_consent`).
 - **Hardened Filters**: Never include query filters targeting columns that do not exist in the database schema.
@@ -85,7 +109,7 @@
 
 ---
 
-## 5. Design System & UI/UX Aesthetics
+## 6. Design System & UI/UX Standards
 
 - **Theme & Palette**: Curated dark-mode glassmorphism styling (`bg-slate-950/80`, `border-slate-800`, `text-zinc-100`).
 - **Typography**: Google Fonts Inter & Outfit typography — no browser defaults.
@@ -93,11 +117,16 @@
 
 ---
 
-## 6. Cashfree Payment Gateway Go-Live Checklist
+## 7. Cashfree Payment Gateway Go-Live Checklist
 
 - **Domain Whitelisting**: `https://app.vitalsync.in` added to Cashfree Merchant Dashboard under *Payment Gateway > Developers > Whitelisting*.
 - **API Keys**: Production environment variables set to `PROD_` credentials (`CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`).
-## 7. Mandatory SQL Script Generation & Edge Function Rules
+- **Webhook HMAC Verification**: SHA256 signature verification active in `/cashfree-webhook-handler`.
+- **Order Re-Verification**: S2S verification active via `/pg/orders/{order_id}`.
+
+---
+
+## 8. Mandatory SQL Script Generation & Edge Function Rules
 
 - **Idempotent DDL Requirement**: Whenever any feature requires database schema changes (new tables, columns, indexes, or RLS policies), AI agents MUST generate idempotent DDL (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
 - **High-Priority Supabase Editor Warning**: AI agents MUST display a prominent warning directing the user to execute the SQL snippet in the Supabase SQL Editor before running backend or Edge Functions.

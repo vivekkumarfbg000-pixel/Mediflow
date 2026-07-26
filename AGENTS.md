@@ -62,14 +62,20 @@ You are helping a developer integrate Cashfree Payments.
   - `appointments`, `unified_invoices`, `financial_ledgers`, `patient_registry`, `medicine_bills`, `lab_requisitions`, `whatsapp_sessions`, `vitalsync_pool_settlements`, `clinic_sops`.
 - **WAL Outbox**: Offline operations MUST be queued locally in `vitalsync_wal_outbox` and automatically replayed when network reconnects.
 
-### 2. 5 Role Console Specifications
-- **Doctor EMR Console**: Consultation queue, CDSS AI Scribe, Refraction Grid, Financials Tab, Patients Directory, WhatsApp Tab, SOP Config Tab.
-- **Compounder Desk**: OPD Token assignment (`#TK-001`), Vitals entry, Cash/UPI counter collection, Dilation Timer, Emergency SOS Priority #1 routing.
-- **Pharmacy Counter**: FEFO batch inventory tracking (`BATCH-2026-X1`), Dispensing queue, 1-Click Refill Delivery.
-- **Pathology Lab**: LOINC requisition worklist (`4544-3` HbA1c, `2160-0` Creatinine), sample collection verification, electronic PDF report generation.
-- **SaaS Admin Console**: Pod Command Center, System Health Cockpit, WABA connection manager, Auto-Healer Sentinel.
+### 2. 5 Role Console & Feature Map Specifications
+- **Doctor EMR Console**: Consultation queue, CDSS AI Scribe (Groq Llama-3 70B + Gemini Flash), Ophthalmic Refraction Grid (RE/LE Sph/Cyl/Axis/VA/IOP/Fundus), Digital Prescriptions (1-0-1 dosage), Financials Tab (SOP splits), Patients Directory (ABHA ID), WhatsApp Chat, SOP Config Tab.
+- **Compounder Desk**: OPD Token assignment (`#TK-001`), Vitals entry (BP, Pulse, SpO2, Temp, Sugar, BMI formula), Cash/UPI payment counter, 15-min Eye Dilation countdown timer, Emergency SOS Priority #1 routing.
+- **Pharmacy Counter**: FEFO batch inventory tracking (`BATCH-2026-X1`), Dispensing queue, 1-Click Refill Delivery (Day 7, Month 1, Month 3 reminders).
+- **Pathology Lab**: LOINC requisition worklist (`4544-3` HbA1c, `2160-0` Creatinine), sample collection verification (`BAR-XXXX`), electronic PDF report generation.
+- **SaaS Admin Console**: Pod Command Center, System Health Cockpit (6-node live pings), WABA connection manager, Auto-Healer Sentinel (`auto-heal-on-failure.yml`), HITL Escalation Panel with Copy Log & AI Repair Inspector Modal.
 
-### 3. Mandatory 7 Core USPs (Anti-Regression Rules)
+### 3. WhatsApp Engine & 2-Touchpoint Care Loop
+- **Outbound Dispatch First**: Meta Graph API requests MUST be dispatched FIRST (~250ms latency) before session DB updates or non-blocking activity logs.
+- **1-Tap Native Reply Buttons (`type: "button"`)**: Main menus, booking dates, slot selection, and lab report downloads MUST use single-tap reply buttons for instant auto-sending.
+- **2-Touchpoint Care Loop**: Touchpoint 1 (Morning Consult) -> Touchpoint 2 (Evening Report Review - Physical Clinic Review vs Virtual Video Review).
+- **4 Premium Member Benefits**: Paying medicine/lab bills at clinic counter unlocks 1 Free Virtual Consult (15-20 days), 10% OFF Refills, WhatsApp Daily Reminders + AI Longitudinal Report, and Instant PDF Lab Reports.
+
+### 4. Mandatory 7 Core USPs (Anti-Regression Rules)
 1. **Sub-300ms Outbound WhatsApp Response Engine**: Outbound Meta Graph API requests MUST be dispatched FIRST (~250ms latency) before session DB updates or non-blocking activity logs.
 2. **1-Tap Native WhatsApp Reply Buttons (`type: "button"`)**: Main menus, dates, and slots MUST use single-tap reply buttons for instant auto-sending.
 3. **Cashfree Strict Payment Gate**: Unpaid appointments MUST remain in `status: "pending_payment"` and MUST be filtered out from active Doctor EMR and Compounder queues until Cashfree emits `PAYMENT_SUCCESS`.
@@ -78,11 +84,11 @@ You are helping a developer integrate Cashfree Payments.
 6. **B2B Referral Reward Engine**: Codes (`REF-XXXX`) unlock 10% OFF for referrer and new patient, automatically deducting from checkup and medicine bills.
 7. **360° Realtime Supabase Sync**: `realtimeSyncService.ts` streams live Postgres events to Doctor EMR, Compounder Desk, and Pharmacy Counter without page refreshes.
 
-### 4. Database Schema & Query Alignment Rules
+### 5. Database Schema & Query Alignment Rules
 - **Strict Column Alignment**: Always query and insert using actual database column names (`consented_at`, `registered_at`, `payment_status`, `data_sharing_consent`).
 - **Local Timestamp Cache**: Always maintain local timestamp caches (`local_consent_timestamps`) to prevent background database sync routines from overwriting active local states.
 
-### 5. Mandatory SQL Script Generation & Edge Function Rules
+### 6. Mandatory SQL Script Generation & Edge Function Rules
 - **Idempotent DDL Requirement**: Whenever any feature requires database schema changes (new tables, columns, indexes, or RLS policies), AI agents MUST generate idempotent DDL (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
 - **High-Priority Supabase Editor Warning**: AI agents MUST display a prominent warning directing the user to execute the SQL snippet in the Supabase SQL Editor before running backend or Edge Functions.
 - **Zero Secret Exposure**: Secrets and API keys MUST NEVER be committed to Git or exposed in client bundles.
