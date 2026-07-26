@@ -53,3 +53,32 @@ You are helping a developer integrate Cashfree Payments.
 - Always use env vars for `CASHFREE_APP_ID` and `CASHFREE_SECRET_KEY`
 - Latest PG API version: `2025-01-01`
 
+
+## 🏛️ VitalSync Master Architecture & SOP Rules
+
+### 1. System Architecture & Realtime CDC Data Flow Contract
+- **Engine Latency**: All Supabase Postgres Change Data Capture (CDC) events MUST be debounced at **`250ms`** in `src/services/api.ts` to ensure sub-300ms live synchronization across all active dashboards.
+- **CDC Event Channels**: Every active dashboard console MUST subscribe to `RealtimeSyncService.subscribeToLiveClinicUpdates` listening for changes on:
+  - `appointments`, `unified_invoices`, `financial_ledgers`, `patient_registry`, `medicine_bills`, `lab_requisitions`, `whatsapp_sessions`, `vitalsync_pool_settlements`, `clinic_sops`.
+- **WAL Outbox**: Offline operations MUST be queued locally in `vitalsync_wal_outbox` and automatically replayed when network reconnects.
+
+### 2. 5 Role Console Specifications
+- **Doctor EMR Console**: Consultation queue, CDSS AI Scribe, Refraction Grid, Financials Tab, Patients Directory, WhatsApp Tab, SOP Config Tab.
+- **Compounder Desk**: OPD Token assignment (`#TK-001`), Vitals entry, Cash/UPI counter collection, Dilation Timer, Emergency SOS Priority #1 routing.
+- **Pharmacy Counter**: FEFO batch inventory tracking (`BATCH-2026-X1`), Dispensing queue, 1-Click Refill Delivery.
+- **Pathology Lab**: LOINC requisition worklist (`4544-3` HbA1c, `2160-0` Creatinine), sample collection verification, electronic PDF report generation.
+- **SaaS Admin Console**: Pod Command Center, System Health Cockpit, WABA connection manager, Auto-Healer Sentinel.
+
+### 3. Mandatory 7 Core USPs (Anti-Regression Rules)
+1. **Sub-300ms Outbound WhatsApp Response Engine**: Outbound Meta Graph API requests MUST be dispatched FIRST (~250ms latency) before session DB updates or non-blocking activity logs.
+2. **1-Tap Native WhatsApp Reply Buttons (`type: "button"`)**: Main menus, dates, and slots MUST use single-tap reply buttons for instant auto-sending.
+3. **Cashfree Strict Payment Gate**: Unpaid appointments MUST remain in `status: "pending_payment"` and MUST be filtered out from active Doctor EMR and Compounder queues until Cashfree emits `PAYMENT_SUCCESS`.
+4. **Emergency SOS Priority #1 Routing**: SOS bookings charge ₹618.00 and move to Priority #1 position at the top of the Doctor Queue with pulsing red alert banner.
+5. **1-Click Pharmacy Delivery & 3 Reminders**: Chronic prescriptions trigger 1-Click delivery orders and schedule 3 reminders (Day 7, Month 1, Month 3).
+6. **B2B Referral Reward Engine**: Codes (`REF-XXXX`) unlock 10% OFF for referrer and new patient, automatically deducting from checkup and medicine bills.
+7. **360° Realtime Supabase Sync**: `realtimeSyncService.ts` streams live Postgres events to Doctor EMR, Compounder Desk, and Pharmacy Counter without page refreshes.
+
+### 4. Database Schema & Query Alignment Rules
+- **Strict Column Alignment**: Always query and insert using actual database column names (`consented_at`, `registered_at`, `payment_status`, `data_sharing_consent`).
+- **Local Timestamp Cache**: Always maintain local timestamp caches (`local_consent_timestamps`) to prevent background database sync routines from overwriting active local states.
+
