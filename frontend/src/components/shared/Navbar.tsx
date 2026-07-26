@@ -67,6 +67,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
+  const [activeCompounderTab, setActiveCompounderTab] = useState<string>('tokens');
+  const [activePharmacyTab, setActivePharmacyTab] = useState<string>('prescription_queue');
+  const [activeLabTab, setActiveLabTab] = useState<string>('queue');
+  const [activeAdminTab, setActiveAdminTab] = useState<string>('saas_health');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalInitialTab, setProfileModalInitialTab] = useState<SettingsTabType>('profile');
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('connected');
@@ -84,13 +88,37 @@ export const Navbar: React.FC<NavbarProps> = ({
   useEffect(() => {
     const handleDoctorTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
-      if (customEvent.detail) {
-        setActiveDoctorTab(customEvent.detail);
-      }
+      if (customEvent.detail) setActiveDoctorTab(customEvent.detail);
     };
+    const handleCompounderTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) setActiveCompounderTab(customEvent.detail);
+    };
+    const handlePharmacyTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) setActivePharmacyTab(customEvent.detail);
+    };
+    const handleLabTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) setActiveLabTab(customEvent.detail);
+    };
+    const handleAdminTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) setActiveAdminTab(customEvent.detail);
+    };
+
     window.addEventListener('mediflow-doctor-tab-changed', handleDoctorTabChange);
+    window.addEventListener('mediflow-compounder-tab-changed', handleCompounderTabChange);
+    window.addEventListener('mediflow-pharmacy-tab-changed', handlePharmacyTabChange);
+    window.addEventListener('mediflow-lab-tab-changed', handleLabTabChange);
+    window.addEventListener('mediflow-admin-tab-changed', handleAdminTabChange);
+
     return () => {
       window.removeEventListener('mediflow-doctor-tab-changed', handleDoctorTabChange);
+      window.removeEventListener('mediflow-compounder-tab-changed', handleCompounderTabChange);
+      window.removeEventListener('mediflow-pharmacy-tab-changed', handlePharmacyTabChange);
+      window.removeEventListener('mediflow-lab-tab-changed', handleLabTabChange);
+      window.removeEventListener('mediflow-admin-tab-changed', handleAdminTabChange);
     };
   }, []);
   
@@ -917,17 +945,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               ];
               return compTabs.map(t => {
                 const Icon = t.icon;
+                const isActive = activeCompounderTab === t.id;
                 return (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: t.id }))}
-                    className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    onClick={() => {
+                      setActiveCompounderTab(t.id);
+                      window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: t.id }));
+                    }}
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                      isActive 
+                        ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
                   >
-                    <div className="flex items-center justify-center h-5 transition-transform duration-150">
+                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
+                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
                     </span>
                   </button>
@@ -945,17 +981,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               ];
               return pharmaTabs.map(t => {
                 const Icon = t.icon;
+                const isActive = activePharmacyTab === t.id;
                 return (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-pharmacy-tab-changed', { detail: t.id }))}
-                    className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    onClick={() => {
+                      setActivePharmacyTab(t.id);
+                      window.dispatchEvent(new CustomEvent('mediflow-pharmacy-tab-changed', { detail: t.id }));
+                    }}
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                      isActive 
+                        ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' 
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
                   >
-                    <div className="flex items-center justify-center h-5 transition-transform duration-150">
+                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
+                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-emerald-600 dark:text-emerald-400' : 'font-semibold'}`}>
                       {t.label}
                     </span>
                   </button>
@@ -970,21 +1014,31 @@ export const Navbar: React.FC<NavbarProps> = ({
                 { id: 'upload_report', label: 'Upload', icon: 'upload_file' },
                 { id: 'settlements', label: 'Ledger', icon: 'account_balance' }
               ];
-              return labTabs.map(t => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('mediflow-lab-tab-changed', { detail: t.id }))}
-                  className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                >
-                  <div className="flex items-center justify-center h-5 transition-transform duration-150">
-                    <span className="material-symbols-outlined text-[20px]">{t.icon}</span>
-                  </div>
-                  <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
-                    {t.label}
-                  </span>
-                </button>
-              ));
+              return labTabs.map(t => {
+                const isActive = activeLabTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveLabTab(t.id);
+                      window.dispatchEvent(new CustomEvent('mediflow-lab-tab-changed', { detail: t.id }));
+                    }}
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                      isActive 
+                        ? 'text-teal-600 dark:text-teal-400 font-extrabold' 
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                      <span className="material-symbols-outlined text-[20px]">{t.icon}</span>
+                    </div>
+                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-teal-600 dark:text-teal-400' : 'font-semibold'}`}>
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              });
             }
 
             if (currentRole === 'saas_admin') {
@@ -997,17 +1051,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               ];
               return adminTabs.map(t => {
                 const Icon = t.icon;
+                const isActive = activeAdminTab === t.id;
                 return (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => window.dispatchEvent(new CustomEvent('mediflow-admin-tab-changed', { detail: t.id }))}
-                    className="flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    onClick={() => {
+                      setActiveAdminTab(t.id);
+                      window.dispatchEvent(new CustomEvent('mediflow-admin-tab-changed', { detail: t.id }));
+                    }}
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                      isActive 
+                        ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
                   >
-                    <div className="flex items-center justify-center h-5 transition-transform duration-150">
+                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span className="text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 font-semibold">
+                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
                     </span>
                   </button>
