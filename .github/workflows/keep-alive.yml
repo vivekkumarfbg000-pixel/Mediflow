@@ -1,0 +1,24 @@
+name: Supabase 24/7 Keep-Alive Cron
+
+on:
+  schedule:
+    # Runs every 15 minutes to keep Supabase Postgres active 24/7
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive-ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database Endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/")
+          echo "Supabase Keep-Alive Ping HTTP Status: $STATUS"
+          if [ "$STATUS" -eq 200 ]; then
+            echo "🟢 Supabase database is awake and healthy!"
+          else
+            echo "⚠️ Unexpected status code: $STATUS"
+          fi

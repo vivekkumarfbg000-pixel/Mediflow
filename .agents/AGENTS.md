@@ -128,6 +128,7 @@ You MUST ALWAYS enforce these strict technical safeguards across all future code
 49. **Razorpay Server-Side Webhook Verification**: `razorpay-webhook` MUST automatically process `payment.captured` events, mark `payment_status = 'cleared'`, assign OPD tokens, and auto-dispatch WhatsApp confirmation receipts without requiring manual patient assertion.
 50. **Razorpay Standard Web Checkout**: Frontend `PaymentService.launchRazorpayModal` MUST dynamically load `checkout.js`, open modal with `order_id`, and verify server-side HMAC-SHA256 signature via `razorpay-verify` before marking invoices as paid.
 51. **Supabase Edge Function Keep-Alive Handler**: Edge Functions (`razorpay-order`, `cashfree-order`, `ping`) MUST return HTTP 200 OK to `HEAD` & `GET` requests to ensure UptimeRobot and Better Stack monitors remain 100% UP and keep Supabase PostgreSQL 24/7 active.
+52. **GitHub Actions 24/7 Keep-Alive Workflow**: `.github/workflows/keep-alive.yml` MUST automatically dispatch an HTTP GET request with publishable `apikey` header every 15 minutes using GitHub Secrets (`secrets.VITE_SUPABASE_URL` & `secrets.VITE_SUPABASE_ANON_KEY`) to keep Supabase database 24/7 active with zero cold-starts and zero key exposure.
 
 
 
