@@ -16,8 +16,8 @@ import { isRateLimited } from "../_shared/rate-limit.ts";
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS" || req.method === "HEAD" || req.method === "GET") {
+    return new Response("ok", { headers: corsHeaders, status: 200 });
   }
 
   try {
