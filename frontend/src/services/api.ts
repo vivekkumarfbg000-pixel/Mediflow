@@ -1499,7 +1499,7 @@ class MediflowApiService {
     return BillingService.getUnifiedInvoices();
   }
 
-  clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): void {
+  clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' = 'upi'): void {
     BillingService.clearInvoice(invoiceId, paymentMethod);
     this.notify();
   }
@@ -1561,7 +1561,7 @@ class MediflowApiService {
     return inv;
   }
 
-  async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' = 'upi'): Promise<void> {
+  async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' = 'upi'): Promise<void> {
     await BillingService.recordInvoicePayment(invoiceId, paymentMethod);
     this.notify();
   }
