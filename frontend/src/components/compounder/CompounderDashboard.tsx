@@ -8,6 +8,7 @@ import { VISUAL_ACUITY_OPTIONS } from '../../types/ophthalmic';
 import { EncounterService } from '../../services/encounterService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
+import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import type {
@@ -2182,6 +2183,8 @@ export const CompounderDashboard: React.FC = () => {
                           >
                             <option value="cash">💵 Cash Payment</option>
                             <option value="upi">📱 Online (UPI/QR)</option>
+                            <option value="razorpay">💳 Razorpay (Online Gateway)</option>
+                            <option value="cashfree">⚡ Cashfree (Online Gateway)</option>
                           </select>
                         </div>
 
@@ -2204,9 +2207,35 @@ export const CompounderDashboard: React.FC = () => {
                               // 1. Synchronously create invoice & appointment in local state
                               const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
 
-                              // 2. Immediately record payment (Cash/UPI/Card)
+                              // 2. Immediately record payment / launch Gateway Modal
                               if (newInvoice) {
-                                await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as 'cash' | 'upi' | 'card');
+                                if (apptPaymentMode === 'razorpay') {
+                                  const orderRes = await fetch('https://kguupaybvbngyzyofjun.supabase.co/functions/v1/razorpay-order', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      amount: 50000,
+                                      currency: 'INR',
+                                      receipt: newInvoice.id
+                                    })
+                                  });
+                                  const orderData = await orderRes.json();
+                                  const orderId = orderData.id || orderData.order_id || `order_${newInvoice.id.substring(0, 8)}`;
+
+                                  await PaymentService.launchRazorpayModal({
+                                    orderId,
+                                    invoiceId: newInvoice.id,
+                                    amount: 500,
+                                    name: selectedApptPatient.name,
+                                    phone: selectedApptPatient.phone,
+                                    onSuccess: () => {
+                                      BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
+                                    },
+                                    onError: () => {}
+                                  });
+                                } else {
+                                  await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
+                                }
                               }
 
                               // 3. Insert into Supabase Postgres database so 360° Realtime Sync streams it to Doctor & Compounder
