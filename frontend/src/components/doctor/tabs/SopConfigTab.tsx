@@ -123,9 +123,9 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
   };
 
   const handleActivateSop = () => {
-    if (!extractedConfig) return;
     const activeProfile = (api as any).getActiveProfile?.() || (api as any).getDoctorProfile?.();
-    const currentEntityId = (activePod as any)?.id || activeProfile?.clinicId || activeProfile?.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002';
+    const activePod = (api as any).getActivePod?.() || (typeof window !== 'undefined' && (window as any).__mediflow_active_pod);
+    const currentEntityId = activePod?.id || activeProfile?.clinicId || activeProfile?.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002';
 
     const newSop: ClinicSop = {
       id: `sop-${Date.now()}`,

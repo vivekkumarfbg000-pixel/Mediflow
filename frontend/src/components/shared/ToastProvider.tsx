@@ -9,7 +9,7 @@
 //   toast.warning('Lab reagent stock is critically low');
 //   toast.info('Realtime connection restored');
 
-import React, { createContext, useContext, useCallback, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────

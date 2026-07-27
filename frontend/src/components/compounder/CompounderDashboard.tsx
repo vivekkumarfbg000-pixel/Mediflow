@@ -134,9 +134,7 @@ export const CompounderDashboard: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [dataRevision, setDataRevision] = useState(0);
 
-  const syncData = useCallback(() => {
-    setDataRevision(prev => prev + 1);
-  }, []);
+
 
   // Memoize workflow lookup datasets to avoid thousands of localStorage JSON parses per render
   const cachedEncountersMap = useMemo(() => {
@@ -503,6 +501,7 @@ export const CompounderDashboard: React.FC = () => {
   const [isUploadingReport, setIsUploadingReport] = useState(false);
 
   const syncData = useCallback(() => {
+    setDataRevision(prev => prev + 1);
     setPatients(api.getPatients());
     setSessions(api.getWhatsAppSessions());
     setStaffList(api.getClinicStaff());

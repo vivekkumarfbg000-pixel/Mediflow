@@ -1120,6 +1120,7 @@ export class WhatsAppService {
         id: crypto.randomUUID(),
         patientPhone: phone,
         patientName: 'WhatsApp Demo Patient',
+        currentState: 'AWAITING_WELCOME',
         lastInteraction: new Date().toISOString(),
         sessionData: {
           step: 'main_menu',

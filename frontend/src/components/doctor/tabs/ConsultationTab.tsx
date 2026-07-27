@@ -913,12 +913,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const paidPatientIds = new Set(
                 appointments
                   .filter(a => a.status !== 'pending_payment')
-                  .map(a => a.patientId || a.patient_id)
+                  .map(a => a.patientId || (a as any).patient_id)
               );
               const pendingOnlyPatientIds = new Set(
                 appointments
                   .filter(a => a.status === 'pending_payment')
-                  .map(a => a.patientId || a.patient_id)
+                  .map(a => a.patientId || (a as any).patient_id)
               );
 
               const queuePatients = patients

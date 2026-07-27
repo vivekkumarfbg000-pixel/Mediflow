@@ -91,6 +91,9 @@ export interface WhatsAppSessionData {
 export interface WhatsAppSession {
   id: string;
   patientPhone: string;
+  patient_phone?: string;
+  patientName?: string;
+  patient_name?: string;
   currentState:
     | 'AWAITING_WELCOME'
     | 'AWAITING_CONFIRMATION'
