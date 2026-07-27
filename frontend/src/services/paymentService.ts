@@ -208,7 +208,7 @@ export class PaymentService {
       return;
     }
 
-    const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TIcrdvC4PJBI75';
+    const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_1DP5mmOlF5G5ag';
     const amountInPaise = Math.round(params.amount * 100);
 
     const options: any = {

@@ -68,7 +68,7 @@ serve(async (req) => {
       });
     }
 
-    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID") || "rzp_test_TIcrdvC4PJBI75";
+    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID") || "rzp_test_1DP5mmOlF5G5ag";
     const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "BSn9uanDhhFYOqi3QTDEu7rM";
 
     // Call Razorpay API to create an order
