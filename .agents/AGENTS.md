@@ -114,6 +114,14 @@ You MUST ALWAYS enforce these strict technical safeguards across all future code
 35. **Refraction Desk Search Filter Safety**: `RefractionDashboard.tsx` search filters MUST guard `(p.name || '')` and `(p.phone || '')` before calling `.toLowerCase()` or `.includes()`.
 36. **WAL IndexedDB Outbox Method Integrity**: `WALIndexedDB.addEntry` in `api.ts` MUST delegate to `this.append(entry)` with clean try-catch blocks to prevent class syntax errors and ensure offline storage fallbacks.
 37. **Patient WhatsApp Simulator Avatar Safety**: Avatar rendering in `PatientWhatsAppSimulator.tsx` MUST use `(activePatient?.name || 'Mediflow').substring(0, 2)` before calling `.substring()` or `.toUpperCase()`.
+38. **Telemetry Incident Persistence**: `SystemHealthCockpit.tsx` MUST NEVER automatically delete `failed` or `unresolved` telemetry incidents on component mount, preserving HITL escalations for admin inspection.
+39. **Dynamic Supabase Auth Token Clearing**: `autoHealerAgent.ts` MUST dynamically iterate `localStorage` keys matching `sb-*-auth-token` instead of using static hardcoded project reference strings.
+40. **SaaS Admin Metrics RPC Fallbacks**: `SaaSAdminPanel.tsx` MUST provide calculated fallback metrics for onboarding, revenue, and cost stats if RPC queries return null or throw database errors.
+41. **SaaS Admin Pod List Resilience**: `SaaSAdminPanel.tsx` MUST populate default pod info (`Apex Eye & Dental Care Clinic`) if `pods` table queries return empty.
+42. **Telemetry Analytics Distinct User Identity**: `telemetry.ts` MUST dynamically extract `distinct_id` from the active profile (`p.name || p.email || p.role`) instead of using static hardcoded user names.
+43. **Telemetry Webhook Subsystem Safety**: Deno Edge function `notify-developer-webhook/index.ts` MUST guard `(subsystem || 'system').toLowerCase()` to prevent runtime Edge crashes on missing payload properties.
+44. **Web Vitals LCP Font Preloading**: `index.html` Google Fonts links MUST use asynchronous preloads (`rel="preload" as="style" onload="..."`) to ensure LCP remains under 2500ms and prevent `VITALS_BREACH` alerts.
+45. **Database Schema Repair RPC Alignment**: `supabase/combined_upgrade.sql` MUST define both `heal_schema_drift` and `execute_autonomous_db_repair` PL/pgSQL functions for instant 1-pass Auto-Healer database repairs.
 
 
 

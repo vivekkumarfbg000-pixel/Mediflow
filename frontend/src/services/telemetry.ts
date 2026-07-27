@@ -82,10 +82,19 @@ class TelemetryServiceClass {
   track(eventName: string, properties: Record<string, any> = {}) {
     if (!this.isMixpanelInitialized) return;
 
+    let distinctId = 'Mediflow-User';
+    try {
+      const profileStr = localStorage.getItem('mediflow_active_profile');
+      if (profileStr) {
+        const p = JSON.parse(profileStr);
+        distinctId = p.name || p.email || p.role || 'Mediflow-User';
+      }
+    } catch {}
+
     const payload = {
       event: eventName,
       timestamp: new Date().toISOString(),
-      distinct_id: 'Lalit-Prasad-Compounder',
+      distinct_id: distinctId,
       pod_id: getPodContext().podId,
       ...properties
     };

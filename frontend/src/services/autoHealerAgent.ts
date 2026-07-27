@@ -1054,8 +1054,11 @@ export class StateHealingEngine {
 
           // Clean up local session and sign out to force refresh
           healingSteps.push('🛡️ Clearing stale auth sessions to refresh JWT claims...');
-          const projectRef = 'kguupaybvbngyzyofjun';
-          localStorage.removeItem(`sb-${projectRef}-auth-token`);
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+              localStorage.removeItem(key);
+            }
+          });
           sessionStorage.clear();
           try {
             await supabase.auth.signOut({ scope: 'local' });

@@ -473,6 +473,22 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 REVOKE EXECUTE ON FUNCTION public.execute_autonomous_db_repair(TEXT, TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.execute_autonomous_db_repair(TEXT, TEXT, TEXT) TO authenticated;
 
+-- Alias function for Auto-Healer heal_schema_drift RPC
+CREATE OR REPLACE FUNCTION public.heal_schema_drift(p_table_name TEXT, p_column_name TEXT, p_column_type TEXT)
+RETURNS JSONB AS $$
+DECLARE
+    v_repaired BOOLEAN;
+BEGIN
+    v_repaired := public.execute_autonomous_db_repair(p_table_name, p_column_name, p_column_type);
+    RETURN jsonb_build_object('success', v_repaired, 'table', p_table_name, 'column', p_column_name);
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', SQLERRM);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE EXECUTE ON FUNCTION public.heal_schema_drift(TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.heal_schema_drift(TEXT, TEXT, TEXT) TO authenticated;
+
 
 -- =============================================================================
 -- STEP 5: Commission & Low-Value Protection Logic (20260526000003)

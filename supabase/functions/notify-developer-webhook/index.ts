@@ -84,8 +84,9 @@ serve(async (req) => {
       whatsapp_api: "💬 WhatsApp API",
       agentic_ai:   "🧠 Agentic AI",
     };
-    const label = subsystemLabel[subsystem.toLowerCase()] ?? "🔧 " + subsystem;
-    const timestamp = new Date(created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const subsystemSafe = (subsystem || 'system').toLowerCase();
+    const label = subsystemLabel[subsystemSafe] ?? "🔧 " + (subsystem || 'System');
+    const timestamp = new Date(created_at || Date.now()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
     const cleanStack = error_stack
       ? error_stack.substring(0, 800) + (error_stack.length > 800 ? "\n… (truncated)" : "")
       : "No stack trace captured.";

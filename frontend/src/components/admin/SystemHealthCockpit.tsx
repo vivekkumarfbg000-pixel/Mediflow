@@ -165,11 +165,7 @@ ${rawTraceback}
     fetchTelemetryLogs();
     runHealthChecks();
     
-    // Clean up any lingering simulated failures left over from testing
-    supabase.from('system_health_telemetry')
-      .delete()
-      .in('status', ['failed', 'unresolved'])
-      .then(() => fetchTelemetryLogs());
+    loadFounderAlerts();
 
 
     // Subscribe to realtime telemetry changes
