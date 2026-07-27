@@ -2210,7 +2210,7 @@ export const CompounderDashboard: React.FC = () => {
                               // 2. Immediately record payment / launch Gateway Modal
                               if (newInvoice) {
                                 if (apptPaymentMode === 'razorpay') {
-                                  let orderId = `order_${newInvoice.id.substring(0, 8)}`;
+                                  let orderId = '';
                                   try {
                                     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
                                     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
@@ -2230,8 +2230,8 @@ export const CompounderDashboard: React.FC = () => {
                                     });
                                     if (orderRes.ok) {
                                       const orderData = await orderRes.json();
-                                      if (orderData.id || orderData.order_id) {
-                                        orderId = orderData.id || orderData.order_id;
+                                      if (orderData.orderId || orderData.id) {
+                                        orderId = orderData.orderId || orderData.id;
                                       }
                                     }
                                   } catch (fetchErr) {

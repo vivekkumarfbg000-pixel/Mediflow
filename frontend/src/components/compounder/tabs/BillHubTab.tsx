@@ -1390,7 +1390,7 @@ export const BillHubTab: React.FC = () => {
                           setIsClearing(true);
                           try {
                             const invId = `inv-${crypto.randomUUID().substring(0, 8)}`;
-                            let orderId = `order_${invId.substring(0, 8)}`;
+                            let orderId = '';
                             try {
                               const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
                               const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
@@ -1410,8 +1410,8 @@ export const BillHubTab: React.FC = () => {
                               });
                               if (orderRes.ok) {
                                 const orderData = await orderRes.json();
-                                if (orderData.id || orderData.order_id) {
-                                  orderId = orderData.id || orderData.order_id;
+                                if (orderData.orderId || orderData.id) {
+                                  orderId = orderData.orderId || orderData.id;
                                 }
                               }
                             } catch (fetchErr) {

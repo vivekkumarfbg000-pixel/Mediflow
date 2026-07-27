@@ -92,16 +92,12 @@ serve(async (req) => {
 
     if (!rzpResponse.ok) {
       const rzpErr = await rzpResponse.json().catch(() => ({}));
-      console.warn("[Razorpay Order] Razorpay API warning:", rzpErr);
-      // Fail gracefully returning fallback order format
+      console.warn("[Razorpay Order] Razorpay API error:", rzpErr);
       return new Response(JSON.stringify({
-        success: true,
-        orderId: `order_fallback_${Date.now()}`,
-        amount: amountInPaise,
-        currency: "INR",
-        keyId: razorpayKeyId
+        success: false,
+        error: rzpErr.error?.description || "Razorpay API order creation failed."
       }), {
-        status: 200,
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
