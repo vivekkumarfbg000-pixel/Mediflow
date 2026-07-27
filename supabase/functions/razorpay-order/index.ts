@@ -51,21 +51,14 @@ serve(async (req) => {
 
     const { invoiceId, amount: requestedAmount } = validationResult.data;
 
-    // Retrieve invoice details from Supabase Postgres
-    const { data: invoice, error: invError } = await supabase
+    // Retrieve invoice details from Supabase Postgres (optional lookup)
+    const { data: invoice } = await supabase
       .from("unified_invoices")
       .select("*, patient_registry(id, name, email, phone)")
       .eq("id", invoiceId)
-      .single();
+      .maybeSingle();
 
-    if (invError || !invoice) {
-      return new Response(JSON.stringify({ error: `Invoice ID ${invoiceId} not found.` }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const amountInRupees = requestedAmount || Number(invoice.total_amount) || Number(invoice.totalAmount) || 515;
+    const amountInRupees = requestedAmount || (invoice ? Number(invoice.total_amount) || Number(invoice.totalAmount) : 500);
     const amountInPaise = Math.round(amountInRupees * 100); // Razorpay requires amount in paise
 
     if (amountInPaise < 100) {

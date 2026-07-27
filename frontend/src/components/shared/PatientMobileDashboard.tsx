@@ -1071,7 +1071,8 @@ export const PatientMobileDashboard: React.FC = () => {
                                   'apikey': anonKey
                                 },
                                 body: JSON.stringify({
-                                  amount: Math.round(activeUpiInvoice.totalAmount * 100),
+                                  invoiceId: activeUpiInvoice.id,
+                                  amount: activeUpiInvoice.totalAmount,
                                   currency: 'INR',
                                   receipt: activeUpiInvoice.id
                                 })

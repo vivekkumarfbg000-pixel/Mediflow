@@ -2222,7 +2222,8 @@ export const CompounderDashboard: React.FC = () => {
                                         'apikey': anonKey
                                       },
                                       body: JSON.stringify({
-                                        amount: 50000,
+                                        invoiceId: newInvoice.id,
+                                        amount: 500,
                                         currency: 'INR',
                                         receipt: newInvoice.id
                                       })

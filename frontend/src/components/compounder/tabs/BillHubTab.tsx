@@ -1402,7 +1402,8 @@ export const BillHubTab: React.FC = () => {
                                   'apikey': anonKey
                                 },
                                 body: JSON.stringify({
-                                  amount: Math.round(billingLedger.finalTotal * 100),
+                                  invoiceId: invId,
+                                  amount: billingLedger.finalTotal,
                                   currency: 'INR',
                                   receipt: invId
                                 })
