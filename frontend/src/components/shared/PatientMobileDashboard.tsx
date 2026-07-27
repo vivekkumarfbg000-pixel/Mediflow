@@ -1075,8 +1075,8 @@ export const PatientMobileDashboard: React.FC = () => {
                               orderId,
                               invoiceId: activeUpiInvoice.id,
                               amount: activeUpiInvoice.totalAmount,
-                              name: currentPatient?.name,
-                              phone: currentPatient?.phone,
+                              name: activePatient?.name,
+                              phone: activePatient?.phone,
                               onSuccess: () => {
                                 setIsPaying(false);
                                 setPaymentSuccess(true);
@@ -1084,7 +1084,7 @@ export const PatientMobileDashboard: React.FC = () => {
                                 setTimeout(() => {
                                   setIsUpiModalOpen(false);
                                   setActiveUpiInvoice(null);
-                                  setRefreshKey(prev => prev + 1);
+                                  setInvoices(api.getUnifiedInvoices());
                                 }, 1500);
                               },
                               onError: () => setIsPaying(false)
