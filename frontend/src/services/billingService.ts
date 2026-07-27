@@ -200,7 +200,7 @@ export class BillingService {
         const patient = patients.find(p => p.id === patId);
         const patientName = patient?.name || (inv as any).patientName || (appt as any)?.patient_name || 'Patient Customer';
 
-        let grossAmount = inv.amount || 0;
+        const grossAmount = inv.amount || 0;
         let transactionType: FinancialLedgerEntry['transactionType'] = 'appointment_fee';
         let commissionRate = 0;
         let netPayout = grossAmount;

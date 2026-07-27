@@ -162,16 +162,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark } }));
   }, [isDark]);
 
-  useEffect(() => {
-    const handleThemeToggle = () => {
-      handleToggleTheme();
-    };
-    window.addEventListener('mediflow-theme-toggle', handleThemeToggle);
-    return () => {
-      window.removeEventListener('mediflow-theme-toggle', handleThemeToggle);
-    };
-  }, [isDark]);
-
   const handleToggleTheme = () => {
     const next = !isDark;
     setIsDark(next);
@@ -189,6 +179,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
     window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: next } }));
   };
+
+  useEffect(() => {
+    const handleThemeToggle = () => {
+      handleToggleTheme();
+    };
+    window.addEventListener('mediflow-theme-toggle', handleThemeToggle);
+    return () => {
+      window.removeEventListener('mediflow-theme-toggle', handleThemeToggle);
+    };
+  }, [isDark]);
   
   const activeSop = api.getActiveSop();
 

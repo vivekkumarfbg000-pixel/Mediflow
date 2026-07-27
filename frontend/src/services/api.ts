@@ -167,7 +167,7 @@ class WALIndexedDB {
       console.warn('[WAL IndexedDB] Fallback to memory outbox:', e);
       const memOutbox = this.getMemOutbox();
       memOutbox.push(entry);
-      try { localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox)); } catch {}
+      try { localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox)); } catch { /* ignore */ }
       return entry;
     }
   }
@@ -216,7 +216,7 @@ class WALIndexedDB {
       const entry = memOutbox.find((x: any) => x.id === id);
       if (entry) {
         entry.synced = true;
-        try { localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox)); } catch {}
+        try { localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox)); } catch { /* ignore */ }
       }
     }
   }
@@ -234,7 +234,7 @@ class WALIndexedDB {
     } catch (e) {
       const memOutbox = this.getMemOutbox();
       const filtered = memOutbox.filter((x: any) => x.id !== id);
-      try { localStorage.setItem('wal_mem_outbox', JSON.stringify(filtered)); } catch {}
+      try { localStorage.setItem('wal_mem_outbox', JSON.stringify(filtered)); } catch { /* ignore */ }
     }
   }
 }

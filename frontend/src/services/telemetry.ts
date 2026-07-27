@@ -89,7 +89,7 @@ class TelemetryServiceClass {
         const p = JSON.parse(profileStr);
         distinctId = p.name || p.email || p.role || 'Mediflow-User';
       }
-    } catch {}
+    } catch { /* ignore */ }
 
     const payload = {
       event: eventName,
