@@ -169,6 +169,114 @@ export class PaymentService {
   }
 
   /**
+   * Dynamically loads the Razorpay Standard Checkout SDK script
+   */
+  static loadRazorpaySdk(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (typeof window !== 'undefined' && (window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => {
+        console.warn('[PaymentService] Failed to load Razorpay Checkout SDK.');
+        resolve(false);
+      };
+      document.body.appendChild(script);
+    });
+  }
+
+  /**
+   * Launches the Razorpay Standard Checkout Modal and verifies payment signature upon completion
+   */
+  static async launchRazorpayModal(params: {
+    orderId: string;
+    invoiceId: string;
+    amount: number; // in Rupees
+    name?: string;
+    email?: string;
+    phone?: string;
+    onSuccess: (res: any) => void;
+    onError: (err: any) => void;
+  }): Promise<void> {
+    const isLoaded = await this.loadRazorpaySdk();
+    if (!isLoaded) {
+      params.onError({ message: 'Razorpay SDK failed to load. Please check internet connection.' });
+      return;
+    }
+
+    const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TIcrdvC4PJBI75';
+    const amountInPaise = Math.round(params.amount * 100);
+
+    const options: any = {
+      key: keyId,
+      amount: amountInPaise,
+      currency: 'INR',
+      name: 'VitalSync Care Network',
+      description: `Clinical Appointment Invoice #${params.invoiceId.substring(0, 8).toUpperCase()}`,
+      order_id: params.orderId,
+      prefill: {
+        name: params.name || 'VitalSync Patient',
+        email: params.email || 'patient@vitalsync.in',
+        contact: params.phone || '9999999999'
+      },
+      theme: {
+        color: '#0f62fe'
+      },
+      handler: async (response: any) => {
+        console.log('[PaymentService] Razorpay checkout response received:', response);
+        // Verify payment signature via backend Edge Function
+        try {
+          const verifyRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/razorpay-verify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+              invoiceId: params.invoiceId,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
+
+          const verifyData = await verifyRes.json();
+          if (verifyRes.ok && verifyData.success) {
+            params.onSuccess(verifyData);
+          } else {
+            params.onError({ message: verifyData.error || 'Payment signature verification failed.' });
+          }
+        } catch (err: any) {
+          console.error('[PaymentService] Signature verification exception:', err);
+          params.onError({ message: err.message || 'Signature verification network exception.' });
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          console.warn('[PaymentService] User closed Razorpay Checkout modal.');
+          params.onError({ message: 'Payment cancelled by user.' });
+        }
+      }
+    };
+
+    try {
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', (resp: any) => {
+        console.error('[PaymentService] Razorpay payment failed:', resp.error);
+        params.onError({ message: resp.error?.description || 'Payment transaction failed.' });
+      });
+      rzp.open();
+    } catch (err: any) {
+      console.error('[PaymentService] Exception launching Razorpay modal:', err);
+      params.onError({ message: err.message || 'Failed to open Razorpay modal.' });
+    }
+  }
+
+  /**
    * Helper to verify payment status in PostgreSQL and log commission pool splits
    */
   static async settleInvoiceAndCommissionPool(

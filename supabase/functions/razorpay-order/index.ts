@@ -68,8 +68,15 @@ serve(async (req) => {
     const amountInRupees = requestedAmount || Number(invoice.total_amount) || Number(invoice.totalAmount) || 515;
     const amountInPaise = Math.round(amountInRupees * 100); // Razorpay requires amount in paise
 
-    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID") || "rzp_test_mediflow_demo";
-    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "dummy_secret_key";
+    if (amountInPaise < 100) {
+      return new Response(JSON.stringify({ error: "Minimum order amount must be at least 100 paise (₹1.00)." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID") || "rzp_test_TIcrdvC4PJBI75";
+    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "BSn9uanDhhFYOqi3QTDEu7rM";
 
     // Call Razorpay API to create an order
     const authHeader = "Basic " + btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
