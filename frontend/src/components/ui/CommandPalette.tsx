@@ -56,12 +56,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       const isDark = document.documentElement.classList.contains('dark');
       if (isDark) {
         document.documentElement.classList.remove('dark');
+        document.body.classList.remove('dark');
         localStorage.setItem('theme', 'light');
       } else {
         document.documentElement.classList.add('dark');
+        document.body.classList.add('dark');
         localStorage.setItem('theme', 'dark');
       }
-      window.dispatchEvent(new Event('storage'));
+      // Bug Fix #5: Dispatch mediflow-theme-change (not 'storage') so Navbar/App isDark state updates
+      window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: !isDark } }));
       onClose();
     } },
     { id: 'simulate_alarm',    category: 'Actions',    label: 'Simulate Vitals Alarm Link',shortcut: '/simulate',      action: () => {
@@ -97,7 +100,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       .map(cmd => ({ ...cmd, type: 'command' as const }));
 
     const patientMatches = patients
-      .filter(p => p.name.toLowerCase().includes(cleanQuery) || p.phone.includes(cleanQuery))
+      .filter(p => (p.name || '').toLowerCase().includes(cleanQuery) || (p.phone || '').includes(cleanQuery))
       .map(p => ({
         id: `patient_${p.id}`,
         category: 'Patient Match',

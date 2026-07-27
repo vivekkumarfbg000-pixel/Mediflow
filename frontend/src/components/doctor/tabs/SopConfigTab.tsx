@@ -124,9 +124,12 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
   const handleActivateSop = () => {
     if (!extractedConfig) return;
+    const activeProfile = (api as any).getActiveProfile?.() || (api as any).getDoctorProfile?.();
+    const currentEntityId = (activePod as any)?.id || activeProfile?.clinicId || activeProfile?.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002';
+
     const newSop: ClinicSop = {
       id: `sop-${Date.now()}`,
-      entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      entityId: currentEntityId,
       sopFileName: customSopFileName || sopFile?.name || 'Clinic_SOP.txt',
       sopText,
       extractedConfig,
@@ -517,10 +520,10 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig.doctor_fee}`, icon: 'stethoscope', colorClasses: 'bg-blue-50 border-blue-100 text-blue-500 text-blue-700' },
-                  { label: 'Doctor Split', value: `${activeSop.extractedConfig.splits.doctor}%`, icon: 'person', colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-500 text-indigo-700' },
-                  { label: 'Platform Split', value: `${activeSop.extractedConfig.splits.platform}%`, icon: 'hub', colorClasses: 'bg-violet-50 border-violet-100 text-violet-500 text-violet-700' },
-                  { label: 'Lab Split', value: `${activeSop.extractedConfig.splits.lab}%`, icon: 'emerald', colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-500 text-emerald-700' },
+                  { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig?.doctor_fee ?? 500}`, icon: 'stethoscope', colorClasses: 'bg-blue-50 border-blue-100 text-blue-500 text-blue-700' },
+                  { label: 'Doctor Split', value: `${activeSop.extractedConfig?.splits?.doctor ?? 40}%`, icon: 'person', colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-500 text-indigo-700' },
+                  { label: 'Platform Split', value: `${activeSop.extractedConfig?.splits?.platform ?? 3}%`, icon: 'hub', colorClasses: 'bg-violet-50 border-violet-100 text-violet-500 text-violet-700' },
+                  { label: 'Lab Split', value: `${activeSop.extractedConfig?.splits?.lab ?? 57}%`, icon: 'emerald', colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-500 text-emerald-700' },
                 ].map((stat: any) => {
                   const [bg, border, iconColor, textColor] = stat.colorClasses.split(' ');
                   return (
@@ -540,7 +543,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   Active Lab Test Price Schedule
                 </h4>
                 <div className="divide-y divide-slate-100">
-                  {Object.entries(activeSop.extractedConfig.test_prices).map(([loinc, price]) => (
+                  {Object.entries(activeSop.extractedConfig?.test_prices || {}).map(([loinc, price]) => (
                     <div key={loinc} className="flex items-center justify-between py-2.5">
                       <div>
                         <p className="text-xs font-semibold text-slate-700">{testNames[loinc] || loinc}</p>
@@ -549,8 +552,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-extrabold text-slate-800">₹{price as number}</span>
                         <div className="text-[10px] text-slate-600 space-y-0.5 text-right">
-                          <p className="text-blue-600">Dr: ₹{((price as number) * activeSop.extractedConfig.splits.doctor / 100).toFixed(0)}</p>
-                          <p className="text-emerald-600">Lab: ₹{((price as number) * activeSop.extractedConfig.splits.lab / 100).toFixed(0)}</p>
+                          <p className="text-blue-600">Dr: ₹{((price as number) * (activeSop.extractedConfig?.splits?.doctor ?? 40) / 100).toFixed(0)}</p>
+                          <p className="text-emerald-600">Lab: ₹{((price as number) * (activeSop.extractedConfig?.splits?.lab ?? 57) / 100).toFixed(0)}</p>
                         </div>
                       </div>
                     </div>
@@ -559,14 +562,14 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               </div>
 
               {/* Guidelines */}
-              {activeSop.extractedConfig.guidelines.length > 0 && (
+              {(activeSop.extractedConfig?.guidelines || []).length > 0 && (
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 space-y-2">
                   <h4 className="font-bold text-amber-700 text-sm flex items-center gap-2">
                     <span className="material-symbols-outlined text-base">checklist</span>
                     Active Workflow Guidelines
                   </h4>
                   <ul className="space-y-2">
-                    {activeSop.extractedConfig.guidelines.map((g: string, i: number) => (
+                    {(activeSop.extractedConfig?.guidelines || []).map((g: string, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-amber-800">
                         <span className="w-5 h-5 rounded-full bg-amber-200 flex items-center justify-center text-amber-700 font-bold flex-shrink-0 text-[10px]">{i + 1}</span>
                         {g}

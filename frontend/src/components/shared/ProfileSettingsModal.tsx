@@ -88,8 +88,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
             .select('*')
             .eq('id', session.user.id)
             .single()
-            .then(({ data: profile }) => {
-              if (profile) {
+            .then(({ data: profile, error }) => {
+              if (profile && !error) {
                 setActiveProfile(profile);
                 setDisplayName(profile.display_name || '');
               }

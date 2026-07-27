@@ -174,8 +174,8 @@ export const LabDashboard: React.FC = () => {
   const filteredPatients = useMemo(
     () =>
       patients.filter(p =>
-        p.name.toLowerCase().includes(walkinSearch.toLowerCase()) ||
-        p.phone.includes(walkinSearch)
+        (p.name || '').toLowerCase().includes(walkinSearch.toLowerCase()) ||
+        (p.phone || '').includes(walkinSearch)
       ),
     [patients, walkinSearch]
   );
@@ -183,8 +183,8 @@ export const LabDashboard: React.FC = () => {
   const directFilteredPatients = useMemo(
     () =>
       patients.filter(p =>
-        p.name.toLowerCase().includes(directSearch.toLowerCase()) ||
-        p.phone.includes(directSearch)
+        (p.name || '').toLowerCase().includes(directSearch.toLowerCase()) ||
+        (p.phone || '').includes(directSearch)
       ),
     [patients, directSearch]
   );
@@ -192,7 +192,7 @@ export const LabDashboard: React.FC = () => {
   /* ─── Analytics data ─────────────────────────────────────────── */
   const todayStr = new Date().toISOString().split('T')[0];
   const todayCompleted = useMemo(
-    () => completedList.filter(r => r.createdAt.startsWith(todayStr)),
+    () => completedList.filter(r => (r.createdAt || '').startsWith(todayStr)),
     [completedList, todayStr]
   );
   const todayRevenue = useMemo(() => {
@@ -204,7 +204,10 @@ export const LabDashboard: React.FC = () => {
   const totalTests = useMemo(() => completedList.length, [completedList]);
   const testBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
-    completedList.forEach(r => { map[r.testName] = (map[r.testName] || 0) + 1; });
+    completedList.forEach(r => {
+      const name = r.testName || 'Laboratory Test';
+      map[name] = (map[name] || 0) + 1;
+    });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [completedList]);
 
@@ -2074,13 +2077,13 @@ export const LabDashboard: React.FC = () => {
                             <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
                             <p className="text-[10px] text-slate-500 font-mono">Invoice #{bill.id.substring(0, 8)} • {bill.items.length} tests</p>
                           </div>
-                          <div className="text-xs font-black text-slate-800">Total: ₹{bill.totalAmount.toFixed(2)}</div>
+                          <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
                                 api.payLabTestBill(bill.id, 'cash');
                                 window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Collected ₹${bill.totalAmount.toFixed(0)} cash! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
+                                  detail: { message: `Collected ₹${(bill.totalAmount || 0).toFixed(0)} cash! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
                                 }));
                               }}
                               className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
@@ -2091,7 +2094,7 @@ export const LabDashboard: React.FC = () => {
                               onClick={() => {
                                 api.payLabTestBill(bill.id, 'upi');
                                 window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Collected ₹${bill.totalAmount.toFixed(0)} via UPI! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
+                                  detail: { message: `Collected ₹${(bill.totalAmount || 0).toFixed(0)} via UPI! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
                                 }));
                               }}
                               className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
@@ -2123,7 +2126,7 @@ export const LabDashboard: React.FC = () => {
                             ✓ PAID
                           </div>
                           <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{bill.totalAmount.toFixed(2)} • {bill.items.length} tests</p>
+                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} tests</p>
                           <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
                           <div className="flex gap-2 pt-1">
                             <button
@@ -2132,6 +2135,8 @@ export const LabDashboard: React.FC = () => {
                                 const blob = new Blob([html], { type: 'text/html' });
                                 const url = URL.createObjectURL(blob);
                                 window.open(url, '_blank');
+                                // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
+                                setTimeout(() => URL.revokeObjectURL(url), 1500);
                               }}
                               className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
                             >

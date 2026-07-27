@@ -226,7 +226,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     }
     if ((inv as any)?.patientName) return (inv as any).patientName;
     if ((appt as any)?.patient_name) return (appt as any).patient_name;
-    return `Patient #${entry.invoiceId.substring(0, 6).toUpperCase()}`;
+    return `Patient #${(entry.invoiceId || 'N/A').substring(0, 6).toUpperCase()}`;
   }, [invoices, appointments, patients]);
 
   const getPaymentModeLabel = useCallback((entry: FinancialLedgerEntry) => {
@@ -256,8 +256,8 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         return (
           pName.includes(query) ||
           pMode.includes(query) ||
-          entry.invoiceId.toLowerCase().includes(query) ||
-          entry.transactionType.toLowerCase().includes(query)
+          (entry.invoiceId || '').toLowerCase().includes(query) ||
+          (entry.transactionType || '').toLowerCase().includes(query)
         );
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

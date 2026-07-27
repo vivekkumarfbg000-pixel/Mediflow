@@ -300,6 +300,15 @@ export const DoctorDashboard: React.FC = () => {
     };
   }, [isRecording]);
 
+  // Bug Fix #4: Revoke audio blob URL on unmount or when a new recording replaces it
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
+
   const startAudioRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -615,9 +624,9 @@ export const DoctorDashboard: React.FC = () => {
       }
       
       setSelectedPatient((prev: Patient | null) => {
-        if (!prev) return registered.length > 0 ? registered[0] : null;
+        if (!prev) return null; // Bug Fix #3: never auto-assign a patient; let the doctor choose
         const stillExists = registered.find(p => p.id === prev.id);
-        return stillExists || (registered.length > 0 ? registered[0] : null);
+        return stillExists || null; // Bug Fix #3: if previous patient no longer exists, clear selection rather than jumping
       });
     };
 
@@ -680,8 +689,9 @@ export const DoctorDashboard: React.FC = () => {
           WhatsAppService.saveWhatsAppSessions(allSessions);
 
           // Update active selected chat session panel in real-time
+          // Bug Fix #1: Only update selectedChatSession if a specific session was already selected by the doctor
           setSelectedChatSession((prev: any) => {
-            if (!prev) return formatted;
+            if (!prev) return prev; // do NOT auto-assign — keep null if doctor hasn't opened a chat
             const prevDigits = (prev.patientPhone || prev.patient_phone || prev.phone || '').replace(/\D/g, '').slice(-10);
             if (prev.id === formatted.id || (prevDigits && prevDigits === targetDigits)) {
               return formatted;
@@ -689,7 +699,10 @@ export const DoctorDashboard: React.FC = () => {
             return prev;
           });
         }
-        syncDashboardData();
+        // Bug Fix #9: Debounce syncDashboardData on WhatsApp events (250ms CDC debounce per AGENTS.md)
+        // to avoid hammering Supabase with redundant full re-fetches on each patient message
+        if (typeof (window as any).__waSyncTimeout !== 'undefined') clearTimeout((window as any).__waSyncTimeout);
+        (window as any).__waSyncTimeout = setTimeout(() => syncDashboardData(), 250);
       }
     });
 

@@ -103,7 +103,7 @@ export const BillHubTab: React.FC = () => {
     return patients.filter(p => 
       p.name.toLowerCase().includes(query) ||
       p.phone.includes(query) ||
-      (p.tokenNumber && p.tokenNumber.toLowerCase().includes(query))
+      (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(query))
     );
   }, [patients, searchQuery]);
 
@@ -340,7 +340,8 @@ export const BillHubTab: React.FC = () => {
       if (manualExtractedData) {
         Object.entries(manualExtractedData.structured).forEach(([k, v]) => {
           const itemLower = k.toLowerCase();
-          const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || i.genericName.toLowerCase().includes(itemLower));
+          // Bug Fix A: guard genericName — may be undefined for CSV-imported batches
+          const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
           if (matchedMed) {
             if (!combinedMeds.some(m => m.name.toLowerCase() === matchedMed.name.toLowerCase())) {
               combinedMeds.push({
@@ -429,7 +430,9 @@ export const BillHubTab: React.FC = () => {
     const pharmacyDiscount = isRefillPurchase ? parseFloat((pharmacySub * 0.1).toFixed(2)) : 0;
     const totalDiscount = pharmacyDiscount + discountInput;
 
-    const pharmGst = parseFloat((pharmacySub * 0.12).toFixed(2));
+    // Bug Fix #7: Align pharmacy GST to 5% (matches PharmacyDashboard and Indian GST for essential medicines)
+    // Lab diagnostic services attract 18% GST as per Indian GST Schedule
+    const pharmGst = parseFloat((pharmacySub * 0.05).toFixed(2));
     const labGst = parseFloat((labSub * 0.18).toFixed(2));
     const totalGst = parseFloat((pharmGst + labGst).toFixed(2));
 
@@ -481,7 +484,8 @@ export const BillHubTab: React.FC = () => {
 
       Object.entries(result.structured_data).forEach(([k, v]) => {
         const itemLower = k.toLowerCase();
-        const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || i.genericName.toLowerCase().includes(itemLower));
+        // Bug Fix A: guard genericName — may be undefined for CSV-imported batches
+        const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
         const matchedTest = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase().includes(itemLower));
         
         if (matchedMed) {
@@ -659,7 +663,7 @@ export const BillHubTab: React.FC = () => {
 
       chargesBreakdown = `
         <tr><td style="padding:6px 0;color:#64748b">Pharmacy Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.pharmacySub.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">CGST + SGST (12%):</td><td style="text-align:right;font-weight:600">₹${billingLedger.pharmGst.toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">CGST + SGST (5%):</td><td style="text-align:right;font-weight:600">₹${billingLedger.pharmGst.toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">Discount Given:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${discountInput.toFixed(2)}</td></tr>
         <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Net Payable:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${Math.max(0, billingLedger.pharmacySub + billingLedger.pharmGst - discountInput).toFixed(2)}</td></tr>`;
     } 
@@ -740,7 +744,7 @@ export const BillHubTab: React.FC = () => {
         <tr><td style="padding:6px 0;color:#64748b">Consultation Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.consultTotal.toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">Pharmacy Items Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.pharmacySub.toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">Diagnostics Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.labSub.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">GST Amount (12% Pharm / 18% Lab):</td><td style="text-align:right;font-weight:600">₹${billingLedger.totalGst.toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">GST Amount (5% Pharm / 18% Lab):</td><td style="text-align:right;font-weight:600">₹${billingLedger.totalGst.toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">Discount Input:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${discountInput.toFixed(2)}</td></tr>
         <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Grand Total Paid:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${billingLedger.finalTotal.toFixed(2)}</td></tr>`;
     }
@@ -796,6 +800,8 @@ export const BillHubTab: React.FC = () => {
     const blob = new Blob([printHtml], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
+    // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
   };
 
   // Clear Payment & Sync Inventory
@@ -897,13 +903,13 @@ export const BillHubTab: React.FC = () => {
         </div>
 
         {/* List */}
-        <div className="space-y-2 max-h-[450px] overflow-y-auto no-scrollbar">
+        <div className="space-y-2 lg:max-h-[450px] max-h-none lg:overflow-y-auto no-scrollbar">
           {filteredPatients.map(p => {
             const isSelected = selectedPatient?.id === p.id;
             const appts = BillingService.getAppointments();
-            const activeVirtual = appts.find(a => a.patientId === p.id && a.isVirtual && a.status !== 'completed' && a.status !== 'cancelled');
+            const activeVirtual = appts.find(a => ((a as any).patientId === p.id || (a as any).patient_id === p.id) && ((a as any).isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
             
-            const encounters = EncounterService.getEncounters().filter(e => e.patientId === p.id);
+            const encounters = EncounterService.getEncounters().filter(e => e.patientId === p.id || (e as any).patient_id === p.id);
             const hasRx = encounters.length > 0;
 
             return (

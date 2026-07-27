@@ -52,6 +52,14 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
     }
   };
 
+  const chatScrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatHistory, isProcessing]);
+
   return (
     <>
       {/* ── Floating WhatsApp Support Badge ───────────────────────────────────── */}
@@ -119,10 +127,10 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
             </div>
 
             {/* Chat Body */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-slate-50/50">
+            <div ref={chatScrollRef} className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-slate-50/50">
               {chatHistory.map((msg, idx) => (
                 <div
-                  key={idx}
+                  key={`support-msg-${idx}-${msg.sender}-${msg.text.slice(0, 15)}`}
                   className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   <div

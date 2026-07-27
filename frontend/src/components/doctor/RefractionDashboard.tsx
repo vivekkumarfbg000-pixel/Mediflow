@@ -95,9 +95,9 @@ export const RefractionDashboard: React.FC = () => {
 
     if (!query) return list;
     return list.filter(p => 
-      p.name.toLowerCase().includes(query) || 
-      (p.tokenNumber && p.tokenNumber.toLowerCase().includes(query)) ||
-      p.phone.includes(query)
+      (p.name || '').toLowerCase().includes(query) || 
+      (p.tokenNumber != null && String(p.tokenNumber).toLowerCase().includes(query)) ||
+      (p.phone || '').includes(query)
     );
   }, [patients, searchQuery]);
 

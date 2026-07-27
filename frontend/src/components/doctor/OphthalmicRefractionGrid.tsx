@@ -9,12 +9,14 @@ interface OphthalmicRefractionGridProps {
 
 const SPH_OPTIONS: string[] = [];
 for (let i = -20; i <= 20; i += 0.25) {
-  SPH_OPTIONS.push(i > 0 ? `+${i.toFixed(2)}` : i.toFixed(2));
+  const val = i > 0 ? `+${i.toFixed(2)}` : i.toFixed(2);
+  SPH_OPTIONS.push(val === '-0.00' ? '0.00' : val);
 }
 
 const CYL_OPTIONS: string[] = [];
 for (let i = -10; i <= 0; i += 0.25) {
-  CYL_OPTIONS.push(i.toFixed(2));
+  const val = i.toFixed(2);
+  CYL_OPTIONS.push(val === '-0.00' ? '0.00' : val);
 }
 
 const AXIS_OPTIONS: string[] = [];

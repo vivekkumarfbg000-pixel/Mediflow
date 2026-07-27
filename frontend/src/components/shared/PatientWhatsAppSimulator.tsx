@@ -258,7 +258,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
           <div className="pt-6 pb-2.5 px-3 bg-[#075e54] text-white flex justify-between items-center z-10 shrink-0 shadow-md">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-emerald-600/30 border border-emerald-400/20 flex items-center justify-center text-emerald-400 font-bold text-xs font-mono shadow-inner">
-                {activePatient?.name.substring(0, 2).toUpperCase() || 'MF'}
+                {(activePatient?.name || 'Mediflow').substring(0, 2).toUpperCase()}
               </div>
               <div>
                 <div className="text-xs font-bold flex items-center gap-1">

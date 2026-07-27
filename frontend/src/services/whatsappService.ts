@@ -1090,10 +1090,16 @@ export class WhatsAppService {
   }
 
   static pushWhatsAppMessageFromBot(phone: string, text: string): void {
+    if (!phone || !text) return;
     const sessions = this.getWhatsAppSessions();
-    const existing = sessions.find(s => s.patientPhone === phone);
+    const targetDigits = phone.replace(/\D/g, '').slice(-10);
+    const existing = sessions.find(s => {
+      const sDigits = (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10);
+      return sDigits && targetDigits && sDigits === targetDigits;
+    });
+
     if (existing) {
-      const currentHistory = existing.sessionData.chatHistory || [];
+      const currentHistory = existing.sessionData?.chatHistory || [];
       currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
       existing.sessionData = {
         ...existing.sessionData,
@@ -1104,9 +1110,34 @@ export class WhatsAppService {
       supabase.from('whatsapp_sessions').update({
         session_data: existing.sessionData,
         last_interaction: new Date().toISOString()
-      }).eq('patient_phone', phone).then(({ error }) => {
+      }).eq('id', existing.id).then(({ error }) => {
         if (error) console.error('Error updating whatsapp session:', error);
         else writeAuditLog('WHATSAPP_BOT_OUTGOING_MESSAGE', { phone, message: text }, existing.id);
+      });
+    } else {
+      // Auto-provision session for new phone numbers (e.g. demo test dispatches / outbound reminders)
+      const newSession: WhatsAppSession = {
+        id: crypto.randomUUID(),
+        patientPhone: phone,
+        patientName: 'WhatsApp Demo Patient',
+        lastInteraction: new Date().toISOString(),
+        sessionData: {
+          step: 'main_menu',
+          chatHistory: [{ sender: 'bot', text, time: new Date().toISOString() }]
+        }
+      };
+      sessions.unshift(newSession);
+      this.saveWhatsAppSessions(sessions);
+
+      supabase.from('whatsapp_sessions').insert([{
+        id: newSession.id,
+        patient_phone: phone,
+        patient_name: newSession.patientName,
+        last_interaction: newSession.lastInteraction,
+        session_data: newSession.sessionData
+      }]).then(({ error }) => {
+        if (error) console.error('Error creating whatsapp session:', error);
+        else writeAuditLog('WHATSAPP_BOT_OUTGOING_MESSAGE', { phone, message: text }, newSession.id);
       });
     }
   }

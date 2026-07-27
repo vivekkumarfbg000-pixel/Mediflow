@@ -134,6 +134,14 @@ class WALIndexedDB {
     });
   }
 
+  private getMemOutbox(): any[] {
+    try {
+      return JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+    } catch {
+      return [];
+    }
+  }
+
   async addEntry(action: WALEntry['action'], payload: any): Promise<WALEntry> {
     const entry: WALEntry = {
       id: payload.id || crypto.randomUUID(),
@@ -142,6 +150,10 @@ class WALIndexedDB {
       timestamp: new Date().toISOString(),
       synced: false,
     };
+    return this.append(entry);
+  }
+
+  async append(entry: WALEntry): Promise<WALEntry> {
     try {
       const db = await this.getDB();
       return new Promise((resolve, reject) => {
@@ -153,9 +165,9 @@ class WALIndexedDB {
       });
     } catch (e) {
       console.warn('[WAL IndexedDB] Fallback to memory outbox:', e);
-      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const memOutbox = this.getMemOutbox();
       memOutbox.push(entry);
-      localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox));
+      try { localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox)); } catch {}
       return entry;
     }
   }
@@ -174,7 +186,7 @@ class WALIndexedDB {
         request.onerror = () => reject(request.error);
       });
     } catch (e) {
-      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const memOutbox = this.getMemOutbox();
       return memOutbox.filter((e: any) => !e.synced);
     }
   }
@@ -200,11 +212,11 @@ class WALIndexedDB {
         request.onerror = () => reject(request.error);
       });
     } catch (e) {
-      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const memOutbox = this.getMemOutbox();
       const entry = memOutbox.find((x: any) => x.id === id);
       if (entry) {
         entry.synced = true;
-        localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox));
+        try { localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox)); } catch {}
       }
     }
   }
@@ -220,9 +232,9 @@ class WALIndexedDB {
         request.onerror = () => reject(request.error);
       });
     } catch (e) {
-      const memOutbox = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const memOutbox = this.getMemOutbox();
       const filtered = memOutbox.filter((x: any) => x.id !== id);
-      localStorage.setItem('wal_mem_outbox', JSON.stringify(filtered));
+      try { localStorage.setItem('wal_mem_outbox', JSON.stringify(filtered)); } catch {}
     }
   }
 }

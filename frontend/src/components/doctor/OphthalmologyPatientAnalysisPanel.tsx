@@ -210,7 +210,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
         </h2>
         <p className="text-[10px] text-slate-600 mb-4">{OPHTHALMIC_EYE_CARE_COPY.timelineSubtitle}</p>
 
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+        <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
           {entries.length === 0 ? (
             <div className="text-center py-6 text-slate-600 text-xs italic">
               No historical biomarker reports found.

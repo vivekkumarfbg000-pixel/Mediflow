@@ -317,9 +317,11 @@ function AppContent({
           setIsDark(next);
           if (next) {
             document.documentElement.classList.add('dark');
+            document.body?.classList.add('dark');
             localStorage.setItem('theme', 'dark');
           } else {
             document.documentElement.classList.remove('dark');
+            document.body?.classList.remove('dark');
             localStorage.setItem('theme', 'light');
           }
           window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: next } }));

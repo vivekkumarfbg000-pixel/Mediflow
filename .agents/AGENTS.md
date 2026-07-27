@@ -74,5 +74,46 @@ You MUST NEVER alter or break the 2-Touchpoint Clinical & Monetization Care Loop
    - `Virtual Video Review 💻` (**Emergency / Busy Fallback**): Generates Jitsi link for remote video review & dispatches 1-Click home delivery.
 3. **4 Premium Member Benefits**: Paying medicine/lab bills at clinic counter unlocks 1 Free Virtual Consult (15-20 days), 10% OFF Refills, WhatsApp Daily Reminders + AI Longitudinal Report, and Instant PDF Lab Reports.
 
+### 8. Anti-Regression Directives & Persistent Bug Prevention (Audit Lessons 1–38)
+You MUST ALWAYS enforce these strict technical safeguards across all future code edits to prevent regressions of resolved bugs:
+
+1. **Postgres CDC Field Normalization**: All incoming Supabase Postgres CDC records MUST pass through `normalizeRecord()` in `realtimeSyncService.ts` to convert `snake_case` database fields to `camelCase` properties before updating local states.
+2. **IndexedDB & LocalStorage Safe JSON Parsing**: ALL calls reading `localStorage` (such as `wal_mem_outbox`, `offline_sync_queue`, `whatsapp_broadcast_logs`, `founder_alerts`, `vitalsync_support_tickets`) MUST be wrapped in `try-catch` blocks with safe fallback defaults to prevent `SyntaxError` crashes on corrupted storage strings.
+3. **Cashfree Unpaid Appointment Gate**: `pending_payment` appointments MUST remain hidden from active Doctor EMR and Compounder queues. Filtering maps MUST check both `a.patientId` and `a.patient_id` (`a.patientId || a.patient_id`) so CDC records are never misidentified.
+4. **Ghost Payment Cancellation**: Unpaid poller routines MUST mark stale (>15m) unpaid appointments as `cancelled` — NEVER auto-confirm unpaid visits.
+5. **Pharmacy GST Standardization**: Standardize pharmacy GST calculation to 5% across both BillHubTab and Pharmacy POS paths.
+6. **WhatsApp Chat Realtime Isolation**: Incoming Realtime WhatsApp messages MUST NOT force-open unknown patient sessions or override the doctor's active chat context.
+7. **Compounder Realtime `syncData` Handler**: Financial CDC event listeners in `CompounderDashboard.tsx` MUST invoke a valid `syncData` callback without unhandled `ReferenceError` crashes.
+8. **Live 8-Step Workflow Pill Reactivity**: Compounder workflow lookup maps MUST bind `[dataRevision]` in `useMemo` dependency arrays to ensure live progress updates.
+9. **Doctor Consultation Focus Protection**: Realtime patient list syncs MUST NEVER reset the doctor's active consultation selection to `registered[0]` mid-consultation.
+10. **Blob URL Memory Leak Prevention**: EVERY invocation of `URL.createObjectURL(blob)` for PDF, invoice, spectacle, or audio preview/print tabs MUST call `URL.revokeObjectURL(url)` immediately after opening.
+11. **Numeric `tokenNumber` Search Safety**: Search filters querying `tokenNumber` MUST wrap numeric values with `String(p.tokenNumber).toLowerCase()` to prevent `TypeError` crashes.
+12. **Defensive Phone Search Null Guards**: Search filters querying `phone` MUST use `(p.phone || '')` guards before calling `.includes()`.
+13. **Patient Mobile Encounter Chaining**: Encounter medication maps MUST use optional chaining (`enc.medications?.map`) to prevent crashes on encounters without prescriptions.
+14. **Settlement Loading State Guarantee**: Settlement widgets MUST invoke `setLoading(false)` on early returns when `podId` or `entityId` is missing.
+15. **Invoice ID Substring Safety**: Financial ledger entry renderings MUST guard `(entry.invoiceId || 'N/A')` before taking `.substring()`.
+16. **SOP Config Null Property Safety**: SOP configuration rendering MUST use optional chaining `?.` and fallbacks `||` on `extractedConfig` properties.
+17. **CSV Generic Medicine Search Safety**: Medicine search filters MUST guard `(i.genericName || '')` for CSV-imported batches.
+18. **Bill Card `toFixed(2)` Null Guards**: Bill card price displays MUST wrap total amounts with `(bill.totalAmount || 0).toFixed(2)` defensive guards.
+19. **React Chat Stream Key Stability**: Dynamic message streams in WhatsApp tabs MUST use composite keys (`key={`msg-${idx}-${sender}-${text.slice(0, 15)}`}`) instead of array indices (`key={idx}`).
+20. **Command Palette Theme Toggle Event Sync**: Theme toggle actions in `CommandPalette.tsx` MUST dispatch `mediflow-theme-change` to keep Navbar and App state synchronized.
+21. **WhatsApp 10-Digit Phone Normalization**: `pushWhatsAppMessageFromBot` MUST compare normalized 10-digit numbers (`replace(/\D/g, '').slice(-10)`) and update DB by session `id`.
+22. **Outbound WhatsApp Session Auto-Provisioning**: `pushWhatsAppMessageFromBot` MUST automatically provision a session (`sessions.unshift(newSession)` & Supabase DB `insert`) when messaging a new phone number.
+23. **Biometry Worksheet Controlled Inputs**: Biometry form elements MUST use a `safeValue` record with nullish coalescing defaults (`?? ''`) for all biometry fields.
+24. **Optical Prescription `-0.00` Formatting Sanitization**: SPH and CYL option generators MUST explicitly sanitize `val === '-0.00' ? '0.00' : val`.
+25. **Global `mediflow-toast` Event Listening**: `ToastProvider.tsx` MUST maintain an active `mediflow-toast` window listener and memoize the `toast` context value with `useMemo`.
+26. **Mobile Nav Dark Mode Contrast**: Mobile bottom navigation bars MUST use `border-white/10` for border styling on dark backgrounds.
+27. **Dynamic Specialization Context Reactivity**: `SpecializationProvider` MUST listen for `mediflow-specialization-change` and `storage` events with a `specRevision` state counter for instant UI re-rendering without page refreshes.
+28. **Multi-Tenant SOP Entity ID Isolation**: SOP activation routines MUST extract `currentEntityId` dynamically from `activePod?.id` or `activeProfile?.clinicId` instead of static hardcoded UUIDs.
+29. **Pod Command Center Date Sync**: Daily metric calculations MUST evaluate `currentTime.toISOString().split('T')[0]` dynamically so counters roll over accurately at midnight.
+30. **Profile Settings Modal Promise Safety**: Supabase `.single()` query callbacks MUST inspect `!error` before accessing returning records.
+31. **WhatsApp AI Support Sentry Auto-Scroll**: Floating AI support chat drawers MUST maintain a `chatScrollRef` auto-scrolling `scrollTop = scrollHeight` on new message arrival.
+32. **Patients Directory Telemedicine Substring Safety**: Telemedicine room ID renderings and virtual booking routines MUST guard `(virtualAppt.id || 'tele-001').substring(0, 8)` before taking `.substring()`.
+33. **Cashfree Order Invoice ID Schema Safety**: `cashfree-order` Edge Function validation MUST use `z.string().min(1)` instead of `z.string().uuid()` to support both custom string IDs (`inv-XXXX`) and UUIDs.
+34. **Financial Ledger Search Filter Safety**: `FinancialsTab.tsx` ledger search filters MUST guard `(entry.invoiceId || '')` and `(entry.transactionType || '')` before calling `.toLowerCase()`.
+35. **Refraction Desk Search Filter Safety**: `RefractionDashboard.tsx` search filters MUST guard `(p.name || '')` and `(p.phone || '')` before calling `.toLowerCase()` or `.includes()`.
+36. **WAL IndexedDB Outbox Method Integrity**: `WALIndexedDB.addEntry` in `api.ts` MUST delegate to `this.append(entry)` with clean try-catch blocks to prevent class syntax errors and ensure offline storage fallbacks.
+37. **Patient WhatsApp Simulator Avatar Safety**: Avatar rendering in `PatientWhatsAppSimulator.tsx` MUST use `(activePatient?.name || 'Mediflow').substring(0, 2)` before calling `.substring()` or `.toUpperCase()`.
+
 
 

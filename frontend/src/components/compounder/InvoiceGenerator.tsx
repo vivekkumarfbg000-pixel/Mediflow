@@ -89,6 +89,8 @@ const InvoiceGenerator: React.FC = () => {
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
+      // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
       showToast('📄 Invoice opened in new tab. Use Ctrl+P to print / save as PDF.');
     } finally {
       setIsGenerating(false);

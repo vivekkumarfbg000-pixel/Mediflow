@@ -235,14 +235,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     return id;
   }, []);
 
-  const toast = {
+  useEffect(() => {
+    const handleMediflowToast = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string; type?: ToastVariant; title?: string; duration?: number }>;
+      if (customEvent.detail && customEvent.detail.message) {
+        const variant = customEvent.detail.type || 'info';
+        addToast(customEvent.detail.message, variant, {
+          title: customEvent.detail.title,
+          duration: customEvent.detail.duration
+        });
+      }
+    };
+    window.addEventListener('mediflow-toast', handleMediflowToast);
+    return () => window.removeEventListener('mediflow-toast', handleMediflowToast);
+  }, [addToast]);
+
+  const toast = useMemo(() => ({
     success: (message: string, options?: ToastOptions) => addToast(message, 'success', options),
     error: (message: string, options?: ToastOptions) => addToast(message, 'error', { duration: 6000, ...options }),
     warning: (message: string, options?: ToastOptions) => addToast(message, 'warning', options),
     info: (message: string, options?: ToastOptions) => addToast(message, 'info', options),
     dismiss,
     dismissAll,
-  };
+  }), [addToast, dismiss, dismissAll]);
 
   return (
     <ToastContext.Provider value={{ toast }}>

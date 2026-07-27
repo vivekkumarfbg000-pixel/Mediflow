@@ -12,9 +12,18 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
   onChange,
   readOnly = false
 }) => {
+  const safeValue: BiometryData = {
+    axialLength: value?.axialLength ?? '',
+    k1: value?.k1 ?? '',
+    k2: value?.k2 ?? '',
+    targetRefraction: value?.targetRefraction ?? '',
+    iolModel: value?.iolModel ?? '',
+    iolPower: value?.iolPower ?? ''
+  };
+
   const updateField = (field: keyof BiometryData, val: string) => {
     onChange({
-      ...value,
+      ...safeValue,
       [field]: val
     });
   };
@@ -36,11 +45,11 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
         <div className="space-y-1">
           <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">Axial Length (mm)</label>
           {readOnly ? (
-            <span className="text-xs font-bold text-slate-800 block py-1">{value.axialLength || '—'}</span>
+            <span className="text-xs font-bold text-slate-800 block py-1">{safeValue.axialLength || '—'}</span>
           ) : (
             <input
               type="text"
-              value={value.axialLength}
+              value={safeValue.axialLength}
               onChange={(e) => updateField('axialLength', e.target.value)}
               placeholder="e.g. 23.45"
               className="w-full bg-white border border-slate-200 focus:border-indigo-450 rounded-lg py-1.5 px-2.5 text-xs text-slate-850 outline-none transition-all font-mono font-bold placeholder-slate-300"
@@ -52,11 +61,11 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
         <div className="space-y-1">
           <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">K1 Flat (D)</label>
           {readOnly ? (
-            <span className="text-xs font-bold text-slate-800 block py-1">{value.k1 || '—'}</span>
+            <span className="text-xs font-bold text-slate-800 block py-1">{safeValue.k1 || '—'}</span>
           ) : (
             <input
               type="text"
-              value={value.k1}
+              value={safeValue.k1}
               onChange={(e) => updateField('k1', e.target.value)}
               placeholder="e.g. 43.50"
               className="w-full bg-white border border-slate-200 focus:border-indigo-450 rounded-lg py-1.5 px-2.5 text-xs text-slate-850 outline-none transition-all font-mono font-bold placeholder-slate-300"
@@ -68,11 +77,11 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
         <div className="space-y-1">
           <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">K2 Steep (D)</label>
           {readOnly ? (
-            <span className="text-xs font-bold text-slate-800 block py-1">{value.k2 || '—'}</span>
+            <span className="text-xs font-bold text-slate-800 block py-1">{safeValue.k2 || '—'}</span>
           ) : (
             <input
               type="text"
-              value={value.k2}
+              value={safeValue.k2}
               onChange={(e) => updateField('k2', e.target.value)}
               placeholder="e.g. 44.25"
               className="w-full bg-white border border-slate-200 focus:border-indigo-450 rounded-lg py-1.5 px-2.5 text-xs text-slate-850 outline-none transition-all font-mono font-bold placeholder-slate-300"
@@ -84,11 +93,11 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
         <div className="space-y-1">
           <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">Target Rx (D)</label>
           {readOnly ? (
-            <span className="text-xs font-bold text-slate-800 block py-1">{value.targetRefraction || '—'}</span>
+            <span className="text-xs font-bold text-slate-800 block py-1">{safeValue.targetRefraction || '—'}</span>
           ) : (
             <input
               type="text"
-              value={value.targetRefraction}
+              value={safeValue.targetRefraction}
               onChange={(e) => updateField('targetRefraction', e.target.value)}
               placeholder="e.g. -0.50"
               className="w-full bg-white border border-slate-200 focus:border-indigo-450 rounded-lg py-1.5 px-2.5 text-xs text-slate-850 outline-none transition-all font-mono font-bold placeholder-slate-300"
@@ -100,10 +109,10 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
         <div className="space-y-1">
           <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">Selected IOL Model</label>
           {readOnly ? (
-            <span className="text-xs font-bold text-slate-800 block py-1">{value.iolModel || '—'}</span>
+            <span className="text-xs font-bold text-slate-800 block py-1">{safeValue.iolModel || '—'}</span>
           ) : (
             <select
-              value={value.iolModel}
+              value={safeValue.iolModel}
               onChange={(e) => updateField('iolModel', e.target.value)}
               className="w-full bg-white border border-slate-200 focus:border-indigo-450 rounded-lg py-1.5 px-2 text-xs text-slate-850 outline-none transition-all font-medium"
             >
@@ -120,11 +129,11 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
         <div className="space-y-1">
           <label className="text-[9px] font-bold text-slate-600 uppercase tracking-wider block">IOL Power Selected (D)</label>
           {readOnly ? (
-            <span className="text-xs font-bold text-slate-800 block py-1">{value.iolPower || '—'}</span>
+            <span className="text-xs font-bold text-slate-800 block py-1">{safeValue.iolPower || '—'}</span>
           ) : (
             <input
               type="text"
-              value={value.iolPower}
+              value={safeValue.iolPower}
               onChange={(e) => updateField('iolPower', e.target.value)}
               placeholder="e.g. +21.50"
               className="w-full bg-white border border-slate-200 focus:border-indigo-455 rounded-lg py-1.5 px-2.5 text-xs text-slate-850 outline-none transition-all font-mono font-bold placeholder-slate-300"

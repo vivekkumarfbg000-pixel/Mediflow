@@ -451,8 +451,8 @@ export const PatientMobileDashboard: React.FC = () => {
 
                           <div className="text-[9.5px] space-y-1.5">
                             <span className="block text-[8px] font-bold text-zinc-500 uppercase font-mono tracking-wider">Prescribed Generic Meds:</span>
-                            {enc.medications.map((m, idx) => (
-                              <div key={idx} className="flex justify-between font-semibold text-zinc-300 text-[9px]">
+                            {enc.medications?.map((m, idx) => (
+                              <div key={m.id || idx} className="flex justify-between font-semibold text-zinc-300 text-[9px]">
                                 <span>💊 {m.medicineName}</span>
                                 <span>{m.frequency} ({m.duration})</span>
                               </div>

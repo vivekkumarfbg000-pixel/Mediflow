@@ -30,7 +30,10 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
 
   // Fetch Cashfree vendor connection for the entity
   const fetchVendor = async () => {
-    if (!podId || !entityId) return;
+    if (!podId || !entityId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -165,7 +168,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
       isDark ? 'bg-surface-container border-outline-variant text-white' : 'bg-white border-slate-200/80 text-slate-800'
     }`}>
       <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-3 ${
-        isDark ? 'border-slate-200/60' : 'border-slate-100'
+        isDark ? 'border-slate-800' : 'border-slate-100'
       }`}>
         <div>
           <h2 className="text-sm font-bold flex items-center gap-1.5">

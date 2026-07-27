@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api } from '../../../services/api';
 import { supabase } from '../../../lib/supabaseClient';
 import type { Patient } from '../../../types';
@@ -57,13 +57,16 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   telemetryLogs
 }) => {
   const [rightTab, setRightTab] = useState<'chat' | 'broadcast'>('broadcast');
+  const [mobileSubTab, setMobileSubTab] = useState<'conversations' | 'broadcast' | 'telemetry'>('conversations');
+  const [mobileSelectedPatientChat, setMobileSelectedPatientChat] = useState<boolean>(false);
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'diabetes' | 'hypertension' | 'opd'>('all');
   const [broadcastLogs, setBroadcastLogs] = useState<any[]>([]);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  const activeChat = selectedChatSession ?? (whatsAppSessions.length > 0 ? whatsAppSessions[0] : null);
+  // Bug Fix #2: Do NOT auto-fallback to first session — causes realtime leak on wrong patient channel
+  const activeChat = selectedChatSession ?? null;
   const sessionData = activeChat?.sessionData ?? activeChat?.session_data ?? {};
 
   useEffect(() => {
@@ -84,9 +87,14 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   }, [rightTab, selectedChatSession, sessionData.chatHistory]);
 
   useEffect(() => {
-    const logs = localStorage.getItem('whatsapp_broadcast_logs');
-    if (logs) {
-      setBroadcastLogs(JSON.parse(logs));
+    try {
+      const logs = localStorage.getItem('whatsapp_broadcast_logs');
+      if (logs) {
+        setBroadcastLogs(JSON.parse(logs));
+      }
+    } catch (_e) {
+      console.warn('Failed to parse whatsapp_broadcast_logs:', _e);
+      setBroadcastLogs([]);
     }
   }, []);
   // ── Real Meta API Clinic WhatsApp Onboarding State ──────────────────────
@@ -105,7 +113,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
   // Dedicated direct Supabase Realtime channel for continuous multi-message sync
   const targetPhone = activeChat?.patientPhone || activeChat?.patient_phone || activeChat?.phone || '';
-  const targetDigits = targetPhone.replace(/\D/g, '').slice(-10);
+  // Bug Fix #4: Memoize targetDigits to prevent redundant Supabase Realtime channel re-subscriptions
+  const targetDigits = useMemo(() => targetPhone.replace(/\D/g, '').slice(-10), [targetPhone]);
 
   useEffect(() => {
     if (!targetDigits) return;
@@ -166,9 +175,11 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   }, []);
 
   // Filter sessions based on search
+  // Bug Fix #1: Null-safe patientPhone — s.patientPhone can be undefined from DB camelCase mismatch
   const filteredSessions = whatsAppSessions.filter(s => {
-    const matchPhone = s.patientPhone.includes(chatSearch);
-    const pat = patients.find(p => p.id === s.patientId);
+    const phone = s.patientPhone || s.patient_phone || s.phone || '';
+    const matchPhone = phone.includes(chatSearch);
+    const pat = patients.find(p => p.id === s.patientId || p.phone === phone);
     const matchName = pat ? pat.name.toLowerCase().includes(chatSearch.toLowerCase()) : false;
     return matchPhone || matchName;
   });
@@ -176,24 +187,24 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const isHumanOverride = sessionData.humanOverride === true;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800 font-sans text-left">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in text-slate-800 font-sans text-left">
       
       {/* Connection & Setup Config Header (Top spanning) */}
-      <div className="lg:col-span-12">
+      <div className="lg:col-span-12 space-y-3">
         {activeWabaConnection ? (
-          <div className="glass-panel p-5 bg-white border-emerald-100 shadow-xs rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+          <div className="glass-panel p-4 sm:p-5 bg-white border-emerald-100 shadow-xs rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2.5px] bg-emerald-500" />
-            <div className="flex items-center gap-4.5">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 font-extrabold shadow-sm animate-pulse">
-                <span className="material-symbols-outlined text-2xl">cell_tower</span>
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 font-extrabold shadow-sm animate-pulse shrink-0">
+                <span className="material-symbols-outlined text-xl sm:text-2xl">cell_tower</span>
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Meta WhatsApp Cloud API Connected</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Meta WhatsApp Cloud API Connected</h3>
                   <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full uppercase tracking-wider">Active Channel</span>
                 </div>
                 <div className="text-[10px] text-slate-600 font-mono mt-1 space-y-0.5">
-                  <div>WABA Phone Number: <strong className="text-slate-600 font-sans">{activeWabaConnection.phone_number}</strong></div>
+                  <div>WABA Phone Number: <strong className="text-slate-700 font-sans">{activeWabaConnection.phone_number}</strong></div>
                   <div>Phone ID: <strong className="text-slate-600">{activeWabaConnection.phone_number_id}</strong> • Account ID: <strong className="text-slate-600">{activeWabaConnection.waba_id}</strong></div>
                 </div>
               </div>
@@ -222,150 +233,217 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   }));
                 }
               }}
-              className="px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
+              className="px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer self-start md:self-auto"
             >
               Disconnect Channel
             </button>
           </div>
         ) : (
-          <div className="glass-panel p-6 bg-white border-slate-200/60 shadow-xs rounded-3xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">
+          <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-xs rounded-3xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2.5px] bg-gradient-to-r from-blue-500 via-primary to-indigo-500 opacity-60" />
-            <div className="flex gap-4.5 items-start">
-              <span className="material-symbols-outlined text-primary text-4xl mt-1">chat_bubble</span>
+            <div className="flex gap-3.5 items-start">
+              <span className="material-symbols-outlined text-primary text-3xl sm:text-4xl mt-0.5">chat_bubble</span>
               <div className="space-y-1">
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Activate Clinic WhatsApp Chatbot in 10 Seconds</h3>
-                <p className="text-xs text-slate-400 leading-relaxed max-w-2xl font-sans">
+                <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Activate Clinic WhatsApp Chatbot in 10 Seconds</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed max-w-2xl font-sans">
                   Connect your clinic's WhatsApp number in 3 simple steps. Enter your clinic name &amp; number, verify via OTP — we handle all Meta credentials and billing automatically. Patients will see your clinic name when they receive messages.
                 </p>
               </div>
             </div>
             <button
               onClick={() => setWabaFormOpen(true)}
-              className="px-5 py-2.5 bg-primary hover:bg-primary-505 text-white border border-primary/25 hover:border-primary rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all hover:scale-102 active:scale-98 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-primary-force"
+              className="px-4 py-2.5 bg-primary hover:bg-primary-505 text-white border border-primary/25 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-primary-force shrink-0"
             >
               <span className="material-symbols-outlined text-sm font-bold text-white-force">connect_without_contact</span>
               Connect Business Number
             </button>
           </div>
         )}
+
+        {/* Mobile Sub-Tab Navigation Header (< lg screens) */}
+        <div className="lg:hidden flex p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-2xl w-full gap-1 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSubTab('conversations');
+              setMobileSelectedPatientChat(false);
+            }}
+            className={`flex-1 py-2 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              mobileSubTab === 'conversations'
+                ? 'bg-primary text-white text-white-force shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">chat</span>
+            Conversations
+            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-white/20 text-white font-bold">
+              {filteredSessions.length}
+            </span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSubTab('broadcast');
+              setRightTab('broadcast');
+            }}
+            className={`flex-1 py-2 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              mobileSubTab === 'broadcast'
+                ? 'bg-primary text-white text-white-force shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">campaign</span>
+            📢 Broadcast
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileSubTab('telemetry')}
+            className={`py-2 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              mobileSubTab === 'telemetry'
+                ? 'bg-primary text-white text-white-force shadow-xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">qr_code_2</span>
+            Setup
+          </button>
+        </div>
       </div>
 
       {/* Left Pane: Active Sessions List (Inbox Sidebar) */}
-      <div className="lg:col-span-4 space-y-4">
-        <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl h-full flex flex-col justify-between space-y-4 relative overflow-hidden">
-          <div className="space-y-3.5">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-base font-bold">question_answer</span>
-                Patient Conversations
-              </h2>
-              <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full">
-                {filteredSessions.length} active
-              </span>
-            </div>
-
-            {/* Search Bar */}
-            <div className="relative">
-              <span className="material-symbols-outlined text-slate-600 text-base absolute left-3 top-2.5">search</span>
-              <input
-                type="text"
-                placeholder="Search by name or phone..."
-                value={chatSearch}
-                onChange={(e) => setChatSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-slate-200/80 dark:border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-2xl text-xs outline-none bg-slate-50/50 dark:bg-slate-950/80 text-slate-800 dark:text-white"
-              />
-            </div>
-
-            {/* Session cards mapping */}
-            <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1.5">
-              {filteredSessions.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-xs italic">
-                  No active sessions found.
-                </div>
-              ) : (
-                filteredSessions.map(s => {
-                  const pat = patients.find(p => p.id === s.patientId);
-                  const name = pat ? pat.name : 'Unknown Patient';
-                  const sSessData = s.sessionData || s.session_data || {};
-                  const lastMsg = sSessData.chatHistory?.[sSessData.chatHistory.length - 1]?.text ?? 'Session initialized';
-                  const isSelected = activeChat?.id === s.id;
-
-                  let stateBadge = 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
-                  if (s.currentState === 'AWAITING_PAYMENT') stateBadge = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-                  else if (s.currentState === 'COMPLETED') stateBadge = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
-                  else if (s.currentState === 'FAILED_DELIVERY') stateBadge = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
-                  else if (s.currentState === 'AWAITING_CONFIRMATION') stateBadge = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedChatSession(s)}
-                      className={`w-full text-left p-3.5 rounded-2xl border transition-all duration-300 relative group overflow-hidden ${
-                        isSelected 
-                          ? 'bg-blue-50/40 dark:bg-blue-950/40 border-primary/50 shadow-xs' 
-                          : 'bg-slate-50/40 dark:bg-slate-950/60 border-slate-200/60 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-900/60'
-                      }`}
-                    >
-                      {isSelected && (
-                        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary" />
-                      )}
-                      <div className="flex justify-between items-start gap-1">
-                        <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors truncate">{name}</div>
-                        <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 uppercase ${stateBadge}`}>
-                          {(s.currentState || '').replace('_', ' ')}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-600 font-mono mt-1">{s.patientPhone}</div>
-                      <div className="text-[10px] text-slate-500 mt-2 truncate font-sans italic">"{lastMsg}"</div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 text-[9px] text-slate-400 flex items-center gap-1 leading-relaxed">
-            <span className="material-symbols-outlined text-xs">info</span>
-            * Uses Supabase Realtime to broadcast incoming patient responses instantly.
-          </div>
-        </div>
-
-        {/* Onboarding Placard Generator */}
-        <div className="mt-4">
-          <ClinicPlacardGenerator 
-            activeWabaNumber={activeWabaConnection?.phone_number || '+91 90000 00000'}
-            clinicName={activePod?.name || 'VitalSync Smart Clinic'}
-          />
-        </div>
-
-        {/* Meta WABA Telemetry Logger */}
-        <div className="mt-4 glass-panel p-5 bg-white border-slate-200 shadow-sm rounded-3xl text-zinc-300 font-mono space-y-3 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-[2.5px] bg-gradient-to-r from-emerald-500 to-green-404" />
-          <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <h3 className="text-[10px] font-extrabold tracking-wider text-emerald-400 uppercase">WABA DevOps Telemetry</h3>
-            </div>
-            <span className="text-[8px] font-bold px-1.5 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-900/50 rounded uppercase font-mono">Live Feed</span>
-          </div>
-          
-          <div className="space-y-1.5 text-[9px] max-h-40 overflow-y-auto pr-1 leading-relaxed custom-scrollbar text-left text-zinc-300">
-            {telemetryLogs.map((log, idx) => (
-              <div key={idx} className="hover:bg-zinc-900/50 p-1 rounded transition-colors break-all">
-                <span className="text-zinc-500">&gt;</span> <span className="text-emerald-500/90 font-semibold">{log}</span>
+      <div className={`lg:col-span-4 space-y-4 ${mobileSubTab !== 'conversations' && mobileSubTab !== 'telemetry' ? 'hidden lg:block' : ''}`}>
+        
+        {(mobileSubTab === 'conversations' || typeof window !== 'undefined') && (
+          <div className={`glass-panel p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl flex flex-col justify-between space-y-4 relative overflow-hidden ${mobileSubTab === 'conversations' ? 'block' : 'hidden lg:block'}`}>
+            <div className="space-y-3.5">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-base font-bold">question_answer</span>
+                  Patient Conversations
+                </h2>
+                <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full">
+                  {filteredSessions.length} active
+                </span>
               </div>
-            ))}
-            <div className="flex items-center gap-1 text-emerald-400">
-              <span>&gt;</span> <span className="w-1.5 h-3 bg-emerald-400 animate-pulse inline-block" />
+
+              {/* Search Bar */}
+              <div className="relative">
+                <span className="material-symbols-outlined text-slate-600 text-base absolute left-3 top-2.5">search</span>
+                <input
+                  type="text"
+                  placeholder="Search by name or phone..."
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200/80 dark:border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-2xl text-xs outline-none bg-slate-50/50 dark:bg-slate-950/80 text-slate-800 dark:text-white"
+                />
+              </div>
+
+              {/* Session cards mapping */}
+              <div className="space-y-2.5 lg:max-h-[420px] max-h-none lg:overflow-y-auto pr-1.5">
+                {filteredSessions.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 text-xs italic">
+                    No active sessions found.
+                  </div>
+                ) : (
+                  filteredSessions.map(s => {
+                    const pat = patients.find(p => p.id === s.patientId || p.phone === s.patientPhone);
+                    const name = pat ? pat.name : 'Unknown Patient';
+                    const sSessData = s.sessionData || s.session_data || {};
+                    const lastMsg = sSessData.chatHistory?.[sSessData.chatHistory.length - 1]?.text ?? 'Session initialized';
+                    const isSelected = activeChat?.id === s.id;
+
+                    let stateBadge = 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
+                    if (s.currentState === 'AWAITING_PAYMENT') stateBadge = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+                    else if (s.currentState === 'COMPLETED') stateBadge = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+                    else if (s.currentState === 'FAILED_DELIVERY') stateBadge = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
+                    else if (s.currentState === 'AWAITING_CONFIRMATION') stateBadge = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          setSelectedChatSession(s);
+                          setRightTab('chat');
+                          setMobileSubTab('conversations');
+                          setMobileSelectedPatientChat(true);
+                        }}
+                        className={`w-full text-left p-3.5 rounded-2xl border transition-all duration-300 relative group overflow-hidden cursor-pointer ${
+                          isSelected 
+                            ? 'bg-blue-50/60 dark:bg-blue-950/40 border-primary/60 shadow-xs' 
+                            : 'bg-slate-50/40 dark:bg-slate-950/60 border-slate-200/60 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-900/60'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-[3.5px] bg-primary" />
+                        )}
+                        <div className="flex justify-between items-start gap-1">
+                          <div className="font-bold text-xs text-slate-800 group-hover:text-primary transition-colors truncate">{name}</div>
+                          <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 uppercase ${stateBadge}`}>
+                            {(s.currentState || '').replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-600 font-mono mt-1">{s.patientPhone}</div>
+                        <div className="text-[10px] text-slate-500 mt-2 truncate font-sans italic">"{lastMsg}"</div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 text-[9px] text-slate-400 flex items-center gap-1 leading-relaxed">
+              <span className="material-symbols-outlined text-xs">info</span>
+              * Uses Supabase Realtime to broadcast incoming patient responses instantly.
+            </div>
+          </div>
+        )}
+
+        {/* Onboarding Placard & Telemetry (Visible when mobileSubTab === 'telemetry' or on desktop) */}
+        <div className={`space-y-4 ${mobileSubTab === 'telemetry' ? 'block' : 'hidden lg:block'}`}>
+          {/* Onboarding Placard Generator */}
+          <div>
+            <ClinicPlacardGenerator 
+              activeWabaNumber={activeWabaConnection?.phone_number || '+91 90000 00000'}
+              clinicName={activePod?.name || 'VitalSync Smart Clinic'}
+            />
+          </div>
+
+          {/* Meta WABA Telemetry Logger */}
+          <div className="glass-panel p-5 bg-white border-slate-200 shadow-sm rounded-3xl text-zinc-300 font-mono space-y-3 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-[2.5px] bg-gradient-to-r from-emerald-500 to-green-404" />
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <h3 className="text-[10px] font-extrabold tracking-wider text-emerald-400 uppercase">WABA DevOps Telemetry</h3>
+              </div>
+              <span className="text-[8px] font-bold px-1.5 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-900/50 rounded uppercase font-mono">Live Feed</span>
+            </div>
+            
+            <div className="space-y-1.5 text-[9px] max-h-40 overflow-y-auto pr-1 leading-relaxed custom-scrollbar text-left text-zinc-300">
+              {telemetryLogs.map((log, idx) => (
+                <div key={`tlog-${idx}-${log.slice(0, 20)}`} className="hover:bg-zinc-900/50 p-1 rounded transition-colors break-all">
+                  <span className="text-zinc-500">&gt;</span> <span className="text-emerald-500/90 font-semibold">{log}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-1 text-emerald-400">
+                <span>&gt;</span> <span className="w-1.5 h-3 bg-emerald-400 animate-pulse inline-block" />
+              </div>
             </div>
           </div>
         </div>
+
       </div>
 
-      {/* Right Pane: Apollo 24/7 Broadcast Campaigns & Passive Audit Stream */}
-      <div className="lg:col-span-8 flex flex-col space-y-4">
-        {/* Tab Selector */}
-        <div className="flex gap-2 p-1 bg-slate-100/80 border border-slate-200/50 rounded-2xl self-start">
+      {/* Right Pane: Apollo 24/7 Broadcast Campaigns & Chat Audit Stream */}
+      {/* Bug Fix #3: Hide right pane entirely when mobile is on 'conversations' without a patient open OR on 'telemetry' */}
+      <div className={`lg:col-span-8 flex flex-col space-y-4 ${
+        mobileSubTab === 'telemetry' || (mobileSubTab === 'conversations' && !mobileSelectedPatientChat) ? 'hidden lg:flex' : ''
+      }`}>
+        
+        {/* Desktop Tab Selector */}
+        <div className="hidden lg:flex gap-2 p-1 bg-slate-100/80 border border-slate-200/50 rounded-2xl self-start">
           <button
             type="button"
             onClick={() => setRightTab('broadcast')}
@@ -386,30 +464,48 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
           </button>
         </div>
 
-        {rightTab === 'chat' ? (
+        {/* Bug Fix #3 cont.: On mobile, only show chat when patient is explicitly selected; never show chat when on broadcast tab */}
+        {(rightTab === 'chat' && mobileSubTab !== 'broadcast') || (mobileSubTab === 'conversations' && mobileSelectedPatientChat) ? (
           activeChat ? (
-            <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col justify-between relative overflow-hidden">
+            <div className="glass-panel p-4 sm:p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl lg:h-[560px] min-h-[480px] flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary" />
               
               {/* Active Chat Header */}
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
                 <div>
-                  <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    {patients.find(p => p.id === activeChat.patientId)?.name ?? 'Linked Patient'}
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  </h3>
-                  <span className="text-[10px] text-slate-404 font-mono">{activeChat.patientPhone}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMobileSelectedPatientChat(false)}
+                      className="lg:hidden text-[10px] font-bold text-primary hover:text-primary-600 flex items-center gap-0.5 px-2 py-0.5 bg-blue-50 rounded-lg"
+                    >
+                      <span className="material-symbols-outlined text-xs">arrow_back</span> Back
+                    </button>
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone)?.name ?? 'Linked Patient'}
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-slate-600 font-mono font-semibold">{activeChat.patientPhone}</span>
+                    {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone) && (
+                      <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                        {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone)?.age} Yrs • {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone)?.gender}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Autonomous AI Chatbot Badge */}
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/60 rounded-full text-[10px] font-bold text-emerald-700">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/60 rounded-full text-[10px] font-bold text-emerald-700 self-start sm:self-auto">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   🤖 VitalSync AI Scribe Active 24/7
                 </div>
               </div>
 
               {/* Chat Message Stream */}
-              <div ref={chatScrollRef} className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 max-h-[390px] bg-slate-50/20 border border-slate-200/20 rounded-2xl p-4 my-3">
+              <div ref={chatScrollRef} className="flex-1 overflow-y-auto py-4 space-y-3.5 pr-1 min-h-[260px] lg:max-h-[390px] bg-slate-50/30 border border-slate-200/40 rounded-2xl p-3.5 my-3">
                 {(sessionData.chatHistory ?? []).map((msg: any, idx: number) => {
                   const sRole = (msg.sender || '').toLowerCase();
                   const isPatient = sRole === 'patient' || sRole === 'user' || sRole === 'customer' || sRole === 'client';
@@ -422,7 +518,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   }
 
                   return (
-                    <div key={idx} className="flex flex-col w-full max-w-[85%] space-y-0.5 relative">
+                    // Bug Fix #8: Use stable composite key (timestamp+text snippet) to prevent React reconciliation glitches
+                    <div key={msg.id || msg.timestamp || `msg-${idx}-${(msg.text || '').slice(0, 10)}`} className="flex flex-col w-full max-w-[88%] space-y-0.5 relative">
                       <div className={`p-3 text-xs leading-relaxed font-sans shadow-2xs ${bubbleStyle}`}>
                         {msg.text}
                       </div>
@@ -436,7 +533,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
               {/* Autonomous AI Notice */}
               <div className="border-t border-slate-100 pt-3">
-                <div className="p-3.5 bg-blue-50/60 border border-blue-100/80 rounded-2xl text-center text-xs text-slate-600 flex flex-col items-center justify-center gap-1">
+                <div className="p-3 bg-blue-50/60 border border-blue-100/80 rounded-2xl text-center text-xs text-slate-600 flex flex-col items-center justify-center gap-1">
                   <div className="flex items-center gap-1.5 font-bold text-slate-800">
                     <span className="material-symbols-outlined text-base text-blue-600">smart_toy</span>
                     100% Autonomous AI Chatbot Operating 24/7
@@ -449,22 +546,23 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
             </div>
           ) : (
-            <div className="glass-panel p-12 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden">
+            <div className="glass-panel p-8 sm:p-12 bg-white border-slate-200/60 shadow-sm rounded-3xl min-h-[420px] flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary/20" />
-              <span className="material-symbols-outlined text-slate-200 text-6xl">chat</span>
+              <span className="material-symbols-outlined text-slate-300 text-5xl sm:text-6xl">chat</span>
               <div>
                 <h3 className="text-slate-700 font-extrabold uppercase text-xs tracking-wider">No Patient Conversation Selected</h3>
                 <p className="text-xs text-slate-400 mt-2 max-w-sm font-sans">
-                  Select a live active chat session from the queue registry on the left to monitor, review clinical guidelines, or override chatbot automations with human takeover capabilities.
+                  Select a live active chat session from the patient conversations list to monitor, review clinical guidelines, or inspect chatbot interaction history.
                 </p>
               </div>
             </div>
           )
         ) : (
           /* Clinician Broadcast Campaigns Panel */
-          <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl h-[560px] flex flex-col justify-between relative overflow-hidden animate-fade-in">
+          <div className="glass-panel p-4 sm:p-5 bg-white border-slate-200/60 shadow-sm rounded-3xl min-h-[500px] flex flex-col justify-between relative overflow-hidden animate-fade-in">
             <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary" />
-            <div className="space-y-4 overflow-y-auto max-h-[510px] pr-1.5 w-full flex-1">
+            {/* Bug Fix #6: Remove mobile scroll lock — lg: prefix ensures cap only on desktop */}
+            <div className="space-y-4 lg:overflow-y-auto lg:max-h-[510px] max-h-none pr-1.5 w-full flex-1">
               
               <div>
                 <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -494,10 +592,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 </div>
               </div>
 
-              {/* Apollo 24/7 Preset Campaign Templates */}
+              {/* Standard Preset Campaign Templates */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">⚡ Apollo 24/7 Standard Preset Templates</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">⚡ Standard Preset Campaign Templates</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={() => setBroadcastMsg(`Namaste! ${activePod?.name || 'VitalSync Smart Clinic'} will remain CLOSED on Sunday for maintenance. For emergency OPD, please reply SOS or scan clinic QR.`)}
@@ -561,7 +659,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       targetPhones = patients.filter(p => p.queueStatus && p.queueStatus !== 'completed').map(p => p.phone);
                     }
 
-                    // Fallback: If filtered list is empty, target all active whatsAppSessions
                     if (targetPhones.length === 0 && whatsAppSessions.length > 0) {
                       targetPhones = whatsAppSessions.map(s => s.patientPhone || s.patient_phone || s.phone).filter(Boolean) as string[];
                     }
@@ -571,8 +668,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       return;
                     }
 
+                    // Bug Fix #5: Do NOT clear broadcastMsg here — clear only after loop completes successfully
                     const messageContent = broadcastMsg.trim();
-                    setBroadcastMsg('');
 
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
@@ -615,7 +712,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         failCount++;
                       }
 
-                      // Rate-limited 66ms spacing (15 messages/second limit to prevent Meta WABA rate limit errors)
                       await new Promise(r => setTimeout(r, 66));
                     }
 
@@ -631,6 +727,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     const updatedLogs = [newLog, ...broadcastLogs];
                     setBroadcastLogs(updatedLogs);
                     localStorage.setItem('whatsapp_broadcast_logs', JSON.stringify(updatedLogs));
+                    // Bug Fix #5: Only clear broadcast message AFTER loop fully completes
+                    setBroadcastMsg('');
 
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {

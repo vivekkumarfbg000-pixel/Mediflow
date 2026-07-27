@@ -900,7 +900,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             Consultation Queue
           </h2>
           
-          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+          <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
             {(() => {
               const parseTokenNum = (token?: string) => {
                 if (!token) return Infinity;
@@ -908,8 +908,29 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return match ? parseInt(match[0], 10) : Infinity;
               };
 
+              // Bug Fix #2 (USP ANTI-REGRESSION): Exclude patients whose ONLY appointment is pending_payment
+              // Cashfree Payment Gate: unpaid appointments MUST NOT appear in the Doctor's queue
+              const paidPatientIds = new Set(
+                appointments
+                  .filter(a => a.status !== 'pending_payment')
+                  .map(a => a.patientId || a.patient_id)
+              );
+              const pendingOnlyPatientIds = new Set(
+                appointments
+                  .filter(a => a.status === 'pending_payment')
+                  .map(a => a.patientId || a.patient_id)
+              );
+
               const queuePatients = patients
-                .filter(p => p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || p.id === selectedPatient?.id)
+                .filter(p => {
+                  // Allow if explicitly selected (doctor manually opened)
+                  if (p.id === selectedPatient?.id) return true;
+                  // Allow if they have at least one paid appointment
+                  if (paidPatientIds.has(p.id)) return true;
+                  // Exclude if ONLY pending_payment appointments (no paid appt at all)
+                  if (pendingOnlyPatientIds.has(p.id) && !paidPatientIds.has(p.id)) return false;
+                  return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation';
+                })
                 .sort((a, b) => {
                   const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
                   const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
@@ -1016,7 +1037,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </h2>
             <p className="text-[10px] text-slate-600 mb-4">Click a report to open a full-screen clinical AI analysis</p>
             
-            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+            <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
               {(() => {
                 const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
                 if (history.length === 0) {
@@ -2217,7 +2238,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
             {/* List of current medications (Professional Clinical Cards) */}
             {medications.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 max-h-[300px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
                 {medications.map((med, idx) => (
                   <div 
                     key={idx} 
@@ -2539,7 +2560,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
               {testCatalog
                 .filter((test: DiagnosticTest) => 
                   !testSearchQuery || 
@@ -3150,7 +3171,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   <div className="space-y-2">
                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide font-mono block">Prescribed Medication List</span>
                     {medications.length > 0 ? (
-                      <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
+                      <div className="space-y-2 lg:max-h-[200px] max-h-none lg:overflow-y-auto pr-1">
                         {medications.map((med, idx) => (
                           <div 
                             key={idx} 
@@ -3219,7 +3240,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   </div>
 
                   {/* Diagnostic catalog list grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto max-h-[260px] pr-1 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 lg:overflow-y-auto lg:max-h-[260px] max-h-none pr-1 pt-1">
                     {testCatalog
                       .filter(test => 
                         test.name.toLowerCase().includes(testSearchQuery.toLowerCase()) || 

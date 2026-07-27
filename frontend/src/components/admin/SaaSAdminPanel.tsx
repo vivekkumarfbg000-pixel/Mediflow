@@ -188,21 +188,23 @@ export const SaaSAdminPanel: React.FC = () => {
 
     const reconcileStuckPayments = async () => {
       try {
-        const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+        // Enforce Cashfree Strict Payment Gate USP:
+        // Stale unpaid appointments (>15 mins) are marked 'cancelled' (not auto-confirmed!)
+        const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
         const { data: stuckAppointments } = await supabase
           .from('appointments')
           .select('id, patient_id, created_at, status')
           .eq('status', 'pending_payment')
-          .lt('created_at', threeMinsAgo);
+          .lt('created_at', fifteenMinsAgo);
 
         if (stuckAppointments && stuckAppointments.length > 0) {
-          console.log(`[Cashfree Reconciliation Poller] Found ${stuckAppointments.length} ghost payment(s). Reconciling status...`);
+          console.log(`[Cashfree Reconciliation Poller] Found ${stuckAppointments.length} expired unpaid payment(s). Updating status to cancelled...`);
           for (const appt of stuckAppointments) {
             await supabase
               .from('appointments')
-              .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+              .update({ status: 'cancelled', updated_at: new Date().toISOString() })
               .eq('id', appt.id);
-            console.log(`[Cashfree Reconciliation Poller] Auto-reconciled stuck appointment: ${appt.id}`);
+            console.log(`[Cashfree Reconciliation Poller] Auto-cancelled expired unpaid appointment: ${appt.id}`);
           }
         }
       } catch (_e) {
@@ -1775,7 +1777,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   {complianceList.length > 0 ? (
                     <>
                       {/* Mobile Native App Cards for RLS Policy Scan */}
-                      <div className="block md:hidden space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                      <div className="block md:hidden space-y-2 max-h-none pr-1">
                         {complianceList.map(table => (
                           <div key={table.table_name} className="p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2 text-left">
                             <div>
@@ -1806,7 +1808,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                       </div>
 
                       {/* Desktop Table View */}
-                      <div className="hidden md:block border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto overflow-x-auto responsive-table-container">
+                      <div className="hidden md:block border border-slate-100 rounded-xl overflow-hidden lg:max-h-[250px] max-h-none lg:overflow-y-auto overflow-x-auto responsive-table-container">
                         <table className="w-full text-left text-[11px] font-medium text-slate-600">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
@@ -2142,7 +2144,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   </div>
 
                   {syntheticProfiles.length > 0 ? (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto overflow-x-auto responsive-table-container">
+                    <div className="border border-slate-100 rounded-xl overflow-hidden lg:max-h-[300px] max-h-none lg:overflow-y-auto overflow-x-auto responsive-table-container">
                       <table className="w-full text-left text-[11px] font-medium text-slate-655">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">
@@ -2680,7 +2682,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                         <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
                       </div>
                     ) : blacklistedIps.length > 0 ? (
-                      <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[250px] overflow-y-auto overflow-x-auto responsive-table-container">
+                      <div className="border border-slate-100 rounded-xl overflow-hidden lg:max-h-[250px] max-h-none lg:overflow-y-auto overflow-x-auto responsive-table-container">
                         <table className="w-full text-left text-[11px] font-medium text-slate-600">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase text-slate-400 font-bold">

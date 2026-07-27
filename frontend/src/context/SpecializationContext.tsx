@@ -55,6 +55,18 @@ interface SpecializationProviderProps {
 }
 
 export const SpecializationProvider: React.FC<SpecializationProviderProps> = ({ children, activeProfile }) => {
+  const [specRevision, setSpecRevision] = React.useState(0);
+
+  React.useEffect(() => {
+    const handleSpecChange = () => setSpecRevision(prev => prev + 1);
+    window.addEventListener('mediflow-specialization-change', handleSpecChange);
+    window.addEventListener('storage', handleSpecChange);
+    return () => {
+      window.removeEventListener('mediflow-specialization-change', handleSpecChange);
+      window.removeEventListener('storage', handleSpecChange);
+    };
+  }, []);
+
   const value = useMemo(() => {
     // Extract specialization from user metadata (set during doctor registration in AuthGateway)
     // Allow localStorage override for Demo Sandbox sessions (e.g. demo=eye URL param)
@@ -85,7 +97,7 @@ export const SpecializationProvider: React.FC<SpecializationProviderProps> = ({ 
       testCatalog,
       nomenclature,
     };
-  }, [activeProfile]);
+  }, [activeProfile, specRevision]);
 
   return (
     <SpecializationContext.Provider value={value}>

@@ -38,7 +38,7 @@ serve(async (req) => {
 
     const bodyJson = await req.json().catch(() => ({}));
     const validationResult = z.object({
-      invoiceId: z.string().uuid("Invalid invoiceId UUID format"),
+      invoiceId: z.string().min(1, "invoiceId is required"),
       returnUrl: z.string().url("Invalid returnUrl format").optional(),
     }).safeParse(bodyJson);
 

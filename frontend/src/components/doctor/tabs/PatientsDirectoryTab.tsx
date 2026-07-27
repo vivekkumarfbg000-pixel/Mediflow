@@ -176,7 +176,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
               <span className="material-symbols-outlined text-slate-600 absolute left-3 top-2.5 text-sm">search</span>
             </div>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            <div className="space-y-2 lg:max-h-[480px] max-h-none lg:overflow-y-auto pr-1">
               {filteredPatients.map(p => {
                 const isSelected = selectedDirectoryPatient?.id === p.id;
                 
@@ -347,7 +347,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                             discountEligible: false
                           };
                           api.saveAppointment(newAppt);
-                          const invId = `inv-dir-${newAppt.id.substring(0, 8)}`;
+                          const invId = `inv-dir-${(newAppt.id || '00000000').substring(0, 8)}`;
                           const newInv: any = {
                             id: invId,
                             appointmentId: newAppt.id,
@@ -380,7 +380,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 );
               }
 
-              const JITSI_ROOM_URL = virtualAppt.virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${virtualAppt.id}`;
+              const JITSI_ROOM_URL = virtualAppt.virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${virtualAppt.id || 'tele-001'}`;
 
               return (
                 <div className="p-5 bg-gradient-to-br from-emerald-50/70 via-teal-50/30 to-slate-50/50 border border-emerald-200/60 rounded-3xl space-y-4 animate-fade-in relative overflow-hidden shadow-xs">
@@ -393,7 +393,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                       </div>
                       <div>
                         <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Telemedicine Hub</h4>
-                        <p className="text-[9px] text-slate-400 font-mono mt-0.5">ROOM: vitalsync-consult-{virtualAppt.id.substring(0, 8)}</p>
+                        <p className="text-[9px] text-slate-400 font-mono mt-0.5">ROOM: vitalsync-consult-{(virtualAppt.id || 'tele-001').substring(0, 8)}</p>
                       </div>
                     </div>
 

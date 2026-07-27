@@ -26,11 +26,49 @@ export class RealtimeSyncService {
   private static lastPingSuccess = Date.now();
   private static currentStatus: 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
 
+  private static normalizeRecord(record: any): any {
+    if (!record || typeof record !== 'object') return record;
+    const normalized: any = { ...record };
+
+    // Map Postgres CDC snake_case fields to camelCase expected by frontend models
+    if (record.patient_id !== undefined) normalized.patientId = record.patient_id;
+    if (record.doctor_id !== undefined) normalized.doctorId = record.doctor_id;
+    if (record.encounter_id !== undefined) normalized.encounterId = record.encounter_id;
+    if (record.created_at !== undefined) normalized.createdAt = record.created_at;
+    if (record.updated_at !== undefined) normalized.updatedAt = record.updated_at;
+    if (record.total_amount !== undefined) normalized.totalAmount = typeof record.total_amount === 'string' ? parseFloat(record.total_amount) : record.total_amount;
+    if (record.doctor_fee !== undefined) normalized.doctorFee = typeof record.doctor_fee === 'string' ? parseFloat(record.doctor_fee) : record.doctor_fee;
+    if (record.lab_fee !== undefined) normalized.labFee = typeof record.lab_fee === 'string' ? parseFloat(record.lab_fee) : record.lab_fee;
+    if (record.pharmacy_fee !== undefined) normalized.pharmacyFee = typeof record.pharmacy_fee === 'string' ? parseFloat(record.pharmacy_fee) : record.pharmacy_fee;
+    if (record.platform_fee !== undefined) normalized.platformFee = typeof record.platform_fee === 'string' ? parseFloat(record.platform_fee) : record.platform_fee;
+    if (record.payment_status !== undefined) normalized.paymentStatus = record.payment_status;
+    if (record.payment_method !== undefined) normalized.paymentMethod = record.payment_method;
+    if (record.is_virtual !== undefined) {
+      normalized.isVirtual = record.is_virtual === true;
+      normalized.is_virtual = record.is_virtual === true;
+    }
+    if (record.virtual_date !== undefined) normalized.virtualDate = record.virtual_date;
+    if (record.virtual_time !== undefined) normalized.virtualTime = record.virtual_time;
+    if (record.virtual_meeting_url !== undefined) normalized.virtualMeetingUrl = record.virtual_meeting_url;
+    if (record.token_number !== undefined) normalized.tokenNumber = record.token_number;
+    if (record.patient_name !== undefined) normalized.patientName = record.patient_name;
+    if (record.patient_phone !== undefined) normalized.patientPhone = record.patient_phone;
+    if (record.queue_status !== undefined) normalized.queueStatus = record.queue_status;
+    if (record.biomarker_json !== undefined) normalized.biomarkerJson = record.biomarker_json;
+    if (record.report_file_url !== undefined) normalized.reportFileUrl = record.report_file_url;
+    if (record.test_code !== undefined) normalized.testCode = record.test_code;
+    if (record.test_name !== undefined) normalized.testName = record.test_name;
+    if (record.invoice_id !== undefined) normalized.invoiceId = record.invoice_id;
+
+    return normalized;
+  }
+
   // Synchronously auto-ingest incoming Postgres CDC payloads into apiHelper load/save storage
   private static autoIngestPayload(tableName: string, payload: any) {
     try {
-      const record = payload.new || payload.old;
-      if (!record) return;
+      const rawRecord = payload.new || payload.old;
+      if (!rawRecord) return;
+      const record = this.normalizeRecord(rawRecord);
 
       const storageMap: Record<string, string[]> = {
         'appointments': ['appointments'],
@@ -53,7 +91,7 @@ export class RealtimeSyncService {
           const currentData = load<any[]>(storageKey, []);
           if (Array.isArray(currentData)) {
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const idx = currentData.findIndex((item: any) => item.id === record.id || item.invoiceId === record.invoice_id);
+              const idx = currentData.findIndex((item: any) => item.id === record.id || (record.invoiceId && item.invoiceId === record.invoiceId));
               if (idx >= 0) {
                 currentData[idx] = { ...currentData[idx], ...record };
               } else {

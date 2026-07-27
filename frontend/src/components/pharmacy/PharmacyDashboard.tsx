@@ -482,10 +482,11 @@ export const PharmacyDashboard: React.FC = () => {
   // Filtered Inventory computed
   const filteredCatalog = useMemo(() => {
     return inventory.filter(item => {
+      const q = searchQuery.toLowerCase();
       const matchSearch = 
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.genericName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.batchNumber.toLowerCase().includes(searchQuery.toLowerCase());
+        (item.name || '').toLowerCase().includes(q) ||
+        (item.genericName || '').toLowerCase().includes(q) ||
+        (item.batchNumber || '').toLowerCase().includes(q);
       
       const matchCategory = categoryFilter === 'All' || item.category === categoryFilter;
       
@@ -705,7 +706,7 @@ export const PharmacyDashboard: React.FC = () => {
                     if (!patient) return false;
                     const query = verifySearch.toLowerCase().trim();
                     if (!query) return true;
-                    return patient.name.toLowerCase().includes(query) || patient.phone.includes(query);
+                    return (patient.name || '').toLowerCase().includes(query) || (patient.phone || '').includes(query);
                   });
 
                   const filteredPaid = paidPharmaInvoices.filter(invoice => {
@@ -713,7 +714,7 @@ export const PharmacyDashboard: React.FC = () => {
                     if (!patient) return false;
                     const query = verifySearch.toLowerCase().trim();
                     if (!query) return true;
-                    return patient.name.toLowerCase().includes(query) || patient.phone.includes(query);
+                    return (patient.name || '').toLowerCase().includes(query) || (patient.phone || '').includes(query);
                   });
 
                   return (
@@ -980,6 +981,8 @@ export const PharmacyDashboard: React.FC = () => {
                                                         
                                                         // Open in new tab for direct browser print
                                                         const newWindow = window.open(url, '_blank');
+                                                        // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
+                                                        setTimeout(() => URL.revokeObjectURL(url), 1500);
                                                         if (newWindow) {
                                                           window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                                             detail: {
@@ -2289,13 +2292,13 @@ export const PharmacyDashboard: React.FC = () => {
                             <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
                             <p className="text-[10px] text-slate-500 font-mono">Invoice #{bill.id.substring(0, 8)} • {bill.items.length} items</p>
                           </div>
-                          <div className="text-xs font-black text-slate-800">Total: ₹{bill.totalAmount.toFixed(2)}</div>
+                          <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
                                 api.dispenseMedicineBill(bill.id);
                                 window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `₹${bill.totalAmount.toFixed(0)} collected via CASH. Stock deducted.`, type: 'success', title: 'Payment Received' }
+                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via CASH. Stock deducted.`, type: 'success', title: 'Payment Received' }
                                 }));
                                 syncData();
                               }}
@@ -2340,7 +2343,7 @@ export const PharmacyDashboard: React.FC = () => {
                             ✓ PAID
                           </div>
                           <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{bill.totalAmount.toFixed(2)} • {bill.items.length} items</p>
+                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} items</p>
                           <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
                           <div className="flex gap-2 pt-1">
                             <button
@@ -2349,6 +2352,8 @@ export const PharmacyDashboard: React.FC = () => {
                                 const blob = new Blob([html], { type: 'text/html' });
                                 const url = URL.createObjectURL(blob);
                                 window.open(url, '_blank');
+                                // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
+                                setTimeout(() => URL.revokeObjectURL(url), 1500);
                               }}
                               className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
                             >

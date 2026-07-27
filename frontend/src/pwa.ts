@@ -147,7 +147,14 @@ export class PwaSyncManager {
       console.error('[PWA-Sync] Failed to replay WAL Outbox:', walErr);
     }
 
-    const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+    let queue: any[] = [];
+    try {
+      queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+    } catch (_err) {
+      console.error('[PWA-Sync] Corrupted offline_sync_queue, resetting:', _err);
+      localStorage.setItem('offline_sync_queue', '[]');
+      queue = [];
+    }
     if (queue.length === 0) return;
 
     this.isSyncActive = true;

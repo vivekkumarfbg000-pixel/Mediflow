@@ -92,7 +92,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }, []);
 
   /* ─── Computed Metrics ─────────────────────────────────────────── */
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = currentTime.toISOString().split('T')[0];
 
   const labMetrics = useMemo(() => ({
     total: labReqs.length,
@@ -177,7 +177,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
         const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               p.phone.includes(searchQuery) ||
-                              (p.tokenNumber && p.tokenNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+                              (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchQuery.toLowerCase()));
         return matchesSearch;
       })
       .sort((a, b) => {

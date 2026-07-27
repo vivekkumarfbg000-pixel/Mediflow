@@ -132,6 +132,11 @@ export const CompounderDashboard: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [dataRevision, setDataRevision] = useState(0);
+
+  const syncData = useCallback(() => {
+    setDataRevision(prev => prev + 1);
+  }, []);
 
   // Memoize workflow lookup datasets to avoid thousands of localStorage JSON parses per render
   const cachedEncountersMap = useMemo(() => {
@@ -141,7 +146,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(e.patientId)!.push(e);
     });
     return map;
-  }, []);
+  }, [dataRevision]);
 
   const cachedLabReqsMap = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -150,7 +155,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(r.patientId)!.push(r);
     });
     return map;
-  }, []);
+  }, [dataRevision]);
 
   const cachedLabReportsMap = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -159,7 +164,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(r.patientId)!.push(r);
     });
     return map;
-  }, []);
+  }, [dataRevision]);
 
   const cachedWhatsAppPhoneMap = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -170,7 +175,7 @@ export const CompounderDashboard: React.FC = () => {
       if (s.patientPhone) map.set(s.patientPhone, hasMsg);
     });
     return map;
-  }, []);
+  }, [dataRevision]);
 
   const cachedMedicineBillsMap = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -179,7 +184,7 @@ export const CompounderDashboard: React.FC = () => {
       map.get(b.patientId)!.push(b);
     });
     return map;
-  }, []);
+  }, [dataRevision]);
 
   // High-Speed Memoized Dynamic Patient Workflow Calculator (< 3ms)
   const getPatientWorkflowState = useCallback((patient: Patient, appt: Appointment) => {
@@ -1172,8 +1177,8 @@ export const CompounderDashboard: React.FC = () => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return [];
     return patients.filter(p => 
-      p.name.toLowerCase().includes(query) || 
-      p.phone.includes(query) ||
+      (p.name || '').toLowerCase().includes(query) || 
+      (p.phone || '').includes(query) ||
       (p.abhaId && p.abhaId.includes(query))
     );
   }, [patients, searchQuery]);
@@ -1181,8 +1186,8 @@ export const CompounderDashboard: React.FC = () => {
   const assignFilteredPatients = useMemo(() => {
     if (!assignSearchQuery.trim()) return [];
     return patients.filter(p => 
-      p.name.toLowerCase().includes(assignSearchQuery.toLowerCase().trim()) || 
-      p.phone.includes(assignSearchQuery.trim()) ||
+      (p.name || '').toLowerCase().includes(assignSearchQuery.toLowerCase().trim()) || 
+      (p.phone || '').includes(assignSearchQuery.trim()) ||
       (p.abhaId && p.abhaId.includes(assignSearchQuery.trim()))
     );
   }, [patients, assignSearchQuery]);
@@ -1809,7 +1814,7 @@ export const CompounderDashboard: React.FC = () => {
                   Checked-In Active Staffs
                 </h3>
                 
-                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto">
                   {staffList.length === 0 ? (
                     <p className="text-xs text-clinical-500 text-center py-4">No staffs checked-in.</p>
                   ) : (
@@ -2122,7 +2127,7 @@ export const CompounderDashboard: React.FC = () => {
                         p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
                         p.phone.includes(searchApptPatient) ||
                         p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                        (p.tokenNumber && p.tokenNumber.toLowerCase().includes(searchApptPatient.toLowerCase()))
+                        (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
                       ).length === 0 ? (
                         <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">No patients found in registry.</p>
                       ) : (
@@ -2130,7 +2135,7 @@ export const CompounderDashboard: React.FC = () => {
                           p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
                           p.phone.includes(searchApptPatient) ||
                           p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                          (p.tokenNumber && p.tokenNumber.toLowerCase().includes(searchApptPatient.toLowerCase()))
+                          (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
                         ).map(p => (
                           <div 
                             key={p.id}
@@ -3029,7 +3034,7 @@ export const CompounderDashboard: React.FC = () => {
                       : 'Daycare minor OT procedure tracker. Track dressing room status and patient timeline status.'}
                   </p>
 
-                  <div className="space-y-3.5 max-h-[480px] overflow-y-auto pr-1">
+                  <div className="space-y-3.5 lg:max-h-[480px] max-h-none lg:overflow-y-auto pr-1">
                     {daycarePatients.length === 0 ? (
                       <div className="p-8 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500 font-medium select-none">
                         {isOphthalmology 
@@ -3570,7 +3575,8 @@ export const CompounderDashboard: React.FC = () => {
                       {session.sessionData.chatHistory.map((msg: any, idx: number) => {
                         const isBot = msg.sender === 'bot' || msg.sender === 'system';
                         return (
-                          <div key={idx} className={`flex flex-col ${isBot ? 'items-start' : 'items-end'}`}>
+                          // Bug Fix #8: Use stable composite key to prevent React reconciliation glitches
+                          <div key={msg.id || msg.timestamp || `cmsg-${idx}-${(msg.text || '').slice(0, 10)}`} className={`flex flex-col ${isBot ? 'items-start' : 'items-end'}`}>
                             <div className={`p-2.5 rounded-2xl max-w-[85%] border text-[11px] leading-relaxed whitespace-pre-wrap ${
                               isBot
                                 ? 'bg-indigo-500/10 text-indigo-750 dark:text-indigo-300 border-indigo-500/20 rounded-tl-none'

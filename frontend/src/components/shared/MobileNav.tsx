@@ -75,7 +75,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
 
       {/* 2. Bottom Tab Navigation Bar Component */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 w-full z-[9999] bg-zinc-950/95 backdrop-blur-xl border-t border-slate-200/60 py-2.5 px-4 flex justify-between items-center shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.08)]"
+        className="fixed bottom-0 left-0 right-0 w-full z-[9999] bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 py-2.5 px-4 flex justify-between items-center shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.08)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
       >
         {tabs.map(tab => {

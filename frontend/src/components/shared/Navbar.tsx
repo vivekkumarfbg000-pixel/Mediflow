@@ -138,10 +138,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark';
+      return isDarkMode ?? (localStorage.getItem('theme') === 'dark');
     }
-    return false;
+    return isDarkMode ?? false;
   });
+
+  useEffect(() => {
+    if (isDarkMode !== undefined) {
+      setIsDark(isDarkMode);
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     if (isDark) {
@@ -158,16 +164,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   useEffect(() => {
     const handleThemeToggle = () => {
-      setIsDark(prev => !prev);
+      handleToggleTheme();
     };
     window.addEventListener('mediflow-theme-toggle', handleThemeToggle);
     return () => {
       window.removeEventListener('mediflow-theme-toggle', handleThemeToggle);
     };
-  }, []);
+  }, [isDark]);
 
-  const toggleTheme = () => {
-    setIsDark(!isDark);
+  const handleToggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      document.body?.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body?.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+    if (onToggleDarkMode) {
+      onToggleDarkMode();
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: next } }));
   };
   
   const activeSop = api.getActiveSop();
@@ -447,7 +467,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="w-full">
             {isSidebarCollapsed ? (
               <button
-                onClick={toggleTheme}
+                onClick={handleToggleTheme}
                 className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/5 text-slate-650 dark:text-zinc-400 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative group hover:scale-105 active:scale-95 mb-1"
                 title={isDark ? "Light Mode" : "Dark Mode"}
               >
@@ -455,7 +475,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             ) : (
               <button
-                onClick={toggleTheme}
+                onClick={handleToggleTheme}
                 className="w-full flex items-center justify-between py-2 px-3 bg-slate-100 hover:bg-slate-200/60 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/5 text-slate-700 dark:text-zinc-300 rounded-lg transition-all duration-200 font-semibold text-[11px] cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
               >
                 <span className="flex items-center gap-2">
@@ -619,6 +639,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Quick Mobile Theme Toggle Button */}
+          <button
+            type="button"
+            onClick={handleToggleTheme}
+            className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-amber-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle Theme Mode"
+          >
+            {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
+          </button>
         </div>
       </nav>
 
@@ -653,17 +684,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1">
-                  {onToggleDarkMode && (
-                    <button
-                      type="button"
-                      onClick={onToggleDarkMode}
-                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg text-slate-600 dark:text-zinc-300 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center border-0 outline-none"
-                      aria-label="Toggle Dark Mode"
-                      title="Toggle Dark Mode"
-                    >
-                      {isDarkMode ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5 text-slate-600 dark:text-zinc-300" />}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleToggleTheme}
+                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg text-slate-600 dark:text-zinc-300 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center border-0 outline-none"
+                    aria-label="Toggle Dark Mode"
+                    title="Toggle Dark Mode"
+                  >
+                    {isDark ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5 text-indigo-500" />}
+                  </button>
 
                   <button 
                     type="button"
@@ -795,17 +824,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                         {/* 1. Appearance / Dark Mode Tile */}
                         <button
                           type="button"
-                          onClick={() => {
-                            if (onToggleDarkMode) onToggleDarkMode();
-                          }}
+                          onClick={handleToggleTheme}
                           className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                         >
                           <span className="flex items-center gap-2">
-                            {isDarkMode ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
+                            {isDark ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
                             Appearance & Theme
                           </span>
                           <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-mono text-[9px]">
-                            {isDarkMode ? 'Dark' : 'Light'}
+                            {isDark ? 'Dark' : 'Light'}
                           </span>
                         </button>
 
@@ -1142,8 +1169,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 
         initialTab={profileModalInitialTab}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={onToggleDarkMode}
+        isDarkMode={isDark}
+        onToggleDarkMode={handleToggleTheme}
       />
     </>
   );
