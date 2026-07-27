@@ -123,6 +123,8 @@ You MUST ALWAYS enforce these strict technical safeguards across all future code
 44. **Web Vitals LCP Font Preloading**: `index.html` Google Fonts links MUST use asynchronous preloads (`rel="preload" as="style" onload="..."`) to ensure LCP remains under 2500ms and prevent `VITALS_BREACH` alerts.
 45. **Database Schema Repair RPC Alignment**: `supabase/combined_upgrade.sql` MUST define both `heal_schema_drift` and `execute_autonomous_db_repair` PL/pgSQL functions for instant 1-pass Auto-Healer database repairs.
 46. **UnifiedInvoice Type Guard Alignment**: `SaaSAdminPanel.tsx` paymentStatus filter checks MUST evaluate `i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid'` to satisfy TypeScript strict compiler type union safety.
+47. **Multi-Payment Gateway & Zero-Fee UPI Engine**: `paymentService.ts` MUST support Scenario B Direct Dynamic Zero-Fee UPI Deep-Links (`upi://pay?pa=...`), Razorpay, Cashfree, and Cash Counter billing, logging settlements directly to `vitalsync_pool_settlements`.
+48. **WhatsApp Payment Assertion Engine**: When patients tap `[ I Have Paid ✅ ]` or reply `PAY` / `DONE` on WhatsApp, `whatsappService.ts` MUST immediately allocate the OPD Token (`#TK-005`), clear the invoice, log commission pool splits, and dispatch the confirmation receipt.
 
 
 

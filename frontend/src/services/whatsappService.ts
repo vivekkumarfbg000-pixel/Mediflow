@@ -5,6 +5,7 @@ import { EncounterService } from './encounterService';
 import { PharmacyService } from './pharmacyService';
 import { LabService } from './labService';
 import { BillingService } from './billingService';
+import { PaymentService } from './paymentService';
 import type { 
   WhatsAppSession, 
   ChatMessage, 
@@ -309,6 +310,7 @@ export class WhatsAppService {
               if (patientInvoices.length > 0) {
                 patientInvoices.forEach(inv => {
                   BillingService.clearInvoice(inv.id);
+                  PaymentService.settleInvoiceAndCommissionPool(inv.id, 'upi', 0);
                 });
                 
                 nextState = 'COMPLETED';
