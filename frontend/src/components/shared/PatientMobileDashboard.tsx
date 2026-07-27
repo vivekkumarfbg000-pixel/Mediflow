@@ -1059,17 +1059,32 @@ export const PatientMobileDashboard: React.FC = () => {
                         onClick={async () => {
                           setIsPaying(true);
                           try {
-                            const orderRes = await fetch('https://kguupaybvbngyzyofjun.supabase.co/functions/v1/razorpay-order', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                amount: Math.round(activeUpiInvoice.totalAmount * 100),
-                                currency: 'INR',
-                                receipt: activeUpiInvoice.id
-                              })
-                            });
-                            const orderData = await orderRes.json();
-                            const orderId = orderData.id || orderData.order_id || `order_${activeUpiInvoice.id.substring(0, 8)}`;
+                            let orderId = `order_${activeUpiInvoice.id.substring(0, 8)}`;
+                            try {
+                              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
+                              const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
+                              const orderRes = await fetch(`${supabaseUrl}/functions/v1/razorpay-order`, {
+                                method: 'POST',
+                                headers: { 
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${anonKey}`,
+                                  'apikey': anonKey
+                                },
+                                body: JSON.stringify({
+                                  amount: Math.round(activeUpiInvoice.totalAmount * 100),
+                                  currency: 'INR',
+                                  receipt: activeUpiInvoice.id
+                                })
+                              });
+                              if (orderRes.ok) {
+                                const orderData = await orderRes.json();
+                                if (orderData.id || orderData.order_id) {
+                                  orderId = orderData.id || orderData.order_id;
+                                }
+                              }
+                            } catch (fetchErr) {
+                              console.warn('[Razorpay] Supabase Edge Function fetch skipped, opening direct checkout modal:', fetchErr);
+                            }
                             
                             await PaymentService.launchRazorpayModal({
                               orderId,
