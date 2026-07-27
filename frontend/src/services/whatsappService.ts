@@ -301,31 +301,35 @@ export class WhatsAppService {
           break;
 
         case 'AWAITING_PAYMENT':
-          if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned === '1' || cleaned === 'done') {
+          {
             const patient = PatientService.getPatients().find(p => p.phone === phone);
             if (patient) {
               const invoices = BillingService.getUnifiedInvoices();
-              const patientInvoices = invoices.filter(i => i.patientId === patient.id && i.paymentStatus === 'pending');
-              
-              if (patientInvoices.length > 0) {
-                patientInvoices.forEach(inv => {
+              const clearedInvoices = invoices.filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
+              const pendingInvoices = invoices.filter(i => i.patientId === patient.id && i.paymentStatus === 'pending');
+
+              // If Razorpay webhook or counter cleared it in the background
+              if (clearedInvoices.length > 0) {
+                nextState = 'COMPLETED';
+                const tokenCode = clearedInvoices[0].id.substring(0, 5).toUpperCase();
+                replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared\n • Token Number: #${tokenCode}\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
+              } else if (pendingInvoices.length > 0 && (cleaned.includes('pay') || cleaned.includes('status') || cleaned.includes('clear') || cleaned === '1' || cleaned === 'done')) {
+                // Clear pending invoice via PaymentService
+                pendingInvoices.forEach(inv => {
                   BillingService.clearInvoice(inv.id);
                   PaymentService.settleInvoiceAndCommissionPool(inv.id, 'upi', 0);
                 });
-                
+
                 nextState = 'COMPLETED';
-                const voiceUrl = `https://vitalsync.in/api/voice-slips/VS-VOICE-${patientInvoices[0].id.substring(0, 5)}.mp3`;
-                replyMessage = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\nAapka VitalSync care pod invoice settle ho gaya hai. Physical visit token Patna Clinic counter par active hai.\n\nThank you for choosing VitalSync! 😊\n\n🔊 *Listen to Doctor's dosage advice*:\n${voiceUrl}`;
+                const tokenCode = pendingInvoices[0].id.substring(0, 5).toUpperCase();
+                replyMessage = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\nHi ${patient.name}!\n • Token Number: #${tokenCode}\n • Date: Tomorrow\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
               } else {
-                nextState = 'COMPLETED';
-                replyMessage = "No unpaid invoices found on your profile. Safe to proceed!";
+                replyMessage = `⏳ *Payment Verification Pending*\n\nAapka invoice settlement link active hai. Settle karne ke liye payment link par click karein ya reply me **PAY** type kijiye.`;
               }
             } else {
               nextState = 'COMPLETED';
-              replyMessage = "Patient not resolved. Checkout failed.";
+              replyMessage = "Patient record not resolved. Checkout failed.";
             }
-          } else {
-            replyMessage = "Aapka invoice update pending hai. Please pay to clear your check-out parameters. UPI Payload is active in the preceding card.";
           }
           break;
 

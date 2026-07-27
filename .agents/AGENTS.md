@@ -125,6 +125,7 @@ You MUST ALWAYS enforce these strict technical safeguards across all future code
 46. **UnifiedInvoice Type Guard Alignment**: `SaaSAdminPanel.tsx` paymentStatus filter checks MUST evaluate `i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid'` to satisfy TypeScript strict compiler type union safety.
 47. **Multi-Payment Gateway & Zero-Fee UPI Engine**: `paymentService.ts` MUST support Scenario B Direct Dynamic Zero-Fee UPI Deep-Links (`upi://pay?pa=...`), Razorpay, Cashfree, and Cash Counter billing, logging settlements directly to `vitalsync_pool_settlements`.
 48. **WhatsApp Payment Assertion Engine**: When patients tap `[ I Have Paid ✅ ]` or reply `PAY` / `DONE` on WhatsApp, `whatsappService.ts` MUST immediately allocate the OPD Token (`#TK-005`), clear the invoice, log commission pool splits, and dispatch the confirmation receipt.
+49. **Razorpay Server-Side Webhook Verification**: `razorpay-webhook` MUST automatically process `payment.captured` events, mark `payment_status = 'cleared'`, assign OPD tokens, and auto-dispatch WhatsApp confirmation receipts without requiring manual patient assertion.
 
 
 

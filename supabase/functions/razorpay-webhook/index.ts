@@ -77,6 +77,39 @@ serve(async (req) => {
             settlement_status: "completed",
             created_at: new Date().toISOString()
           });
+
+          // 3. Confirm appointment in database & assign token
+          if (invoice.appointment_id) {
+            await supabase.from("appointments").update({
+              status: "confirmed",
+              payment_status: "cleared"
+            }).eq("id", invoice.appointment_id);
+          }
+
+          // 4. Update WhatsApp session state & send confirmation message via Edge Notifier
+          const patientId = invoice.patient_id || invoice.patientId;
+          const { data: patient } = await supabase
+            .from("patient_registry")
+            .select("phone, name")
+            .eq("id", patientId)
+            .single();
+
+          if (patient?.phone) {
+            const tokenCode = (invoice.appointment_id || invoiceId).substring(0, 4).toUpperCase();
+            const confirmMsg = `🎉 *RAZORPAY PAYMENT VERIFIED & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name || 'Patient'}!\n • Payment Status: Cleared (Razorpay)\n • Token Number: #${tokenCode}\n • Amount Paid: ₹${amountPaid.toFixed(2)}\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
+
+            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
+              },
+              body: JSON.stringify({
+                phone: patient.phone,
+                message: confirmMsg
+              })
+            }).catch(err => console.warn("[Razorpay Webhook] WhatsApp dispatch notification error:", err));
+          }
         }
       }
     }
