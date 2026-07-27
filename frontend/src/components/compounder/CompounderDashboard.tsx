@@ -2246,12 +2246,12 @@ export const CompounderDashboard: React.FC = () => {
                                     phone: selectedApptPatient.phone,
                                     onSuccess: () => {
                                       BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
-                                      toast.success('Payment Received via Razorpay Gateway!');
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: 'Payment Received via Razorpay Gateway!', type: 'success' } }));
                                     },
                                     onError: (err) => {
                                       console.warn('[Razorpay] Gateway payment fallback triggered:', err);
                                       BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
-                                      toast.success('Appointment Confirmed & OPD Token Allocated');
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: 'Appointment Confirmed & OPD Token Allocated', type: 'success' } }));
                                     }
                                   });
                                 } else {
