@@ -122,6 +122,7 @@ You MUST ALWAYS enforce these strict technical safeguards across all future code
 43. **Telemetry Webhook Subsystem Safety**: Deno Edge function `notify-developer-webhook/index.ts` MUST guard `(subsystem || 'system').toLowerCase()` to prevent runtime Edge crashes on missing payload properties.
 44. **Web Vitals LCP Font Preloading**: `index.html` Google Fonts links MUST use asynchronous preloads (`rel="preload" as="style" onload="..."`) to ensure LCP remains under 2500ms and prevent `VITALS_BREACH` alerts.
 45. **Database Schema Repair RPC Alignment**: `supabase/combined_upgrade.sql` MUST define both `heal_schema_drift` and `execute_autonomous_db_repair` PL/pgSQL functions for instant 1-pass Auto-Healer database repairs.
+46. **UnifiedInvoice Type Guard Alignment**: `SaaSAdminPanel.tsx` paymentStatus filter checks MUST evaluate `i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid'` to satisfy TypeScript strict compiler type union safety.
 
 
 

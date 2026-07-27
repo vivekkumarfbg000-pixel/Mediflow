@@ -334,7 +334,7 @@ export const SaaSAdminPanel: React.FC = () => {
       setRevenueStats((revenue as RevenueStats) || {
         total_gmv: api.getUnifiedInvoices().reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0) || 48500,
         platform_commission: Math.round((api.getUnifiedInvoices().reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0) || 48500) * 0.025),
-        paid_invoices: api.getUnifiedInvoices().filter(i => i.paymentStatus === 'paid').length || 18,
+        paid_invoices: api.getUnifiedInvoices().filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length || 18,
         unpaid_invoices: api.getUnifiedInvoices().filter(i => i.paymentStatus === 'pending').length || 3
       });
 
