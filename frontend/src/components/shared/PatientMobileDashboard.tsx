@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import type { Patient, UnifiedInvoice, PathologyReport, Encounter, Invoice } from '../../types';
 import { BillingService } from '../../services/billingService';
+import { PaymentService } from '../../services/paymentService';
 import { 
   Smartphone, 
   Home, 
@@ -1045,6 +1046,58 @@ export const PatientMobileDashboard: React.FC = () => {
                             Pay UPI splits (₹{activeUpiInvoice.totalAmount}.00)
                           </>
                         )}
+                      </button>
+
+                      <div className="relative flex py-1 items-center">
+                        <div className="flex-grow border-t border-white/10"></div>
+                        <span className="flex-shrink mx-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest">OR</span>
+                        <div className="flex-grow border-t border-white/10"></div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsPaying(true);
+                          try {
+                            const orderRes = await fetch('https://kguupaybvbngyzyofjun.supabase.co/functions/v1/razorpay-order', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                amount: Math.round(activeUpiInvoice.totalAmount * 100),
+                                currency: 'INR',
+                                receipt: activeUpiInvoice.id
+                              })
+                            });
+                            const orderData = await orderRes.json();
+                            const orderId = orderData.id || orderData.order_id || `order_${activeUpiInvoice.id.substring(0, 8)}`;
+                            
+                            await PaymentService.launchRazorpayModal({
+                              orderId,
+                              invoiceId: activeUpiInvoice.id,
+                              amount: activeUpiInvoice.totalAmount,
+                              name: currentPatient?.name,
+                              phone: currentPatient?.phone,
+                              onSuccess: () => {
+                                setIsPaying(false);
+                                setPaymentSuccess(true);
+                                BillingService.clearInvoice(activeUpiInvoice.id, 'razorpay');
+                                setTimeout(() => {
+                                  setIsUpiModalOpen(false);
+                                  setActiveUpiInvoice(null);
+                                  setRefreshKey(prev => prev + 1);
+                                }, 1500);
+                              },
+                              onError: () => setIsPaying(false)
+                            });
+                          } catch (e) {
+                            setIsPaying(false);
+                          }
+                        }}
+                        disabled={isPaying}
+                        className="w-full py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white-force cursor-pointer shadow-md flex justify-center items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm text-white-force">credit_card</span>
+                        <span>Pay via Razorpay Standard Checkout</span>
                       </button>
                     </div>
                   )}

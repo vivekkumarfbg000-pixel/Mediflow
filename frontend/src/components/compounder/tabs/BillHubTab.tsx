@@ -7,6 +7,7 @@ import { EncounterService } from '../../../services/encounterService';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { LabService, MASTER_TEST_CATALOG } from '../../../services/labService';
 import { BillingService } from '../../../services/billingService';
+import { PaymentService } from '../../../services/paymentService';
 import { PatientService } from '../../../services/patientService';
 import { useSpecialization } from '../../../context/SpecializationContext';
 import { WhatsAppService } from '../../../services/whatsappService';
@@ -1371,15 +1372,58 @@ export const BillHubTab: React.FC = () => {
                       </div>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={handleClearBill}
-                      disabled={isClearing}
-                      className="w-full btn-primary py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
-                    >
-                      <Check className="h-4 w-4" />
-                      {isClearing ? 'Clearing...' : 'Clear Bill & Print'}
-                    </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleClearBill}
+                        disabled={isClearing}
+                        className="w-full btn-primary py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Check className="h-4 w-4" />
+                        {isClearing ? 'Clearing...' : 'Clear Bill (Cash/UPI)'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!selectedPatient || !billingLedger) return;
+                          setIsClearing(true);
+                          try {
+                            const invId = `inv-${crypto.randomUUID().substring(0, 8)}`;
+                            const orderRes = await fetch('https://kguupaybvbngyzyofjun.supabase.co/functions/v1/razorpay-order', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                amount: Math.round(billingLedger.finalTotal * 100),
+                                currency: 'INR',
+                                receipt: invId
+                              })
+                            });
+                            const orderData = await orderRes.json();
+                            const orderId = orderData.id || orderData.order_id || `order_${invId.substring(0, 8)}`;
+
+                            await PaymentService.launchRazorpayModal({
+                              orderId,
+                              invoiceId: invId,
+                              amount: billingLedger.finalTotal,
+                              name: selectedPatient.name,
+                              phone: selectedPatient.phone,
+                              onSuccess: () => {
+                                handleClearBill();
+                              },
+                              onError: () => setIsClearing(false)
+                            });
+                          } catch (e) {
+                            setIsClearing(false);
+                          }
+                        }}
+                        disabled={isClearing}
+                        className="w-full py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                      >
+                        <QrCode className="h-4 w-4" />
+                        <span>Pay via Razorpay</span>
+                      </button>
+                    </div>
                   </div>
 
                 </div>
