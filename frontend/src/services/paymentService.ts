@@ -199,6 +199,7 @@ export class PaymentService {
     name?: string;
     email?: string;
     phone?: string;
+    keyId?: string;
     onSuccess: (res: any) => void;
     onError: (err: any) => void;
   }): Promise<void> {
@@ -208,7 +209,7 @@ export class PaymentService {
       return;
     }
 
-    const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_1DP5mmOlF5G5ag';
+    const keyId = params.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TIcrdvC4PJBI75';
     const amountInPaise = Math.round(params.amount * 100);
 
     const options: any = {

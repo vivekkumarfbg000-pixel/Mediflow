@@ -1391,6 +1391,7 @@ export const BillHubTab: React.FC = () => {
                           try {
                             const invId = `inv-${crypto.randomUUID().substring(0, 8)}`;
                             let orderId = '';
+                            let keyId = '';
                             try {
                               const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
                               const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
@@ -1412,6 +1413,7 @@ export const BillHubTab: React.FC = () => {
                                 const orderData = await orderRes.json();
                                 if (orderData.orderId || orderData.id) {
                                   orderId = orderData.orderId || orderData.id;
+                                  keyId = orderData.keyId || '';
                                 }
                               }
                             } catch (fetchErr) {
@@ -1420,6 +1422,7 @@ export const BillHubTab: React.FC = () => {
 
                             await PaymentService.launchRazorpayModal({
                               orderId,
+                              keyId,
                               invoiceId: invId,
                               amount: billingLedger.finalTotal,
                               name: selectedPatient.name,
