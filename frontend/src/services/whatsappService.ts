@@ -305,26 +305,19 @@ export class WhatsAppService {
             const patient = PatientService.getPatients().find(p => p.phone === phone);
             if (patient) {
               const invoices = BillingService.getUnifiedInvoices();
-              const clearedInvoices = invoices.filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
-              const pendingInvoices = invoices.filter(i => i.patientId === patient.id && i.paymentStatus === 'pending');
+              const clearedInvoices = invoices.filter(i => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared'));
+              const pendingInvoices = invoices.filter(i => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'pending' || i.payment_status === 'pending'));
 
-              // If Razorpay webhook or counter cleared it in the background
+              // Strict Gate: Only confirm appointment if server/webhook or counter cleared the payment
               if (clearedInvoices.length > 0) {
                 nextState = 'COMPLETED';
                 const tokenCode = clearedInvoices[0].id.substring(0, 5).toUpperCase();
-                replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared\n • Token Number: #${tokenCode}\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
-              } else if (pendingInvoices.length > 0 && (cleaned.includes('pay') || cleaned.includes('status') || cleaned.includes('clear') || cleaned === '1' || cleaned === 'done')) {
-                // Clear pending invoice via PaymentService
-                pendingInvoices.forEach(inv => {
-                  BillingService.clearInvoice(inv.id);
-                  PaymentService.settleInvoiceAndCommissionPool(inv.id, 'upi', 0);
-                });
-
-                nextState = 'COMPLETED';
-                const tokenCode = pendingInvoices[0].id.substring(0, 5).toUpperCase();
-                replyMessage = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\nHi ${patient.name}!\n • Token Number: #${tokenCode}\n • Date: Tomorrow\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
+                replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared ✅\n • Token Number: #${tokenCode}\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
               } else {
-                replyMessage = `⏳ *Payment Verification Pending*\n\nAapka invoice settlement link active hai. Settle karne ke liye payment link par click karein ya reply me **PAY** type kijiye.`;
+                // Strict Security: Unpaid appointments remain pending. Do NOT auto-clear on unverified user text assertion.
+                nextState = 'AWAITING_PAYMENT';
+                const pendingAmt = pendingInvoices[0]?.totalAmount || 500;
+                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Razorpay/Cashfree/Bank.\n\n• *Online Gateway*: Auto-verifies in ~10-30s upon payment completion.\n• *Counter UPI/Cash*: Present your UPI UTR to the compounder at Patna clinic counter.\n\nReply **STATUS** to re-check after completing payment. 🩺`;
               }
             } else {
               nextState = 'COMPLETED';
@@ -462,27 +455,22 @@ export class WhatsAppService {
         case 'MEDICINE_AWAITING_PAYMENT':
           {
             const draftBill = sessionData.draftMedicineBill as MedicineBill;
-            if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned === '1') {
-              if (draftBill) {
-                draftBill.status = 'paid';
-                PharmacyService.saveMedicineBill(draftBill);
-                PharmacyService.dispenseMedicineBill(draftBill.id);
+            const liveBills = PharmacyService.getMedicineBills();
+            const currentBill = liveBills.find(b => b.id === draftBill?.id) || draftBill;
 
-                const voiceUrl = `https://vitalsync.in/api/voice-slips/VS-VOICE-${draftBill.id.substring(4, 8)}.mp3`;
-                if (draftBill.deliveryType === 'shiprocket') {
-                  nextState = 'COMPLETED';
-                  const shipId = `SR-${Math.floor(100000 + Math.random() * 900000)}`;
-                  replyMessage = `🟢 *Payment Cleared!* \n\nShiprocket logistics partner se order arrange kar diya hai. \n🚀 *Tracking ID: ${shipId}*\n\nMedicines 24-48 hours mein deliver ho jayengi. VitalSync digital ecosystem choose karne ke liye shukriya! 📦\n\n🔊 *Listen to Medication audio advice*:\n${voiceUrl}`;
-                } else {
-                  nextState = 'MEDICINE_READY_FOR_PICKUP';
-                  replyMessage = `🟢 *Payment Cleared!* \n\nMedicines counter collection ke liye packing department mein bhej di gayi hain. \n\nShow this invoice ref to compounder at clinic counter: \n🔖 *Ref ID: #${draftBill.id.substring(4, 10).toUpperCase()}*\n\n🔊 *Listen to Medication audio advice*:\n${voiceUrl}`;
-                }
-              } else {
+            if (currentBill && currentBill.status === 'paid') {
+              const voiceUrl = `https://vitalsync.in/api/voice-slips/VS-VOICE-${currentBill.id.substring(4, 8)}.mp3`;
+              if (currentBill.deliveryType === 'shiprocket') {
                 nextState = 'COMPLETED';
-                replyMessage = "Something went wrong with the payment transaction. Please request compounder to assist at Patna counter.";
+                const shipId = `SR-${Math.floor(100000 + Math.random() * 900000)}`;
+                replyMessage = `🟢 *Payment Verified & Cleared!* \n\nShiprocket logistics partner se order arrange kar diya hai. \n🚀 *Tracking ID: ${shipId}*\n\nMedicines 24-48 hours mein deliver ho jayengi. VitalSync digital ecosystem choose karne ke liye shukriya! 📦\n\n🔊 *Listen to Medication audio advice*:\n${voiceUrl}`;
+              } else {
+                nextState = 'MEDICINE_READY_FOR_PICKUP';
+                replyMessage = `🟢 *Payment Verified & Cleared!* \n\nMedicines counter collection ke liye packing department mein bhej di gayi hain. \n\nShow this invoice ref to compounder at clinic counter: \n🔖 *Ref ID: #${currentBill.id.substring(4, 10).toUpperCase()}*\n\n🔊 *Listen to Medication audio advice*:\n${voiceUrl}`;
               }
             } else {
-              replyMessage = `Dues pending hain. Please ₹${draftBill?.totalAmount.toFixed(2)} settle kijiye. UPI payload:\n${draftBill?.upiQrPayload}\n\nClear karne ke baad *PAY* reply karein.`;
+              nextState = 'MEDICINE_AWAITING_PAYMENT';
+              replyMessage = `⏳ *Payment Verification Pending*\n\nPayment for ₹${draftBill?.totalAmount.toFixed(2)} is not received yet. UPI Link:\n${draftBill?.upiQrPayload}\n\n• *Online Gateway*: Auto-clears in ~10-30s once payment succeeds.\n• *Counter Cash/UPI*: Present your UPI UTR to the compounder at Patna counter.\n\nReply **STATUS** to re-check after completing payment. 📦`;
             }
           }
           break;
