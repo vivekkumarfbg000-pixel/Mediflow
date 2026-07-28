@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
@@ -571,9 +572,11 @@ export const CompounderDashboard: React.FC = () => {
     }
   }, [activePatient, vitalsPatient]);
 
-  // Load existing vitals into form fields when vitalsPatient changes
+  // Load existing vitals into form fields & lock body scroll when vitalsPatient changes
   useEffect(() => {
     if (vitalsPatient) {
+      document.body.style.overflow = 'hidden';
+
       if (vitalsPatient.vitals) {
         const rawTemp = vitalsPatient.vitals.temperature || '';
         const rawBp = vitalsPatient.vitals.bloodPressure || '';
@@ -630,6 +633,10 @@ export const CompounderDashboard: React.FC = () => {
         setSugarVal('');
       }
       setCustomToken(vitalsPatient.tokenNumber || '');
+
+      return () => {
+        document.body.style.overflow = '';
+      };
     }
   }, [vitalsPatient, isOphthalmology]);
 
@@ -2643,8 +2650,8 @@ export const CompounderDashboard: React.FC = () => {
                    CRITICAL: outer div must be `fixed inset-0 flex items-center justify-center`
                    with NO overflow-y-auto — that breaks flexbox centering and pushes the
                    modal above the viewport. The inner panel handles its own scroll. */}
-              {vitalsPatient && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
+              {vitalsPatient && createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
                   <div className="glass-panel w-full max-w-lg p-6 border-slate-200/60 dark:border-white/10 shadow-2xl relative bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-3xl space-y-4 max-h-[90vh] overflow-y-auto">
                     <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
                     
@@ -2826,7 +2833,8 @@ export const CompounderDashboard: React.FC = () => {
                       </div>
                     </form>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
