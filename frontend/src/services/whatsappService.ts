@@ -317,7 +317,7 @@ export class WhatsAppService {
                     inv.utrNumber = utrNumber;
                     inv.utr_number = utrNumber;
                   });
-                  BillingService.saveUnifiedInvoices(invoices);
+                  save('unified_invoices', invoices);
                   
                   // Also update Supabase appointments table
                   supabase.from('unified_invoices').update({ utr_number: utrNumber }).eq('patient_id', patient.id).then();
