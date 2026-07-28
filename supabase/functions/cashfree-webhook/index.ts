@@ -25,6 +25,14 @@ serve(async (req) => {
     );
 
     const secretKey = Deno.env.get("CASHFREE_SECRET_KEY") ?? "";
+    if (!secretKey) {
+      console.error("[cashfree-webhook] Server configuration error: CASHFREE_SECRET_KEY is not defined");
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const signature = req.headers.get("x-webhook-signature");
     const timestamp = req.headers.get("x-webhook-timestamp") ?? "";
 
@@ -80,14 +88,6 @@ serve(async (req) => {
 
     console.log(`[cashfree-webhook] Processing event: ${eventType} for Order: ${orderId}, Status: ${paymentStatus}`);
 
-    if (!secretKey) {
-      console.error("[cashfree-webhook] Server configuration error: CASHFREE_SECRET_KEY is not defined");
-      return new Response(JSON.stringify({ error: "Server configuration error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     if (paymentStatus === "SUCCESS" || eventType === "PAYMENT_SUCCESS_WEBHOOK") {
       // 0. Fetch the current invoice status first to enforce idempotency
       const { data: existingInvoice, error: fetchErr } = await supabase
@@ -125,6 +125,7 @@ serve(async (req) => {
         .from("unified_invoices")
         .update({ 
           payment_status: "cleared",  // DB constraint: only 'pending' | 'cleared' allowed
+          payment_method: "cashfree",
           split_settlement_status: "settled"
         })
         .eq("cashfree_order_id", orderId)

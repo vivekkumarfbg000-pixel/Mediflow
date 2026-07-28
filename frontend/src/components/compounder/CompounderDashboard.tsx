@@ -2255,7 +2255,7 @@ export const CompounderDashboard: React.FC = () => {
                                     phone: selectedApptPatient.phone,
                                     onSuccess: async () => {
                                       // Payment confirmed by Razorpay — NOW run post-payment flow
-                                      BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
+                                      await BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
 
                                       const assignedTokenRzp = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
                                       try {
@@ -2544,6 +2544,14 @@ export const CompounderDashboard: React.FC = () => {
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: { message: 'Cash collected! 🌟 VitalSync Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
+                                    // BUG-01+11: scroll to top, lock scroll, reset form before opening vitals
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    document.body.style.overflow = 'hidden';
+                                    setTempVal(isOphthalmology ? '6/6' : '98.6');
+                                    setBpVal(isOphthalmology ? '6/6' : '120/80');
+                                    setPulseVal(isOphthalmology ? '16' : '72');
+                                    setWeightVal(isOphthalmology ? '' : '65');
+                                    setSugarVal('');
                                     setVitalsPatient(patient);
                                     setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
                                   }}
@@ -2554,12 +2562,18 @@ export const CompounderDashboard: React.FC = () => {
                                 <button
                                   onClick={async () => {
                                     await BillingService.recordInvoicePayment(invoice.id, 'upi');
-                                    // Full sync: refresh patients + appointments
                                     syncData();
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: { message: 'UPI verified! 🌟 Mediflow Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
-                                    // Auto-open vitals for this patient
+                                    // BUG-01+11: scroll to top, lock scroll, reset form before opening vitals
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    document.body.style.overflow = 'hidden';
+                                    setTempVal(isOphthalmology ? '6/6' : '98.6');
+                                    setBpVal(isOphthalmology ? '6/6' : '120/80');
+                                    setPulseVal(isOphthalmology ? '16' : '72');
+                                    setWeightVal(isOphthalmology ? '' : '65');
+                                    setSugarVal('');
                                     setVitalsPatient(patient);
                                     setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
                                   }}
@@ -2571,14 +2585,16 @@ export const CompounderDashboard: React.FC = () => {
                             ) : isAwaitingVitals ? (
                               <button
                                 onClick={() => {
-                                  setVitalsPatient(patient);
-                                  setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
-                                  // Reset form defaults
+                                  // BUG-01: scroll to top + lock body scroll before opening vitals modal
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  document.body.style.overflow = 'hidden';
                                   setTempVal(isOphthalmology ? '6/6' : '98.6');
                                   setBpVal(isOphthalmology ? '6/6' : '120/80');
                                   setPulseVal(isOphthalmology ? '16' : '72');
                                   setWeightVal(isOphthalmology ? '' : '65');
                                   setSugarVal('');
+                                  setVitalsPatient(patient);
+                                  setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
                                 }}
                                 className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white border border-rose-600 font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer"
                               >

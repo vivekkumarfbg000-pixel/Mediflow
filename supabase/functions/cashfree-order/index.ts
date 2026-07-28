@@ -143,7 +143,9 @@ serve(async (req) => {
           return new Response(JSON.stringify({
             order_id: existingData.order_id,
             payment_session_id: existingData.payment_session_id,
+            paymentSessionId: existingData.payment_session_id,
             cf_order_id: existingData.cf_order_id,
+            environment: resolvedEnv,
           }), {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -247,7 +249,9 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       order_id:           cfData.order_id,
       payment_session_id: cfData.payment_session_id,
+      paymentSessionId:   cfData.payment_session_id,
       cf_order_id:        cfData.cf_order_id,
+      environment:        resolvedEnv,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

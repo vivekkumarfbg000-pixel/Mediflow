@@ -98,24 +98,34 @@ serve(async (req) => {
           })
           .eq("id", invoiceId);
 
-        // 2. Insert into vitalsync_pool_settlements
+        // 2. Insert into vitalsync_pool_settlements (with idempotency guard)
         if (invoice) {
-          const doctorFee = Number(invoice.doctor_fee) || 500;
-          const platformFee = Number(invoice.platform_fee) || 15;
-          const netProfit = Math.max(0, platformFee - gatewayFee);
+          const { data: existingSettlement } = await supabase
+            .from("vitalsync_pool_settlements")
+            .select("id")
+            .eq("invoice_id", invoiceId)
+            .maybeSingle();
 
-          await supabase.from("vitalsync_pool_settlements").insert({
-            invoice_id: invoiceId,
-            patient_id: invoice.patient_id || invoice.patientId,
-            total_amount: amountPaid,
-            doctor_share: doctorFee,
-            platform_share: platformFee,
-            gateway_fee: gatewayFee,
-            net_platform_profit: netProfit,
-            payment_method: "razorpay",
-            settlement_status: "completed",
-            created_at: new Date().toISOString()
-          });
+          if (!existingSettlement) {
+            const doctorFee = Number(invoice.doctor_fee) || 500;
+            const platformFee = Number(invoice.platform_fee) || 15;
+            const netProfit = Math.max(0, platformFee - gatewayFee);
+
+            await supabase.from("vitalsync_pool_settlements").insert({
+              invoice_id: invoiceId,
+              patient_id: invoice.patient_id || invoice.patientId,
+              total_amount: amountPaid,
+              doctor_share: doctorFee,
+              platform_share: platformFee,
+              gateway_fee: gatewayFee,
+              net_platform_profit: netProfit,
+              payment_method: "razorpay",
+              settlement_status: "completed",
+              created_at: new Date().toISOString()
+            });
+          } else {
+            console.log(`[Razorpay Webhook] Settlement already exists for invoice ${invoiceId}, skipping duplicate insert.`);
+          }
 
           // 3. Confirm appointment in database & assign token
           if (invoice.appointment_id) {

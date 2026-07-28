@@ -146,7 +146,7 @@ export class PaymentService {
         return {
           success: true,
           gateway: 'cashfree',
-          paymentSessionId: data.paymentSessionId,
+          paymentSessionId: data.paymentSessionId || data.payment_session_id,
           cashfreeEnv: data.environment
         };
       }
