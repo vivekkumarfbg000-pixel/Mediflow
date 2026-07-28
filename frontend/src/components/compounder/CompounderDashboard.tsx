@@ -2208,6 +2208,10 @@ export const CompounderDashboard: React.FC = () => {
                             try {
                               // 1. Synchronously create invoice & appointment in local state
                               const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
+                              // BUG-08 FIX: read amount from invoice, not hardcoded 500
+                              const invoiceAmount = newInvoice?.totalAmount || newInvoice?.total_amount || 500;
+                              // BUG-03 FIX: capture before any state reset so toast is correct
+                              const paymentModeLabel = apptPaymentMode;
 
                               // 2. Immediately record payment / launch Gateway Modal
                               if (newInvoice) {
@@ -2246,7 +2250,7 @@ export const CompounderDashboard: React.FC = () => {
                                     orderId,
                                     keyId,
                                     invoiceId: newInvoice.id,
-                                    amount: 500,
+                                    amount: invoiceAmount,
                                     name: selectedApptPatient.name,
                                     phone: selectedApptPatient.phone,
                                     onSuccess: async () => {
@@ -2339,7 +2343,7 @@ export const CompounderDashboard: React.FC = () => {
 
                               window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                 detail: {
-                                  message: `Appointment for ${bookedPatient.name} booked & fee settled via ${apptPaymentMode.toUpperCase()}. Vitals modal is open for clinical dispatch!`,
+                                  message: `Appointment for ${bookedPatient.name} booked & fee settled via ${paymentModeLabel.toUpperCase()}. Vitals modal is open for clinical dispatch!`,
                                   type: 'success',
                                   title: 'Appointment Active — Record Vitals 🩺'
                                 }

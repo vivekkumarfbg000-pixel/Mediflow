@@ -240,7 +240,8 @@ export class PaymentService {
       },
       handler: async (response: any) => {
         console.log('[PaymentService] Razorpay checkout response received:', response);
-        // Always clean up Razorpay DOM before calling onSuccess
+        // Clean up Razorpay DOM artifacts (backdrop/iframes) but do NOT touch
+        // body.overflow here — the vitals modal onSuccess will set it.
         PaymentService.cleanupRazorpayDOM();
         // Verify payment signature via backend Edge Function
         try {
@@ -261,10 +262,18 @@ export class PaymentService {
             })
           });
 
+          // BUG-04 FIX: check HTTP status before treating as success
+          if (!verifyRes.ok) {
+            const errData = await verifyRes.json().catch(() => ({ error: 'Verification failed' }));
+            console.error('[PaymentService] Signature verification rejected by server:', errData);
+            params.onError({ message: errData.error || 'Payment verification failed. Contact support.' });
+            return;
+          }
+
           const verifyData = await verifyRes.json().catch(() => ({ success: true }));
           params.onSuccess(verifyData);
         } catch (err: any) {
-          console.warn('[PaymentService] Signature verification fallback:', err);
+          console.warn('[PaymentService] Signature verification network error — treating as success fallback:', err);
           params.onSuccess({ paymentId: response.razorpay_payment_id });
         }
       },
@@ -311,11 +320,9 @@ export class PaymentService {
       selectors.forEach(selector => {
         document.querySelectorAll(selector).forEach(el => el.remove());
       });
-      // Restore body scroll that Razorpay locks during modal display
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.documentElement.style.overflow = '';
+      // NOTE: Do NOT reset body.overflow here.
+      // The vitals modal onSuccess handler sets overflow='hidden' to lock scroll.
+      // ondismiss and payment.failed handlers restore overflow='' themselves.
       console.log('[PaymentService] 🧹 Razorpay DOM cleanup complete.');
     } catch (e) {
       /* ignore cleanup errors */
