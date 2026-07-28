@@ -907,7 +907,7 @@ GST (Tax): ₹${bill.gstAmount.toFixed(2)}${deliveryText}
 *TOTAL AMOUNT PAYABLE: ₹${bill.totalAmount.toFixed(2)}*
 
 📱 Pay securely via UPI link below:
-${bill.upiQrPayload || `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${bill.totalAmount.toFixed(2)}&cu=INR&tn=VS-BILL-${bill.id.substring(4, 8)}`}
+${bill.upiQrPayload || `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${bill.totalAmount.toFixed(2)}&cu=INR&tn=VS-BILL-${bill.id.substring(4, 8)}`}
 
 ${bill.deliveryType === 'shiprocket' 
   ? '📍 Your order will be dispatched via Shiprocket once payment is cleared!' 

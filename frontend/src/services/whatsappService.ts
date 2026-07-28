@@ -333,7 +333,7 @@ export class WhatsAppService {
 
             if (stage === 'CHOOSING_DELIVERY') {
               const draftBill = sessionData.draftMedicineBill as MedicineBill;
-              const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@icici';
+              const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
               if (cleaned === '1') {
                 draftBill.deliveryType = 'pickup';
                 draftBill.deliveryCharge = 0;
@@ -878,7 +878,7 @@ export class WhatsAppService {
                 };
                 BillingService.saveInvoice(newInvoice);
 
-                const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@icici';
+                const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
                 const uInvoices = BillingService.getUnifiedInvoices();
                 uInvoices.unshift({
                   id: invoiceId,
@@ -916,7 +916,7 @@ export class WhatsAppService {
               runInsert();
             }
 
-            const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@icici';
+            const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
             nextState = 'AWAITING_PAYMENT';
             replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai. Total Fee (Consultation + Platform): ₹500.00.\n\n⚡ *Secure Dynamic UPI Payment Link (0% Gateway Fee):*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=500.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment karne ke baad please **PAY** reply kijiye ya **[ I Have Paid ✅ ]** button tap kijiye! Hum payment verify karke turant meeting link aur token number bhej denge! 📑`;
           } else {

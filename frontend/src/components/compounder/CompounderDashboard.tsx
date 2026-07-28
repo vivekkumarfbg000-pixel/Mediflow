@@ -1073,7 +1073,7 @@ export const CompounderDashboard: React.FC = () => {
       gstAmount: billingTotals.gstAmount,
       totalAmount: billingTotals.totalAmount,
       paymentMode: mode === 'whatsapp' ? 'whatsapp_pay' : 'cash',
-      upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${billingTotals.totalAmount.toFixed(2)}&cu=INR&tn=VS-BILL-${billId.substring(4, 8)}`,
+      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingTotals.totalAmount.toFixed(2)}&cu=INR&tn=VS-BILL-${billId.substring(4, 8)}`,
       status: mode === 'cash' ? 'paid' : 'draft',
       source: 'counter',
       deliveryType: deliveryType,

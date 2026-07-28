@@ -123,7 +123,7 @@ export class EncounterService {
       pharmacyFee: pharmFee,
       platformFee: platFee,
       totalAmount: total,
-      upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-${encounterId}`,
+      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-${encounterId}`,
       paymentStatus: (docFee === 0 && labFee === 0 && pharmFee === 0) ? 'cleared' : 'pending',
       createdAt: new Date().toISOString()
     };
@@ -374,7 +374,7 @@ export class EncounterService {
           pharmacy_fee: pharmacyFee,
           platform_fee: platformFee,
           total_amount: invoiceTotal,
-          upi_qr_payload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${invoiceTotal}&cu=INR&tn=VitalSync-${encounterId}`,
+          upi_qr_payload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${invoiceTotal}&cu=INR&tn=VitalSync-${encounterId}`,
           pod_id: ctx.podId
         });
         if (invError) {

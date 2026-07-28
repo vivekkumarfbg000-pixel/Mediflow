@@ -347,7 +347,7 @@ export const LabDashboard: React.FC = () => {
       pharmacyFee: 0,
       platformFee: platformFee,
       totalAmount: total,
-      upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-LAB-${req.id.substring(0,6)}`,
+      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-LAB-${req.id.substring(0,6)}`,
       paymentStatus: 'pending' as const,
       createdAt: new Date().toISOString()
     };

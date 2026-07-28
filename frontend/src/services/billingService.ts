@@ -361,7 +361,7 @@ export class BillingService {
         const sessions = load<any[]>('whatsapp_sessions', []);
         const existing = sessions.find(s => s.patientPhone === patient.phone);
         if (existing) {
-          const text = `🟢 *Welcome to VitalSync Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹${consultFee}* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${consultFee}.00_`;
+          const text = `🟢 *Welcome to VitalSync Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹${consultFee}* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${consultFee}.00_`;
           const currentHistory = existing.sessionData.chatHistory || [];
           currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
           existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };

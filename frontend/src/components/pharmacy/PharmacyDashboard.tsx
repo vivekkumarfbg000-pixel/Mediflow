@@ -2245,7 +2245,7 @@ export const PharmacyDashboard: React.FC = () => {
                                   gstAmount,
                                   totalAmount: subtotal + gstAmount,
                                   paymentMode: 'cash' as const,
-                                  upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${(subtotal + gstAmount).toFixed(2)}&cu=INR`,
+                                  upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(subtotal + gstAmount).toFixed(2)}&cu=INR`,
                                   status: 'draft' as const,
                                   source: 'counter' as const,
                                   createdAt: new Date().toISOString()
