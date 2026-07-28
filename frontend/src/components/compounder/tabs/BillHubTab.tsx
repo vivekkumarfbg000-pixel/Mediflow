@@ -63,8 +63,8 @@ export const BillHubTab: React.FC = () => {
       // Check if consultation fee was ALREADY paid at Gate 1 booking time
       const saasInvoices = BillingService.getInvoices();
       const uInvoices = BillingService.getUnifiedInvoices();
-      const alreadyPaidConsult = saasInvoices.some(i => i.patientId === selectedPatient.id && i.type === 'consult' && i.status === 'paid') ||
-                                 uInvoices.some(i => (i.patientId === selectedPatient.id || i.patient_id === selectedPatient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
+      const alreadyPaidConsult = saasInvoices.some((i: any) => i.patientId === selectedPatient.id && i.type === 'consult' && i.status === 'paid') ||
+                                 uInvoices.some((i: any) => (i.patientId === selectedPatient.id || i.patient_id === selectedPatient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
 
       setIncludeConsult(!alreadyPaidConsult);
       setIncludeOT(true);

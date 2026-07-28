@@ -103,8 +103,8 @@ export class EncounterService {
     const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
 
     // Check if consultation fee was ALREADY paid at Gate 1 booking time
-    const alreadyPaidConsult = saasInvoices.some(i => i.patientId === newEncounter.patientId && i.type === 'consult' && i.status === 'paid') ||
-                               invoices.some(i => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
+    const alreadyPaidConsult = saasInvoices.some((i: any) => i.patientId === newEncounter.patientId && i.type === 'consult' && i.status === 'paid') ||
+                               invoices.some((i: any) => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
 
     const docFee = alreadyPaidConsult ? 0 : 400;
     const labFee = newEncounter.diagnosticTests.length * 350;
