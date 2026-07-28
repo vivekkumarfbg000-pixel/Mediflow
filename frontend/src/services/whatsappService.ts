@@ -844,7 +844,7 @@ export class WhatsAppService {
                   patient_phone: currentPat.phone,
                   doctorId: resolvedDoctorId ?? '',
                   doctor_id: resolvedDoctorId ?? '',
-                  status: 'confirmed',
+                  status: 'pending_payment',
                   source: 'whatsapp',
                   channel: 'whatsapp',
                   createdAt: new Date().toISOString(),
@@ -858,7 +858,7 @@ export class WhatsAppService {
                 };
                 BillingService.saveAppointment(newAppt);
 
-                // Create Invoice & Financial Ledger Entry for WhatsApp Booking (₹500.00)
+                // Create Pending Invoice for WhatsApp Booking (₹500.00)
                 const invoiceId = `inv-wa-${apptId.substring(0, 8)}`;
                 const newInvoice: any = {
                   id: invoiceId,
@@ -866,14 +866,35 @@ export class WhatsAppService {
                   patientId: currentPat.id,
                   type: 'consult',
                   amount: 500,
-                  status: 'paid',
+                  doctorFee: 500,
+                  totalAmount: 500,
+                  status: 'pending',
+                  paymentStatus: 'pending',
                   paymentMethod: 'upi',
                   createdAt: new Date().toISOString(),
                   patientName: currentPat.name,
                   source: 'whatsapp'
                 };
                 BillingService.saveInvoice(newInvoice);
-                BillingService.createLedgerSplitsForInvoiceFields(invoiceId, apptId, 'consult', 500, 'upi');
+
+                // Also save unified invoice so AWAITING_PAYMENT can track clearance
+                const uInvoices = BillingService.getUnifiedInvoices();
+                uInvoices.unshift({
+                  id: invoiceId,
+                  encounterId: `enc-${apptId.substring(0, 8)}`,
+                  patientId: currentPat.id,
+                  patientName: currentPat.name,
+                  patientPhone: currentPat.phone,
+                  doctorFee: 500,
+                  labFee: 0,
+                  pharmacyFee: 0,
+                  platformFee: 15,
+                  totalAmount: 500,
+                  upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=500.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
+                  paymentStatus: 'pending',
+                  createdAt: new Date().toISOString()
+                });
+                save('unified_invoices', uInvoices);
 
                 try {
                   const { error } = await supabase.from('appointments').insert({
@@ -881,7 +902,7 @@ export class WhatsAppService {
                     patient_id: currentPat.id,
                     patient_name: currentPat.name,
                     doctor_id: resolvedDoctorId,
-                    status: 'confirmed',
+                    status: 'pending_payment',
                     source: 'whatsapp',
                     is_virtual: true,
                     created_at: new Date().toISOString()
@@ -894,8 +915,8 @@ export class WhatsAppService {
               runInsert();
             }
 
-            nextState = 'COMPLETED';
-            replyMessage = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details:*\n • Token Number: #${apptId.substring(0, 3).toUpperCase()}\n • Date: Tomorrow (${new Date(Date.now() + 24 * 3600 * 1000).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })})\n • Approximate Time: ${selectedSlotText}\n • Address: Patna Clinic, Kankarbagh Road (opp. ICICI Bank)\n\n⭐ *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* ⭐\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n\nThank you for choosing VitalSync! 🩺`;
+            nextState = 'AWAITING_PAYMENT';
+            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai. Total Fee (Consultation + Platform): ₹500.00.\n\n💳 *Option 1 — Pay via Razorpay Gateway Link:*\nhttps://razorpay.me/@vitalsync3758\n\n⚡ *Option 2 — Pay via Direct Zero-Fee Dynamic UPI Link:*\nupi://pay?pa=vitalsync@icici&pn=VitalSync&am=500.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment karne ke baad please **PAY** reply kijiye ya **[ I Have Paid ✅ ]** button tap kijiye! Hum payment verify karke turant meeting link aur token number bhej denge! 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
