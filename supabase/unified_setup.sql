@@ -755,7 +755,7 @@ BEGIN
         (encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total_amount, upi_qr_payload)
     VALUES
         (NEW.id, NEW.patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total,
-         'upi://pay?pa=vitalsync@icici&pn=VitalSync&am=' || total || '&cu=INR&tn=VitalSync-' || NEW.id);
+         'upi://pay?pa=vitalsync@axl&pn=VitalSync&am=' || total || '&cu=INR&tn=VitalSync-' || NEW.id);
 
     UPDATE public.whatsapp_sessions
     SET current_state = 'AWAITING_PAYMENT', last_interaction = now(),

@@ -1476,7 +1476,7 @@ async function triggerBotReplyPipeline(ctx: {
         } else {
           // Normal Paid Consultation Flow
           nextState = "AWAITING_PAYMENT";
-          const upiPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${feeAmount}.00&cu=INR&tn=VITALSYNC-APPT-${patientPhone.substring(5)}`;
+          const upiPayload = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${feeAmount}.00&cu=INR&tn=VITALSYNC-APPT-${patientPhone.substring(5)}`;
 
           // Insert Appointment Row
           let newApptId = crypto.randomUUID();
@@ -1759,7 +1759,7 @@ async function triggerBotReplyPipeline(ctx: {
             replyText = rawReport + (aiInterpretation ? `\n\n🤖 *VitalSync AI Analysis*:\n"${aiInterpretation}"` : "");
           } else {
             // AI interpretation LOCKED — show raw report + upsell
-            const upiLink = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=9.00&cu=INR&tn=AI-QUOTA-${patientPhone.substring(5)}`;
+            const upiLink = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=9.00&cu=INR&tn=AI-QUOTA-${patientPhone.substring(5)}`;
             replyText = rawReport + `\n\n🔒 *AI Report Analysis Locked*\nAppoint book karke ya ₹9 ka AI pack activate karke is report ka AI-powered explanation paayen!\nActivate: ${upiLink}\nPay karne ke baad *ACTIVATE* type karein.`;
           }
         } else {
@@ -1874,7 +1874,7 @@ async function triggerBotReplyPipeline(ctx: {
         const doctorSosFee = 600.00; // Base ₹500 + 20% Priority Charge (₹100) -> 100% to Doctor
         const platformFeeSos = 18.00; // 3% of ₹600 -> 100% to Platform Owner
         const totalSosFee = doctorSosFee + platformFeeSos; // ₹618.00
-        const upiPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${totalSosFee.toFixed(2)}&cu=INR&tn=SOS-EMERGENCY-${patientPhone.substring(5)}`;
+        const upiPayload = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${totalSosFee.toFixed(2)}&cu=INR&tn=SOS-EMERGENCY-${patientPhone.substring(5)}`;
 
         try {
           const sosPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
@@ -2137,7 +2137,7 @@ async function triggerBotReplyPipeline(ctx: {
           const limit = sessionData.llmUsage.limit ?? (sessionData.llmUsage.type === "paid_quota" ? 20 : (hasPaidPlatformFeeThisMonth ? 10 : 0));
           
           if (sessionData.llmUsage.count >= limit) {
-            const upiPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=9.00&cu=INR&tn=VITALSYNC-AI-QUOTA-${patientPhone.substring(5)}`;
+            const upiPayload = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=9.00&cu=INR&tn=VITALSYNC-AI-QUOTA-${patientPhone.substring(5)}`;
             nextState = "AWAITING_AI_QUOTA_PAYMENT";
             
             if (limit === 0) {

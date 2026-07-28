@@ -281,7 +281,7 @@ BEGIN
         (encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total_amount, upi_qr_payload, split_payload, split_settlement_status)
     VALUES
         (NEW.id, NEW.patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total,
-         'upi://pay?pa=vitalsync@icici&pn=VitalSync&am=' || total || '&cu=INR&tn=VitalSync-' || NEW.id,
+         'upi://pay?pa=vitalsync@axl&pn=VitalSync&am=' || total || '&cu=INR&tn=VitalSync-' || NEW.id,
          v_splits,
          CASE WHEN jsonb_array_length(v_splits) > 0 THEN 'split_queued'::varchar ELSE 'unprocessed'::varchar END);
 
