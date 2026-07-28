@@ -2209,7 +2209,7 @@ export const CompounderDashboard: React.FC = () => {
                               // 1. Synchronously create invoice & appointment in local state
                               const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
                               // BUG-08 FIX: read amount from invoice, not hardcoded 500
-                              const invoiceAmount = newInvoice?.totalAmount || newInvoice?.total_amount || 500;
+                              const invoiceAmount = newInvoice?.amount || 500;
                               // BUG-03 FIX: capture before any state reset so toast is correct
                               const paymentModeLabel = apptPaymentMode;
 
