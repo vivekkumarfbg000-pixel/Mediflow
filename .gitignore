@@ -31,6 +31,7 @@ Thumbs.db
 *.secrets.ps1
 *.secrets.sh
 deploy-supabase.local.ps1
+setup_razorpay_secrets.ps1
 .env.secrets
 
 # Scratch scripts

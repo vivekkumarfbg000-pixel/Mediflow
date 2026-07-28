@@ -75,7 +75,21 @@ serve(async (req) => {
 
     const { invoiceId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = validationResult.data;
 
-    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "BSn9uanDhhFYOqi3QTDEu7rM";
+    // ── Credential Guard ──────────────────────────────────────────────────────
+    // NEVER use hardcoded fallback secret — a wrong secret produces an invalid
+    // HMAC which then rejects every legitimate payment. Fail loudly instead.
+    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+    if (!razorpayKeySecret) {
+      console.error("[Razorpay Verify] ❌ RAZORPAY_KEY_SECRET secret is not configured in Supabase Vault.");
+      return new Response(JSON.stringify({
+        error: "Razorpay secret is not configured on the server. Please set RAZORPAY_KEY_SECRET in Supabase Edge Function secrets."
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const payloadToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
     const generatedSignature = await hmacSha256Hex(razorpayKeySecret, payloadToSign);
 

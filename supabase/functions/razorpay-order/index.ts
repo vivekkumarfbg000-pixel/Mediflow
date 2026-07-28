@@ -68,8 +68,15 @@ serve(async (req) => {
       });
     }
 
-    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID") || "rzp_test_TIcrdvC4PJBI75";
-    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "BSn9uanDhhFYOqi3QTDEu7rM";
+    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+
+    if (!razorpayKeyId || !razorpayKeySecret) {
+      return new Response(JSON.stringify({ error: "Server misconfiguration: Razorpay credentials missing." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Call Razorpay API to create an order
     const authHeader = "Basic " + btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
@@ -85,7 +92,7 @@ serve(async (req) => {
         receipt: `inv_${invoiceId.substring(0, 20)}`,
         notes: {
           invoice_id: invoiceId,
-          patient_name: invoice.patient_registry?.name || "VitalSync Patient"
+          patient_name: invoice?.patient_registry?.name || "VitalSync Patient"
         }
       })
     });
