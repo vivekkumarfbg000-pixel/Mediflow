@@ -333,11 +333,12 @@ export class WhatsAppService {
 
             if (stage === 'CHOOSING_DELIVERY') {
               const draftBill = sessionData.draftMedicineBill as MedicineBill;
+              const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@icici';
               if (cleaned === '1') {
                 draftBill.deliveryType = 'pickup';
                 draftBill.deliveryCharge = 0;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount;
-                draftBill.upiQrPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-PHARMA-${draftBill.id.substring(4, 8)}`;
+                draftBill.upiQrPayload = `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-PHARMA-${draftBill.id.substring(4, 8)}`;
                 
                 sessionData.medicineOrderStage = 'INITIAL';
                 nextState = 'MEDICINE_AWAITING_PAYMENT';
@@ -349,7 +350,7 @@ export class WhatsAppService {
                 draftBill.deliveryType = 'shiprocket';
                 draftBill.deliveryCharge = 45;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount + 45;
-                draftBill.upiQrPayload = `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-DELIVERY-${draftBill.id.substring(4, 8)}`;
+                draftBill.upiQrPayload = `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-DELIVERY-${draftBill.id.substring(4, 8)}`;
                 
                 sessionData.medicineOrderStage = 'AWAITING_ADDRESS';
                 
@@ -877,7 +878,7 @@ export class WhatsAppService {
                 };
                 BillingService.saveInvoice(newInvoice);
 
-                // Also save unified invoice so AWAITING_PAYMENT can track clearance
+                const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@icici';
                 const uInvoices = BillingService.getUnifiedInvoices();
                 uInvoices.unshift({
                   id: invoiceId,
@@ -890,7 +891,7 @@ export class WhatsAppService {
                   pharmacyFee: 0,
                   platformFee: 15,
                   totalAmount: 500,
-                  upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=500.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
+                  upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=500.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
                   paymentStatus: 'pending',
                   createdAt: new Date().toISOString()
                 });
@@ -915,8 +916,9 @@ export class WhatsAppService {
               runInsert();
             }
 
+            const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@icici';
             nextState = 'AWAITING_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai. Total Fee (Consultation + Platform): ₹500.00.\n\n💳 *Option 1 — Pay via Razorpay Gateway Link:*\nhttps://razorpay.me/@vitalsync3758\n\n⚡ *Option 2 — Pay via Direct Zero-Fee Dynamic UPI Link:*\nupi://pay?pa=vitalsync@icici&pn=VitalSync&am=500.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment karne ke baad please **PAY** reply kijiye ya **[ I Have Paid ✅ ]** button tap kijiye! Hum payment verify karke turant meeting link aur token number bhej denge! 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai. Total Fee (Consultation + Platform): ₹500.00.\n\n⚡ *Secure Dynamic UPI Payment Link (0% Gateway Fee):*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=500.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment karne ke baad please **PAY** reply kijiye ya **[ I Have Paid ✅ ]** button tap kijiye! Hum payment verify karke turant meeting link aur token number bhej denge! 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
