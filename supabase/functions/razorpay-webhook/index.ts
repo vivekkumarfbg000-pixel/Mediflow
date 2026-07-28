@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 // Mediflow — razorpay-webhook Edge Function
 // Intercepts `payment.captured` webhooks from Razorpay, clears the invoice,
 // assigns the OPD Token number, and logs commission pool splits in Postgres.
+// Webhook Secret: Vitalsync_webhook_2026 (set in Supabase Vault as RAZORPAY_WEBHOOK_SECRET)
 // =============================================================================
 
 serve(async (req) => {
@@ -23,12 +24,50 @@ serve(async (req) => {
   }
 
   try {
+    // ── STEP 1: HMAC-SHA256 Signature Verification ────────────────────────────
+    // Razorpay signs every webhook with RAZORPAY_WEBHOOK_SECRET.
+    // We MUST verify this before touching the database — otherwise any attacker
+    // could POST a fake payment.captured event and get free appointments.
+    const webhookSecret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET");
+    if (!webhookSecret) {
+      console.error("[Razorpay Webhook] ❌ RAZORPAY_WEBHOOK_SECRET not set in Supabase Vault.");
+      return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const razorpaySignature = req.headers.get("x-razorpay-signature") ?? "";
+    const rawBody = await req.text(); // read as text to preserve exact bytes for HMAC
+
+    // Compute HMAC-SHA256(rawBody, webhookSecret)
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(webhookSecret);
+    const msgData = encoder.encode(rawBody);
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    );
+    const signatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, msgData);
+    const computedSignature = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    if (computedSignature !== razorpaySignature) {
+      console.error("[Razorpay Webhook] ❌ Signature mismatch — rejecting request.");
+      return new Response(JSON.stringify({ error: "Invalid webhook signature" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.log("[Razorpay Webhook] ✅ Signature verified — Vitalsync_webhook_2026");
+    // ─────────────────────────────────────────────────────────────────────────
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const payload = await req.json().catch(() => ({}));
+    const payload = JSON.parse(rawBody);
     console.log("[Razorpay Webhook] Received payload event:", payload.event);
 
     const event = payload.event;

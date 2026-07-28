@@ -2249,22 +2249,66 @@ export const CompounderDashboard: React.FC = () => {
                                     amount: 500,
                                     name: selectedApptPatient.name,
                                     phone: selectedApptPatient.phone,
-                                    onSuccess: () => {
+                                    onSuccess: async () => {
+                                      // Payment confirmed by Razorpay — NOW run post-payment flow
                                       BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
-                                      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: 'Payment Received via Razorpay Gateway!', type: 'success' } }));
+
+                                      const assignedTokenRzp = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
+                                      try {
+                                        await supabase.from('appointments').insert({
+                                          id: newInvoice.appointmentId,
+                                          patient_id: selectedApptPatient.id,
+                                          doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                                          status: 'confirmed',
+                                          created_at: new Date().toISOString(),
+                                          token_number: assignedTokenRzp
+                                        });
+                                      } catch (dbErr) {
+                                        console.warn('[Razorpay onSuccess] Supabase insert fallback:', dbErr);
+                                      }
+
+                                      api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
+                                      syncData();
+                                      fetchLiveAppointments();
+
+                                      const bookedPatientRzp = selectedApptPatient;
+                                      setSelectedApptPatient(null);
+                                      setApptPaymentMode('cash');
+
+                                      // Open vitals modal centered in viewport
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      document.body.style.overflow = 'hidden';
+                                      setVitalsPatient(bookedPatientRzp);
+                                      setCustomToken(assignedTokenRzp);
+
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                        detail: {
+                                          message: `Payment confirmed! Appointment for ${bookedPatientRzp.name} is active. Record vitals now.`,
+                                          type: 'success',
+                                          title: 'Razorpay Payment Received 🎉'
+                                        }
+                                      }));
                                     },
                                     onError: (err) => {
-                                      console.warn('[Razorpay] Gateway payment fallback triggered:', err);
-                                      BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
-                                      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: 'Appointment Confirmed & OPD Token Allocated', type: 'success' } }));
+                                      console.warn('[Razorpay] Payment cancelled or failed:', err);
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                        detail: {
+                                          message: err.message === 'Payment cancelled by user.' ? 'Payment cancelled.' : 'Payment failed. Please try again.',
+                                          type: 'error'
+                                        }
+                                      }));
                                     }
                                   });
+                                  // For Razorpay: post-payment logic runs inside onSuccess above.
+                                  // Return early so the cash/UPI flow below does NOT execute.
+                                  return;
                                 } else {
                                   await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
                                 }
                               }
 
-                              // 3. Insert into Supabase Postgres database so 360° Realtime Sync streams it to Doctor & Compounder
+                              // ── Cash / UPI post-payment flow ──────────────────────────────
+                              // Only reaches here for non-Razorpay payment modes.
                               const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
                               try {
                                 await supabase.from('appointments').insert({
@@ -2279,23 +2323,17 @@ export const CompounderDashboard: React.FC = () => {
                                 console.warn('[CompounderDashboard] Supabase appointment insert fallback:', dbErr);
                               }
 
-                              // 4. Update patient queue status
                               api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
 
-                              // 5. Save reference & reset patient search selection
                               const bookedPatient = selectedApptPatient;
                               setSelectedApptPatient(null);
                               setApptPaymentMode('cash');
 
-                              // 6. Refresh state & open Vitals Intake Modal
                               syncData();
                               fetchLiveAppointments();
 
-                              // Scroll to top of page before opening vitals modal so the
-                              // fixed overlay is always visible in the viewport
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                               document.body.style.overflow = 'hidden';
-
                               setVitalsPatient(bookedPatient);
                               setCustomToken(assignedToken);
 
