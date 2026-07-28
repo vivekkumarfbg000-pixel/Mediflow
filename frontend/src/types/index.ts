@@ -214,16 +214,20 @@ export interface UnifiedInvoice {
   id: string;
   encounterId: string;
   patientId: string;
+  patient_id?: string;
   patientName: string;
   patientPhone: string;
   doctorFee: number;
+  doctor_fee?: number;
   labFee: number;
   pharmacyFee: number;
   platformFee: number;
   totalAmount: number;
   upiQrPayload: string;
   paymentStatus: 'pending' | 'cleared' | 'disputed';
+  payment_status?: string;
   paymentMethod?: string;
+  type?: string;
   createdAt: string;
 }
 
