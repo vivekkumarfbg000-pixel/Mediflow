@@ -209,7 +209,18 @@ export class PaymentService {
       return;
     }
 
-    const keyId = params.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TIcrdvC4PJBI75';
+    // ── Key ID Guard ──────────────────────────────────────────────────────────
+    // Never fall back to a hardcoded placeholder key — it will cause Razorpay to
+    // return "Oops! Something went wrong. Payment Failed" immediately.
+    // The keyId MUST come from the server-side razorpay-order Edge Function.
+    const keyId = params.keyId || (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined);
+    if (!keyId || keyId.trim() === '') {
+      console.error('[PaymentService] ❌ No Razorpay Key ID available. razorpay-order Edge Function may have failed to return keyId, or VITE_RAZORPAY_KEY_ID is not set in Vercel/env.');
+      params.onError({ message: 'Razorpay is not configured. Please contact support.' });
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const amountInPaise = Math.round(params.amount * 100);
 
     const options: any = {
@@ -229,6 +240,8 @@ export class PaymentService {
       },
       handler: async (response: any) => {
         console.log('[PaymentService] Razorpay checkout response received:', response);
+        // Always clean up Razorpay DOM before calling onSuccess
+        PaymentService.cleanupRazorpayDOM();
         // Verify payment signature via backend Edge Function
         try {
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
@@ -258,6 +271,7 @@ export class PaymentService {
       modal: {
         ondismiss: () => {
           console.warn('[PaymentService] User closed Razorpay Checkout modal.');
+          PaymentService.cleanupRazorpayDOM();
           params.onError({ message: 'Payment cancelled by user.' });
         }
       }
@@ -267,12 +281,44 @@ export class PaymentService {
       const rzp = new (window as any).Razorpay(options);
       rzp.on('payment.failed', (resp: any) => {
         console.error('[PaymentService] Razorpay payment failed:', resp.error);
+        PaymentService.cleanupRazorpayDOM();
         params.onError({ message: resp.error?.description || 'Payment transaction failed.' });
       });
       rzp.open();
     } catch (err: any) {
       console.error('[PaymentService] Exception launching Razorpay modal:', err);
+      PaymentService.cleanupRazorpayDOM();
       params.onError({ message: err.message || 'Failed to open Razorpay modal.' });
+    }
+  }
+
+  /**
+   * Removes all DOM elements injected by Razorpay (backdrop, container, iframes)
+   * and restores body scroll. Must be called on EVERY exit path from the modal
+   * (success, cancel, failure) to prevent the main content area from going blank.
+   */
+  static cleanupRazorpayDOM(): void {
+    try {
+      // Remove every element Razorpay injects into <body>
+      const selectors = [
+        '.razorpay-container',
+        '.razorpay-backdrop',
+        '#razorpay-backdrop',
+        '#razorpay-container',
+        'iframe[src*="razorpay"]',
+        'div[class*="razorpay"]'
+      ];
+      selectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => el.remove());
+      });
+      // Restore body scroll that Razorpay locks during modal display
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.documentElement.style.overflow = '';
+      console.log('[PaymentService] 🧹 Razorpay DOM cleanup complete.');
+    } catch (e) {
+      /* ignore cleanup errors */
     }
   }
 

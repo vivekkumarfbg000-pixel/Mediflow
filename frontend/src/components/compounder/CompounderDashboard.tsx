@@ -564,6 +564,8 @@ export const CompounderDashboard: React.FC = () => {
   // Auto-focus active patient in vitals intake form if they do not have vitals recorded yet
   useEffect(() => {
     if (activePatient && !activePatient.vitals && !vitalsPatient) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.body.style.overflow = 'hidden';
       setVitalsPatient(activePatient);
       setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
     }
@@ -2289,6 +2291,11 @@ export const CompounderDashboard: React.FC = () => {
                               syncData();
                               fetchLiveAppointments();
 
+                              // Scroll to top of page before opening vitals modal so the
+                              // fixed overlay is always visible in the viewport
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                              document.body.style.overflow = 'hidden';
+
                               setVitalsPatient(bookedPatient);
                               setCustomToken(assignedToken);
 
@@ -2574,10 +2581,13 @@ export const CompounderDashboard: React.FC = () => {
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Select any patient from the OPD Queue to open the instant Vitals Recording Modal window.</p>
               </div>
 
-              {/* INSTANT FLOATING VITALS RECORDING MODAL OVERLAY */}
+              {/* INSTANT FLOATING VITALS RECORDING MODAL OVERLAY
+                   CRITICAL: outer div must be `fixed inset-0 flex items-center justify-center`
+                   with NO overflow-y-auto — that breaks flexbox centering and pushes the
+                   modal above the viewport. The inner panel handles its own scroll. */}
               {vitalsPatient && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in overflow-y-auto">
-                  <div className="glass-panel w-full max-w-lg p-6 border-slate-200/60 dark:border-white/10 shadow-2xl relative bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-3xl space-y-4 my-auto max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
+                  <div className="glass-panel w-full max-w-lg p-6 border-slate-200/60 dark:border-white/10 shadow-2xl relative bg-white dark:bg-slate-900 text-slate-800 dark:text-white rounded-3xl space-y-4 max-h-[90vh] overflow-y-auto">
                     <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
                     
                     <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-3 mb-2">
@@ -2596,7 +2606,7 @@ export const CompounderDashboard: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setVitalsPatient(null)}
+                        onClick={() => { document.body.style.overflow = ''; setVitalsPatient(null); }}
                         className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer border-0"
                       >
                         <span className="material-symbols-outlined text-base">close</span>
@@ -2744,7 +2754,7 @@ export const CompounderDashboard: React.FC = () => {
                       <div className="pt-2 flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => setVitalsPatient(null)}
+                          onClick={() => { document.body.style.overflow = ''; setVitalsPatient(null); }}
                           className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all border-0 cursor-pointer"
                         >
                           Cancel
