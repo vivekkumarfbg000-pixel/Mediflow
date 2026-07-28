@@ -935,7 +935,7 @@ export class WhatsAppService {
 
             const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
             nextState = 'AWAITING_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai. Total Fee (Consultation + Platform): ₹500.00.\n\n⚡ *Secure Dynamic UPI Payment Link (0% Gateway Fee):*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=500.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment karne ke baad please **PAY** reply kijiye ya **[ I Have Paid ✅ ]** button tap kijiye! Hum payment verify karke turant meeting link aur token number bhej denge! 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai. Total Fee (Consultation + Platform): ₹500.00.\n\n⚡ *Pay via PhonePe 0-Fee Automated Gateway (0% MDR):*\nhttps://merchants.phonepe.com/pay/v1/inv-wa-${apptId.substring(0, 8)}\n\n📱 *Direct Dynamic UPI Link (GPay / PhonePe / Paytm):*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=500.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment complete hote hi token automatically issue ho jayega! (No screenshot or UTR required) 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
