@@ -1293,6 +1293,7 @@ export const BillHubTab: React.FC = () => {
                     <div className="flex flex-col gap-2">
                       {[
                         { id: 'upi', label: 'Zero-Fee Direct UPI (0% MDR)' },
+                        { id: 'paytm', label: 'Paytm PG (0% MDR Instant 15m Approval)' },
                         { id: 'phonepe', label: 'PhonePe PG (0% MDR Auto-Verify)' },
                         { id: 'razorpay', label: 'Razorpay (Cards / Netbanking)' },
                         { id: 'cash', label: 'Cash Counter' }

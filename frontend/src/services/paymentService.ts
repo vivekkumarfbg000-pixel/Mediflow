@@ -5,7 +5,7 @@
 
 import { supabase } from '../lib/supabaseClient';
 
-export type PaymentGatewayProvider = 'upi' | 'phonepe' | 'razorpay' | 'cashfree' | 'cash';
+export type PaymentGatewayProvider = 'upi' | 'phonepe' | 'paytm' | 'razorpay' | 'cashfree' | 'cash';
 
 export interface PaymentOrderParams {
   invoiceId: string;
@@ -73,6 +73,44 @@ export class PaymentService {
     const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'upi';
 
     try {
+      // Paytm 0-Fee PG Order Flow (Instant 15m Activation)
+      if (selectedGateway === 'paytm') {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/paytm-order`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+              invoiceId: params.invoiceId,
+              amount: params.amount,
+              patientPhone: params.patientPhone,
+              patientName: params.patientName
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              success: true,
+              gateway: 'paytm',
+              orderId: data.orderId,
+              paymentSessionId: data.paymentUrl,
+              upiPayload: {
+                vpa: (localStorage.getItem('clinic_upi_vpa') || 'vitalsync@axl'),
+                payeeName: 'VitalSync Care',
+                amount: params.amount,
+                invoiceId: params.invoiceId,
+                upiDeepLink: data.paymentUrl
+              }
+            };
+          }
+        } catch (paytmErr) {
+          console.warn('[PaymentService] Paytm order call failed, falling back to Direct UPI.', paytmErr);
+        }
+      }
+
       // PhonePe 0-Fee PG Order Flow
       if (selectedGateway === 'phonepe') {
         try {
