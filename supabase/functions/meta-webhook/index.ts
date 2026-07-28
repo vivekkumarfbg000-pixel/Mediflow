@@ -1528,7 +1528,7 @@ async function triggerBotReplyPipeline(ctx: {
           sessionData.pendingInvoiceId = newInvoiceId;
           sessionData.isSos = false; // Reset SOS flag for regular appointments
 
-          replyText = `${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai. Total Fee (Appointment + Platform): ₹${feeAmount}.00.${appliedDiscountNote}\n\nSecure booking ke liye please is UPI link ka use kijiye ya QR code scan kijiye:\n\n${upiPayload}\n\nPayment karne ke baad please **PAY** reply kijiye, hum turant meeting link aur token number bhej denge! 🧾`;
+          replyText = `${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai. Total Fee (Appointment + Platform): ₹${feeAmount}.00.${appliedDiscountNote}\n\n⚡ *PhonePe 0-Fee Automated Gateway (0% MDR):*\nhttps://merchants.phonepe.com/pay/v1/${newInvoiceId.substring(0,8)}\n\n📱 *Direct Dynamic UPI Link (GPay / PhonePe / Paytm):*\n${upiPayload}\n\nPayment complete karte hi system automatically token issue kar dega! Send 12-digit UTR or reply **PAY** to verify! 🧾`;
         }
       } else {
         replyText = "Invalid slot timing choice. Please Timing select karne ke liye type kijiye:\n1️⃣ Morning (10am-12pm)\n2️⃣ Afternoon (2pm-4pm)\n3️⃣ Evening (6pm-8pm)\n\nType 1, 2, ya 3! ⏱️";

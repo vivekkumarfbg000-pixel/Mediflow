@@ -5,7 +5,7 @@
 
 import { supabase } from '../lib/supabaseClient';
 
-export type PaymentGatewayProvider = 'upi' | 'razorpay' | 'cashfree' | 'cash';
+export type PaymentGatewayProvider = 'upi' | 'phonepe' | 'razorpay' | 'cashfree' | 'cash';
 
 export interface PaymentOrderParams {
   invoiceId: string;
@@ -73,6 +73,45 @@ export class PaymentService {
     const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'upi';
 
     try {
+      // PhonePe 0-Fee PG Order Flow
+      if (selectedGateway === 'phonepe') {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/phonepe-order`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+              invoiceId: params.invoiceId,
+              amount: params.amount,
+              patientPhone: params.patientPhone,
+              patientName: params.patientName,
+              returnUrl: params.returnUrl
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              success: true,
+              gateway: 'phonepe',
+              orderId: data.merchantTransactionId,
+              paymentSessionId: data.paymentUrl,
+              upiPayload: {
+                vpa: (localStorage.getItem('clinic_upi_vpa') || 'vitalsync@axl'),
+                payeeName: 'VitalSync Care',
+                amount: params.amount,
+                invoiceId: params.invoiceId,
+                upiDeepLink: data.paymentUrl
+              }
+            };
+          }
+        } catch (phonepeErr) {
+          console.warn('[PaymentService] PhonePe order call failed, falling back to Direct UPI.', phonepeErr);
+        }
+      }
+
       // 1. Direct Zero-Fee Dynamic UPI Flow (Scenario B - Default for Pilot)
       if (selectedGateway === 'upi') {
         const upiPayload = this.generateDirectUpiPayload(params.amount, params.invoiceId);

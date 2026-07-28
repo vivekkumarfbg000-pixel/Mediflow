@@ -1291,11 +1291,16 @@ export const BillHubTab: React.FC = () => {
                     <h5 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Select Payment Method</h5>
                     
                     <div className="flex flex-col gap-2">
-                      {['upi', 'cash', 'card'].map((method) => (
+                      {[
+                        { id: 'upi', label: 'Zero-Fee Direct UPI (0% MDR)' },
+                        { id: 'phonepe', label: 'PhonePe PG (0% MDR Auto-Verify)' },
+                        { id: 'razorpay', label: 'Razorpay (Cards / Netbanking)' },
+                        { id: 'cash', label: 'Cash Counter' }
+                      ].map((item) => (
                         <label
-                          key={method}
+                          key={item.id}
                           className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer transition select-none ${
-                            paymentMethod === method
+                            paymentMethod === item.id
                               ? 'bg-indigo-500/10 border-indigo-500/30 font-bold text-slate-800 dark:text-slate-100'
                               : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50'
                           }`}
@@ -1303,11 +1308,11 @@ export const BillHubTab: React.FC = () => {
                           <input
                             type="radio"
                             name="paymentMethod"
-                            checked={paymentMethod === method}
-                            onChange={() => setPaymentMethod(method as any)}
+                            checked={paymentMethod === item.id}
+                            onChange={() => setPaymentMethod(item.id as any)}
                             className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
                           />
-                          <span className="text-xs uppercase font-mono">{method} Payment</span>
+                          <span className="text-xs font-mono">{item.label}</span>
                         </label>
                       ))}
                     </div>
