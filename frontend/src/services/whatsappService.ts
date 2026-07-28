@@ -305,8 +305,8 @@ export class WhatsAppService {
             const patient = PatientService.getPatients().find(p => p.phone === phone);
             if (patient) {
               const invoices = BillingService.getUnifiedInvoices();
-              const clearedInvoices = invoices.filter(i => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared'));
-              const pendingInvoices = invoices.filter(i => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'pending' || i.payment_status === 'pending'));
+              const clearedInvoices = invoices.filter((i: any) => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared'));
+              const pendingInvoices = invoices.filter((i: any) => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'pending' || i.payment_status === 'pending'));
 
               // Strict Gate: Only confirm appointment if server/webhook or counter cleared the payment
               if (clearedInvoices.length > 0) {
