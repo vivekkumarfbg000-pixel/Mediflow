@@ -308,8 +308,25 @@ export class WhatsAppService {
               const clearedInvoices = invoices.filter((i: any) => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared'));
               const pendingInvoices = invoices.filter((i: any) => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'pending' || i.payment_status === 'pending'));
 
-              // Strict Gate: Only confirm appointment if server/webhook or counter cleared the payment
-              if (clearedInvoices.length > 0) {
+              // Check if patient sent a 12-digit UPI UTR / Transaction reference number
+              const utrMatch = cleaned.match(/\b\d{12}\b/);
+              if (utrMatch) {
+                const utrNumber = utrMatch[0];
+                if (pendingInvoices.length > 0) {
+                  pendingInvoices.forEach((inv: any) => {
+                    inv.utrNumber = utrNumber;
+                    inv.utr_number = utrNumber;
+                  });
+                  BillingService.saveUnifiedInvoices(invoices);
+                  
+                  // Also update Supabase appointments table
+                  supabase.from('unified_invoices').update({ utr_number: utrNumber }).eq('patient_id', patient.id).then();
+                  supabase.from('appointments').update({ utr_number: utrNumber }).eq('patient_id', patient.id).then();
+                }
+
+                nextState = 'AWAITING_PAYMENT';
+                replyMessage = `✅ *12-Digit UPI UTR Received!* \n\n• *UTR Reference*: \`${utrNumber}\`\n• *Amount*: ₹${pendingInvoices[0]?.totalAmount || 500}.00\n\nAapka UPI UTR reference Patna clinic counter desk par send kar diya gaya hai. Compounder desk status verify karte hi token ACTIVE ho jayega! 🟢\n\nReply **STATUS** to check clearance. 🩺`;
+              } else if (clearedInvoices.length > 0) {
                 nextState = 'COMPLETED';
                 const tokenCode = clearedInvoices[0].id.substring(0, 5).toUpperCase();
                 replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared ✅\n • Token Number: #${tokenCode}\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
@@ -317,7 +334,7 @@ export class WhatsAppService {
                 // Strict Security: Unpaid appointments remain pending. Do NOT auto-clear on unverified user text assertion.
                 nextState = 'AWAITING_PAYMENT';
                 const pendingAmt = pendingInvoices[0]?.totalAmount || 500;
-                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Razorpay/Cashfree/Bank.\n\n• *Online Gateway*: Auto-verifies in ~10-30s upon payment completion.\n• *Counter UPI/Cash*: Present your UPI UTR to the compounder at Patna clinic counter.\n\nReply **STATUS** to re-check after completing payment. 🩺`;
+                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Bank/PhonePe/Gateway.\n\n• *Send UPI UTR*: Reply with your 12-digit UTR number (e.g. \`420198421092\`) or screenshot.\n• *Counter Cash/UPI*: Present UTR to compounder at Patna clinic counter.\n\nReply **STATUS** to re-check after sending UTR. 🩺`;
               }
             } else {
               nextState = 'COMPLETED';
