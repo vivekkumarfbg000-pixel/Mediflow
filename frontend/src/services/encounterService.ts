@@ -99,8 +99,14 @@ export class EncounterService {
 
     // 3. Create local unified invoice
     const invoices = load<any[]>('unified_invoices', []);
+    const saasInvoices = load<any[]>('saas_invoices', []);
     const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
-    const docFee = 400;
+
+    // Check if consultation fee was ALREADY paid at Gate 1 booking time
+    const alreadyPaidConsult = saasInvoices.some(i => i.patientId === newEncounter.patientId && i.type === 'consult' && i.status === 'paid') ||
+                               invoices.some(i => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
+
+    const docFee = alreadyPaidConsult ? 0 : 400;
     const labFee = newEncounter.diagnosticTests.length * 350;
     const pharmFee = newEncounter.medications.length * 150;
     const platFee = Math.max(10, (docFee + labFee + pharmFee) * 0.03);
@@ -118,7 +124,7 @@ export class EncounterService {
       platformFee: platFee,
       totalAmount: total,
       upiQrPayload: `upi://pay?pa=vitalsync@icici&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-${encounterId}`,
-      paymentStatus: 'pending',
+      paymentStatus: (docFee === 0 && labFee === 0 && pharmFee === 0) ? 'cleared' : 'pending',
       createdAt: new Date().toISOString()
     };
     invoices.push(newInvoice);

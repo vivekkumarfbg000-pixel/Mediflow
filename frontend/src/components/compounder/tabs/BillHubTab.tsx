@@ -60,8 +60,13 @@ export const BillHubTab: React.FC = () => {
     if (selectedPatient) {
       setFileName(null);
       setManualExtractedData(null);
-      setDiscountInput(0);
-      setIncludeConsult(true);
+      // Check if consultation fee was ALREADY paid at Gate 1 booking time
+      const saasInvoices = BillingService.getInvoices();
+      const uInvoices = BillingService.getUnifiedInvoices();
+      const alreadyPaidConsult = saasInvoices.some(i => i.patientId === selectedPatient.id && i.type === 'consult' && i.status === 'paid') ||
+                                 uInvoices.some(i => (i.patientId === selectedPatient.id || i.patient_id === selectedPatient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
+
+      setIncludeConsult(!alreadyPaidConsult);
       setIncludeOT(true);
       setManualMedicinesList([]);
       setManualTestsList([]);
@@ -1108,7 +1113,12 @@ export const BillHubTab: React.FC = () => {
                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                       />
                       <div>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">OPD Attendance & consultation</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">OPD Attendance &amp; consultation</span>
+                          {!includeConsult && selectedPatient && (
+                            <span className="text-[9px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-bold px-2 py-0.5 rounded-full font-mono">Paid at Booking ✅</span>
+                          )}
+                        </div>
                         <span className="block text-[10px] text-slate-500">Regular clinic consultation visit fee</span>
                       </div>
                     </label>
