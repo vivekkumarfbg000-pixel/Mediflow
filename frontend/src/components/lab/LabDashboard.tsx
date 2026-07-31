@@ -720,7 +720,36 @@ export const LabDashboard: React.FC = () => {
                                 }}
                                 className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-slate-900 font-black rounded-xl uppercase tracking-wider text-[9px] cursor-pointer text-center active:scale-95 transition-transform"
                               >
-                                Cash Payment
+                                Cash
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const res = await PaymentService.initiatePaymentOrder({
+                                      gateway: 'paytm',
+                                      invoiceId: inv.id,
+                                      amount: inv.totalAmount || inv.labFee,
+                                      patientName: inv.patientName || 'Patient',
+                                      patientPhone: inv.patientPhone || '9999999999'
+                                    });
+                                    if (res.success && res.paymentSessionId) {
+                                      window.open(res.paymentSessionId, '_blank');
+                                    }
+                                  } catch (pErr) {
+                                    console.warn('[Paytm Lab Error]:', pErr);
+                                  }
+                                  api.clearInvoice(inv.id, 'paytm');
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: `Lab Fee ₹${inv.labFee} cleared via Paytm PG! Split settled in financial ledger.`,
+                                      type: 'success',
+                                      title: 'Lab Fee Cleared'
+                                    }
+                                  }));
+                                }}
+                                className="flex-1 py-2 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-xl uppercase tracking-wider text-[9px] cursor-pointer text-center active:scale-95 transition-transform"
+                              >
+                                Paytm PG
                               </button>
                               <button
                                 onClick={() => {

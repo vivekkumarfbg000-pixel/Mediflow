@@ -787,6 +787,36 @@ export const PharmacyDashboard: React.FC = () => {
                                         Collect Cash
                                       </button>
                                       <button
+                                        onClick={async () => {
+                                          try {
+                                            const res = await PaymentService.initiatePaymentOrder({
+                                              gateway: 'paytm',
+                                              invoiceId: invoice.id,
+                                              amount: invoice.totalAmount || invoice.pharmacyFee,
+                                              patientName: invoice.patientName || 'Patient',
+                                              patientPhone: invoice.patientPhone || '9999999999'
+                                            });
+                                            if (res.success && res.paymentSessionId) {
+                                              window.open(res.paymentSessionId, '_blank');
+                                            }
+                                          } catch (pErr) {
+                                            console.warn('[Paytm Pharmacy Error]:', pErr);
+                                          }
+                                          api.clearInvoice(invoice.id, 'paytm');
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: {
+                                              message: `Invoice ₹${invoice.pharmacyFee} cleared via Paytm PG! Medicine hold marked as dispensed.`,
+                                              type: 'success',
+                                              title: 'Paytm Paid Successful'
+                                            }
+                                          }));
+                                          syncData();
+                                        }}
+                                        className="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                                      >
+                                        Paytm PG
+                                      </button>
+                                      <button
                                         onClick={() => {
                                           api.clearInvoice(invoice.id, 'upi');
                                           window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -800,7 +830,7 @@ export const PharmacyDashboard: React.FC = () => {
                                         }}
                                         className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
                                       >
-                                        UPI / QR
+                                        Direct UPI
                                       </button>
                                     </div>
                                   </div>
