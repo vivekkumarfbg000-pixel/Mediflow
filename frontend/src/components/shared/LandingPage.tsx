@@ -215,6 +215,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [registrationType, setRegistrationType] = useState<'doctor' | 'partner'>('doctor');
   const [eligibilityError, setEligibilityError] = useState<string | null>(null);
 
+  const handleContactSupport = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Anti-Scraper Base64 Obfuscated Phone Number (+91 9608032073)
+    const obfuscatedPayload = 'OTE5NjA4MDMyMDcz';
+    const cleanNum = window.atob(obfuscatedPayload);
+    const targetUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent("Hi VitalSync Support, I'm interested in onboarding.")}`;
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  };
+
   // Redirect to app subdomain for sign-in (auth lives on app.vitalsync.in, not the landing page)
   const scrollToGate = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -760,15 +769,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           {/* Right Column: Contact CTA & Metadata */}
           <div className="flex flex-col space-y-4 md:items-end">
             <div className="flex flex-wrap items-center gap-3">
-              <a
-                href="https://wa.me/918986426029?text=Hi%20VitalSync%20Support,%20I'm%20interested%20in%20onboarding."
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={handleContactSupport}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-all shadow-sm cursor-pointer select-none font-sans text-xs"
               >
                 <span className="material-symbols-outlined text-sm font-bold text-white leading-none">chat</span>
                 <span>Contact Support via WhatsApp</span>
-              </a>
+              </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-450">

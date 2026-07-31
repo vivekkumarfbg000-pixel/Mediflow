@@ -215,7 +215,7 @@ export const DoctorDashboard: React.FC = () => {
       } else {
         const defaultWaba = {
           id: 'waba-conn-default-1001',
-          phone_number: '+918986426029',
+          phone_number: '+919608032073',
           phone_number_id: '105829471928374',
           waba_id: 'waba-act-987654321',
           is_active: true,
@@ -227,7 +227,7 @@ export const DoctorDashboard: React.FC = () => {
     } catch (_e) {
       const defaultWaba = {
         id: 'waba-conn-default-1001',
-        phone_number: '+918986426029',
+        phone_number: '+919608032073',
         phone_number_id: '105829471928374',
         waba_id: 'waba-act-987654321',
         is_active: true,
@@ -2216,7 +2216,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             </button>
             <ClinicPlacardGenerator
               clinicName={activePod?.name || 'VitalSync Smart Clinic'}
-              activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || localStorage.getItem('vitalsync_waba_number') || '+918986426029'}
+              activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || localStorage.getItem('vitalsync_waba_number') || '+919608032073'}
             />
           </div>
         </div>

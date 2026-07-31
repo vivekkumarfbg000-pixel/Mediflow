@@ -876,16 +876,17 @@ export class WhatsAppService {
                 };
                 BillingService.saveAppointment(newAppt);
 
-                // Create Pending Invoice for WhatsApp Booking (₹500.00)
+                // Create Pending Invoice for WhatsApp Online Booking (₹500 Doctor Fee + ₹15 3% Online Platform Fee = ₹515.00)
                 const invoiceId = `inv-wa-${apptId.substring(0, 8)}`;
                 const newInvoice: any = {
                   id: invoiceId,
                   appointmentId: apptId,
                   patientId: currentPat.id,
                   type: 'consult',
-                  amount: 500,
+                  amount: 515,
                   doctorFee: 500,
-                  totalAmount: 500,
+                  platformFee: 15,
+                  totalAmount: 515,
                   status: 'pending',
                   paymentStatus: 'pending',
                   paymentMethod: 'upi',
@@ -907,8 +908,8 @@ export class WhatsAppService {
                   labFee: 0,
                   pharmacyFee: 0,
                   platformFee: 15,
-                  totalAmount: 500,
-                  upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=500.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
+                  totalAmount: 515,
+                  upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
                   paymentStatus: 'pending',
                   createdAt: new Date().toISOString()
                 });
@@ -935,7 +936,7 @@ export class WhatsAppService {
 
             const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
             nextState = 'AWAITING_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai. Total Fee (Consultation + Platform): ₹500.00.\n\n⚡ *Pay via PhonePe 0-Fee Automated Gateway (0% MDR):*\nhttps://merchants.phonepe.com/pay/v1/inv-wa-${apptId.substring(0, 8)}\n\n📱 *Direct Dynamic UPI Link (GPay / PhonePe / Paytm):*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=500.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment complete hote hi token automatically issue ho jayega! (No screenshot or UTR required) 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n⚡ *Pay via Paytm 0% MDR Merchant Gateway:*\nhttps://securegw.paytm.in/theia/api/v1/showPaymentPage?mid=DIY12345678901234567&orderId=PYTM_INV_WA_${apptId.substring(0, 8)}\n\n📱 *Direct Dynamic UPI Link (GPay / PhonePe / Paytm):*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment complete hote hi token automatically issue ho jayega! (No screenshot required) 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }

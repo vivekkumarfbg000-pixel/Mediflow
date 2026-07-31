@@ -43,6 +43,33 @@ export class BillingService {
       const inv = invoices[idx];
       const invoiceAmount = inv.totalAmount || 500;
 
+      // STEP 1: First split / deduct 3% platform fee into VitalSync
+      const platformAmt = parseFloat((invoiceAmount * 0.03).toFixed(2));
+      const netRemainingForPool = Math.max(0, parseFloat((invoiceAmount - platformAmt).toFixed(2)));
+
+      // STEP 2: Use REMAINING AMOUNT (after VitalSync 3% platform fee) to fill / refill Commission Pool
+      const hasPharmaOrLab = (inv.pharmacyFee > 0 || inv.labFee > 0 || (inv as any).source === 'whatsapp' || (inv as any).type === 'lab' || (inv as any).type === 'pharmacy');
+      if (paymentMethod !== 'cash' && hasPharmaOrLab) {
+        this.recordPoolSettlement(
+          netRemainingForPool,
+          `counter-${paymentMethod}-${invoiceId.substring(0, 8)}`,
+          `Counter ${paymentMethod.toUpperCase()} Payment - Refilling Commission Pool (Net after 3% Platform Fee)`
+        );
+        
+        // Sync to Supabase vitalsync_pool_settlements
+        supabase.from('vitalsync_pool_settlements').insert({
+          invoice_id: invoiceId.length === 36 ? invoiceId : null,
+          gateway_reference_id: `counter-${paymentMethod}-${invoiceId.substring(0, 8)}`,
+          payment_mode: paymentMethod,
+          amount: netRemainingForPool,
+          settlement_status: 'completed',
+          notes: `Counter ${paymentMethod.toUpperCase()} Payment - Net Commission Pool Refill (after 3% Platform Fee)`,
+          created_at: new Date().toISOString()
+        }).then(({ error }) => {
+          if (error) console.error('[BillingService] Error inserting counter pool settlement in Supabase:', error);
+        });
+      }
+
       // Always trigger core invoice settlement & financial ledger splits creation
       this.recordInvoicePayment(invoiceId, paymentMethod);
 

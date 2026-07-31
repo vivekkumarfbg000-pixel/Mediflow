@@ -46,7 +46,8 @@ export const BillHubTab: React.FC = () => {
   const [selectedMedicines, setSelectedMedicines] = useState<Record<string, { selected: boolean; qty: number }>>({});
   const [selectedTests, setSelectedTests] = useState<Record<string, boolean>>({});
   const [discountInput, setDiscountInput] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'card'>('upi');
+  const [partialCashAmount, setPartialCashAmount] = useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = useState<'paytm' | 'upi' | 'cash'>('paytm');
   const [isClearing, setIsClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -810,6 +811,55 @@ export const BillHubTab: React.FC = () => {
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   };
 
+  // Print Fixed Table QR Standee for Clinic Desk
+  const handlePrintFixedTableQRStandee = () => {
+    const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
+    const staticUpiPayload = `upi://pay?pa=${clinicUpi}&pn=VitalSync%20Clinic&cu=INR`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0f172a&data=${encodeURIComponent(staticUpiPayload)}`;
+
+    const standeeHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>VitalSync Fixed Counter QR Standee</title>
+  <style>
+    body { font-family: 'Inter', sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90vh; text-align:center; color:#0f172a; padding:20px; }
+    .card { border: 4px solid #106675; padding: 40px; border-radius: 24px; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); background: #ffffff; }
+    h1 { color: #106675; font-size: 26px; margin: 0 0 4px 0; }
+    .sub { color: #64748b; font-size: 12px; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 24px; }
+    .qr-box { padding: 16px; border: 2px solid #e2e8f0; border-radius: 16px; display: inline-block; background: #f8fafc; margin-bottom: 20px; }
+    .vpa { background: #e0f2fe; color: #0369a1; font-family: monospace; font-size: 14px; font-weight: bold; padding: 8px 16px; border-radius: 8px; margin-bottom: 16px; display: inline-block; }
+    .inst { font-size: 12px; color: #475569; margin-top: 12px; line-height: 1.5; }
+    .apps { margin-top: 16px; font-size: 11px; color: #64748b; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🏥 VitalSync Healthcare</h1>
+    <div class="sub">Official Counter Payment QR Code</div>
+    <div class="qr-box">
+      <img src="${qrUrl}" alt="Counter Payment QR" width="240" height="240" />
+    </div>
+    <br/>
+    <div class="vpa">UPI ID: ${clinicUpi}</div>
+    <div class="inst">
+      <strong>Instructions for Patients:</strong><br/>
+      1. Scan QR code using GPay, PhonePe, Paytm or BHIM.<br/>
+      2. Enter the bill amount stated by the Counter Staff.<br/>
+      3. Show successful payment screen to Compounder.
+    </div>
+    <div class="apps">Accepted: PhonePe • Google Pay • Paytm • BHIM • All UPI Apps</div>
+  </div>
+  <script>window.print();</script>
+</body>
+</html>`;
+
+    const blob = new Blob([standeeHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+
   // Clear Payment & Sync Inventory
   const handleClearBill = async () => {
     if (!selectedPatient || !billingLedger) return;
@@ -1292,10 +1342,8 @@ export const BillHubTab: React.FC = () => {
                     
                     <div className="flex flex-col gap-2">
                       {[
-                        { id: 'upi', label: 'Zero-Fee Direct UPI (0% MDR)' },
-                        { id: 'paytm', label: 'Paytm PG (0% MDR Instant 15m Approval)' },
-                        { id: 'phonepe', label: 'PhonePe PG (0% MDR Auto-Verify)' },
-                        { id: 'razorpay', label: 'Razorpay (Cards / Netbanking)' },
+                        { id: 'paytm', label: 'Paytm PG (0% MDR — Primary)' },
+                        { id: 'upi', label: 'Zero-Fee Direct UPI (vitalsync@axl)' },
                         { id: 'cash', label: 'Cash Counter' }
                       ].map((item) => (
                         <label
@@ -1317,6 +1365,15 @@ export const BillHubTab: React.FC = () => {
                         </label>
                       ))}
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={handlePrintFixedTableQRStandee}
+                      className="w-full mt-2 py-2 px-3 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                    >
+                      <QrCode className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>🖨️ Print Fixed Counter Table QR Standee</span>
+                    </button>
                   </div>
 
                   {/* Right Column: Checkout Panel */}
@@ -1369,22 +1426,49 @@ export const BillHubTab: React.FC = () => {
                           className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-right text-xs outline-none bg-white text-slate-800 font-bold"
                         />
                       </div>
+
+                      <div className="flex items-center justify-between text-slate-500">
+                        <span>Partial Cash Paid (₹):</span>
+                        <input
+                          type="number"
+                          value={partialCashAmount === 0 ? '' : partialCashAmount}
+                          onChange={(e) => setPartialCashAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                          placeholder="0"
+                          className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-right text-xs outline-none bg-white text-slate-800 font-bold"
+                        />
+                      </div>
                       
                       <div className="h-px bg-slate-200 dark:bg-slate-800 my-2" />
                       <div className="flex justify-between text-slate-800 dark:text-white font-bold">
                         <span>Net Payable:</span>
                         <span className="text-indigo-600 dark:text-indigo-400 font-black">₹{billingLedger.finalTotal}</span>
                       </div>
+
+                      {partialCashAmount > 0 && (
+                        <div className="p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 rounded-xl text-[10px] space-y-1">
+                          <div className="flex justify-between text-amber-800 dark:text-amber-300 font-bold">
+                            <span>Cash Paid:</span>
+                            <span>₹{partialCashAmount.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-indigo-700 dark:text-indigo-300 font-bold">
+                            <span>Remaining via QR:</span>
+                            <span>₹{Math.max(0, billingLedger.finalTotal - partialCashAmount).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {paymentMethod === 'upi' && billingLedger.finalTotal > 0 && (
-                      <div className="flex flex-col items-center gap-1.5 p-2 bg-white rounded-xl border border-slate-100 shadow-xs">
+                    {(paymentMethod === 'upi' || paymentMethod === 'paytm') && billingLedger.finalTotal > 0 && (
+                      <div className="flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-slate-800 shadow-xs text-center">
                         <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&color=0f172a&data=${encodeURIComponent(dynamicUpiPayload)}`}
-                          alt="Dynamic Payment UPI QR"
-                          className="w-20 h-20"
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&color=0f172a&data=${encodeURIComponent(dynamicUpiPayload)}`}
+                          alt="Dynamic Counter Payment QR"
+                          className="w-24 h-24 rounded-lg p-1 bg-white border border-slate-200"
                         />
-                        <span className="text-[8px] text-slate-400 uppercase font-mono tracking-widest">Scan with GPay/PhonePe</span>
+                        <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase font-mono tracking-wider">
+                          {paymentMethod === 'paytm' ? 'Scan Counter Paytm / UPI QR' : 'Scan Zero-Fee Direct UPI QR'}
+                        </span>
+                        <span className="text-[8px] text-slate-400">Scan with GPay, PhonePe, Paytm or BHIM</span>
                       </div>
                     )}
 
@@ -1406,57 +1490,38 @@ export const BillHubTab: React.FC = () => {
                           setIsClearing(true);
                           try {
                             const invId = `inv-${crypto.randomUUID().substring(0, 8)}`;
-                            let orderId = '';
-                            let keyId = '';
-                            try {
-                              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
-                              const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
-                              const orderRes = await fetch(`${supabaseUrl}/functions/v1/razorpay-order`, {
-                                method: 'POST',
-                                headers: { 
-                                  'Content-Type': 'application/json',
-                                  'Authorization': `Bearer ${anonKey}`,
-                                  'apikey': anonKey
-                                },
-                                body: JSON.stringify({
-                                  invoiceId: invId,
-                                  amount: billingLedger.finalTotal,
-                                  currency: 'INR',
-                                  receipt: invId
-                                })
-                              });
-                              if (orderRes.ok) {
-                                const orderData = await orderRes.json();
-                                if (orderData.orderId || orderData.id) {
-                                  orderId = orderData.orderId || orderData.id;
-                                  keyId = orderData.keyId || '';
-                                }
-                              }
-                            } catch (fetchErr) {
-                              console.warn('[Razorpay] Supabase Edge Function fetch skipped, opening direct checkout modal:', fetchErr);
-                            }
-
-                            await PaymentService.launchRazorpayModal({
-                              orderId,
-                              keyId,
+                            const res = await PaymentService.initiatePaymentOrder({
+                              gateway: 'paytm',
                               invoiceId: invId,
                               amount: billingLedger.finalTotal,
-                              name: selectedPatient.name,
-                              phone: selectedPatient.phone,
-                              onSuccess: () => {
-                                handleClearBill();
-                              },
-                              onError: () => setIsClearing(false)
+                              patientName: selectedPatient.name,
+                              patientPhone: selectedPatient.phone
                             });
+
+                            if (res.success && res.paymentSessionId) {
+                              window.open(res.paymentSessionId, '_blank');
+                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                detail: {
+                                  title: 'Paytm PG Order Initiated 🚀',
+                                  message: 'Paytm 0% MDR checkout window opened for patient.',
+                                  type: 'success'
+                                }
+                              }));
+                            } else {
+                              handleClearBill();
+                            }
                           } catch (e) {
+                            console.warn('[Paytm Order] Error initiating order:', e);
+                            handleClearBill();
+                          } finally {
                             setIsClearing(false);
                           }
                         }}
                         disabled={isClearing}
-                        className="w-full py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                        className="w-full py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                       >
                         <QrCode className="h-4 w-4" />
-                        <span>Pay via Razorpay</span>
+                        <span>Pay via Paytm PG (0% MDR)</span>
                       </button>
                     </div>
                   </div>

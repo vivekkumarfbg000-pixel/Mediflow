@@ -70,7 +70,7 @@ export class PaymentService {
    * Initiates a payment order across available gateways (Direct UPI, Razorpay, Cashfree, or Cash Counter)
    */
   static async initiatePaymentOrder(params: PaymentOrderParams): Promise<UnifiedOrderResponse> {
-    const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'upi';
+    const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'paytm';
 
     try {
       // Paytm 0-Fee PG Order Flow (Instant 15m Activation)

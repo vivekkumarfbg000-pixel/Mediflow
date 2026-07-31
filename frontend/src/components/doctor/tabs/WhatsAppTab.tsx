@@ -1166,7 +1166,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           console.warn('[WhatsApp Onboarding] Activating connection with clinic credentials.');
                           const conn = {
                             id: `waba-conn-${Date.now()}`,
-                            phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+918986426029',
+                            phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+919608032073',
                             phone_number_id: onboardPhoneNumberId || '105829471928374',
                             waba_id: 'waba-act-987654321',
                             is_active: true,
@@ -1180,7 +1180,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         } else {
                           const conn = result.connection || {
                             id: `waba-conn-${Date.now()}`,
-                            phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+918986426029',
+                            phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+919608032073',
                             phone_number_id: onboardPhoneNumberId || '105829471928374',
                             waba_id: 'waba-act-987654321',
                             is_active: true,
@@ -1194,7 +1194,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         console.warn('[WhatsApp Onboarding] Activating connection on network fallback.');
                         const conn = {
                           id: `waba-conn-${Date.now()}`,
-                          phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+918986426029',
+                          phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+919608032073',
                           phone_number_id: onboardPhoneNumberId || '105829471928374',
                           waba_id: 'waba-act-987654321',
                           is_active: true,
