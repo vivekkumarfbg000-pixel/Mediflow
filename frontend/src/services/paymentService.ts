@@ -323,7 +323,7 @@ export class PaymentService {
         // Verify payment signature via backend Edge Function
         try {
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
-          const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
+          const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
           const verifyRes = await fetch(`${supabaseUrl}/functions/v1/razorpay-verify`, {
             method: 'POST',
             headers: {
