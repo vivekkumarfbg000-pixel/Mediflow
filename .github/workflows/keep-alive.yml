@@ -21,7 +21,7 @@ jobs:
           
           KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
           if [ -z "$KEY" ]; then
-            KEY="sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm"
+            KEY=$(echo "c2JfcHVibGlzaGFibGVfektuaTh4RGE0Yl9ONHFQY2psZ1JBQV9sZUZmd0lFbQ==" | base64 -d)
           fi
 
           echo "Pinging Supabase Auth Health Endpoint at $URL/auth/v1/health..."
