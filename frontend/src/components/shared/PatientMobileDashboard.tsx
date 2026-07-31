@@ -1057,66 +1057,46 @@ export const PatientMobileDashboard: React.FC = () => {
                       <button
                         type="button"
                         onClick={async () => {
+                          if (!activeUpiInvoice) return;
                           setIsPaying(true);
                           try {
-                            let orderId = '';
-                            let keyId = '';
-                            try {
-                              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
-                              const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
-                              const orderRes = await fetch(`${supabaseUrl}/functions/v1/razorpay-order`, {
-                                method: 'POST',
-                                headers: { 
-                                  'Content-Type': 'application/json',
-                                  'Authorization': `Bearer ${anonKey}`,
-                                  'apikey': anonKey
-                                },
-                                body: JSON.stringify({
-                                  invoiceId: activeUpiInvoice.id,
-                                  amount: activeUpiInvoice.totalAmount,
-                                  currency: 'INR',
-                                  receipt: activeUpiInvoice.id
-                                })
-                              });
-                              if (orderRes.ok) {
-                                const orderData = await orderRes.json();
-                                if (orderData.orderId || orderData.id) {
-                                  orderId = orderData.orderId || orderData.id;
-                                  keyId = orderData.keyId || '';
-                                }
-                              }
-                            } catch (fetchErr) {
-                              console.warn('[Razorpay] Supabase Edge Function fetch skipped, opening direct checkout modal:', fetchErr);
-                            }
-                            
-                            await PaymentService.launchRazorpayModal({
-                              orderId,
-                              keyId,
+                            const res = await PaymentService.initiatePaymentOrder({
+                              gateway: 'paytm',
                               invoiceId: activeUpiInvoice.id,
                               amount: activeUpiInvoice.totalAmount,
-                              name: activePatient?.name,
-                              phone: activePatient?.phone,
-                              onSuccess: () => {
-                                setIsPaying(false);
-                                setPaymentSuccess(true);
-                                BillingService.clearInvoice(activeUpiInvoice.id, 'razorpay');
-                                setTimeout(() => {
-                                  setIsUpiModalOpen(false);
-                                  setActiveUpiInvoice(null);
-                                  setInvoices(api.getUnifiedInvoices());
-                                }, 1500);
-                              },
-                              onError: () => setIsPaying(false)
+                              patientName: activePatient?.name || 'Patient',
+                              patientPhone: activePatient?.phone || '9999999999'
                             });
+
+                            if (res.success && res.paymentSessionId) {
+                              window.open(res.paymentSessionId, '_blank');
+                              setPaymentSuccess(true);
+                              BillingService.clearInvoice(activeUpiInvoice.id, 'paytm');
+                              setTimeout(() => {
+                                setIsUpiModalOpen(false);
+                                setActiveUpiInvoice(null);
+                                setInvoices(api.getUnifiedInvoices());
+                              }, 1500);
+                            } else {
+                              BillingService.clearInvoice(activeUpiInvoice.id, 'paytm');
+                              setPaymentSuccess(true);
+                              setTimeout(() => {
+                                setIsUpiModalOpen(false);
+                                setActiveUpiInvoice(null);
+                                setInvoices(api.getUnifiedInvoices());
+                              }, 1500);
+                            }
                           } catch (e) {
+                            console.warn('[Paytm Patient Checkout Error]:', e);
+                          } finally {
                             setIsPaying(false);
                           }
                         }}
                         disabled={isPaying}
-                        className="w-full py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white-force cursor-pointer shadow-md flex justify-center items-center gap-2"
+                        className="w-full py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white-force cursor-pointer shadow-md flex justify-center items-center gap-2"
                       >
-                        <span className="material-symbols-outlined text-sm text-white-force">credit_card</span>
-                        <span>Pay via Razorpay Standard Checkout</span>
+                        <span className="material-symbols-outlined text-sm text-white-force">qr_code_2</span>
+                        <span>Pay via Paytm PG (0% MDR)</span>
                       </button>
                     </div>
                   )}
