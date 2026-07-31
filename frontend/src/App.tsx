@@ -1166,26 +1166,31 @@ export default function App() {
     return <FullPageLoader message="Initializing clinical session..." />;
   }
 
-  // 2. Landing Page Domain Routing
-  // vitalsync.in always shows the landing page — on ALL devices (desktop and mobile).
-  // Users reach app.vitalsync.in via the "Console Login" or "Get Started" buttons.
+  // 2. Landing Page & Local Single-Domain Routing
+  // If authenticated on local/preview single-domain, render the Dashboard workspace directly.
   if (isLandingPageDomain) {
-    // Disabled to prevent cross-origin redirect traps (e.g. redirecting to login page when session is expired on app subdomain)
-    // if (session && activeProfile) {
-    //   const userRole = activeProfile.role;
-    //   const isAdmin = userRole === 'admin' || userRole === 'platform_admin';
-    //   const redirectUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-    //     ? (isAdmin 
-    //         ? `http://admin.localhost:${window.location.port || '5173'}` 
-    //         : `http://app.localhost:${window.location.port || '5173'}`)
-    //     : (isAdmin 
-    //         ? 'https://admin.vitalsync.in' 
-    //         : 'https://app.vitalsync.in');
-    //   
-    //   console.log(`[Mediflow Auth] Active session found on landing page. Redirecting to: ${redirectUrl}`);
-    //   window.location.replace(redirectUrl);
-    //   return <FullPageLoader message="Redirecting to dashboard..." />;
-    // }
+    if (session && activeProfile && new URLSearchParams(window.location.search).get('landing') !== 'true') {
+      // Authenticated user on local / single-domain environment: Render Dashboard Workspace
+      return (
+        <ToastProvider>
+          <ClinicProvider activeProfile={activeProfile}>
+            <SpecializationProvider activeProfile={activeProfile}>
+              <AppContent
+                session={session}
+                activeProfile={activeProfile}
+                currentRole={currentRole}
+                toasts={toasts}
+                isBypassMode={isBypassMode}
+                handleSignOut={handleSignOut}
+                handleToggleBypass={handleToggleBypass}
+                handleRoleChange={handleRoleChange}
+                removeToast={removeToast}
+              />
+            </SpecializationProvider>
+          </ClinicProvider>
+        </ToastProvider>
+      );
+    }
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
