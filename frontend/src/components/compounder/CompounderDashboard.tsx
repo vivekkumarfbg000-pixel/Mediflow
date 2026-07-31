@@ -2191,9 +2191,8 @@ export const CompounderDashboard: React.FC = () => {
                             className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg cursor-pointer font-bold"
                           >
                             <option value="cash">💵 Cash Payment</option>
-                            <option value="upi">📱 Online (UPI/QR)</option>
-                            <option value="razorpay">💳 Razorpay (Online Gateway)</option>
-                            <option value="cashfree">⚡ Cashfree (Online Gateway)</option>
+                            <option value="paytm">⚡ Paytm PG (0% MDR — Primary)</option>
+                            <option value="upi">📱 Zero-Fee Direct UPI (vitalsync@axl)</option>
                           </select>
                         </div>
 
@@ -2215,111 +2214,31 @@ export const CompounderDashboard: React.FC = () => {
                             try {
                               // 1. Synchronously create invoice & appointment in local state
                               const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
-                              // BUG-08 FIX: read amount from invoice, not hardcoded 500
                               const invoiceAmount = newInvoice?.amount || 500;
-                              // BUG-03 FIX: capture before any state reset so toast is correct
                               const paymentModeLabel = apptPaymentMode;
 
-                              // 2. Immediately record payment / launch Gateway Modal
+                              // 2. Launch Paytm checkout if selected, or record payment
                               if (newInvoice) {
-                                if (apptPaymentMode === 'razorpay') {
-                                  let orderId = '';
-                                  let keyId = '';
+                                if (apptPaymentMode === 'paytm') {
                                   try {
-                                    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
-                                    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
-                                    const orderRes = await fetch(`${supabaseUrl}/functions/v1/razorpay-order`, {
-                                      method: 'POST',
-                                      headers: { 
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${anonKey}`,
-                                        'apikey': anonKey
-                                      },
-                                      body: JSON.stringify({
-                                        invoiceId: newInvoice.id,
-                                        amount: 500,
-                                        currency: 'INR',
-                                        receipt: newInvoice.id
-                                      })
+                                    const res = await PaymentService.initiatePaymentOrder({
+                                      gateway: 'paytm',
+                                      invoiceId: newInvoice.id,
+                                      amount: invoiceAmount,
+                                      patientName: selectedApptPatient.name,
+                                      patientPhone: selectedApptPatient.phone
                                     });
-                                    if (orderRes.ok) {
-                                      const orderData = await orderRes.json();
-                                      if (orderData.orderId || orderData.id) {
-                                        orderId = orderData.orderId || orderData.id;
-                                        keyId = orderData.keyId || '';
-                                      }
+                                    if (res.success && res.paymentSessionId) {
+                                      window.open(res.paymentSessionId, '_blank');
                                     }
-                                  } catch (fetchErr) {
-                                    console.warn('[Razorpay] Supabase Edge Function fetch skipped, opening direct checkout modal:', fetchErr);
+                                  } catch (pErr) {
+                                    console.warn('[Paytm Order Error]:', pErr);
                                   }
-
-                                  await PaymentService.launchRazorpayModal({
-                                    orderId,
-                                    keyId,
-                                    invoiceId: newInvoice.id,
-                                    amount: invoiceAmount,
-                                    name: selectedApptPatient.name,
-                                    phone: selectedApptPatient.phone,
-                                    onSuccess: async () => {
-                                      // Payment confirmed by Razorpay — NOW run post-payment flow
-                                      await BillingService.recordInvoicePayment(newInvoice.id, 'razorpay');
-
-                                      const assignedTokenRzp = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
-                                      try {
-                                        await supabase.from('appointments').insert({
-                                          id: newInvoice.appointmentId,
-                                          patient_id: selectedApptPatient.id,
-                                          doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-                                          status: 'confirmed',
-                                          created_at: new Date().toISOString(),
-                                          token_number: assignedTokenRzp
-                                        });
-                                      } catch (dbErr) {
-                                        console.warn('[Razorpay onSuccess] Supabase insert fallback:', dbErr);
-                                      }
-
-                                      api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
-                                      syncData();
-                                      fetchLiveAppointments();
-
-                                      const bookedPatientRzp = selectedApptPatient;
-                                      setSelectedApptPatient(null);
-                                      setApptPaymentMode('cash');
-
-                                      // Open vitals modal centered in viewport
-                                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                                      document.body.style.overflow = 'hidden';
-                                      setVitalsPatient(bookedPatientRzp);
-                                      setCustomToken(assignedTokenRzp);
-
-                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                        detail: {
-                                          message: `Payment confirmed! Appointment for ${bookedPatientRzp.name} is active. Record vitals now.`,
-                                          type: 'success',
-                                          title: 'Razorpay Payment Received 🎉'
-                                        }
-                                      }));
-                                    },
-                                    onError: (err) => {
-                                      console.warn('[Razorpay] Payment cancelled or failed:', err);
-                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                        detail: {
-                                          message: err.message === 'Payment cancelled by user.' ? 'Payment cancelled.' : 'Payment failed. Please try again.',
-                                          type: 'error'
-                                        }
-                                      }));
-                                    }
-                                  });
-                                  // For Razorpay: post-payment logic runs inside onSuccess above.
-                                  // Return early so the cash/UPI flow below does NOT execute.
-                                  return;
-                                } else {
-                                  await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
                                 }
+                                await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
                               }
 
-                              // ── Cash / UPI post-payment flow ──────────────────────────────
-                              // Only reaches here for non-Razorpay payment modes.
+                              // 3. Post-payment flow & OPD Token assignment
                               const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
                               try {
                                 await supabase.from('appointments').insert({
@@ -2355,11 +2274,11 @@ export const CompounderDashboard: React.FC = () => {
                                   title: 'Appointment Active — Record Vitals 🩺'
                                 }
                               }));
-                            } catch (err: any) {
-                              console.error('[CompounderDashboard] Book appointment error:', err);
+                            } catch (e) {
+                              console.error('[CompounderDashboard] Appointment Booking Error:', e);
                               window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                 detail: {
-                                  message: err.message || 'Failed to book appointment. Please try again.',
+                                  message: 'Failed to complete booking. Please try again.',
                                   type: 'error',
                                   title: 'Booking Error'
                                 }
