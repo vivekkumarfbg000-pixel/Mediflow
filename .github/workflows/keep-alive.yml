@@ -12,7 +12,7 @@ jobs:
   keep-alive-ping:
     runs-on: ubuntu-latest
     steps:
-      - name: ⚡ Ping Supabase Auth & REST Endpoints
+      - name: ⚡ Ping Supabase Functions, Auth & REST Endpoints
         run: |
           URL="${{ secrets.VITE_SUPABASE_URL }}"
           if [ -z "$URL" ]; then
@@ -20,21 +20,25 @@ jobs:
           fi
           
           KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
-          if [ -z "$KEY" ]; then
-            KEY=$(echo "c2JfcHVibGlzaGFibGVfektuaTh4RGE0Yl9ONHFQY2psZ1JBQV9sZUZmd0lFbQ==" | base64 -d)
-          fi
+
+          echo "Pinging Supabase Keep-Alive Edge Function at $URL/functions/v1/ping..."
+          FN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/functions/v1/ping")
+          echo "Edge Function Ping HTTP Status: $FN_STATUS"
 
           echo "Pinging Supabase Auth Health Endpoint at $URL/auth/v1/health..."
           AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/auth/v1/health")
           echo "Auth Health HTTP Status: $AUTH_STATUS"
 
-          echo "Pinging Supabase REST Database Endpoint..."
-          REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$URL/rest/v1/appointments?select=id&limit=1")
-          echo "REST DB Ping HTTP Status: $REST_STATUS"
+          if [ -n "$KEY" ]; then
+            echo "Pinging Supabase REST Database Endpoint..."
+            REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$URL/rest/v1/appointments?select=id&limit=1")
+            echo "REST DB Ping HTTP Status: $REST_STATUS"
+          fi
 
-          if [ "$AUTH_STATUS" -eq 200 ] || [ "$REST_STATUS" -eq 200 ]; then
+          if [ "$FN_STATUS" -eq 200 ] || [ "$AUTH_STATUS" -eq 200 ]; then
             echo "🟢 Supabase Postgres database is 100% active & healthy!"
           else
-            echo "⚠️ Ping received status $AUTH_STATUS / $REST_STATUS"
+            echo "⚠️ Ping received status FN:$FN_STATUS / AUTH:$AUTH_STATUS"
           fi
+
 

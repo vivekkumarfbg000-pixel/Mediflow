@@ -744,13 +744,37 @@ export default function App() {
       };
     }
     
-    // 1. Try to fetch profile
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id);
+    // 1. Fetch profile with automatic retry (for cold DB wake-ups)
+    let profiles: any[] | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id);
+        if (!error && data && data.length > 0) {
+          profiles = data;
+          break;
+        }
+      } catch (_err) { /* retry */ }
+      if (attempt < 2) await new Promise(r => setTimeout(r, 600));
+    }
       
     let activeProfile = profiles && profiles.length > 0 ? profiles[0] : null;
+
+    // Check cached profile fallback if DB query failed on cold start
+    if (!activeProfile && typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.id === session.user.id) {
+            console.log('[Profile Loader] Cold DB start detected. Using optimistically cached profile.');
+            activeProfile = parsed;
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
     
     // Check if it's an admin email but has non-admin role, or is missing
     const isPlatformAdminEmail = session.user?.email === 'owner@mediflow.com' || session.user?.email === 'vivekkumarfbg000@gmail.com';
@@ -773,9 +797,6 @@ export default function App() {
     }
 
     // 3. JWT Metadata fallback for admin/ops accounts.
-    //    Admin users created directly in the Supabase Dashboard may not have a
-    //    row in the profiles table. Read role from JWT claims so they can still
-    //    reach admin.vitalsync.in without being bounced to the login form.
     if (!activeProfile) {
       const jwtRole: string | undefined =
         session.user?.user_metadata?.role ||
@@ -799,12 +820,11 @@ export default function App() {
           ...activeProfile.user_metadata
         }
       };
-    }
-
-    // 3a. Demo Doctor Profile Overrides for sandbox consistency
-    // Reads localStorage demo specialization to apply the correct clinic identity
-    if (activeProfile) {
-      // 4. Complete onboarding if needed
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('vitalsync_cached_profile', JSON.stringify(activeProfile));
+        } catch (_e) { /* ignore */ }
+      }
       return await checkAndCompleteOnboarding(session, activeProfile);
     }
     
@@ -818,13 +838,26 @@ export default function App() {
     // Deferred initialization of API Service to prevent deadlocks during module evaluation
     api.initialize();
 
-    // Safety timeout: If session loading takes more than 25 seconds (e.g. invalid refresh token fetch hangs), force loader removal
+    // Fast safety timeout: 5s max load wait
     const safetyTimeout = setTimeout(() => {
       if (active) {
-        console.warn('[Mediflow Auth] Session initialization timed out. Forcing loader removal.');
+        console.warn('[Mediflow Auth] Session initialization timed out (5s limit). Unfreezing loader.');
         setIsLoadingSession(false);
       }
-    }, 25000);
+    }, 5000);
+
+    // Optimistically hydrate cached profile while checking session
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.id) {
+            setActiveProfile(parsed);
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
 
     // 1. Check existing Supabase session and load active profile
     supabase.auth.getSession().then(async ({ data: { session } }) => {
