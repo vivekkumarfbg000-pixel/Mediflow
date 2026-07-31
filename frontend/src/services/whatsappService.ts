@@ -936,7 +936,7 @@ export class WhatsAppService {
 
             const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
             nextState = 'AWAITING_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n⚡ *Pay via Paytm 0% MDR Merchant Gateway:*\nhttps://securegw.paytm.in/theia/api/v1/showPaymentPage?mid=DIY12345678901234567&orderId=PYTM_INV_WA_${apptId.substring(0, 8)}\n\n📱 *Direct Dynamic UPI Link (GPay / PhonePe / Paytm):*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR&tn=VITALSYNC-APPT-${apptId.substring(0, 8)}\n\nPayment complete hote hi token automatically issue ho jayega! (No screenshot required) 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via GPay / PhonePe / Paytm / BHIM:*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}\n\nPayment complete karte hi aapka OPD Token (#TK-001) automatically issue ho jayega! 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }

@@ -411,7 +411,7 @@ export class PaymentService {
    */
   static async settleInvoiceAndCommissionPool(
     invoiceId: string,
-    paymentMethod: 'cash' | 'upi' | 'razorpay' | 'cashfree' = 'upi',
+    paymentMethod: 'cash' | 'upi' | 'razorpay' | 'cashfree' | 'paytm' = 'upi',
     gatewayFee: number = 0
   ): Promise<boolean> {
     try {

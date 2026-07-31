@@ -32,7 +32,7 @@ export class BillingService {
     notify();
   }
 
-  static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' = 'upi'): void {
+  static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): void {
     const invoices = this.getUnifiedInvoices();
     const idx = invoices.findIndex(i => i.id === invoiceId);
     if (idx !== -1) {
@@ -543,7 +543,7 @@ export class BillingService {
     notify();
   }
 
-  static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: Invoice['type'], amount: number, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' = 'upi'): Promise<void> {
+  static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: Invoice['type'], amount: number, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): Promise<void> {
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     
     // Check if splits already exist for this invoiceId
@@ -749,7 +749,7 @@ export class BillingService {
     }
   }
 
-  static async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' = 'upi'): Promise<void> {
+  static async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): Promise<void> {
     const saasInvoices = this.getInvoices();
     const saasInv = saasInvoices.find(i => i.id === invoiceId);
     
@@ -892,7 +892,7 @@ export class BillingService {
     }
   }
 
-  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' = 'upi'): Promise<void> {
+  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): Promise<void> {
     const { error } = await supabase.from('unified_invoices')
       .update({ payment_status: 'cleared', payment_method: paymentMethod })
       .eq('id', invoiceId);

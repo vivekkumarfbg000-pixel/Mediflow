@@ -277,7 +277,7 @@ export const CompounderDashboard: React.FC = () => {
   // Appointment Booking States
   const [searchApptPatient, setSearchApptPatient] = useState('');
   const [selectedApptPatient, setSelectedApptPatient] = useState<Patient | null>(null);
-  const [apptPaymentMode, setApptPaymentMode] = useState<'cash' | 'upi' | 'razorpay' | 'cashfree'>('cash');
+  const [apptPaymentMode, setApptPaymentMode] = useState<'cash' | 'upi' | 'razorpay' | 'cashfree' | 'paytm'>('cash');
 
   // Vernacular Dosage Assistant States
   const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');

@@ -109,7 +109,7 @@ export class LabBillingService {
 
   // ── Payment Collection ──────────────────────────────────────────────────────
 
-  static payLabTestBill(id: string, paymentMethod: 'cash' | 'upi' | 'card' = 'cash'): void {
+  static payLabTestBill(id: string, paymentMethod: 'cash' | 'upi' | 'card' | 'paytm' = 'cash'): void {
     const bills = this.getLabTestBills();
     const billIndex = bills.findIndex(b => b.id === id);
     if (billIndex < 0) return;
