@@ -14,11 +14,17 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
       sessionStorage.removeItem('vitalsync_chunk_refreshed');
       return component;
     } catch (error: any) {
-      console.warn('[Auto-Healer] Dynamic chunk import failed. Triggering seamless page refresh...');
+      console.warn('[Auto-Healer] Dynamic chunk import failed (stale deploy). Triggering cache-busting reload...');
       const hasRefreshed = sessionStorage.getItem('vitalsync_chunk_refreshed');
       if (!hasRefreshed) {
         sessionStorage.setItem('vitalsync_chunk_refreshed', 'true');
         window.location.reload();
+      } else {
+        // Stale index cache fallback: Force cache-busting reload
+        sessionStorage.removeItem('vitalsync_chunk_refreshed');
+        const url = new URL(window.location.href);
+        url.searchParams.set('_v', String(Date.now()));
+        window.location.replace(url.toString());
       }
       throw error;
     }
