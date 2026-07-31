@@ -366,7 +366,7 @@ export interface MedicineBill {
   itemDiscountAmount: number;
   gstAmount: number;
   totalAmount: number;
-  paymentMode: 'cash' | 'upi' | 'card' | 'whatsapp_pay';
+  paymentMode: 'cash' | 'upi' | 'card' | 'whatsapp_pay' | 'paytm' | string;
   upiQrPayload?: string;
   status: 'draft' | 'confirmed' | 'paid' | 'cancelled';
   source: 'counter' | 'whatsapp';
@@ -569,7 +569,7 @@ export interface LabTestBill {
   discountAmount: number;
   gstAmount: number;
   totalAmount: number;
-  paymentMode: 'cash' | 'upi' | 'card';
+  paymentMode: 'cash' | 'upi' | 'card' | 'paytm' | string;
   status: 'draft' | 'confirmed' | 'paid' | 'cancelled';
   source: 'encounter' | 'walkin';
   createdAt: string;
