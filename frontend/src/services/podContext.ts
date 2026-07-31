@@ -97,17 +97,25 @@ export async function resolvePodContext(): Promise<PodContext> {
         return _ctx;
       }
 
-      // Fetch profile joined with entities table
+      // Fetch profile and look up entity safely
       const { data: profile } = await supabase
         .from('profiles')
-        .select('entity_id, role, entities!inner(pod_id, entity_type)')
+        .select('entity_id, role')
         .eq('id', user.id)
         .maybeSingle();
 
-      const entities = (profile as any)?.entities;
+      let podId = FALLBACK_POD_ID;
+      if (profile?.entity_id) {
+        const { data: userEntity } = await supabase
+          .from('entities')
+          .select('pod_id, entity_type')
+          .eq('id', profile.entity_id)
+          .maybeSingle();
+        if (userEntity?.pod_id) {
+          podId = userEntity.pod_id;
+        }
+      }
 
-      // Try to find sibling lab and pharmacy entities in the same pod
-      const podId = entities?.pod_id || FALLBACK_POD_ID;
       let labEntityId    = FALLBACK_LAB_ENTITY;
       let pharmacyEntityId = FALLBACK_PHARM_ENTITY;
 
