@@ -607,11 +607,12 @@ export default function App() {
       const isStillLoading = isLoadingSession || isOnboarding;
       if (isStillLoading && !watchdogTriggered.current) {
         watchdogTriggered.current = true;
-        console.warn('[Loading Watchdog] Stuck loading state detected for >12 seconds. Triggering State Healing Engine...');
+        console.warn('[Loading Watchdog] Slow initial load detected (>3.5s). Unfreezing loading state for fast rendering...');
+        setIsLoadingSession(false);
+        setIsOnboarding(false);
         StateHealingEngine.handleException(new Error('LoadingWatchdogException: Dashboard loading state hung or profiles query blocked'))
           .then(healed => {
             if (healed) {
-              console.log('[Loading Watchdog] State healed. Refreshing session...');
               supabase.auth.getSession().then(({ data: { session: newSession } }) => {
                 if (newSession) {
                   window.dispatchEvent(new CustomEvent('mediflow-profile-updated'));
@@ -620,7 +621,7 @@ export default function App() {
             }
           });
       }
-    }, 12000);
+    }, 3500);
 
     return () => clearTimeout(timer);
   }, [session, isLoadingSession, isOnboarding]);
