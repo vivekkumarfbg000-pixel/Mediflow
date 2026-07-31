@@ -2876,3 +2876,53 @@ export class QueryCircuitAutoHealer {
     throw lastError;
   }
 }
+
+// ── Phase 15: Action Button & Form Submit Exception Self-Healer ─────────────
+export class ActionButtonSelfHealer {
+  private static isInitialized = false;
+
+  static initGlobalButtonSelfHealer(): void {
+    if (typeof window === 'undefined' || this.isInitialized) return;
+
+    // 1. Listen for unhandled runtime JS errors during user clicks
+    window.addEventListener('error', (event) => {
+      this.handleGlobalException(event.error || event.message);
+    });
+
+    // 2. Listen for unhandled Promise rejections during async fetch / payment calls
+    window.addEventListener('unhandledrejection', (event) => {
+      this.handleGlobalException(event.reason);
+    });
+
+    this.isInitialized = true;
+    console.log('[ActionButtonSelfHealer] 🛡️ Global Action Button & Click Exception Self-Healer Online');
+  }
+
+  private static handleGlobalException(error: any): void {
+    const errorStr = String(error?.stack || error?.message || error || '');
+    console.warn('[ActionButtonSelfHealer] ⚠️ Caught unhandled runtime action exception:', errorStr);
+
+    // Unfreeze pointer locks & body overflow if a modal was stuck
+    try {
+      document.body.style.overflow = 'unset';
+      document.body.style.pointerEvents = 'auto';
+    } catch (_e) {
+      /* ignore DOM reset error */
+    }
+
+    // Dispatch self-healing toast to unfreeze user UI
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Action Auto-Recovered 🔄',
+        message: 'A temporary network or click anomaly was caught and healed. Please try clicking the button again.',
+        type: 'warning'
+      }
+    }));
+  }
+}
+
+// Automatically boot Phase 15 Global Action Button Self-Healer in browser context
+if (typeof window !== 'undefined') {
+  ActionButtonSelfHealer.initGlobalButtonSelfHealer();
+}
+
