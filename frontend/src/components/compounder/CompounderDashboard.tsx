@@ -1943,7 +1943,7 @@ export const CompounderDashboard: React.FC = () => {
                     </span>
                   </div>
 
-                  {appointments.filter(a => a.is_virtual).length === 0 ? (
+                  {appointments.filter(a => a.is_virtual || a.isVirtual).length === 0 ? (
                     <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
                       <span className="material-symbols-outlined text-3xl text-slate-400 mb-2">videocam_off</span>
                       <p className="text-xs font-medium text-slate-500 dark:text-slate-400">No virtual video appointments scheduled for today.</p>
