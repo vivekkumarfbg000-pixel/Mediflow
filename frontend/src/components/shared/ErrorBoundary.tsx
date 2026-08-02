@@ -26,6 +26,19 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[Mediflow Boundary] Unhandled error captured:', error, errorInfo);
     
+    // Check if error is due to stale JS build chunk after a new deployment
+    const isChunkLoadError = error.message?.includes('dynamically imported module') ||
+                             error.message?.includes('Failed to fetch') ||
+                             error.message?.includes('Importing a module script failed') ||
+                             error.message?.includes('Loading chunk');
+
+    if (isChunkLoadError) {
+      console.warn('[ErrorBoundary] Stale JS build chunk detected. Executing instant cache-busting refresh...');
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.location.replace(cleanUrl);
+      return;
+    }
+
     // 1. Run Autonomous State Self-Healing to fix any corruptions in localStorage/memory
     StateHealingEngine.autoHealStateCorruptions();
 
