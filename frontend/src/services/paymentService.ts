@@ -36,8 +36,8 @@ export interface UnifiedOrderResponse {
   error?: string;
 }
 
-// Default Clinic VPA Address for Pilot Project
-const DEFAULT_PILOT_VPA = '7903823485@okicici';
+// Default Clinic VPA Address for Pilot Project (Standard 0% MDR)
+const DEFAULT_PILOT_VPA = 'vitalsync@axl';
 const DEFAULT_PAYEE_NAME = 'VitalSync Care Network';
 
 export class PaymentService {

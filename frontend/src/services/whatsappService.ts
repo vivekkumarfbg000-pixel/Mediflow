@@ -807,7 +807,7 @@ export class WhatsAppService {
         break;
 
         case 'BOOKING_VIRTUAL': {
-          const currentPat = PatientService.getPatients().find(p => p.phone === phone);
+          let currentPat = PatientService.getPatients().find(p => p.phone === phone);
           const awaitingAction = sessionData.awaitingProactiveAction;
 
           if (awaitingAction === 'virtual_slot' && ['1', '2', '3'].includes(cleaned)) {
@@ -820,125 +820,193 @@ export class WhatsAppService {
             const selectedSlotText = slotMap[cleaned] || 'Morning Slot (10:00 AM - 11:30 AM)';
             const apptId = `appt-virt-${Date.now()}`;
 
-            if (currentPat) {
+            // Auto-provision patient in local state & database if not existing yet
+            if (!currentPat) {
+              const newPatId = `pat-${Date.now()}`;
+              currentPat = {
+                id: newPatId,
+                name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || `WhatsApp Patient (+91 ${phone.slice(-4)})`,
+                phone: phone,
+                registeredAt: new Date().toISOString(),
+                queueStatus: 'registered',
+                tokenNumber: 1
+              } as any;
+              PatientService.savePatient(currentPat!);
+              try {
+                supabase.from('patient_registry').insert({
+                  id: newPatId,
+                  name: currentPat!.name,
+                  phone: phone,
+                  registered_at: currentPat!.registeredAt
+                }).then();
+              } catch (_e) { /* ignore fallback error */ }
+            }
 
-              // BUG-08 FIX: Resolve the active doctor for this patient's pod dynamically.
-              // Never hardcode a seeded UUID — that would assign all WhatsApp appointments
-              // to one specific doctor regardless of which clinic the patient belongs to.
-              const runInsert = async () => {
-                let resolvedDoctorId: string | null = null;
-                try {
-                  // Look up the patient's pod to find the assigned doctor
-                  const { data: patientRow } = await supabase
-                    .from('patient_registry')
-                    .select('pod_id')
-                    .eq('id', currentPat.id)
+            const activePat = currentPat!;
+            sessionData.bookingPatientId = activePat.id;
+            sessionData.pendingApptId = apptId;
+
+            // Resolve assigned doctor for patient's clinic pod dynamically
+            const runInsert = async () => {
+              let resolvedDoctorId: string | null = null;
+              try {
+                const { data: patientRow } = await supabase
+                  .from('patient_registry')
+                  .select('pod_id')
+                  .eq('id', activePat.id)
+                  .maybeSingle();
+
+                if (patientRow?.pod_id) {
+                  const { data: doctorProfile } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('pod_id', patientRow.pod_id)
+                    .eq('role', 'doctor')
                     .maybeSingle();
-
-                  if (patientRow?.pod_id) {
-                    const { data: doctorProfile } = await supabase
-                      .from('profiles')
-                      .select('id')
-                      .eq('pod_id', patientRow.pod_id)
-                      .eq('role', 'doctor')
-                      .maybeSingle();
-                    resolvedDoctorId = doctorProfile?.id ?? null;
-                  }
-
-                  if (!resolvedDoctorId) {
-                    console.warn('[WhatsApp Booking] Could not resolve a doctor for pod. Appointment created without doctor assignment.');
-                  }
-                } catch (lookupErr) {
-                  console.error('[WhatsApp Booking] Doctor lookup failed:', lookupErr);
+                  resolvedDoctorId = doctorProfile?.id ?? null;
                 }
+              } catch (lookupErr) {
+                console.error('[WhatsApp Booking] Doctor lookup failed:', lookupErr);
+              }
 
-                const newAppt: any = {
+              const newAppt: any = {
+                id: apptId,
+                patientId: activePat.id,
+                patient_id: activePat.id,
+                patientName: activePat.name,
+                patient_name: activePat.name,
+                patientPhone: activePat.phone,
+                patient_phone: activePat.phone,
+                doctorId: resolvedDoctorId ?? '',
+                doctor_id: resolvedDoctorId ?? '',
+                status: 'pending_payment',
+                source: 'whatsapp',
+                channel: 'whatsapp',
+                createdAt: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                isVirtual: true,
+                is_virtual: true,
+                virtualDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0],
+                virtualTime: selectedSlotText,
+                virtualMeetingUrl: `https://meet.jit.si/vitalsync-consult-${apptId}`,
+                virtualTimeAllocated: false
+              };
+              BillingService.saveAppointment(newAppt);
+
+              const invoiceId = `inv-wa-${apptId.substring(0, 8)}`;
+              sessionData.pendingInvoiceId = invoiceId;
+
+              const newInvoice: any = {
+                id: invoiceId,
+                appointmentId: apptId,
+                patientId: activePat.id,
+                type: 'consult',
+                amount: 515,
+                doctorFee: 500,
+                platformFee: 15,
+                totalAmount: 515,
+                status: 'pending',
+                paymentStatus: 'pending',
+                paymentMethod: 'upi',
+                createdAt: new Date().toISOString(),
+                patientName: activePat.name,
+                source: 'whatsapp'
+              };
+              BillingService.saveInvoice(newInvoice);
+
+              const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
+              const uInvoices = BillingService.getUnifiedInvoices();
+              uInvoices.unshift({
+                id: invoiceId,
+                encounterId: `enc-${apptId.substring(0, 8)}`,
+                patientId: activePat.id,
+                patientName: activePat.name,
+                patientPhone: activePat.phone,
+                doctorFee: 500,
+                labFee: 0,
+                pharmacyFee: 0,
+                platformFee: 15,
+                totalAmount: 515,
+                upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
+                paymentStatus: 'pending',
+                createdAt: new Date().toISOString()
+              });
+              save('unified_invoices', uInvoices);
+
+              try {
+                const { error } = await supabase.from('appointments').insert({
                   id: apptId,
-                  patientId: currentPat.id,
-                  patient_id: currentPat.id,
-                  patientName: currentPat.name,
-                  patient_name: currentPat.name,
-                  patientPhone: currentPat.phone,
-                  patient_phone: currentPat.phone,
-                  doctorId: resolvedDoctorId ?? '',
-                  doctor_id: resolvedDoctorId ?? '',
+                  patient_id: activePat.id,
+                  patient_name: activePat.name,
+                  doctor_id: resolvedDoctorId,
                   status: 'pending_payment',
                   source: 'whatsapp',
-                  channel: 'whatsapp',
-                  createdAt: new Date().toISOString(),
-                  created_at: new Date().toISOString(),
-                  isVirtual: true,
                   is_virtual: true,
-                  virtualDate: new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0],
-                  virtualTime: selectedSlotText,
-                  virtualMeetingUrl: `https://meet.jit.si/vitalsync-consult-${apptId}`,
-                  virtualTimeAllocated: false
-                };
-                BillingService.saveAppointment(newAppt);
-
-                // Create Pending Invoice for WhatsApp Online Booking (₹500 Doctor Fee + ₹15 3% Online Platform Fee = ₹515.00)
-                const invoiceId = `inv-wa-${apptId.substring(0, 8)}`;
-                const newInvoice: any = {
-                  id: invoiceId,
-                  appointmentId: apptId,
-                  patientId: currentPat.id,
-                  type: 'consult',
-                  amount: 515,
-                  doctorFee: 500,
-                  platformFee: 15,
-                  totalAmount: 515,
-                  status: 'pending',
-                  paymentStatus: 'pending',
-                  paymentMethod: 'upi',
-                  createdAt: new Date().toISOString(),
-                  patientName: currentPat.name,
-                  source: 'whatsapp'
-                };
-                BillingService.saveInvoice(newInvoice);
-
-                const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
-                const uInvoices = BillingService.getUnifiedInvoices();
-                uInvoices.unshift({
-                  id: invoiceId,
-                  encounterId: `enc-${apptId.substring(0, 8)}`,
-                  patientId: currentPat.id,
-                  patientName: currentPat.name,
-                  patientPhone: currentPat.phone,
-                  doctorFee: 500,
-                  labFee: 0,
-                  pharmacyFee: 0,
-                  platformFee: 15,
-                  totalAmount: 515,
-                  upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
-                  paymentStatus: 'pending',
-                  createdAt: new Date().toISOString()
+                  created_at: new Date().toISOString()
                 });
-                save('unified_invoices', uInvoices);
+                if (error) console.error('[WhatsApp Booking] Error creating virtual appt in Supabase:', error);
+              } catch (err) {
+                console.error('[WhatsApp Booking] Error connecting to Supabase:', err);
+              }
 
-                try {
-                  const { error } = await supabase.from('appointments').insert({
-                    id: apptId,
-                    patient_id: currentPat.id,
-                    patient_name: currentPat.name,
-                    doctor_id: resolvedDoctorId,
-                    status: 'pending_payment',
-                    source: 'whatsapp',
-                    is_virtual: true,
-                    created_at: new Date().toISOString()
-                  });
-                  if (error) console.error('[WhatsApp Booking] Error creating virtual appt in Supabase:', error);
-                } catch (err) {
-                  console.error('[WhatsApp Booking] Error connecting to Supabase:', err);
-                }
-              };
-              runInsert();
-            }
+              window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            };
+            runInsert();
 
             const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
             nextState = 'AWAITING_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via GPay / PhonePe / Paytm / BHIM:*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}\n\nPayment complete karte hi aapka OPD Token (#TK-001) automatically issue ho jayega! 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via GPay / PhonePe / Paytm / BHIM:*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
+          }
+        }
+        break;
+
+        case 'AWAITING_PAYMENT': {
+          if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned.includes('paid') || cleaned.includes('done') || cleaned.includes('confirm') || cleaned === '1') {
+            const apptId = sessionData.pendingApptId || `appt-virt-${Date.now()}`;
+            const invoiceId = sessionData.pendingInvoiceId;
+            const patId = sessionData.bookingPatientId;
+
+            // 1. Confirm appointment status to 'scheduled' / 'ready_for_consult' so it syncs immediately to Doctor & Compounder EMR queues
+            const appts = BillingService.getAppointments();
+            const targetAppt = appts.find(a => a.id === apptId);
+            if (targetAppt) {
+              targetAppt.status = 'scheduled';
+              BillingService.saveAppointment(targetAppt);
+            }
+
+            // 2. Clear invoice status in local state & unified_invoices
+            if (invoiceId) {
+              const invoices = BillingService.getUnifiedInvoices();
+              const targetInv = invoices.find(i => i.id === invoiceId);
+              if (targetInv) {
+                targetInv.paymentStatus = 'cleared';
+                save('unified_invoices', invoices);
+              }
+            }
+
+            // 3. Update Supabase Database records in real-time
+            try {
+              if (apptId) {
+                await supabase.from('appointments').update({ status: 'scheduled' }).eq('id', apptId);
+              }
+              if (invoiceId) {
+                await supabase.from('unified_invoices').update({ payment_status: 'cleared' }).eq('id', invoiceId);
+              }
+            } catch (err) {
+              console.error('[WhatsApp Payment] Error updating Supabase appointment status:', err);
+            }
+
+            // 4. Dispatch live 360-degree UI update custom events to instantly refresh frontend queues
+            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+
+            nextState = 'COMPLETED';
+            replyMessage = `🟢 *APPOINTMENT CONFIRMED & PAID!* \n\nDoctor Vivek ke saath aapka checkup slot confirm ho gaya hai! 📑\n\n• Token Number: *#TK-001*\n• Status: *Confirmed & Scheduled* 🟢\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nDoctor EMR aur Compounder Desk par aapki appointment live sync ho chuki hai! Thank you! 😊`;
+          } else {
+            const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
+            replyMessage = `Payment verification pending. Please UPI payment complete karke *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye.\n\nUPI Link: upi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR`;
           }
         }
         break;
