@@ -94,8 +94,11 @@ You are helping a developer integrate Cashfree Payments.
 - **Strict Column Alignment**: Always query and insert using actual database column names (`consented_at`, `registered_at`, `payment_status`, `data_sharing_consent`).
 - **Local Timestamp Cache**: Always maintain local timestamp caches (`local_consent_timestamps`) to prevent background database sync routines from overwriting active local states.
 
-### 7. Mandatory SQL Script Generation & Edge Function Rules
-- **Idempotent DDL Requirement**: Whenever any feature requires database schema changes (new tables, columns, indexes, or RLS policies), AI agents MUST generate idempotent DDL (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
-- **High-Priority Supabase Editor Warning**: AI agents MUST display a prominent warning directing the user to execute the SQL snippet in the Supabase SQL Editor before running backend or Edge Functions.
-- **Zero Secret Exposure**: Secrets and API keys MUST NEVER be committed to Git or exposed in client bundles.
+### 8. Permanent Anti-Regression & Reliability Directives (Audit Lessons 62–67)
+62. **Single-Session Guard for Automatic Reloads**: Any automatic invocation of `window.location.reload()` or `window.location.replace()` (in chunk loaders, service workers, or error boundaries) MUST be guarded by a strict 1-time session check (`sessionStorage.getItem('vitalsync_chunk_reloaded_guard')`). If an error occurs twice in the same session, auto-reloading MUST halt and present the fallback UI cleanly.
+63. **Synchronous Frame 1 Auth & Profile State Hydration**: `session`, `activeProfile`, and `isLoadingSession` MUST be initialized synchronously inside `useState(() => ...)` initializers from `localStorage.getItem('vitalsync_cached_profile')` to eliminate the 1-frame (50ms) `<FullPageLoader />` mount flash on page refreshes.
+64. **Unconditional Cleanup for Viewport & Body Scroll Locks**: Whenever setting `document.body.style.overflow = 'hidden'`, the enclosing `useEffect` MUST return an unconditional cleanup function `return () => { document.body.style.overflow = ''; };` outside any conditional `if` blocks.
+65. **Defensive String Normalization Guards for Search Filters**: All string operations (`.toLowerCase()`, `.includes()`, `.slice()`, `.substring()`) in search or filter predicates MUST wrap candidate fields with nullish fallback expressions `(obj.field || '')` to prevent `TypeError` crashes on missing properties.
+66. **Non-Blocking Token Refresh Handler**: Background authentication events (`TOKEN_REFRESHED`) MUST NOT re-trigger full profile re-queries or toggle loading indicators when `activeProfile` is already set in memory.
+67. **Mandatory Export Dependency & Zero-Collateral Impact Audit**: Before modifying any exported function, type, hook, or context, AI agents MUST grep all consuming files in `src/` and update signatures across all consumers simultaneously to prevent cascading side-effect bugs.
 
