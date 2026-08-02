@@ -862,6 +862,7 @@ export default function App() {
           const parsed = JSON.parse(cached);
           if (parsed && parsed.id) {
             setActiveProfile(parsed);
+            setIsLoadingSession(false);
           }
         }
       } catch (_e) { /* ignore */ }
@@ -944,6 +945,10 @@ export default function App() {
         }
         // For SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, etc., load profile and refresh pod context
         resolvePodContext().catch(() => {});
+        if (event === 'TOKEN_REFRESHED' && activeProfile) {
+          setIsLoadingSession(false);
+          return;
+        }
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
           if (finalProfile) {
