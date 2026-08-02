@@ -33,10 +33,16 @@ export class ErrorBoundary extends Component<Props, State> {
                              error.message?.includes('Loading chunk');
 
     if (isChunkLoadError) {
-      console.warn('[ErrorBoundary] Stale JS build chunk detected. Executing instant cache-busting refresh...');
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.location.replace(cleanUrl);
-      return;
+      const hasReloaded = typeof window !== 'undefined' && sessionStorage.getItem('vitalsync_chunk_reloaded_guard');
+      if (!hasReloaded) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+        }
+        console.warn('[ErrorBoundary] Stale JS build chunk detected. Executing 1-time cache refresh...');
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.location.replace(cleanUrl);
+        return;
+      }
     }
 
     // 1. Run Autonomous State Self-Healing to fix any corruptions in localStorage/memory

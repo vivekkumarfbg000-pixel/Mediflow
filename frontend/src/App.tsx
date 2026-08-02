@@ -11,14 +11,23 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
   return lazy(async () => {
     try {
       const component = await factory();
-      sessionStorage.removeItem('vitalsync_chunk_refreshed');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('vitalsync_chunk_reloaded_guard');
+      }
       return component;
     } catch (error: any) {
-      console.warn('[Auto-Healer] Dynamic chunk import failed (new deployment detected). Executing seamless cache-busting refresh...');
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.location.replace(cleanUrl);
-      // Return a pending promise so React Suspense remains clean while browser reloads
-      return new Promise<{ default: T }>(() => {});
+      console.warn('[Auto-Healer] Dynamic chunk import failed:', error);
+      if (typeof window !== 'undefined') {
+        const hasReloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard');
+        if (!hasReloaded) {
+          sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+          console.log('[Auto-Healer] Executing 1-time cache refresh for new deployment...');
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.location.replace(cleanUrl);
+          return new Promise<{ default: T }>(() => {});
+        }
+      }
+      throw error;
     }
   });
 }
@@ -1358,32 +1367,8 @@ export default function App() {
     );
   }
 
-  // 4. Redirect operations accounts logged in on any non-admin subdomain to admin.vitalsync.in
-  const isNonAdminSubdomain = !isAdminSubdomain;
-  
-  if (!isSingleDomain && isNonAdminSubdomain && session && activeProfile) {
-    const userRole = activeProfile.role;
-    if (userRole === 'admin' || userRole === 'platform_admin') {
-      const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-        ? `http://admin.localhost:${window.location.port || '5173'}`
-        : 'https://admin.vitalsync.in';
-      // Auto-redirect immediately — do not leave admin session on wrong origin
-      window.location.replace(adminUrl);
-      return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-slate-100 font-sans">
-          <div className="w-full max-w-md bg-slate-950 border border-slate-800 p-8 rounded-3xl text-center space-y-6 animate-fade-in shadow-2xl">
-            <Shield className="h-10 w-10 text-cyan-400 mx-auto animate-pulse" />
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold text-white">Redirecting to Admin Console</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Sending you to admin.vitalsync.in where your session will work correctly...
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-  }
+  // 4. Multi-subdomain routing guard (disabled automatic force-redirect to prevent infinite cross-subdomain loops)
+  // Users on app.vitalsync.in can access their permitted modules directly without domain bouncing.
 
   // 5. Onboarding Screen Gate
   if (isOnboarding) {
