@@ -480,11 +480,52 @@ export default function App() {
     return 'doctor';
   });
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [session, setSession] = useState<any>(null);
-  const [activeProfile, setActiveProfile] = useState<any>(null);
+  const [session, setSession] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.id) {
+            return {
+              user: {
+                id: parsed.id,
+                email: parsed.email || 'user@mediflow.com',
+                user_metadata: parsed.user_metadata || { display_name: parsed.display_name, role: parsed.role }
+              }
+            };
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    return null;
+  });
+  const [activeProfile, setActiveProfile] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.id) return parsed;
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    return null;
+  });
   const [isBypassMode, setIsBypassMode] = useState<boolean>(false); // Production default (bypass mode disabled)
   const [isOnboarding, setIsOnboarding] = useState(false);
-  const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
+  const [isLoadingSession, setIsLoadingSession] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.id) return false;
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    return true;
+  });
   const [initialSignupTab, setInitialSignupTab] = useState<'signin' | 'register' | 'join'>('signin');
   const watchdogTriggered = useRef(false);
   const [isRecoveryMode, setIsRecoveryMode] = useState<boolean>(() => {
