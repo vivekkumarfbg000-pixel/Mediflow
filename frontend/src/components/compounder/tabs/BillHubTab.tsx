@@ -120,14 +120,14 @@ export const BillHubTab: React.FC = () => {
     if (!query) return [];
 
     const matchedMeds = inventory
-      .filter(m => m.name.toLowerCase().includes(query) || (m.genericName && m.genericName.toLowerCase().includes(query)))
+      .filter(m => (m.name || '').toLowerCase().includes(query) || (m.genericName || '').toLowerCase().includes(query))
       .slice(0, 5)
-      .map(m => ({ id: m.id, name: m.name, type: 'pharmacy' as const, price: m.price, item: m }));
+      .map(m => ({ id: m.id, name: m.name || 'Medicine Item', type: 'pharmacy' as const, price: m.price || 0, item: m }));
 
     const matchedTests = MASTER_TEST_CATALOG
-      .filter(t => t.name.toLowerCase().includes(query))
+      .filter(t => (t.name || '').toLowerCase().includes(query))
       .slice(0, 5)
-      .map(t => ({ id: t.loincCode, name: t.name, type: 'lab' as const, price: t.price, item: t }));
+      .map(t => ({ id: t.loincCode, name: t.name || 'Lab Test', type: 'lab' as const, price: t.price || 0, item: t }));
 
     return [...matchedMeds, ...matchedTests];
   }, [manualItemSearchQuery, inventory]);

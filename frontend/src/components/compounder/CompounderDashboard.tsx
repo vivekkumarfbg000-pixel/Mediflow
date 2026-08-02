@@ -633,11 +633,10 @@ export const CompounderDashboard: React.FC = () => {
         setSugarVal('');
       }
       setCustomToken(vitalsPatient.tokenNumber || '');
-
-      return () => {
-        document.body.style.overflow = '';
-      };
     }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [vitalsPatient, isOphthalmology]);
 
   // Auto-focus active patient in Revisit Scheduler & Reset draft report summary
