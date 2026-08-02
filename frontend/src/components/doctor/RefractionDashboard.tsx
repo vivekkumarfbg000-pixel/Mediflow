@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
 import { useSpecialization } from '../../context/SpecializationContext';
