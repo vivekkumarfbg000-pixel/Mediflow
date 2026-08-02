@@ -45,8 +45,9 @@ export interface Patient {
   vitals?: PatientVitals;
   tokenNumber?: string;
   queueStatus?: 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed';
-  pastReportsSummary?: string;
   createdAt: string;
+  registeredAt?: string;
+  registered_at?: string;
   syncStatus?: 'synced' | 'pending' | 'failed';
   isPremiumMember?: boolean;
 }

@@ -827,10 +827,16 @@ export class WhatsAppService {
                 id: newPatId,
                 name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || `WhatsApp Patient (+91 ${phone.slice(-4)})`,
                 phone: phone,
+                age: 30,
+                gender: 'Male',
+                allergies: [],
+                chronicConditions: [],
+                createdAt: new Date().toISOString(),
                 registeredAt: new Date().toISOString(),
+                registered_at: new Date().toISOString(),
                 queueStatus: 'registered',
-                tokenNumber: 1
-              } as any;
+                tokenNumber: '1'
+              };
               PatientService.savePatient(currentPat!);
               try {
                 supabase.from('patient_registry').insert({

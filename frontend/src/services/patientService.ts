@@ -45,6 +45,17 @@ export class PatientService {
     save('patient_registry', patients);
     notify();
   }
+
+  static savePatient(patient: Patient): void {
+    const patients = this.getPatients();
+    const idx = patients.findIndex(p => p.id === patient.id);
+    if (idx >= 0) {
+      patients[idx] = { ...patients[idx], ...patient };
+    } else {
+      patients.push(patient);
+    }
+    this.savePatients(patients);
+  }
   static getPatients(): Patient[] {
     const rawPatients = load<Patient[]>('patients', INITIAL_PATIENTS);
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
