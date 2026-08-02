@@ -450,143 +450,122 @@ export const DoctorDashboard: React.FC = () => {
       setFinancialLedgers(api.getFinancialLedgers());
       setWhatsAppSessions(api.getWhatsAppSessions());
 
-      // 1. Fetch live appointments from Supabase Cloud DB
-      supabase
-        .from('appointments')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (data && data.length > 0) {
-            const existingPats = api.getPatients();
-            const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
+      // Fetch live remote DB records in a single non-blocking Promise.all batch
+      Promise.all([
+        supabase.from('appointments').select('*').order('created_at', { ascending: false }),
+        supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false }),
+        supabase.from('patient_registry').select('*').order('registered_at', { ascending: false }),
+        supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false })
+      ]).then(([apptsRes, ledgersRes, patientsRes, sessionsRes]) => {
+        const existingPats = api.getPatients();
+        const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
 
-            const dbAppts: Appointment[] = data.map((a: any) => {
-              const resolvedName = (a.patient_name && a.patient_name !== 'Patient') ? a.patient_name : (patNameMap.get(a.patient_id) || 'WhatsApp Patient');
-              const apptDate = a.appointment_date || a.virtual_date || (a.created_at ? a.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
-              return {
-                id: a.id,
-                patientId: a.patient_id,
-                patient_id: a.patient_id,
-                patientName: resolvedName,
-                patient_name: resolvedName,
-                doctorId: a.doctor_id,
-                doctor_id: a.doctor_id,
-                status: a.status || 'scheduled',
-                date: apptDate,
-                createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
-                is_virtual: Boolean(a.is_virtual),
-                isVirtual: Boolean(a.is_virtual),
-                virtualDate: a.virtual_date || apptDate,
-                virtual_date: a.virtual_date || apptDate,
-                virtualTime: a.virtual_time || '10:00 AM',
-                virtual_time: a.virtual_time || '10:00 AM',
-                virtual_meeting_url: a.virtual_meeting_url,
-                source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
-              } as any;
-            });
+        if (apptsRes.data && apptsRes.data.length > 0) {
+          const dbAppts: Appointment[] = apptsRes.data.map((a: any) => {
+            const resolvedName = (a.patient_name && a.patient_name !== 'Patient') ? a.patient_name : (patNameMap.get(a.patient_id) || 'WhatsApp Patient');
+            const apptDate = a.appointment_date || a.virtual_date || (a.created_at ? a.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
+            return {
+              id: a.id,
+              patientId: a.patient_id,
+              patient_id: a.patient_id,
+              patientName: resolvedName,
+              patient_name: resolvedName,
+              doctorId: a.doctor_id,
+              doctor_id: a.doctor_id,
+              status: a.status || 'scheduled',
+              date: apptDate,
+              createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
+              is_virtual: Boolean(a.is_virtual),
+              isVirtual: Boolean(a.is_virtual),
+              virtualDate: a.virtual_date || apptDate,
+              virtual_date: a.virtual_date || apptDate,
+              virtualTime: a.virtual_time || '10:00 AM',
+              virtual_time: a.virtual_time || '10:00 AM',
+              virtual_meeting_url: a.virtual_meeting_url,
+              source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
+            } as any;
+          });
 
-            const localAppts = api.getAppointments();
-            const mergedMap = new Map();
-            localAppts.forEach(la => mergedMap.set(la.id, la));
-            dbAppts.forEach(da => mergedMap.set(da.id, da));
-            const finalAppts = Array.from(mergedMap.values());
-            BillingService.saveAppointments(finalAppts);
-            setAppointments(finalAppts);
-          }
-        });
+          const localAppts = api.getAppointments();
+          const mergedMap = new Map();
+          localAppts.forEach(la => mergedMap.set(la.id, la));
+          dbAppts.forEach(da => mergedMap.set(da.id, da));
+          const finalAppts = Array.from(mergedMap.values());
+          BillingService.saveAppointments(finalAppts);
+          setAppointments(finalAppts);
+        }
 
-      // 2. Fetch live financial_ledgers from Supabase Cloud DB
-      supabase
-        .from('financial_ledgers')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (data && data.length > 0) {
-            const existingPats = api.getPatients();
-            const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
+        if (ledgersRes.data && ledgersRes.data.length > 0) {
+          const dbLedgers: FinancialLedgerEntry[] = ledgersRes.data.map((fl: any) => {
+            const resolvedPatName = (fl.patient_name && fl.patient_name !== 'Patient') ? fl.patient_name : (patNameMap.get(fl.patient_id) || 'WhatsApp Patient');
+            return {
+              id: fl.id,
+              invoiceId: fl.invoice_id,
+              appointmentId: fl.appointment_id,
+              patientId: fl.patient_id,
+              doctorId: fl.doctor_id,
+              entryType: fl.entry_type || 'appointment_fee',
+              grossAmount: fl.gross_amount || 500,
+              commissionRate: fl.commission_rate || 0,
+              platformFee: fl.platform_fee || 0,
+              netDoctorPayout: fl.net_doctor_payout || 500,
+              settlementStatus: fl.settlement_status || 'pending_payout',
+              paymentMethod: fl.payment_method || 'upi',
+              patientName: resolvedPatName,
+              patient_name: resolvedPatName,
+              createdAt: fl.created_at || new Date().toISOString()
+            } as any;
+          });
 
-            const dbLedgers: FinancialLedgerEntry[] = data.map((fl: any) => {
-              const resolvedPatName = (fl.patient_name && fl.patient_name !== 'Patient') ? fl.patient_name : (patNameMap.get(fl.patient_id) || 'WhatsApp Patient');
-              return {
-                id: fl.id,
-                invoiceId: fl.invoice_id,
-                appointmentId: fl.appointment_id,
-                patientId: fl.patient_id,
-                doctorId: fl.doctor_id,
-                entryType: fl.entry_type || 'appointment_fee',
-                grossAmount: fl.gross_amount || 500,
-                commissionRate: fl.commission_rate || 0,
-                platformFee: fl.platform_fee || 0,
-                netDoctorPayout: fl.net_doctor_payout || 500,
-                settlementStatus: fl.settlement_status || 'pending_payout',
-                paymentMethod: fl.payment_method || 'upi',
-                patientName: resolvedPatName,
-                patient_name: resolvedPatName,
-                createdAt: fl.created_at || new Date().toISOString()
-              } as any;
-            });
+          const localLedgers = api.getFinancialLedgers();
+          const mergedMap = new Map();
+          localLedgers.forEach(ll => mergedMap.set(ll.id, ll));
+          dbLedgers.forEach(dl => mergedMap.set(dl.id, dl));
+          const finalLedgers = Array.from(mergedMap.values());
+          BillingService.saveFinancialLedgers(finalLedgers);
+          setFinancialLedgers(finalLedgers);
+        }
 
-            const localLedgers = api.getFinancialLedgers();
-            const mergedMap = new Map();
-            localLedgers.forEach(ll => mergedMap.set(ll.id, ll));
-            dbLedgers.forEach(dl => mergedMap.set(dl.id, dl));
-            const finalLedgers = Array.from(mergedMap.values());
-            BillingService.saveFinancialLedgers(finalLedgers);
-            setFinancialLedgers(finalLedgers);
-          }
-        });
+        if (patientsRes.data && patientsRes.data.length > 0) {
+          const dbPatients: Patient[] = patientsRes.data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            phone: p.phone,
+            age: String(p.age || 30),
+            gender: p.gender || 'Male',
+            referral_code: p.referral_code,
+            allergies: [],
+            chronicConditions: [],
+            createdAt: p.registered_at || new Date().toISOString()
+          } as any));
 
-      // 3. Fetch live patient_registry from Supabase Cloud DB
-      supabase
-        .from('patient_registry')
-        .select('*')
-        .order('registered_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (data && data.length > 0) {
-            const dbPatients: Patient[] = data.map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              phone: p.phone,
-              age: String(p.age || 30),
-              gender: p.gender || 'Male',
-              referral_code: p.referral_code,
-              allergies: [],
-              chronicConditions: [],
-              createdAt: p.registered_at || new Date().toISOString()
-            } as any));
+          const localPatients = api.getPatients();
+          const mergedMap = new Map();
+          localPatients.forEach(lp => mergedMap.set(lp.id, lp));
+          dbPatients.forEach(dp => mergedMap.set(dp.id, dp));
+          const finalPatients = Array.from(mergedMap.values());
+          api.savePatients(finalPatients);
+          setPatients(finalPatients);
+        }
 
-            const localPatients = api.getPatients();
-            const mergedMap = new Map();
-            localPatients.forEach(lp => mergedMap.set(lp.id, lp));
-            dbPatients.forEach(dp => mergedMap.set(dp.id, dp));
-            const finalPatients = Array.from(mergedMap.values());
-            api.savePatients(finalPatients);
-            setPatients(finalPatients);
-          }
-        });
-
-      // 4. Fetch live whatsapp_sessions from Supabase Cloud DB
-      supabase
-        .from('whatsapp_sessions')
-        .select('*')
-        .order('last_interaction', { ascending: false })
-        .then(({ data, error }) => {
-          if (data && data.length > 0) {
-            const formattedList = data.map((dbSession: any) => ({
-              id: dbSession.id,
-              patientPhone: dbSession.patient_phone,
-              patient_phone: dbSession.patient_phone,
-              phone: dbSession.patient_phone,
-              patientId: dbSession.patient_id,
-              currentState: dbSession.current_state,
-              lastInteraction: dbSession.last_interaction,
-              sessionData: dbSession.session_data || {},
-              session_data: dbSession.session_data || {}
-            }));
-            WhatsAppService.saveWhatsAppSessions(formattedList);
-            setWhatsAppSessions(formattedList);
-          }
-        });
+        if (sessionsRes.data && sessionsRes.data.length > 0) {
+          const formattedList = sessionsRes.data.map((dbSession: any) => ({
+            id: dbSession.id,
+            patientPhone: dbSession.patient_phone,
+            patient_phone: dbSession.patient_phone,
+            phone: dbSession.patient_phone,
+            patientId: dbSession.patient_id,
+            currentState: dbSession.current_state,
+            lastInteraction: dbSession.last_interaction,
+            sessionData: dbSession.session_data || {},
+            session_data: dbSession.session_data || {}
+          }));
+          WhatsAppService.saveWhatsAppSessions(formattedList);
+          setWhatsAppSessions(formattedList);
+        }
+      }).catch(err => {
+        console.warn('[DoctorDashboard] Background sync notice:', err);
+      });
 
       if (activePod?.id) {
         supabase
