@@ -27,13 +27,14 @@ jobs:
 
           echo "Pinging Supabase Auth Health Endpoint at $URL/auth/v1/health..."
           AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/auth/v1/health")
-          echo "Auth Health HTTP Status: $AUTH_STATUS"
-
-          if [ -n "$KEY" ]; then
-            echo "Pinging Supabase REST Database Endpoint..."
-            REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$URL/rest/v1/appointments?select=id&limit=1")
-            echo "REST DB Ping HTTP Status: $REST_STATUS"
+          KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
+          if [ -z "$KEY" ]; then
+            KEY="sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm"
           fi
+
+          echo "Pinging Supabase REST Database Endpoint at $URL/rest/v1/appointments..."
+          REST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$URL/rest/v1/appointments?select=id&limit=1")
+          echo "REST DB Ping HTTP Status: $REST_STATUS"
 
           if [ "$FN_STATUS" -eq 200 ] || [ "$AUTH_STATUS" -eq 200 ]; then
             echo "🟢 Supabase Postgres database is 100% active & healthy!"
