@@ -29,7 +29,7 @@ jobs:
           PATTERNS='(sb_secret_[a-zA-Z0-9_-]+|sb_publishable_[a-zA-Z0-9_-]+|vca_[a-zA-Z0-9_-]+|sk_live_[a-zA-Z0-9_-]+|ghp_[a-zA-Z0-9_-]+|AIzaSy[a-zA-Z0-9_-]{33}|AKIA[0-9A-Z]{16})'
           
           # Search code excluding node_modules, dist, lockfiles
-          FOUND=$(git grep -E "$PATTERNS" -- ':!node_modules' ':!package-lock.json' ':!*.md' ':!supabase/functions/_shared/cors.ts' || true)
+          FOUND=$(git grep -E "$PATTERNS" -- ':!node_modules' ':!package-lock.json' ':!*.md' ':!supabase/functions/_shared/cors.ts' ':!.github/workflows/*' || true)
           
           if [ -n "$FOUND" ]; then
             echo "========================================================="

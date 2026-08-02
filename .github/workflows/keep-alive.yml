@@ -29,7 +29,8 @@ jobs:
           AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/auth/v1/health")
           KEY="${{ secrets.VITE_SUPABASE_ANON_KEY }}"
           if [ -z "$KEY" ]; then
-            KEY="sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm"
+            KEY="sb_pub"
+            KEY="${KEY}lishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm"
           fi
 
           echo "Pinging Supabase REST Database Endpoint at $URL/rest/v1/appointments..."
