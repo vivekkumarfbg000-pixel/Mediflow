@@ -156,8 +156,8 @@ const InteractivePlexus3D: React.FC = () => {
 };
 
 const getIsSingleDomain = (hostname: string): boolean => {
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
-  if (hostname.endsWith('.localhost')) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  if (hostname.endsWith('.localhost')) return true;
   if (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') return false;
   if (hostname.endsWith('.vitalsync.in')) return false;
   return true;
@@ -224,10 +224,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
-  // Redirect to app subdomain for sign-in (auth lives on app.vitalsync.in, not the landing page)
+  // Redirect to app subdomain for sign-in (or inline console query param on local origins)
   const scrollToGate = (e: React.MouseEvent) => {
     e.preventDefault();
-    const isSingleDomain = getIsSingleDomain(hostname);
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
+    const isSingleDomain = getIsSingleDomain(hostname) || isLocal;
 
     if (isSingleDomain) {
       const url = new URL(window.location.href);
@@ -236,16 +237,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       return;
     }
 
-    const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-      ? `http://app.localhost:${window.location.port || '5173'}`
-      : 'https://app.vitalsync.in';
-    window.location.href = dashboardUrl;
+    window.location.href = 'https://app.vitalsync.in';
   };
 
   const handleGetStartedClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isSignupUnlocked) {
-      const isSingleDomain = getIsSingleDomain(hostname);
+      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
+      const isSingleDomain = getIsSingleDomain(hostname) || isLocal;
 
       if (isSingleDomain) {
         const url = new URL(window.location.href);
@@ -254,10 +253,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         return;
       }
 
-      const dashboardUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-        ? `http://app.localhost:${window.location.port || '5173'}?tab=register`
-        : 'https://app.vitalsync.in?tab=register';
-      window.location.href = dashboardUrl;
+      window.location.href = 'https://app.vitalsync.in?tab=register';
     } else {
       setShowEligibilityModal(true);
       setEligibilityError(null);

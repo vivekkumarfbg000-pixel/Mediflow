@@ -108,9 +108,9 @@ export const BillHubTab: React.FC = () => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return patients;
     return patients.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      p.phone.includes(query) ||
-      (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(query))
+      (p.name || '').toLowerCase().includes(query) ||
+      (p.phone || '').includes(query) ||
+      (p.tokenNumber != null && String(p.tokenNumber).toLowerCase().includes(query))
     );
   }, [patients, searchQuery]);
 

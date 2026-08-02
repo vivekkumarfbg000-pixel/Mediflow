@@ -458,8 +458,6 @@ const setCrossDomainCookie = (active: boolean) => {
   
   if (hostname.endsWith('.vitalsync.in')) {
     cookieDomain = '; domain=.vitalsync.in';
-  } else if (hostname.includes('localhost')) {
-    cookieDomain = '; domain=localhost';
   }
   
   const secureFlag = isLocal ? '' : '; Secure';
@@ -468,7 +466,7 @@ const setCrossDomainCookie = (active: boolean) => {
   } else {
     document.cookie = `vitalsync_session_active=; path=/${cookieDomain}; max-age=0; SameSite=Lax${secureFlag}`;
     // Self-healing cleanup for legacy/orphaned subdomain cookies
-    document.cookie = `vitalsync_session_active=; path=/; domain=.localhost; max-age=0; SameSite=Lax${secureFlag}`;
+    document.cookie = `vitalsync_session_active=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
     document.cookie = `vitalsync_session_active=; path=/; domain=.vitalsync.in; max-age=0; SameSite=Lax${secureFlag}`;
   }
 };
@@ -802,20 +800,24 @@ export default function App() {
       }
     }
 
-    // 3. JWT Metadata fallback for admin/ops accounts.
-    if (!activeProfile) {
-      const jwtRole: string | undefined =
+    // 3. Metadata fallback for all authenticated accounts (ensures users are never stranded on empty profiles)
+    if (!activeProfile && session?.user) {
+      const metadataRole: string =
         session.user?.user_metadata?.role ||
-        session.user?.app_metadata?.role;
-      if (jwtRole === 'admin' || jwtRole === 'platform_admin') {
-        console.log('[Profile Loader] No DB profile found but JWT role is admin. Synthesizing minimal ops profile.');
-        activeProfile = {
-          id: session.user.id,
-          role: jwtRole,
-          display_name: session.user?.user_metadata?.display_name || session.user?.email?.split('@')[0] || 'Admin',
-          email: session.user.email,
-        };
-      }
+        session.user?.app_metadata?.role ||
+        'doctor';
+      const displayName: string =
+        session.user?.user_metadata?.display_name ||
+        session.user?.user_metadata?.full_name ||
+        session.user?.email?.split('@')[0] ||
+        'User';
+      console.log('[Profile Loader] No DB profile found. Synthesizing minimal active profile from session metadata.');
+      activeProfile = {
+        id: session.user.id,
+        role: metadataRole,
+        display_name: displayName,
+        email: session.user.email,
+      };
     }
 
     if (activeProfile) {
@@ -932,13 +934,6 @@ export default function App() {
         // Clear pod context so next user gets fresh real IDs
         clearPodContext();
       } else {
-        setCrossDomainCookie(true);
-        if (event === 'SIGNED_IN' && activeProfile) {
-          console.log('[Mediflow Auth] SIGNED_IN event detected with active profile. Deferring profile load to form handler.');
-          // Eagerly resolve pod context in background on sign-in
-          resolvePodContext().catch(() => {});
-          return;
-        }
         if (typeof window !== 'undefined' && (window as any).__mediflow_registering) {
           console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
           return;
@@ -947,7 +942,7 @@ export default function App() {
           console.log('[VitalSync Auth] Ops redirect in progress. Standing down — LandingPage will handle navigation.');
           return;
         }
-        // For TOKEN_REFRESHED, USER_UPDATED, etc., load profile and refresh pod context
+        // For SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, etc., load profile and refresh pod context
         resolvePodContext().catch(() => {});
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
@@ -1189,6 +1184,31 @@ export default function App() {
             </SpecializationProvider>
           </ClinicProvider>
         </ToastProvider>
+      );
+    }
+    const isConsoleRequested = new URLSearchParams(window.location.search).get('console') === 'true' || new URLSearchParams(window.location.search).get('tab') !== null;
+    if (isConsoleRequested && (!session || !activeProfile)) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+          
+          <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+            <div className="flex flex-col items-center space-y-2 text-center">
+              <BrandMark size={52} title="VitalSync" />
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">VitalSync Dashboard</h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">Enterprise Care Connected Console</p>
+              </div>
+            </div>
+            
+            <AuthGateway 
+              onAuthSuccess={handleAuthSuccess} 
+              allowSignup={true} 
+              initialSignupTab={initialSignupTab}
+            />
+          </div>
+        </div>
       );
     }
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;

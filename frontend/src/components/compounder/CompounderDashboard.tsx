@@ -363,11 +363,11 @@ export const CompounderDashboard: React.FC = () => {
         fetchLiveAppointments();
       },
       onFinancialLedgerChange: () => {
-        syncData();
+        setDataRevision(prev => prev + 1);
         fetchLiveAppointments();
       },
       onUnifiedInvoiceChange: () => {
-        syncData();
+        setDataRevision(prev => prev + 1);
         fetchLiveAppointments();
       }
     });

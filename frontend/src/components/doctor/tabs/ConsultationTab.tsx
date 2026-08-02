@@ -704,7 +704,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <div>
                 <p><strong>Reference Date:</strong> ${new Date().toLocaleDateString('en-IN')}</p>
                 <p><strong>Clinic Entity:</strong> VitalSync Clinical Hub</p>
-                <p><strong>Chronic Conditions:</strong> ${selectedPatient?.chronicConditions.join(', ') || 'None'}</p>
+                <p><strong>Chronic Conditions:</strong> ${(selectedPatient?.chronicConditions || []).join(', ') || 'None'}</p>
               </div>
             </div>
           </div>

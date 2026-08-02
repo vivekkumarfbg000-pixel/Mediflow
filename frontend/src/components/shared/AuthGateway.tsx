@@ -222,8 +222,8 @@ interface AuthGatewayProps {
 }
 
 const getIsSingleDomain = (hostname: string): boolean => {
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
-  if (hostname.endsWith('.localhost')) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  if (hostname.endsWith('.localhost')) return true;
   if (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in') return false;
   if (hostname.endsWith('.vitalsync.in')) return false;
   return true;
@@ -759,39 +759,32 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       let profile = profileData;
 
       if (profileErr || !profile) {
-        const jwtRole = data.user?.user_metadata?.role || data.user?.app_metadata?.role;
-        if (jwtRole === 'doctor' || jwtRole === 'admin' || jwtRole === 'platform_admin') {
-          console.log('[Mediflow Auth] No DB profile — synthesizing from JWT metadata.');
-          profile = {
-            id: data.user.id,
-            role: jwtRole,
-            display_name: data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'Clinician',
-            email: data.user.email,
-          };
-        } else {
-          throw new Error(profileErr?.message || 'Authenticated, but your Mediflow profile could not be loaded.');
-        }
+        const jwtRole = data.user?.user_metadata?.role || data.user?.app_metadata?.role || 'doctor';
+        console.log('[Mediflow Auth] No DB profile — synthesizing from JWT metadata. Role:', jwtRole);
+        profile = {
+          id: data.user.id,
+          role: jwtRole,
+          display_name: data.user?.user_metadata?.display_name || data.user?.email?.split('@')[0] || 'Clinician',
+          email: data.user.email,
+        };
       }
 
-      if (!['doctor', 'admin', 'platform_admin'].includes(profile.role)) {
+      if (!['doctor', 'compounder', 'pharmacist', 'lab_technician', 'admin', 'platform_admin', 'patient'].includes(profile.role)) {
         await supabase.auth.signOut({ scope: 'local' });
-        const accessErr = new Error('Access Denied: Restricted to Doctors and Platform Admin.');
+        const accessErr = new Error('Access Denied: Unrecognized account role.');
         (accessErr as any).code = 'ERR_INVALID_CREDENTIALS';
         throw accessErr;
       }
 
-      // Cross-origin guard: admin accounts must ONLY authenticate on admin.vitalsync.in.
-      // If an admin logs in on vitalsync.in / app.vitalsync.in, the session is stored in
-      // that origin's localStorage and will be invisible to admin.vitalsync.in.
-      if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
-        const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      // Cross-origin guard: admin accounts must ONLY authenticate on admin.vitalsync.in in production.
+      // On localhost / 127.0.0.1 single-domain dev environment, allow all roles directly.
+      const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
+      if (!isLocalDevHost && (profile?.role === 'admin' || profile?.role === 'platform_admin')) {
         const isSingleDomain = getIsSingleDomain(hostname);
         const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.') || isSingleDomain;
         if (!isAdminSubdomain) {
           await supabase.auth.signOut({ scope: 'local' });
-          const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-            ? `http://admin.localhost:${window.location.port || '5173'}`
-            : 'https://admin.vitalsync.in';
+          const adminUrl = 'https://admin.vitalsync.in';
           console.log('[Mediflow Auth] Admin account detected on wrong origin. Redirecting to:', adminUrl);
           window.location.href = adminUrl;
           return;
@@ -809,6 +802,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           type: 'success'
         }
       }));
+
+      // Notify root App component of successful authentication and profile resolution
+      onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Login failed:', err);
@@ -931,6 +927,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           type: 'success'
         }
       }));
+
+      // Notify root App component of successful partner authentication and profile resolution
+      onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Partner login failed:', err);

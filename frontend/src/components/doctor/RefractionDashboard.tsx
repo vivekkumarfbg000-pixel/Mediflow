@@ -38,11 +38,13 @@ export const RefractionDashboard: React.FC = () => {
   // Workspace Patient
   const [refractionPatient, setRefractionPatient] = useState<Patient | null>(null);
 
+  // Load and subscribe to API changes
+  const syncData = useCallback(() => {
+    setPatients(api.getPatients());
+  }, []);
+
   // Subscribe to live 360-degree Realtime updates
   useEffect(() => {
-    const syncData = () => {
-      setPatients(api.getPatients());
-    };
     syncData();
 
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
@@ -51,8 +53,12 @@ export const RefractionDashboard: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [syncData]);
 
+  useEffect(() => {
+    syncData();
+    return api.subscribe(syncData);
+  }, [syncData]);
   // Vitals & Diagnostics States
   const [vaOD, setVaOD] = useState('6/6');
   const [vaOS, setVaOS] = useState('6/6');
@@ -69,16 +75,6 @@ export const RefractionDashboard: React.FC = () => {
   const [subjectiveRx, setSubjectiveRx] = useState<RefractionRx>(EMPTY_REFRACTION_RX);
   const [biometryRx, setBiometryRx] = useState<BiometryData>(EMPTY_BIOMETRY);
   const [dilationDrops, setDilationDrops] = useState('Tropicamide 1%');
-
-  // Load and subscribe to API changes
-  const syncData = () => {
-    setPatients(api.getPatients());
-  };
-
-  useEffect(() => {
-    syncData();
-    return api.subscribe(syncData);
-  }, []);
 
   // Filter queue for Refractionist
   const filteredPatients = useMemo(() => {

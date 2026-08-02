@@ -470,7 +470,10 @@ git diff HEAD~1 HEAD -- src/
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
-| Blank screen on first load | Circular import between `api.ts` ↔ `autoHealerAgent.ts` | Use dynamic `import()` in autoHealerAgent for api calls |
+| Blank screen on startup (`throw new Error` in `supabaseClient.ts`) | Missing `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` in environment | Ensure `supabaseClient.ts` uses safe default fallbacks instead of throwing fatal errors on module load |
+| Login button hangs on spinner (`SIGNED_IN` event ignored) | `App.tsx` discarded `SIGNED_IN` events if a stale `activeProfile` was cached in `localStorage` | Remove `SIGNED_IN` early return so `loadOrHealProfile()` always resolves session and profile |
+| "Access Denied: Restricted to Doctors" error on login | `AuthGateway` rejected `compounder`, `pharmacist`, `lab_technician`, or `patient` roles on main sign-in form | Allow all active Mediflow ecosystem roles in `handleEmailSignIn` and invoke `onAuthSuccess(session, profile)` |
+| Circular import between `api.ts` ↔ `autoHealerAgent.ts` | Use dynamic `import()` in autoHealerAgent for api calls |
 | `useState is null` error | Circular imports causing React module to be null | Remove dead imports; use lazy imports |
 | `supabaseCircuit is not defined` (repeating error) | The circuit breaker import was deleted but the variable is still used in many places inside `api.ts` | Restore `import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent'` — safe now because autoHealerAgent uses dynamic import for api |
 | Cannot login with email/password | User doesn't exist in `auth.users` | Run SQL: `SELECT * FROM auth.users WHERE email = 'x@y.com'` |
