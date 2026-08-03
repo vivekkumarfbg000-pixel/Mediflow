@@ -1842,9 +1842,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       className="w-full px-3.5 py-2 border border-slate-200 focus:border-indigo-500/50 rounded-xl outline-none bg-white text-slate-800"
                     >
                       <option value="">(Select Baseline Date)</option>
-                      {activeHistory.map((h: any) => (
-                        <option key={h.date} value={h.date}>{h.date}</option>
-                      ))}
+                      {activeHistory.map((h: any) => {
+                        return <option key={h.date} value={h.date}>{h.date}</option>;
+                      })}
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -1855,9 +1855,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       className="w-full px-3.5 py-2 border border-slate-200 focus:border-indigo-500/50 rounded-xl outline-none bg-white text-slate-800"
                     >
                       <option value="">(Select Comparison Date)</option>
-                      {activeHistory.map((h: any) => (
-                        <option key={h.date} value={h.date}>{h.date}</option>
-                      ))}
+                      {activeHistory.map((h: any) => {
+                        return <option key={h.date} value={h.date}>{h.date}</option>;
+                      })}
                     </select>
                   </div>
                 </div>

@@ -701,7 +701,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }, 20000);
 
     try {
-      // Recompilation trigger comment to clear Vite compiler cache
+      // Clean TSX syntax verification - force Vite transform cache invalidation
       // 1. Verify lockout and rate limit via database sentry (with 5s timeout fallback)
       let check: { allowed: boolean; errorCode?: string; msg?: string } = { allowed: true };
       try {
