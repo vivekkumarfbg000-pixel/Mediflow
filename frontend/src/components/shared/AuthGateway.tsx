@@ -102,10 +102,15 @@ const saveLoginAttempt = (attempt: LoginAttempt) => {
 
 const getConsecutiveFailures = (email: string): number => {
   const attempts = getLoginAttempts();
+  const now = new Date().getTime();
   let count = 0;
   for (const attempt of attempts) {
     if (attempt.email.trim().toLowerCase() === email.trim().toLowerCase()) {
       if (attempt.success) {
+        break;
+      }
+      const ageSec = Math.floor((now - new Date(attempt.timestamp).getTime()) / 1000);
+      if (ageSec > 60) {
         break;
       }
       count++;
