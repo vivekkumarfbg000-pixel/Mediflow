@@ -93,6 +93,54 @@ const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
   }
 };
 
+const DEMO_ACCOUNTS = [
+  {
+    role: 'doctor',
+    label: 'Doctor EMR',
+    name: 'Dr. Vivek Kumar',
+    email: 'doctor@mediflow.com',
+    id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    icon: '👨‍⚕️'
+  },
+  {
+    role: 'compounder',
+    label: 'Compounder',
+    name: 'Ramesh Singh',
+    email: 'compounder@mediflow.com',
+    id: 'c1111111-1111-1111-1111-111111111111',
+    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    icon: '🏥'
+  },
+  {
+    role: 'pharmacist',
+    label: 'Pharmacy POS',
+    name: 'Suresh Kumar',
+    email: 'pharmacy@mediflow.com',
+    id: 'p2222222-2222-2222-2222-222222222222',
+    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    icon: '💊'
+  },
+  {
+    role: 'lab_technician',
+    label: 'Pathology Lab',
+    name: 'Vikram Mehta',
+    email: 'labtech@mediflow.com',
+    id: 'l3333333-3333-3333-3333-333333333333',
+    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    icon: '🧪'
+  },
+  {
+    role: 'platform_admin',
+    label: 'SaaS Admin',
+    name: 'System Admin',
+    email: 'owner@mediflow.com',
+    id: 'a4444444-4444-4444-4444-444444444444',
+    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    icon: '🛡️'
+  }
+];
+
 const getLoginAttempts = (): LoginAttempt[] => {
   try {
     const raw = localStorage.getItem('mediflow_login_attempts');
@@ -688,6 +736,54 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       setOauthOnboardingRole(null);
     } catch (err) {
       console.error('[OAuth Onboarding] Sign out failed:', err);
+  const handleDemoBypass = (account: typeof DEMO_ACCOUNTS[0]) => {
+    setLoading(true);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mediflow_dev_bypass', 'true');
+        
+        const demoProfile = {
+          id: account.id,
+          entity_id: account.entityId,
+          role: account.role,
+          display_name: account.name,
+          email: account.email,
+          consultation_fee: 450
+        };
+        
+        const demoSession = {
+          user: {
+            id: account.id,
+            email: account.email,
+            user_metadata: {
+              display_name: account.name,
+              role: account.role,
+              specialization: 'General Medicine'
+            }
+          }
+        };
+        
+        localStorage.setItem('vitalsync_cached_profile', JSON.stringify(demoProfile));
+        let mappedRole = 'doctor';
+        if (account.role === 'compounder') mappedRole = 'compounder';
+        else if (account.role === 'pharmacist') mappedRole = 'pharmacy';
+        else if (account.role === 'lab_technician') mappedRole = 'lab';
+        else if (account.role === 'platform_admin' || account.role === 'admin') mappedRole = 'saas_admin';
+        
+        localStorage.setItem('vitalsync_active_role', mappedRole);
+
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: `Demo Mode Active 🎉`,
+            message: `Logged in as ${account.name} (${account.label}).`,
+            type: 'success'
+          }
+        }));
+
+        onAuthSuccess(demoSession, demoProfile);
+      }
+    } catch (err) {
+      console.error('[Demo Bypass] Failed to initialize demo mode:', err);
     } finally {
       setLoading(false);
     }
@@ -1877,6 +1973,42 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none animate-pulse-subtle" style={{ animationDelay: '2s' }}></div>
 
       <div className="z-10 flex flex-col space-y-5">
+
+        {/* ⚡ 1-Click Instant Demo Bypass Panel */}
+        <div className="bg-gradient-to-r from-slate-900/95 via-indigo-950/95 to-slate-900/95 border border-cyan-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-xl shadow-cyan-950/20 text-white font-sans pointer-events-auto">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-400 animate-bounce" />
+              <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest">
+                1-Click Instant Demo Login
+              </span>
+            </div>
+            <span className="text-[9px] font-bold text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-400/30 font-mono">
+              BYPASS AUTH MODE
+            </span>
+          </div>
+
+          <p className="text-[10px] text-slate-300 leading-relaxed font-medium">
+            Click any role below to bypass authentication and launch the workspace immediately:
+          </p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-0.5">
+            {DEMO_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.role}
+                type="button"
+                onClick={() => handleDemoBypass(acc)}
+                className="flex items-center gap-2 p-2 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/40 transition-all text-left cursor-pointer group"
+              >
+                <span className="text-base flex-shrink-0">{acc.icon}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-bold text-cyan-200 group-hover:text-cyan-100 truncate">{acc.label}</span>
+                  <span className="text-[8px] text-slate-400 group-hover:text-slate-200 truncate">{acc.name}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Sliding Tab Selector */}
         {initialSignupTab !== 'ops' && (

@@ -780,12 +780,19 @@ export default function App() {
     
     // Developer bypass for offline testing on localhost
     if (typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
-      console.log('[Dev Bypass] Bypassing profile fetch. Loading mock doctor profile.');
+      console.log('[Dev Bypass] Bypassing profile fetch. Loading demo profile.');
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.id) return parsed;
+        }
+      } catch (_e) { /* ignore */ }
       return {
         id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
         entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
         role: 'doctor',
-        display_name: 'Dr. Vivek Kumar (Mock)',
+        display_name: 'Dr. Vivek Kumar (Demo)',
         email: 'doctor@mediflow.com'
       };
     }
