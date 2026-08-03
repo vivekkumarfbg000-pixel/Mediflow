@@ -953,6 +953,12 @@ export default function App() {
       } else {
         setCrossDomainCookie(false);
         clearTimeout(safetyTimeout);
+        setActiveProfile(null);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('vitalsync_cached_profile');
+          } catch (_e) { /* ignore */ }
+        }
         setIsLoadingSession(false);
       }
     }).catch(() => {
