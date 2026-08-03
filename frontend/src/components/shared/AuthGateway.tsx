@@ -736,6 +736,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       setOauthOnboardingRole(null);
     } catch (err) {
       console.error('[OAuth Onboarding] Sign out failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDemoBypass = (account: typeof DEMO_ACCOUNTS[0]) => {
     setLoading(true);
     try {
