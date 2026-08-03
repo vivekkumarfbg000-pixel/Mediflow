@@ -30,6 +30,18 @@ const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
     description: 'The email address or security password entered does not match any clinician account.',
     diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
   },
+  invalid_credentials: {
+    code: 'ERR_INVALID_CREDENTIALS',
+    message: 'Invalid Credentials',
+    description: 'The email address or security password entered does not match any clinician account.',
+    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+  },
+  invalid_grant: {
+    code: 'ERR_INVALID_CREDENTIALS',
+    message: 'Invalid Credentials',
+    description: 'The email address or security password entered does not match any clinician account.',
+    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+  },
   ERR_RATE_LIMIT_EXCEEDED: {
     code: 'ERR_RATE_LIMIT_EXCEEDED',
     message: 'Rate Limit Exceeded',
@@ -155,16 +167,11 @@ const retryRequest = async <T,>(fn: () => Promise<T>, retries = 3, delay = 1000)
 // Check lockout and rate limit via database sentry
 const verifyLoginAllowed = async (emailToVerify: string): Promise<{ allowed: boolean; errorCode?: string; msg?: string }> => {
   try {
-    const data = await supabaseCircuit.execute(async () => {
-      const { data: res, error } = await retryRequest(async () => {
-        return await supabase.rpc('check_login_sentry', {
-          p_email: emailToVerify.trim(),
-          p_ip: null
-        });
-      });
-      if (error) throw error;
-      return res;
+    const { data, error } = await supabase.rpc('check_login_sentry', {
+      p_email: emailToVerify.trim(),
+      p_ip: null
     });
+    if (error) throw error;
 
     if (data && !data.allowed) {
       return {
@@ -175,8 +182,6 @@ const verifyLoginAllowed = async (emailToVerify: string): Promise<{ allowed: boo
     }
     return { allowed: true };
   } catch (_err) {
-    const err = _err as any;
-    console.error('[Mediflow Auth] Sentry check failed or circuit open, falling back to local client-side guard:', err);
     const localLockout = checkLockout(emailToVerify);
     if (localLockout.locked) {
       return {
@@ -814,11 +819,15 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const err = _err as any;
       console.error('[Mediflow Auth] Login failed:', err);
       let mappedCode = err.code;
-      if (!mappedCode) {
-        if (!navigator.onLine || err.message?.includes('Failed to fetch') || err.message?.includes('network') || err.status === 0 || err.message?.includes('timed out')) {
+
+      const msgLower = (err.message || '').toLowerCase();
+      const codeLower = (err.code || '').toLowerCase();
+
+      if (codeLower === 'invalid_credentials' || codeLower === 'invalid_grant' || msgLower.includes('invalid login credentials') || msgLower.includes('invalid') || err.status === 400) {
+        mappedCode = 'ERR_INVALID_CREDENTIALS';
+      } else if (!mappedCode || !ERROR_DICTIONARY[mappedCode]) {
+        if (!navigator.onLine || msgLower.includes('failed to fetch') || msgLower.includes('network') || err.status === 0 || msgLower.includes('timed out')) {
           mappedCode = 'ERR_NETWORK_FAILURE';
-        } else if (err.message?.includes('Invalid login credentials') || err.message?.includes('invalid') || err.status === 400) {
-          mappedCode = 'ERR_INVALID_CREDENTIALS';
         } else {
           mappedCode = 'ERR_SERVER_ERROR';
         }
