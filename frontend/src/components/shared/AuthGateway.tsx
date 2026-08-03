@@ -693,9 +693,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
   };
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
+  const handleEmailSignIn = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!email || !email.trim()) {
+      setErrorMsg('Please enter your professional email address.');
+      setActiveErrorCode('ERR_INVALID_CREDENTIALS');
+      return;
+    }
+    if (!password) {
+      setErrorMsg('Please enter your security password.');
+      setActiveErrorCode('ERR_INVALID_CREDENTIALS');
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);
@@ -850,9 +859,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
   };
 
-  const handlePartnerSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
+  const handlePartnerSignIn = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!email || !email.trim()) {
+      setErrorMsg('Please enter your registered email address.');
+      setActiveErrorCode('ERR_INVALID_CREDENTIALS');
+      return;
+    }
+    if (!password) {
+      setErrorMsg('Please enter your security password.');
+      setActiveErrorCode('ERR_INVALID_CREDENTIALS');
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);
@@ -2026,6 +2044,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
             <button
               type="submit"
+              onClick={(e) => { e.preventDefault(); handleEmailSignIn(e); }}
               disabled={loading}
               className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
             >
@@ -2713,6 +2732,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
                 <button
                   type="submit"
+                  onClick={(e) => { e.preventDefault(); handlePartnerSignIn(e); }}
                   disabled={loading}
                   className="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
                 >
