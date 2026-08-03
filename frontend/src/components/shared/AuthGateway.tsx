@@ -695,7 +695,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
   const handleEmailSignIn = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!email || !email.trim()) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
       setErrorMsg('Please enter your professional email address.');
       setActiveErrorCode('ERR_INVALID_CREDENTIALS');
       return;
