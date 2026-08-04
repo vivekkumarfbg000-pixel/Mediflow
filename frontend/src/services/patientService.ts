@@ -57,7 +57,27 @@ export class PatientService {
     this.savePatients(patients);
   }
   static getPatients(): Patient[] {
-    const rawPatients = load<Patient[]>('patients', INITIAL_PATIENTS);
+    let isDemoAccount = true;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.email && !parsed.email.includes('demo') && !parsed.isDemo) {
+            isDemoAccount = false;
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    const defaultPatients = isDemoAccount ? INITIAL_PATIENTS : [];
+    let rawPatients = load<Patient[]>('patients', defaultPatients);
+    
+    // For non-demo accounts, purge pre-seeded initial demo patient IDs from local storage cache
+    if (!isDemoAccount) {
+      const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
+      rawPatients = rawPatients.filter(p => !demoIds.has(p.id));
+    }
+
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
     const tokensMap = load<Record<string, string>>('tokens_map', {});
     const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});

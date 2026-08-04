@@ -94,10 +94,22 @@ export const PharmacyDashboard: React.FC = () => {
 
   const fetchLiveMedicineBills = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('medicine_bills')
         .select('*, medicine_bill_items(*), patient_registry(name, phone)')
         .order('created_at', { ascending: false });
+
+      if (typeof window !== 'undefined') {
+        const cachedPod = localStorage.getItem('vitalsync_active_pod');
+        if (cachedPod) {
+          try {
+            const podObj = JSON.parse(cachedPod);
+            if (podObj && podObj.id) query = query.eq('pod_id', podObj.id);
+          } catch (_e) { /* ignore */ }
+        }
+      }
+
+      const { data } = await query;
       if (data) setLiveMedicineBills(data);
     } catch (err) {
       console.warn('[PharmacyDashboard] Error fetching live medicine bills:', err);

@@ -1106,6 +1106,35 @@ export default function App() {
     } catch (err) {
       console.error('Error during Supabase signout:', err);
     }
+    
+    // Completely clear all cached session & profile items from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('vitalsync_cached_profile');
+        localStorage.removeItem('vitalsync_active_role');
+        localStorage.removeItem('vitalsync_active_pod');
+        localStorage.removeItem('patients');
+        localStorage.removeItem('saas_appointments');
+        localStorage.removeItem('saas_invoices');
+        localStorage.removeItem('saas_financial_ledgers');
+        localStorage.removeItem('patient_registry');
+        localStorage.removeItem('lab_requisitions');
+        localStorage.removeItem('medicine_bills');
+        localStorage.removeItem('mediflow_patients');
+        localStorage.removeItem('mediflow_patient_registry');
+        localStorage.removeItem('mediflow_saas_appointments');
+        localStorage.removeItem('mediflow_unified_invoices');
+        localStorage.removeItem('mediflow_financial_ledgers');
+        
+        // Remove all Supabase auth token keys
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-') || key.startsWith('vitalsync_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (_e) { /* ignore */ }
+    }
+
     setSession(null);
     setActiveProfile(null);
     setCurrentRole('doctor');

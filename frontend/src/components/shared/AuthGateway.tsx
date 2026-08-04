@@ -1207,6 +1207,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         throw new Error('SignUp failed to initialize user record. Please try again.');
       }
 
+      // Purge demo patients cache from localStorage for new user
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('mediflow_patients');
+        localStorage.removeItem('mediflow_patient_registry');
+        localStorage.removeItem('mediflow_saas_appointments');
+        localStorage.removeItem('mediflow_unified_invoices');
+        localStorage.removeItem('mediflow_financial_ledgers');
+        localStorage.removeItem('patients');
+        localStorage.removeItem('saas_appointments');
+      }
+
       let activeSession = authData.session;
       if (!activeSession) {
         // Attempt immediate signInWithPassword to obtain authenticated session for RPC onboarding
@@ -1221,10 +1232,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }
 
-      // 2. Wait a split second to allow on_auth_user_created trigger to run
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // 3. Call the register_clinic_network RPC function
+      // 2. Call the register_clinic_network RPC function immediately
       let rpcData: any = null;
       try {
         const { data: res, error: rpcError } = await supabase.rpc('register_clinic_network', {
@@ -1240,14 +1248,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         console.warn('[Mediflow Auth] Optional register_clinic_network RPC warning:', _rpcErr);
       }
 
-      // Clear the pending registration flag since we successfully onboarding
-      try {
-        await supabase.auth.updateUser({
-          data: { pending_registration: false }
-        });
-      } catch (_metaErr) {
-        /* ignore */
-      }
+      // Clear pending registration flag asynchronously in background (non-blocking)
+      supabase.auth.updateUser({
+        data: { pending_registration: false }
+      }).catch(() => { /* ignore */ });
 
       // 4. Show registration success screen with generated clinic code!
       const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
@@ -1378,10 +1382,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }
 
-      // 2. Wait a split second to allow handle_new_user trigger to execute
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // 3. Call the join_clinic_network RPC function
+      // 2. Call the join_clinic_network RPC function immediately
       try {
         await supabase.rpc('join_clinic_network', {
           p_clinic_code: clinicCode.trim().toUpperCase(),
@@ -1394,14 +1395,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         console.warn('[Mediflow Auth] Optional join_clinic_network RPC warning:', _rpcErr);
       }
 
-      // Clear the pending registration flag since we successfully onboarding
-      try {
-        await supabase.auth.updateUser({
-          data: { pending_registration: false }
-        });
-      } catch (_metaErr) {
-        /* ignore */
-      }
+      // Clear pending registration flag asynchronously in background (non-blocking)
+      supabase.auth.updateUser({
+        data: { pending_registration: false }
+      }).catch(() => { /* ignore */ });
 
       // 4. Fetch profile to pass to Auth success
       let profile: any = null;

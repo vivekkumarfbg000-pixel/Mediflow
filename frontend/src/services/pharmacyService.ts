@@ -1059,7 +1059,20 @@ Thank you for choosing VitalSync! 🟢`;
   }
 
   static getWhatsAppDrugOrders(): WhatsAppDrugOrder[] {
-    const defaultOrders: WhatsAppDrugOrder[] = [
+    let isDemoAccount = true;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.email && !parsed.email.includes('demo') && !parsed.isDemo) {
+            isDemoAccount = false;
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    const defaultOrders: WhatsAppDrugOrder[] = isDemoAccount ? [
       {
         id: 'ord-101',
         patientName: 'Aarav Sharma',
@@ -1080,8 +1093,13 @@ Thank you for choosing VitalSync! 🟢`;
         deliveryStatus: 'enroute',
         timestamp: new Date().toISOString()
       }
-    ];
-    return load<WhatsAppDrugOrder[]>('whatsapp_drug_orders', defaultOrders);
+    ] : [];
+
+    let orders = load<WhatsAppDrugOrder[]>('whatsapp_drug_orders', defaultOrders);
+    if (!isDemoAccount) {
+      orders = orders.filter(o => o.id !== 'ord-101' && o.id !== 'ord-102' && o.patientName !== 'Aarav Sharma' && o.patientName !== 'Priyanka Verma');
+    }
+    return orders;
   }
 
   static saveWhatsAppDrugOrders(orders: WhatsAppDrugOrder[]) {

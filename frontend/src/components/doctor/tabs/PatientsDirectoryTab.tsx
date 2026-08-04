@@ -435,7 +435,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     <button
                       type="button"
                       onClick={() => {
-                        const finalDate = virtualDateInput || virtualAppt.virtualDate || new Date().toISOString().split('T')[0];
+                        const finalDate = virtualDateInput || virtualAppt.virtualDate || (virtualAppt as any).virtual_date || (virtualAppt.created_at || (virtualAppt as any).createdAt || '').split('T')[0] || new Date().toISOString().split('T')[0];
                         const finalTime = virtualTimeInput || virtualAppt.virtualTime || '10:30 AM';
                         
                         // Update appointment
@@ -448,7 +448,15 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                         api.saveAppointment(updatedAppt);
                         
                         // Notify patient on WhatsApp
-                        const notificationText = `📅 *Virtual Consultation Confirmed!* \n\nDr. Vivek has allocated your virtual consultation timing: \n🗓️ *Date:* ${finalDate} \n⏰ *Time:* ${finalTime} \n\nPlease join the meeting using this link when scheduled: \n🔗 ${JITSI_ROOM_URL}`;
+                        const cachedProfStr = localStorage.getItem('vitalsync_cached_profile');
+                        let docNameDisp = 'Your Doctor';
+                        if (cachedProfStr) {
+                          try {
+                            const p = JSON.parse(cachedProfStr);
+                            if (p.display_name) docNameDisp = p.display_name;
+                          } catch (_e) { /* ignore */ }
+                        }
+                        const notificationText = `📅 *Virtual Consultation Confirmed!* \n\n${docNameDisp} has allocated your virtual consultation timing: \n🗓️ *Date:* ${finalDate} \n⏰ *Time:* ${finalTime} \n\nPlease join the meeting using this link when scheduled: \n🔗 ${JITSI_ROOM_URL}`;
                         api.pushWhatsAppMessageFromBot(selectedDirectoryPatient.phone, notificationText);
 
                         window.dispatchEvent(new CustomEvent('mediflow-toast', {

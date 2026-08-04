@@ -178,10 +178,27 @@ export class BillingService {
 
 
   static getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
-    const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    let isDemoAccount = true;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.email && !parsed.email.includes('demo') && !parsed.isDemo) {
+            isDemoAccount = false;
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    let ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    if (!isDemoAccount) {
+      // Purge demo/sample ledger entries for live user accounts
+      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
+      ledgers = ledgers.filter(l => !l.id?.startsWith('tx-demo') && !l.id?.startsWith('tx-sample') && !demoPatientIds.has((l as any).patientId));
+    }
+
     let modified = false;
-    const sampleNames = ['Aarav Sharma', 'Rahul Kumar', 'Priya Singh', 'Amit Verma', 'Vikram Prasad'];
-    const sampleMethods = ['upi', 'cash', 'whatsapp', 'cash', 'cash'];
 
     // Filter out any platform_fee entries generated for consultation appointments
     const filteredLedgers = ledgers.filter(l => {
@@ -192,7 +209,7 @@ export class BillingService {
       return true;
     });
 
-    filteredLedgers.forEach((l, idx) => {
+    filteredLedgers.forEach((l) => {
       if (l.transactionType === 'appointment_fee') {
         if (l.grossAmount === 450 || l.netPayout === 450) {
           l.grossAmount = 500;
@@ -204,12 +221,8 @@ export class BillingService {
           modified = true;
         }
       }
-      if (!l.patientName) {
-        l.patientName = sampleNames[idx % sampleNames.length];
-        modified = true;
-      }
-      if (!l.paymentMethod) {
-        l.paymentMethod = sampleMethods[idx % sampleMethods.length];
+      if (!l.patientName && isDemoAccount) {
+        l.patientName = 'Patient Customer';
         modified = true;
       }
     });

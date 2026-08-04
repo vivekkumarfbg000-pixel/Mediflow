@@ -890,7 +890,8 @@ export const BillHubTab: React.FC = () => {
       // 1. Premium Club Eligibility Onboarding Check
       if (billingLedger.isQualifyingFirstPurchase) {
         PatientService.updatePatientPremiumStatus(selectedPatient.id, true);
-        const welcomeMsg = `🌟 *Welcome to VitalSync Premium Care Club!* \n\nNamaste ${selectedPatient.name}, aapne humare clinic se medicines aur pathology diagnostics dono ki billing complete ki hai. Aapke premium member benefits active ho gaye hain:\n\n1. 💻 *Free Virtual Consultations:* Agle 15 days tak aap Dr. Vivek ke saath free video follow-up call book kar sakte hain.\n2. 🤖 *WhatsApp Health Assistant:* Humara automated chatbot aapko daily medicine reminder dega aur dosages guide karega.\n3. 📉 *10% Flat Refill Discount:* Aapke next medicine refill order par automatic 10% ki chhoot milegi!\n\nThank you for choosing VitalSync!`;
+        const docTitle = activePod?.doctorName || 'our senior doctor';
+        const welcomeMsg = `🌟 *Welcome to VitalSync Premium Care Club!* \n\nNamaste ${selectedPatient.name}, aapne humare clinic se medicines aur pathology diagnostics dono ki billing complete ki hai. Aapke premium member benefits active ho gaye hain:\n\n1. 💻 *Free Virtual Consultations:* Agle 15 days tak aap ${docTitle} ke saath free video follow-up call book kar sakte hain.\n2. 🤖 *WhatsApp Health Assistant:* Humara automated chatbot aapko daily medicine reminder dega aur dosages guide karega.\n3. 📉 *10% Flat Refill Discount:* Aapke next medicine refill order par automatic 10% ki chhoot milegi!\n\nThank you for choosing VitalSync!`;
         WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, welcomeMsg);
         
         window.dispatchEvent(new CustomEvent('mediflow-toast', {

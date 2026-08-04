@@ -377,7 +377,7 @@ export const SaaSAdminPanel: React.FC = () => {
           pending_cash_balance: 450.00,
           is_verified_for_billing: true,
           phone: '9876543210',
-          doctor_name: 'Dr. Aarav Sharma (M.S. Ophthal)'
+          doctor_name: 'Chief Ophthalmic Specialist'
         }];
         setPodsList(demoPods);
         setBudgetInputs({ 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001': '500' });

@@ -119,6 +119,20 @@ export const DoctorDashboard: React.FC = () => {
   const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>([]);
   const [financialLedgers, setFinancialLedgers] = useState<FinancialLedgerEntry[]>([]);
 
+  // Dynamically resolve active doctor profile for dynamic header rendering
+  const activeDoctorProfile = React.useMemo(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) return JSON.parse(cached);
+      } catch (_e) { /* ignore */ }
+    }
+    return null;
+  }, []);
+
+  const doctorDisplayName = activeDoctorProfile?.display_name || activeDoctorProfile?.displayName || activeDoctorProfile?.name || '';
+  const headerDoctorTitle = doctorDisplayName ? (doctorDisplayName.startsWith('Dr.') ? doctorDisplayName : `Dr. ${doctorDisplayName}`) : 'Doctor';
+
   // Existing states
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
   const [refractionRx, setRefractionRx] = useState<RefractionRx>(EMPTY_REFRACTION_RX);
@@ -450,12 +464,26 @@ export const DoctorDashboard: React.FC = () => {
       setFinancialLedgers(api.getFinancialLedgers());
       setWhatsAppSessions(api.getWhatsAppSessions());
 
-      // Fetch live remote DB records in a single non-blocking Promise.all batch
+      // Fetch live remote DB records scoped to active tenant pod ID in a single Promise.all batch
+      const currentPodId = activePod?.id || activeDoctorProfile?.pod_id || activeDoctorProfile?.podId;
+      
+      let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
+      let ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
+      let patientsQuery = supabase.from('patient_registry').select('*').order('registered_at', { ascending: false });
+      let sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
+
+      if (currentPodId) {
+        apptsQuery = apptsQuery.eq('pod_id', currentPodId);
+        ledgersQuery = ledgersQuery.eq('pod_id', currentPodId);
+        patientsQuery = patientsQuery.eq('pod_id', currentPodId);
+        sessionsQuery = sessionsQuery.eq('pod_id', currentPodId);
+      }
+
       Promise.all([
-        supabase.from('appointments').select('*').order('created_at', { ascending: false }),
-        supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false }),
-        supabase.from('patient_registry').select('*').order('registered_at', { ascending: false }),
-        supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false })
+        apptsQuery,
+        ledgersQuery,
+        patientsQuery,
+        sessionsQuery
       ]).then(([apptsRes, ledgersRes, patientsRes, sessionsRes]) => {
         const existingPats = api.getPatients();
         const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
@@ -463,7 +491,7 @@ export const DoctorDashboard: React.FC = () => {
         if (apptsRes.data && apptsRes.data.length > 0) {
           const dbAppts: Appointment[] = apptsRes.data.map((a: any) => {
             const resolvedName = (a.patient_name && a.patient_name !== 'Patient') ? a.patient_name : (patNameMap.get(a.patient_id) || 'WhatsApp Patient');
-            const apptDate = a.appointment_date || a.virtual_date || (a.created_at ? a.created_at.split('T')[0] : new Date().toISOString().split('T')[0]);
+            const apptDate = a.appointment_date || a.appointmentDate || a.virtual_date || a.virtualDate || (a.created_at ? a.created_at.split('T')[0] : (a.createdAt ? a.createdAt.split('T')[0] : 'N/A'));
             return {
               id: a.id,
               patientId: a.patient_id,
@@ -2038,14 +2066,14 @@ Keep the tone professional, clinical, objective, and precise.`;
             </span>
             <div>
               <h1 className="text-sm sm:text-base font-semibold tracking-tight text-slate-800 font-sans leading-tight">
-                {isOphthalmology ? "Dr. Amit Arya's Eye Care Console" : "Dr. Sharma's Care Dashboard"}
+                {isOphthalmology ? `${headerDoctorTitle}'s Eye Care Console` : `${headerDoctorTitle}'s Care Dashboard`}
               </h1>
               <p className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
                 VitalSync Pod Tenant Host
                 <span className="text-slate-600">·</span>
                 Clinic Code:
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
-                  {activePod?.clinicCode || 'MF-PATNA101'}
+                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || 'MF-PATNA101'}
                 </span>
                 <span className={`flex sm:hidden items-center gap-1 text-[10px] font-semibold pl-1 font-mono ${isOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full animate-pulse inline-block ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />

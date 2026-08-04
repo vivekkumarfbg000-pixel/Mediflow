@@ -328,7 +328,20 @@ export class LabService {
   }
 
   static getPathologyReports(): PathologyReport[] {
-    const defaultReports: PathologyReport[] = [
+    let isDemoAccount = true;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.email && !parsed.email.includes('demo') && !parsed.isDemo) {
+            isDemoAccount = false;
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    const defaultReports: PathologyReport[] = isDemoAccount ? [
       {
         id: 'rep-201',
         patientId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401',
@@ -350,8 +363,13 @@ export class LabService {
         compounderScanned: true,
         timestamp: '2026-05-25T08:30:00Z'
       }
-    ];
-    return load<PathologyReport[]>('pathology_reports', defaultReports);
+    ] : [];
+
+    let reports = load<PathologyReport[]>('pathology_reports', defaultReports);
+    if (!isDemoAccount) {
+      reports = reports.filter(r => r.id !== 'rep-201' && r.id !== 'rep-202' && r.patientName !== 'Aarav Sharma' && r.patientName !== 'Priyanka Verma');
+    }
+    return reports;
   }
 
   static savePathologyReports(reports: PathologyReport[]) {

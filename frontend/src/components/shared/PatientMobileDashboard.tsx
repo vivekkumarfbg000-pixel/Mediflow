@@ -542,7 +542,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         <span className="text-[7.5px] bg-white/20 border border-white/20 px-2 py-0.5 rounded font-mono font-bold tracking-widest uppercase">
                           NDHM • Health ID Pass
                         </span>
-                        <h4 className="text-xs font-extrabold tracking-wide mt-1.5 text-white-force">Aarav Sharma</h4>
+                        <h4 className="text-xs font-extrabold tracking-wide mt-1.5 text-white-force">{activePatient?.name || 'Verified Patient'}</h4>
                         <p className="text-[8px] text-cyan-200">ABHA No: 12-3456-7890-1234</p>
                       </div>
                       <div className="w-8 h-8 bg-white/10 border border-slate-200/60 rounded-xl flex items-center justify-center">

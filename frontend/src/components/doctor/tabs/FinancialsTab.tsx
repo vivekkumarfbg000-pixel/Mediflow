@@ -347,7 +347,12 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         </table>
 
         <div class="footer">
-          VitalSync 360° Real-Time Financial Statement • Generated electronically for Dr. Vivek Kumar • Verified via Supabase Postgres CDC
+          VitalSync 360° Real-Time Financial Statement • Generated electronically for ${(() => {
+            try {
+              const p = JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}');
+              return p.display_name || 'Chief Clinical Consultant';
+            } catch (_e) { return 'Chief Clinical Consultant'; }
+          })()} • Verified via Supabase Postgres CDC
         </div>
       </body>
       </html>

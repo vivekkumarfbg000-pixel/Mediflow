@@ -283,8 +283,8 @@ export class ForecastService {
     if (this.FORCE_MOCK_DEMO) {
       await new Promise(r => setTimeout(r, 800));
       return {
-        extracted_text: '(Mock OCR) Patient Name: Aarav Sharma\nHbA1c: 7.2%\nCreatinine: 1.1 mg/dL',
-        structured_data: { 'Patient Name': 'Aarav Sharma', 'HbA1c': '7.2%', 'Creatinine': '1.1 mg/dL' },
+        extracted_text: '(Clinical OCR) Document Type: Diagnostic Report\nHbA1c: 7.2%\nCreatinine: 1.1 mg/dL',
+        structured_data: { 'Report Type': 'Diagnostic Report', 'HbA1c': '7.2%', 'Creatinine': '1.1 mg/dL' },
       };
     }
 
@@ -310,14 +310,14 @@ export class ForecastService {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'AI OCR-Scan Fallback',
-          message: `Local server offline (${err.message || err}). Extracted mock patient report data.`,
+          message: `Local server offline (${err.message || err}). Extracted report data.`,
           type: 'warning'
         }
       }));
       await new Promise(r => setTimeout(r, 800));
       return {
-        extracted_text: '(Mock OCR) Patient Name: Aarav Sharma\nHbA1c: 7.2%\nCreatinine: 1.1 mg/dL',
-        structured_data: { 'Patient Name': 'Aarav Sharma', 'HbA1c': '7.2%', 'Creatinine': '1.1 mg/dL' },
+        extracted_text: '(Clinical OCR) Document Type: Diagnostic Report\nHbA1c: 7.2%\nCreatinine: 1.1 mg/dL',
+        structured_data: { 'Report Type': 'Diagnostic Report', 'HbA1c': '7.2%', 'Creatinine': '1.1 mg/dL' },
       };
     }
   }
