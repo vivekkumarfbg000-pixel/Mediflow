@@ -86,7 +86,7 @@ const getBilingualInstruction = (medicineName: string, dosage?: string) => {
 
 export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
-  const { podEntities } = useClinic();
+  const { podEntities, activePod } = useClinic();
   const [activeTab, setActiveTab] = useState<'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('tokens');
   const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
   const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'schedules_advance'>('today_queue');
@@ -1116,7 +1116,7 @@ export const CompounderDashboard: React.FC = () => {
       dosageInvoiceText += `Dhyan rakhein aur time par medicine lein! 🟢`;
 
       // ── Append same-day evening appointment info ────────────────────────
-      const activeDocName = activePod?.doctorName || 'Doctor';
+      const activeDocName = activePod?.doctor_name || 'Doctor';
       const apptSlot = eveningSlot || api.getAppointmentByPatient(billingPatient.id);
       if (apptSlot) {
         dosageInvoiceText += `\n\n🕒 *Doctor Follow-up (Aaj Shaam):*\n${activeDocName} aapko aaj *${apptSlot.startTime}* se *${apptSlot.endTime}* ke beech dekhenge.\nKrupaya 5 minute pehle clinic pahunchen.`;
@@ -1979,7 +1979,7 @@ export const CompounderDashboard: React.FC = () => {
                               </h4>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[14px]">schedule</span>
-                                Slot: {appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'} · Date: {appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.created_at || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
+                                Slot: {appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'} · Date: {appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
                               </p>
                             </div>
 
@@ -2041,7 +2041,7 @@ export const CompounderDashboard: React.FC = () => {
                                 <td className="p-3 font-bold text-slate-900 dark:text-white">{pat?.name || 'Registered Patient'}</td>
                                 <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{pat?.phone || 'N/A'}</td>
                                 <td className="p-3 font-semibold text-indigo-600 dark:text-indigo-400">
-                                  {appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.created_at || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
+{appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
                                 </td>
                                 <td className="p-3 text-slate-600 dark:text-slate-300">{appt.virtual_time || '10:00 AM - 12:00 PM'}</td>
                                 <td className="p-3">
@@ -2074,7 +2074,7 @@ export const CompounderDashboard: React.FC = () => {
                         <span className="text-[10px] font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">10:00 AM - 12:00 PM</span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400">Capacity: 12 Patients / Day</p>
-                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctorName || 'Doctor'}</p>
+                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctor_name || 'Doctor'}</p>
                     </div>
 
                     <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
@@ -2083,7 +2083,7 @@ export const CompounderDashboard: React.FC = () => {
                         <span className="text-[10px] font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md font-bold">02:00 PM - 04:00 PM</span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400">Capacity: 10 Patients / Day</p>
-                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctorName || 'Doctor'}</p>
+                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctor_name || 'Doctor'}</p>
                     </div>
 
                     <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
@@ -2092,7 +2092,7 @@ export const CompounderDashboard: React.FC = () => {
                         <span className="text-[10px] font-mono bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md font-bold">04:00 PM - 06:00 PM</span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400">Lab Report Review & OPD</p>
-                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctorName || 'Doctor'}</p>
+                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctor_name || 'Doctor'}</p>
                     </div>
                   </div>
                 </div>
@@ -3167,7 +3167,7 @@ export const CompounderDashboard: React.FC = () => {
                   
                   <div className="space-y-3.5">
                     {[
-                      { name: activePod?.doctorName || 'Chief Ophthalmic Surgeon', role: 'Chief Ophthalmic Surgeon', status: 'In OT (Eye Room A)', time: '10:00 AM - 02:00 PM', specialty: 'Phacoemulsification & Glaucoma' },
+                      { name: activePod?.doctor_name || 'Chief Ophthalmic Surgeon', role: 'Chief Ophthalmic Surgeon', status: 'In OT (Eye Room A)', time: '10:00 AM - 02:00 PM', specialty: 'Phacoemulsification & Glaucoma' },
                       { name: 'Dr. Priya Sen', role: 'Consultant Anesthesiologist', status: 'Pre-op Blocks (Ward B)', time: '09:30 AM - 01:30 PM', specialty: 'Regional & Topical Anesthesia' },
                       { name: 'Dr. Amit Roy', role: 'General & Laparoscopic Surgeon', status: 'On Call (Minor OT)', time: '12:00 PM - 04:00 PM', specialty: 'Excision & Wound Debridement' }
                     ].map((s, idx) => (
@@ -3201,7 +3201,7 @@ export const CompounderDashboard: React.FC = () => {
                     {[
                       { time: '10:15 AM', label: 'Patient admission checks completed', desc: 'Pre-op vitals logged, ABHA consent verified at desk.' },
                       { time: '11:00 AM', label: 'Local block anesthetic administration', desc: 'Topical anesthetic drops and block administered by Dr. Sen.' },
-                      { time: '11:30 AM', label: 'OT Procedure started (Cataract Phaco)', desc: `Surgeon ${activePod?.doctorName || 'Chief Surgeon'} started Phaco surgery under microscope.` },
+                      { time: '11:30 AM', label: 'OT Procedure started (Cataract Phaco)', desc: `Surgeon ${activePod?.doctor_name || 'Chief Surgeon'} started Phaco surgery under microscope.` },
                       { time: '12:00 PM', label: 'Patient shifted to Recovery Ward', desc: 'IOL lens successfully placed. Shifted to Ward B for monitoring.' },
                       { time: '12:45 PM', label: 'Discharge clearance & counseling', desc: 'Post-op dosage directions pushed to patient WhatsApp.' }
                     ].map((t, idx) => (

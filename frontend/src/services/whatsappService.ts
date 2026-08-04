@@ -27,6 +27,20 @@ export class WhatsAppService {
     notify();
   }
 
+  static getActiveDoctorName(): string {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const name = parsed.display_name || parsed.displayName || parsed.name;
+          if (name) return name.startsWith('Dr.') ? name : `Dr. ${name}`;
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    return 'your doctor';
+  }
+
   // ── Phase 4: Leaky-Bucket Rate-Limited Dispatch Queue (Max 15 msgs/sec) ────
   private static dispatchQueue: Array<() => Promise<any>> = [];
   private static isProcessingQueue = false;
@@ -288,23 +302,9 @@ export class WhatsAppService {
           break;
 
         case 'AWAITING_WELCOME_ACK':
-const getActiveDoctorName = (): string => {
-  if (typeof window !== 'undefined') {
-    try {
-      const cached = localStorage.getItem('vitalsync_cached_profile');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        const name = parsed.display_name || parsed.displayName || parsed.name;
-        if (name) return name.startsWith('Dr.') ? name : `Dr. ${name}`;
-      }
-    } catch (_e) { /* ignore */ }
-  }
-  return 'your doctor';
-};
-
           if (cleaned === 'a' || cleaned === '1') {
             nextState = 'COMPLETED';
-            const docName = getActiveDoctorName();
+            const docName = WhatsAppService.getActiveDoctorName();
             replyMessage = `📅 *Active Appointments/Consultations:*\n- ${docName} (Consultation chamber 1): Ready for scheduling.\n\nType **REFILL** to order medicines, **REPORT** to get your latest lab result, or chat with AI.`;
           } else if (cleaned === 'i' || cleaned === '2') {
             nextState = 'COMPLETED';
@@ -530,7 +530,7 @@ const getActiveDoctorName = (): string => {
           } else if ((cleaned === 'book' || cleaned === '1') && awaitingAction === 'followup') {
             sessionData.awaitingProactiveAction = 'virtual_slot';
             nextState = 'BOOKING_VIRTUAL';
-            const docName = getActiveDoctorName();
+            const docName = WhatsAppService.getActiveDoctorName();
             replyMessage = `📅 *Virtual Consultation Booking* \n\n${docName} has unlocked a virtual follow-up consult slot for you. \n\nPlease select your preferred slot:\n*1* - Morning Slot (10:00 AM - 11:30 AM)\n*2* - Afternoon Slot (2:00 PM - 3:30 PM)\n*3* - Evening Slot (5:00 PM - 6:30 PM)\n\nReply with **1**, **2**, or **3** to book.`;
           } else if (awaitingAction === 'lab_slot' && ['1', '2', '3'].includes(cleaned)) {
             sessionData.awaitingProactiveAction = null;
@@ -663,7 +663,7 @@ const getActiveDoctorName = (): string => {
           } else if (cleaned.includes('book') || cleaned.includes('virtual') || cleaned.includes('video') || cleaned.includes('tele') || cleaned.includes('consult')) {
             sessionData.awaitingProactiveAction = 'virtual_slot';
             nextState = 'BOOKING_VIRTUAL';
-            const docName = getActiveDoctorName();
+            const docName = WhatsAppService.getActiveDoctorName();
             replyMessage = `📅 *Virtual Consultation Booking* \n\n${docName} has unlocked a virtual follow-up consult slot for you. \n\nPlease select your preferred slot:\n*1* - Morning Slot (10:00 AM - 11:30 AM)\n*2* - Afternoon Slot (2:00 PM - 3:30 PM)\n*3* - Evening Slot (5:00 PM - 6:30 PM)\n\nReply with **1**, **2**, or **3** to book.`;
           } else if (cleaned.includes('report') || cleaned.includes('pathology') || cleaned.includes('test')) {
             const approvedReports = LabService.getPathologyReports().filter(r => r.patientId === currentPat?.id && r.status === 'approved');
@@ -1325,7 +1325,7 @@ const getActiveDoctorName = (): string => {
       return;
     }
 
-    const docName = getActiveDoctorName();
+    const docName = WhatsAppService.getActiveDoctorName();
     const message = `Hello ${patient.name}! 😊 Hope you are recovering well. \n\n${docName} recommended a follow-up consultation in 3 days to evaluate your progress. \n\n*Reply 'BOOK' or '1' to lock a convenient Virtual Video Consultation slot immediately!*`;
     
     const sessions = this.getWhatsAppSessions();
@@ -1362,7 +1362,7 @@ const getActiveDoctorName = (): string => {
       return;
     }
 
-    const docName = getActiveDoctorName();
+    const docName = WhatsAppService.getActiveDoctorName();
     const message = `Hi ${patient.name}! 🔬 Our records show you have a pending sugar level test (HbA1c test) ordered by ${docName}. Reagents are currently locked for your slot. \n\n*Would you like our lab team to collect your blood sample from your home tomorrow morning at 8:00 AM? Reply 'HOME' to schedule.*`;
     
     const sessions = this.getWhatsAppSessions();

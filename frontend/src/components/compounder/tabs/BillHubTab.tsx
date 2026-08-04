@@ -10,11 +10,13 @@ import { BillingService } from '../../../services/billingService';
 import { PaymentService } from '../../../services/paymentService';
 import { PatientService } from '../../../services/patientService';
 import { useSpecialization } from '../../../context/SpecializationContext';
+import { useClinic } from '../../../context/ClinicContext';
 import { WhatsAppService } from '../../../services/whatsappService';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
 export const BillHubTab: React.FC = () => {
   const { isOphthalmology } = useSpecialization();
+  const { activePod } = useClinic();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // App States
@@ -890,7 +892,7 @@ export const BillHubTab: React.FC = () => {
       // 1. Premium Club Eligibility Onboarding Check
       if (billingLedger.isQualifyingFirstPurchase) {
         PatientService.updatePatientPremiumStatus(selectedPatient.id, true);
-        const docTitle = activePod?.doctorName || 'our senior doctor';
+        const docTitle = activePod?.doctor_name || 'our senior doctor';
         const welcomeMsg = `🌟 *Welcome to VitalSync Premium Care Club!* \n\nNamaste ${selectedPatient.name}, aapne humare clinic se medicines aur pathology diagnostics dono ki billing complete ki hai. Aapke premium member benefits active ho gaye hain:\n\n1. 💻 *Free Virtual Consultations:* Agle 15 days tak aap ${docTitle} ke saath free video follow-up call book kar sakte hain.\n2. 🤖 *WhatsApp Health Assistant:* Humara automated chatbot aapko daily medicine reminder dega aur dosages guide karega.\n3. 📉 *10% Flat Refill Discount:* Aapke next medicine refill order par automatic 10% ki chhoot milegi!\n\nThank you for choosing VitalSync!`;
         WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, welcomeMsg);
         

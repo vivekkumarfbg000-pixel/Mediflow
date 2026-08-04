@@ -435,7 +435,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     <button
                       type="button"
                       onClick={() => {
-                        const finalDate = virtualDateInput || virtualAppt.virtualDate || (virtualAppt as any).virtual_date || (virtualAppt.created_at || (virtualAppt as any).createdAt || '').split('T')[0] || new Date().toISOString().split('T')[0];
+                        const finalDate = virtualDateInput || virtualAppt.virtualDate || (virtualAppt as any).virtual_date || (virtualAppt.createdAt || (virtualAppt as any).createdAt || '').split('T')[0] || new Date().toISOString().split('T')[0];
                         const finalTime = virtualTimeInput || virtualAppt.virtualTime || '10:30 AM';
                         
                         // Update appointment
