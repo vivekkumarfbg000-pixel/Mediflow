@@ -7,7 +7,27 @@ import { getPodContext } from './podContext';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
-    const invoices = load<UnifiedInvoice[]>('unified_invoices', []);
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    let invoices = load<UnifiedInvoice[]>('unified_invoices', []);
+    if (!isDemoAccount) {
+      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
+      invoices = invoices.filter(i => !i.id?.startsWith('inv-demo') && !i.id?.startsWith('inv-sample') && i.patientName !== 'Patient Customer' && !demoPatientIds.has(i.patientId));
+    }
     let modified = false;
     invoices.forEach(i => {
       if (i.doctorFee === 450) {
@@ -178,14 +198,17 @@ export class BillingService {
 
 
   static getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
-    let isDemoAccount = true;
+    let isDemoAccount = false;
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem('vitalsync_cached_profile');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed && parsed.email && !parsed.email.includes('demo') && !parsed.isDemo) {
-            isDemoAccount = false;
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
           }
         }
       } catch (_e) { /* ignore */ }
@@ -195,7 +218,7 @@ export class BillingService {
     if (!isDemoAccount) {
       // Purge demo/sample ledger entries for live user accounts
       const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      ledgers = ledgers.filter(l => !l.id?.startsWith('tx-demo') && !l.id?.startsWith('tx-sample') && !demoPatientIds.has((l as any).patientId));
+      ledgers = ledgers.filter(l => !l.id?.startsWith('tx-demo') && !l.id?.startsWith('tx-sample') && l.patientName !== 'Patient Customer' && !demoPatientIds.has((l as any).patientId));
     }
 
     let modified = false;
@@ -228,12 +251,12 @@ export class BillingService {
     });
 
     // Ensure all paid invoices have corresponding financial ledger entries
-    const paidInvoices = load<Invoice[]>('saas_invoices', []).filter(i => i.status === 'paid');
+    const paidInvoices = this.getInvoices().filter(i => i.status === 'paid');
     const existingInvoiceIds = new Set(filteredLedgers.map(l => l.invoiceId));
 
     paidInvoices.forEach(inv => {
       if (!existingInvoiceIds.has(inv.id)) {
-        const appts = load<Appointment[]>('saas_appointments', []);
+        const appts = this.getAppointments();
         const appt = appts.find(a => a.id === inv.appointmentId);
         const patId = inv.patientId || appt?.patientId;
         const patients = PatientService.getPatients();
@@ -290,7 +313,28 @@ export class BillingService {
   }
 
   static getAppointments(): Appointment[] {
-    return load<Appointment[]>('saas_appointments', []);
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    let appts = load<Appointment[]>('saas_appointments', []);
+    if (!isDemoAccount) {
+      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
+      appts = appts.filter(a => !a.id?.startsWith('appt-demo') && !a.id?.startsWith('appt-sample') && !demoPatientIds.has(a.patientId));
+    }
+    return appts;
   }
 
   static saveAppointment(appt: Appointment): void {
@@ -307,7 +351,28 @@ export class BillingService {
   }
 
   static getInvoices(): Invoice[] {
-    return load<Invoice[]>('saas_invoices', []);
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    let invoices = load<Invoice[]>('saas_invoices', []);
+    if (!isDemoAccount) {
+      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
+      invoices = invoices.filter(i => !i.id?.startsWith('inv-demo') && !i.id?.startsWith('inv-sample') && (i as any).patientName !== 'Patient Customer' && !demoPatientIds.has(i.patientId));
+    }
+    return invoices;
   }
 
   static saveInvoice(invoice: Invoice): void {

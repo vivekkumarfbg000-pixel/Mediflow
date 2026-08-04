@@ -57,14 +57,17 @@ export class PatientService {
     this.savePatients(patients);
   }
   static getPatients(): Patient[] {
-    let isDemoAccount = true;
+    let isDemoAccount = false;
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem('vitalsync_cached_profile');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed && parsed.email && !parsed.email.includes('demo') && !parsed.isDemo) {
-            isDemoAccount = false;
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
           }
         }
       } catch (_e) { /* ignore */ }
@@ -75,7 +78,7 @@ export class PatientService {
     // For non-demo accounts, purge pre-seeded initial demo patient IDs from local storage cache
     if (!isDemoAccount) {
       const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      rawPatients = rawPatients.filter(p => !demoIds.has(p.id));
+      rawPatients = rawPatients.filter(p => !demoIds.has(p.id) && p.name !== 'Rahul Kumar Test' && p.name !== 'RLS Test Patient');
     }
 
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});

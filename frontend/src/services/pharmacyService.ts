@@ -1059,14 +1059,17 @@ Thank you for choosing VitalSync! 🟢`;
   }
 
   static getWhatsAppDrugOrders(): WhatsAppDrugOrder[] {
-    let isDemoAccount = true;
+    let isDemoAccount = false;
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem('vitalsync_cached_profile');
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed && parsed.email && !parsed.email.includes('demo') && !parsed.isDemo) {
-            isDemoAccount = false;
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
           }
         }
       } catch (_e) { /* ignore */ }

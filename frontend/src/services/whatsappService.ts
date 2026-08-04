@@ -19,7 +19,28 @@ import type {
 
 export class WhatsAppService {
   static getWhatsAppSessions(): WhatsAppSession[] {
-    return load<WhatsAppSession[]>('whatsapp_sessions', []);
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    let sessions = load<WhatsAppSession[]>('whatsapp_sessions', []);
+    if (!isDemoAccount) {
+      const demoPhones = new Set(['9876543210', '8765432109']);
+      sessions = sessions.filter(s => !s.id?.startsWith('sess-demo') && !s.id?.startsWith('sess-sample') && !demoPhones.has(s.patientPhone));
+    }
+    return sessions;
   }
 
   static saveWhatsAppSessions(sessions: WhatsAppSession[]) {
