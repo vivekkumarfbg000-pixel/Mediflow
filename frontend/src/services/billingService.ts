@@ -370,7 +370,7 @@ export class BillingService {
     let invoices = load<Invoice[]>('saas_invoices', []);
     if (!isDemoAccount) {
       const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      invoices = invoices.filter(i => !i.id?.startsWith('inv-demo') && !i.id?.startsWith('inv-sample') && (i as any).patientName !== 'Patient Customer' && !demoPatientIds.has(i.patientId));
+      invoices = invoices.filter(i => !i.id?.startsWith('inv-demo') && !i.id?.startsWith('inv-sample') && (i as any).patientName !== 'Patient Customer' && i.patientId && !demoPatientIds.has(i.patientId));
     }
     return invoices;
   }
