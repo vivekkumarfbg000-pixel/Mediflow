@@ -51,6 +51,7 @@ const WhatsAppTab = safeLazy(() => import('./tabs/WhatsAppTab').then(m => ({ def
 const SopConfigTab = safeLazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
 
 export const DoctorDashboard: React.FC = () => {
+  const { activePod, activeEntity } = useClinic();
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule'>('pod_view');
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -2090,7 +2091,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
-            {!activePod && (
+            {!(activePod || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || activeDoctorProfile?.pod_id || activeDoctorProfile?.clinicId) && (
               <button
                 type="button"
                 onClick={() => setIsRegistrationOpen(true)}
