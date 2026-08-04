@@ -273,8 +273,6 @@ export const DoctorDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const { activePod, activeEntity } = useClinic();
-
   // SaaS Doctor States
   const [hinglishSummary, setHinglishSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
