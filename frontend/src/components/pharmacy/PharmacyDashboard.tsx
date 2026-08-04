@@ -136,7 +136,7 @@ export const PharmacyDashboard: React.FC = () => {
     };
     syncLocal();
 
-    const unsubscribeApi = api.subscribe(syncLocal);
+const unsubscribeApi = api.subscribe(syncLocal);
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onMedicineBillChange: (payload) => {
         console.log('[PharmacyDashboard] Realtime Medicine Bill update:', payload);
@@ -151,7 +151,17 @@ export const PharmacyDashboard: React.FC = () => {
         }));
       },
       onInventoryHoldChange: () => syncLocal(),
-      onPatientChange: () => syncLocal()
+      onPatientChange: () => syncLocal(),
+      onAppointmentChange: () => syncLocal(),
+      onFinancialLedgerChange: () => syncLocal(),
+      onUnifiedInvoiceChange: () => syncLocal(),
+      onWhatsAppSessionChange: () => syncLocal(),
+      onLabRequisitionChange: () => syncLocal(),
+      onPathologyReportChange: () => syncLocal(),
+      onPoolSettlementChange: () => syncLocal(),
+      onClinicSopChange: () => syncLocal(),
+      onSaaSInvoiceChange: () => syncLocal(),
+      onSaaSPrescriptionChange: () => syncLocal()
     });
 
     return () => {

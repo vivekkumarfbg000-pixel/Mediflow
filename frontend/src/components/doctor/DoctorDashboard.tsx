@@ -710,7 +710,13 @@ export const DoctorDashboard: React.FC = () => {
         // to avoid hammering Supabase with redundant full re-fetches on each patient message
         if (typeof (window as any).__waSyncTimeout !== 'undefined') clearTimeout((window as any).__waSyncTimeout);
         (window as any).__waSyncTimeout = setTimeout(() => syncDashboardData(), 250);
-      }
+      },
+      onPathologyReportChange: () => syncDashboardData(),
+      onPoolSettlementChange: () => syncDashboardData(),
+      onClinicSopChange: () => syncDashboardData(),
+      onSaaSInvoiceChange: () => syncDashboardData(),
+      onSaaSPrescriptionChange: () => syncDashboardData(),
+      onInventoryHoldChange: () => syncDashboardData()
     });
 
     const apiUnsub = api.subscribe(syncDashboardData);

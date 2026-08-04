@@ -49,7 +49,18 @@ export const RefractionDashboard: React.FC = () => {
 
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onPatientChange: () => syncData(),
-      onAppointmentChange: () => syncData()
+      onAppointmentChange: () => syncData(),
+      onMedicineBillChange: () => syncData(),
+      onLabRequisitionChange: () => syncData(),
+      onFinancialLedgerChange: () => syncData(),
+      onUnifiedInvoiceChange: () => syncData(),
+      onWhatsAppSessionChange: () => syncData(),
+      onPathologyReportChange: () => syncData(),
+      onPoolSettlementChange: () => syncData(),
+      onClinicSopChange: () => syncData(),
+      onSaaSInvoiceChange: () => syncData(),
+      onSaaSPrescriptionChange: () => syncData(),
+      onInventoryHoldChange: () => syncData()
     });
 
     return () => unsubscribe();

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { SystemHealthCockpit } from './SystemHealthCockpit';
 import { api } from '../../services/api';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { WhatsAppSupportBotService, type SupportEscalationTicket } from '../../services/whatsappSupportBotService';
 import { 
   ShieldAlert, 
@@ -388,6 +389,29 @@ export const SaaSAdminPanel: React.FC = () => {
       setMetricsLoading(false);
     }
   }, [isAdmin]);
+
+  // ── Realtime Sync Subscription for SaaS Admin Panel ──
+  useEffect(() => {
+    if (!isAdmin) return;
+    
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onAppointmentChange: () => fetchSaaSMetrics(),
+      onPatientChange: () => fetchSaaSMetrics(),
+      onMedicineBillChange: () => fetchSaaSMetrics(),
+      onLabRequisitionChange: () => fetchSaaSMetrics(),
+      onFinancialLedgerChange: () => fetchSaaSMetrics(),
+      onUnifiedInvoiceChange: () => fetchSaaSMetrics(),
+      onWhatsAppSessionChange: () => fetchSaaSMetrics(),
+      onPoolSettlementChange: () => fetchSaaSMetrics(),
+      onClinicSopChange: () => fetchSaaSMetrics(),
+      onPathologyReportChange: () => fetchSaaSMetrics(),
+      onSaaSInvoiceChange: () => fetchSaaSMetrics(),
+      onSaaSPrescriptionChange: () => fetchSaaSMetrics(),
+      onInventoryHoldChange: () => fetchSaaSMetrics(),
+    });
+
+    return () => unsubscribeRealtime();
+  }, [isAdmin, fetchSaaSMetrics]);
 
   // 1-Click Provisioning Agent Handler
   const handleProvisionPod = async (e: React.FormEvent) => {

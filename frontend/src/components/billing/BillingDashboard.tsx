@@ -106,7 +106,16 @@ export const BillingDashboard: React.FC = () => {
       onMedicineBillChange: () => syncBilling(),
       onAppointmentChange: () => syncBilling(),
       onFinancialLedgerChange: () => syncBilling(),
-      onUnifiedInvoiceChange: () => syncBilling()
+      onUnifiedInvoiceChange: () => syncBilling(),
+      onPatientChange: () => syncBilling(),
+      onPathologyReportChange: () => syncBilling(),
+      onPoolSettlementChange: () => syncBilling(),
+      onClinicSopChange: () => syncBilling(),
+      onSaaSInvoiceChange: () => syncBilling(),
+      onSaaSPrescriptionChange: () => syncBilling(),
+      onInventoryHoldChange: () => syncBilling(),
+      onWhatsAppSessionChange: () => syncBilling(),
+      onLabRequisitionChange: () => syncBilling()
     });
 
     return () => {

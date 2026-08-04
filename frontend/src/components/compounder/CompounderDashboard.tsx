@@ -362,11 +362,47 @@ export const CompounderDashboard: React.FC = () => {
         setPatients(api.getPatients());
         fetchLiveAppointments();
       },
+      onMedicineBillChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onLabRequisitionChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
       onFinancialLedgerChange: () => {
         setDataRevision(prev => prev + 1);
         fetchLiveAppointments();
       },
       onUnifiedInvoiceChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onWhatsAppSessionChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onPathologyReportChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onPoolSettlementChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onClinicSopChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onSaaSInvoiceChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onSaaSPrescriptionChange: () => {
+        setDataRevision(prev => prev + 1);
+        fetchLiveAppointments();
+      },
+      onInventoryHoldChange: () => {
         setDataRevision(prev => prev + 1);
         fetchLiveAppointments();
       }

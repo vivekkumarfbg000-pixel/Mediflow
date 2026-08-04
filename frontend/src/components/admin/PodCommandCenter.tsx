@@ -82,7 +82,13 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       onPatientChange: () => sync(),
       onWhatsAppSessionChange: () => sync(),
       onFinancialLedgerChange: () => sync(),
-      onUnifiedInvoiceChange: () => sync()
+      onUnifiedInvoiceChange: () => sync(),
+      onPathologyReportChange: () => sync(),
+      onPoolSettlementChange: () => sync(),
+      onClinicSopChange: () => sync(),
+      onSaaSInvoiceChange: () => sync(),
+      onSaaSPrescriptionChange: () => sync(),
+      onInventoryHoldChange: () => sync()
     });
 
     return () => {
