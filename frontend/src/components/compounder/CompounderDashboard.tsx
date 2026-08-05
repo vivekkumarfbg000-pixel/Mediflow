@@ -3237,10 +3237,10 @@ export const CompounderDashboard: React.FC = () => {
 
       {/* Sliding WhatsApp Chat Drawer */}
       <div 
-        className={
-          'fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-350 ease-in-out transform flex flex-col ' +
-          (isChatDrawerOpen ? 'translate-x-0' : 'translate-x-full')
-        }
+        className={[
+          "fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-350 ease-in-out transform flex flex-col",
+          isChatDrawerOpen ? "translate-x-0" : "translate-x-full"
+        ].join(" ")}
       >
         <div className="bg-[#075e54] p-4 text-white flex items-center justify-between shadow-md shrink-0">
           <div className="flex items-center gap-3 select-none">
@@ -3673,7 +3673,6 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         </div>
       )}
-      </div>
 
       {/* Desktop Enterprise Status Footer */}
       <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
