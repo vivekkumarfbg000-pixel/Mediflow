@@ -2309,10 +2309,8 @@ export const CompounderDashboard: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                      )}
                   </div>
                 </div>
-              </div>
 
               {/* Today's Appointments List */}
               <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
