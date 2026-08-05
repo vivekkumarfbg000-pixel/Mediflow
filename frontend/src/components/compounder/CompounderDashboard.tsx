@@ -186,6 +186,16 @@ export const CompounderDashboard: React.FC = () => {
     return map;
   }, [dataRevision]);
 
+  const daycarePatients = useMemo(() => {
+    return patients.filter(p => {
+      if (isOphthalmology) {
+        return p.vitals?.surgeryBooking && p.vitals.surgeryBooking.eye !== 'None';
+      } else {
+        return p.vitals?.gpProcedureBooking && p.vitals.gpProcedureBooking.procedure !== 'None';
+      }
+    });
+  }, [patients, isOphthalmology]);
+
   // High-Speed Memoized Dynamic Patient Workflow Calculator (< 3ms)
   const getPatientWorkflowState = useCallback((patient: Patient, appt: Appointment) => {
     const patientEncounters = cachedEncountersMap.get(patient.id) || [];
@@ -3072,18 +3082,8 @@ export const CompounderDashboard: React.FC = () => {
 
         {/* TAB 6: DAYCARE SURGERY & OT PACKAGE BILLING */}
         {activeTab === ('ot_billing' as any) && (
-          
-          const daycarePatients = patients.filter(p => {
-            if (isOphthalmology) {
-              return p.vitals?.surgeryBooking && p.vitals.surgeryBooking.eye !== 'None';
-            } else {
-              return p.vitals?.gpProcedureBooking && p.vitals.gpProcedureBooking.procedure !== 'None';
-            }
-          });
-
-          return (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
-              {/* Left Column: Scheduled Daycare List */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
+            {/* Left Column: Scheduled Daycare List */}
               <div className="lg:col-span-6 space-y-6">
                 <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-left">
                   <div className={`absolute top-0 left-0 w-full h-[2px] ${isOphthalmology ? 'bg-rose-600' : 'bg-amber-600'} opacity-60`} />
@@ -3232,9 +3232,9 @@ export const CompounderDashboard: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+</div>
+          </div>
+        )}
 
       {/* Sliding WhatsApp Chat Drawer */}
       <div 
