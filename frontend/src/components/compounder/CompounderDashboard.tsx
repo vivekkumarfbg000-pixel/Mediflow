@@ -3201,7 +3201,7 @@ export const CompounderDashboard: React.FC = () => {
                         </div>
                       </div>
                     );
-                  })}
+                  })
                 })()}
               </div>
             </div>
