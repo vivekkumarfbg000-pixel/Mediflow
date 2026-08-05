@@ -1021,9 +1021,11 @@ export class WhatsAppService {
             };
             runInsert();
 
-            const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
+            const docName = WhatsAppService.getDynamicDoctorName();
+            const clinicName = WhatsAppService.getDynamicClinicName();
+            const razorpayPayLink = `https://razorpay.me/@vitalsync3758?amount=515.00`;
             nextState = 'AWAITING_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\nDoctor Vivek ke liye checkup slot *${selectedSlotText}* (Tomorrow) lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via GPay / PhonePe / Paytm / BHIM:*\nupi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (Tomorrow) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / PhonePe / Paytm / BHIM):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
@@ -1070,11 +1072,12 @@ export class WhatsAppService {
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
             window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
 
+            const docName = WhatsAppService.getDynamicDoctorName();
             nextState = 'COMPLETED';
-            replyMessage = `🟢 *APPOINTMENT CONFIRMED & PAID!* \n\nDoctor Vivek ke saath aapka checkup slot confirm ho gaya hai! 📑\n\n• Token Number: *#TK-001*\n• Status: *Confirmed & Scheduled* 🟢\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nDoctor EMR aur Compounder Desk par aapki appointment live sync ho chuki hai! Thank you! 😊`;
+            replyMessage = `🟢 *APPOINTMENT CONFIRMED & PAID!* \n\n${docName} ke saath aapka checkup slot confirm ho gaya hai! 📑\n\n• Token Number: *#TK-001*\n• Status: *Confirmed & Scheduled* 🟢\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nDoctor EMR aur Compounder Desk par aapki appointment live sync ho chuki hai! Thank you! 😊`;
           } else {
-            const activeUpiHandle = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
-            replyMessage = `Payment verification pending. Please UPI payment complete karke *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye.\n\nUPI Link: upi://pay?pa=${activeUpiHandle}&pn=VitalSync&am=515.00&cu=INR`;
+            const razorpayPayLink = `https://razorpay.me/@vitalsync3758?amount=515.00`;
+            replyMessage = `Payment verification pending. Please Razorpay UPI payment complete karke *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye.\n\nPayment Link: ${razorpayPayLink}`;
           }
         }
         break;

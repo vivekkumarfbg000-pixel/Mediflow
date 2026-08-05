@@ -1096,7 +1096,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         className="w-full py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white-force cursor-pointer shadow-md flex justify-center items-center gap-2"
                       >
                         <span className="material-symbols-outlined text-sm text-white-force">qr_code_2</span>
-                        <span>Pay via Paytm PG (0% MDR)</span>
+                        <span>Pay via Razorpay (0% MDR Gateway)</span>
                       </button>
                     </div>
                   )}

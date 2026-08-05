@@ -1345,8 +1345,8 @@ export const BillHubTab: React.FC = () => {
                     
                     <div className="flex flex-col gap-2">
                       {[
-                        { id: 'paytm', label: 'Paytm PG (0% MDR — Primary)' },
-                        { id: 'upi', label: 'Zero-Fee Direct UPI (vitalsync@axl)' },
+                        { id: 'razorpay', label: 'Razorpay 0% MDR Payment Gateway' },
+                        { id: 'upi', label: 'Razorpay UPI Handle (razorpay.me/@vitalsync3758)' },
                         { id: 'cash', label: 'Cash Counter' }
                       ].map((item) => (
                         <label

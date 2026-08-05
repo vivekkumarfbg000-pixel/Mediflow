@@ -2205,21 +2205,6 @@ export const CompounderDashboard: React.FC = () => {
 
                   {/* Booking form details (visible once patient is selected) */}
                   {selectedApptPatient && (
-                    <div className="p-4 bg-indigo-50/30 dark:bg-indigo-900/20 border border-indigo-100/50 dark:border-indigo-700/40 rounded-2xl space-y-4 animate-fade-in">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 tracking-widest uppercase font-mono block">Selected Patient</span>
-                          <h4 className="font-bold text-sm text-slate-800 dark:text-white mt-1">{selectedApptPatient.name}</h4>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Phone: +91 {selectedApptPatient.phone} · Age: {selectedApptPatient.age}y ({selectedApptPatient.gender})</p>
-                        </div>
-                        <button 
-                          onClick={() => setSelectedApptPatient(null)}
-                          className="text-[10px] text-rose-500 hover:underline bg-transparent border-0 cursor-pointer"
-                        >
-                          Clear Selection
-                        </button>
-                      </div>
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/30 dark:border-white/10">
                         <div>
                           <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">Payment Mode</label>
