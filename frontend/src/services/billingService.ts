@@ -32,6 +32,7 @@ export class BillingService {
 
     let invoices = load<UnifiedInvoice[]>('unified_invoices', []);
     if (!isDemoAccount) {
+      const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -39,10 +40,12 @@ export class BillingService {
       ]);
       const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
       invoices = invoices.filter(i => {
+        const pod = (i as any).podId || (i as any).pod_id;
+        if (pod && currentPodId && pod !== currentPodId) return false;
         const id = i.id || '';
         const pName = String(i.patientName || '').toLowerCase();
         const pId = String(i.patientId || '');
-        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
+        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102') || id.startsWith('inv-')) return false;
         if (demoNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
@@ -243,7 +246,7 @@ export class BillingService {
 
     let ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     if (!isDemoAccount) {
-      // Purge demo/sample ledger entries for live user accounts
+      const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -251,10 +254,12 @@ export class BillingService {
       ]);
       const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
       ledgers = ledgers.filter(l => {
+        const pod = (l as any).podId || (l as any).pod_id;
+        if (pod && currentPodId && pod !== currentPodId) return false;
         const id = l.id || '';
         const pName = String(l.patientName || '').toLowerCase();
         const pId = String((l as any).patientId || '');
-        if (id.startsWith('tx-demo') || id.startsWith('tx-sample') || id.startsWith('tx-auto-') || id.startsWith('tx-ref-') || id.startsWith('tx-plat-ref-')) return false;
+        if (id.startsWith('tx-demo') || id.startsWith('tx-sample') || id.startsWith('tx-auto-') || id.startsWith('tx-ref-') || id.startsWith('tx-plat-ref-') || id.startsWith('tx-doc-') || id.startsWith('tx-lab-') || id.startsWith('tx-pharma-') || id.startsWith('tx-plat-') || id.startsWith('tx-counter-')) return false;
         if (demoNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;

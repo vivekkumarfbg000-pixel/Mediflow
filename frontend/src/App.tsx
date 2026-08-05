@@ -1085,14 +1085,11 @@ export default function App() {
         'patients', 'mediflow_patients', 'patient_registry', 'mediflow_patient_registry',
         'saas_appointments', 'mediflow_saas_appointments', 'saas_invoices',
         'saas_financial_ledgers', 'mediflow_unified_invoices', 'mediflow_financial_ledgers',
-        'financial_ledgers', 'lab_requisitions', 'medicine_bills'
+        'financial_ledgers', 'lab_requisitions', 'medicine_bills', 'unified_invoices'
       ];
       demoKeys.forEach(k => {
         try {
-          const raw = localStorage.getItem(k);
-          if (raw && (raw.includes('dfb2a1a8') || raw.includes('tx-demo') || raw.includes('Aarav Sharma') || raw.includes('Priyanka Verma'))) {
-            localStorage.removeItem(k);
-          }
+          localStorage.removeItem(k);
         } catch (_e) { /* ignore */ }
       });
     }
