@@ -1936,7 +1936,7 @@ export const CompounderDashboard: React.FC = () => {
     )}
 
         {/* TAB 2: APPOINTMENTS & TOKENS */}
-        {activeTab === 'tokens' ? (
+        {activeTab === 'tokens' && (
           <div className="space-y-6 text-left">
             {/* SUB-TAB TOGGLE */}
             <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-white/10 pb-3">
