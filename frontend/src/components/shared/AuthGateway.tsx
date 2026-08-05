@@ -583,7 +583,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     };
     checkSession();
   }, [onAuthSuccess]);
-  }, [onAuthSuccess]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);

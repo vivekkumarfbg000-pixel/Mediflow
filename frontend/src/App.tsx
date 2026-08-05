@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense, startTransition, useRef } from 're
 import { Navbar } from './components/shared/Navbar';
 import type { UserRole } from './components/shared/Navbar';
 import { api } from './services/api';
-import { StateHealingEngine, ProactiveHealthMonitor } from './services/autoHealerAgent';
+import { StateHealingEngine, ProactiveHealthMonitor, BackendAgent } from './services/autoHealerAgent';
 import { PwaSyncManager } from './pwa';
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -798,7 +798,7 @@ export default function App() {
     }
     
     // 1. Fetch profile using Unlimited Adaptive Auto-Healing Retry Engine (handles cold DB wakes smoothly)
-    const profiles = await StateHealingEngine.executeAdaptiveInfiniteHealing(async () => {
+    const profiles = await BackendAgent.retryWithExponentialBackoff(async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
