@@ -3201,7 +3201,7 @@ export const CompounderDashboard: React.FC = () => {
                         </div>
                       </div>
                     );
-                  });
+                  })}
                 })()}
               </div>
             </div>
@@ -3238,9 +3238,12 @@ export const CompounderDashboard: React.FC = () => {
           )}
 
       {/* Sliding WhatsApp Chat Drawer */}
-      <div className={`fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-350 ease-in-out transform flex flex-col ${
-        isChatDrawerOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
+      <div 
+        className={
+          'fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transition-transform duration-350 ease-in-out transform flex flex-col ' +
+          (isChatDrawerOpen ? 'translate-x-0' : 'translate-x-full')
+        }
+      >
         <div className="bg-[#075e54] p-4 text-white flex items-center justify-between shadow-md shrink-0">
           <div className="flex items-center gap-3 select-none">
             <div className="h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center font-bold text-sm shrink-0 border border-white/20">
@@ -3376,11 +3379,12 @@ export const CompounderDashboard: React.FC = () => {
           <button 
             type="submit"
             disabled={!activeSession || !replyInput.trim()} 
-            className={`p-2.5 rounded-full transition-colors border-0 shrink-0 ${
-              activeSession && replyInput.trim() 
+            className={
+              'p-2.5 rounded-full transition-colors border-0 shrink-0 ' +
+              (activeSession && replyInput.trim() 
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-slate-855 cursor-pointer shadow active:scale-95' 
-                : 'bg-slate-200 dark:bg-slate-800 text-slate-655'
-            }`}
+                : 'bg-slate-200 dark:bg-slate-800 text-slate-655')
+            }
           >
             <Send className="h-4 w-4" />
           </button>
