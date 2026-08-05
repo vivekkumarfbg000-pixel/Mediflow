@@ -453,6 +453,7 @@ class MediflowApiService {
           }
           case 'REGISTER_PATIENT': {
             const { payload } = entry;
+            const ctx = getPodContext();
             const { error } = await supabase.from('patient_registry').insert({
               id: payload.id || entry.id,
               name: payload.name,
@@ -463,7 +464,7 @@ class MediflowApiService {
               chronic_conditions: payload.chronicConditions,
               abha_id: payload.abhaId,
               token_number: payload.tokenNumber,
-              registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
+              registered_at_entity: ctx.entityId && ctx.entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' ? ctx.entityId : null
             });
             if (error) throw error;
             break;
@@ -471,6 +472,7 @@ class MediflowApiService {
 
           case 'REGISTER_WALKIN_LAB': {
             const { payload } = entry;
+            const ctx = getPodContext();
             const { error } = await supabase.from('lab_requisitions').insert({
               id: entry.id,
               encounter_id: null,
@@ -479,7 +481,7 @@ class MediflowApiService {
               test_name: payload.testName,
               barcode: payload.barcode || `WALK-${Date.now()}-${payload.testCode}`,
               status: 'pending',
-              assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+              assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
               created_at: entry.timestamp
             });
             if (error) throw error;
@@ -487,6 +489,7 @@ class MediflowApiService {
           }
           case 'CREATE_LAB_REQ_FROM_RX': {
             const { payload } = entry;
+            const ctx = getPodContext();
             const { error } = await supabase.from('lab_requisitions').insert({
               id: entry.id,
               encounter_id: null,
@@ -496,7 +499,7 @@ class MediflowApiService {
               barcode: payload.barcode || `RX-${Date.now()}-${payload.testCode}`,
               status: 'pending',
               prescription_file_url: payload.prescriptionFileUrl,
-              assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+              assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
               created_at: entry.timestamp
             });
             if (error) throw error;

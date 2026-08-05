@@ -129,14 +129,26 @@ export async function resolvePodContext(): Promise<PodContext> {
         return _ctx;
       }
 
-      // Fetch profile and look up entity safely
+      // Fetch profile safely first
       const { data: profile } = await supabase
         .from('profiles')
         .select('entity_id, role')
         .eq('id', user.id)
         .maybeSingle();
 
-      let podId = FALLBACK_POD_ID;
+      const email = String(user.email || '').toLowerCase();
+      const name = String(user.user_metadata?.display_name || user.user_metadata?.name || '').toLowerCase();
+      const isDemoUser = Boolean(
+        email === 'demo@mediflow.com' ||
+        email === 'doctor@mediflow.com' ||
+        user.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
+        name.includes('(demo)') ||
+        name.includes('(mock)')
+      );
+
+      let podId = isDemoUser ? FALLBACK_POD_ID : `pod-${user.id.slice(0, 18)}`;
+      let entityId = isDemoUser ? FALLBACK_ENTITY_ID : (profile?.entity_id || `entity-${user.id.slice(0, 18)}`);
+
       if (profile?.entity_id) {
         const { data: userEntity } = await supabase
           .from('entities')
@@ -146,39 +158,50 @@ export async function resolvePodContext(): Promise<PodContext> {
         if (userEntity?.pod_id) {
           podId = userEntity.pod_id;
         }
-      } else {
-        const isDemoUser = Boolean(user.email?.toLowerCase().includes('demo'));
-        if (!isDemoUser && user.id) {
-          podId = `pod-${user.id.slice(0, 18)}`;
-        }
       }
 
-      let labEntityId    = FALLBACK_LAB_ENTITY;
-      let pharmacyEntityId = FALLBACK_PHARM_ENTITY;
+      let labEntityId = isDemoUser ? FALLBACK_LAB_ENTITY : `lab-${user.id.slice(0, 18)}`;
+      let pharmacyEntityId = isDemoUser ? FALLBACK_PHARM_ENTITY : `pharm-${user.id.slice(0, 18)}`;
 
-      if (podId !== FALLBACK_POD_ID) {
+      if (podId && podId !== FALLBACK_POD_ID) {
         // Look up all entities for this pod to find lab and pharmacy
         const { data: siblings } = await supabase
           .from('entities')
           .select('id, entity_type')
           .eq('pod_id', podId);
 
-        if (siblings) {
-          const lab  = siblings.find(e => e.entity_type === 'lab');
+        if (siblings && siblings.length > 0) {
+          const lab = siblings.find(e => e.entity_type === 'lab');
           const pharm = siblings.find(e => e.entity_type === 'pharmacy');
-          if (lab)  labEntityId    = lab.id;
+          if (lab) labEntityId = lab.id;
           if (pharm) pharmacyEntityId = pharm.id;
         }
       }
 
+      // Automatically purge pre-seeded demo keys from browser localStorage for live non-demo accounts
+      if (!isDemoUser && typeof window !== 'undefined') {
+        const keysToPurge = [
+          'patients',
+          'saas_appointments',
+          'financial_ledgers',
+          'patient_registry',
+          'medicine_bills',
+          'lab_requisitions',
+          'mediflow_patients',
+          'mediflow_financial_ledgers',
+          'mediflow_unified_invoices'
+        ];
+        keysToPurge.forEach(k => localStorage.removeItem(k));
+      }
+
       _ctx = {
-        userId:           user.id,
-        entityId:         profile?.entity_id  || FALLBACK_ENTITY_ID,
+        userId: user.id,
+        entityId,
         podId,
-        doctorId:         profile?.role === 'doctor' ? user.id : null,
+        doctorId: profile?.role === 'doctor' ? user.id : null,
         labEntityId,
         pharmacyEntityId,
-        loaded:           true,
+        loaded: true,
       };
 
       console.debug('[Mediflow PodContext] Resolved:', {

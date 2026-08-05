@@ -77,7 +77,7 @@ export class EncounterService {
         const holdId = crypto.randomUUID();
         const newHold = {
           id: holdId,
-          pharmacyId: ctx.pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          pharmacyId: ctx.pharmacyEntityId && ctx.pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' ? ctx.pharmacyEntityId : 'pharm-dynamic',
           patientId: newEncounter.patientId,
           medicineName: med.medicineName,
           dosage: med.dosage || '',

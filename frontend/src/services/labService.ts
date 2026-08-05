@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
+import { getPodContext } from './podContext';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
 
 export const MASTER_TEST_CATALOG: DiagnosticTest[] = [
@@ -312,12 +313,12 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
-      lab_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003', // Seeded lab entity
+      lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,
       barcode,
       status: 'pending',
-      assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102',
+      assigned_technician_id: null,
       created_at: newReq.createdAt
     }).then(({ error }) => {
       if (error) console.error('[Mediflow Lab] Walk-in requisition sync failed:', error);
@@ -532,13 +533,13 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
-      lab_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003', // Seeded lab entity
+      lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,
       barcode,
       status: 'pending',
       prescription_file_url: prescriptionFileUrl,
-      assigned_technician_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102', // Lalit Prasad
+      assigned_technician_id: null,
       created_at: newReq.createdAt
     }).then(({ error }) => {
       if (error) console.error('[Mediflow Lab] Prescription dispatch to lab failed:', error);

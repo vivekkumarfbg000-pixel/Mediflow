@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { TelemetryService } from './telemetry';
 import { PatientService } from './patientService';
+import { getPodContext } from './podContext';
 import type { 
   PharmacyInventoryItem, 
   InventoryHold, 
@@ -268,7 +269,7 @@ export class PharmacyService {
       try {
         const dbRows = items.map(item => ({
           id: item.id,
-          pharmacy_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
+          pharmacy_entity_id: (getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? getPodContext().pharmacyEntityId : null,
           medicine_name: item.name,
           batch_number: item.batchNumber,
           expiry_date: item.expiryDate,
@@ -378,7 +379,7 @@ export class PharmacyService {
     // Sync to Supabase
     const dbRow = {
       id: newItem.id,
-      pharmacy_entity_id: entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
+      pharmacy_entity_id: (entityId && entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? entityId : ((getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? getPodContext().pharmacyEntityId : null),
       medicine_name: newItem.name,
       batch_number: newItem.batchNumber,
       expiry_date: newItem.expiryDate,
@@ -453,7 +454,7 @@ export class PharmacyService {
 
         dbRows.push({
           id: newItem.id,
-          pharmacy_entity_id: entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
+          pharmacy_entity_id: (entityId && entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? entityId : ((getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? getPodContext().pharmacyEntityId : null),
           medicine_name: newItem.name,
           batch_number: newItem.batchNumber,
           expiry_date: newItem.expiryDate,

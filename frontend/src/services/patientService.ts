@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
+import { getPodContext } from './podContext';
 import type { Patient, PatientVitals } from '../types';
 
 export interface PhysicalConsent {
@@ -363,7 +364,7 @@ export class PatientService {
         chronic_conditions: newPatient.chronicConditions,
         abha_id: newPatient.abhaId,
         token_number: newPatient.tokenNumber,
-        registered_at_entity: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'
+        registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') ? getPodContext().entityId : null
       },
       timestamp: new Date().toISOString(),
       attempts: 0
