@@ -1519,7 +1519,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
               onClick={async () => {
                 await WhatsAppSupportBotService.processSupportQuery(
                   'Need Cashfree production credential approval & domain CORS setup for new branch',
-                  { name: 'SaaS Admin', clinicName: 'VitalSync Platform', role: 'platform_admin' }
+                  { name: 'SaaS Admin', clinicName: 'VitalSync Platform', role: 'doctor' }
                 );
               }}
               className="px-3 py-1.5 rounded-xl border border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-700 text-[10px] font-extrabold uppercase tracking-wider cursor-pointer shadow-2xs flex items-center gap-1 transition-all"
