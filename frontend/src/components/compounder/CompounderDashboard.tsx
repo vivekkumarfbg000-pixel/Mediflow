@@ -3200,11 +3200,9 @@ export const CompounderDashboard: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                    );
-                  })
-                })()}
-              </div>
-            </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Daycare Room Log Timelines */}
                 <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
