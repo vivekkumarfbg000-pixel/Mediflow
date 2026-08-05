@@ -541,12 +541,17 @@ class MediflowApiService {
     this.isSyncing = true;
     this.notify();
     try {
+      const ctx = getPodContext();
+      const currentPodId = ctx.podId || 'unassigned-pod';
+
       // ─── Build role-conditional queries before parallelizing ──────────────
       const encounterFetch = supabaseCircuit.execute<any>(async () => {
             const selectFields = this.simulatedRole === 'pharmacy'
               ? `id, patient_id, doctor_id, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`
               : `id, patient_id, doctor_id, clinical_notes, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`;
-            const { data, error } = await supabase.from('encounters').select(selectFields);
+            let query = supabase.from('encounters').select(selectFields);
+            if (currentPodId) query = query.eq('pod_id', currentPodId);
+            const { data, error } = await query;
             if (error) throw error;
             return data;
           }, () => {
@@ -585,6 +590,7 @@ class MediflowApiService {
         patient:patient_registry(name),
         lab_reports(result_value)
       `);
+      if (currentPodId) reqQuery = reqQuery.eq('pod_id', currentPodId);
       if (this.simulatedRole === 'lab_technician') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -612,7 +618,9 @@ class MediflowApiService {
         }),
         // 2. patient_registry
         supabaseCircuit.execute(async () => {
-          const { data, error } = await supabase.from('patient_registry').select('*');
+          let q = supabase.from('patient_registry').select('*');
+          if (currentPodId) q = q.eq('pod_id', currentPodId);
+          const { data, error } = await q;
           if (error) throw error;
           return data;
         }, () => {
@@ -625,7 +633,9 @@ class MediflowApiService {
         }),
         // 3. whatsapp_sessions
         supabaseCircuit.execute(async () => {
-          const { data, error } = await supabase.from('whatsapp_sessions').select('*');
+          let q = supabase.from('whatsapp_sessions').select('*');
+          if (currentPodId) q = q.eq('pod_id', currentPodId);
+          const { data, error } = await q;
           if (error) throw error;
           return data;
         }, () => {
@@ -637,7 +647,7 @@ class MediflowApiService {
           }));
         }),
         // 4. clinic_sops
-        Promise.resolve(supabase.from('clinic_sops').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(currentPodId ? supabase.from('clinic_sops').select('*').eq('pod_id', currentPodId) : supabase.from('clinic_sops').select('*')).then(r => r.data).catch(() => null),
         // 5. medicine_bills
         Promise.resolve(supabase.from('medicine_bills').select(`
           id, patient_id, encounter_id, subtotal, loyalty_discount_percent,
@@ -649,7 +659,7 @@ class MediflowApiService {
             inventory_item_id, name, batch_number, expiry_date, quantity,
             mrp, selling_price, discount_percent, gst_percent, line_total
           )
-        `)).then(r => r.data).catch(() => null),
+        `).eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
         // 6. encounters (role-gated promise already built above)
         encounterFetch,
         // 7. lab_requisitions (role-filtered query already built above)
@@ -657,21 +667,21 @@ class MediflowApiService {
         // 8. reagent_inventory
         Promise.resolve(supabase.from('reagent_inventory').select('*')).then(r => r.data).catch(() => null),
         // 9. inventory_holds
-        Promise.resolve(supabase.from('inventory_holds').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('inventory_holds').select('*').eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
         // 10. unified_invoices
         Promise.resolve(supabase.from('unified_invoices').select(`
           id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
           platform_fee, total_amount, upi_qr_payload, payment_status, created_at,
           patient:patient_registry(name, phone)
-        `)).then(r => r.data).catch(() => null),
+        `).eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
         // 11. seasonal_demand_forecasts
         Promise.resolve(supabase.from('seasonal_demand_forecasts').select('*')).then(r => r.data).catch(() => null),
         // 12. clinic_staff
-        Promise.resolve(supabase.from('clinic_staff').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(currentPodId ? supabase.from('clinic_staff').select('*').eq('pod_id', currentPodId) : supabase.from('clinic_staff').select('*')).then(r => r.data).catch(() => null),
         // 13. financial_ledgers
-        Promise.resolve(supabase.from('financial_ledgers').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('financial_ledgers').select('*').eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
         // 14. appointments
-        Promise.resolve(supabase.from('appointments').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('appointments').select('*').eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
       ]);
 
       // ─── Process consent IDs (needed to filter patients) ─────────────────

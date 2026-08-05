@@ -451,19 +451,13 @@ export const DoctorDashboard: React.FC = () => {
       setWhatsAppSessions(api.getWhatsAppSessions());
 
       // Fetch live remote DB records scoped to active tenant pod ID in a single Promise.all batch
-      const currentPodId = activePod?.id || activeDoctorProfile?.pod_id || activeDoctorProfile?.podId;
-      
-      let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
-      let ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
-      let patientsQuery = supabase.from('patient_registry').select('*').order('registered_at', { ascending: false });
-      let sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
+      const currentPodId = activePod?.id || activeDoctorProfile?.pod_id || activeDoctorProfile?.podId || getPodContext().podId;
+      const targetPodId = currentPodId || 'unassigned-pod';
 
-      if (currentPodId) {
-        apptsQuery = apptsQuery.eq('pod_id', currentPodId);
-        ledgersQuery = ledgersQuery.eq('pod_id', currentPodId);
-        patientsQuery = patientsQuery.eq('pod_id', currentPodId);
-        sessionsQuery = sessionsQuery.eq('pod_id', currentPodId);
-      }
+      let apptsQuery = supabase.from('appointments').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
+      let ledgersQuery = supabase.from('financial_ledgers').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
+      let patientsQuery = supabase.from('patient_registry').select('*').eq('pod_id', targetPodId).order('registered_at', { ascending: false });
+      let sessionsQuery = supabase.from('whatsapp_sessions').select('*').eq('pod_id', targetPodId).order('last_interaction', { ascending: false });
 
       Promise.all([
         apptsQuery,
