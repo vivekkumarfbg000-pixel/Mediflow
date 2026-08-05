@@ -29,7 +29,14 @@ export class WhatsAppService {
             const email = String(parsed.email || '').toLowerCase();
             const id = String(parsed.id || '').toLowerCase();
             const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
-            isDemoAccount = Boolean(parsed.isDemo === true || email.includes('demo') || id.includes('demo') || name.includes('demo'));
+            isDemoAccount = Boolean(
+              parsed.isDemo === true ||
+              email === 'demo@mediflow.com' ||
+              email === 'doctor@mediflow.com' ||
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
+              name.includes('(demo)') ||
+              name.includes('(mock)')
+            );
           }
         }
       } catch (_e) { /* ignore */ }

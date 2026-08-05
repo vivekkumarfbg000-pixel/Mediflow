@@ -1072,6 +1072,30 @@ export default function App() {
     setCrossDomainCookie(true);
     setSession(session);
     setActiveProfile(finalProfile);
+
+    // Purge leftover demo/mock cache keys from localStorage for live non-demo user accounts
+    const isDemoAccount = Boolean(
+      finalProfile?.isDemo === true ||
+      String(finalProfile?.email || '').toLowerCase().includes('demo') ||
+      String(finalProfile?.id || '').toLowerCase().includes('demo')
+    );
+
+    if (!isDemoAccount && typeof window !== 'undefined') {
+      const demoKeys = [
+        'patients', 'mediflow_patients', 'patient_registry', 'mediflow_patient_registry',
+        'saas_appointments', 'mediflow_saas_appointments', 'saas_invoices',
+        'saas_financial_ledgers', 'mediflow_unified_invoices', 'mediflow_financial_ledgers',
+        'financial_ledgers', 'lab_requisitions', 'medicine_bills'
+      ];
+      demoKeys.forEach(k => {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw && (raw.includes('dfb2a1a8') || raw.includes('tx-demo') || raw.includes('Aarav Sharma') || raw.includes('Priyanka Verma'))) {
+            localStorage.removeItem(k);
+          }
+        } catch (_e) { /* ignore */ }
+      });
+    }
     
     let defaultRole: UserRole = 'doctor';
     if (finalProfile.role === 'doctor') defaultRole = 'doctor';

@@ -80,6 +80,8 @@ export class RealtimeSyncService {
         'lab_requisitions': ['lab_requisitions'],
         'inventory_holds': ['inventory_holds'],
         'pathology_reports': ['pathology_reports'],
+        'saas_invoices': ['saas_invoices', 'unified_invoices'],
+        'saas_prescriptions': ['saas_prescriptions', 'prescriptions'],
         'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
         'clinic_sops': ['clinic_sops']
       };

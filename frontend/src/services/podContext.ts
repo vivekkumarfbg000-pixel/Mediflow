@@ -114,6 +114,11 @@ export async function resolvePodContext(): Promise<PodContext> {
         if (userEntity?.pod_id) {
           podId = userEntity.pod_id;
         }
+      } else {
+        const isDemoUser = Boolean(user.email?.toLowerCase().includes('demo'));
+        if (!isDemoUser && user.id) {
+          podId = `pod-${user.id.slice(0, 18)}`;
+        }
       }
 
       let labEntityId    = FALLBACK_LAB_ENTITY;
