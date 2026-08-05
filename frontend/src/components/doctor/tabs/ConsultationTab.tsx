@@ -74,6 +74,8 @@ interface ConsultationTabProps {
   handleToggleTest: (test: DiagnosticTest) => void;
   handleSaveEncounter: () => void;
   handleLaunchVideoConsult?: () => void;
+  activeDoctorProfile?: any;
+  activeProfile?: any;
 }
 
 export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
@@ -542,9 +544,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <p>Connected Care Clinic Network</p>
             </div>
             <div class="doc-info">
-              <strong>${activeDoctorProfile?.display_name || activeProfile?.display_name || 'Dr. Practitioner'}</strong><br/>
-              ${activeDoctorProfile?.specialization || activeProfile?.specialization || 'Clinical Specialist'}<br/>
-              ${activePod?.name || activeDoctorProfile?.clinicName || 'Care Pod Tenant'} (Code: ${activePod?.clinicCode || activeDoctorProfile?.clinicCode || 'MF-LIVE01'})<br/>
+              <strong>${activePod?.doctor_name || 'Dr. Practitioner'}</strong><br/>
+              Ophthalmology & Clinical Specialist<br/>
+              ${activePod?.name || 'Care Pod Tenant'} (Code: ${activePod?.clinic_code || activePod?.clinicCode || 'MF-LIVE01'})<br/>
               Date: ${new Date().toLocaleDateString('en-IN')}
             </div>
           </div>
@@ -2975,7 +2977,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     Reg No: MCI-84992-A • Phone: +91 99342 98453
                   </p>
                   <p className="text-[9px] text-slate-500 font-medium">
-                    🏢 {activePod?.clinicCode ? `Clinic Hub: ${activePod.name || 'Primary Pod'} (Code: ${activePod.clinicCode})` : (activeProfile?.clinicName || "VitalSync Connected Clinic Group")}
+                    🏢 {activePod?.clinicCode || activePod?.clinic_code ? `Clinic Hub: ${activePod.name || 'Primary Pod'} (Code: ${activePod.clinicCode || activePod.clinic_code})` : "VitalSync Connected Clinic Group"}
                   </p>
                 </div>
 

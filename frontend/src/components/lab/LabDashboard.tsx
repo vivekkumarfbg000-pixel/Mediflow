@@ -2223,10 +2223,10 @@ export const LabDashboard: React.FC = () => {
                 🏥 Primary Clinic Connection
               </h3>
               <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
-                <p className="text-xs font-bold text-slate-800">{activePod?.name || activeProfile?.clinicName || 'Primary Clinical Network'}</p>
+                <p className="text-xs font-bold text-slate-800">{activePod?.name || 'Primary Clinical Network'}</p>
                 <div className="text-[10px] text-slate-500 space-y-1">
-                  <div>Clinic Code: <span className="font-mono font-bold text-slate-800 bg-slate-800/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || activeProfile?.clinicCode || 'N/A'}</span></div>
-                  <div>Location: {activePod?.location || activeProfile?.clinicAddress || 'Clinic Hub'}</div>
+                  <div>Clinic Code: <span className="font-mono font-bold text-slate-800 bg-slate-800/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || activePod?.clinic_code || 'N/A'}</span></div>
+                  <div>Location: {activePod?.location || 'Clinic Hub'}</div>
                   <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
                 </div>
               </div>

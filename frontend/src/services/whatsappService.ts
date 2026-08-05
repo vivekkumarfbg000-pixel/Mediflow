@@ -69,6 +69,23 @@ export class WhatsAppService {
     return 'your doctor';
   }
 
+  static getDynamicClinicName(): string {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.clinicName || parsed?.clinic_name) return parsed.clinicName || parsed.clinic_name;
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    return 'Clinic Counter';
+  }
+
+  static getDynamicDoctorName(): string {
+    return this.getActiveDoctorName();
+  }
+
   // ── Phase 4: Leaky-Bucket Rate-Limited Dispatch Queue (Max 15 msgs/sec) ────
   private static dispatchQueue: Array<() => Promise<any>> = [];
   private static isProcessingQueue = false;

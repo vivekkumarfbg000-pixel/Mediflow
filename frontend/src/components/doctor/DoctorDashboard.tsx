@@ -1536,6 +1536,8 @@ Keep the tone professional, clinical, objective, and precise.`;
                   handleToggleTest={handleToggleTest}
                   handleSaveEncounter={handleSaveEncounter}
                   handleLaunchVideoConsult={handleLaunchVideoConsult}
+                  activeDoctorProfile={activeDoctorProfile}
+                  activeProfile={activeDoctorProfile}
                 />
               );
             case 'financials':
