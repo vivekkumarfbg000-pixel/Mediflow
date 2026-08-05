@@ -518,11 +518,11 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Active Clinic Pod</span>
                   <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono text-[9px] font-black uppercase">
-                    {activePod?.clinicCode || 'MF-PATNA101'}
+                    {activePod?.clinicCode || (profile?.id ? 'MF-' + profile.id.slice(0, 5).toUpperCase() : 'MF-LIVE01')}
                   </span>
                 </div>
-                <h4 className="text-sm font-black text-slate-850">{activeEntity?.name || 'Apex Care Clinic'}</h4>
-                <p className="text-xs text-slate-600 font-medium">{activeEntity?.address || 'Patna Main Branch, Bihar, India'}</p>
+                <h4 className="text-sm font-black text-slate-850">{activeEntity?.name || profile?.clinicName || (profile?.display_name ? profile.display_name + "'s Care Clinic" : 'Clinical Practice')}</h4>
+                <p className="text-xs text-slate-600 font-medium">{activeEntity?.address || profile?.clinicAddress || 'Main Branch, India'}</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

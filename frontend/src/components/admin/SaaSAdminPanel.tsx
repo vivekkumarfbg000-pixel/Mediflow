@@ -367,7 +367,7 @@ export const SaaSAdminPanel: React.FC = () => {
         const demoPods: PodInfo[] = [{
           id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
           name: 'Apex Eye & Dental Care Clinic',
-          location: 'Patna, Bihar',
+          location: 'Clinic Hub',
           clinic_code: 'MF-APEX',
           is_active: true,
           created_at: new Date().toISOString(),
@@ -429,7 +429,7 @@ export const SaaSAdminPanel: React.FC = () => {
       const newPod: PodInfo = {
         id: crypto.randomUUID(),
         name: provisionForm.name,
-        location: provisionForm.location || 'Patna, Bihar',
+        location: provisionForm.location || 'Clinic Hub',
         clinic_code: generatedCode,
         is_active: true,
         created_at: new Date().toISOString(),
@@ -458,7 +458,7 @@ export const SaaSAdminPanel: React.FC = () => {
       } : prev);
 
       // Dispatch WhatsApp Invitation
-      const msg = `🏥 *WELCOME TO MEDIFLOW PLATFORM!* 🚀\n\nNamaste ${provisionForm.doctorName}!\nAapki clinic *${provisionForm.name}* (${generatedCode}) Mediflow Platform Operations par onboard ho gayi hai.\n\n🔑 *Portal Access Credentials*:\n• Clinic Code: ${generatedCode}\n• Platform Commission: ${provisionForm.platformFee}%\n• Location: ${provisionForm.location || 'Patna, Bihar'}\n\nYour 24/7 DevSecOps Auto-Healer & WhatsApp Care Loop are live!`;
+      const msg = `🏥 *WELCOME TO MEDIFLOW PLATFORM!* 🚀\n\nNamaste ${provisionForm.doctorName}!\nAapki clinic *${provisionForm.name}* (${generatedCode}) Mediflow Platform Operations par onboard ho gayi hai.\n\n🔑 *Portal Access Credentials*:\n• Clinic Code: ${generatedCode}\n• Platform Commission: ${provisionForm.platformFee}%\n• Location: ${provisionForm.location || 'Clinic Hub'}\n\nYour 24/7 DevSecOps Auto-Healer & WhatsApp Care Loop are live!`;
       try {
         api.pushWhatsAppMessageFromBot(provisionForm.phone, msg);
       } catch (_e) {
@@ -1519,7 +1519,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
               onClick={async () => {
                 await WhatsAppSupportBotService.processSupportQuery(
                   'Need Cashfree production credential approval & domain CORS setup for new branch',
-                  { name: 'Dr. Sameer Patel', clinicName: 'Patna Heart Institute', role: 'doctor' }
+                  { name: activeProfile?.display_name || 'Dr. Practitioner', clinicName: activePod?.name || activeProfile?.clinicName || 'Heart & Specialty Institute', role: 'doctor' }
                 );
               }}
               className="px-3 py-1.5 rounded-xl border border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-700 text-[10px] font-extrabold uppercase tracking-wider cursor-pointer shadow-2xs flex items-center gap-1 transition-all"
@@ -1956,7 +1956,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                                 </span>
                               </div>
                               <h5 className="font-extrabold text-xs text-slate-850 mt-1">{pod.name}</h5>
-                              <p className="text-[10px] text-slate-400 font-medium">{pod.location || 'Patna, Bihar'}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{pod.location || 'Clinic Hub'}</p>
                             </div>
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
                               health >= 95 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' : 'bg-amber-50 text-amber-700 border border-amber-200/50'
@@ -2038,7 +2038,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                               <td className="py-3 font-mono font-bold text-indigo-600">{pod.clinic_code}</td>
                               <td className="py-3 font-bold text-slate-800">
                                 <div>{pod.name}</div>
-                                <div className="text-[10px] text-slate-400 font-normal">{pod.location || 'Patna, Bihar'}</div>
+                                <div className="text-[10px] text-slate-400 font-normal">{pod.location || 'Clinic Hub'}</div>
                               </td>
                               <td className="py-3">
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider ${
@@ -2860,7 +2860,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                         {selectedPodForInspection.health_score || 99}% Nominal
                       </span>
                     </h3>
-                    <p className="text-[11px] text-slate-500 font-mono">Clinic Code: {selectedPodForInspection.clinic_code} · {selectedPodForInspection.location || 'Patna, Bihar'}</p>
+                    <p className="text-[11px] text-slate-500 font-mono">Clinic Code: {selectedPodForInspection.clinic_code} · {selectedPodForInspection.location || 'Clinic Hub'}</p>
                   </div>
                 </div>
                 <button

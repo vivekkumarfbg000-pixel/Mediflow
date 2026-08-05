@@ -687,7 +687,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         className="w-full bg-zinc-950 hover:bg-zinc-900 border border-slate-200/60 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
-                        1-Tap Auto-Refill (Patna Pharmacy)
+                        1-Tap Auto-Refill (Clinic Counter)
                       </button>
                     </div>
 
@@ -709,7 +709,7 @@ export const PatientMobileDashboard: React.FC = () => {
                         className="w-full bg-zinc-950 hover:bg-zinc-900 border border-slate-200/60 text-cyan-400 py-2.5 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all flex justify-center items-center gap-1 cursor-pointer"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
-                        1-Tap Auto-Refill (Patna Pharmacy)
+                        1-Tap Auto-Refill (Clinic Counter)
                       </button>
                     </div>
                   </div>

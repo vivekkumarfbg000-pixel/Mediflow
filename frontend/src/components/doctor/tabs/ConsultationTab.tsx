@@ -542,9 +542,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <p>Connected Care Clinic Network</p>
             </div>
             <div class="doc-info">
-              <strong>Dr. Amit Arya, MBBS, MS</strong><br/>
-              Ophthalmology Specialist<br/>
-              Patna West Pod Tenant (MF-PATNA101)<br/>
+              <strong>${activeDoctorProfile?.display_name || activeProfile?.display_name || 'Dr. Practitioner'}</strong><br/>
+              ${activeDoctorProfile?.specialization || activeProfile?.specialization || 'Clinical Specialist'}<br/>
+              ${activePod?.name || activeDoctorProfile?.clinicName || 'Care Pod Tenant'} (Code: ${activePod?.clinicCode || activeDoctorProfile?.clinicCode || 'MF-LIVE01'})<br/>
               Date: ${new Date().toLocaleDateString('en-IN')}
             </div>
           </div>
@@ -2908,9 +2908,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   }}
                 >
                   <option value="">Select a Network Specialist to Refer...</option>
-                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317103">Dr. Sinha (Cardiologist) - Patna Central</option>
-                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317102">Dr. Anjali (Gynecologist) - Kankarbagh Pod</option>
-                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317101">Dr. Raj (Pediatrician) - Patna West</option>
+                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317103">Dr. Sinha (Cardiologist) - Central Hub</option>
+                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317102">Dr. Anjali (Gynecologist) - South Hub</option>
+                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317101">Dr. Raj (Pediatrician) - Regional Hub</option>
                 </select>
                 <span className="material-symbols-outlined text-slate-600 absolute right-3 top-2.5 text-sm pointer-events-none">arrow_drop_down</span>
               </div>
@@ -2975,7 +2975,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     Reg No: MCI-84992-A • Phone: +91 99342 98453
                   </p>
                   <p className="text-[9px] text-slate-500 font-medium">
-                    🏢 {activePod?.clinicCode ? `Clinic Hub: Patna (Code: ${activePod.clinicCode})` : "VitalSync Patna Clinic Group"}
+                    🏢 {activePod?.clinicCode ? `Clinic Hub: ${activePod.name || 'Primary Pod'} (Code: ${activePod.clinicCode})` : (activeProfile?.clinicName || "VitalSync Connected Clinic Group")}
                   </p>
                 </div>
 

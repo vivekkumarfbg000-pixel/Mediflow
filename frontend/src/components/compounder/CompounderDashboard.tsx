@@ -2981,7 +2981,7 @@ export const CompounderDashboard: React.FC = () => {
                     Pharmacy Inventory &amp; Stock Catalog
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Real-time Patna ecosystem medicine catalog lookup. View expiry dates, FEFO batches, prices, and stock indicators.
+                    Real-time clinic ecosystem medicine catalog lookup. View expiry dates, FEFO batches, prices, and stock indicators.
                   </p>
                 </div>
 

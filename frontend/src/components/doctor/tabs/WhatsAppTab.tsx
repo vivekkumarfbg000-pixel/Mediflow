@@ -1163,26 +1163,13 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           result = { error: `Server response error: ${res.status} (${res.statusText || 'Unknown'})` };
                         }
                         if (!res.ok || result.error) {
-                          console.warn('[WhatsApp Onboarding] Activating connection with clinic credentials.');
-                          const conn = {
-                            id: `waba-conn-${Date.now()}`,
-                            phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+919608032073',
-                            phone_number_id: onboardPhoneNumberId || '105829471928374',
-                            waba_id: 'waba-act-987654321',
-                            is_active: true,
-                            created_at: new Date().toISOString()
-                          };
-                          setActiveWabaConnection(conn);
-                          localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
-                          setOnboardStep(3);
-                          setIsOnboarding(false);
-                          return;
+                          throw new Error(result.error || 'Failed to verify Meta WABA credentials with backend server.');
                         } else {
                           const conn = result.connection || {
                             id: `waba-conn-${Date.now()}`,
-                            phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+919608032073',
-                            phone_number_id: onboardPhoneNumberId || '105829471928374',
-                            waba_id: 'waba-act-987654321',
+                            phone_number: clinicPhoneInput ? `+91${clinicPhoneInput.replace(/\D/g, '')}` : '+910000000000',
+                            phone_number_id: onboardPhoneNumberId,
+                            waba_id: onboardWabaId || 'waba-act-custom',
                             is_active: true,
                             created_at: new Date().toISOString()
                           };
@@ -1190,19 +1177,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
                           setOnboardStep(3);
                         }
-                      } catch (err) {
-                        console.warn('[WhatsApp Onboarding] Activating connection on network fallback.');
-                        const conn = {
-                          id: `waba-conn-${Date.now()}`,
-                          phone_number: clinicPhoneInput ? `+91${clinicPhoneInput}` : '+919608032073',
-                          phone_number_id: onboardPhoneNumberId || '105829471928374',
-                          waba_id: 'waba-act-987654321',
-                          is_active: true,
-                          created_at: new Date().toISOString()
-                        };
-                        setActiveWabaConnection(conn);
-                        localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
-                        setOnboardStep(3);
+                      } catch (err: any) {
+                        console.error('[WhatsApp Onboarding] Connection error:', err);
+                        alert(err.message || 'WhatsApp Cloud API connection failed. Please verify your Meta Phone ID and Access Token.');
+                        setIsOnboarding(false);
                       } finally {
                         clearTimeout(watchdog);
                         setIsOnboarding(false);

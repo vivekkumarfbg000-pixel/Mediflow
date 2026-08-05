@@ -100,7 +100,7 @@ export class ResourceAllocationAgent {
       return {
         success: false,
         message: `LAB REAGENT DEFICIT: Reagent ${match?.reagentName || 'catalog'} stock is critically low.`,
-        detail: `Stock level: ${currentStock}ml (Minimum required: 20ml). Switch collection to Patna Central Hub.`
+        detail: `Stock level: ${currentStock}ml (Minimum required: 20ml). Switch collection to Primary Central Hub.`
       };
     }
 

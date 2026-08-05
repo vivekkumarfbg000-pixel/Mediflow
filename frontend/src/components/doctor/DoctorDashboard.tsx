@@ -223,32 +223,19 @@ export const DoctorDashboard: React.FC = () => {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('vitalsync_waba_connection');
-      if (saved === 'disconnected') {
+      if (saved === 'disconnected' || !saved) {
         setActiveWabaConnection(null);
-      } else if (saved) {
-        setActiveWabaConnection(JSON.parse(saved));
       } else {
-        const defaultWaba = {
-          id: 'waba-conn-default-1001',
-          phone_number: '+919608032073',
-          phone_number_id: '105829471928374',
-          waba_id: 'waba-act-987654321',
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
-        setActiveWabaConnection(defaultWaba);
-        localStorage.setItem('vitalsync_waba_connection', JSON.stringify(defaultWaba));
+        const parsed = JSON.parse(saved);
+        if (parsed?.phone_number === '+919608032073' || parsed?.id === 'waba-conn-default-1001') {
+          localStorage.removeItem('vitalsync_waba_connection');
+          setActiveWabaConnection(null);
+        } else {
+          setActiveWabaConnection(parsed);
+        }
       }
     } catch (_e) {
-      const defaultWaba = {
-        id: 'waba-conn-default-1001',
-        phone_number: '+919608032073',
-        phone_number_id: '105829471928374',
-        waba_id: 'waba-act-987654321',
-        is_active: true,
-        created_at: new Date().toISOString()
-      };
-      setActiveWabaConnection(defaultWaba);
+      setActiveWabaConnection(null);
     }
   }, []);
 
@@ -2078,7 +2065,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <span className="text-slate-600">·</span>
                 Clinic Code:
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
-                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || 'MF-PATNA101'}
+                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || ('MF-' + (activeDoctorProfile?.id ? activeDoctorProfile.id.slice(0, 5).toUpperCase() : 'LIVE01'))}
                 </span>
                 <span className={`flex sm:hidden items-center gap-1 text-[10px] font-semibold pl-1 font-mono ${isOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full animate-pulse inline-block ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
@@ -2089,17 +2076,6 @@ Keep the tone professional, clinical, objective, and precise.`;
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
-            {!(activePod || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || activeDoctorProfile?.pod_id || activeDoctorProfile?.clinicId) && (
-              <button
-                type="button"
-                onClick={() => setIsRegistrationOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-extrabold transition-all cursor-pointer shadow-xs"
-                title="Register New Clinic Workspace"
-              >
-                <span>➕ Register Clinic</span>
-              </button>
-            )}
-
             {/* Status pill - hidden on small mobile viewports */}
             <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
               <span className="flex h-1.5 w-1.5 relative">
@@ -2170,7 +2146,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       <div className="hidden lg:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Mediflow Realtime Engine · {activePod?.name || activePod?.clinicName || 'Apex Care Clinic'} Node</span>
+          <span>Mediflow Realtime Engine · {activePod?.name || activePod?.clinicName || activeDoctorProfile?.clinicName || (headerDoctorTitle + "'s Clinic")} Node</span>
         </div>
         <div className="flex items-center gap-4">
           <span>Sub-300ms Outbound WhatsApp</span>
@@ -2212,8 +2188,8 @@ Keep the tone professional, clinical, objective, and precise.`;
       <WhatsAppTestDispatcherModal
         isOpen={isTestWhatsAppOpen}
         onClose={() => setIsTestWhatsAppOpen(false)}
-        clinicName={activePod?.name || 'VitalSync Smart Clinic'}
-        doctorName={activePod?.doctor_name || 'Dr. Doctor'}
+        clinicName={activePod?.name || activeDoctorProfile?.clinicName || (headerDoctorTitle + "'s Care Clinic")}
+        doctorName={headerDoctorTitle}
       />
 
       {isPlacardModalOpen && (
@@ -2227,15 +2203,15 @@ Keep the tone professional, clinical, objective, and precise.`;
               ✕
             </button>
             <ClinicPlacardGenerator
-              clinicName={activePod?.name || 'VitalSync Smart Clinic'}
-              activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || localStorage.getItem('vitalsync_waba_number') || '+919608032073'}
+              clinicName={activePod?.name || activeDoctorProfile?.clinicName || (headerDoctorTitle + "'s Care Clinic")}
+              activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || localStorage.getItem('vitalsync_waba_number') || '+910000000000'}
             />
           </div>
         </div>
       )}
 
       {/* Floating 24/7 Mediflow AI Support Widget */}
-      <WhatsAppSupportModal userRole="doctor" userName={activePod?.doctor_name || 'Dr. Doctor'} clinicName={activePod?.name || 'VitalSync Smart Clinic'} />
+      <WhatsAppSupportModal userRole="doctor" userName={headerDoctorTitle} clinicName={activePod?.name || activeDoctorProfile?.clinicName || (headerDoctorTitle + "'s Care Clinic")} />
     </div>
   );
 };

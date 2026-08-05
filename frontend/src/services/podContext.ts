@@ -44,15 +44,47 @@ export interface PodContext {
   loaded:          boolean;
 }
 
-let _ctx: PodContext = {
-  userId:          null,
-  entityId:        FALLBACK_ENTITY_ID,
-  podId:           FALLBACK_POD_ID,
-  doctorId:        null,
-  labEntityId:     FALLBACK_LAB_ENTITY,
-  pharmacyEntityId: FALLBACK_PHARM_ENTITY,
-  loaded:          false,
-};
+function getInitialPodContext(): PodContext {
+  let isDemo = false;
+  let userId: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('vitalsync_cached_profile');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed) {
+          userId = parsed.id || null;
+          const email = String(parsed.email || '').toLowerCase();
+          isDemo = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || userId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+        }
+      }
+    } catch (_e) { /* ignore */ }
+  }
+
+  if (isDemo) {
+    return {
+      userId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      entityId: FALLBACK_ENTITY_ID,
+      podId: FALLBACK_POD_ID,
+      doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      labEntityId: FALLBACK_LAB_ENTITY,
+      pharmacyEntityId: FALLBACK_PHARM_ENTITY,
+      loaded: false,
+    };
+  }
+
+  return {
+    userId,
+    entityId: userId ? `entity-${userId.slice(0, 18)}` : 'unassigned-entity',
+    podId: userId ? `pod-${userId.slice(0, 18)}` : 'unassigned-pod',
+    doctorId: userId,
+    labEntityId: userId ? `lab-${userId.slice(0, 18)}` : 'unassigned-lab',
+    pharmacyEntityId: userId ? `pharm-${userId.slice(0, 18)}` : 'unassigned-pharmacy',
+    loaded: false,
+  };
+}
+
+let _ctx: PodContext = getInitialPodContext();
 
 let _resolvePromise: Promise<PodContext> | null = null;
 

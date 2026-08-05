@@ -368,16 +368,16 @@ export class WhatsAppService {
                 }
 
                 nextState = 'AWAITING_PAYMENT';
-                replyMessage = `✅ *12-Digit UPI UTR Received!* \n\n• *UTR Reference*: \`${utrNumber}\`\n• *Amount*: ₹${pendingInvoices[0]?.totalAmount || 500}.00\n\nAapka UPI UTR reference Patna clinic counter desk par send kar diya gaya hai. Compounder desk status verify karte hi token ACTIVE ho jayega! 🟢\n\nReply **STATUS** to check clearance. 🩺`;
+                replyMessage = `✅ *12-Digit UPI UTR Received!* \n\n• *UTR Reference*: \`${utrNumber}\`\n• *Amount*: ₹${pendingInvoices[0]?.totalAmount || 500}.00\n\nAapka UPI UTR reference ${this.getDynamicClinicName()} counter desk par send kar diya gaya hai. Compounder desk status verify karte hi token ACTIVE ho jayega! 🟢\n\nReply **STATUS** to check clearance. 🩺`;
               } else if (clearedInvoices.length > 0) {
                 nextState = 'COMPLETED';
                 const tokenCode = clearedInvoices[0].id.substring(0, 5).toUpperCase();
-                replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared ✅\n • Token Number: #${tokenCode}\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
+                replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared ✅\n • Token Number: #${tokenCode}\n\nPhysical visit token is active at ${this.getDynamicClinicName()} counter. Thank you for choosing VitalSync! 🩺`;
               } else {
                 // Strict Security: Unpaid appointments remain pending. Do NOT auto-clear on unverified user text assertion.
                 nextState = 'AWAITING_PAYMENT';
                 const pendingAmt = pendingInvoices[0]?.totalAmount || 500;
-                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Bank/PhonePe/Gateway.\n\n• *Send UPI UTR*: Reply with your 12-digit UTR number (e.g. \`420198421092\`) or screenshot.\n• *Counter Cash/UPI*: Present UTR to compounder at Patna clinic counter.\n\nReply **STATUS** to re-check after sending UTR. 🩺`;
+                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Bank/PhonePe/Gateway.\n\n• *Send UPI UTR*: Reply with your 12-digit UTR number (e.g. \`420198421092\`) or screenshot.\n• *Counter Cash/UPI*: Present UTR to compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after sending UTR. 🩺`;
               }
             } else {
               nextState = 'COMPLETED';
@@ -505,7 +505,7 @@ export class WhatsAppService {
                 sessionData.draftMedicineBill = draftBill;
                 sessionData.medicineOrderStage = 'CHOOSING_DELIVERY';
 
-                replyMessage = `💊 *Live Patna Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${matchedItem.price.toFixed(2)}\n• Subtotal: ₹${itemTotal.toFixed(2)} (+₹${gstAmt.toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
+                replyMessage = `💊 *Live ${this.getDynamicClinicName()} Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${matchedItem.price.toFixed(2)}\n• Subtotal: ₹${itemTotal.toFixed(2)} (+₹${gstAmt.toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
               } else {
                 replyMessage = `Aapka medicine query *"${text}"* match nahi hua. ⚠️ Hamare live catalog mein Paracetamol, Metformin, Amoxicillin, Atorvastatin aur Pantoprazole available hain. \n\nKaunsi medicine chahiye? Please correct brand/generic name type kijiye (e.g. "Metformin 30 tabs"):`;
               }
@@ -531,7 +531,7 @@ export class WhatsAppService {
               }
             } else {
               nextState = 'MEDICINE_AWAITING_PAYMENT';
-              replyMessage = `⏳ *Payment Verification Pending*\n\nPayment for ₹${draftBill?.totalAmount.toFixed(2)} is not received yet. UPI Link:\n${draftBill?.upiQrPayload}\n\n• *Online Gateway*: Auto-clears in ~10-30s once payment succeeds.\n• *Counter Cash/UPI*: Present your UPI UTR to the compounder at Patna counter.\n\nReply **STATUS** to re-check after completing payment. 📦`;
+              replyMessage = `⏳ *Payment Verification Pending*\n\nPayment for ₹${draftBill?.totalAmount.toFixed(2)} is not received yet. UPI Link:\n${draftBill?.upiQrPayload}\n\n• *Online Gateway*: Auto-clears in ~10-30s once payment succeeds.\n• *Counter Cash/UPI*: Present your UPI UTR to the compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after completing payment. 📦`;
             }
           }
           break;
@@ -539,9 +539,9 @@ export class WhatsAppService {
         case 'MEDICINE_READY_FOR_PICKUP':
           if (cleaned.includes('done') || cleaned.includes('clear') || cleaned === '1') {
             nextState = 'COMPLETED';
-            replyMessage = "Medicine successfully collected from Patna Counter! Status updated to COMPLETED. Health is wealth! 🩺🟢";
+            replyMessage = `Medicine successfully collected from ${this.getDynamicClinicName()} Counter! Status updated to COMPLETED. Health is wealth! 🩺🟢`;
           } else {
-            replyMessage = "Dawa collect karne ke baad Patna counter compounder screen clear karenge ya aap 'DONE' reply kijiye.";
+            replyMessage = `Dawa collect karne ke baad ${this.getDynamicClinicName()} counter compounder screen clear karenge ya aap 'DONE' reply kijiye.`;
           }
           break;
 
@@ -551,7 +551,7 @@ export class WhatsAppService {
 
           if (cleaned === 'yes' && awaitingAction === 'refill') {
             sessionData.awaitingProactiveAction = null;
-            replyMessage = "Refill confirm ho gaya hai! 📦 Compounder ne verify kar diya hai aur Patna Pharmacy se dawa ka packet aapke address ke liye nikal raha hai. Aap is chat par track kar sakte hain. Dhanyawad!";
+            replyMessage = `Refill confirm ho gaya hai! 📦 Compounder ne verify kar diya hai aur ${this.getDynamicClinicName()} Pharmacy se dawa ka packet aapke address ke liye nikal raha hai. Aap is chat par track kar sakte hain. Dhanyawad!`;
           } else if (cleaned === 'home' && awaitingAction === 'lab') {
             sessionData.awaitingProactiveAction = 'lab_slot';
             replyMessage = "Please select a slot:\n1. 8:00 AM\n2. 10:00 AM\n3. 4:00 PM.";
@@ -652,7 +652,7 @@ export class WhatsAppService {
             if (uniqueMeds.length > 0) {
               nextState = 'AWAITING_REFILL_CHOICE' as any;
               sessionData.refillOptions = uniqueMeds;
-              replyMessage = `💊 *Patna Pod Refill Center* \n\nAapki pre-authorized chronic medicine list ready hai. Refill select karne ke liye corresponding option number (1, 2, etc.) reply karein, ya direct brand/generic name type karein:\n\n` + 
+              replyMessage = `💊 *${this.getDynamicClinicName()} Refill Center* \n\nAapki pre-authorized chronic medicine list ready hai. Refill select karne ke liye corresponding option number (1, 2, etc.) reply karein, ya direct brand/generic name type karein:\n\n` + 
                 uniqueMeds.map((med, idx) => `*${idx + 1}* - ${med}`).join('\n');
             } else {
               nextState = 'MEDICINE_ORDERING';
@@ -711,7 +711,7 @@ export class WhatsAppService {
               const enc = completedEncounters[0];
               const drugTable = enc.medications.map(m => `• ${m.medicineName} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join('\n');
               
-              replyMessage = `*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n'${enc.clinicalNotes}'\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\nDoctor Vivek ne aapko **14 din** ke baad follow-up ke liye Patna branch mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
+              replyMessage = `*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n'${enc.clinicalNotes}'\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\n${this.getDynamicDoctorName()} ne aapko **14 din** ke baad follow-up ke liye ${this.getDynamicClinicName()} branch mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
             } else {
               replyMessage = "Aapke profile par koi completed consultation encounter nahi mila.";
             }
@@ -811,7 +811,7 @@ export class WhatsAppService {
             sessionData.medicineOrderStage = 'CHOOSING_DELIVERY';
             nextState = 'MEDICINE_ORDERING';
 
-            replyMessage = `💊 *Live Patna Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${matchedItem.price.toFixed(2)}\n• Subtotal: ₹${itemTotal.toFixed(2)} (+₹${gstAmt.toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
+            replyMessage = `💊 *Live ${this.getDynamicClinicName()} Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${matchedItem.price.toFixed(2)}\n• Subtotal: ₹${itemTotal.toFixed(2)} (+₹${gstAmt.toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
           } else {
             nextState = 'MEDICINE_ORDERING';
             sessionData.medicineOrderStage = 'INITIAL';
@@ -1317,7 +1317,7 @@ export class WhatsAppService {
       return;
     }
 
-    const message = `Hello ${patient.name}! 😊 We noticed your generic medication dosage is running low (only 5 days left!). 💊\n\nTo ensure uninterrupted treatment, we have pre-allocated a fresh, quality-checked pack for you at our Patna Pod pharmacy counter. \n\n*Reply 'YES' to confirm and immediately dispatch your medicine refill package to your home!*`;
+    const message = `Hello ${patient.name}! 😊 We noticed your generic medication dosage is running low (only 5 days left!). 💊\n\nTo ensure uninterrupted treatment, we have pre-allocated a fresh, quality-checked pack for you at our ${this.getDynamicClinicName()} pharmacy counter. \n\n*Reply 'YES' to confirm and immediately dispatch your medicine refill package to your home!*`;
     
     const sessions = this.getWhatsAppSessions();
     const existing = sessions.find(s => s.patientPhone === phone);

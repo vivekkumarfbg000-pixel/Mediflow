@@ -91,7 +91,7 @@ export async function generateSpectaclePdfCard(data: {
     color: rgb(1, 1, 1),
   });
 
-  page.drawText('PATNA EYE CLINIC & DISPENSING PARTNER', {
+  page.drawText(((data as any).clinicName || 'VITALSYNC CLINIC PARTNER').toUpperCase(), {
     x: 30,
     y: height - 54,
     size: 8,

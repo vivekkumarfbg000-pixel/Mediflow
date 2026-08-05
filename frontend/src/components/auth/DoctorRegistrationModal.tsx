@@ -36,7 +36,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
         id: crypto.randomUUID(),
         clinic_code: clinicCode,
         name: formData.clinicName,
-        location: 'Patna, Bihar',
+        location: (formData as any).location || 'Clinic Location',
         health_score: 100,
         is_verified_for_billing: true,
         lifetime_platform_revenue: 0,

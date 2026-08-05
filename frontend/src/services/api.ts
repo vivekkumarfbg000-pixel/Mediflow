@@ -859,7 +859,22 @@ class MediflowApiService {
               : ((i.payment_status === 'paid' || i.payment_status === 'cleared') ? 'cleared' : i.payment_status as any),
             createdAt: i.created_at
           }));
-          const currentInvoices = this.getUnifiedInvoices();
+          let isDemoAccount = false;
+          if (typeof window !== 'undefined') {
+            try {
+              const cached = localStorage.getItem('vitalsync_cached_profile');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed) {
+                  const email = String(parsed.email || '').toLowerCase();
+                  const id = String(parsed.id || '').toLowerCase();
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+                }
+              }
+            } catch (_e) { /* ignore */ }
+          }
+
+          const currentInvoices = isDemoAccount ? this.getUnifiedInvoices() : [];
           const mergedInvoices: UnifiedInvoice[] = invoices.slice();
           currentInvoices.forEach(ci => {
             if (!mergedInvoices.some(mi => mi.id === ci.id)) {
@@ -898,7 +913,21 @@ class MediflowApiService {
             paymentStatus: l.payment_status as FinancialLedgerEntry['paymentStatus'],
             settledAt: l.settled_at, createdAt: l.created_at
           }));
-          const currentLedgers = this.getFinancialLedgers();
+          let isDemoAccount = false;
+          if (typeof window !== 'undefined') {
+            try {
+              const cached = localStorage.getItem('vitalsync_cached_profile');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed) {
+                  const email = String(parsed.email || '').toLowerCase();
+                  const id = String(parsed.id || '').toLowerCase();
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+                }
+              }
+            } catch (_e) { /* ignore */ }
+          }
+          const currentLedgers = isDemoAccount ? this.getFinancialLedgers() : [];
           const mergedLedgers: FinancialLedgerEntry[] = incomingLedgers.slice();
           currentLedgers.forEach(cl => {
             if (!mergedLedgers.some(ml => ml.id === cl.id)) {
@@ -922,7 +951,21 @@ class MediflowApiService {
             createdAt: a.created_at,
             source: a.is_virtual ? 'whatsapp' : 'counter'
           }));
-          const currentAppts = this.getAppointments();
+          let isDemoAccount = false;
+          if (typeof window !== 'undefined') {
+            try {
+              const cached = localStorage.getItem('vitalsync_cached_profile');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed) {
+                  const email = String(parsed.email || '').toLowerCase();
+                  const id = String(parsed.id || '').toLowerCase();
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+                }
+              }
+            } catch (_e) { /* ignore */ }
+          }
+          const currentAppts = isDemoAccount ? this.getAppointments() : [];
           const mergedAppts: Appointment[] = incomingAppts.slice();
           currentAppts.forEach(ca => {
             if (!mergedAppts.some(ma => ma.id === ca.id)) {
