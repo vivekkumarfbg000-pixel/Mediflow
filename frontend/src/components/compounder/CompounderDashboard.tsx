@@ -1921,9 +1921,9 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-            )}
-          </div>
         )}
+      </div>
+    )}
 
         {/* TAB 2: APPOINTMENTS & TOKENS */}
         {activeTab === 'tokens' && (
