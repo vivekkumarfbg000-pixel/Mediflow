@@ -2785,7 +2785,8 @@ export const CompounderDashboard: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* TAB 3: PATHOLOGY LOG & TIMELINES */}
         {activeTab === 'labs' && (
@@ -3233,8 +3234,10 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
+</div>
           )}
+
+        </div>
 
       {/* Sliding WhatsApp Chat Drawer */}
       <div 
