@@ -1131,15 +1131,6 @@ export default function App() {
       window.location.href = window.location.origin;
     }
   };
-    
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: 'Workspace De-authenticated',
-        message: 'Logged out of Mediflow Clinical Connected Care.',
-        type: 'info'
-      }
-    }));
-  };
 
   const handleToggleBypass = (bypass: boolean) => {
     setIsBypassMode(bypass);
