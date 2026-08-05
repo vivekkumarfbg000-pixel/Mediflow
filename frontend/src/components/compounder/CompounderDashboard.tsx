@@ -493,7 +493,7 @@ export const CompounderDashboard: React.FC = () => {
   const [dispatchOcrLogs, setDispatchOcrLogs] = useState<string[]>([]);
 
   // Lab Billing states
-  const [labPaymentMode, setLabPaymentMode] = useState<'cash' | 'upi' | 'whatsapp_pay'>('cash');
+  const [labPaymentMode, setLabPaymentMode] = useState<'cash' | 'upi' | 'whatsapp_pay'>('upi');
   const [labDiscountPercent, setLabDiscountPercent] = useState<number>(0);
 
   // Report approval states

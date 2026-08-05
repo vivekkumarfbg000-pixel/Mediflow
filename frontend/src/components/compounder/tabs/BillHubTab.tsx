@@ -815,15 +815,15 @@ export const BillHubTab: React.FC = () => {
 
   // Print Fixed Table QR Standee for Clinic Desk
   const handlePrintFixedTableQRStandee = () => {
-    const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
-    const staticUpiPayload = `upi://pay?pa=${clinicUpi}&pn=VitalSync%20Clinic&cu=INR`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0f172a&data=${encodeURIComponent(staticUpiPayload)}`;
+    const razorpayHandle = 'https://razorpay.me/@vitalsync3758';
+    const razorpayDisplay = 'razorpay.me/@vitalsync3758';
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0f172a&data=${encodeURIComponent(razorpayHandle)}`;
 
     const standeeHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>VitalSync Fixed Counter QR Standee</title>
+  <title>VitalSync Counter Razorpay 0% Fee QR Standee</title>
   <style>
     body { font-family: 'Inter', sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90vh; text-align:center; color:#0f172a; padding:20px; }
     .card { border: 4px solid #106675; padding: 40px; border-radius: 24px; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); background: #ffffff; }
@@ -838,19 +838,19 @@ export const BillHubTab: React.FC = () => {
 <body>
   <div class="card">
     <h1>🏥 VitalSync Healthcare</h1>
-    <div class="sub">Official Counter Payment QR Code</div>
+    <div class="sub">Razorpay 0% Fee Counter Payment QR</div>
     <div class="qr-box">
-      <img src="${qrUrl}" alt="Counter Payment QR" width="240" height="240" />
+      <img src="${qrUrl}" alt="Razorpay Counter Payment QR" width="240" height="240" />
     </div>
     <br/>
-    <div class="vpa">UPI ID: ${clinicUpi}</div>
+    <div class="vpa">Razorpay Handle: ${razorpayDisplay}</div>
     <div class="inst">
       <strong>Instructions for Patients:</strong><br/>
       1. Scan QR code using GPay, PhonePe, Paytm or BHIM.<br/>
       2. Enter the bill amount stated by the Counter Staff.<br/>
       3. Show successful payment screen to Compounder.
     </div>
-    <div class="apps">Accepted: PhonePe • Google Pay • Paytm • BHIM • All UPI Apps</div>
+    <div class="apps">Accepted: PhonePe • Google Pay • Paytm • BHIM • All UPI Apps (0% MDR Fee)</div>
   </div>
   <script>window.print();</script>
 </body>

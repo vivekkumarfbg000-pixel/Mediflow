@@ -39,8 +39,16 @@ export interface UnifiedOrderResponse {
 // Default Clinic VPA Address for Pilot Project (Standard 0% MDR)
 const DEFAULT_PILOT_VPA = 'vitalsync@axl';
 const DEFAULT_PAYEE_NAME = 'VitalSync Care Network';
+export const RAZORPAY_ME_HANDLE = 'https://razorpay.me/@vitalsync3758';
 
 export class PaymentService {
+  static getRazorpayMeLink(amount?: number): string {
+    if (amount && amount > 0) {
+      return `https://razorpay.me/@vitalsync3758?amount=${amount.toFixed(2)}`;
+    }
+    return RAZORPAY_ME_HANDLE;
+  }
+
   /**
    * Generates a standard RFC-compliant Direct Dynamic UPI Deep-Link (0% Gateway Fee)
    * Format: upi://pay?pa=<VPA>&pn=<PAYEE>&am=<AMOUNT>&tn=<INVOICE>&cu=INR
@@ -55,10 +63,10 @@ export class PaymentService {
     const sanitizedPayee = encodeURIComponent(payeeName);
     const sanitizedInvoice = encodeURIComponent(invoiceId.substring(0, 30));
 
-    const upiDeepLink = `upi://pay?pa=${vpa}&pn=${sanitizedPayee}&am=${cleanAmount}&tn=${sanitizedInvoice}&cu=INR`;
+    const upiDeepLink = `https://razorpay.me/@vitalsync3758?amount=${cleanAmount}`;
 
     return {
-      vpa,
+      vpa: 'razorpay.me/@vitalsync3758',
       payeeName,
       amount,
       invoiceId,
@@ -67,10 +75,10 @@ export class PaymentService {
   }
 
   /**
-   * Initiates a payment order across available gateways (Direct UPI, Razorpay, Cashfree, or Cash Counter)
+   * Initiates a payment order across available gateways (Razorpay 0% Fee Handle, Paytm, PhonePe, Cashfree, or Cash Counter)
    */
   static async initiatePaymentOrder(params: PaymentOrderParams): Promise<UnifiedOrderResponse> {
-    const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'paytm';
+    const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'razorpay';
 
     try {
       // Paytm 0-Fee PG Order Flow (Instant 15m Activation)

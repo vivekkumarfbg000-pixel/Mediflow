@@ -415,7 +415,7 @@ export class WhatsAppService {
                 draftBill.deliveryType = 'pickup';
                 draftBill.deliveryCharge = 0;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount;
-                draftBill.upiQrPayload = `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-PHARMA-${draftBill.id.substring(4, 8)}`;
+                draftBill.upiQrPayload = `https://razorpay.me/@vitalsync3758?amount=${draftBill.totalAmount.toFixed(2)}`;
                 
                 sessionData.medicineOrderStage = 'INITIAL';
                 nextState = 'MEDICINE_AWAITING_PAYMENT';
@@ -427,7 +427,7 @@ export class WhatsAppService {
                 draftBill.deliveryType = 'shiprocket';
                 draftBill.deliveryCharge = 45;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount + 45;
-                draftBill.upiQrPayload = `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=${draftBill.totalAmount.toFixed(2)}&cu=INR&tn=VS-DELIVERY-${draftBill.id.substring(4, 8)}`;
+                draftBill.upiQrPayload = `https://razorpay.me/@vitalsync3758?amount=${draftBill.totalAmount.toFixed(2)}`;
                 
                 sessionData.medicineOrderStage = 'AWAITING_ADDRESS';
                 
