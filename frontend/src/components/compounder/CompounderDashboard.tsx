@@ -2307,10 +2307,11 @@ export const CompounderDashboard: React.FC = () => {
                             >
                               Book Appointment &amp; Pay 💳
                             </button>
+                          </div>
                         </div>
                       )}
+                    </div>
                   </div>
-                </div>
 
               {/* Today's Appointments List */}
               <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
@@ -3670,6 +3671,7 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
       {/* Desktop Enterprise Status Footer */}
       <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
