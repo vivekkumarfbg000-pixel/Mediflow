@@ -25,8 +25,21 @@ export class BillingService {
 
     let invoices = load<UnifiedInvoice[]>('unified_invoices', []);
     if (!isDemoAccount) {
-      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      invoices = invoices.filter(i => !i.id?.startsWith('inv-demo') && !i.id?.startsWith('inv-sample') && i.patientName !== 'Patient Customer' && !demoPatientIds.has(i.patientId));
+      const demoPatientIds = new Set([
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        'pat-101', 'pat-102', 'pat-103'
+      ]);
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      invoices = invoices.filter(i => {
+        const id = i.id || '';
+        const pName = String(i.patientName || '').toLowerCase();
+        const pId = String(i.patientId || '');
+        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
+        if (demoNames.has(pName)) return false;
+        if (demoPatientIds.has(pId)) return false;
+        return true;
+      });
     }
     let modified = false;
     invoices.forEach(i => {
@@ -217,8 +230,21 @@ export class BillingService {
     let ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     if (!isDemoAccount) {
       // Purge demo/sample ledger entries for live user accounts
-      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      ledgers = ledgers.filter(l => !l.id?.startsWith('tx-demo') && !l.id?.startsWith('tx-sample') && l.patientName !== 'Patient Customer' && !demoPatientIds.has((l as any).patientId));
+      const demoPatientIds = new Set([
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        'pat-101', 'pat-102', 'pat-103'
+      ]);
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      ledgers = ledgers.filter(l => {
+        const id = l.id || '';
+        const pName = String(l.patientName || '').toLowerCase();
+        const pId = String((l as any).patientId || '');
+        if (id.startsWith('tx-demo') || id.startsWith('tx-sample') || id.startsWith('tx-auto-') || id.startsWith('tx-ref-') || id.startsWith('tx-plat-ref-')) return false;
+        if (demoNames.has(pName)) return false;
+        if (demoPatientIds.has(pId)) return false;
+        return true;
+      });
     }
 
     let modified = false;
@@ -331,8 +357,21 @@ export class BillingService {
 
     let appts = load<Appointment[]>('saas_appointments', []);
     if (!isDemoAccount) {
-      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      appts = appts.filter(a => !a.id?.startsWith('appt-demo') && !a.id?.startsWith('appt-sample') && !demoPatientIds.has(a.patientId));
+      const demoPatientIds = new Set([
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        'pat-101', 'pat-102', 'pat-103'
+      ]);
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      appts = appts.filter(a => {
+        const id = a.id || '';
+        const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase();
+        const pId = String(a.patientId || '');
+        if (id.startsWith('appt-demo') || id.startsWith('appt-sample') || id.startsWith('appt-101') || id.startsWith('appt-102')) return false;
+        if (demoNames.has(pName)) return false;
+        if (demoPatientIds.has(pId)) return false;
+        return true;
+      });
     }
     return appts;
   }
@@ -369,8 +408,21 @@ export class BillingService {
 
     let invoices = load<Invoice[]>('saas_invoices', []);
     if (!isDemoAccount) {
-      const demoPatientIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      invoices = invoices.filter(i => !i.id?.startsWith('inv-demo') && !i.id?.startsWith('inv-sample') && (i as any).patientName !== 'Patient Customer' && i.patientId && !demoPatientIds.has(i.patientId));
+      const demoPatientIds = new Set([
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
+        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        'pat-101', 'pat-102', 'pat-103'
+      ]);
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      invoices = invoices.filter(i => {
+        const id = i.id || '';
+        const pName = String((i as any).patientName || '').toLowerCase();
+        const pId = String(i.patientId || '');
+        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
+        if (demoNames.has(pName)) return false;
+        if (demoPatientIds.has(pId)) return false;
+        return true;
+      });
     }
     return invoices;
   }

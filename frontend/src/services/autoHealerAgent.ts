@@ -1052,20 +1052,15 @@ export class StateHealingEngine {
             healingSteps.push(`⚠️ Profile role reconciliation exception: ${String(rpcEx)}`);
           }
 
-          // Clean up local session and sign out to force refresh
-          healingSteps.push('🛡️ Clearing stale auth sessions to refresh JWT claims...');
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-              localStorage.removeItem(key);
-            }
-          });
-          sessionStorage.clear();
+          // Proactively refresh session tokens to update JWT claims without forcing signout
+          healingSteps.push('🛡️ Refreshing auth session to update JWT claims in memory...');
           try {
-            await supabase.auth.signOut({ scope: 'local' });
-            healingSteps.push('✅ Supabase auth session successfully signed out and reset.');
-          } catch (signOutEx) {
-            healingSteps.push(`⚠️ Supabase signOut failed (expected if offline): ${String(signOutEx)}`);
+            await supabase.auth.refreshSession();
+            healingSteps.push('✅ Supabase auth session successfully refreshed.');
+          } catch (refreshEx) {
+            healingSteps.push(`⚠️ Supabase session refresh notice: ${String(refreshEx)}`);
           }
+          window.dispatchEvent(new CustomEvent('mediflow-profile-updated'));
         }
 
         if (isWatchdog && !isRoleMismatch) {

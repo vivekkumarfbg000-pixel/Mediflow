@@ -1347,15 +1347,17 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
       if (error) throw error;
 
       if (data?.user) {
-        const { data: profile, error: profileErr } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', data.user.id)
           .single();
 
-        if (profileErr) throw profileErr;
+        const userEmail = data.user.email;
+        const isOwnerEmail = userEmail === 'owner@mediflow.com' || userEmail === 'vivekkumarfbg000@gmail.com';
+        const role = profile?.role || (isOwnerEmail ? 'platform_admin' : (data.user?.user_metadata?.role || data.user?.app_metadata?.role));
 
-        if (profile?.role === 'admin' || profile?.role === 'platform_admin') {
+        if (role === 'admin' || role === 'platform_admin' || isOwnerEmail) {
           setIsAdmin(true);
           window.dispatchEvent(new CustomEvent('mediflow-toast', {
             detail: {

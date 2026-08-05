@@ -77,8 +77,9 @@ export class PatientService {
     
     // For non-demo accounts, purge pre-seeded initial demo patient IDs from local storage cache
     if (!isDemoAccount) {
-      const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402']);
-      rawPatients = rawPatients.filter(p => !demoIds.has(p.id) && p.name !== 'Rahul Kumar Test' && p.name !== 'RLS Test Patient');
+      const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103']);
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      rawPatients = rawPatients.filter(p => !demoIds.has(p.id) && !demoNames.has(String(p.name || '').toLowerCase()));
     }
 
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});

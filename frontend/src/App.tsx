@@ -797,21 +797,15 @@ export default function App() {
       };
     }
     
-    // 1. Fetch profile with automatic retry (for cold DB wake-ups)
-    let profiles: any[] | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id);
-        if (!error && data && data.length > 0) {
-          profiles = data;
-          break;
-        }
-      } catch (_err) { /* retry */ }
-      if (attempt < 2) await new Promise(r => setTimeout(r, 600));
-    }
+    // 1. Fetch profile using Unlimited Adaptive Auto-Healing Retry Engine (handles cold DB wakes smoothly)
+    const profiles = await StateHealingEngine.executeAdaptiveInfiniteHealing(async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id);
+      if (!error && data && data.length > 0) return data;
+      return null;
+    }, 8, 80);
       
     let activeProfile = profiles && profiles.length > 0 ? profiles[0] : null;
 
@@ -1253,6 +1247,9 @@ export default function App() {
   // 2. Landing Page & Local Single-Domain Routing
   // If authenticated on local/preview single-domain, render the Dashboard workspace directly.
   if (isLandingPageDomain) {
+    if (session && isLoadingSession) {
+      return <FullPageLoader message="Initializing clinical session..." />;
+    }
     if (session && activeProfile && new URLSearchParams(window.location.search).get('landing') !== 'true') {
       // Authenticated user on local / single-domain environment: Render Dashboard Workspace
       return (
