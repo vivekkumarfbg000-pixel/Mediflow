@@ -3071,7 +3071,8 @@ export const CompounderDashboard: React.FC = () => {
         )}
 
         {/* TAB 6: DAYCARE SURGERY & OT PACKAGE BILLING */}
-        {activeTab === ('ot_billing' as any) && (() => {
+        {activeTab === ('ot_billing' as any) && (
+          
           const daycarePatients = patients.filter(p => {
             if (isOphthalmology) {
               return p.vitals?.surgeryBooking && p.vitals.surgeryBooking.eye !== 'None';
