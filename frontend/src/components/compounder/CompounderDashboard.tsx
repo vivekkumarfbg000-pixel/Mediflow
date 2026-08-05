@@ -2777,9 +2777,8 @@ export const CompounderDashboard: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
-    )}
-                      {/* TAB 3: PATHOLOGY LOG & TIMELINES */}
+
+      {/* TAB 3: PATHOLOGY LOG & TIMELINES */}
         {activeTab === 'labs' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
             {/* Left Column: Scheduled Pathology Tests Queue */}
