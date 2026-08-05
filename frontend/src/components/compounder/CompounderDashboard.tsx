@@ -2307,8 +2307,8 @@ export const CompounderDashboard: React.FC = () => {
                             >
                               Book Appointment &amp; Pay 💳
                             </button>
-                          </div>
                         </div>
+                      )}
                   </div>
                 </div>
 
