@@ -2077,7 +2077,7 @@ export const CompounderDashboard: React.FC = () => {
                                 <td className="p-3 font-bold text-slate-900 dark:text-white">{pat?.name || 'Registered Patient'}</td>
                                 <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{pat?.phone || 'N/A'}</td>
                                 <td className="p-3 font-semibold text-indigo-600 dark:text-indigo-400">
-{appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
+                                  {appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
                                 </td>
                                 <td className="p-3 text-slate-600 dark:text-slate-300">{appt.virtual_time || '10:00 AM - 12:00 PM'}</td>
                                 <td className="p-3">
@@ -2140,181 +2140,177 @@ export const CompounderDashboard: React.FC = () => {
                   
                   {/* Appointment Booking & Search Form */}
                   <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-500 text-[18px]">calendar_today</span>
-                  Book Consultation Appointment (अपॉइंटमेंट बुकिंग)
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                  Search registered patient by Name, Phone or ID to book a consultation slot.
-                </p>
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+                    <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-indigo-500 text-[18px]">calendar_today</span>
+                      Book Consultation Appointment (अपॉइंटमेंट बुकिंग)
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      Search registered patient by Name, Phone or ID to book a consultation slot.
+                    </p>
 
-                <div className="space-y-4">
-                  {/* Search input */}
-                  <div>
-                    <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">
-                      Search Patient
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search by Name, Phone, or Patient ID..."
-                        value={searchApptPatient}
-                        onChange={(e) => setSearchApptPatient(e.target.value)}
-                        className="w-full input-field text-xs py-2.5 pl-10 pr-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none placeholder:text-slate-400"
-                      />
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                    </div>
-                  </div>
+                    <div className="space-y-4">
+                      {/* Search input */}
+                      <div>
+                        <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">
+                          Search Patient
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Search by Name, Phone, or Patient ID..."
+                            value={searchApptPatient}
+                            onChange={(e) => setSearchApptPatient(e.target.value)}
+                            className="w-full input-field text-xs py-2.5 pl-10 pr-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none placeholder:text-slate-400"
+                          />
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                        </div>
+                      </div>
 
-                  {/* Search Results list */}
-                  {searchApptPatient.trim().length > 0 && (
-                    <div className="border border-slate-100 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-2 max-h-[160px] overflow-y-auto space-y-1.5 shadow-inner">
-                      {patients.filter(p => 
-                        p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                        p.phone.includes(searchApptPatient) ||
-                        p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                        (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
-                      ).length === 0 ? (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">No patients found in registry.</p>
-                      ) : (
-                        patients.filter(p => 
-                          p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                          p.phone.includes(searchApptPatient) ||
-                          p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                          (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
-                        ).map(p => (
-                          <div 
-                            key={p.id}
-                            onClick={() => {
-                              setSelectedApptPatient(p);
-                              setSearchApptPatient('');
-                            }}
-                            className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg hover:border-indigo-500 hover:bg-indigo-50/20 dark:hover:bg-indigo-500/10 cursor-pointer flex justify-between items-center transition-all"
-                          >
-                            <div>
-                              <h5 className="font-bold text-xs text-slate-800 dark:text-white">{p.name}</h5>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400">ID: {p.id} · +91 {p.phone}</span>
-                            </div>
-                            <span className="text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-mono font-bold">Select</span>
-                          </div>
-                        ))
+                      {/* Search Results list */}
+                      {searchApptPatient.trim().length > 0 && (
+                        <div className="border border-slate-100 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-2 max-h-[160px] overflow-y-auto space-y-1.5 shadow-inner">
+                          {patients.filter(p => 
+                            p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                            p.phone.includes(searchApptPatient) ||
+                            p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                            (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
+                          ).length === 0 ? (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">No patients found in registry.</p>
+                          ) : (
+                            patients.filter(p => 
+                              p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                              p.phone.includes(searchApptPatient) ||
+                              p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                              (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
+                            ).map(p => (
+                              <div 
+                                key={p.id}
+                                onClick={() => {
+                                  setSelectedApptPatient(p);
+                                  setSearchApptPatient('');
+                                }}
+                                className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg hover:border-indigo-500 hover:bg-indigo-50/20 dark:hover:bg-indigo-500/10 cursor-pointer flex justify-between items-center transition-all"
+                              >
+                                <div>
+                                  <h5 className="font-bold text-xs text-slate-800 dark:text-white">{p.name}</h5>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400">ID: {p.id} · +91 {p.phone}</span>
+                                </div>
+                                <span className="text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-mono font-bold">Select</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* Booking form details (visible once patient is selected) */}
-                  {selectedApptPatient && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/30 dark:border-white/10">
-                        <div>
-                          <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">Payment Mode</label>
-                          <select
-                            value={apptPaymentMode}
-                            onChange={(e) => setApptPaymentMode(e.target.value as any)}
-                            className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg cursor-pointer font-bold"
-                          >
-                            <option value="cash">💵 Cash Payment</option>
-                            <option value="paytm">⚡ Paytm PG (0% MDR — Primary)</option>
-                            <option value="upi">📱 Zero-Fee Direct UPI (vitalsync@axl)</option>
-                          </select>
-                        </div>
+                      {/* Booking form details (visible once patient is selected) */}
+                      {selectedApptPatient && (
+                        <div className="p-4 bg-indigo-50/30 dark:bg-indigo-900/20 border border-indigo-100/50 dark:border-indigo-700/40 rounded-2xl space-y-4 animate-fade-in">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 tracking-widest uppercase font-mono block">Selected Patient</span>
+                              <h4 className="font-bold text-sm text-slate-800 dark:text-white mt-1">{selectedApptPatient.name}</h4>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Phone: +91 {selectedApptPatient.phone} · Age: {selectedApptPatient.age}y ({selectedApptPatient.gender})</p>
+                            </div>
+                            <button 
+                              onClick={() => setSelectedApptPatient(null)}
+                              className="text-[10px] text-rose-500 hover:underline bg-transparent border-0 cursor-pointer"
+                            >
+                              Clear Selection
+                            </button>
+                          </div>
 
-                        <div>
-                          <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">Consultation Fee</label>
-                          <div className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white font-mono font-bold text-sm rounded-lg py-2 px-3 flex items-center justify-between">
-                            <span>₹500.00</span>
-                            <span className="text-[8px] uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">Calculated</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/30 dark:border-white/10">
+                            <div>
+                              <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">Payment Mode</label>
+                              <select
+                                value={apptPaymentMode}
+                                onChange={(e) => setApptPaymentMode(e.target.value as any)}
+                                className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg cursor-pointer font-bold"
+                              >
+                                <option value="razorpay">💳 Razorpay 0% Gateway (Primary)</option>
+                                <option value="upi">📱 Razorpay UPI Handle (razorpay.me/@vitalsync3758)</option>
+                                <option value="cash">💵 Cash Payment</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">Consultation Fee</label>
+                              <div className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white font-mono font-bold text-sm rounded-lg py-2 px-3 flex items-center justify-between">
+                                <span>₹500.00</span>
+                                <span className="text-[8px] uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">Calculated</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end pt-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!selectedApptPatient) return;
+
+                                try {
+                                  const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
+                                  const paymentModeLabel = apptPaymentMode;
+
+                                  if (newInvoice) {
+                                    await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
+                                  }
+
+                                  const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
+                                  try {
+                                    await supabase.from('appointments').insert({
+                                      id: newInvoice.appointmentId,
+                                      patient_id: selectedApptPatient.id,
+                                      doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                                      status: 'confirmed',
+                                      created_at: new Date().toISOString(),
+                                      token_number: assignedToken
+                                    });
+                                  } catch (dbErr) {
+                                    console.warn('[CompounderDashboard] Supabase appointment insert fallback:', dbErr);
+                                  }
+
+                                  api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
+
+                                  const bookedPatient = selectedApptPatient;
+                                  setSelectedApptPatient(null);
+                                  setApptPaymentMode('cash');
+
+                                  syncData();
+                                  fetchLiveAppointments();
+
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  document.body.style.overflow = 'hidden';
+                                  setVitalsPatient(bookedPatient);
+                                  setCustomToken(assignedToken);
+
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: `Appointment for ${bookedPatient.name} booked & fee settled via ${paymentModeLabel.toUpperCase()}. Vitals modal is open for clinical dispatch!`,
+                                      type: 'success',
+                                      title: 'Appointment Active — Record Vitals 🩺'
+                                    }
+                                  }));
+                                } catch (e) {
+                                  console.error('[CompounderDashboard] Appointment Booking Error:', e);
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      message: 'Failed to complete booking. Please try again.',
+                                      type: 'error',
+                                      title: 'Booking Error'
+                                    }
+                                  }));
+                                }
+                              }}
+                              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-105 active:scale-95 text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform shadow-lg shadow-indigo-500/20"
+                            >
+                              Book Appointment &amp; Pay 💳
+                            </button>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex justify-end pt-2">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!selectedApptPatient) return;
-
-                            try {
-                              // 1. Synchronously create invoice & appointment in local state
-                              const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
-                              const invoiceAmount = newInvoice?.amount || 500;
-                              const paymentModeLabel = apptPaymentMode;
-
-                              // 2. Launch Paytm checkout if selected, or record payment
-                              if (newInvoice) {
-                                if (apptPaymentMode === 'paytm') {
-                                  try {
-                                    const res = await PaymentService.initiatePaymentOrder({
-                                      gateway: 'paytm',
-                                      invoiceId: newInvoice.id,
-                                      amount: invoiceAmount,
-                                      patientName: selectedApptPatient.name,
-                                      patientPhone: selectedApptPatient.phone
-                                    });
-                                    if (res.success && res.paymentSessionId) {
-                                      window.open(res.paymentSessionId, '_blank');
-                                    }
-                                  } catch (pErr) {
-                                    console.warn('[Paytm Order Error]:', pErr);
-                                  }
-                                }
-                                await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
-                              }
-
-                              // 3. Post-payment flow & OPD Token assignment
-                              const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
-                              try {
-                                await supabase.from('appointments').insert({
-                                  id: newInvoice.appointmentId,
-                                  patient_id: selectedApptPatient.id,
-                                  doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-                                  status: 'confirmed',
-                                  created_at: new Date().toISOString(),
-                                  token_number: assignedToken
-                                });
-                              } catch (dbErr) {
-                                console.warn('[CompounderDashboard] Supabase appointment insert fallback:', dbErr);
-                              }
-
-                              api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
-
-                              const bookedPatient = selectedApptPatient;
-                              setSelectedApptPatient(null);
-                              setApptPaymentMode('cash');
-
-                              syncData();
-                              fetchLiveAppointments();
-
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                              document.body.style.overflow = 'hidden';
-                              setVitalsPatient(bookedPatient);
-                              setCustomToken(assignedToken);
-
-                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                detail: {
-                                  message: `Appointment for ${bookedPatient.name} booked & fee settled via ${paymentModeLabel.toUpperCase()}. Vitals modal is open for clinical dispatch!`,
-                                  type: 'success',
-                                  title: 'Appointment Active — Record Vitals 🩺'
-                                }
-                              }));
-                            } catch (e) {
-                              console.error('[CompounderDashboard] Appointment Booking Error:', e);
-                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                detail: {
-                                  message: 'Failed to complete booking. Please try again.',
-                                  type: 'error',
-                                  title: 'Booking Error'
-                                }
-                              }));
-                            }
-                          }}
-                          className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-105 active:scale-95 text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform shadow-lg shadow-indigo-500/20"
-                        >
-                          Book Appointment &amp; Pay 💳
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                      )}
+                  </div>
                 </div>
               </div>
 
