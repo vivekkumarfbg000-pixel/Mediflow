@@ -47,6 +47,8 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
       list = (patients || []).filter(p => 
         (p?.name || '').toLowerCase().includes(query) ||
         (p?.phone || '').includes(query) ||
+        (p?.patientCode || '').toLowerCase().includes(query) ||
+        (p?.tokenNumber || '').toLowerCase().includes(query) ||
         (p?.id || '').toLowerCase().includes(query) ||
         ((p?.abhaId || '').toLowerCase().includes(query))
       );
@@ -168,7 +170,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by name or phone..."
+                placeholder="Search by name, phone, or Patient ID (e.g. V56)..."
                 value={patientSearchQuery}
                 onChange={e => setPatientSearchQuery(e.target.value)}
                 className="w-full input-field py-2 pl-9 text-xs"
@@ -215,7 +217,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                           </span>
                         )}
                       </span>
-                      <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 shrink-0">{p.tokenNumber || 'PAT'}</span>
+                      <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 shrink-0">ID: {p.patientCode || p.tokenNumber || 'PAT'}</span>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">{p.gender}, {p.age} years • {p.phone}</div>
                   </button>

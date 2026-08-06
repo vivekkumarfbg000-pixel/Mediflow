@@ -158,6 +158,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   }, [selectedPatient, hinglishSummary, comparativeTrend, aiInsight]);
 
   const [virtualDateInput, setVirtualDateInput] = useState('');
+  const [queueFilter, setQueueFilter] = useState<'awaiting' | 'in_consult' | 'today_registered' | 'completed'>('awaiting');
   const [virtualTimeInput, setVirtualTimeInput] = useState('');
   const [expandedCitationPmid, setExpandedCitationPmid] = useState<string | null>(null);
   const [flashPrescriptionPanel, setFlashPrescriptionPanel] = useState(false);
@@ -897,10 +898,82 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       <div className={`${selectedPatient ? 'hidden lg:block' : 'block'} lg:col-span-4 space-y-6`}>
         {/* Patient Consultation Queue */}
         <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white">
-          <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-xl">group</span>
-            Consultation Queue
-          </h2>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-xl">group</span>
+              Consultation Queue
+            </h2>
+            <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
+              {patients.length} Total Patients
+            </span>
+          </div>
+
+          {/* 4 Queue Filter Tabs (Awaiting Consultation, In Chamber, Today Registered, Completed Care Loop) */}
+          {(() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const paidPatientIds = new Set(
+              appointments
+                .filter(a => a.status !== 'pending_payment')
+                .map(a => a.patientId || (a as any).patient_id)
+            );
+
+            const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus));
+            const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation');
+            const todayRegList = patients.filter(p => {
+              const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
+              return regDate.startsWith(todayStr);
+            });
+            const completedList = patients.filter(p => p.queueStatus === 'completed' || p.queueStatus === 'pharmacy' || p.queueStatus === 'lab' || p.queueStatus === 'settled');
+
+            return (
+              <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none border-b border-slate-100 font-mono text-[9px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter('awaiting')}
+                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                    queueFilter === 'awaiting'
+                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  Awaiting ({awaitingList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter('in_consult')}
+                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                    queueFilter === 'in_consult'
+                      ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  In Chamber ({inConsultList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter('today_registered')}
+                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                    queueFilter === 'today_registered'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  Today Reg ({todayRegList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter('completed')}
+                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                    queueFilter === 'completed'
+                      ? 'bg-teal-600 text-white border-teal-700 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  Care Loop Done ({completedList.length})
+                </button>
+              </div>
+            );
+          })()}
           
           <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
             {(() => {
@@ -910,28 +983,44 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return match ? parseInt(match[0], 10) : Infinity;
               };
 
-              // Bug Fix #2 (USP ANTI-REGRESSION): Exclude patients whose ONLY appointment is pending_payment
-              // Cashfree Payment Gate: unpaid appointments MUST NOT appear in the Doctor's queue
+              const todayStr = new Date().toISOString().split('T')[0];
               const paidPatientIds = new Set(
                 appointments
                   .filter(a => a.status !== 'pending_payment')
                   .map(a => a.patientId || (a as any).patient_id)
               );
-              const pendingOnlyPatientIds = new Set(
-                appointments
-                  .filter(a => a.status === 'pending_payment')
-                  .map(a => a.patientId || (a as any).patient_id)
-              );
 
               const queuePatients = patients
                 .filter(p => {
-                  // Allow if explicitly selected (doctor manually opened)
                   if (p.id === selectedPatient?.id) return true;
-                  // Strict Payment Gate (USP 3 & Rule 3): Exclude patients who do NOT have a cleared/paid appointment
-                  if (!paidPatientIds.has(p.id)) return false;
-                  return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation';
+                  if (queueFilter === 'awaiting') {
+                    if (!paidPatientIds.has(p.id)) return false;
+                    return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
+                  }
+                  if (queueFilter === 'in_consult') {
+                    return p.queueStatus === 'in_consultation';
+                  }
+                  if (queueFilter === 'today_registered') {
+                    const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
+                    return regDate.startsWith(todayStr);
+                  }
+                  if (queueFilter === 'completed') {
+                    return (
+                      p.queueStatus === 'completed' ||
+                      p.queueStatus === 'pharmacy' ||
+                      p.queueStatus === 'lab' ||
+                      p.queueStatus === 'settled'
+                    );
+                  }
+                  return true;
                 })
                 .sort((a, b) => {
+                  // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens (T-02 E) move to top
+                  const isSosA = Boolean(a.tokenNumber && (a.tokenNumber.includes('E') || a.tokenNumber.includes('SOS')));
+                  const isSosB = Boolean(b.tokenNumber && (b.tokenNumber.includes('E') || b.tokenNumber.includes('SOS')));
+                  if (isSosA && !isSosB) return -1;
+                  if (!isSosA && isSosB) return 1;
+
                   const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
                   const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
                   const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
@@ -952,15 +1041,18 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const isSelected = selectedPatient?.id === p.id;
                 const patientAppts = appointments.filter(a => a.patientId === p.id);
                 const virtualAppt = patientAppts.find(a => a.isVirtual);
+                const isEmergencySos = Boolean(p.tokenNumber && (p.tokenNumber.includes('E') || p.tokenNumber.includes('SOS')));
 
                 return (
                   <button
                     key={p.id}
                     onClick={() => setSelectedPatient(p)}
                     className={`w-full text-left p-4 rounded-xl border transition-all duration-300 relative group overflow-hidden ${
-                      isSelected 
-                        ? 'bg-primary-container/20 border-primary shadow-sm' 
-                        : 'bg-slate-50 border-slate-200/60 hover:bg-slate-100/80'
+                      isEmergencySos
+                        ? 'bg-rose-50/90 border-rose-400 shadow-md ring-2 ring-rose-400/40'
+                        : (isSelected 
+                            ? 'bg-primary-container/20 border-primary shadow-sm' 
+                            : 'bg-slate-50 border-slate-200/60 hover:bg-slate-100/80')
                     }`}
                   >
                     {isSelected && (
@@ -970,8 +1062,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors flex items-center gap-1.5 flex-wrap">
                         {p.name}
                         {p.tokenNumber && (
-                          <span className="text-[8px] font-mono px-1 py-0.2 bg-indigo-50 border border-indigo-200/50 text-indigo-700 rounded shrink-0">
-                            {p.tokenNumber}
+                          <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded font-black shrink-0 border ${
+                            isEmergencySos
+                              ? 'bg-rose-600 text-white border-rose-700 animate-pulse shadow-xs'
+                              : 'bg-indigo-50 border-indigo-200/50 text-indigo-700'
+                          }`}>
+                            {p.tokenNumber} {isEmergencySos ? '🚨 PRIORITY #1' : ''}
                           </span>
                         )}
                         {p.vitals && (() => {
@@ -986,8 +1082,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           return null;
                         })()}
                       </div>
-                      <span className="text-[8px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-mono">
-                        {p.id.toUpperCase().substring(0, 8)}
+                      <span className="text-[9px] font-extrabold text-indigo-800 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md font-mono shrink-0">
+                        [{p.patientCode || p.tokenNumber || p.id.toUpperCase().substring(0, 6)}]
                       </span>
                     </div>
                     

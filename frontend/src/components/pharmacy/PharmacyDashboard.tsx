@@ -2241,7 +2241,12 @@ const unsubscribeApi = api.subscribe(syncLocal);
                           <div key={patientId} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
                             <div className="flex justify-between items-start">
                               <div>
-                                <h4 className="font-bold text-slate-800 text-xs">{patient.name}</h4>
+                                <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                  {patient.name} 
+                                  <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded font-mono">
+                                    [{patient.patientCode || patient.tokenNumber || 'PAT'}]
+                                  </span>
+                                </h4>
                                 <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone}</p>
                               </div>
                               <span className="text-xs font-black text-amber-600">₹{totalAmt.toFixed(0)}</span>

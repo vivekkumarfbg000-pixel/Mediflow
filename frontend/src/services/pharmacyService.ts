@@ -332,13 +332,13 @@ export class PharmacyService {
     
     // First matching master lists
     masterList.forEach(item => {
-      const matchName = item.name.toLowerCase().includes(q) || item.genericName.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
+      const matchName = (item.name || '').toLowerCase().includes(q) || (item.genericName || '').toLowerCase().includes(q) || (item.category || '').toLowerCase().includes(q);
       if (matchName) {
-        const stock = inventoryMap.has(item.name.toLowerCase()) ? inventoryMap.get(item.name.toLowerCase()) : 0;
+        const stock = inventoryMap.has((item.name || '').toLowerCase()) ? inventoryMap.get((item.name || '').toLowerCase()) : 0;
         results.push({
           ...item,
           stock,
-          inInventory: inventoryMap.has(item.name.toLowerCase())
+          inInventory: inventoryMap.has((item.name || '').toLowerCase())
         });
       }
     });

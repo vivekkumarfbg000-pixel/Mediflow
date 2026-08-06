@@ -34,6 +34,10 @@ export class RealtimeSyncService {
     if (record.patient_id !== undefined) normalized.patientId = record.patient_id;
     if (record.doctor_id !== undefined) normalized.doctorId = record.doctor_id;
     if (record.encounter_id !== undefined) normalized.encounterId = record.encounter_id;
+    if (record.patient_code !== undefined) normalized.patientCode = record.patient_code;
+    if (record.token_number !== undefined) normalized.tokenNumber = record.token_number;
+    if (record.queue_status !== undefined) normalized.queueStatus = record.queue_status;
+    if (record.abha_id !== undefined) normalized.abhaId = record.abha_id;
     if (record.created_at !== undefined) normalized.createdAt = record.created_at;
     if (record.updated_at !== undefined) normalized.updatedAt = record.updated_at;
     if (record.total_amount !== undefined) normalized.totalAmount = typeof record.total_amount === 'string' ? parseFloat(record.total_amount) : record.total_amount;

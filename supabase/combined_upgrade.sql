@@ -61,9 +61,12 @@ CREATE TABLE IF NOT EXISTS public.patient_registry (
     abha_id TEXT,
     vitals JSONB,
     token_number TEXT,
+    patient_code TEXT,
     queue_status TEXT DEFAULT 'awaiting_vitals',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.patient_registry ADD COLUMN IF NOT EXISTS patient_code TEXT;
 
 -- Ensure public.encounters table exists
 CREATE TABLE IF NOT EXISTS public.encounters (

@@ -45,7 +45,7 @@ export class BillingService {
         const id = i.id || '';
         const pName = String(i.patientName || '').toLowerCase();
         const pId = String(i.patientId || '');
-        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102') || id.startsWith('inv-')) return false;
+        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
         if (demoNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
@@ -259,7 +259,7 @@ export class BillingService {
         const id = l.id || '';
         const pName = String(l.patientName || '').toLowerCase();
         const pId = String((l as any).patientId || '');
-        if (id.startsWith('tx-demo') || id.startsWith('tx-sample') || id.startsWith('tx-auto-') || id.startsWith('tx-ref-') || id.startsWith('tx-plat-ref-') || id.startsWith('tx-doc-') || id.startsWith('tx-lab-') || id.startsWith('tx-pharma-') || id.startsWith('tx-plat-') || id.startsWith('tx-counter-')) return false;
+        if (id.startsWith('tx-demo') || id.startsWith('tx-sample')) return false;
         if (demoNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;

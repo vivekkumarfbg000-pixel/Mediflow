@@ -88,6 +88,20 @@ export class PatientService {
       const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103']);
       const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
       rawPatients = rawPatients.filter(p => !demoIds.has(p.id) && !demoNames.has(String(p.name || '').toLowerCase()));
+    // Auto-backfill Smart Patient ID (V1, V2, V56 format) for legacy records missing patientCode
+    let modifiedBackfill = false;
+    const letterCounters: Record<string, number> = {};
+    rawPatients.forEach(p => {
+      const cleanName = (p.name || '').trim();
+      const letter = cleanName.length > 0 ? cleanName.substring(0, 1).toUpperCase() : 'P';
+      letterCounters[letter] = (letterCounters[letter] || 0) + 1;
+      if (!p.patientCode) {
+        p.patientCode = `${letter}${letterCounters[letter]}`;
+        modifiedBackfill = true;
+      }
+    });
+    if (modifiedBackfill) {
+      save('patients', rawPatients);
     }
 
     const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
@@ -301,17 +315,29 @@ export class PatientService {
     this.processSyncQueue();
   }
 
-  static generateNextTokenNumber(): string {
+  static generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
     const patients = this.getPatients();
+    const appointments = load<any[]>('saas_appointments', []);
+    const dateStr = targetDate || new Date().toISOString().split('T')[0];
+
+    const apptsForDate = appointments.filter(a => {
+      const apptDate = a.virtualDate || a.createdAt || '';
+      return apptDate.startsWith(dateStr);
+    });
+
     const activeTokens = patients
       .map(p => p.tokenNumber)
-      .filter((t): t is string => !!t && t.startsWith('TK-'));
-    
-    if (activeTokens.length === 0) return 'TK-01';
-    
-    const maxVal = Math.max(...activeTokens.map(t => parseInt(t.replace('TK-', ''))));
+      .filter((t): t is string => !!t && (t.startsWith('T-') || t.startsWith('TK-')));
+
+    const tokenNums = [
+      ...activeTokens.map(t => parseInt(t.replace('T-', '').replace('TK-', '').replace('E', '').trim(), 10)),
+      apptsForDate.length
+    ].filter(n => !isNaN(n) && n > 0);
+
+    const maxVal = tokenNums.length > 0 ? Math.max(...tokenNums) : 0;
     const nextVal = maxVal + 1;
-    return `TK-${nextVal.toString().padStart(2, '0')}`;
+    const baseToken = `T-${nextVal.toString().padStart(2, '0')}`;
+    return isSos ? `${baseToken} E` : baseToken;
   }
 
   private static isUUID(str?: string): boolean {
@@ -320,23 +346,25 @@ export class PatientService {
     return regex.test(str);
   }
 
+  static generateSmartPatientId(name: string, existingPatients: Patient[]): string {
+    const cleanName = (name || '').trim();
+    const firstLetter = cleanName.length > 0 ? cleanName.substring(0, 1).toUpperCase() : 'P';
+    const countSameLetter = existingPatients.filter(p => {
+      const pName = (p.name || '').trim();
+      return pName.length > 0 && pName.substring(0, 1).toUpperCase() === firstLetter;
+    }).length;
+    return `${firstLetter}${countSameLetter + 1}`;
+  }
+
   static registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
     const patients = this.getPatients();
     const newId = this.isUUID(patientData.id) ? patientData.id! : crypto.randomUUID();
-    
-    const firstLetter = (patientData.name && patientData.name.trim().length > 0)
-      ? patientData.name.trim().substring(0, 1).toUpperCase()
-      : 'P';
-    
-    const countSameLetter = patients.filter(p => 
-      p.name && p.name.trim().length > 0 && p.name.trim().substring(0, 1).toUpperCase() === firstLetter
-    ).length;
-
-    const customPatientId = `${firstLetter}${countSameLetter + 1}`;
+    const customPatientId = this.generateSmartPatientId(patientData.name, patients);
 
     const newPatient: Patient = {
       ...patientData,
       id: newId,
+      patientCode: patientData.patientCode || customPatientId,
       tokenNumber: patientData.tokenNumber || customPatientId,
       createdAt: new Date().toISOString()
     } as Patient;
@@ -364,6 +392,7 @@ export class PatientService {
         chronic_conditions: newPatient.chronicConditions,
         abha_id: newPatient.abhaId,
         token_number: newPatient.tokenNumber,
+        patient_code: newPatient.patientCode,
         registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') ? getPodContext().entityId : null
       },
       timestamp: new Date().toISOString(),
@@ -386,6 +415,15 @@ export class PatientService {
     this.processSyncQueue();
 
     return newPatient;
+  }
+
+  static bulkRegisterPatients(patientList: Array<Omit<Patient, 'id' | 'createdAt'> & { id?: string }>): Patient[] {
+    const registeredList: Patient[] = [];
+    patientList.forEach(pData => {
+      const reg = this.registerPatient(pData);
+      registeredList.push(reg);
+    });
+    return registeredList;
   }
 
   static getPatientHistoricalBiomarkers(patientId: string): any[] {

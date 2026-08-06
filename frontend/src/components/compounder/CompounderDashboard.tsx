@@ -452,8 +452,6 @@ export const CompounderDashboard: React.FC = () => {
   const [allergiesInput, setAllergiesInput] = useState('');
   const [chronicInput, setChronicInput] = useState('');
   const [abhaId, setAbhaId] = useState('');
-  const [heightInput, setHeightInput] = useState('');
-  const [weightInput, setWeightInput] = useState('');
   const [bloodGroupInput, setBloodGroupInput] = useState('');
   const [whatsAppInput, setWhatsAppInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -759,12 +757,10 @@ export const CompounderDashboard: React.FC = () => {
       allergies: allergiesInput.split(',').map(s => s.trim()).filter(Boolean),
       chronicConditions: chronicInput.split(',').map(s => s.trim()).filter(Boolean),
       abhaId: abhaId || undefined,
-      vitals: (weightInput || heightInput || bloodGroupInput) ? {
+      vitals: bloodGroupInput ? {
         temperature: '',
         bloodPressure: '',
         pulseRate: '',
-        weight: weightInput,
-        height: heightInput,
         bloodGroup: bloodGroupInput,
         recordedAt: new Date().toISOString()
       } as any : undefined,
@@ -792,8 +788,6 @@ export const CompounderDashboard: React.FC = () => {
     setAllergiesInput('');
     setChronicInput('');
     setAbhaId('');
-    setHeightInput('');
-    setWeightInput('');
     setBloodGroupInput('');
     setWhatsAppInput('');
   };
@@ -824,7 +818,7 @@ export const CompounderDashboard: React.FC = () => {
       return;
     }
 
-    const recordedToken = customToken.trim() || api.generateNextTokenNumber();
+    const recordedToken = vitalsPatient.tokenNumber || api.generateNextTokenNumber();
 
     const finalTempVal = isOphthalmology ? (tempVal === '98.6' ? '6/6' : tempVal) : tempVal;
     const finalBpVal = isOphthalmology ? (bpVal === '120/80' ? '6/6' : bpVal) : bpVal;
@@ -1248,16 +1242,21 @@ export const CompounderDashboard: React.FC = () => {
     return patients.filter(p => 
       (p.name || '').toLowerCase().includes(query) || 
       (p.phone || '').includes(query) ||
+      (p.patientCode && p.patientCode.toLowerCase().includes(query)) ||
+      (p.tokenNumber && p.tokenNumber.toLowerCase().includes(query)) ||
       (p.abhaId && p.abhaId.includes(query))
     );
   }, [patients, searchQuery]);
 
   const assignFilteredPatients = useMemo(() => {
-    if (!assignSearchQuery.trim()) return [];
+    const query = assignSearchQuery.trim().toLowerCase();
+    if (!query) return [];
     return patients.filter(p => 
-      (p.name || '').toLowerCase().includes(assignSearchQuery.toLowerCase().trim()) || 
-      (p.phone || '').includes(assignSearchQuery.trim()) ||
-      (p.abhaId && p.abhaId.includes(assignSearchQuery.trim()))
+      (p.name || '').toLowerCase().includes(query) || 
+      (p.phone || '').includes(query) ||
+      (p.patientCode && p.patientCode.toLowerCase().includes(query)) ||
+      (p.tokenNumber && p.tokenNumber.toLowerCase().includes(query)) ||
+      (p.abhaId && p.abhaId.includes(query))
     );
   }, [patients, assignSearchQuery]);
 
@@ -1706,27 +1705,7 @@ export const CompounderDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Height (cm)</label>
-                      <input
-                        type="number"
-                        placeholder="Height"
-                        value={heightInput}
-                        onChange={(e) => setHeightInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Weight (kg)</label>
-                      <input
-                        type="number"
-                        placeholder="Weight"
-                        value={weightInput}
-                        onChange={(e) => setWeightInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Blood Group</label>
                       <select
@@ -2646,14 +2625,11 @@ export const CompounderDashboard: React.FC = () => {
                     <form onSubmit={handleRecordVitalsSubmit} className="space-y-4 text-left">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">OPD Token Number</label>
-                          <input
-                            type="text"
-                            required
-                            value={customToken}
-                            onChange={(e) => setCustomToken(e.target.value)}
-                            className="w-full input-field text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg font-mono font-bold outline-none"
-                          />
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">OPD Token (System Allocated)</label>
+                          <div className="w-full py-2 px-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded-lg font-mono font-black text-xs flex items-center justify-between">
+                            <span>{vitalsPatient.tokenNumber || api.generateNextTokenNumber()}</span>
+                            <span className="text-[8px] bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Auto Token</span>
+                          </div>
                         </div>
                         <div className="space-y-1">
                           <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">

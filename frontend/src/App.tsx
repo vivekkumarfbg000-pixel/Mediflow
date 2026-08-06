@@ -989,6 +989,14 @@ export default function App() {
       }
       setSession(session);
       if (!session) {
+        // Prevent auto-logout on page refresh: Do NOT wipe session on INITIAL_SESSION if cached profile exists
+        if (event === 'INITIAL_SESSION') {
+          const cached = typeof window !== 'undefined' ? localStorage.getItem('vitalsync_cached_profile') : null;
+          if (cached) {
+            setIsLoadingSession(false);
+            return;
+          }
+        }
         setCrossDomainCookie(false);
         setActiveProfile(null);
         setIsLoadingSession(false);
@@ -1085,10 +1093,12 @@ export default function App() {
     setActiveProfile(finalProfile);
 
     // Purge leftover demo/mock cache keys from localStorage for live non-demo user accounts
+    const emailLower = String(finalProfile?.email || '').toLowerCase();
     const isDemoAccount = Boolean(
       finalProfile?.isDemo === true ||
-      String(finalProfile?.email || '').toLowerCase().includes('demo') ||
-      String(finalProfile?.id || '').toLowerCase().includes('demo')
+      emailLower === 'demo@mediflow.com' ||
+      emailLower === 'doctor@mediflow.com' ||
+      finalProfile?.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
     );
 
     if (!isDemoAccount && typeof window !== 'undefined') {

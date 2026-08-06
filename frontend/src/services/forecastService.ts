@@ -691,7 +691,7 @@ Dhyan rakhein aur time par medicine lein!`;
         const patientObj = PatientService.getPatients().find(p => p.id === patientId);
         const ageVal = patientObj?.age ?? 45;
         const genderVal = patientObj?.gender || 'Male';
-        const isFemale = genderVal.toLowerCase() === 'female';
+        const isFemale = (genderVal || '').toLowerCase() === 'female';
         const k = isFemale ? 0.7 : 0.9;
         const alpha = isFemale ? -0.241 : -0.302;
         const genderMult = isFemale ? 1.012 : 1.0;

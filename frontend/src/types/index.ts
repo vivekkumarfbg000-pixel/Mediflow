@@ -49,6 +49,7 @@ export interface Patient {
   createdAt: string;
   registeredAt?: string;
   registered_at?: string;
+  patientCode?: string;
   syncStatus?: 'synced' | 'pending' | 'failed';
   isPremiumMember?: boolean;
 }

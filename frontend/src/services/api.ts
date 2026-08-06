@@ -1075,8 +1075,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  generateNextTokenNumber(): string {
-    return PatientService.generateNextTokenNumber();
+  generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
+    return PatientService.generateNextTokenNumber(targetDate, isSos);
   }
 
   registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
@@ -1581,6 +1581,22 @@ class MediflowApiService {
   savePatients(patients: Patient[]): void {
     PatientService.savePatients(patients);
     this.notify();
+  }
+
+  registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
+    const p = PatientService.registerPatient(patientData);
+    this.notify();
+    return p;
+  }
+
+  bulkRegisterPatients(patientList: Array<Omit<Patient, 'id' | 'createdAt'> & { id?: string }>): Patient[] {
+    const list = PatientService.bulkRegisterPatients(patientList);
+    this.notify();
+    return list;
+  }
+
+  generateSmartPatientId(name: string): string {
+    return PatientService.generateSmartPatientId(name, this.getPatients());
   }
 
   saveFinancialLedgers(entries: FinancialLedgerEntry[]): void {

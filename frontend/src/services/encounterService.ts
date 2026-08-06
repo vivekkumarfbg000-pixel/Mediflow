@@ -69,7 +69,7 @@ export class EncounterService {
       const holds = load<any[]>('inventory_holds', []);
       
       for (const med of newEncounter.medications) {
-        const item = inventory.find(i => i.name.toLowerCase() === med.medicineName.toLowerCase() || i.genericName.toLowerCase() === med.medicineName.toLowerCase());
+        const item = inventory.find(i => (i.name || '').toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
         const qty = 10; // default quantity for hold
         const batch = item?.batchNumber || 'MET26A-01';
         const expiry = item?.expiryDate || new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0];

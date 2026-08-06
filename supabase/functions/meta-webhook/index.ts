@@ -1347,20 +1347,24 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         // Count existing appointments for this date to determine Token Number
-        let tokenNumber = 1;
+        let tokenSeq = 1;
         try {
           const { count: apptCount } = await supabase
             .from("appointments")
             .select("id", { count: "exact", head: true })
             .eq("virtual_date", selectedDate);
-          tokenNumber = (apptCount ?? 0) + 1;
+          tokenSeq = (apptCount ?? 0) + 1;
         } catch (err) {
           console.warn("[Meta Webhook] Error fetching appointment count for token:", err);
         }
 
+        const isSosBookingSession = sessionData.isSos === true || sessionData.consultationType === "sos";
+        const formattedTokenStr = isSosBookingSession ? `T-${tokenSeq.toString().padStart(2, '0')} E` : `T-${tokenSeq.toString().padStart(2, '0')}`;
+        const tokenNumber = formattedTokenStr;
+
         // Calculate approximate time slot: Doctor starts at 10:00 AM, 10 mins per patient
         const startHour = 10;
-        const offsetMin = (tokenNumber - 1) * 10;
+        const offsetMin = (tokenSeq - 1) * 10;
         const apptHour = startHour + Math.floor(offsetMin / 60);
         const apptMin = offsetMin % 60;
         const ampm = apptHour >= 12 ? "PM" : "AM";
@@ -1472,7 +1476,7 @@ async function triggerBotReplyPipeline(ctx: {
             console.error("[Meta Webhook] Error creating free virtual invoice record:", err);
           }
 
-          replyText = `Aapki free virtual follow-up booking confirm ho gayi hai! 🟢\n\n*Appointment Details*:\n• Doctor: ${resolvedDoctorName}\n• Clinic Node: ${resolvedClinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${newApptId}\n\n${resolvedDoctorName} ke saath checkup time par start hoga. Thank you! 😊`;
+          replyText = `Aapki free virtual follow-up booking confirm ho gayi hai! 🟢\n\n*Appointment Details*:\n• Doctor: ${resolvedDoctorName}\n• Clinic Node: ${resolvedClinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${newApptId}\n\n${resolvedDoctorName} ke saath checkup time par start hoga. Thank you! 😊`;
         } else {
           // Normal Paid Consultation Flow
           nextState = "AWAITING_PAYMENT";
@@ -1636,12 +1640,14 @@ async function triggerBotReplyPipeline(ctx: {
           sessionData.isSos = false;
           delete sessionData.isSos;
 
+          const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
+
           if (isSosBooking) {
-            replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
+            replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
           } else if (isVirtualSlot) {
-            replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
+            replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
           } else {
-            replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you for choosing VitalSync! 😊`;
+            replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) ya patient ID (${pCode}) show karein. Thank you for choosing VitalSync! 😊`;
           }
         } else {
           // Payment NOT verified by Razorpay Webhook yet — block auto-confirmation!

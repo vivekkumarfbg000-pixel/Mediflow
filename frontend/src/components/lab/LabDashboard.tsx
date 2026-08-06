@@ -185,7 +185,9 @@ export const LabDashboard: React.FC = () => {
     () =>
       patients.filter(p =>
         (p.name || '').toLowerCase().includes(directSearch.toLowerCase()) ||
-        (p.phone || '').includes(directSearch)
+        (p.phone || '').includes(directSearch) ||
+        (p.patientCode && p.patientCode.toLowerCase().includes(directSearch.toLowerCase())) ||
+        (p.tokenNumber && p.tokenNumber.toLowerCase().includes(directSearch.toLowerCase()))
       ),
     [patients, directSearch]
   );
