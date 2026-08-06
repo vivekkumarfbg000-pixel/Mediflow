@@ -136,7 +136,18 @@ class WALIndexedDB {
 
   private getMemOutbox(): any[] {
     try {
-      return JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const raw = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      if (!Array.isArray(raw)) return [];
+      
+      // Strict structural validation to prevent WAL injection (XSS to CSRF escalation)
+      return raw.filter(item => 
+        item !== null &&
+        typeof item === 'object' &&
+        typeof item.id === 'string' &&
+        typeof item.action === 'string' &&
+        item.payload !== undefined &&
+        typeof item.timestamp === 'string'
+      );
     } catch {
       return [];
     }
@@ -299,7 +310,9 @@ class MediflowApiService {
           console.log('[Mediflow Realtime] Channel status changed:', status);
       });
 
-    setInterval(() => this.syncFromSupabase(), 15000);
+    setInterval(() => {
+      this.syncFromSupabase().catch(err => console.error('[Mediflow API] Background sync interval failed:', err));
+    }, 15000);
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
@@ -529,12 +542,12 @@ class MediflowApiService {
   }
 
   public async syncFromSupabase(): Promise<void> {
-    // Prevent syncing if not authenticated (no active session keys in local storage)
-    const hasSession = typeof window !== 'undefined' && Object.keys(localStorage).some(k => k.includes('-auth-token'));
-    if (this.isSyncing) return; // ← concurrency guard: skip if a sync is already in flight
+    if (this.isSyncing || this.isWALReplaying) return; // ← concurrency guard: skip if a sync or WAL replay is already in flight
 
-    if (!hasSession) {
-      console.log('[Mediflow API] Sync skipped: No active session token found.');
+    // Prevent syncing if not authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.log('[Mediflow API] Sync skipped: No active session.');
       return;
     }
 

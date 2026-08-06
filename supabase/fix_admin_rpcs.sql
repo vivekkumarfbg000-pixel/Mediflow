@@ -1,7 +1,8 @@
--- Mediflow Connected Care Platform Operations Metrics Functions
--- Migration ID: 20260604000003_saas_analytics_functions
--- Created: 2026-06-04
--- Purpose: Aggregate platform performance metrics across all pods secure behind the platform owner credentials.
+-- =============================================================================
+-- Mediflow: SaaS Admin Privilege Escalation Fix
+-- =============================================================================
+-- ACTION REQUIRED: Run this script in your Supabase SQL Editor.
+-- This enforces strict JWT role checking inside SECURITY DEFINER functions.
 
 -- 1. Onboarding Coordinator Stats RPC
 CREATE OR REPLACE FUNCTION public.get_saas_onboarding_stats()
@@ -16,7 +17,7 @@ DECLARE
   v_total_profiles INT;
 BEGIN
   -- Verify caller is admin or platform_admin
-  v_role := (auth.jwt() -> 'user_metadata' ->> 'role');
+  SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid();
   IF v_role != 'admin' AND v_role != 'platform_admin' THEN
     RAISE EXCEPTION 'Unauthorized: SaaS Admin privileges required.';
   END IF;
@@ -39,9 +40,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-REVOKE EXECUTE ON FUNCTION public.get_saas_onboarding_stats() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_saas_onboarding_stats() TO authenticated;
-
 -- 2. CFO Revenue Splits Stats RPC
 CREATE OR REPLACE FUNCTION public.get_saas_revenue_stats()
 RETURNS JSONB AS $$
@@ -53,13 +51,12 @@ DECLARE
   v_unpaid_invoices INT;
 BEGIN
   -- Verify caller is admin or platform_admin
-  v_role := (auth.jwt() -> 'user_metadata' ->> 'role');
+  SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid();
   IF v_role != 'admin' AND v_role != 'platform_admin' THEN
     RAISE EXCEPTION 'Unauthorized: SaaS Admin privileges required.';
   END IF;
 
   SELECT COALESCE(SUM(total_amount), 0.00) INTO v_gmv FROM public.unified_invoices;
-  -- Sum up paid/confirmed invoices commissions
   SELECT COALESCE(SUM(platform_fee), 0.00) INTO v_platform_commission FROM public.unified_invoices WHERE status = 'paid' OR status = 'confirmed';
   SELECT COUNT(*) INTO v_paid_invoices FROM public.unified_invoices WHERE status = 'paid' OR status = 'confirmed';
   SELECT COUNT(*) INTO v_unpaid_invoices FROM public.unified_invoices WHERE status = 'unpaid' OR status = 'draft';
@@ -73,9 +70,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-REVOKE EXECUTE ON FUNCTION public.get_saas_revenue_stats() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_saas_revenue_stats() TO authenticated;
-
 -- 3. Communications and LLM Cost Analytics Stats RPC
 CREATE OR REPLACE FUNCTION public.get_saas_cost_stats()
 RETURNS JSONB AS $$
@@ -87,7 +81,7 @@ DECLARE
   v_ai_cost NUMERIC(10,4);
 BEGIN
   -- Verify caller is admin or platform_admin
-  v_role := (auth.jwt() -> 'user_metadata' ->> 'role');
+  SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid();
   IF v_role != 'admin' AND v_role != 'platform_admin' THEN
     RAISE EXCEPTION 'Unauthorized: SaaS Admin privileges required.';
   END IF;
@@ -107,6 +101,3 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-REVOKE EXECUTE ON FUNCTION public.get_saas_cost_stats() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_saas_cost_stats() TO authenticated;

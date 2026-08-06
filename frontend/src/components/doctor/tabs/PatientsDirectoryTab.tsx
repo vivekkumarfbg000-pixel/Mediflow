@@ -82,7 +82,16 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
         if (infoA.date !== infoB.date) {
           return infoA.date.localeCompare(infoB.date);
         }
-        return infoA.time.localeCompare(infoB.time);
+        const parseTime = (timeStr: string) => {
+          if (!timeStr.includes(' ')) return timeStr; // fallback for non-AM/PM strings
+          const [time, modifier] = timeStr.split(' ');
+          let [hours, minutes] = time.split(':');
+          if (!hours || !minutes) return timeStr;
+          if (hours === '12') hours = '00';
+          if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
+          return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        };
+        return parseTime(infoA.time).localeCompare(parseTime(infoB.time));
       }
       return 0;
     });
@@ -137,24 +146,31 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
     if (parsedList.length === 0) return;
     setIsImporting(true);
     setImportProgress(0);
-    
-    for (let i = 0; i < parsedList.length; i++) {
-      const p = parsedList[i];
-      api.registerPatient(p);
-      setImportProgress(Math.round(((i + 1) / parsedList.length) * 100));
-      await new Promise(resolve => setTimeout(resolve, 80));
-    }
-    
-    setIsImporting(false);
-    setParsedList([]);
-    setBulkInput('');
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: 'Bulk Import Completed! 📤',
-        message: `Successfully onboarded ${parsedList.length} patients with custom sequence IDs.`,
-        type: 'success'
+    const totalCount = parsedList.length;
+    try {
+      for (let i = 0; i < parsedList.length; i++) {
+        const p = parsedList[i];
+        api.registerPatient(p);
+        setImportProgress(Math.round(((i + 1) / parsedList.length) * 100));
+        await new Promise(resolve => setTimeout(resolve, 80));
       }
-    }));
+      setParsedList([]);
+      setBulkInput('');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Bulk Import Queued! 📤',
+          message: `${totalCount} patients have been loaded locally and are syncing to the database in the background.`,
+          type: 'success'
+        }
+      }));
+    } catch (err) {
+      console.error('[BulkImport] Failed:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Import Error', message: 'Some patients could not be loaded into the local queue. Please retry.', type: 'error' }
+      }));
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (

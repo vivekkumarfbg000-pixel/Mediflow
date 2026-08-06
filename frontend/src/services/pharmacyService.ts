@@ -777,8 +777,8 @@ export class PharmacyService {
         const dbEntries = [
           {
             invoice_id: id.length === 36 ? id : null,
-            source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
-            destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic-admin/platform-admin mapping
+            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
+            destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic-admin/platform-admin mapping
             transaction_type: 'platform_fee',
             gross_amount: amount,
             commission_rate: splitPlat,
@@ -788,8 +788,8 @@ export class PharmacyService {
           },
           {
             invoice_id: id.length === 36 ? id : null,
-            source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
-            destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004', // pharmacy
+            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
+            destination_entity_id: getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004', // pharmacy
             transaction_type: 'medicine_commission',
             gross_amount: amount,
             commission_rate: 100 - splitPlat,
@@ -824,7 +824,7 @@ export class PharmacyService {
         // Create hold
         holds.push({
           id: `hold-wa-${crypto.randomUUID().substring(0, 8)}`,
-          pharmacyId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          pharmacyId: getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
           patientId: bill.patientId,
           medicineName: item.name,
           dosage: item.dosage,
@@ -1108,7 +1108,13 @@ Thank you for choosing VitalSync! 🟢`;
 
     let orders = load<WhatsAppDrugOrder[]>('whatsapp_drug_orders', defaultOrders);
     if (!isDemoAccount) {
-      orders = orders.filter(o => o.id !== 'ord-101' && o.id !== 'ord-102' && o.patientName !== 'Aarav Sharma' && o.patientName !== 'Priyanka Verma');
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'neha yadav', 'rahul kumar test', 'rls test patient']);
+      orders = orders.filter(o => {
+        const pName = String(o.patientName || '').toLowerCase().trim();
+        if (o.id === 'ord-101' || o.id === 'ord-102') return false;
+        if (demoNames.has(pName)) return false;
+        return true;
+      });
     }
     return orders;
   }

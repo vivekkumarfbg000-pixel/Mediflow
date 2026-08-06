@@ -101,7 +101,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
       summary += `🧪 **Test Analyzed**: ${testName}\n`;
       summary += `📊 **Qualitative Result**: "${results}"\n\n`;
       summary += `💡 **RAG CDSS Clinical Guideline Summary**:\n`;
-      if (testName.toLowerCase().includes('hba1c')) {
+      if ((testName || '').toLowerCase().includes('hba1c')) {
         summary += `• Your HbA1c is at a borderline level. This confirms mild Glycemic Fluctuation.\n`;
         summary += `• **CDSS Guideline**: Avoid any sudden dose switches. Avoid ibuprofen/NSAIDs due to borderline renal clearance.\n`;
         summary += `• **Action Plan**: Dr. Sharma recommends continuous capillary blood glucose logs and home screening.`;
@@ -123,7 +123,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
   };
 
   const handleConfirmUpiPayment = () => {
-    if (!activeUpiInvoice) return;
+    if (!activeUpiInvoice || isPaying) return;
     setIsPaying(true);
     
     setTimeout(async () => {
@@ -407,7 +407,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       </h3>
                     </div>
                     <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 font-black text-xs">
-                      {activePatient?.name.substring(0, 2).toUpperCase() || 'MF'}
+                      {(activePatient?.name || 'MF').substring(0, 2).toUpperCase()}
                     </div>
                   </div>
 
@@ -700,7 +700,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                           <div className="flex justify-between items-start">
                             <div>
                               <h4 className="font-extrabold text-white text-[11px]">VitalSync Pod Invoice</h4>
-                              <span className="text-[8px] text-zinc-500 block font-mono mt-0.5">ID: {inv.id.substring(0, 8)}...</span>
+                              <span className="text-[8px] text-zinc-500 block font-mono mt-0.5">ID: {(inv.id || '').substring(0, 8)}...</span>
                             </div>
                             <span className={`text-[8.5px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
                               inv.paymentStatus === 'cleared'
@@ -942,51 +942,62 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         e.preventDefault();
                         if (!bookName || !bookPhone || !bookAge) return;
 
-                        // 1. Register new patient
-                        const newPat = api.registerPatient({
-                          id: `pat-${bookPhone}`,
-                          name: bookName,
-                          phone: bookPhone,
-                          age: Number(bookAge),
-                          gender: bookGender,
-                          allergies: [],
-                          chronicConditions: [],
-                          queueStatus: 'awaiting_vitals'
-                        } as any);
+                        try {
+                          // 1. Register new patient
+                          const newPat = api.registerPatient({
+                            id: `pat-${bookPhone}`,
+                            name: bookName,
+                            phone: bookPhone,
+                            age: Number(bookAge),
+                            gender: bookGender,
+                            allergies: [],
+                            chronicConditions: [],
+                            queueStatus: 'awaiting_vitals'
+                          } as any);
 
-                        // 2. Create the consult invoice (source: whatsapp / patient)
-                        api.createGate1Consult(newPat.id);
+                          // 2. Create the consult invoice (source: whatsapp / patient)
+                          api.createGate1Consult(newPat.id);
 
-                        // 3. Reset form
-                        setBookName('');
-                        setBookPhone('');
-                        setBookAge('');
-                        setBookGender('Male');
+                          // 3. Reset form
+                          setBookName('');
+                          setBookPhone('');
+                          setBookAge('');
+                          setBookGender('Male');
 
-                        // 4. Update local state
-                        setPatients(api.getPatients());
+                          // 4. Update local state
+                          setPatients(api.getPatients());
 
-                        // 5. Retrieve just-created invoice and open UPI modal
-                        const createdInv = BillingService.getInvoices()
-                          .filter(inv => inv.patientId === newPat.id && inv.status === 'unpaid' && inv.type === 'consult')
-                          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-                        if (createdInv) {
-                          // Map Invoice → UnifiedInvoice shape for UPI modal
-                          handleTriggerUpiSheet({
-                            id: createdInv.id,
-                            encounterId: createdInv.appointmentId,
-                            patientId: newPat.id,
-                            patientName: bookName,
-                            patientPhone: bookPhone,
-                            doctorFee: createdInv.amount,
-                            labFee: 0,
-                            pharmacyFee: 0,
-                            platformFee: 0,
-                            totalAmount: createdInv.amount,
-                            upiQrPayload: '',
-                            paymentStatus: 'pending',
-                            createdAt: createdInv.createdAt,
-                          } as UnifiedInvoice);
+                          // 5. Retrieve just-created invoice and open UPI modal
+                          const createdInv = BillingService.getInvoices()
+                            .filter(inv => inv.patientId === newPat.id && inv.status === 'unpaid' && inv.type === 'consult')
+                            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+                          if (createdInv) {
+                            // Map Invoice → UnifiedInvoice shape for UPI modal
+                            handleTriggerUpiSheet({
+                              id: createdInv.id,
+                              encounterId: createdInv.appointmentId,
+                              patientId: newPat.id,
+                              patientName: bookName,
+                              patientPhone: bookPhone,
+                              doctorFee: createdInv.amount,
+                              labFee: 0,
+                              pharmacyFee: 0,
+                              platformFee: 0,
+                              totalAmount: createdInv.amount,
+                              upiQrPayload: '',
+                              paymentStatus: 'pending',
+                              createdAt: createdInv.createdAt,
+                            } as UnifiedInvoice);
+                          }
+                        } catch (error) {
+                          console.error('[Patient Mobile] Booking failed:', error);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Booking Failed',
+                              message: 'Unable to process your request. Please try again.',
+                              type: 'error'
+                            }
+                          }));
                         }
                       }} 
                       className="space-y-3"

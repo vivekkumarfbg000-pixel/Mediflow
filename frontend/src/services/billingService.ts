@@ -160,8 +160,8 @@ export class BillingService {
 
         const dbRefLedger = {
           invoice_id: invoiceId.length === 36 ? invoiceId : null,
-          source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-          destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'appointment_fee',
           gross_amount: invoiceAmount,
           commission_rate: 10,
@@ -171,8 +171,8 @@ export class BillingService {
         };
         const dbPlatLedger = {
           invoice_id: invoiceId.length === 36 ? invoiceId : null,
-          source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-          destination_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'platform_fee',
           gross_amount: invoiceAmount,
           commission_rate: 3,
@@ -386,15 +386,20 @@ export class BillingService {
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
-        'pat-101', 'pat-102', 'pat-103'
+        'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105'
       ]);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      const demoNames = new Set([
+        'aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 
+        'patient customer', 'unknown', 'unknown patient', 'john doe', 'neha yadav', 
+        'vikram prasad', 'vikram verma'
+      ]);
       appts = appts.filter(a => {
         const id = a.id || '';
-        const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase();
+        const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase().trim();
         const pId = String(a.patientId || '');
         if (id.startsWith('appt-demo') || id.startsWith('appt-sample') || id.startsWith('appt-101') || id.startsWith('appt-102')) return false;
         if (demoNames.has(pName)) return false;
+        if (pName.includes('test patient') || pName.includes('auto test')) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
       });
@@ -878,10 +883,10 @@ export class BillingService {
       // Sync splits to Supabase with the new database columns
       const dbEntries = listToSave.map(s => ({
         invoice_id: s.invoiceId.length === 36 ? s.invoiceId : null,
-        source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
+        source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
         destination_entity_id: s.destinationEntityId === 'platform-admin-entity' 
-          ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' 
-          : (s.destinationEntityId === 'lab-partner-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' : 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004'), // lab or pharmacy
+          ? getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' 
+          : (s.destinationEntityId === 'lab-partner-entity' ? (getPodContext().labEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') : (getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004')),
         transaction_type: s.transactionType,
         gross_amount: s.grossAmount,
         commission_rate: Math.round(s.commissionRate * 100),
@@ -945,7 +950,10 @@ export class BillingService {
             const sessions = load<any[]>('whatsapp_sessions', []);
             const existing = sessions.find(s => s.patientPhone === patient.phone);
             if (existing) {
-              const text = `✅ *Consultation Fee Received!* \n\nPatient has been added to Doctor Vivek's active queue. Please enter the consultation chamber when called.`;
+              const podRaw = typeof window !== 'undefined' ? localStorage.getItem('mediflow_active_pod') : null;
+              const podParsed = podRaw ? (() => { try { return JSON.parse(podRaw); } catch { return null; } })() : null;
+              const doctorLabel = podParsed?.doctorName || 'Doctor';
+              const text = `✅ *Consultation Fee Received!* \n\nPatient has been added to ${doctorLabel}'s active queue. Please enter the consultation chamber when called.`;
               const currentHistory = existing.sessionData.chatHistory || [];
               currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
               existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
@@ -1217,7 +1225,7 @@ export class BillingService {
   static getClinicSops(): ClinicSop[] {
     const defaultSop: ClinicSop = {
       id: 'sop-standard-1',
-      entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      entityId: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
       sopFileName: 'Kankarbagh_Clinic_Standard_SOP.txt',
       sopText: 'Doctor consultation fee: INR 500. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 3% Platform, 57% Lab.',
       extractedConfig: {

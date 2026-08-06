@@ -378,7 +378,13 @@ export class LabService {
 
     let reports = load<PathologyReport[]>('pathology_reports', defaultReports);
     if (!isDemoAccount) {
-      reports = reports.filter(r => r.id !== 'rep-201' && r.id !== 'rep-202' && r.patientName !== 'Aarav Sharma' && r.patientName !== 'Priyanka Verma');
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'neha yadav', 'vikram prasad']);
+      reports = reports.filter(r => {
+        const pName = String(r.patientName || '').toLowerCase().trim();
+        if (r.id === 'rep-201' || r.id === 'rep-202') return false;
+        if (demoNames.has(pName)) return false;
+        return true;
+      });
     }
     return reports;
   }

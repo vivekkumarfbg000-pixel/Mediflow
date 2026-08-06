@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
-import type { UnifiedInvoice, FinancialLedgerEntry } from '../../types';
+import type { UnifiedInvoice, FinancialLedgerEntry, Patient } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { 
@@ -18,6 +18,7 @@ export const BillingDashboard: React.FC = () => {
   const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
   const [activeTab, setActiveTab] = useState<'invoice' | 'ledger' | 'analytics'>('invoice');
   const [ledgerEntries, setLedgerEntries] = useState<FinancialLedgerEntry[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
 
   // V2.0 Animated Split Payout Wheel Active Selection
   const [selectedNode, setSelectedNode] = useState<'escrow' | 'clinic' | 'lab' | 'pharmacy' | 'platform'>('escrow');
@@ -87,6 +88,7 @@ export const BillingDashboard: React.FC = () => {
       const list = api.getUnifiedInvoices();
       setInvoices(list);
       setLedgerEntries(api.getFinancialLedgers());
+      setPatients(api.getPatients());
       
       setSelectedInvoice(prev => {
         if (!prev) {
@@ -134,6 +136,7 @@ export const BillingDashboard: React.FC = () => {
     }
   };
   const handleSimulatePayment = (id: string) => {
+    if (isSimulatingPayment) return;
     setIsSimulatingPayment(true);
 
     // Simulate UPI settlement callbacks
@@ -233,13 +236,24 @@ export const BillingDashboard: React.FC = () => {
                           <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-rose-500" />
                         )}
                         <div className="flex justify-between items-start gap-2">
-                          <span className="font-bold text-slate-800 text-xs group-hover:text-rose-600 transition-colors">{inv.patientName}</span>
+                          <span className="font-bold text-slate-800 text-xs group-hover:text-rose-600 transition-colors flex items-center gap-1.5 flex-wrap">
+                            {inv.patientName}
+                            {(() => {
+                              const pat = patients.find(p => p.id === inv.patientId);
+                              const code = pat?.patientCode || (pat ? `${(pat.name || 'P').substring(0, 1).toUpperCase()}1` : '');
+                              return code ? (
+                                <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded font-mono">
+                                  [{code}]
+                                </span>
+                              ) : null;
+                            })()}
+                          </span>
                           <span className="font-bold text-slate-800 text-xs flex items-center font-mono">
                             INR {inv.totalAmount}.00
                           </span>
                         </div>
                         <p className="text-[9px] text-slate-500 mt-2 font-mono tracking-wider uppercase bg-slate-100 px-1.5 py-0.5 rounded w-max">
-                          ID: {inv.id.toUpperCase()}
+                          Invoice ID: {(inv.id || '').toUpperCase().substring(0, 8)}...
                         </p>
                       </button>
                     );
@@ -274,7 +288,18 @@ export const BillingDashboard: React.FC = () => {
                           <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-emerald-500" />
                         )}
                         <div className="flex justify-between items-start gap-2">
-                          <span className="font-bold text-slate-600 text-xs group-hover:text-emerald-600 transition-colors">{inv.patientName}</span>
+                          <span className="font-bold text-slate-600 text-xs group-hover:text-emerald-600 transition-colors flex items-center gap-1.5 flex-wrap">
+                            {inv.patientName}
+                            {(() => {
+                              const pat = patients.find(p => p.id === inv.patientId);
+                              const code = pat?.patientCode || '';
+                              return code ? (
+                                <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded font-mono">
+                                  [{code}]
+                                </span>
+                              ) : null;
+                            })()}
+                          </span>
                           <span className="font-bold text-emerald-600 text-xs flex items-center font-mono">
                             INR {inv.totalAmount}.00
                           </span>
@@ -332,10 +357,22 @@ export const BillingDashboard: React.FC = () => {
                   <span className="material-symbols-outlined text-indigo-600 text-[16px]">account_balance</span>
                   Unified Split-Bill
                   <span className="text-slate-500 font-medium text-xs font-mono uppercase bg-slate-100 px-2 py-0.5 rounded ml-1">
-                    ({selectedInvoice.id.substring(0, 8)}...)
+                    ({(selectedInvoice.id || '').substring(0, 8)}...)
                   </span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-1.5">Patient: <strong className="text-slate-800 font-semibold">{selectedInvoice.patientName}</strong> (+91 {selectedInvoice.patientPhone})</p>
+                <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  Patient: <strong className="text-slate-800 font-semibold">{selectedInvoice.patientName}</strong>
+                  {(() => {
+                    const pat = patients.find(p => p.id === selectedInvoice.patientId);
+                    const code = pat?.patientCode || (pat ? `${(pat.name || 'P').substring(0, 1).toUpperCase()}1` : '');
+                    return code ? (
+                      <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded font-mono">
+                        Patient ID: {code}
+                      </span>
+                    ) : null;
+                  })()}
+                  <span className="text-slate-400 font-mono">(+91 {selectedInvoice.patientPhone})</span>
+                </p>
               </div>
 
               {/* Tab Selector */}
@@ -555,7 +592,7 @@ export const BillingDashboard: React.FC = () => {
                               <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="p-2.5">
                                   <span className="capitalize font-semibold text-slate-800">{entry.transactionType.replace(/_/g, ' ')}</span>
-                                  <div className="text-[9px] text-slate-400 font-mono mt-0.5 truncate max-w-[80px]">{entry.destinationEntityId.substring(0, 12)}...</div>
+                                  <div className="text-[9px] text-slate-400 font-mono mt-0.5 truncate max-w-[80px]">{(entry.destinationEntityId || 'N/A').substring(0, 12)}...</div>
                                 </td>
                                 <td className="p-2.5 font-mono text-slate-700">₹{entry.grossAmount}</td>
                                 <td className="p-2.5 font-mono text-slate-500">{(entry.commissionRate * 100).toFixed(0)}%</td>
@@ -587,7 +624,7 @@ export const BillingDashboard: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Bank Settlement Route ID:</span>
-                      <span className="text-slate-800 font-mono uppercase font-bold">TXN_UPI_SPLIT_REF_{selectedInvoice.id.substring(0, 8).toUpperCase()}</span>
+                      <span className="text-slate-800 font-mono uppercase font-bold">TXN_UPI_SPLIT_REF_{(selectedInvoice.id || '').substring(0, 8).toUpperCase()}</span>
                     </div>
                   </div>
                 </div>

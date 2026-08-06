@@ -6,6 +6,7 @@ import { PharmacyService } from './pharmacyService';
 import { LabService } from './labService';
 import { BillingService } from './billingService';
 import { PaymentService } from './paymentService';
+import { getPodContext } from './podContext';
 import type { 
   WhatsAppSession, 
   ChatMessage, 
@@ -44,8 +45,17 @@ export class WhatsAppService {
 
     let sessions = load<WhatsAppSession[]>('whatsapp_sessions', []);
     if (!isDemoAccount) {
-      const demoPhones = new Set(['9876543210', '8765432109']);
-      sessions = sessions.filter(s => !s.id?.startsWith('sess-demo') && !s.id?.startsWith('sess-sample') && !demoPhones.has(s.patientPhone));
+      const demoPhones = new Set(['9876543210', '8765432109', '919608032073', '916205449265', '9999999999']);
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'unknown patient', 'john doe', 'rahul kumar test', 'rls test patient']);
+      sessions = sessions.filter(s => {
+        const id = s.id || '';
+        const pName = String((s as any).patientName || (s as any).patient_name || '').toLowerCase().trim();
+        const pPhone = String(s.patientPhone || s.phone || '').trim();
+        if (id.startsWith('sess-demo') || id.startsWith('sess-sample')) return false;
+        if (demoPhones.has(pPhone)) return false;
+        if (demoNames.has(pName)) return false;
+        return true;
+      });
     }
     return sessions;
   }
@@ -642,8 +652,8 @@ export class WhatsAppService {
 
             const dbSplits = doorstepSplits.map(s => ({
               invoice_id: s.invoiceId.includes('-') && s.invoiceId.length === 36 ? s.invoiceId : null,
-              source_entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-              destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' : s.destinationEntityId,
+              source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+              destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? (getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') : s.destinationEntityId,
               transaction_type: s.transactionType,
               gross_amount: s.grossAmount,
               commission_rate: s.commissionRate * 100,
@@ -857,7 +867,7 @@ export class WhatsAppService {
               }).eq('id', apptId).then();
               
               nextState = 'COMPLETED';
-              replyMessage = `📅 *Appointment Rescheduled Successfully!* \n\nSlot: *${selectedSlotText}* (Tomorrow)\n\nDoctor Vivek aur Compounder ko alert bhej diya gaya hai. Thank you! 😊`;
+              replyMessage = `📅 *Appointment Rescheduled Successfully!* \n\nSlot: *${selectedSlotText}* (Tomorrow)\n\nDoctor aur Compounder ko alert bhej diya gaya hai. Thank you! 😊`;
             } else {
               nextState = 'COMPLETED';
               replyMessage = "Rescheduling failed. Appointment record not found.";

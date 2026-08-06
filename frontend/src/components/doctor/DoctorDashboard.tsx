@@ -35,9 +35,9 @@ const safeLazy = (importFn: () => Promise<any>) =>
     importFn().catch((err) => {
       console.warn('[VitalSync] Dynamic chunk load failed (fresh build deployment detected). Executing auto-recovery reload...', err);
       if (typeof window !== 'undefined') {
-        const reloaded = sessionStorage.getItem('vitalsync_chunk_reloaded');
+        const reloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard');
         if (!reloaded) {
-          sessionStorage.setItem('vitalsync_chunk_reloaded', 'true');
+          sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
           window.location.reload();
         }
       }
@@ -848,9 +848,10 @@ export const DoctorDashboard: React.FC = () => {
         const guidelinesFound: any[] = [];
         for (const topic of topicsToSearch) {
           let normalizedTopic = topic;
-          if (topic.toLowerCase().includes('diabetes')) normalizedTopic = 'Diabetes';
-          if (topic.toLowerCase().includes('kidney') || topic.toLowerCase().includes('renal')) normalizedTopic = 'CKD';
-          if (topic.toLowerCase().includes('asthma') || topic.toLowerCase().includes('fever')) normalizedTopic = 'Fever';
+          const safeTopic = (topic || '').toLowerCase();
+          if (safeTopic.includes('diabetes')) normalizedTopic = 'Diabetes';
+          if (safeTopic.includes('kidney') || safeTopic.includes('renal')) normalizedTopic = 'CKD';
+          if (safeTopic.includes('asthma') || safeTopic.includes('fever')) normalizedTopic = 'Fever';
 
           const { data, error } = await supabase.rpc('match_clinical_guidelines', {
             query_embedding: null,
@@ -1026,9 +1027,10 @@ Keep the tone professional, clinical, objective, and precise.`;
         const guidelinesFound: any[] = [];
         for (const topic of topicsToSearch) {
           let normalizedTopic = topic;
-          if (topic.toLowerCase().includes('diabetes')) normalizedTopic = 'Diabetes';
-          if (topic.toLowerCase().includes('kidney') || topic.toLowerCase().includes('renal')) normalizedTopic = 'CKD';
-          if (topic.toLowerCase().includes('asthma') || topic.toLowerCase().includes('fever')) normalizedTopic = 'Fever';
+          const safeTopic = (topic || '').toLowerCase();
+          if (safeTopic.includes('diabetes')) normalizedTopic = 'Diabetes';
+          if (safeTopic.includes('kidney') || safeTopic.includes('renal')) normalizedTopic = 'CKD';
+          if (safeTopic.includes('asthma') || safeTopic.includes('fever')) normalizedTopic = 'Fever';
 
           const { data } = await supabase.rpc('match_clinical_guidelines', {
             query_embedding: null,
@@ -1086,9 +1088,9 @@ Keep the tone professional, clinical, objective, and precise.`;
 
   const checkAllergyConflict = (drugName: string): string | null => {
     if (!selectedPatient || !selectedPatient.allergies) return null;
-    const lowerDrug = drugName.toLowerCase();
+    const lowerDrug = (drugName || '').toLowerCase();
     for (const allergy of selectedPatient.allergies) {
-      const lowerAllergy = allergy.toLowerCase();
+      const lowerAllergy = (allergy || '').toLowerCase();
       if (lowerDrug.includes(lowerAllergy) || 
           (lowerAllergy === 'penicillin' && (lowerDrug.includes('amox') || lowerDrug.includes('amp') || lowerDrug.includes('peni')))) {
         return allergy;

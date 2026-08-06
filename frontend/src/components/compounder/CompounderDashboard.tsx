@@ -55,7 +55,7 @@ import {
 } from 'lucide-react';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
-  const nameLower = medicineName.toLowerCase();
+  const nameLower = (medicineName || '').toLowerCase();
   const dosageLower = (dosage || '').toLowerCase();
   
   let english = 'As directed by physician';
@@ -121,7 +121,6 @@ export const CompounderDashboard: React.FC = () => {
   const [pulseVal, setPulseVal] = useState('72');
   const [weightVal, setWeightVal] = useState('65');
   const [sugarVal, setSugarVal] = useState('');
-  const [customToken, setCustomToken] = useState('');
   
   // Interactive Workflow Modal State
   const [activeWorkflowDetail, setActiveWorkflowDetail] = useState<{
@@ -612,8 +611,8 @@ export const CompounderDashboard: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       document.body.style.overflow = 'hidden';
       setVitalsPatient(activePatient);
-      setCustomToken(activePatient.tokenNumber || api.generateNextTokenNumber());
     }
+    return () => { document.body.style.overflow = ''; };
   }, [activePatient, vitalsPatient]);
 
   // Load existing vitals into form fields & lock body scroll when vitalsPatient changes
@@ -676,7 +675,6 @@ export const CompounderDashboard: React.FC = () => {
         setWeightVal(isOphthalmology ? '' : '65');
         setSugarVal('');
       }
-      setCustomToken(vitalsPatient.tokenNumber || '');
     }
     return () => {
       document.body.style.overflow = '';
@@ -837,7 +835,7 @@ export const CompounderDashboard: React.FC = () => {
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Vitals pre-loaded successfully for patient ${vitalsPatient.name}! Dispatched Token: ${recordedToken} to Doctor Vivek's chamber. 🩺`,
+        message: `Vitals pre-loaded successfully for patient ${vitalsPatient.name}! Dispatched Token: ${recordedToken} to Doctor's chamber. 🩺`,
         type: 'success',
         title: 'Swasthya Token Dispatched'
       }
@@ -850,7 +848,6 @@ export const CompounderDashboard: React.FC = () => {
     setPulseVal('72');
     setWeightVal('65');
     setSugarVal('');
-    setCustomToken('');
 
     syncData();
   };
@@ -1042,7 +1039,7 @@ export const CompounderDashboard: React.FC = () => {
   const getCheaperAlternatives = (item: MedicineBillItem) => {
     return activeInventory.filter(inv => 
       inv.id !== item.inventoryItemId &&
-      inv.genericName.toLowerCase() === item.genericName.toLowerCase() &&
+      (inv.genericName || '').toLowerCase() === (item.genericName || '').toLowerCase() &&
       inv.price < item.sellingPrice &&
       inv.stock > 0
     );
@@ -1230,8 +1227,8 @@ export const CompounderDashboard: React.FC = () => {
   const billingSearchMatches = useMemo(() => {
     if (!medSearchQuery.trim()) return [];
     return activeInventory.filter(inv => 
-      (inv.name.toLowerCase().includes(medSearchQuery.toLowerCase()) ||
-       inv.genericName.toLowerCase().includes(medSearchQuery.toLowerCase())) &&
+      ((inv.name || '').toLowerCase().includes(medSearchQuery.toLowerCase()) ||
+       (inv.genericName || '').toLowerCase().includes(medSearchQuery.toLowerCase())) &&
       inv.stock > 0
     );
   }, [activeInventory, medSearchQuery]);
@@ -1242,8 +1239,8 @@ export const CompounderDashboard: React.FC = () => {
     return patients.filter(p => 
       (p.name || '').toLowerCase().includes(query) || 
       (p.phone || '').includes(query) ||
-      (p.patientCode && p.patientCode.toLowerCase().includes(query)) ||
-      (p.tokenNumber && p.tokenNumber.toLowerCase().includes(query)) ||
+      (p.patientCode && String(p.patientCode).toLowerCase().includes(query)) ||
+      (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(query)) ||
       (p.abhaId && p.abhaId.includes(query))
     );
   }, [patients, searchQuery]);
@@ -1254,8 +1251,8 @@ export const CompounderDashboard: React.FC = () => {
     return patients.filter(p => 
       (p.name || '').toLowerCase().includes(query) || 
       (p.phone || '').includes(query) ||
-      (p.patientCode && p.patientCode.toLowerCase().includes(query)) ||
-      (p.tokenNumber && p.tokenNumber.toLowerCase().includes(query)) ||
+      (p.patientCode && String(p.patientCode).toLowerCase().includes(query)) ||
+      (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(query)) ||
       (p.abhaId && p.abhaId.includes(query))
     );
   }, [patients, assignSearchQuery]);
@@ -2178,9 +2175,9 @@ export const CompounderDashboard: React.FC = () => {
                       {searchApptPatient.trim().length > 0 && (
                         <div className="border border-slate-100 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-2 max-h-[160px] overflow-y-auto space-y-1.5 shadow-inner">
                           {patients.filter(p => 
-                            p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                            p.phone.includes(searchApptPatient) ||
-                            p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                            (p.name || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                            (p.phone || '').includes(searchApptPatient) ||
+                            (p.id || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
                             (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
                           ).length === 0 ? (
                             <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">No patients found in registry.</p>
@@ -2266,16 +2263,22 @@ export const CompounderDashboard: React.FC = () => {
 
                                   const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
                                   try {
-                                    await supabase.from('appointments').insert({
+                                    const podCtx = (() => { try { const r = localStorage.getItem('mediflow_active_pod'); return r ? JSON.parse(r) : null; } catch { return null; } })();
+                                    const { error: insertErr } = await supabase.from('appointments').insert({
                                       id: newInvoice.appointmentId,
                                       patient_id: selectedApptPatient.id,
-                                      doctor_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                                      doctor_id: podCtx?.id || podCtx?.doctorId || null,
                                       status: 'confirmed',
                                       created_at: new Date().toISOString(),
                                       token_number: assignedToken
                                     });
-                                  } catch (dbErr) {
-                                    console.warn('[CompounderDashboard] Supabase appointment insert fallback:', dbErr);
+                                    if (insertErr) throw insertErr;
+                                  } catch (dbErr: any) {
+                                    console.error('[CompounderDashboard] Booking failed:', dbErr);
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: { message: 'Network or database error during booking.', type: 'error', title: 'Booking Failed ⚠️' }
+                                    }));
+                                    return;
                                   }
 
                                   api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
@@ -2290,7 +2293,6 @@ export const CompounderDashboard: React.FC = () => {
                                   window.scrollTo({ top: 0, behavior: 'smooth' });
                                   document.body.style.overflow = 'hidden';
                                   setVitalsPatient(bookedPatient);
-                                  setCustomToken(assignedToken);
 
                                   window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                     detail: {
@@ -2504,7 +2506,6 @@ export const CompounderDashboard: React.FC = () => {
                                     setWeightVal(isOphthalmology ? '' : '65');
                                     setSugarVal('');
                                     setVitalsPatient(patient);
-                                    setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
                                   }}
                                   className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold uppercase tracking-wider text-[8px] transition-all cursor-pointer border-0"
                                 >
@@ -2526,7 +2527,6 @@ export const CompounderDashboard: React.FC = () => {
                                     setWeightVal(isOphthalmology ? '' : '65');
                                     setSugarVal('');
                                     setVitalsPatient(patient);
-                                    setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
                                   }}
                                   className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold uppercase tracking-wider text-[8px] transition-all cursor-pointer border-0"
                                 >
@@ -2545,7 +2545,6 @@ export const CompounderDashboard: React.FC = () => {
                                   setWeightVal(isOphthalmology ? '' : '65');
                                   setSugarVal('');
                                   setVitalsPatient(patient);
-                                  setCustomToken(patient.tokenNumber || api.generateNextTokenNumber());
                                 }}
                                 className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white border border-rose-600 font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer"
                               >
@@ -2608,8 +2607,13 @@ export const CompounderDashboard: React.FC = () => {
                           <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                             Record Vitals (स्वास्थ्य जांच): {vitalsPatient.name}
                           </h3>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                            Patient ID: {vitalsPatient.tokenNumber || vitalsPatient.id.substring(0, 8)} · {vitalsPatient.age}y · {vitalsPatient.gender}
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono flex items-center gap-2 flex-wrap">
+                            {vitalsPatient.patientCode && (
+                              <span className="text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-700 px-1.5 py-0 rounded font-mono">
+                                [{vitalsPatient.patientCode}]
+                              </span>
+                            )}
+                            Token: {vitalsPatient.tokenNumber || '—'} · {vitalsPatient.age}y · {vitalsPatient.gender}
                           </p>
                         </div>
                       </div>
@@ -2996,9 +3000,9 @@ export const CompounderDashboard: React.FC = () => {
 
               {(() => {
                 const filtered = activeInventory.filter(item => 
-                  item.name.toLowerCase().includes(medSearchQuery.toLowerCase()) ||
-                  item.genericName.toLowerCase().includes(medSearchQuery.toLowerCase()) ||
-                  item.category.toLowerCase().includes(medSearchQuery.toLowerCase())
+                  (item.name || '').toLowerCase().includes(medSearchQuery.toLowerCase()) ||
+                  (item.genericName || '').toLowerCase().includes(medSearchQuery.toLowerCase()) ||
+                  (item.category || '').toLowerCase().includes(medSearchQuery.toLowerCase())
                 );
 
                 if (filtered.length === 0) {

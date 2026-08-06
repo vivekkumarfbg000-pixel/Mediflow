@@ -64,6 +64,24 @@ serve(async (req) => {
         return new Response("Invalid JSON payload", { status: 400, headers: corsHeaders });
       }
 
+      // Security: Enforce JWT authentication on outbound manual relays to prevent Open Relay vulnerabilities
+      if (payload?.action === "send_manual_message" || payload?.action === "send_broadcast_message") {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader) {
+          console.warn("[Meta Webhook Outbound Relay] Missing Authorization header.");
+          return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+        }
+        const token = authHeader.replace("Bearer ", "");
+        const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+          global: { headers: { Authorization: authHeader } }
+        });
+        const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+        if (authErr || !user) {
+          console.warn("[Meta Webhook Outbound Relay] Invalid JWT Token.");
+          return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+        }
+      }
+
       // Handle direct manual outbound message relay from Doctor Dashboard
       if (payload?.action === "send_manual_message") {
         const patientPhone = payload.patientPhone;
@@ -336,49 +354,50 @@ serve(async (req) => {
         });
       }
 
-      // External Meta Incoming Webhook Ingestion (Requires x-hub-signature-256 validation if secret configured)
+      // External Meta Incoming Webhook Ingestion (Requires x-hub-signature-256 validation)
       const appSecret = Deno.env.get("META_APP_SECRET");
       const signature256 = req.headers.get("x-hub-signature-256");
 
-      if (appSecret) {
-        if (!signature256) {
-          console.error("[Meta Webhook] Missing x-hub-signature-256 header when secret is configured");
-          return new Response("Missing signature", { status: 401 });
-        }
-
-        if (!signature256.startsWith("sha256=")) {
-          console.error("[Meta Webhook] Invalid signature format, must start with sha256=");
-          return new Response("Invalid signature format", { status: 401 });
-        }
-
-        const signatureHex = signature256.substring(7); // Remove "sha256="
-
-        const encoder = new TextEncoder();
-        const keyData = encoder.encode(appSecret);
-        const messageData = encoder.encode(rawBody);
-
-        const key = await crypto.subtle.importKey(
-          "raw",
-          keyData,
-          { name: "HMAC", hash: "SHA-256" },
-          false,
-          ["sign"]
-        );
-
-        const signatureBuffer = await crypto.subtle.sign("HMAC", key, messageData);
-        const computedHexSignature = Array.from(new Uint8Array(signatureBuffer))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-
-        if (signatureHex !== computedHexSignature) {
-          console.error("[Meta Webhook] Webhook signature verification failed! Signature mismatch.");
-          return new Response("Signature mismatch", { status: 401 });
-        }
-
-        console.log("[Meta Webhook] Webhook signature verified successfully ✅");
-      } else {
-        console.warn("[Meta Webhook] Warning: META_APP_SECRET is not configured in environment. Skipping signature verification.");
+      if (!appSecret) {
+        console.error("[Meta Webhook] FATAL: META_APP_SECRET is not configured in environment. Rejecting webhook to prevent fail-open vulnerabilities.");
+        return new Response("Server configuration error", { status: 500 });
       }
+
+      if (!signature256) {
+        console.error("[Meta Webhook] Missing x-hub-signature-256 header when secret is configured");
+        return new Response("Missing signature", { status: 401 });
+      }
+
+      if (!signature256.startsWith("sha256=")) {
+        console.error("[Meta Webhook] Invalid signature format, must start with sha256=");
+        return new Response("Invalid signature format", { status: 401 });
+      }
+
+      const signatureHex = signature256.substring(7); // Remove "sha256="
+
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(appSecret);
+      const messageData = encoder.encode(rawBody);
+
+      const key = await crypto.subtle.importKey(
+        "raw",
+        keyData,
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"]
+      );
+
+      const signatureBuffer = await crypto.subtle.sign("HMAC", key, messageData);
+      const computedHexSignature = Array.from(new Uint8Array(signatureBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      if (signatureHex !== computedHexSignature) {
+        console.error("[Meta Webhook] Webhook signature verification failed! Signature mismatch.");
+        return new Response("Signature mismatch", { status: 401 });
+      }
+
+      console.log("[Meta Webhook] Webhook signature verified successfully ✅");
 
       console.log("[Meta Webhook] Ingested message event payload: [REDACTED]");
 

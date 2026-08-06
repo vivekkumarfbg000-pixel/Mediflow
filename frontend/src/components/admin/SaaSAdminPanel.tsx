@@ -398,23 +398,35 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   useEffect(() => {
     if (!isAdmin) return;
     
+    // Custom debounce to prevent DDoS "Thundering Herd" bottleneck
+    let debounceTimer: NodeJS.Timeout;
+    const debouncedFetch = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchSaaSMetrics();
+      }, 5000); // 5 second debounce
+    };
+
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
-      onAppointmentChange: () => fetchSaaSMetrics(),
-      onPatientChange: () => fetchSaaSMetrics(),
-      onMedicineBillChange: () => fetchSaaSMetrics(),
-      onLabRequisitionChange: () => fetchSaaSMetrics(),
-      onFinancialLedgerChange: () => fetchSaaSMetrics(),
-      onUnifiedInvoiceChange: () => fetchSaaSMetrics(),
-      onWhatsAppSessionChange: () => fetchSaaSMetrics(),
-      onPoolSettlementChange: () => fetchSaaSMetrics(),
-      onClinicSopChange: () => fetchSaaSMetrics(),
-      onPathologyReportChange: () => fetchSaaSMetrics(),
-      onSaaSInvoiceChange: () => fetchSaaSMetrics(),
-      onSaaSPrescriptionChange: () => fetchSaaSMetrics(),
-      onInventoryHoldChange: () => fetchSaaSMetrics(),
+      onAppointmentChange: debouncedFetch,
+      onPatientChange: debouncedFetch,
+      onMedicineBillChange: debouncedFetch,
+      onLabRequisitionChange: debouncedFetch,
+      onFinancialLedgerChange: debouncedFetch,
+      onUnifiedInvoiceChange: debouncedFetch,
+      onWhatsAppSessionChange: debouncedFetch,
+      onPoolSettlementChange: debouncedFetch,
+      onClinicSopChange: debouncedFetch,
+      onPathologyReportChange: debouncedFetch,
+      onSaaSInvoiceChange: debouncedFetch,
+      onSaaSPrescriptionChange: debouncedFetch,
+      onInventoryHoldChange: debouncedFetch,
     });
 
-    return () => unsubscribeRealtime();
+    return () => {
+      clearTimeout(debounceTimer);
+      unsubscribeRealtime();
+    };
   }, [isAdmin, fetchSaaSMetrics]);
 
   // 1-Click Provisioning Agent Handler
@@ -433,6 +445,8 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
       const newPod: PodInfo = {
         id: crypto.randomUUID(),
         name: provisionForm.name,
+        doctor_name: provisionForm.doctorName,
+        phone: provisionForm.phone,
         location: provisionForm.location || 'Clinic Hub',
         clinic_code: generatedCode,
         is_active: true,
@@ -445,10 +459,14 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         is_verified_for_billing: true
       };
 
-      try {
-        await supabase.from('pods').insert([newPod]);
-      } catch (_e) {
-        /* ignore pod insert fallback */
+      const { error: insertErr } = await supabase.from('pods').insert([newPod]);
+      if (insertErr) {
+        console.error("[SaaS Admin] Failed to provision pod:", insertErr);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: { title: 'Provisioning Failed ❌', message: insertErr.message || 'Database rejected insertion', type: 'error' }
+        }));
+        setIsProvisioning(false);
+        return;
       }
 
       setPodsList(prev => [newPod, ...prev]);
@@ -502,28 +520,19 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
       if (!error && data && data.length > 0) {
         setInspectingPodLogs(data);
       } else {
-        setInspectingPodLogs([
-          {
-            id: 'mock-1',
-            subsystem: 'database',
-            error_code: 'NominalHealthCheck',
-            severity: 'info',
-            created_at: new Date().toISOString(),
-            status: 'healed',
-            execution_logs: [{ action_taken: `Latency: 1.2ms | Pod ${pod.clinic_code} isolated and synced cleanly.`, outcome: 'SUCCESS 200 OK' }]
-          },
-          {
-            id: 'mock-2',
-            subsystem: 'waba',
-            error_code: 'EdgeFunctionHandshake',
-            severity: 'info',
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-            status: 'healed',
-            execution_logs: [{ action_taken: `Meta Webhook Circuit Breaker pinged cleanly for ${pod.name}.`, outcome: 'SUCCESS 200 OK' }]
-          }
-        ]);
+        if (error) {
+          console.error('[SaaS Admin] Failed to fetch telemetry:', error);
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: { title: 'Telemetry DB Error ⚠️', message: error.message || 'Failed to fetch diagnostic logs from backend.', type: 'error' }
+          }));
+        }
+        setInspectingPodLogs([]);
       }
-    } catch (_e) {
+    } catch (err: any) {
+      console.error('[SaaS Admin] Telemetry fetch exception:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Telemetry Exception ⚠️', message: err.message || 'Unknown network error fetching logs.', type: 'error' }
+      }));
       setInspectingPodLogs([]);
     }
   };
@@ -554,21 +563,34 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   };
 
   // VIP Clinic White-Label Branding Save Handler
-  const handleSaveWhiteLabelConfig = (e: React.FormEvent) => {
+  const handleSaveWhiteLabelConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWhiteLabelPod) return;
 
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: 'VIP Branding Saved! 🎨',
-        message: `Updated custom logo & Rx prescription letterhead for ${selectedWhiteLabelPod.name}.`,
-        type: 'success'
-      }
-    }));
+    try {
+      const { error } = await supabase.from('pods').update({
+        logo_url: whiteLabelForm.logoUrl,
+        rx_footer: whiteLabelForm.rxFooter
+      }).eq('id', selectedWhiteLabelPod.id);
+      
+      if (error) throw error;
 
-    setIsWhiteLabelModalOpen(false);
-    setSelectedWhiteLabelPod(null);
-    setWhiteLabelForm({ logoUrl: '', headerText: '', rxFooter: '' });
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'VIP Branding Saved! 🎨',
+          message: `Updated custom logo & Rx prescription letterhead for ${selectedWhiteLabelPod.name}.`,
+          type: 'success'
+        }
+      }));
+
+      setIsWhiteLabelModalOpen(false);
+      setSelectedWhiteLabelPod(null);
+      setWhiteLabelForm({ logoUrl: '', headerText: '', rxFooter: '' });
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Save Failed ⚠️', message: err.message || 'Failed to update VIP branding.', type: 'error' }
+      }));
+    }
   };
 
   // Rejuvenate Clinic Pod Session & Lock Clearing
@@ -920,13 +942,11 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           type: 'success'
         }
       }));
-    } catch (_err) {
-      setComplianceList([
-        { table_name: 'clinic_pods', rls_enabled: true, policy_count: 3, has_pod_isolation: true, status: 'secure' },
-        { table_name: 'patients', rls_enabled: true, policy_count: 4, has_pod_isolation: true, status: 'secure' },
-        { table_name: 'appointments', rls_enabled: true, policy_count: 3, has_pod_isolation: true, status: 'secure' },
-        { table_name: 'prescriptions', rls_enabled: true, policy_count: 3, has_pod_isolation: true, status: 'secure' }
-      ]);
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Compliance Scan Failed ⚠️', message: err.message || 'RPC Error', type: 'error' }
+      }));
+      setComplianceList([]);
     } finally {
       setAuditingRls(false);
     }
@@ -1062,7 +1082,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
 
   // Update Pod Platform Fee Percent
   const updatePodPlatformFee = async (podId: string, currentFee: number) => {
-    const feeStr = prompt('Enter new platform revenue share percentage (e.g. 2.5):', currentFee.toString());
+    const feeStr = prompt('Enter new platform revenue share percentage (e.g. 2.5):', (currentFee || 2.5).toString());
     if (feeStr === null) return; // User cancelled
     
     const newFee = parseFloat(feeStr);

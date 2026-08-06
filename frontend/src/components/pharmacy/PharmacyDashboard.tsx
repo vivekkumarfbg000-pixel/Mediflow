@@ -332,7 +332,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
   const handleActOnForecast = useCallback((id: string, medicineName: string) => {
     api.actOnSeasonalForecast(id);
     // Find the item name in our catalog and restock
-    const match = inventory.find(i => i.name.toLowerCase().includes(medicineName.toLowerCase()));
+    const match = inventory.find(i => (i.name || '').toLowerCase().includes((medicineName || '').toLowerCase()));
     if (match) {
       api.restockPharmacyInventoryItem(match.id, 500);
     } else {
@@ -821,9 +821,15 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                             });
                                             if (res.success && res.paymentSessionId) {
                                               window.open(res.paymentSessionId, '_blank');
+                                            } else {
+                                              throw new Error('Failed to initialize Paytm PG');
                                             }
                                           } catch (pErr) {
                                             console.warn('[Paytm Pharmacy Error]:', pErr);
+                                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                              detail: { message: 'Failed to connect to Paytm PG.', type: 'error', title: 'Payment Failed ⚠️' }
+                                            }));
+                                            return;
                                           }
                                           api.clearInvoice(invoice.id, 'paytm');
                                           window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -1231,7 +1237,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                               </div>
                             </td>
                             <td className="p-3.5 text-right font-mono text-slate-700 dark:text-slate-200 font-semibold">
-                              ₹{item.price.toFixed(2)} <span className="text-[9px] text-slate-500 font-normal">(₹{item.mrp.toFixed(2)})</span>
+                              ₹{(item.price || 0).toFixed(2)} <span className="text-[9px] text-slate-500 font-normal">(₹{(item.mrp || 0).toFixed(2)})</span>
                             </td>
                             <td className="p-3.5 text-center">
                               <span className={`font-mono font-bold text-xs ${isLow ? 'text-rose-450 font-black' : 'text-emerald-500'}`}>
@@ -1306,7 +1312,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
 
                         <div className="flex justify-between items-center pt-1">
                           <div className="font-mono text-slate-800 text-xs font-semibold">
-                            MRP: ₹{item.price.toFixed(2)} <span className="text-[9px] text-slate-500 font-normal">(₹{item.mrp.toFixed(2)})</span>
+                            MRP: ₹{(item.price || 0).toFixed(2)} <span className="text-[9px] text-slate-500 font-normal">(₹{(item.mrp || 0).toFixed(2)})</span>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -2139,7 +2145,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                           <td className="p-2 font-sans font-bold">{row.name}</td>
                           <td className="p-2">{row.batchNumber}</td>
                           <td className="p-2">{row.expiryDate}</td>
-                          <td className="p-2 text-right">₹{row.price.toFixed(2)}</td>
+                          <td className="p-2 text-right">₹{(row.price || 0).toFixed(2)}</td>
                           <td className="p-2 text-center">{row.stock} {row.unit}</td>
                         </tr>
                       ))}
@@ -2233,7 +2239,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                         const patient = patients.find(p => p.id === patientId);
                         if (!patient) return null;
                         const totalAmt = patientHolds.reduce((sum, h) => {
-                          const invItem = inventory.find(i => i.name.toLowerCase() === h.medicineName.toLowerCase());
+                          const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
                           return sum + (invItem ? invItem.price * h.quantity : 150);
                         }, 0);
 
@@ -2253,7 +2259,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                             </div>
                             <div className="space-y-1">
                               {patientHolds.map(h => {
-                                const invItem = inventory.find(i => i.name.toLowerCase() === h.medicineName.toLowerCase());
+                                const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
                                 return (
                                   <div key={h.id} className="flex justify-between text-[10px] text-slate-600 font-mono">
                                     <span>💊 {h.medicineName} x{h.quantity}</span>
@@ -2265,7 +2271,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                             <button
                               onClick={() => {
                                 const billItems = patientHolds.map(h => {
-                                  const invItem = inventory.find(i => i.name.toLowerCase() === h.medicineName.toLowerCase());
+                                  const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
                                   const price = invItem?.price || 150;
                                   const mrp = invItem?.mrp || price;
                                   return {
@@ -2316,7 +2322,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                 });
 
                                 window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Medicine bill ₹${bill.totalAmount.toFixed(0)} generated for ${patient.name}!`, type: 'success', title: 'Invoice Created' }
+                                  detail: { message: `Medicine bill ₹${(bill.totalAmount || 0).toFixed(0)} generated for ${patient.name}!`, type: 'success', title: 'Invoice Created' }
                                 }));
                                 syncData();
                               }}
@@ -2368,7 +2374,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                               onClick={() => {
                                 api.dispenseMedicineBill(bill.id);
                                 window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `₹${bill.totalAmount.toFixed(0)} collected via UPI. Stock deducted.`, type: 'success', title: 'UPI Payment Received' }
+                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via UPI. Stock deducted.`, type: 'success', title: 'UPI Payment Received' }
                                 }));
                                 syncData();
                               }}

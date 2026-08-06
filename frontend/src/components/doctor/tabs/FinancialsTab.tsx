@@ -66,6 +66,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         const dayLabel = daysOfWeek[d.getDay()];
         
         const dayLedgers = financialLedgers.filter(entry => {
+          if (!entry.createdAt) return false;
           const entryDate = new Date(entry.createdAt);
           return entryDate.getFullYear() === d.getFullYear() &&
                  entryDate.getMonth() === d.getMonth() &&
@@ -91,6 +92,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         endDate.setHours(23, 59, 59, 999);
 
         const bucketLedgers = financialLedgers.filter(entry => {
+          if (!entry.createdAt) return false;
           const entryDate = new Date(entry.createdAt);
           return entryDate >= startDate && entryDate <= endDate;
         });
@@ -109,6 +111,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         const monthLabel = d.toLocaleString('en-US', { month: 'short' });
         
         const monthLedgers = financialLedgers.filter(entry => {
+          if (!entry.createdAt) return false;
           const entryDate = new Date(entry.createdAt);
           return entryDate.getFullYear() === d.getFullYear() &&
                  entryDate.getMonth() === d.getMonth();
@@ -127,6 +130,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         const monthLabel = d.toLocaleString('en-US', { month: 'short' });
         
         const monthLedgers = financialLedgers.filter(entry => {
+          if (!entry.createdAt) return false;
           const entryDate = new Date(entry.createdAt);
           return entryDate.getFullYear() === d.getFullYear() &&
                  entryDate.getMonth() === d.getMonth();
@@ -198,12 +202,19 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     if (!supabaseClient || !activePod?.id) return;
     supabaseClient
       .rpc('get_pool_status', { p_pod_id: activePod.id })
-      .then(({ data }: any) => {
+      .then(({ data, error }: any) => {
+        if (error) throw error;
         if (data) {
           setPoolBalance(data.pool_balance ?? 0);
           setPendingCash(data.pending_cash_balance ?? 0);
           setIsPoolLow(data.is_low ?? false);
         }
+      })
+      .catch((err: any) => {
+        console.error('[FinancialsTab] Network error fetching pool status:', err);
+        setPoolBalance(0);
+        setPendingCash(0);
+        setIsPoolLow(true);
       });
   }, [activePod?.id, supabaseClient]);
 

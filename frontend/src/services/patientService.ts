@@ -83,21 +83,40 @@ export class PatientService {
     const defaultPatients = isDemoAccount ? INITIAL_PATIENTS : [];
     let rawPatients = load<Patient[]>('patients', defaultPatients);
     
-    // For non-demo accounts, purge pre-seeded initial demo patient IDs from local storage cache
+    // For non-demo accounts, purge pre-seeded initial demo patient IDs and mock names from local storage cache
     if (!isDemoAccount) {
-      const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103']);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
-      rawPatients = rawPatients.filter(p => !demoIds.has(p.id) && !demoNames.has(String(p.name || '').toLowerCase()));
+      const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
+      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown', 'unknown patient', 'john doe', 'neha yadav', 'vikram prasad', 'vikram verma']);
+      rawPatients = rawPatients.filter(p => {
+        const cleanName = String(p.name || '').toLowerCase().trim();
+        if (demoIds.has(p.id)) return false;
+        if (demoNames.has(cleanName)) return false;
+        if (cleanName.includes('test patient') || cleanName.includes('auto test patient')) return false;
+        return true;
+      });
     }
 
     // Auto-backfill Smart Patient ID (V1, V2, V56 format) for legacy records missing patientCode
+    // Pre-seed letterCounters from EXISTING patient codes to prevent duplicate code assignment
     let modifiedBackfill = false;
     const letterCounters: Record<string, number> = {};
     rawPatients.forEach(p => {
+      if (p.patientCode) {
+        const match = p.patientCode.match(/^([A-Z]+)(\d+)$/);
+        if (match) {
+          const letter = match[1];
+          const num = parseInt(match[2], 10);
+          if (!letterCounters[letter] || letterCounters[letter] < num) {
+            letterCounters[letter] = num;
+          }
+        }
+      }
+    });
+    rawPatients.forEach(p => {
       const cleanName = (p.name || '').trim();
       const letter = cleanName.length > 0 ? cleanName.substring(0, 1).toUpperCase() : 'P';
-      letterCounters[letter] = (letterCounters[letter] || 0) + 1;
       if (!p.patientCode) {
+        letterCounters[letter] = (letterCounters[letter] || 0) + 1;
         p.patientCode = `${letter}${letterCounters[letter]}`;
         modifiedBackfill = true;
       }

@@ -70,6 +70,9 @@ export class RealtimeSyncService {
   // Synchronously auto-ingest incoming Postgres CDC payloads into apiHelper load/save storage
   private static autoIngestPayload(tableName: string, payload: any) {
     try {
+      // Update heartbeat — this CDC event proves the WebSocket is alive
+      this.lastPingSuccess = Date.now();
+
       const rawRecord = payload.new || payload.old;
       if (!rawRecord) return;
       const record = this.normalizeRecord(rawRecord);
@@ -291,11 +294,13 @@ export class RealtimeSyncService {
 
       if (elapsedSincePing > 25000 || !navigator.onLine) {
         console.warn(`[RealtimeSync Watchdog] ⚠️ WebSocket heartbeat timed out (${Math.round(elapsedSincePing / 1000)}s). Forcing clean auto-reconnect...`);
-        this.updateStatus('reconnecting');
-        this.scheduleAutoReconnect();
-      } else {
-        this.lastPingSuccess = Date.now();
+        if (this.currentStatus !== 'reconnecting') {
+          this.updateStatus('reconnecting');
+          this.scheduleAutoReconnect();
+        }
       }
+      // Do NOT reset lastPingSuccess here — it must only be updated by actual
+      // channel events (SUBSCRIBED status, or incoming CDC payloads via autoIngestPayload)
     }, 10000);
   }
 

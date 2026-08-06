@@ -186,8 +186,8 @@ export const LabDashboard: React.FC = () => {
       patients.filter(p =>
         (p.name || '').toLowerCase().includes(directSearch.toLowerCase()) ||
         (p.phone || '').includes(directSearch) ||
-        (p.patientCode && p.patientCode.toLowerCase().includes(directSearch.toLowerCase())) ||
-        (p.tokenNumber && p.tokenNumber.toLowerCase().includes(directSearch.toLowerCase()))
+        (p.patientCode && String(p.patientCode).toLowerCase().includes(directSearch.toLowerCase())) ||
+        (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(directSearch.toLowerCase()))
       ),
     [patients, directSearch]
   );
@@ -737,9 +737,15 @@ export const LabDashboard: React.FC = () => {
                                     });
                                     if (res.success && res.paymentSessionId) {
                                       window.open(res.paymentSessionId, '_blank');
+                                    } else {
+                                      throw new Error('Failed to initialize Paytm PG');
                                     }
                                   } catch (pErr) {
                                     console.warn('[Paytm Lab Error]:', pErr);
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: { message: 'Failed to connect to Paytm PG.', type: 'error', title: 'Payment Failed ⚠️' }
+                                    }));
+                                    return;
                                   }
                                   api.clearInvoice(inv.id, 'paytm');
                                   window.dispatchEvent(new CustomEvent('mediflow-toast', {
