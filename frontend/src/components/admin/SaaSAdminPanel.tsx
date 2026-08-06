@@ -399,7 +399,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     if (!isAdmin) return;
     
     // Custom debounce to prevent DDoS "Thundering Herd" bottleneck
-    let debounceTimer: NodeJS.Timeout;
+    let debounceTimer: ReturnType<typeof setTimeout>;
     const debouncedFetch = () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {

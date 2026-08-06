@@ -50,7 +50,7 @@ export class WhatsAppService {
       sessions = sessions.filter(s => {
         const id = s.id || '';
         const pName = String((s as any).patientName || (s as any).patient_name || '').toLowerCase().trim();
-        const pPhone = String(s.patientPhone || s.phone || '').trim();
+        const pPhone = String(s.patientPhone || s.patient_phone || '').trim();
         if (id.startsWith('sess-demo') || id.startsWith('sess-sample')) return false;
         if (demoPhones.has(pPhone)) return false;
         if (demoNames.has(pName)) return false;
