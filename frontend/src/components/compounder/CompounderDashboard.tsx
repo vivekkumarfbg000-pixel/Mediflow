@@ -772,7 +772,7 @@ export const CompounderDashboard: React.FC = () => {
     } as any);
 
     // Auto-create consultation appointment & invoice (₹500.00) in status 'pending_payment'
-    BillingService.bookAppointment(registered.id, 500, 'walkin');
+    api.createGate1Consult(registered.id, 'counter');
 
     api.setActivePatient(registered);
     setBillingPatient(registered);
@@ -804,15 +804,15 @@ export const CompounderDashboard: React.FC = () => {
 
     // Strict Cashfree Payment Gate Check (USP 3 & Rule 3): Verify consultation fee is cleared before token dispatch
     const invoices = BillingService.getInvoices();
-    const isPaidInvoice = invoices.some(i => i.patientId === vitalsPatient.id && (i.paymentStatus === 'cleared' || i.paymentStatus === 'paid'));
+    const isPaidInvoice = invoices.some(i => i.patientId === vitalsPatient.id && ((i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid' || i.status === 'cleared'));
     const appts = api.getAppointments();
     const hasPaidAppt = appts.some(a => a.patientId === vitalsPatient.id && a.status !== 'pending_payment');
 
     if (!isPaidInvoice && !hasPaidAppt) {
       // Auto-create pending appointment if not existing yet
-      BillingService.bookAppointment(vitalsPatient.id, 500, 'walkin');
+      api.createGate1Consult(vitalsPatient.id, 'counter');
       setBillingPatient(vitalsPatient);
-      setActiveTab('billing');
+      setActiveTab('invoice_generator');
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           message: `⚠️ Consultation Fee Pending: Please collect ₹500.00 at the Payment Counter before dispatching ${vitalsPatient.name} to Doctor's chamber.`,
@@ -1279,12 +1279,12 @@ export const CompounderDashboard: React.FC = () => {
     });
 
     // Auto-create consultation appointment & invoice (₹500.00) in status 'pending_payment'
-    BillingService.bookAppointment(registered.id, 500, 'walkin');
+    api.createGate1Consult(registered.id, 'counter');
 
     // Refresh clinical lists
     setPatients(api.getPatients());
     setBillingPatient(registered);
-    setActiveTab('billing');
+    setActiveTab('invoice_generator');
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
