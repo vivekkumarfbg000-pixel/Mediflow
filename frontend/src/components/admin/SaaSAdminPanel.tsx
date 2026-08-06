@@ -112,8 +112,6 @@ interface RateLimitRow {
   window_start: string;
 }
 
-type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
-
 export interface SaaSAdminPanelProps {
   onSignOut?: () => void;
 }
