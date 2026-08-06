@@ -927,10 +927,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 .filter(p => {
                   // Allow if explicitly selected (doctor manually opened)
                   if (p.id === selectedPatient?.id) return true;
-                  // Allow if they have at least one paid appointment
-                  if (paidPatientIds.has(p.id)) return true;
-                  // Exclude if ONLY pending_payment appointments (no paid appt at all)
-                  if (pendingOnlyPatientIds.has(p.id) && !paidPatientIds.has(p.id)) return false;
+                  // Strict Payment Gate (USP 3 & Rule 3): Exclude patients who do NOT have a cleared/paid appointment
+                  if (!paidPatientIds.has(p.id)) return false;
                   return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation';
                 })
                 .sort((a, b) => {

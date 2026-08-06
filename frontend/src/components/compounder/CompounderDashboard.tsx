@@ -771,13 +771,17 @@ export const CompounderDashboard: React.FC = () => {
       whatsApp: whatsAppInput || phone
     } as any);
 
+    // Auto-create consultation appointment & invoice (₹500.00) in status 'pending_payment'
+    BillingService.bookAppointment(registered.id, 500, 'walkin');
+
     api.setActivePatient(registered);
+    setBillingPatient(registered);
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Patient ${name} registered successfully. ABHA profile linked.`,
+        message: `Patient ${name} registered. Consultation fee (₹500.00) is pending at Payment Counter.`,
         type: 'success',
-        title: 'Patient Registered'
+        title: 'Patient Registered — Payment Pending'
       }
     }));
 
@@ -797,6 +801,28 @@ export const CompounderDashboard: React.FC = () => {
   const handleRecordVitalsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!vitalsPatient) return;
+
+    // Strict Cashfree Payment Gate Check (USP 3 & Rule 3): Verify consultation fee is cleared before token dispatch
+    const invoices = BillingService.getInvoices();
+    const isPaidInvoice = invoices.some(i => i.patientId === vitalsPatient.id && (i.paymentStatus === 'cleared' || i.paymentStatus === 'paid'));
+    const appts = api.getAppointments();
+    const hasPaidAppt = appts.some(a => a.patientId === vitalsPatient.id && a.status !== 'pending_payment');
+
+    if (!isPaidInvoice && !hasPaidAppt) {
+      // Auto-create pending appointment if not existing yet
+      BillingService.bookAppointment(vitalsPatient.id, 500, 'walkin');
+      setBillingPatient(vitalsPatient);
+      setActiveTab('billing');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          message: `⚠️ Consultation Fee Pending: Please collect ₹500.00 at the Payment Counter before dispatching ${vitalsPatient.name} to Doctor's chamber.`,
+          type: 'error',
+          title: 'Payment Required'
+        }
+      }));
+      setVitalsPatient(null);
+      return;
+    }
 
     const recordedToken = customToken.trim() || api.generateNextTokenNumber();
 
@@ -1252,15 +1278,19 @@ export const CompounderDashboard: React.FC = () => {
       abhaId: quickRegAbha.trim() || undefined
     });
 
+    // Auto-create consultation appointment & invoice (₹500.00) in status 'pending_payment'
+    BillingService.bookAppointment(registered.id, 500, 'walkin');
+
     // Refresh clinical lists
     setPatients(api.getPatients());
     setBillingPatient(registered);
+    setActiveTab('billing');
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Registered & Assigned Patient: ${quickRegName.trim()} successfully!`,
+        message: `Registered & Assigned Patient: ${quickRegName.trim()} — Consultation fee (₹500.00) pending at Payment Counter.`,
         type: 'success',
-        title: 'Patient Assigned'
+        title: 'Patient Registered — Payment Pending'
       }
     }));
 
