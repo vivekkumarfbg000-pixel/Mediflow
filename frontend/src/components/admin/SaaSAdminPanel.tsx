@@ -104,11 +104,15 @@ interface BlacklistedIp {
   created_at: string;
 }
 
+type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
+
 interface RateLimitRow {
   ip: string;
   request_count: number;
   window_start: string;
 }
+
+type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
 
 export interface SaaSAdminPanelProps {
   onSignOut?: () => void;

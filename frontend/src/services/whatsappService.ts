@@ -914,6 +914,9 @@ export class WhatsAppService {
             sessionData.bookingPatientId = activePat.id;
             sessionData.pendingApptId = apptId;
 
+            const invoiceId = `inv-wa-${apptId.substring(0, 8)}`;
+            sessionData.pendingInvoiceId = invoiceId;
+
             // Resolve assigned doctor for patient's clinic pod dynamically
             const runInsert = async () => {
               let resolvedDoctorId: string | null = null;
@@ -960,9 +963,6 @@ export class WhatsAppService {
                 virtualTimeAllocated: false
               };
               BillingService.saveAppointment(newAppt);
-
-              const invoiceId = `inv-wa-${apptId.substring(0, 8)}`;
-              sessionData.pendingInvoiceId = invoiceId;
 
               const newInvoice: any = {
                 id: invoiceId,
@@ -1024,7 +1024,8 @@ export class WhatsAppService {
             const docName = WhatsAppService.getDynamicDoctorName();
             const clinicName = WhatsAppService.getDynamicClinicName();
             const cleanPhone10 = (activePat.phone || '').replace(/\D/g, '').slice(-10);
-            const razorpayPayLink = `https://app.vitalsync.in/pay/${invoiceId}?phone=${cleanPhone10}`;
+            const targetInvoiceId = sessionData.pendingInvoiceId || `inv-wa-${apptId.substring(0, 8)}`;
+            const razorpayPayLink = `https://app.vitalsync.in/pay/${targetInvoiceId}?phone=${cleanPhone10}`;
             nextState = 'AWAITING_PAYMENT';
             replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (Tomorrow) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / PhonePe / Paytm / BHIM):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
           } else {
