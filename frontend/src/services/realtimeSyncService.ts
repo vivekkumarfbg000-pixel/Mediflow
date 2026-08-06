@@ -326,4 +326,24 @@ export class RealtimeSyncService {
   static getStatus() {
     return this.currentStatus;
   }
+
+  // ── Complete Teardown & Unsubscribe on Logout ───────────────────────────
+  static teardown() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.activeChannel) {
+      try {
+        supabase.removeChannel(this.activeChannel);
+      } catch (_e) { /* ignore */ }
+      this.activeChannel = null;
+    }
+    this.subscribers.clear();
+    this.updateStatus('disconnected');
+  }
 }

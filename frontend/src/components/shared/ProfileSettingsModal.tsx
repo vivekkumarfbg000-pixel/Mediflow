@@ -188,8 +188,9 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       showToast('Account Deleted', 'Your profile and auth credentials have been permanently removed.', 'success');
       
       localStorage.clear();
-      await supabase.auth.signOut();
-      window.location.href = '/';
+      sessionStorage.clear();
+      await supabase.auth.signOut({ scope: 'local' });
+      window.location.replace(window.location.origin);
     } catch (err: any) {
       console.error('[ProfileSettingsModal] Account deletion failed:', err);
       setErrorMsg(err.message || 'Failed to delete account. Contact system administrator.');

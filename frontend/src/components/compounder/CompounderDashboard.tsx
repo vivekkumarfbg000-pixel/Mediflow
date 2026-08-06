@@ -1206,18 +1206,6 @@ export const CompounderDashboard: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { message: 'Logged out successfully from session.', type: 'success', title: 'Logged Out 🟢' }
-      }));
-    } catch (err: any) {
-      console.error('Logout error:', err);
-      window.location.reload();
-    }
-  };
-
   // Fuzzy search catalog filtering in billing
   const billingSearchMatches = useMemo(() => {
     if (!medSearchQuery.trim()) return [];

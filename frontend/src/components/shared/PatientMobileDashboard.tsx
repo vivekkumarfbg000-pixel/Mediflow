@@ -20,14 +20,22 @@ import {
   Award,
   Flame,
   Clock,
-  Sparkles
+  Sparkles,
+  LogOut,
+  X,
+  User
 } from 'lucide-react';
 import { MobileNav } from './MobileNav';
 import { MetricCard } from './MetricCard';
 import { MobileChart } from './MobileChart';
 
-export const PatientMobileDashboard: React.FC = () => {
+export interface PatientMobileDashboardProps {
+  onSignOut?: () => void;
+}
+
+export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ onSignOut }) => {
   const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills' | 'vitals' | 'book_appointment'>('home');
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default Aarav Sharma
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
@@ -204,10 +212,27 @@ export const PatientMobileDashboard: React.FC = () => {
             </div>
 
             {activePatient && (
-              <div className="p-3.5 bg-zinc-950/80 border border-white/5 rounded-xl space-y-2 text-xs">
-                <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                  ABHA Profile Connected
-                </span>
+              <div className="p-3.5 bg-zinc-950/80 border border-white/5 rounded-xl space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                    ABHA Profile Connected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onSignOut) {
+                        onSignOut();
+                      } else {
+                        localStorage.clear();
+                        window.location.href = '/';
+                      }
+                    }}
+                    className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 hover:text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <LogOut className="h-3 w-3" />
+                    Sign Out
+                  </button>
+                </div>
                 <h4 className="font-bold text-white">{activePatient.name}</h4>
                 <p className="text-[10px] text-zinc-400 leading-relaxed font-sans">
                   <strong>Chronic list</strong>: {activePatient.chronicConditions.join(', ') || 'None'}<br/>
@@ -291,8 +316,78 @@ export const PatientMobileDashboard: React.FC = () => {
               activeTab={activeTab} 
               onTabChange={setActiveTab} 
               patientName={activePatient?.name || ''} 
-              isPodConnected={true} 
+              isPodConnected={true}
+              onMenuClick={() => setIsMobileDrawerOpen(true)}
             />
+
+            {/* Mobile Account Profile & Sign Out Drawer Overlay */}
+            {isMobileDrawerOpen && (
+              <div className="absolute inset-0 bg-zinc-950/95 backdrop-blur-xl z-50 flex flex-col justify-between p-5 animate-fade-in">
+                <div className="space-y-6">
+                  {/* Drawer Header */}
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-bold text-sm font-mono">
+                        {(activePatient?.name || 'Patient').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white font-sans">{activePatient?.name || 'Patient User'}</h4>
+                        <span className="text-[10px] text-zinc-400 font-mono">{selectedPhone}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsMobileDrawerOpen(false)}
+                      className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Patient Account Quick Summary */}
+                  <div className="bg-zinc-900/80 border border-white/5 p-4 rounded-2xl space-y-3">
+                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block font-mono">
+                      ABHA Digital Health Pass
+                    </span>
+                    <div className="flex justify-between items-center text-xs text-zinc-300 font-sans">
+                      <span>Card Status</span>
+                      <span className="text-emerald-400 font-semibold font-mono">Verified Active</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-zinc-300 font-sans">
+                      <span>Care Pod ID</span>
+                      <span className="text-zinc-400 font-mono">POD-2026-X1</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-zinc-300 font-sans">
+                      <span>Refill Delivery</span>
+                      <span className="text-cyan-400 font-mono">1-Click Enabled</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Drawer Footer Actions */}
+                <div className="space-y-3 pt-4 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileDrawerOpen(false);
+                      if (onSignOut) {
+                        onSignOut();
+                      } else {
+                        localStorage.clear();
+                        window.location.href = '/';
+                      }
+                    }}
+                    className="w-full py-3.5 px-4 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 hover:text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-lg shadow-rose-500/10 active:scale-95 font-sans"
+                  >
+                    <LogOut className="h-4 w-4 text-rose-400" />
+                    Sign Out Account
+                  </button>
+                  <p className="text-[9px] text-center text-zinc-500 font-mono">
+                    VitalSync Patient Telehealth Companion • v2.5.0
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Simulated App Screens Container */}
             <div className="flex-1 overflow-y-auto px-4 py-3.5 pb-24 space-y-4">

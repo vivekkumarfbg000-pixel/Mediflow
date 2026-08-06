@@ -685,8 +685,8 @@ async function triggerBotReplyPipeline(ctx: {
   }
 
   // Dynamically resolve active Doctor Profile (display_name, consultation_fee) and Clinic Name for this session/pod
-  let resolvedDoctorName = "Doctor Vivek";
-  let resolvedClinicName = "Patna Clinic";
+  let resolvedDoctorName = "Doctor";
+  let resolvedClinicName = "Connected Clinic";
   let resolvedConsultationFee = 500;
 
   try {
@@ -831,7 +831,7 @@ async function triggerBotReplyPipeline(ctx: {
           if (pendingAction === "physical" || pendingAction === "virtual") {
             sessionData.consultationType = pendingAction;
             nextState = "AWAITING_SLOT_SELECTION";
-            replyText = `Aapka clinical consent register ho gaya hai! 🟢 Aapka ${pendingAction === "virtual" ? "Virtual Video Call" : "Physical Clinic Visit"} select ho gaya hai. Doctor Vivek ke schedule mein available slots hain. Please timing select kijiye:`;
+            replyText = `Aapka clinical consent register ho gaya hai! 🟢 Aapka ${pendingAction === "virtual" ? "Virtual Video Call" : "Physical Clinic Visit"} select ho gaya hai. ${resolvedDoctorName} ke schedule mein available slots hain. Please timing select kijiye:`;
           } else if (pendingAction === "family") {
             nextState = "AWAITING_FAMILY_DETAILS";
             replyText = "Aapka clinical consent register ho gaya hai! 🟢 Please family member ka Name, Age, aur Gender reply kijiye (e.g. Rohan Kumar, 28, Male):";
@@ -870,7 +870,7 @@ async function triggerBotReplyPipeline(ctx: {
               const enc = encounters[0];
               const meds = enc.encounter_medications ?? [];
               const drugTable = meds.map((m: any) => `• ${m.medicine_name} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join("\n");
-              replyText = `Aapka clinical consent register ho gaya hai! 🟢\n\n*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n\"${enc.clinical_notes || "Patient clinical condition is stable."}\"\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\nDoctor Vivek ne aapko **14 din** ke baad follow-up ke liye Patna branch mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
+              replyText = `Aapka clinical consent register ho gaya hai! 🟢\n\n*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n\"${enc.clinical_notes || "Patient clinical condition is stable."}\"\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\n${resolvedDoctorName} ne aapko **14 din** ke baad follow-up ke liye ${resolvedClinicName} mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
             } else {
               replyText = "Aapka clinical consent register ho gaya hai! 🟢 Aapke profile par koi completed consultation encounter nahi mila.";
             }
@@ -1248,7 +1248,7 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.dateDisplayOptions = displayDates;
 
         nextState = "AWAITING_DATE_SELECTION";
-        replyText = `Aapka ${isVirtual ? "Virtual Video Call" : "Physical Clinic Visit"} select ho gaya hai. Doctor Vivek ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
+        replyText = `Aapka ${isVirtual ? "Virtual Video Call" : "Physical Clinic Visit"} select ho gaya hai. ${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else {
         replyText = "Please appointment booking ke liye 'VIRTUAL' ya 'PHYSICAL' reply kijiye.";
       }
@@ -1291,7 +1291,7 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
         
-        replyText = `Invalid selection. Doctor Vivek ke checkup ke liye please niche diye gaye dates mein se select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) likh kar reply karein! 📅`;
+        replyText = `Invalid selection. ${resolvedDoctorName} ke checkup ke liye please niche diye gaye dates mein se select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) likh kar reply karein! 📅`;
       }
       break;
 
@@ -1476,13 +1476,67 @@ async function triggerBotReplyPipeline(ctx: {
         } else {
           // Normal Paid Consultation Flow
           nextState = "AWAITING_PAYMENT";
-          const upiPayload = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${feeAmount}.00&cu=INR&tn=VITALSYNC-APPT-${patientPhone.substring(5)}`;
+          const doctorFee = feeAmount;
+          const platformFee = 15.00; // 3% Platform Convenience Fee (Rule 59)
+          const totalAmount = doctorFee + platformFee;
+
+          let newApptId = crypto.randomUUID();
+          let newInvoiceId = crypto.randomUUID();
+
+          // Create dynamic Razorpay Payment Link via Razorpay API (/v1/payment_links)
+          let paymentGatewayUrl = "";
+          const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+          const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+          const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
+          const cleanPhone10 = patientPhone.replace(/\D/g, "").slice(-10) || "9608032073";
+          const patientEmail = patient?.email || `patient_${cleanPhone10}@vitalsync.in`;
+
+          if (razorpayKeyId && razorpayKeySecret) {
+            try {
+              const authHeader = "Basic " + btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
+              const rzpRes = await fetch("https://api.razorpay.com/v1/payment_links", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": authHeader
+                },
+                body: JSON.stringify({
+                  amount: Math.round(totalAmount * 100),
+                  currency: "INR",
+                  accept_partial: false,
+                  description: `${resolvedDoctorName} Consultation Fee`,
+                  customer: {
+                    name: targetPatName,
+                    contact: patientPhone.startsWith("+") ? patientPhone : `+91${patientPhone.slice(-10)}`,
+                    email: patientEmail
+                  },
+                  notify: { sms: false, whatsapp: false },
+                  reminder_enable: false,
+                  upi_link: true,
+                  notes: {
+                    invoice_id: newInvoiceId,
+                    appointment_id: newApptId
+                  }
+                })
+              });
+              if (rzpRes.ok) {
+                const rzpData = await rzpRes.json();
+                console.log("[Meta Webhook] Created Razorpay Payment Link:", rzpData.id);
+              } else {
+                const errBody = await rzpRes.text();
+                console.error("[Meta Webhook] Razorpay API Error response:", errBody);
+              }
+            } catch (rzpErr) {
+              console.warn("[Meta Webhook] Razorpay Payment Link creation error:", rzpErr);
+            }
+          }
+
+          // Direct VitalSync Payment Bridge URL (bypasses generic Razorpay mobile number entry screen)
+          paymentGatewayUrl = `https://app.vitalsync.in/pay/${newInvoiceId}?phone=${cleanPhone10}`;
 
           // Insert Appointment Row
-          let newApptId = crypto.randomUUID();
           try {
             if (bookingPatId) {
-              const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
               const { error: apptErr } = await supabase.from("appointments").insert({
                 id: newApptId,
                 patient_id: bookingPatId,
@@ -1505,17 +1559,17 @@ async function triggerBotReplyPipeline(ctx: {
             console.error("[Meta Webhook] Error creating appointment record:", err);
           }
 
-          // Insert Unified Invoice Row
-          let newInvoiceId = crypto.randomUUID();
+          // Insert Unified Invoice Row with Platform Fee (₹500 Doctor Fee + ₹15 Platform Fee = ₹515.00)
           try {
             if (bookingPatId) {
               const { error: invErr } = await supabase.from("unified_invoices").insert({
                 id: newInvoiceId,
                 patient_id: bookingPatId,
-                doctor_fee: feeAmount,
-                total_amount: feeAmount,
+                doctor_fee: doctorFee,
+                platform_fee: platformFee,
+                total_amount: totalAmount,
                 payment_status: "pending",
-                upi_qr_payload: upiPayload,
+                upi_qr_payload: paymentGatewayUrl,
                 pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
               });
               if (invErr) console.error("[Meta Webhook] Database Invoice Insert Error:", invErr);
@@ -1526,9 +1580,12 @@ async function triggerBotReplyPipeline(ctx: {
 
           sessionData.pendingApptId = newApptId;
           sessionData.pendingInvoiceId = newInvoiceId;
-          sessionData.isSos = false; // Reset SOS flag for regular appointments
+          sessionData.isSos = false;
 
-          replyText = `${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai. Total Fee (Appointment + Platform): ₹${feeAmount}.00.${appliedDiscountNote}\n\n⚡ *Pay via Paytm PG / PhonePe PG (0% MDR Auto-Gateway):*\nhttps://securegw.paytm.in/theia/api/v1/showPaymentPage?orderId=${newInvoiceId.substring(0,8)}\n\n📱 *Direct Dynamic UPI Link (GPay / PhonePe / Paytm):*\n${upiPayload}\n\nPayment complete hote hi token automatically issue ho jayega! (No screenshot or UTR required) 🧾`;
+          const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync-mediflow.vercel.app";
+          const portalPaymentUrl = `${appBaseUrl}/pay/${newInvoiceId}`;
+
+          replyText = `📅 *Checkup Slot Selected!*\n\n${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai.\n\n*Fee Breakdown:*\n• Doctor Consultation Fee: ₹${doctorFee.toFixed(2)}\n• Online Convenience Platform Fee (3%): ₹${platformFee.toFixed(2)}\n---------------------------------------\n*Total Amount Payable: ₹${totalAmount.toFixed(2)}*${appliedDiscountNote}\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${portalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke token issue kar dega! 📑`;
         }
       } else {
         replyText = "Invalid slot timing choice. Please Timing select karne ke liye type kijiye:\n1️⃣ Morning (10am-12pm)\n2️⃣ Afternoon (2pm-4pm)\n3️⃣ Evening (6pm-8pm)\n\nType 1, 2, ya 3! ⏱️";
@@ -1546,62 +1603,50 @@ async function triggerBotReplyPipeline(ctx: {
         const clinicName = sessionData.clinicName || resolvedClinicName;
         const feeAmount = sessionData.feeAmount || resolvedConsultationFee;
         
+        let isVerifiedPaid = false;
+        let invoicePayloadUrl = "";
         if (invoiceId) {
-          const { error: invErr } = await supabase
+          const { data: inv } = await supabase
             .from("unified_invoices")
-            .update({ payment_status: "cleared" })
-            .eq("id", invoiceId);
-          if (invErr) console.error("[Meta Webhook] Failed to clear invoice:", invErr);
+            .select("payment_status, upi_qr_payload")
+            .eq("id", invoiceId)
+            .maybeSingle();
 
-          // Insert Financial Ledger Split for WhatsApp UPI Payment (0% Comm Rate, ₹500 Gross, 100% Doctor Payout)
-          try {
-            const ledgerId = `fl-${crypto.randomUUID()}`;
-            await supabase.from("financial_ledgers").insert({
-              id: ledgerId,
-              invoice_id: invoiceId,
-              appointment_id: apptId,
-              patient_id: sessionData.bookingPatientId || session.patient_id,
-              doctor_id: doctorId,
-              entry_type: "appointment_fee",
-              gross_amount: feeAmount,
-              commission_rate: 0,
-              platform_fee: 0,
-              net_doctor_payout: feeAmount,
-              settlement_status: "pending_payout",
-              payment_method: "upi",
-              patient_name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || sessionData.patientName || "WhatsApp Patient",
-              source_entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
-              pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
-              created_at: new Date().toISOString()
-            });
-          } catch (ledgErr) {
-            console.error("[Meta Webhook] Failed to insert financial ledger split:", ledgErr);
+          if (inv?.payment_status === "cleared" || inv?.payment_status === "paid") {
+            isVerifiedPaid = true;
+          }
+          if (inv?.upi_qr_payload) {
+            invoicePayloadUrl = inv.upi_qr_payload;
           }
         }
-        
-        if (apptId) {
+
+        if (isVerifiedPaid) {
+          if (apptId) {
+            const isVirtualSlot = sessionData.consultationType === "virtual";
+            const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
+            await supabase
+              .from("appointments")
+              .update({ status: finalStatus, payment_status: "cleared" })
+              .eq("id", apptId);
+          }
+
+          nextState = "COMPLETED";
           const isVirtualSlot = sessionData.consultationType === "virtual";
-          const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
-          const { error: apptErr } = await supabase
-            .from("appointments")
-            .update({ status: finalStatus })
-            .eq("id", apptId);
-          if (apptErr) console.error("[Meta Webhook] Failed to schedule appointment:", apptErr);
-        }
+          const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
+          sessionData.isSos = false;
+          delete sessionData.isSos;
 
-        nextState = "COMPLETED";
-        const isVirtualSlot = sessionData.consultationType === "virtual";
-        // Guard isSosBooking: Only true if consultationType is explicitly "sos" AND isSos flag is true
-        const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
-        sessionData.isSos = false; // Reset flag explicitly
-        delete sessionData.isSos;
-
-        if (isSosBooking) {
-          replyText = `🚨 *EMERGENCY SOS CONFIRMED & PAID* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00 (₹600 Doctor Priority Consult + ₹18 Platform Fee)\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Time waste na karein aur desk se contact karein. Dhanyawad! 🙏`;
-        } else if (isVirtualSlot) {
-          replyText = `🎉 *PAYMENT CONFIRMED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\n🌟 *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare partner lab & pharmacy counter par billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nThank you for choosing VitalSync! 😊`;
+          if (isSosBooking) {
+            replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
+          } else if (isVirtualSlot) {
+            replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
+          } else {
+            replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you for choosing VitalSync! 😊`;
+          }
         } else {
-          replyText = `🎉 *PAYMENT CONFIRMED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: #${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Fee Paid: ₹${feeAmount}.00\n• Address: ${clinicName}, Kankarbagh Road (opp. ICICI Bank).\n\n🌟 *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Home Delivery\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Assigned Evening Review Slot (04:00 PM)\n\nTime par clinic pahuchein aur counter par token number show karein. Thank you for choosing VitalSync! 😊`;
+          // Payment NOT verified by Razorpay Webhook yet — block auto-confirmation!
+          const pUrl = invoicePayloadUrl || "https://securegw.paytm.in/theia/api/v1/showPaymentPage";
+          replyText = `⚠️ *Payment Verification Pending*\n\nAapka payment abhi Razorpay Gateway dwara confirm nahi hua hai. Please link par click karke payment complete karein:\n\n📱 *Razorpay Payment Gateway Link:*\n${pUrl}\n\nPayment complete hone par system Razorpay API Webhook se automatic verify kar dega! 🧾`;
         }
       } else if (cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned.includes("register") || cleaned.includes("onboard") || cleaned.includes("hello") || cleaned.includes("menu") || cleaned === "0") {
         nextState = "IDLE";
@@ -1759,8 +1804,32 @@ async function triggerBotReplyPipeline(ctx: {
             replyText = rawReport + (aiInterpretation ? `\n\n🤖 *VitalSync AI Analysis*:\n"${aiInterpretation}"` : "");
           } else {
             // AI interpretation LOCKED — show raw report + upsell
-            const upiLink = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=9.00&cu=INR&tn=AI-QUOTA-${patientPhone.substring(5)}`;
-            replyText = rawReport + `\n\n🔒 *AI Report Analysis Locked*\nAppoint book karke ya ₹9 ka AI pack activate karke is report ka AI-powered explanation paayen!\nActivate: ${upiLink}\nPay karne ke baad *ACTIVATE* type karein.`;
+            let aiPayUrl = "";
+            const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+            const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+            if (razorpayKeyId && razorpayKeySecret) {
+              try {
+                const authHeader = "Basic " + btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
+                const rzpRes = await fetch("https://api.razorpay.com/v1/payment_links", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": authHeader },
+                  body: JSON.stringify({
+                    amount: 900,
+                    currency: "INR",
+                    accept_partial: false,
+                    description: "VitalSync AI Assistant Access Pack",
+                    customer: { name: patient?.name || "Patient", contact: patientPhone.startsWith("+") ? patientPhone : `+91${patientPhone.slice(-10)}` },
+                    notify: { sms: false, whatsapp: false }
+                  })
+                });
+                if (rzpRes.ok) {
+                  const rzpData = await rzpRes.json();
+                  if (rzpData.short_url) aiPayUrl = rzpData.short_url;
+                }
+              } catch (err) { /* ignore */ }
+            }
+            if (!aiPayUrl) aiPayUrl = `https://securegw.paytm.in/theia/api/v1/showPaymentPage?orderId=AI-QUOTA-${patientPhone.substring(5)}`;
+            replyText = rawReport + `\n\n🔒 *AI Report Analysis Locked*\nAppointment book karke ya ₹9 ka AI pack activate karke is report ka AI-powered explanation paayen!\n\n📱 *Click to Pay via Razorpay 0% MDR UPI*: ${aiPayUrl}\n\nPay karne ke baad *ACTIVATE* type karein.`;
           }
         } else {
           replyText = "Aapka koi approved pathology report abhi on file nahi hai. Lab technician ke results update karne ka wait kijiye. 🧪";
@@ -1783,7 +1852,7 @@ async function triggerBotReplyPipeline(ctx: {
           const meds = enc.encounter_medications ?? [];
           const drugTable = meds.map((m: any) => `• ${m.medicine_name} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join("\n");
 
-          replyText = `*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n\"${enc.clinical_notes || "Patient clinical condition is stable."}\"\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\nDoctor Vivek ne aapko **14 din** ke baad follow-up ke liye Patna branch mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
+          replyText = `*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n\"${enc.clinical_notes || "Patient clinical condition is stable."}\"\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\n${resolvedDoctorName} ne aapko **14 din** ke baad follow-up ke liye ${resolvedClinicName} mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
         } else {
           replyText = "Aapke profile par koi completed consultation encounter nahi mila. 📋";
         }
@@ -1809,7 +1878,7 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.dateDisplayOptions = displayDates;
 
         nextState = "AWAITING_DATE_SELECTION";
-        replyText = `Doctor Vivek ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
+        replyText = `${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else if (cleaned === "2" || cleaned === "virtual" || cleaned.includes("book virtual")) {
         sessionData.consultationType = "virtual";
         
@@ -1832,7 +1901,7 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.dateDisplayOptions = displayDates;
 
         nextState = "AWAITING_DATE_SELECTION";
-        replyText = `Doctor Vivek ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
+        replyText = `${resolvedDoctorName} ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else if (cleaned === "6" || cleaned === "family") {
         // INTERACTIVE FAMILY DIRECTORY: Show registered family members first
         let familyMembers: any[] = [];
@@ -1874,7 +1943,53 @@ async function triggerBotReplyPipeline(ctx: {
         const doctorSosFee = 600.00; // Base ₹500 + 20% Priority Charge (₹100) -> 100% to Doctor
         const platformFeeSos = 18.00; // 3% of ₹600 -> 100% to Platform Owner
         const totalSosFee = doctorSosFee + platformFeeSos; // ₹618.00
-        const upiPayload = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${totalSosFee.toFixed(2)}&cu=INR&tn=SOS-EMERGENCY-${patientPhone.substring(5)}`;
+        let paymentGatewayUrlSos = "";
+        const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+        const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+        const cleanPhone10Sos = patientPhone.replace(/\D/g, "").slice(-10) || "9608032073";
+        const patientEmailSos = patient?.email || `emergency_${cleanPhone10Sos}@vitalsync.in`;
+
+        if (razorpayKeyId && razorpayKeySecret) {
+          try {
+            const authHeader = "Basic " + btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
+            const rzpRes = await fetch("https://api.razorpay.com/v1/payment_links", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": authHeader
+              },
+              body: JSON.stringify({
+                amount: Math.round(totalSosFee * 100),
+                currency: "INR",
+                accept_partial: false,
+                description: "Emergency SOS Priority Consult Fee",
+                customer: {
+                  name: patient?.name || "Emergency Patient",
+                  contact: patientPhone.startsWith("+") ? patientPhone : `+91${patientPhone.slice(-10)}`,
+                  email: patientEmailSos
+                },
+                notify: { sms: false, whatsapp: false },
+                reminder_enable: false,
+                upi_link: true,
+                notes: {
+                  invoice_id: sosInvoiceId,
+                  appointment_id: sosApptId
+                }
+              })
+            });
+            if (rzpRes.ok) {
+              const rzpData = await rzpRes.json();
+              console.log("[Meta Webhook] Created Razorpay SOS Payment Link:", rzpData.id);
+            } else {
+              const errBody = await rzpRes.text();
+              console.error("[Meta Webhook] Razorpay SOS API Error response:", errBody);
+            }
+          } catch (rzpErr) {
+            console.warn("[Meta Webhook] Razorpay SOS Payment Link error:", rzpErr);
+          }
+        }
+
+        paymentGatewayUrlSos = `https://app.vitalsync.in/pay/${sosInvoiceId}?phone=${cleanPhone10Sos}`;
 
         try {
           const sosPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
@@ -1900,7 +2015,7 @@ async function triggerBotReplyPipeline(ctx: {
               platform_fee: platformFeeSos,
               total_amount: totalSosFee,
               payment_status: "pending",
-              upi_qr_payload: upiPayload,
+              upi_qr_payload: paymentGatewayUrlSos,
               pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
             });
           }
@@ -1912,7 +2027,10 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.consultationType = "sos";
         nextState = "AWAITING_PAYMENT";
 
-        replyText = `🚨 *EMERGENCY SOS CONSULT ROUTING* 🚨\n\nDoctor Vivek ke queue mein top *PRIORITY #1* position reserve karne ke liye emergency fee pay karein:\n\n• Doctor Consult Fee: ₹${doctorSosFee.toFixed(2)} (Includes 20% Doctor Priority Charge)\n• VitalSync Platform Fee (+3%): ₹${platformFeeSos.toFixed(2)}\n• *Total Amount Payable*: ₹${totalSosFee.toFixed(2)}\n\nSecure UPI Payment Link:\n${upiPayload}\n\nPayment complete hone ke baad **PAY** reply kijiye! Real-time verification ke baad aapka case turant Priority #1 status par active ho jayega. 🟢`;
+        const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync-mediflow.vercel.app";
+        const sosPortalPaymentUrl = `${appBaseUrl}/pay/${sosInvoiceId}`;
+
+        replyText = `🚨 *EMERGENCY SOS CONSULT ROUTING* 🚨\n\n${resolvedDoctorName} ke queue mein top *PRIORITY #1* position reserve karne ke liye emergency fee pay karein:\n\n• Doctor Consult Fee: ₹${doctorSosFee.toFixed(2)} (Includes 20% Doctor Priority Charge)\n• VitalSync Platform Fee (+3%): ₹${platformFeeSos.toFixed(2)}\n---------------------------------------\n*Total Amount Payable*: ₹${totalSosFee.toFixed(2)}\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${sosPortalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke case Priority #1 par active kar dega! 🟢`;
 
       } else if (cleaned === "9" || cleaned === "locker" || cleaned.includes("health locker") || cleaned.includes("records")) {
         // DIGITAL HEALTH LOCKER: Compile full patient medical history
@@ -2083,11 +2201,11 @@ async function triggerBotReplyPipeline(ctx: {
         replyText = "Full VitalSync Services Catalog:\nNiche menu se service select kijiye:";
       } else if (cleaned === "physical review") {
         nextState = "COMPLETED";
-        replyText = "🏥 *PATNA CLINIC EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye Doctor Vivek ne aaj sham **04:00 PM - 06:00 PM** ka slot lock kar diya hai.\n\n• Location: Patna Clinic, Kankarbagh Road (opp. ICICI Bank)\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊";
+        replyText = `🏥 *${resolvedClinicName.toUpperCase()} EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye ${resolvedDoctorName} ne aaj sham **04:00 PM - 06:00 PM** ka slot lock kar diya hai.\n\n• Location: ${resolvedClinicName}, Central Desk\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊`;
       } else if (cleaned === "virtual review") {
         nextState = "COMPLETED";
         const vApptId = crypto.randomUUID();
-        replyText = `💻 *EMERGENCY VIRTUAL VIDEO REVIEW ACTIVATED!* 🟢\n\nDoctor Vivek aapki report online video consult par review karenge:\n• Meeting URL: https://meet.jit.si/vitalsync-consult-${vApptId}\n• Time: Aaj sham 04:00 PM\n\nDawa refill & 1-Click home delivery request register ho gaya hai. Thank you! 😊`;
+        replyText = `💻 *EMERGENCY VIRTUAL VIDEO REVIEW ACTIVATED!* 🟢\n\n${resolvedDoctorName} aapki report online video consult par review karenge:\n• Meeting URL: https://meet.jit.si/vitalsync-consult-${vApptId}\n• Time: Aaj sham 04:00 PM\n\nDawa refill & 1-Click home delivery request register ho gaya hai. Thank you! 😊`;
       } else if (["stop consent", "stop", "revoke"].includes(cleaned)) {
         nextState = "AWAITING_WELCOME";
         replyText = "Aapka clinical consent cancel kar diya gaya hai aur profile lock ho gayi hai. Wapas shuru karne ke liye '1' reply kijiye.";
@@ -2137,13 +2255,45 @@ async function triggerBotReplyPipeline(ctx: {
           const limit = sessionData.llmUsage.limit ?? (sessionData.llmUsage.type === "paid_quota" ? 20 : (hasPaidPlatformFeeThisMonth ? 10 : 0));
           
           if (sessionData.llmUsage.count >= limit) {
-            const upiPayload = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=9.00&cu=INR&tn=VITALSYNC-AI-QUOTA-${patientPhone.substring(5)}`;
+            let aiPayUrl = "";
+            const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+            const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+            if (razorpayKeyId && razorpayKeySecret) {
+              try {
+                const authHeader = "Basic " + btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
+                const rzpRes = await fetch("https://api.razorpay.com/v1/payment_links", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": authHeader },
+                  body: JSON.stringify({
+                    amount: 900,
+                    currency: "INR",
+                    accept_partial: false,
+                    description: "VitalSync AI Assistant Access Pack",
+                    customer: { name: patient?.name || "Patient", contact: patientPhone.startsWith("+") ? patientPhone : `+91${patientPhone.slice(-10)}` },
+                    notify: { sms: false, whatsapp: false }
+                  })
+                });
+                if (rzpRes.ok) {
+                  const rzpData = await rzpRes.json();
+                  if (rzpData.short_url) aiPayUrl = rzpData.short_url;
+                }
+              } catch (err) { /* ignore */ }
+            }
+            if (!aiPayUrl) {
+              aiPayUrl = `https://securegw.paytm.in/theia/api/v1/showPaymentPage?orderId=AI-QUOTA-${patientPhone.substring(5)}`;
+            } else {
+              const cleanPhone10Ai = patientPhone.replace(/\D/g, "").slice(-10) || "9608032073";
+              const encNameAi = encodeURIComponent(patient?.name || "Patient");
+              const encEmailAi = encodeURIComponent(patient?.email || `patient_${cleanPhone10Ai}@vitalsync.in`);
+              const sepAi = aiPayUrl.includes("?") ? "&" : "?";
+              aiPayUrl = `${aiPayUrl}${sepAi}contact=${cleanPhone10Ai}&email=${encEmailAi}&name=${encNameAi}&method=upi`;
+            }
             nextState = "AWAITING_AI_QUOTA_PAYMENT";
             
             if (limit === 0) {
-              replyText = `⚠️ *AI Consultation Pack Required* \n\nAapka is month (${currentMonthYear}) ke liye free clinical AI assistant active nahi hai. Free quota sirf appointment platforms fees clear karne par activate hota hai.\n\n*Direct AI Access Package*:\n• Price: ₹9.00 only (100% Doctor/Owner income)\n• Quota: 20 clinical queries\n• Validity: Active till end of this month\n\nDirect access pane ke liye please niche diye link/QR se ₹9.00 pay karein:\n\n${upiPayload}\n\nPayment confirm karne ke baad please **ACTIVATE** reply karein! 🧾`;
+              replyText = `⚠️ *AI Consultation Pack Required* \n\nAapka is month (${currentMonthYear}) ke liye free clinical AI assistant active nahi hai. Free quota sirf appointment platform fees clear karne par activate hota hai.\n\n*Direct AI Access Package*:\n• Price: ₹9.00 only (100% Doctor/Owner income)\n• Quota: 20 clinical queries\n• Validity: Active till end of this month\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / PhonePe / Paytm / BHIM):*\n${aiPayUrl}\n\nPayment confirm karne ke baad please **ACTIVATE** reply karein! 🧾`;
             } else {
-              replyText = `⚠️ *AI Usage Limit Reached* \n\nAapka is month ka free clinical AI quota (10 questions) exhaust ho gaya hai.\n\n*Direct AI Upgrade Package*:\n• Price: ₹9.00 only (100% Doctor/Owner income)\n• Quota: 20 extra clinical queries\n• Validity: Active till end of this month\n\nUpgrade karne ke liye please niche diye link/QR se ₹9.00 pay karein:\n\n${upiPayload}\n\nPayment confirm karne ke baad please **ACTIVATE** reply karein! 🧾`;
+              replyText = `⚠️ *AI Usage Limit Reached* \n\nAapka is month ka free clinical AI quota (10 questions) exhaust ho gaya hai.\n\n*Direct AI Upgrade Package*:\n• Price: ₹9.00 only (100% Doctor/Owner income)\n• Quota: 20 extra clinical queries\n• Validity: Active till end of this month\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / PhonePe / Paytm / BHIM):*\n${aiPayUrl}\n\nPayment confirm karne ke baad please **ACTIVATE** reply karein! 🧾`;
             }
             aiSuccess = true; // Bypasses the fallback static RAG block
           } else if (groqApiKey) {
@@ -2204,7 +2354,7 @@ CLINICAL GUIDELINES:
 2. If they have diabetes/sugar and are asking about sugar, explain that their average 3-month sugar level (HbA1c 7.2% or whatever is on file) requires reducing sugar/carbs. Suggest LOINC: 4544-3 tests.
 3. If creatinine is high (>1.2), caution them not to take heavy NSAIDs/pain-killers.
 4. Keep the response concise, clear, and in a friendly mix of Hindi and English (Hinglish), as is standard for patients in India. Use bullet points for readability.
-5. Remind them to consult Doctor Vivek for official clinical changes.`;
+5. Remind them to consult ${resolvedDoctorName} for official clinical changes.`;
 
             const chatHistoryMessages = chatHistory.slice(-5).map((h: any) => ({
               role: h.sender === "patient" ? "user" : "assistant",
@@ -2402,7 +2552,7 @@ CLINICAL GUIDELINES:
             {
               title: "Appointments & Visits",
               rows: [
-                { id: "menu_physical", title: "Book Physical Visit", description: "Clinic aakar Doctor Vivek se consult karein" },
+                { id: "menu_physical", title: "Book Physical Visit", description: `Clinic aakar ${resolvedDoctorName} se consult karein` },
                 { id: "menu_virtual", title: "Book Virtual Call", description: "Phone par online video consultation slot" },
                 { id: "menu_family", title: "Book for Family Member", description: "Family member ke details add karke book karein" }
               ]
@@ -2531,7 +2681,7 @@ CLINICAL GUIDELINES:
                 {
                   title: "Appointments & Visits",
                   rows: [
-                    { id: "menu_physical", title: "Physical Visit 🏥", description: "Clinic aakar Doctor Vivek se consult karein" },
+                    { id: "menu_physical", title: "Physical Visit 🏥", description: `Clinic aakar ${resolvedDoctorName} se consult karein` },
                     { id: "menu_virtual", title: "Virtual Call 💻", description: "Phone par online video consultation slot" },
                     { id: "menu_family", title: "Book for Family Member", description: "Family member ke details add karke book karein" }
                   ]

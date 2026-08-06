@@ -43,8 +43,9 @@ const RefractionDashboard = lazyWithRetry(() => import('./components/doctor/Refr
 import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
 import { BrandMark } from './components/shared/BrandMark';
+import { WhatsAppPaymentPage } from './pages/WhatsAppPaymentPage';
 import { supabase } from './lib/supabaseClient';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
@@ -55,6 +56,7 @@ import { PatientMobileDashboard } from './components/shared/PatientMobileDashboa
 import { CommandBar } from './components/shared/CommandBar';
 import { ToastProvider } from './components/shared/ToastProvider';
 import { resolvePodContext, clearPodContext } from './services/podContext';
+import { RealtimeSyncService } from './services/realtimeSyncService';
 import {
   DashboardSkeleton,
   DoctorDashboardSkeleton,
@@ -231,13 +233,13 @@ function AppContent({
       case 'saas_admin':
         return (
           <ErrorBoundary fallbackTitle="SaaS Platform Operations Panel">
-            <SaaSAdminPanel />
+            <SaaSAdminPanel onSignOut={handleSignOut} />
           </ErrorBoundary>
         );
       case 'patient':
         return (
           <ErrorBoundary fallbackTitle="Patient Companion Viewport">
-            <PatientMobileDashboard />
+            <PatientMobileDashboard onSignOut={handleSignOut} />
           </ErrorBoundary>
         );
       default:
@@ -473,6 +475,15 @@ const setCrossDomainCookie = (active: boolean) => {
 };
 
 export default function App() {
+  // Public route interceptor for instant WhatsApp payment portal (/pay/:invoiceId or ?inv=...)
+  if (typeof window !== 'undefined') {
+    const pathName = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
+    if (pathName.startsWith('/pay') || (searchParams.has('inv') && !searchParams.has('tab'))) {
+      return <WhatsAppPaymentPage />;
+    }
+  }
+
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vitalsync_active_role') as UserRole;
@@ -1114,21 +1125,86 @@ export default function App() {
   };
 
 
+  const [isSigningOutProcess, setIsSigningOutProcess] = useState(false);
+
   const handleSignOut = async () => {
+    setIsSigningOutProcess(true);
     setCrossDomainCookie(false);
+
+    // 1. Instant premium SaaS visual feedback
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Signing Out Workspace... 👋',
+        message: 'Terminating active sessions, Postgres CDC streams, and security tokens.',
+        type: 'info'
+      }
+    }));
+
+    // 2. Layer 2: Realtime Postgres CDC Channel Teardown
     try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error('Error during Supabase signout:', err);
-    }
-    
-    // Completely clear all cached session, profile, and demo data from storage
+      RealtimeSyncService.teardown();
+    } catch (_e) { /* ignore */ }
+
+    // 3. Layer 3: Comprehensive Storage & Pod Context Purge (Rule 69 & Rule 76)
     if (typeof window !== 'undefined') {
       try {
+        const purgeKeys = [
+          'vitalsync_cached_profile',
+          'vitalsync_active_role',
+          'vitalsync_active_pod',
+          'patients',
+          'saas_appointments',
+          'mediflow_patients',
+          'mediflow_financial_ledgers',
+          'mediflow_unified_invoices',
+          'patient_registry',
+          'medicine_bills',
+          'lab_requisitions',
+          'vitalsync_admin_logged_in',
+          'vitalsync_chunk_reloaded_guard',
+          'vitalsync_support_tickets',
+          'wal_mem_outbox',
+          'offline_sync_queue'
+        ];
+
+        purgeKeys.forEach(key => localStorage.removeItem(key));
+
+        // Dynamically purge all Supabase auth tokens matching sb-*-auth-token
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('supabase'))) {
+            localStorage.removeItem(key);
+          }
+        }
+
         localStorage.clear();
         sessionStorage.clear();
       } catch (_e) { /* ignore */ }
-      window.location.href = window.location.origin;
+    }
+
+    // 4. Clear Pod Context (Rule 76)
+    try {
+      clearPodContext();
+    } catch (_e) { /* ignore */ }
+
+    // 5. Layer 1 & 4: Synchronously reset React state for 0ms UI unmount
+    setSession(null);
+    setActiveProfile(null);
+    setIsLoadingSession(false);
+
+    // 6. Non-blocking resilient Supabase Auth Revocation with 1000ms safety timeout fallback
+    try {
+      await Promise.race([
+        supabase.auth.signOut({ scope: 'local' }),
+        new Promise(resolve => setTimeout(resolve, 1000))
+      ]);
+    } catch (err) {
+      console.error('[Mediflow Auth] Supabase signout warning:', err);
+    }
+
+    // 7. Layer 5: Hard window replace eliminating browser history session caching
+    if (typeof window !== 'undefined') {
+      window.location.replace(window.location.origin);
     }
   };
 
@@ -1389,7 +1465,7 @@ export default function App() {
       <ToastProvider>
         <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans select-none">
           <Suspense fallback={<FullPageLoader message="Loading Admin Workspace..." />}>
-            <SaaSAdminPanel />
+            <SaaSAdminPanel onSignOut={handleSignOut} />
           </Suspense>
         </div>
       </ToastProvider>
@@ -1450,6 +1526,35 @@ export default function App() {
     <ToastProvider>
       <ClinicProvider activeProfile={activeProfile}>
         <SpecializationProvider activeProfile={activeProfile}>
+          {isSigningOutProcess && (
+            <div className="fixed inset-0 z-[999999] bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white font-sans select-none animate-fade-in">
+              <div className="relative flex items-center justify-center mb-6">
+                <div className="w-20 h-20 rounded-full border-2 border-indigo-500/30 border-t-indigo-400 border-r-cyan-400 animate-spin" />
+                <div className="absolute w-12 h-12 rounded-full bg-indigo-500/20 blur-md animate-pulse" />
+                <LogOut className="absolute h-8 w-8 text-cyan-400 animate-pulse" />
+              </div>
+              <h3 className="text-xl font-black text-white tracking-wide font-sans mb-2">
+                Terminating Workspace Session...
+              </h3>
+              <p className="text-xs text-slate-400 max-w-sm text-center font-medium leading-relaxed mb-6">
+                Clearing local memory caches, Postgres CDC streams, and security credentials.
+              </p>
+              <div className="space-y-2 text-[10px] font-mono text-emerald-400/90 bg-slate-900/80 border border-white/10 px-4 py-3 rounded-xl min-w-[280px]">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  <span>[✓] Realtime CDC Channels Detached</span>
+                </div>
+                <div className="flex items-center gap-2 text-cyan-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>[✓] Encryption Tokens & Storage Purged</span>
+                </div>
+                <div className="flex items-center gap-2 text-indigo-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                  <span>[✓] Pod Context Cleared</span>
+                </div>
+              </div>
+            </div>
+          )}
           <AppContent
             session={session}
             activeProfile={activeProfile}

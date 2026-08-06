@@ -10,13 +10,8 @@ interface PendingApprovalScreenProps {
 export const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({ onSignOut }) => {
   const { activeEntity, isLoading } = useClinic();
 
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      onSignOut();
-    } catch (err) {
-      console.error('Sign out error:', err);
-    }
+  const handleSignOut = () => {
+    onSignOut();
   };
 
   return (

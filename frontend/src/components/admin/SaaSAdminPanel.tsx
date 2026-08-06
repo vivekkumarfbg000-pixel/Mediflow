@@ -110,9 +110,11 @@ interface RateLimitRow {
   window_start: string;
 }
 
-type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
+export interface SaaSAdminPanelProps {
+  onSignOut?: () => void;
+}
 
-export const SaaSAdminPanel: React.FC = () => {
+export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => {
   // SECURITY: Never initialise from localStorage — it is client-writable.
   // The localStorage flag is kept only as a UI loading hint (e.g., hide spinner),
   // but the actual security gate is the async checkRole() below.
@@ -1316,10 +1318,14 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
   }, [isAdmin, activeTab]);
 
   const handleSignOut = async () => {
+    if (onSignOut) {
+      onSignOut();
+      return;
+    }
     try {
-      await supabase.auth.signOut();
       localStorage.removeItem('vitalsync_admin_logged_in');
       setIsAdmin(false);
+      await supabase.auth.signOut({ scope: 'local' });
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Signed Out Successfully 👋',
@@ -1327,6 +1333,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           type: 'info'
         }
       }));
+      if (typeof window !== 'undefined') {
+        window.location.href = window.location.origin;
+      }
     } catch (err) {
       console.error('Error during admin signout:', err);
     }

@@ -152,8 +152,8 @@ BEGIN
        total_amount, upi_qr_payload)
     VALUES
       (NEW.id, NEW.patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total,
-       'upi://pay?pa=mid-vivekmehta@kotakbank&pn=Mediflow&am=' || total ||
-       '&cu=INR&tn=Mediflow-' || NEW.id);
+       'upi://pay?pa=vitalsync@axl&pn=VitalSync&am=' || total ||
+       '&cu=INR&tn=VitalSync-' || NEW.id);
 
     -- Update WhatsApp session to AWAITING_PAYMENT
     UPDATE public.whatsapp_sessions
