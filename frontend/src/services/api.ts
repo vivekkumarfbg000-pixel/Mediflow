@@ -1583,12 +1583,6 @@ class MediflowApiService {
     this.notify();
   }
 
-  registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
-    const p = PatientService.registerPatient(patientData);
-    this.notify();
-    return p;
-  }
-
   bulkRegisterPatients(patientList: Array<Omit<Patient, 'id' | 'createdAt'> & { id?: string }>): Patient[] {
     const list = PatientService.bulkRegisterPatients(patientList);
     this.notify();

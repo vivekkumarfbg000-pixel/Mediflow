@@ -923,7 +923,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
               return regDate.startsWith(todayStr);
             });
-            const completedList = patients.filter(p => p.queueStatus === 'completed' || p.queueStatus === 'pharmacy' || p.queueStatus === 'lab' || p.queueStatus === 'settled');
+            const completedList = patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled');
 
             return (
               <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none border-b border-slate-100 font-mono text-[9px] font-bold">
@@ -1006,10 +1006,10 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   }
                   if (queueFilter === 'completed') {
                     return (
-                      p.queueStatus === 'completed' ||
-                      p.queueStatus === 'pharmacy' ||
-                      p.queueStatus === 'lab' ||
-                      p.queueStatus === 'settled'
+                      (p as any).queueStatus === 'completed' ||
+                      (p as any).queueStatus === 'pharmacy' ||
+                      (p as any).queueStatus === 'lab' ||
+                      (p as any).queueStatus === 'settled'
                     );
                   }
                   return true;

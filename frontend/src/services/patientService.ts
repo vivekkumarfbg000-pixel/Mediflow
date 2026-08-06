@@ -88,6 +88,8 @@ export class PatientService {
       const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103']);
       const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
       rawPatients = rawPatients.filter(p => !demoIds.has(p.id) && !demoNames.has(String(p.name || '').toLowerCase()));
+    }
+
     // Auto-backfill Smart Patient ID (V1, V2, V56 format) for legacy records missing patientCode
     let modifiedBackfill = false;
     const letterCounters: Record<string, number> = {};
