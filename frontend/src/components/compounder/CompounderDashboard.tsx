@@ -804,7 +804,7 @@ export const CompounderDashboard: React.FC = () => {
 
     // Strict Cashfree Payment Gate Check (USP 3 & Rule 3): Verify consultation fee is cleared before token dispatch
     const invoices = BillingService.getInvoices();
-    const isPaidInvoice = invoices.some(i => i.patientId === vitalsPatient.id && ((i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid' || i.status === 'cleared'));
+    const isPaidInvoice = invoices.some(i => i.patientId === vitalsPatient.id && ((i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || (i as any).status === 'paid' || (i as any).status === 'cleared'));
     const appts = api.getAppointments();
     const hasPaidAppt = appts.some(a => a.patientId === vitalsPatient.id && a.status !== 'pending_payment');
 
