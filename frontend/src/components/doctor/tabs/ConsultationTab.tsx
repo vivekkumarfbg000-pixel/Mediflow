@@ -545,9 +545,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <p>Connected Care Clinic Network</p>
             </div>
             <div class="doc-info">
-              <strong>${activePod?.doctor_name || 'Dr. Practitioner'}</strong><br/>
-              Ophthalmology & Clinical Specialist<br/>
-              ${activePod?.name || 'Care Pod Tenant'} (Code: ${activePod?.clinicCode || 'MF-LIVE01'})<br/>
+              <strong>${activeDoctorProfile?.display_name || activeProfile?.display_name || activePod?.doctor_name || 'Dr. Practitioner'}</strong><br/>
+              ${activeProfile?.specialization || 'Clinical Care Specialist'}<br/>
+              ${activePod?.name || activeProfile?.clinicName || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || activeProfile?.clinic_code || (activeProfile?.id ? 'MF-' + activeProfile.id.slice(0, 5).toUpperCase() : 'MF-CARE01')})<br/>
               Date: ${new Date().toLocaleDateString('en-IN')}
             </div>
           </div>
