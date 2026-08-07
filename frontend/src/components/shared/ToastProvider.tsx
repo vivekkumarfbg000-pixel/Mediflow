@@ -227,6 +227,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
 
     setToasts(prev => {
+      // Deduplicate: prevent identical messages from stacking simultaneously
+      const isDuplicate = prev.some(t => t.message === message);
+      if (isDuplicate) return prev;
+
       // Cap at MAX_VISIBLE — remove oldest if at capacity
       const next = [...prev, item];
       return next.length > MAX_VISIBLE ? next.slice(next.length - MAX_VISIBLE) : next;
