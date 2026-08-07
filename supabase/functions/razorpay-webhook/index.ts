@@ -71,12 +71,13 @@ serve(async (req) => {
     console.log("[Razorpay Webhook] Received payload event:", payload.event);
 
     const event = payload.event;
-    if (event === "payment.captured" || event === "order.paid") {
+    if (event === "payment.captured" || event === "order.paid" || event === "payment_link.paid") {
       const payment = payload.payload?.payment?.entity || {};
       const order = payload.payload?.order?.entity || {};
-      const notes = payment.notes || order.notes || {};
+      const paymentLink = payload.payload?.payment_link?.entity || {};
+      const notes = payment.notes || order.notes || paymentLink.notes || {};
       const invoiceId = notes.invoice_id || notes.invoiceId || "";
-      const rawContact = payment.contact || notes.phone || "";
+      const rawContact = payment.contact || paymentLink.customer?.contact || notes.phone || "";
       const clean10 = rawContact.replace(/\D/g, "").slice(-10);
 
       console.log(`[Razorpay Webhook] 🟢 Processing event ${event} for payment ${payment.id || order.id}, invoice: ${invoiceId}`);

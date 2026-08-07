@@ -417,21 +417,21 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
               </div>
             )}
 
-            {/* Pay Button */}
+            {/* Pay with Razorpay Gateway */}
             <button
               onClick={handleTriggerRazorpay}
               disabled={processing}
-              className="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-extrabold text-base flex items-center justify-center gap-2.5 shadow-xl shadow-teal-500/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              className="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-extrabold text-base flex items-center justify-center gap-2.5 shadow-xl shadow-teal-500/25 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
             >
               {processing ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Opening Razorpay Gateway...</span>
+                  <span>Opening Secure Razorpay Gateway...</span>
                 </>
               ) : (
                 <>
                   <CreditCard className="h-5 w-5" />
-                  <span>Pay ₹{amountRupees.toFixed(2)} via Razorpay UPI</span>
+                  <span>Pay ₹{amountRupees.toFixed(2)} via Razorpay (UPI / Cards)</span>
                 </>
               )}
             </button>
@@ -441,7 +441,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
               <span>•</span>
               <span className="flex items-center gap-1">🔒 256-Bit SSL</span>
               <span>•</span>
-              <span className="flex items-center gap-1">🛡️ Webhook Verified</span>
+              <span className="flex items-center gap-1">🛡️ Automated Webhook Token</span>
             </div>
           </div>
         )}
