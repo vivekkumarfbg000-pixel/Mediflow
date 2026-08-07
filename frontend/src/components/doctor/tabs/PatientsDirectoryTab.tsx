@@ -148,9 +148,19 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
     setImportProgress(0);
     const totalCount = parsedList.length;
     try {
+      const generateUUID = () => {
+        if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+          return window.crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+      };
+
       for (let i = 0; i < parsedList.length; i++) {
         const p = parsedList[i];
-        const newPatientId = crypto.randomUUID();
+        const newPatientId = generateUUID();
         api.registerPatient({
           ...p,
           id: newPatientId
