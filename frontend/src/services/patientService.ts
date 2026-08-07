@@ -42,6 +42,8 @@ export const INITIAL_PATIENTS: Patient[] = [
 ];
 
 export class PatientService {
+  static isSyncingQueue = false;
+
   static savePatients(patients: Patient[]): void {
     const currentPodId = getPodContext().podId;
     patients.forEach(p => {
@@ -168,14 +170,21 @@ export class PatientService {
   // Self-Healing Background Sync Task Queue Worker
   static async processSyncQueue(): Promise<void> {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    if (this.isSyncingQueue) return;
 
-    const queue = load<any[]>('sync_queue', []);
-    if (queue.length === 0) return;
+    this.isSyncingQueue = true;
 
-    const activeItem = queue[0];
-    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
+    let activeItem: any = null;
 
     try {
+      const queue = load<any[]>('sync_queue', []);
+      if (queue.length === 0) {
+        this.isSyncingQueue = false;
+        return;
+      }
+
+      activeItem = queue[0];
+      const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
       let result;
       if (activeItem.operation === 'register_patient') {
         const podId = getPodContext().podId;
@@ -216,25 +225,30 @@ export class PatientService {
       
       notify();
       
+      this.isSyncingQueue = false;
       // Process next item recursively
       this.processSyncQueue();
     } catch (err) {
       console.error('Queue worker process error:', err);
       
-      activeItem.attempts = (activeItem.attempts || 0) + 1;
+      const currentQueue = load<any[]>('sync_queue', []);
+      const currentItemIndex = currentQueue.findIndex(item => item.id === activeItem.id);
       
-      if (activeItem.attempts >= 5) {
-        // Mark as failed and remove from active queue to avoid blocking
-        const updatedQueue = queue.filter(item => item.id !== activeItem.id);
-        save('sync_queue', updatedQueue);
+      if (currentItemIndex !== -1) {
+        currentQueue[currentItemIndex].attempts = (currentQueue[currentItemIndex].attempts || 0) + 1;
         
-        syncStatusMap[activeItem.patientId] = 'failed';
-        save('sync_status_map', syncStatusMap);
-        notify();
-      } else {
-        // Save back with increased attempts
-        save('sync_queue', queue);
+        if (currentQueue[currentItemIndex].attempts >= 5) {
+          // Mark as failed and remove from active queue to avoid blocking
+          currentQueue.splice(currentItemIndex, 1);
+          
+          const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
+          syncStatusMap[activeItem.patientId] = 'failed';
+          save('sync_status_map', syncStatusMap);
+          notify();
+        }
+        save('sync_queue', currentQueue);
       }
+      this.isSyncingQueue = false;
     }
   }
 

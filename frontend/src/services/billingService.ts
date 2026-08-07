@@ -83,6 +83,24 @@ export class BillingService {
       invoices[idx].paymentStatus = 'cleared';
       invoices[idx].paymentMethod = paymentMethod;
       save('unified_invoices', invoices);
+    } else {
+      const saasInvoices = this.getInvoices();
+      const saasIdx = saasInvoices.findIndex(i => i.id === invoiceId);
+      if (saasIdx !== -1) {
+        saasInvoices[saasIdx].status = 'paid';
+        saasInvoices[saasIdx].paymentMethod = paymentMethod;
+        save('saas_invoices', saasInvoices);
+        
+        const appts = this.getAppointments();
+        const targetAppt = appts.find(a => a.id === saasInvoices[saasIdx].appointmentId);
+        if (targetAppt) {
+          targetAppt.status = 'confirmed';
+          save('saas_appointments', appts);
+        }
+      }
+    }
+    
+    if (idx !== -1) {
 
       const inv = invoices[idx];
       const invoiceAmount = inv.totalAmount || 500;

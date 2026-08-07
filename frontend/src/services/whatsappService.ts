@@ -34,9 +34,7 @@ export class WhatsAppService {
               parsed.isDemo === true ||
               email === 'demo@mediflow.com' ||
               email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
-              name.includes('(demo)') ||
-              name.includes('(mock)')
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
             );
           }
         }
@@ -134,40 +132,9 @@ export class WhatsAppService {
         try {
           console.log(`[VitalSync Outgoing Dispatch] API template: ${templateName} target: ${phone}`);
 
-          // Persist outgoing reply message to local session history for instant patient/doctor sync
-          if (variables?.replyText) {
-            const sessions = this.getWhatsAppSessions();
-            const targetDigits = phone.replace(/\D/g, '').slice(-10);
-            const sessionIndex = sessions.findIndex(s => {
-              const sPhone = (s.patientPhone || (s as any).patient_phone || (s as any).phone || '').replace(/\D/g, '').slice(-10);
-              return sPhone === targetDigits;
-            });
-            const now = new Date().toISOString();
-
-            if (sessionIndex !== -1) {
-              const session = sessions[sessionIndex];
-              const sData = session.sessionData || (session as any).session_data || {};
-              const history = [...(sData.chatHistory || [])];
-              
-              history.push({
-                sender: 'agent',
-                text: variables.replyText,
-                timestamp: now,
-                time: now
-              });
-
-              sessions[sessionIndex] = {
-                ...session,
-                lastInteraction: now,
-                sessionData: { ...sData, chatHistory: history },
-                session_data: { ...sData, chatHistory: history }
-              } as any;
-              this.saveWhatsAppSessions(sessions);
-              window.dispatchEvent(new CustomEvent('mediflow-whatsapp-session-updated'));
-            }
-          }
-
+          // Rule 62: Meta Graph API requests MUST be dispatched FIRST (~250ms latency) before session DB updates
           // Dispatch real HTTP POST payload via Supabase Edge Function Relay (Vault Secrets)
+          let dispatchSuccess = false;
           try {
             let cleanToPhone = (phone || '').replace(/[^0-9]/g, '');
             if (!cleanToPhone) {
@@ -209,12 +176,46 @@ export class WhatsAppService {
               }
             });
             console.log("DIAGNOSTIC: Edge function invocation result:", invokeRes);
+            dispatchSuccess = true;
           } catch (_wabaErr) {
             console.warn('[VitalSync Outgoing Dispatch] Edge function dispatch fallback:', _wabaErr);
           }
 
+          // NOW update local session history for instant patient/doctor sync (after Meta dispatch)
+          if (variables?.replyText) {
+            const sessions = this.getWhatsAppSessions();
+            const targetDigits = phone.replace(/\D/g, '').slice(-10);
+            const sessionIndex = sessions.findIndex(s => {
+              const sPhone = (s.patientPhone || (s as any).patient_phone || (s as any).phone || '').replace(/\D/g, '').slice(-10);
+              return sPhone === targetDigits;
+            });
+            const now = new Date().toISOString();
+
+            if (sessionIndex !== -1) {
+              const session = sessions[sessionIndex];
+              const sData = session.sessionData || (session as any).session_data || {};
+              const history = [...(sData.chatHistory || [])];
+              
+              history.push({
+                sender: 'agent',
+                text: variables.replyText,
+                timestamp: now,
+                time: now
+              });
+
+              sessions[sessionIndex] = {
+                ...session,
+                lastInteraction: now,
+                sessionData: { ...sData, chatHistory: history },
+                session_data: { ...sData, chatHistory: history }
+              } as any;
+              this.saveWhatsAppSessions(sessions);
+              window.dispatchEvent(new CustomEvent('mediflow-whatsapp-session-updated'));
+            }
+          }
+
           await new Promise(r => setTimeout(r, 50));
-          resolve(true);
+          resolve(dispatchSuccess);
         } catch (e) {
           console.error("[VitalSync WhatsApp Bot] Outgoing dispatch error:", e);
           resolve(false);
@@ -818,7 +819,8 @@ export class WhatsAppService {
               sellingPrice: matchedItem.price,
               discountPercent: 0,
               gstPercent: gst * 100,
-              lineTotal: itemTotal
+              lineTotal: itemTotal,
+              isStockDeducted: true
             };
 
             const draftBill = {
@@ -838,6 +840,8 @@ export class WhatsAppService {
               source: 'whatsapp',
               createdAt: new Date().toISOString()
             };
+
+            PharmacyService.reserveStockForWhatsAppOrder(draftBill as MedicineBill);
 
             sessionData.draftMedicineBill = draftBill;
             sessionData.medicineOrderStage = 'CHOOSING_DELIVERY';

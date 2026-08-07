@@ -141,9 +141,7 @@ export async function resolvePodContext(): Promise<PodContext> {
       const isDemoUser = Boolean(
         email === 'demo@mediflow.com' ||
         email === 'doctor@mediflow.com' ||
-        user.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
-        name.includes('(demo)') ||
-        name.includes('(mock)')
+        user.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
       );
 
       let podId = isDemoUser ? FALLBACK_POD_ID : `pod-${user.id.slice(0, 18)}`;
