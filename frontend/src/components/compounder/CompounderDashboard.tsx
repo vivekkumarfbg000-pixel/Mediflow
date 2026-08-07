@@ -746,8 +746,9 @@ export const CompounderDashboard: React.FC = () => {
     e.preventDefault();
     if (!name || !phone || !age) return;
 
+    const newPatientId = crypto.randomUUID();
     const registered = api.registerPatient({
-      id: `pat-${phone}`,
+      id: newPatientId,
       name,
       phone,
       age: Number(age),

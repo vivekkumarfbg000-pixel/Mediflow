@@ -164,7 +164,23 @@ export class PatientService {
     try {
       let result;
       if (activeItem.operation === 'register_patient') {
-        result = await supabase.from('patient_registry').insert(activeItem.payload);
+        const podId = getPodContext().podId;
+        const insertPayload = {
+          ...activeItem.payload,
+          pod_id: (podId && podId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001') ? podId : null
+        };
+        result = await supabase.from('patient_registry').upsert(insertPayload, { onConflict: 'id' });
+        try {
+          await supabase.from('patients').upsert({
+            id: activeItem.payload.id,
+            name: activeItem.payload.name,
+            phone: activeItem.payload.phone,
+            age: activeItem.payload.age,
+            gender: activeItem.payload.gender,
+            pod_id: insertPayload.pod_id,
+            created_at: activeItem.payload.created_at || new Date().toISOString()
+          }, { onConflict: 'id' });
+        } catch (_e) { /* ignore */ }
       } else if (activeItem.operation === 'update_vitals') {
         result = await supabase.from('patient_registry').update(activeItem.payload).eq('id', activeItem.patientId);
       } else if (activeItem.operation === 'save_refraction') {
