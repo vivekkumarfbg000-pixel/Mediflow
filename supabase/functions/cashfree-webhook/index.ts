@@ -173,7 +173,57 @@ serve(async (req) => {
         console.warn("[cashfree-webhook] Pool credit failed (non-fatal):", poolErr);
       }
 
-      // 4. Dispatch secure transaction confirmation message to WhatsApp
+      // 4. Update appointment status to 'ready_for_consult' and patient queueStatus to 'awaiting_consultation'
+      // This ensures the patient appears in the Doctor's consultation queue
+      try {
+        if (existingInvoice.patient_id) {
+          // Update appointment(s) for this patient linked to this invoice
+          const { data: appointments, error: apptFetchErr } = await supabase
+            .from("appointments")
+            .select("id, status")
+            .eq("patient_id", existingInvoice.patient_id)
+            .eq("pod_id", existingInvoice.pod_id)
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+          if (!apptFetchErr && appointments && appointments.length > 0) {
+            for (const appt of appointments) {
+              if (appt.status === "pending_payment") {
+                const { error: apptUpdateErr } = await supabase
+                  .from("appointments")
+                  .update({ 
+                    status: "ready_for_consult",
+                    payment_status: "cleared"
+                  })
+                  .eq("id", appt.id);
+                
+                if (!apptUpdateErr) {
+                  console.log(`[cashfree-webhook] Appointment ${appt.id} updated to ready_for_consult ✅`);
+                }
+              }
+            }
+          }
+
+          // Update patient queue status in patient_registry
+          const { error: patientUpdateErr } = await supabase
+            .from("patient_registry")
+            .update({ 
+              queue_status: "awaiting_consultation",
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", existingInvoice.patient_id);
+
+          if (!patientUpdateErr) {
+            console.log(`[cashfree-webhook] Patient ${existingInvoice.patient_id} queue_status updated to awaiting_consultation ✅`);
+          } else {
+            console.warn("[cashfree-webhook] Failed to update patient queue_status:", patientUpdateErr);
+          }
+        }
+      } catch (syncErr) {
+        console.warn("[cashfree-webhook] Appointment/patient sync failed (non-fatal):", syncErr);
+      }
+
+      // 5. Dispatch secure transaction confirmation message to WhatsApp
       try {
         const dispatchUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`;
         const dispatchRes = await fetch(dispatchUrl, {
