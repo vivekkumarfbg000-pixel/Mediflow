@@ -399,7 +399,9 @@ export class BillingService {
       appts = appts.filter(a => {
         const pod = (a as any).podId || (a as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (!pod && currentPodId) {
+          (a as any).podId = currentPodId;
+        }
         const id = a.id || '';
         const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase().trim();
         const pId = String(a.patientId || '');
@@ -414,6 +416,10 @@ export class BillingService {
   }
 
   static saveAppointment(appt: Appointment): void {
+    const currentPodId = getPodContext().podId;
+    if (currentPodId && !(appt as any).podId && !(appt as any).pod_id) {
+      (appt as any).podId = currentPodId;
+    }
     const appts = this.getAppointments();
     const idx = appts.findIndex(a => a.id === appt.id);
     if (idx >= 0) appts[idx] = appt;
@@ -462,7 +468,9 @@ export class BillingService {
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (!pod && currentPodId) {
+          (i as any).podId = currentPodId;
+        }
         const id = i.id || '';
         const pName = String((i as any).patientName || '').toLowerCase();
         const pId = String(i.patientId || '');
@@ -476,6 +484,10 @@ export class BillingService {
   }
 
   static saveInvoice(invoice: Invoice): void {
+    const currentPodId = getPodContext().podId;
+    if (currentPodId && !(invoice as any).podId && !(invoice as any).pod_id) {
+      (invoice as any).podId = currentPodId;
+    }
     const invoices = this.getInvoices();
     const idx = invoices.findIndex(i => i.id === invoice.id);
     if (idx >= 0) invoices[idx] = invoice;
@@ -489,6 +501,10 @@ export class BillingService {
   }
 
   static savePrescription(rx: Prescription): void {
+    const currentPodId = getPodContext().podId;
+    if (currentPodId && !(rx as any).podId && !(rx as any).pod_id) {
+      (rx as any).podId = currentPodId;
+    }
     const prescriptions = this.getPrescriptions();
     const idx = prescriptions.findIndex(p => p.id === rx.id);
     if (idx >= 0) prescriptions[idx] = rx;
@@ -516,20 +532,22 @@ export class BillingService {
  
     const newInvoice: Invoice = {
       id: crypto.randomUUID(),
+      podId: ctx.podId,
       appointmentId: apptId,
       type: 'consult',
       amount: consultFee,
       status: 'unpaid',
       createdAt: new Date().toISOString(),
       patientId // store patientId for ease of access
-    };
+    } as any;
     this.saveInvoice(newInvoice);
     
     // SYNCHRONOUSLY save initial appointment so recordInvoicePayment never race-conditions with undefined appt
     const newAppt: Appointment = {
       id: apptId,
+      podId: ctx.podId,
       patientId,
-      doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      doctorId: ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
       status: 'pending_payment',
       createdAt: new Date().toISOString(),
       source

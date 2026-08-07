@@ -43,11 +43,22 @@ export const INITIAL_PATIENTS: Patient[] = [
 
 export class PatientService {
   static savePatients(patients: Patient[]): void {
+    const currentPodId = getPodContext().podId;
+    patients.forEach(p => {
+      if (currentPodId && !(p as any).podId && !(p as any).pod_id) {
+        (p as any).podId = currentPodId;
+      }
+    });
+    save('patients', patients);
     save('patient_registry', patients);
     notify();
   }
 
   static savePatient(patient: Patient): void {
+    const currentPodId = getPodContext().podId;
+    if (currentPodId && !(patient as any).podId && !(patient as any).pod_id) {
+      (patient as any).podId = currentPodId;
+    }
     const patients = this.getPatients();
     const idx = patients.findIndex(p => p.id === patient.id);
     if (idx >= 0) {
@@ -82,6 +93,9 @@ export class PatientService {
     }
     const defaultPatients = isDemoAccount ? INITIAL_PATIENTS : [];
     let rawPatients = load<Patient[]>('patients', defaultPatients);
+    if (rawPatients.length === 0) {
+      rawPatients = load<Patient[]>('patient_registry', defaultPatients);
+    }
     
     // For non-demo accounts, purge pre-seeded initial demo patient IDs and mock names from local storage cache
     if (!isDemoAccount) {
@@ -91,7 +105,9 @@ export class PatientService {
       rawPatients = rawPatients.filter(p => {
         const pod = (p as any).podId || (p as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (!pod && currentPodId) {
+          (p as any).podId = currentPodId;
+        }
         const cleanName = String(p.name || '').toLowerCase().trim();
         if (demoIds.has(p.id)) return false;
         if (demoNames.has(cleanName)) return false;
@@ -398,20 +414,22 @@ export class PatientService {
   }
 
   static registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
+    const currentPodId = getPodContext().podId;
     const patients = this.getPatients();
-    const newId = this.isUUID(patientData.id) ? patientData.id! : crypto.randomUUID();
+    const newId = (patientData.id && this.isUUID(patientData.id)) ? patientData.id : crypto.randomUUID();
     const customPatientId = this.generateSmartPatientId(patientData.name, patients);
 
     const newPatient: Patient = {
       ...patientData,
       id: newId,
+      podId: currentPodId,
       patientCode: patientData.patientCode || customPatientId,
       tokenNumber: patientData.tokenNumber || customPatientId,
       createdAt: new Date().toISOString()
-    } as Patient;
+    } as any;
     
     patients.push(newPatient);
-    save('patients', patients);
+    this.savePatients(patients);
 
     const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
     syncStatusMap[newPatient.id] = 'pending';
