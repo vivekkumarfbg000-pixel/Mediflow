@@ -799,48 +799,90 @@ export class StateHealingEngine {
     if (typeof window !== 'undefined' && (window as any).__vitalsync_sentinel_active) return;
     if (typeof window !== 'undefined') (window as any).__vitalsync_sentinel_active = true;
 
+    // Execution guard to prevent overlapping cycles
+    let sentinelRunning = false;
+    const MAX_EXECUTION_MS = 45000; // Must complete before next 60s interval
+
     // Periodic 60-second background self-healing audit loop
-    setInterval(async () => {
-      try {
-        MemoryLeakDetector.checkHeapHealth(); // v13.0
-        FinancialGuardrailEngine.recordApiCall(); // v12.0: track API usage
-        SaaSGrowthAgent.auditChurnRisksAndRetention(); // v16.0: audit abandoned bookings & retention
-        SaaSGrowthAgent.auditFunnelDropOffs(); // v16.0: monitor booking funnel conversion
-        SaaSGrowthAgent.auditDatabaseBackupHealth(); // v16.0: audit DB backup health
-        this.autoHealStateCorruptions();
-        this.reconcileFinancialLedgerSplits();
-        this.compressStorageQuota();
-        this.auditCashfreePaymentGate();
-        this.autoRepairUiStylingAnomalies();
-        this.auditSubscriptionAndPaymentGate();
-        this.adaptToNetworkBandwidth();
-        this.verifyMultiTenantIsolation();
-        this.auditOutboundWhatsAppPipeline();
-        this.auditAbhaReportIntegrity();
-        this.profileAndOptimizePerformance();
-        this.auditReferralRewardSplits();
-        this.auditPrescriptionDeliveryReminders();
-        // v11.0: Multi-Agent specialist audits
-        FrontendAgent.captureAndDiffUISnapshot();
-        FrontendAgent.auditAccessibilityContrast();
-        BackendAgent.checkAndFlagWabaLatency();
-        const smokeResult = QAAgent.runSmokeChecks();
-        if (!smokeResult.passed) {
-          smokeResult.missingComponents.forEach(c => RollbackSentinel.recordCoreUspFailure(c)); // v12.0
-        }
-        await ChaosEngineer.runOffPeakChaosTest();
-        await DependencySecurityScanner.runWeeklyScan(); // v12.0
-        if (!FinancialGuardrailEngine.isConservativeMode()) { // v12.0: skip heavy writes in conservative mode
-          await WabaTokenAutoHealer.auditAndHealWabaConnections();
-          await WabaBotSelfUnstick.auditAndUnstickStaleSessions();
-          await SoloFounderPodRejuvenator.reconcileUserPodAssociation();
-        }
-      } catch (_e) {
-        /* ignore background audit error */
+    const runSentinelCycle = async () => {
+      if (sentinelRunning) {
+        console.warn('[Auto-Healer] ⏭️ Skipping cycle — previous execution still running');
+        return;
       }
-    }, 60000);
+      sentinelRunning = true;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), MAX_EXECUTION_MS);
+
+      try {
+        await this.runSentinelCycle(controller.signal);
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          console.error('[Auto-Healer] 🛑 Sentinel cycle TIMEOUT — exceeded 45s budget');
+        } else {
+          console.warn('[Auto-Healer] Sentinel cycle error:', e);
+        }
+      } finally {
+        clearTimeout(timeoutId);
+        sentinelRunning = false;
+      }
+    };
+
+    setInterval(runSentinelCycle, 60000);
+    runSentinelCycle(); // Initial run
 
     console.log('[Auto-Healer Engine] 👑 v16.0 Autonomous SaaS Growth & Tech Singularity ACTIVE (24/7) 🟢');
+  }
+
+  private static async runSentinelCycle(signal: AbortSignal): Promise<void> {
+    const checkAbort = () => {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    };
+
+    const safeAwait = async (fn: () => any, label: string) => {
+      checkAbort();
+      try { await Promise.resolve(fn()); } catch (e) { console.warn(`[Auto-Healer] ${label} error:`, e); }
+    };
+
+    await safeAwait(() => MemoryLeakDetector.checkHeapHealth(), 'MemoryLeakDetector');
+    checkAbort();
+    FinancialGuardrailEngine.recordApiCall();
+    await safeAwait(() => SaaSGrowthAgent.auditChurnRisksAndRetention(), 'SaaSGrowthAgent.churn');
+    await safeAwait(() => SaaSGrowthAgent.auditFunnelDropOffs(), 'SaaSGrowthAgent.funnel');
+    await safeAwait(() => SaaSGrowthAgent.auditDatabaseBackupHealth(), 'SaaSGrowthAgent.dbBackup');
+    await safeAwait(() => this.autoHealStateCorruptions(), 'autoHealStateCorruptions');
+    await safeAwait(() => this.reconcileFinancialLedgerSplits(), 'reconcileFinancialLedgerSplits');
+    await safeAwait(() => this.compressStorageQuota(), 'compressStorageQuota');
+    await safeAwait(() => this.auditCashfreePaymentGate(), 'auditCashfreePaymentGate');
+    await safeAwait(() => this.autoRepairUiStylingAnomalies(), 'autoRepairUiStylingAnomalies');
+    await safeAwait(() => this.auditSubscriptionAndPaymentGate(), 'auditSubscriptionAndPaymentGate');
+    await safeAwait(() => this.adaptToNetworkBandwidth(), 'adaptToNetworkBandwidth');
+    await safeAwait(() => this.verifyMultiTenantIsolation(), 'verifyMultiTenantIsolation');
+    await safeAwait(() => this.auditOutboundWhatsAppPipeline(), 'auditOutboundWhatsAppPipeline');
+    await safeAwait(() => this.auditAbhaReportIntegrity(), 'auditAbhaReportIntegrity');
+    await safeAwait(() => this.profileAndOptimizePerformance(), 'profileAndOptimizePerformance');
+    await safeAwait(() => this.auditReferralRewardSplits(), 'auditReferralRewardSplits');
+    await safeAwait(() => this.auditPrescriptionDeliveryReminders(), 'auditPrescriptionDeliveryReminders');
+    
+    checkAbort();
+    await safeAwait(() => FrontendAgent.captureAndDiffUISnapshot(), 'FrontendAgent.snapshot');
+    await safeAwait(() => FrontendAgent.auditAccessibilityContrast(), 'FrontendAgent.a11y');
+    await safeAwait(() => BackendAgent.checkAndFlagWabaLatency(), 'BackendAgent.wabaLatency');
+    
+    checkAbort();
+    const smokeResult = QAAgent.runSmokeChecks();
+    if (!smokeResult.passed) {
+      smokeResult.missingComponents.forEach(c => RollbackSentinel.recordCoreUspFailure(c));
+    }
+    await safeAwait(() => ChaosEngineer.runOffPeakChaosTest(), 'ChaosEngineer');
+    await safeAwait(() => DependencySecurityScanner.runWeeklyScan(), 'DependencySecurityScanner');
+    
+    checkAbort();
+    if (!FinancialGuardrailEngine.isConservativeMode()) {
+      await safeAwait(() => WabaTokenAutoHealer.auditAndHealWabaConnections(), 'WabaTokenAutoHealer');
+      await safeAwait(() => WabaBotSelfUnstick.auditAndUnstickStaleSessions(), 'WabaBotSelfUnstick');
+      await safeAwait(() => SoloFounderPodRejuvenator.reconcileUserPodAssociation(), 'SoloFounderPodRejuvenator');
+    }
   }
 
   /** Classify error message into subsystem */

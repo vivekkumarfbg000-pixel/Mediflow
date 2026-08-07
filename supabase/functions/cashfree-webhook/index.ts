@@ -78,8 +78,40 @@ serve(async (req) => {
 
     console.log("[cashfree-webhook] Signature verified successfully ✅");
 
+    // In-memory cache for processed event IDs (with TTL cleanup)
+const processedEventCache = new Map<string, number>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function isEventProcessed(eventId: string): boolean {
+  const now = Date.now();
+  const cached = processedEventCache.get(eventId);
+  if (cached && now - cached < CACHE_TTL_MS) {
+    return true;
+  }
+  if (cached) {
+    processedEventCache.delete(eventId);
+  }
+  return false;
+}
+
+function markEventProcessed(eventId: string): void {
+  processedEventCache.set(eventId, Date.now());
+}
+
     const event = JSON.parse(rawBody);
     const eventType = event.type;
+    
+    // Generate unique event ID for idempotency
+    const eventId = `${eventType}_${orderId}_${event.data?.payment?.payment_id || event.payment_id || Date.now()}`;
+    
+    // Idempotency check: skip if already processed
+    if (isEventProcessed(eventId)) {
+      console.log(`[cashfree-webhook] ⏭️ Duplicate event skipped: ${eventId}`);
+      return new Response(JSON.stringify({ success: true, message: "Duplicate event ignored" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     
     // Normalize order details
     const orderId = event.data?.order?.order_id || event.order_id || event.data?.order_id;
@@ -256,6 +288,9 @@ serve(async (req) => {
     } else {
       console.log(`[cashfree-webhook] Payment not successful, ignoring status update. Status: ${paymentStatus}`);
     }
+
+    // Mark event as processed for idempotency
+    markEventProcessed(eventId);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

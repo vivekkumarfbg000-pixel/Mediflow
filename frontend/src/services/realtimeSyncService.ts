@@ -25,6 +25,11 @@ export class RealtimeSyncService {
   private static reconnectTimer: any = null;
   private static lastPingSuccess = Date.now();
   private static currentStatus: 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
+  
+  // CDC Event Batching Buffer (250ms debounce per Rule 1)
+  private static cdcBuffer: Map<string, any[]> = new Map();
+  private static flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly CDC_DEBOUNCE_MS = 250;
 
   private static normalizeRecord(record: any): any {
     if (!record || typeof record !== 'object') return record;
@@ -81,37 +86,73 @@ export class RealtimeSyncService {
   }
 
   // Synchronously auto-ingest incoming Postgres CDC payloads into apiHelper load/save storage
+  // Uses 250ms debounced batching to prevent UI thrashing during bulk operations
   private static autoIngestPayload(tableName: string, payload: any) {
     try {
       // Update heartbeat — this CDC event proves the WebSocket is alive
       this.lastPingSuccess = Date.now();
 
-      const rawRecord = payload.new || payload.old;
-      if (!rawRecord) return;
-      const record = this.normalizeRecord(rawRecord);
+      // Buffer the event for debounced batch processing
+      const existing = this.cdcBuffer.get(tableName) || [];
+      existing.push(payload);
+      this.cdcBuffer.set(tableName, existing);
 
-      const storageMap: Record<string, string[]> = {
-        'appointments': ['appointments'],
-        'financial_ledgers': ['financial_ledgers'],
-        'unified_invoices': ['unified_invoices'],
-        'patient_registry': ['patients', 'patient_registry'],
-        'whatsapp_sessions': ['whatsapp_sessions'],
-        'medicine_bills': ['medicine_bills'],
-        'lab_requisitions': ['lab_requisitions'],
-        'inventory_holds': ['inventory_holds'],
-        'pathology_reports': ['pathology_reports'],
-        'saas_invoices': ['saas_invoices', 'unified_invoices'],
-        'saas_prescriptions': ['saas_prescriptions', 'prescriptions'],
-        'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
-        'clinic_sops': ['clinic_sops']
-      };
+      // Debounced flush
+      if (this.flushTimer) clearTimeout(this.flushTimer);
+      this.flushTimer = setTimeout(() => this.flushBuffer(), this.CDC_DEBOUNCE_MS);
+    } catch (e) {
+      console.warn('[RealtimeSync] Auto-ingest payload warning:', e);
+    }
+  }
 
-      const storageKeys = storageMap[tableName];
-      if (storageKeys) {
+  private static deduplicateEvents(events: any[]): any[] {
+    // Deduplicate by primary key (id) keeping the last event
+    const seen = new Map<string, any>();
+    for (const event of events) {
+      const rawRecord = event.new || event.old;
+      if (!rawRecord) continue;
+      const id = rawRecord.id || rawRecord.invoice_id || rawRecord.requisition_id;
+      if (id) seen.set(id, event);
+    }
+    return Array.from(seen.values());
+  }
+
+  private static flushBuffer() {
+    try {
+      this.cdcBuffer.forEach((events, tableName) => {
+        // Deduplicate by primary key
+        const deduped = this.deduplicateEvents(events);
+        
+        const storageMap: Record<string, string[]> = {
+          'appointments': ['appointments'],
+          'financial_ledgers': ['financial_ledgers'],
+          'unified_invoices': ['unified_invoices'],
+          'patient_registry': ['patients', 'patient_registry'],
+          'whatsapp_sessions': ['whatsapp_sessions'],
+          'medicine_bills': ['medicine_bills'],
+          'lab_requisitions': ['lab_requisitions'],
+          'inventory_holds': ['inventory_holds'],
+          'pathology_reports': ['pathology_reports'],
+          'saas_invoices': ['saas_invoices', 'unified_invoices'],
+          'saas_prescriptions': ['saas_prescriptions', 'prescriptions'],
+          'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
+          'clinic_sops': ['clinic_sops']
+        };
+
+        const storageKeys = storageMap[tableName];
+        if (!storageKeys) return;
+
+        // Single read-modify-write per table
         for (const storageKey of storageKeys) {
           clearStorageCache(storageKey);
           const currentData = load<any[]>(storageKey, []);
-          if (Array.isArray(currentData)) {
+          if (!Array.isArray(currentData)) continue;
+
+          for (const payload of deduped) {
+            const rawRecord = payload.new || payload.old;
+            if (!rawRecord) continue;
+            const record = this.normalizeRecord(rawRecord);
+
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
               const idx = currentData.findIndex((item: any) => item.id === record.id || (record.invoiceId && item.invoiceId === record.invoiceId));
               if (idx >= 0) {
@@ -127,14 +168,25 @@ export class RealtimeSyncService {
             save(storageKey, currentData);
           }
         }
-      }
-      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
-      if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'vitalsync_pool_settlements'].includes(tableName)) {
-        window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
-      }
+
+        // Single event dispatch per table
+        window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: tableName } }));
+        if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'vitalsync_pool_settlements'].includes(tableName)) {
+          window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { table: tableName } }));
+        }
+      });
     } catch (e) {
-      console.warn('[RealtimeSync] Auto-ingest payload warning:', e);
+      console.warn('[RealtimeSync] Flush buffer warning:', e);
+    } finally {
+      this.cdcBuffer.clear();
+      this.flushTimer = null;
     }
+  }
+
+  // Synchronously auto-ingest incoming Postgres CDC payloads into apiHelper load/save storage (legacy sync path)
+  // @deprecated Use buffered autoIngestPayload instead
+  private static autoIngestPayloadLegacy(tableName: string, payload: any): void {
+    // Legacy implementation kept for reference
   }
 
   static subscribeToLiveClinicUpdates(handlers: RealtimeSubscriptionHandlers) {

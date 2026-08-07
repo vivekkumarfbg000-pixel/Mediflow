@@ -41,3 +41,79 @@ CREATE POLICY "Enforce tenant isolation on lab_reports"
 ON public.lab_reports FOR SELECT TO authenticated USING (
     patient_id IN (SELECT id FROM public.patient_registry WHERE pod_id = public.get_user_pod())
 );
+
+-- =============================================================================
+-- VITALSYNC SRE PATCH: Fixed-Point Order Split Reconciler RPC
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.build_order_splits(
+  p_invoice_id TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_invoice RECORD;
+  v_total_amount NUMERIC(12, 2);
+  v_platform_amt NUMERIC(12, 2);
+  v_doctor_amt NUMERIC(12, 2);
+  v_lab_amt NUMERIC(12, 2);
+  v_sum_splits NUMERIC(12, 2);
+  v_remainder NUMERIC(12, 2);
+  v_splits JSONB := '[]'::jsonb;
+  v_doctor_vendor_id TEXT;
+  v_lab_vendor_id TEXT;
+BEGIN
+  -- 1. Lock invoice row and fetch exact 2-decimal amount
+  SELECT * INTO v_invoice FROM public.unified_invoices WHERE id = p_invoice_id;
+  IF NOT FOUND THEN
+    RETURN '[]'::jsonb;
+  END IF;
+
+  v_total_amount := ROUND(v_invoice.total_amount::numeric, 2);
+  IF v_total_amount <= 0 THEN
+    RETURN '[]'::jsonb;
+  END IF;
+
+  -- 2. Fixed-point percentage calculations (2 decimals)
+  v_platform_amt := ROUND(v_total_amount * 0.03, 2);
+  v_doctor_amt   := ROUND(v_total_amount * 0.40, 2);
+  v_lab_amt      := ROUND(v_total_amount * 0.57, 2);
+
+  -- 3. REMAINDER RECONCILIATION: Assign rounding remainder (±0.01) to Lab/Doctor split
+  v_sum_splits := v_platform_amt + v_doctor_amt + v_lab_amt;
+  v_remainder  := v_total_amount - v_sum_splits;
+
+  IF v_remainder <> 0 THEN
+    v_lab_amt := v_lab_amt + v_remainder; -- Reconcile 1-paisa difference onto lab split
+  END IF;
+
+  -- 4. Construct JSONB splits payload
+  v_doctor_vendor_id := COALESCE(v_invoice.doctor_vendor_id, 'VEND_DOCTOR_DEFAULT');
+  v_lab_vendor_id    := COALESCE(v_invoice.lab_vendor_id, 'VEND_LAB_DEFAULT');
+
+  IF v_doctor_amt > 0 THEN
+    v_splits := v_splits || jsonb_build_object(
+      'vendor_id', v_doctor_vendor_id,
+      'amount', v_doctor_amt
+    );
+  END IF;
+
+  IF v_lab_amt > 0 THEN
+    v_splits := v_splits || jsonb_build_object(
+      'vendor_id', v_lab_vendor_id,
+      'amount', v_lab_amt
+    );
+  END IF;
+
+  IF v_platform_amt > 0 THEN
+    v_splits := v_splits || jsonb_build_object(
+      'vendor_id', 'VEND_PLATFORM_VITALSYNC',
+      'amount', v_platform_amt
+    );
+  END IF;
+
+  RETURN v_splits;
+END;
+$$;
+

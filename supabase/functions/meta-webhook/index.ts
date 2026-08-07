@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { tryAcquirePaymentLock, getInvoiceLockKey, getAppointmentLockKey } from "../_shared/payment-lock.ts";
 
 // System-wide environment variables loaded from Supabase Vault/Secrets
@@ -65,7 +67,80 @@ serve(async (req) => {
         return new Response("Invalid JSON payload", { status: 400, headers: corsHeaders });
       }
 
-      // Security: Enforce JWT authentication on outbound manual relays to prevent Open Relay vulnerabilities
+      // Strict schema validation for Meta webhook payloads
+      // Prevents silent message loss on malformed payloads
+      const WebhookPayloadSchema = z.object({
+        object: z.string().optional(),
+        entry: z.array(z.object({
+          id: z.string().optional(),
+          changes: z.array(z.object({
+            field: z.string().optional(),
+            value: z.object({
+              messaging_product: z.string().optional(),
+              metadata: z.object({
+                display_phone_number: z.string().optional(),
+                phone_number_id: z.string().optional(),
+              }).optional(),
+              contacts: z.array(z.object({
+                profile: z.object({ name: z.string().optional() }).optional(),
+                wa_id: z.string().optional(),
+              })).optional(),
+              messages: z.array(z.object({
+                from: z.string(),
+                id: z.string(),
+                timestamp: z.string(),
+                type: z.enum(['text', 'interactive', 'image', 'document', 'audio', 'video', 'sticker', 'location', 'contacts', 'order', 'reaction']),
+                text: z.object({ body: z.string() }).optional(),
+                interactive: z.object({
+                  type: z.enum(['button_reply', 'list_reply', 'nfm_reply', 'button']), // nfm_reply for flows
+                  button_reply: z.object({ id: z.string(), title: z.string() }).optional(),
+                  list_reply: z.object({ id: z.string(), title: z.string(), description: z.string().optional() }).optional(),
+                  nfm_reply: z.object({ name: z.string(), response_json: z.string() }).optional(),
+                }).optional(),
+                image: z.object({ mime_type: z.string(), sha256: z.string(), id: z.string() }).optional(),
+                document: z.object({ mime_type: z.string(), sha256: z.string(), id: z.string(), filename: z.string().optional() }).optional(),
+                audio: z.object({ mime_type: z.string(), sha256: z.string(), id: z.string() }).optional(),
+                video: z.object({ mime_type: z.string(), sha256: z.string(), id: z.string() }).optional(),
+                sticker: z.object({ mime_type: z.string(), sha256: z.string(), id: z.string() }).optional(),
+                location: z.object({ latitude: z.number(), longitude: z.number(), name: z.string().optional(), address: z.string().optional() }).optional(),
+                contacts: z.array(z.object({ ... })).optional(),
+                order: z.object({ ... }).optional(),
+                reaction: z.object({ message_id: z.string(), emoji: z.string() }).optional(),
+              })).optional(),
+              statuses: z.array(z.object({
+                id: z.string(),
+                status: z.enum(['sent', 'delivered', 'read', 'failed']),
+                timestamp: z.string(),
+                recipient_id: z.string(),
+                conversation: z.object({ id: z.string(), origin: z.object({ type: z.string() }).optional() }).optional(),
+                errors: z.array(z.object({ code: z.number(), title: z.string(), details: z.string() })).optional(),
+              })).optional(),
+            }).optional(),
+          })),
+        })).optional(),
+      })).optional(),
+    })).optional(),
+  })).optional(),
+});
+
+// Only validate if it's a real Meta webhook (not manual relay)
+const isManualRelay = payload?.action === "send_manual_message" || payload?.action === "send_broadcast_message";
+
+if (!isManualRelay) {
+  const parseResult = WebhookPayloadSchema.safeParse(payload);
+  if (!parseResult.success) {
+    console.error('[Meta Webhook] ❌ INVALID PAYLOAD STRUCTURE:', parseResult.error.format());
+    // Log to dead-letter table for investigation
+    try {
+      await supabase.from('webhook_dead_letter').insert({
+        payload,
+        error: parseResult.error.message,
+        received_at: new Date().toISOString()
+      });
+    } catch (_e) { /* ignore dead-letter insert failure */ }
+    return new Response("Invalid payload structure", { status: 400, headers: corsHeaders });
+  }
+}
       if (payload?.action === "send_manual_message" || payload?.action === "send_broadcast_message") {
         const authHeader = req.headers.get("Authorization");
         if (!authHeader) {
@@ -785,6 +860,16 @@ async function triggerBotReplyPipeline(ctx: {
   // Global greeting & menu interceptor to reset state to main menu or service from stuck states
   const globalGreetings = ["hi", "hello", "hey", "namaste", "pranam", "hola", "halo", "hlo", "yo", "greetings", "menu"];
   
+  // State transition guards to prevent thrashing loops
+  const ALLOWED_RESET_FROM_STATES = new Set([
+    'IDLE', 'COMPLETED', 'AWAITING_WELCOME', 'AWAITING_CONFIRMATION', 'AWAITING_REGISTRATION_DETAILS'
+  ]);
+  const CRITICAL_STATES = new Set([
+    'AWAITING_PAYMENT', 'AWAITING_AI_QUOTA_PAYMENT', 'AWAITING_SLOT_SELECTION', 
+    'AWAITING_DATE_SELECTION', 'AWAITING_TIME_SELECTION', 'AWAITING_FAMILY_SELECTION',
+    'AWAITING_FAMILY_DETAILS', 'BOOKING_VIRTUAL'
+  ]);
+  
   // Premium SaaS Navigation Override: Allow patients to switch services or return to menus at any time, even from stuck sub-states.
   const primaryNavigationIntents = [
     "physical", "virtual", "family", "report", "summary", 
@@ -796,15 +881,22 @@ async function triggerBotReplyPipeline(ctx: {
   const isPrimaryNavigation = isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book";
 
   if (globalGreetings.includes(cleaned)) {
-    if (sessionData.consentGranted) {
-      state = "AWAITING_CONFIRMATION";
-      cleaned = "menu_reset";
+    // ONLY allow state reset from safe states — prevent thrashing in payment/booking flows
+    if (ALLOWED_RESET_FROM_STATES.has(state)) {
+      if (sessionData.consentGranted) {
+        state = "AWAITING_CONFIRMATION";
+        cleaned = "menu_reset";
+      } else {
+        state = "AWAITING_WELCOME";
+        cleaned = "hi";
+      }
     } else {
-      state = "AWAITING_WELCOME";
-      cleaned = "hi";
+      // In critical flow (payment/booking) — treat "hi" as conversational, not navigation
+      replyText = "Aapka booking/payment flow chal raha hai. Please complete karein ya 'CANCEL' likhein.";
     }
   } else if (isPrimaryNavigation) {
-    if (sessionData.consentGranted) {
+    // ONLY allow navigation if not in critical payment/booking flow
+    if (!CRITICAL_STATES.has(state) && sessionData.consentGranted) {
       state = "COMPLETED";
     }
   }
@@ -2520,40 +2612,88 @@ CLINICAL GUIDELINES:
 1. Always base your advice on ADA, KDIGO, or standard clinical protocols.
 2. If they have diabetes/sugar and are asking about sugar, explain that their average 3-month sugar level (HbA1c 7.2% or whatever is on file) requires reducing sugar/carbs. Suggest LOINC: 4544-3 tests.
 3. If creatinine is high (>1.2), caution them not to take heavy NSAIDs/pain-killers.
-4. Keep the response concise, clear, and in a friendly mix of Hindi and English (Hinglish), as is standard for patients in India. Use bullet points for readability.
-5. Remind them to consult ${resolvedDoctorName} for official clinical changes.`;
+// Circuit breaker for LLM API calls
+const LLM_CIRCUIT_BREAKERS = new Map<string, { failures: number; lastFailure: number; state: 'closed' | 'open' | 'half-open' }>();
+
+function getCircuitBreaker(key: string) {
+  if (!LLM_CIRCUIT_BREAKERS.has(key)) {
+    LLM_CIRCUIT_BREAKERS.set(key, { failures: 0, lastFailure: 0, state: 'closed' });
+  }
+  return LLM_CIRCUIT_BREAKERS.get(key)!;
+}
+
+async function callWithCircuitBreaker<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const cb = getCircuitBreaker(key);
+  if (cb.state === 'open') {
+    if (Date.now() - cb.lastFailure > 60000) { // 1min cooldown
+      cb.state = 'half-open';
+    } else {
+      throw new Error(`Circuit breaker OPEN for ${key} — LLM unavailable`);
+    }
+  }
+  try {
+    const result = await fn();
+    cb.failures = 0;
+    cb.state = 'closed';
+    return result;
+  } catch (e) {
+    cb.failures++;
+    cb.lastFailure = Date.now();
+    if (cb.failures >= 3) cb.state = 'open';
+    throw e;
+  }
+}
+
+const LLM_TIMEOUT_MS = 8000;
 
             const chatHistoryMessages = chatHistory.slice(-5).map((h: any) => ({
               role: h.sender === "patient" ? "user" : "assistant",
               content: h.text
             }));
 
-            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${groqApiKey}`,
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                  { role: "system", content: systemPrompt },
-                  ...chatHistoryMessages,
-                  { role: "user", content: incomingText }
-                ],
-                temperature: 0.2,
-                max_tokens: 800
-              })
+            // Groq call with circuit breaker and timeout
+            const groqController = new AbortController();
+            const groqTimeoutId = setTimeout(() => groqController.abort(), LLM_TIMEOUT_MS);
+
+            const groqResponse = await callWithCircuitBreaker('groq', async () => {
+              const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${groqApiKey}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  model: "llama-3.3-70b-versatile",
+                  messages: [
+                    { role: "system", content: systemPrompt },
+                    ...chatHistoryMessages,
+                    { role: "user", content: incomingText }
+                  ],
+                  temperature: 0.2,
+                  max_tokens: 800
+                }),
+                signal: groqController.signal
+              });
+              return response;
             });
 
-            if (response.ok) {
-              const resJson = await response.json();
+            clearTimeout(groqTimeoutId);
+
+            if (groqResponse.ok) {
+              const resJson = await groqResponse.json();
               replyText = resJson.choices[0].message.content;
               aiSuccess = true;
-              sessionData.llmUsage.count += 1;
+              // Atomic increment via RPC to prevent lost updates
+              try {
+                const newCount = await supabase.rpc('increment_llm_usage', { p_session_id: session.id });
+                if (newCount !== null) sessionData.llmUsage.count = newCount;
+              } catch (e) {
+                console.warn('[Meta Webhook] Atomic LLM increment failed, fallback to local:', e);
+                sessionData.llmUsage.count += 1;
+              }
             } else {
-              const errText = await response.text();
-              console.error("[Meta Webhook] Groq API returned error status:", response.status, errText);
+              const errText = await groqResponse.text();
+              console.error("[Meta Webhook] Groq API returned error status:", groqResponse.status, errText);
             }
           } catch (err) {
             console.error("[Meta Webhook] Failed to get dynamic Groq reply:", err);
@@ -2566,22 +2706,40 @@ CLINICAL GUIDELINES:
               try {
                 console.log("[Auto-Healer] Hot-rolling over to Gemini 2.5 Flash API...");
                 const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-                const geminiRes = await fetch(geminiUrl, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    contents: [
-                      { parts: [{ text: `${systemPrompt}\n\nPatient Question: ${incomingText}` }] }
-                    ]
-                  })
+                
+                const geminiController = new AbortController();
+                const geminiTimeoutId = setTimeout(() => geminiController.abort(), LLM_TIMEOUT_MS);
+
+                const geminiRes = await callWithCircuitBreaker('gemini', async () => {
+                  const response = await fetch(geminiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      contents: [
+                        { parts: [{ text: `${systemPrompt}\n\nPatient Question: ${incomingText}` }] }
+                      ]
+                    }),
+                    signal: geminiController.signal
+                  });
+                  return response;
                 });
+
+                clearTimeout(geminiTimeoutId);
+
                 if (geminiRes.ok) {
                   const geminiJson = await geminiRes.json();
                   const geminiText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
                   if (geminiText) {
                     replyText = geminiText.trim();
                     aiSuccess = true;
-                    sessionData.llmUsage.count += 1;
+                    // Atomic increment via RPC to prevent lost updates
+                    try {
+                      const newCount = await supabase.rpc('increment_llm_usage', { p_session_id: session.id });
+                      if (newCount !== null) sessionData.llmUsage.count = newCount;
+                    } catch (e) {
+                      console.warn('[Meta Webhook] Atomic LLM increment failed, fallback to local:', e);
+                      sessionData.llmUsage.count += 1;
+                    }
                   }
                 }
               } catch (gErr) {
