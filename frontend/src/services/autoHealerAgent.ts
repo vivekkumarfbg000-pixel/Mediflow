@@ -205,29 +205,36 @@ export class StateHealingEngine {
       if (rawInvoices) {
         const ledgers = rawLedgers ? JSON.parse(rawLedgers) : [];
         const invoices = rawInvoices ? JSON.parse(rawInvoices) : [];
-        const existingInvoiceIds = new Set(ledgers.map((l: any) => l.invoiceId));
+        const existingInvoiceIds = new Set(ledgers.map((l: any) => l.invoiceId || l.invoice_id));
         let added = false;
 
         invoices.forEach((inv: any) => {
-          if (inv && inv.id && !existingInvoiceIds.has(inv.id)) {
+          const invId = inv?.id || inv?.invoice_id;
+          if (inv && invId && !existingInvoiceIds.has(invId)) {
+            const pId = inv.patientId || inv.patient_id || 'unknown-patient';
+            const docId = inv.doctorId || inv.doctor_id || 'doc-1';
+            const gross = inv.totalAmount || inv.total_amount || 500;
+            const payStatus = inv.paymentStatus || inv.payment_status || inv.status || 'pending';
+            const payMethod = inv.paymentMethod || inv.payment_method || 'upi';
+
             ledgers.push({
-              id: `fl-auto-${inv.id}`,
-              invoiceId: inv.id,
-              patientId: inv.patientId || 'unknown-patient',
-              doctorId: inv.doctorId || 'doc-1',
+              id: `fl-auto-${invId}`,
+              invoiceId: invId,
+              patientId: pId,
+              doctorId: docId,
               entryType: 'appointment_fee',
               transactionType: 'appointment_fee',
-              grossAmount: inv.totalAmount || 500,
+              grossAmount: gross,
               commissionRate: 0,
-              platformFee: 0,
-              netPayout: inv.totalAmount || 500,
-              netDoctorPayout: inv.totalAmount || 500,
-              paymentStatus: inv.paymentStatus || 'cleared',
+              platformFee: inv.platformFee || inv.platform_fee || 0,
+              netPayout: gross,
+              netDoctorPayout: inv.doctorFee || inv.doctor_fee || gross,
+              paymentStatus: payStatus,
               settlementStatus: 'pending_payout',
-              paymentMethod: inv.paymentMethod || 'upi',
-              createdAt: inv.createdAt || new Date().toISOString()
+              paymentMethod: payMethod,
+              createdAt: inv.createdAt || inv.created_at || new Date().toISOString()
             });
-            existingInvoiceIds.add(inv.id);
+            existingInvoiceIds.add(invId);
             added = true;
           }
         });

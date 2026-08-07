@@ -120,7 +120,7 @@ export class BillingService {
         
         // Sync to Supabase vitalsync_pool_settlements
         supabase.from('vitalsync_pool_settlements').insert({
-          invoice_id: invoiceId.length === 36 ? invoiceId : null,
+          invoice_id: invoiceId,
           gateway_reference_id: `counter-${paymentMethod}-${invoiceId.substring(0, 8)}`,
           payment_mode: paymentMethod,
           amount: netRemainingForPool,
@@ -178,7 +178,7 @@ export class BillingService {
         save('whatsapp_sessions', sessions);
 
         const dbRefLedger = {
-          invoice_id: invoiceId.length === 36 ? invoiceId : null,
+          invoice_id: invoiceId,
           source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'appointment_fee',
@@ -189,7 +189,7 @@ export class BillingService {
           settled_at: new Date().toISOString()
         };
         const dbPlatLedger = {
-          invoice_id: invoiceId.length === 36 ? invoiceId : null,
+          invoice_id: invoiceId,
           source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           transaction_type: 'platform_fee',
@@ -928,7 +928,7 @@ export class BillingService {
 
       // Sync splits to Supabase with the new database columns
       const dbEntries = listToSave.map(s => ({
-        invoice_id: s.invoiceId.length === 36 ? s.invoiceId : null,
+        invoice_id: s.invoiceId,
         source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
         destination_entity_id: s.destinationEntityId === 'platform-admin-entity' 
           ? getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' 

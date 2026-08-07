@@ -380,9 +380,18 @@ export class WhatsAppService {
           {
             const patient = PatientService.getPatients().find(p => p.phone === phone);
             if (patient) {
-              const invoices = BillingService.getUnifiedInvoices();
-              const clearedInvoices = invoices.filter((i: any) => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared'));
-              const pendingInvoices = invoices.filter((i: any) => (i.patientId === patient.id || i.patient_id === patient.id) && (i.paymentStatus === 'pending' || i.payment_status === 'pending'));
+              const unifiedInvoices = BillingService.getUnifiedInvoices();
+              const saasInvoices = load<any[]>('saas_invoices', []);
+              const invoices = [...unifiedInvoices, ...saasInvoices];
+
+              const clearedInvoices = invoices.filter((i: any) => 
+                (i.patientId === patient.id || i.patient_id === patient.id) && 
+                (i.paymentStatus === 'cleared' || i.paymentStatus === 'paid' || i.payment_status === 'cleared' || i.payment_status === 'paid')
+              );
+              const pendingInvoices = invoices.filter((i: any) => 
+                (i.patientId === patient.id || i.patient_id === patient.id) && 
+                (i.paymentStatus === 'pending' || i.payment_status === 'pending')
+              );
 
               // Check if patient sent a 12-digit UPI UTR / Transaction reference number
               const utrMatch = cleaned.match(/\b\d{12}\b/);
@@ -393,10 +402,12 @@ export class WhatsAppService {
                     inv.utrNumber = utrNumber;
                     inv.utr_number = utrNumber;
                   });
-                  save('unified_invoices', invoices);
+                  save('unified_invoices', unifiedInvoices);
+                  save('saas_invoices', saasInvoices);
                   
                   // Also update Supabase appointments table
                   supabase.from('unified_invoices').update({ utr_number: utrNumber }).eq('patient_id', patient.id).then();
+                  supabase.from('saas_invoices').update({ utr_number: utrNumber }).eq('patient_id', patient.id).then();
                   supabase.from('appointments').update({ utr_number: utrNumber }).eq('patient_id', patient.id).then();
                 }
 
@@ -404,13 +415,13 @@ export class WhatsAppService {
                 replyMessage = `✅ *12-Digit UPI UTR Received!* \n\n• *UTR Reference*: \`${utrNumber}\`\n• *Amount*: ₹${pendingInvoices[0]?.totalAmount || 500}.00\n\nAapka UPI UTR reference ${this.getDynamicClinicName()} counter desk par send kar diya gaya hai. Compounder desk status verify karte hi token ACTIVE ho jayega! 🟢\n\nReply **STATUS** to check clearance. 🩺`;
               } else if (clearedInvoices.length > 0) {
                 nextState = 'COMPLETED';
-                const tokenCode = clearedInvoices[0].id.substring(0, 5).toUpperCase();
+                const tokenCode = (clearedInvoices[0].id || 'TK-001').substring(0, 5).toUpperCase();
                 replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared ✅\n • Token Number: #${tokenCode}\n\nPhysical visit token is active at ${this.getDynamicClinicName()} counter. Thank you for choosing VitalSync! 🩺`;
               } else {
                 // Strict Security: Unpaid appointments remain pending. Do NOT auto-clear on unverified user text assertion.
                 nextState = 'AWAITING_PAYMENT';
                 const pendingAmt = pendingInvoices[0]?.totalAmount || 500;
-                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Bank/Payment Gateway.\n\n• *Send UPI UTR*: Reply with your 12-digit UTR number (e.g. \`420198421092\`) or screenshot.\n• *Counter Cash/UPI*: Present UTR to compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after sending UTR. 🩺`;
+                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${Number(pendingAmt).toFixed(2)} is not received yet from Bank/Payment Gateway.\n\n• *Send UPI UTR*: Reply with your 12-digit UTR number (e.g. \`420198421092\`) or screenshot.\n• *Counter Cash/UPI*: Present UTR to compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after sending UTR. 🩺`;
               }
             } else {
               nextState = 'COMPLETED';
@@ -657,7 +668,7 @@ export class WhatsAppService {
             save('financial_ledgers', ledgerEntries);
 
             const dbSplits = doorstepSplits.map(s => ({
-              invoice_id: s.invoiceId.includes('-') && s.invoiceId.length === 36 ? s.invoiceId : null,
+              invoice_id: s.invoiceId,
               source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
               destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? (getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') : s.destinationEntityId,
               transaction_type: s.transactionType,

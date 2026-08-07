@@ -133,7 +133,9 @@ export class LabService {
       reqs = reqs.filter(r => {
         const pod = (r as any).podId || (r as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (!pod && currentPodId) {
+          (r as any).podId = currentPodId;
+        }
         const pName = String(r.patientName || '').toLowerCase().trim();
         const pId = String(r.patientId || '');
         if (demoNames.has(pName)) return false;
@@ -574,6 +576,7 @@ export class LabService {
       status: 'pending',
       reagentDeductions: [],
       prescriptionFileUrl,
+      podId: getPodContext().podId,
       createdAt: new Date().toISOString()
     };
 
@@ -586,6 +589,7 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
+      pod_id: getPodContext().podId,
       lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,
@@ -643,6 +647,7 @@ export class LabService {
       id: report.id,
       requisition_id: report.requisitionId,
       patient_id: report.patientId,
+      pod_id: getPodContext().podId,
       patient_name: report.patientName,
       report_file_url: report.reportFileUrl || null,
       biomarker_json: report.biomarkerJson || null,
@@ -712,23 +717,8 @@ export class LabService {
       const noteMsg = revisitNote ? `\n📌 *Note from compounder:* "${revisitNote}"` : '';
       const message = `✅ *Lab Report arrived at Doctor!* 🧪\n\nDear *${patient.name}*, aapka *${report.biomarkerJson?.testName || 'lab test'}* report doctor ke paas pahunch gaya hai. 🏥${revisitMsg ? '\n\n' + revisitMsg : ''}${noteMsg}\n\nKripya time par clinic aakar doctor se final advice lein. Dhyan rakhein! 🟢`;
 
-      
-      const sessions = load<any[]>('whatsapp_sessions', []);
-      const existing = sessions.find(s => s.patientPhone === patient.phone);
-      if (existing) {
-        const currentHistory = existing.sessionData.chatHistory || [];
-        currentHistory.push({ sender: 'bot', text: message, time: new Date().toISOString() });
-        existing.sessionData = {
-          ...existing.sessionData,
-          chatHistory: currentHistory
-        };
-        save('whatsapp_sessions', sessions);
-        
-        await supabase.from('whatsapp_sessions').update({
-          session_data: existing.sessionData,
-          last_interaction: new Date().toISOString()
-        }).eq('patient_phone', patient.phone);
-      }
+      const { WhatsAppService } = await import('./whatsappService');
+      WhatsAppService.pushWhatsAppMessageFromBot(patient.phone, message);
     }
 
     // Allocate patient back to doctor consult queue for final advice

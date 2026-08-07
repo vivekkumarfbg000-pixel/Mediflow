@@ -1420,8 +1420,6 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.doctorName = resolvedDoctorName;
         sessionData.clinicName = resolvedClinicName;
         sessionData.feeAmount = feeAmount;
-
-        // Parse slot timing string into a Clean Timestamp
         let apptTimestamp = `${selectedDate}T10:00:00.000Z`;
         try {
           const d = new Date(selectedDate);
@@ -1494,6 +1492,7 @@ async function triggerBotReplyPipeline(ctx: {
                 virtual_date: selectedDate,
                 virtual_time: slotText,
                 virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${newApptId}`,
+                token_number: tokenNumber,
                 pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
                 entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
               });
@@ -1614,6 +1613,7 @@ async function triggerBotReplyPipeline(ctx: {
                 virtual_date: selectedDate,
                 virtual_time: slotText,
                 virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
+                token_number: tokenNumber,
                 pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
                 entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
               });
@@ -1622,6 +1622,8 @@ async function triggerBotReplyPipeline(ctx: {
           } catch (err) {
             console.error("[Meta Webhook] Error creating appointment record:", err);
           }
+
+          // Parse slot timing string into a Clean Timestamp
 
           // Insert Unified Invoice Row with Platform Fee (₹500 Doctor Fee + ₹15 Platform Fee = ₹515.00)
           try {
@@ -2028,7 +2030,7 @@ async function triggerBotReplyPipeline(ctx: {
         replyText = "Aap apna medical question ya health related query likh kar bhejiye. VitalSync AI-RAG assistant aapko doctor-approved guidelines ke hisab se guide karega! 🤖";
 
       } else if (cleaned === "8" || cleaned === "sos" || cleaned.includes("emergency")) {
-        // EMERGENCY SOS ROUTING: Requires fee payment + 20% emergency surcharge (₹500 + ₹100 = ₹600)
+        // EMERGENCY SOS ROUTING: Dynamically extract emergency fee from clinic SOP config (Rule 4)
         let doctorIdSos = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
         try {
           const { data: docProfile } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();
@@ -2038,9 +2040,33 @@ async function triggerBotReplyPipeline(ctx: {
         const sosApptId = crypto.randomUUID();
         const sosInvoiceId = crypto.randomUUID();
         const todayDate = new Date().toISOString().split("T")[0];
-        const doctorSosFee = 600.00; // Base ₹500 + 20% Priority Charge (₹100) -> 100% to Doctor
-        const platformFeeSos = 18.00; // 3% of ₹600 -> 100% to Platform Owner
-        const totalSosFee = doctorSosFee + platformFeeSos; // ₹618.00
+
+        // Fetch dynamic emergency SOS fee from active clinic SOP (Rule 4: Emergency SOS Priority #1 Routing)
+        let doctorSosFee = 600.00; // Default fallback: Base ₹500 + 20% Priority Charge
+        let platformFeeSos = 18.00; // 3% of ₹600
+        try {
+          // Get active SOP for this pod
+          const podId = session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
+          const { data: activeSop } = await supabase
+            .from("clinic_sops")
+            .select("extractedConfig")
+            .eq("entity_id", podId)
+            .eq("isActive", true)
+            .maybeSingle();
+          
+          const sosFeeFromSop = activeSop?.extractedConfig?.emergency_sos_fee;
+          if (sosFeeFromSop && typeof sosFeeFromSop === 'number' && sosFeeFromSop > 0) {
+            doctorSosFee = sosFeeFromSop;
+            platformFeeSos = parseFloat((doctorSosFee * 0.03).toFixed(2));
+            console.log(`[Meta Webhook] Using dynamic SOS fee from SOP: ₹${doctorSosFee}`);
+          } else {
+            console.log(`[Meta Webhook] No SOS fee in SOP, using default: ₹${doctorSosFee}`);
+          }
+        } catch (sopErr) {
+          console.warn("[Meta Webhook] Failed to fetch SOS fee from SOP, using default:", sopErr);
+        }
+        
+        const totalSosFee = doctorSosFee + platformFeeSos;
         let paymentGatewayUrlSos = "";
         const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
         const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
@@ -2098,7 +2124,18 @@ async function triggerBotReplyPipeline(ctx: {
         try {
           const sosPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
           if (sosPatId) {
-            // Insert appointment with pending_payment status
+            // Generate SOS token number (Priority #1)
+            let sosTokenSeq = 1;
+            try {
+              const { count: apptCount } = await supabase
+                .from("appointments")
+                .select("id", { count: "exact", head: true })
+                .eq("virtual_date", todayDate);
+              sosTokenSeq = (apptCount ?? 0) + 1;
+            } catch (err) { console.warn("[Meta Webhook] Error fetching appointment count for SOS token:", err); }
+            const sosTokenNumber = `T-${sosTokenSeq.toString().padStart(2, '0')} E`;
+
+            // Insert appointment with pending_payment status and SOS token
             await supabase.from("appointments").insert({
               id: sosApptId,
               patient_id: sosPatId,
@@ -2108,10 +2145,11 @@ async function triggerBotReplyPipeline(ctx: {
               is_virtual: false,
               virtual_date: todayDate,
               virtual_time: "EMERGENCY (Priority #1)",
+              token_number: sosTokenNumber,
               pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
             });
 
-            // Insert invoice with ₹600 doctor fee + ₹18 platform fee = ₹618.00
+            // Insert invoice with dynamic SOS fee
             await supabase.from("unified_invoices").insert({
               id: sosInvoiceId,
               patient_id: sosPatId,
@@ -2122,6 +2160,9 @@ async function triggerBotReplyPipeline(ctx: {
               upi_qr_payload: paymentGatewayUrlSos,
               pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
             });
+
+            sessionData.tokenNumber = sosTokenNumber;
+            console.log(`[Meta Webhook] SOS booking created with token: ${sosTokenNumber}`);
           }
         } catch (err) { console.error("[Meta Webhook] SOS appointment/invoice insert error:", err); }
 

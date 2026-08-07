@@ -177,7 +177,7 @@ export class LabBillingService {
       if (navigator.onLine) {
         const dbEntries = [
           {
-            invoice_id: id.length === 36 ? id : null,
+            invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
             destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
             transaction_type: 'platform_fee',
@@ -188,7 +188,7 @@ export class LabBillingService {
             settled_at: new Date().toISOString()
           },
           {
-            invoice_id: id.length === 36 ? id : null,
+            invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
             destination_entity_id: getPodContext().labEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003',
             transaction_type: 'lab_commission',

@@ -7,6 +7,7 @@ export interface SupportEscalationTicket {
   pod_id?: string;
   clinic_name: string;
   doctor_name: string;
+  phone?: string;
   sender_role: 'doctor' | 'compounder' | 'pharmacy' | 'patient';
   query_text: string;
   category: 'how_to' | 'auto_healed' | 'owner_escalation';
@@ -73,7 +74,7 @@ export class WhatsAppSupportBotService {
   // ── Level-10 AI RAG Agent & Diagnostic Snapshot Processor ────────────────
   static async processSupportQuery(
     queryText: string,
-    senderInfo: { name: string; clinicName: string; role: 'doctor' | 'compounder' | 'pharmacy' | 'patient'; podId?: string }
+    senderInfo: { name: string; clinicName: string; role: 'doctor' | 'compounder' | 'pharmacy' | 'patient'; podId?: string; phone?: string }
   ): Promise<{ response: string; category: 'how_to' | 'auto_healed' | 'owner_escalation' }> {
     const textLower = queryText.toLowerCase().trim();
 
@@ -102,7 +103,8 @@ export class WhatsAppSupportBotService {
         query_text: queryText,
         category: 'auto_healed',
         status: 'resolved',
-        pod_id: senderInfo.podId
+        pod_id: senderInfo.podId,
+        phone: senderInfo.phone
       });
 
       return { response: autoHealResp, category: 'auto_healed' };
@@ -132,6 +134,7 @@ export class WhatsAppSupportBotService {
         category: 'owner_escalation',
         status: 'open',
         pod_id: senderInfo.podId,
+        phone: senderInfo.phone,
         ai_proposed_fix: aiProposedFix
       });
 
@@ -153,7 +156,8 @@ export class WhatsAppSupportBotService {
           query_text: queryText,
           category: 'how_to',
           status: 'resolved',
-          pod_id: senderInfo.podId
+          pod_id: senderInfo.podId,
+          phone: senderInfo.phone
         });
 
         return { response: ragResp, category: 'how_to' };
@@ -170,7 +174,8 @@ export class WhatsAppSupportBotService {
       query_text: queryText,
       category: 'how_to',
       status: 'resolved',
-      pod_id: senderInfo.podId
+      pod_id: senderInfo.podId,
+      phone: senderInfo.phone
     });
 
     return { response: defaultResp, category: 'how_to' };
@@ -248,7 +253,8 @@ export class WhatsAppSupportBotService {
       window.dispatchEvent(new CustomEvent('mediflow-support-ticket-updated'));
 
       if (ticket && resolutionMsg) {
-        api.pushWhatsAppMessageFromBot('+919876543210', `✅ *VITALSYNC PLATFORM OWNER RESOLUTION*\n\nRe: Ticket ${ticket.id} (${ticket.query_text})\n\nResolution: ${resolutionMsg}\n\nThank you for trusting VitalSync Connected Care Network!`);
+        const targetPhone = ticket.phone || '+919876543210';
+        api.pushWhatsAppMessageFromBot(targetPhone, `✅ *VITALSYNC PLATFORM OWNER RESOLUTION*\n\nRe: Ticket ${ticket.id} (${ticket.query_text})\n\nResolution: ${resolutionMsg}\n\nThank you for trusting VitalSync Connected Care Network!`);
       }
     } catch (_e) {
       /* ignore resolve error */

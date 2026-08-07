@@ -841,7 +841,7 @@ export class PharmacyService {
         // Sync splits to Supabase
         const dbEntries = [
           {
-            invoice_id: id.length === 36 ? id : null,
+            invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
             destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic-admin/platform-admin mapping
             transaction_type: 'platform_fee',
@@ -852,7 +852,7 @@ export class PharmacyService {
             settled_at: new Date().toISOString()
           },
           {
-            invoice_id: id.length === 36 ? id : null,
+            invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
             destination_entity_id: getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004', // pharmacy
             transaction_type: 'medicine_commission',

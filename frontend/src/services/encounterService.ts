@@ -346,18 +346,26 @@ export class EncounterService {
         }
 
         // 6. Client-side Routing Action C: Generate Unified Invoice
-        let doctorFee = 400.00;
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('consultation_fee')
-            .eq('id', doctorId)
-            .maybeSingle();
-          if (profile?.consultation_fee) {
-            doctorFee = Number(profile.consultation_fee);
+        const saasInvoices = load<any[]>('saas_invoices', []);
+        const uInvoices = load<any[]>('unified_invoices', []);
+        const alreadyPaidConsult = saasInvoices.some((i: any) => i.patientId === newEncounter.patientId && i.type === 'consult' && i.status === 'paid') ||
+                                   uInvoices.some((i: any) => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
+
+        let doctorFee = 0;
+        if (!alreadyPaidConsult) {
+          doctorFee = 400.00;
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('consultation_fee')
+              .eq('id', doctorId)
+              .maybeSingle();
+            if (profile?.consultation_fee) {
+              doctorFee = Number(profile.consultation_fee);
+            }
+          } catch (feeErr) {
+            console.error('Error fetching doctor consultation fee:', feeErr);
           }
-        } catch (feeErr) {
-          console.error('Error fetching doctor consultation fee:', feeErr);
         }
 
         let platformFee = (doctorFee + labFee + pharmacyFee) * 0.03;
@@ -384,6 +392,24 @@ export class EncounterService {
         // 7. Transition patient's WhatsApp session state to AWAITING_PAYMENT
         const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
         if (patient) {
+          let doctorDisplayName = '';
+          if (doctorId) {
+            try {
+              const { data: docProfile } = await supabase
+                .from('profiles')
+                .select('display_name, name')
+                .eq('id', doctorId)
+                .maybeSingle();
+              if (docProfile) {
+                doctorDisplayName = docProfile.display_name || docProfile.name || '';
+              }
+            } catch (_e) { /* ignore */ }
+          }
+          if (!doctorDisplayName) doctorDisplayName = 'Doctor';
+          if (!doctorDisplayName.startsWith('Dr.') && !doctorDisplayName.startsWith('dr.')) {
+            doctorDisplayName = `Dr. ${doctorDisplayName}`;
+          }
+
           const sessions = load<any[]>('whatsapp_sessions', []);
           const existing = sessions.find(s => s.patientPhone === patient.phone);
           if (existing) {
@@ -392,7 +418,7 @@ export class EncounterService {
             const currentHistory = existing.sessionData.chatHistory || [];
             currentHistory.push({
               sender: 'bot',
-              text: `*Dr. Sharma* has signed off your Clinical e-Prescription (e-Rx) and care invoice.\n\n*Generic Medicines ordered*:\n${newEncounter.medications.map(m => `💊 ${m.medicineName} (${m.frequency}, ${m.duration})`).join('\n')}\n\n*Diagnostics Ordered*:\n${newEncounter.diagnosticTests.map(t => `🧪 ${t.name}`).join('\n')}\n\n*Payment Pending*: A unified care pod invoice is generated. Please pay below:`,
+              text: `*${doctorDisplayName}* has signed off your Clinical e-Prescription (e-Rx) and care invoice.\n\n*Generic Medicines ordered*:\n${newEncounter.medications.map(m => `💊 ${m.medicineName} (${m.frequency}, ${m.duration})`).join('\n')}\n\n*Diagnostics Ordered*:\n${newEncounter.diagnosticTests.map(t => `🧪 ${t.name}`).join('\n')}\n\n*Payment Pending*: A unified care pod invoice is generated. Please pay below:`,
               time: new Date().toISOString()
             });
             existing.sessionData = {

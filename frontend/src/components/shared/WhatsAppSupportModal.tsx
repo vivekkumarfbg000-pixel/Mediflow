@@ -8,12 +8,14 @@ interface Props {
   userRole?: 'doctor' | 'compounder' | 'pharmacy' | 'patient';
   userName?: string;
   clinicName?: string;
+  userPhone?: string;
 }
 
 export const WhatsAppSupportModal: React.FC<Props> = ({
   userRole = 'doctor',
   userName = 'Dr. User',
-  clinicName = 'Mediflow Care Clinic'
+  clinicName = 'Mediflow Care Clinic',
+  userPhone
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   useBodyScrollLock(isOpen);
@@ -35,10 +37,12 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
     setIsProcessing(true);
 
     try {
+      const activePhone = userPhone || localStorage.getItem('vitalsync_user_phone') || '';
       const result = await WhatsAppSupportBotService.processSupportQuery(text, {
         name: userName,
         clinicName: clinicName,
-        role: userRole
+        role: userRole,
+        phone: activePhone
       });
 
       setChatHistory(prev => [...prev, { sender: 'bot', text: result.response, category: result.category }]);

@@ -11,6 +11,7 @@ import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
+import { load } from '../../services/apiHelper';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import type {
   PharmacyInventoryItem,
@@ -814,10 +815,19 @@ export const CompounderDashboard: React.FC = () => {
     if (!vitalsPatient) return;
 
     // Strict Cashfree Payment Gate Check (USP 3 & Rule 3): Verify consultation fee is cleared before token dispatch
-    const invoices = BillingService.getInvoices();
-    const isPaidInvoice = invoices.some(i => i.patientId === vitalsPatient.id && ((i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || (i as any).status === 'paid' || (i as any).status === 'cleared'));
+    const unifiedInvoices = BillingService.getInvoices();
+    const saasInvoices = load<any[]>('saas_invoices', []);
+    const allInvoices = [...unifiedInvoices, ...saasInvoices];
+
+    const isPaidInvoice = allInvoices.some(i => 
+      (i.patientId === vitalsPatient.id || i.patient_id === vitalsPatient.id) && 
+      ((i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || (i as any).status === 'paid' || (i as any).status === 'cleared')
+    );
     const appts = api.getAppointments();
-    const hasPaidAppt = appts.some(a => a.patientId === vitalsPatient.id && a.status !== 'pending_payment');
+    const hasPaidAppt = appts.some(a => 
+      (a.patientId === vitalsPatient.id || (a as any).patient_id === vitalsPatient.id) && 
+      a.status !== 'pending_payment'
+    );
 
     if (!isPaidInvoice && !hasPaidAppt) {
       // Auto-create pending appointment if not existing yet

@@ -1190,8 +1190,10 @@ Keep the tone professional, clinical, objective, and precise.`;
           });
         }
       } else {
+        const rawDocName = activePod?.doctor_name || activeDoctorProfile?.display_name || activeDoctorProfile?.name || 'Doctor';
+        const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
         whatsAppMsg = `🏥 *Mediflow Connected Care Plan* 🩺\n\n`;
-        whatsAppMsg += `Dear *${selectedPatient.name}*, Dr. Sharma has finalized your consultation record.\n\n`;
+        whatsAppMsg += `Dear *${selectedPatient.name}*, ${docTitle} has finalized your consultation record.\n\n`;
         
         // Add Hinglish clinical directions
         whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${hinglishSummary || notes || "Continue active lifestyle management."}"_\n\n`;
@@ -1224,7 +1226,9 @@ Keep the tone professional, clinical, objective, and precise.`;
         const existingSlot = api.getAppointmentByPatient(selectedPatient.id);
         const slot = existingSlot ?? await api.createEveningSlot(selectedPatient.id, 'doc-1');
         if (slot) {
-          eveningSlotNote = `\n\n🕒 *Evening Follow-up Appointment:*\nDr. Sharma will see you today from *${slot.startTime}* to *${slot.endTime}*.\nPlease arrive 5 minutes early at the clinic reception.`;
+          const rawDocName = activePod?.doctor_name || activeDoctorProfile?.display_name || activeDoctorProfile?.name || 'Doctor';
+          const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
+          eveningSlotNote = `\n\n🕒 *Evening Follow-up Appointment:*\n${docTitle} will see you today from *${slot.startTime}* to *${slot.endTime}*.\nPlease arrive 5 minutes early at the clinic reception.`;
           await api.scheduleAppointment(slot);
         }
       } catch (slotErr) {

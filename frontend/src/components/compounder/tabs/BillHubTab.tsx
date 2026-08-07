@@ -869,69 +869,64 @@ export const BillHubTab: React.FC = () => {
     setIsClearing(true);
 
     try {
-      // Find the existing saas consultation invoice for this patient
+      // 1. Always create & save a UnifiedInvoice for the full consolidated bill (Consult + Pharmacy + Lab + OT)
+      const unifiedInvoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
+      const newUnifiedInvoice: UnifiedInvoice = {
+        id: unifiedInvoiceId,
+        encounterId: 'counter-checkout',
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.name,
+        patientPhone: selectedPatient.phone,
+        doctorFee: billingLedger.consultTotal,
+        labFee: billingLedger.labSub,
+        pharmacyFee: billingLedger.pharmacySub,
+        platformFee: parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
+        totalAmount: billingLedger.finalTotal,
+        upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=VitalSync-${unifiedInvoiceId}`,
+        paymentStatus: 'cleared',
+        paymentMethod: paymentMethod,
+        createdAt: new Date().toISOString()
+      };
+      BillingService.saveUnifiedInvoice(newUnifiedInvoice);
+
+      // 2. Clear existing consultation invoice if any
       const saasInvoices = BillingService.getInvoices();
       const consultInvoice = saasInvoices.find(
         (i: any) => i.patientId === selectedPatient.id && i.type === 'consult' && i.status === 'unpaid'
       );
-
-      let invoiceIdToClear: string;
-      let isNewUnifiedInvoice = false;
-
       if (consultInvoice) {
-        // Clear the existing consultation invoice
-        invoiceIdToClear = consultInvoice.id;
-      } else {
-        // Fallback: create new unified invoice if no existing consult invoice found
-        const newInvoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
-        const newInvoice: UnifiedInvoice = {
-          id: newInvoiceId,
-          encounterId: 'walkin',
-          patientId: selectedPatient.id,
-          patientName: selectedPatient.name,
-          patientPhone: selectedPatient.phone,
-          doctorFee: billingLedger.consultTotal,
-          labFee: billingLedger.labSub,
-          pharmacyFee: billingLedger.pharmacySub,
-          platformFee: parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
-          totalAmount: billingLedger.finalTotal,
-          upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=VitalSync-${newInvoiceId}`,
-          paymentStatus: 'cleared',
-          paymentMethod: paymentMethod,
-          createdAt: new Date().toISOString()
-        };
-        BillingService.saveUnifiedInvoice(newInvoice);
-        invoiceIdToClear = newInvoiceId;
-        isNewUnifiedInvoice = true;
+        consultInvoice.status = 'paid';
+        consultInvoice.paymentMethod = paymentMethod;
+        BillingService.saveInvoice(consultInvoice);
+
+        // Confirm appointment status
+        const appts = BillingService.getAppointments();
+        const targetAppt = appts.find(a => a.id === consultInvoice.appointmentId);
+        if (targetAppt) {
+          targetAppt.status = 'confirmed';
+          BillingService.saveAppointments(appts);
+        }
       }
 
-      BillingService.clearInvoice(invoiceIdToClear, paymentMethod);
+      // 3. Clear the unified invoice (triggers 3% platform fee split, commission pool refill, and financial ledgers)
+      BillingService.clearInvoice(unifiedInvoiceId, paymentMethod);
 
-      // If we created a new unified invoice (fallback), also create saas invoices for pharmacy/lab items
-      if (isNewUnifiedInvoice && (billingLedger.pharmacySub > 0 || billingLedger.labSub > 0)) {
-        if (billingLedger.pharmacySub > 0) {
-          BillingService.saveInvoice({
-            id: `inv-pharm-${crypto.randomUUID().substring(0, 8)}`,
-            podId: getPodContext().podId,
-            appointmentId: 'walkin',
-            type: 'pharmacy',
-            amount: billingLedger.pharmacySub,
-            status: 'paid',
-            createdAt: new Date().toISOString(),
-            patientId: selectedPatient.id
-          } as any);
-        }
-        if (billingLedger.labSub > 0) {
-          BillingService.saveInvoice({
-            id: `inv-lab-${crypto.randomUUID().substring(0, 8)}`,
-            podId: getPodContext().podId,
-            appointmentId: 'walkin',
-            type: 'lab',
-            amount: billingLedger.labSub,
-            status: 'paid',
-            createdAt: new Date().toISOString(),
-            patientId: selectedPatient.id
-          } as any);
+      // 4. Deduct pharmacy inventory stock for selected medicines
+      if (billingLedger.pharmacySub > 0) {
+        const activeInventory = PharmacyService.getPharmacyInventory();
+        let invUpdated = false;
+        billingLedger.medicinesList.forEach(m => {
+          const state = selectedMedicines[m.name.toLowerCase()];
+          if (state?.selected) {
+            const itemInInv = activeInventory.find(inv => inv.name.toLowerCase() === m.name.toLowerCase());
+            if (itemInInv) {
+              itemInInv.stock = Math.max(0, itemInInv.stock - state.qty);
+              invUpdated = true;
+            }
+          }
+        });
+        if (invUpdated) {
+          PharmacyService.savePharmacyInventory(activeInventory);
         }
       }
 
@@ -957,7 +952,7 @@ export const BillHubTab: React.FC = () => {
         .map(m => `- *${m.name}*: 1-0-1 (twice daily) for 10 days (Take after meals).`)
         .join('\n');
       
-      const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://mediflow.in/invoices/${invoiceIdToClear}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
+      const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://mediflow.in/invoices/${unifiedInvoiceId}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
       WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, invoiceMsg);
 
       setRefreshKey(prev => prev + 1);

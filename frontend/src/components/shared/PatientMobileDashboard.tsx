@@ -83,12 +83,12 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
     return () => unsubscribe();
   }, []);
 
-  const activePatient = patients.find(p => p.phone === selectedPhone) || patients[0];
-  const activeInvoices = invoices.filter(i => i.patientId === activePatient?.id);
-  const activeReports = reports.filter(r => r.patientId === activePatient?.id);
-  const activeEncounters = encounters.filter(e => e.patientId === activePatient?.id);
+  const activePatient = patients.find(p => p.phone === selectedPhone || (p as any).patient_phone === selectedPhone) || patients[0];
+  const activeInvoices = invoices.filter(i => (i.patientId || (i as any).patient_id) === activePatient?.id);
+  const activeReports = reports.filter(r => (r.patientId || (r as any).patient_id) === activePatient?.id);
+  const activeEncounters = encounters.filter(e => (e.patientId || (e as any).patient_id) === activePatient?.id);
 
-  const pendingInvoice = activeInvoices.find(i => i.paymentStatus === 'pending');
+  const pendingInvoice = activeInvoices.find(i => i.paymentStatus === 'pending' || (i as any).payment_status === 'pending');
 
   const handleTranslateRAG = (reportId: string, testName: string, results: string) => {
     setIsRagTranslating(true);
@@ -104,7 +104,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
       if ((testName || '').toLowerCase().includes('hba1c')) {
         summary += `• Your HbA1c is at a borderline level. This confirms mild Glycemic Fluctuation.\n`;
         summary += `• **CDSS Guideline**: Avoid any sudden dose switches. Avoid ibuprofen/NSAIDs due to borderline renal clearance.\n`;
-        summary += `• **Action Plan**: Dr. Sharma recommends continuous capillary blood glucose logs and home screening.`;
+        summary += `• **Action Plan**: Your attending physician recommends continuous capillary blood glucose logs and home screening.`;
       } else {
         summary += `• Your indices are stable but require lifestyle coordination. Keep daily schedules aligned.\n`;
         summary += `• **CDSS Guideline**: Continuously sync logs to the care pod network.\n`;

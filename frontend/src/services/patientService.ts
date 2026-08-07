@@ -301,24 +301,35 @@ export class PatientService {
   }
 
   static saveRefractionDiagnostics(patientId: string, diagnostics: Partial<PatientVitals>): void {
-    const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
-    const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
-    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
-    
-    const existingVitals = vitalsMap[patientId] || { recordedAt: new Date().toISOString() };
-    const updatedVitals = {
+    const patients = this.getPatients();
+    const idx = patients.findIndex(p => p.id === patientId);
+
+    const existingVitals = (idx !== -1 && patients[idx].vitals)
+      ? patients[idx].vitals
+      : { recordedAt: new Date().toISOString() };
+
+    const updatedVitals: PatientVitals = {
       ...existingVitals,
       ...diagnostics,
       recordedAt: new Date().toISOString()
-    };
-    
-    vitalsMap[patientId] = updatedVitals as PatientVitals;
-    queueStatusMap[patientId] = 'awaiting_consultation';
-    
+    } as PatientVitals;
+
+    if (idx !== -1) {
+      patients[idx].vitals = updatedVitals;
+      patients[idx].queueStatus = 'awaiting_consultation';
+      this.savePatients(patients);
+    }
+
+    const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
+    vitalsMap[patientId] = updatedVitals;
     save('vitals_map', vitalsMap);
+
+    const queueStatusMap = load<Record<string, Patient['queueStatus']>>('queue_status_map', {});
+    queueStatusMap[patientId] = 'awaiting_consultation';
     save('queue_status_map', queueStatusMap);
 
     // Optimistic UI state update
+    const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
     syncStatusMap[patientId] = 'pending';
     save('sync_status_map', syncStatusMap);
 
@@ -337,7 +348,7 @@ export class PatientService {
     });
     save('sync_queue', queue);
     
-    const pat = this.getPatients().find(p => p.id === patientId);
+    const pat = idx !== -1 ? patients[idx] : null;
     writeAuditLog('PATIENT_REFRACTION_RECORDED', {
       patientId,
       patientName: pat?.name,

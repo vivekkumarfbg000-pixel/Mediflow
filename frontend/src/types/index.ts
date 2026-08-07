@@ -197,6 +197,7 @@ export interface LabRequisition {
   prescriptionFileUrl?: string;   // Supabase Storage URL for scanned Rx
   revisitScheduledAt?: string;    // ISO datetime compounder scheduled revisit
   revisitNote?: string;           // Compounder's revisit instruction note
+  podId?: string;                 // Multi-tenant pod isolation
   createdAt: string;
 }
 

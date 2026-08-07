@@ -449,8 +449,9 @@ class MediflowApiService {
           }
           case 'SAVE_REFRACTION': {
             const { payload } = entry;
+            const vitalsData = payload.vitals || payload.diagnostics;
             const { error } = await supabase.from('patient_registry').update({
-              vitals: payload.diagnostics,
+              vitals: vitalsData,
               queue_status: 'awaiting_consultation'
             }).eq('id', payload.patientId);
             if (error) throw error;

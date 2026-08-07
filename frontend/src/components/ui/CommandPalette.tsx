@@ -75,8 +75,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     } }
   ], [setActiveTab, onClose]);
 
-  // Patients query results
-  const patients = useMemo(() => api.getPatients(), []);
+  // Patients query results — refetch live patient list when palette opens
+  const patients = useMemo(() => {
+    if (!isOpen) return [];
+    return api.getPatients();
+  }, [isOpen, query]);
 
   // Filter commands and patients based on search text query
   const filteredItems = useMemo(() => {

@@ -75,11 +75,11 @@ function getInitialPodContext(): PodContext {
 
   return {
     userId,
-    entityId: userId ? `entity-${userId.slice(0, 18)}` : 'unassigned-entity',
-    podId: userId ? `pod-${userId.slice(0, 18)}` : 'unassigned-pod',
+    entityId: userId || FALLBACK_ENTITY_ID,
+    podId: userId || FALLBACK_POD_ID,
     doctorId: userId,
-    labEntityId: userId ? `lab-${userId.slice(0, 18)}` : 'unassigned-lab',
-    pharmacyEntityId: userId ? `pharm-${userId.slice(0, 18)}` : 'unassigned-pharmacy',
+    labEntityId: userId || FALLBACK_LAB_ENTITY,
+    pharmacyEntityId: userId || FALLBACK_PHARM_ENTITY,
     loaded: false,
   };
 }
@@ -144,8 +144,8 @@ export async function resolvePodContext(): Promise<PodContext> {
         user.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
       );
 
-      let podId = isDemoUser ? FALLBACK_POD_ID : `pod-${user.id.slice(0, 18)}`;
-      let entityId = isDemoUser ? FALLBACK_ENTITY_ID : (profile?.entity_id || `entity-${user.id.slice(0, 18)}`);
+      let podId = isDemoUser ? FALLBACK_POD_ID : user.id;
+      let entityId = isDemoUser ? FALLBACK_ENTITY_ID : (profile?.entity_id || user.id);
 
       if (profile?.entity_id) {
         const { data: userEntity } = await supabase
@@ -158,8 +158,8 @@ export async function resolvePodContext(): Promise<PodContext> {
         }
       }
 
-      let labEntityId = isDemoUser ? FALLBACK_LAB_ENTITY : `lab-${user.id.slice(0, 18)}`;
-      let pharmacyEntityId = isDemoUser ? FALLBACK_PHARM_ENTITY : `pharm-${user.id.slice(0, 18)}`;
+      let labEntityId = isDemoUser ? FALLBACK_LAB_ENTITY : user.id;
+      let pharmacyEntityId = isDemoUser ? FALLBACK_PHARM_ENTITY : user.id;
 
       if (podId && podId !== FALLBACK_POD_ID) {
         // Look up all entities for this pod to find lab and pharmacy

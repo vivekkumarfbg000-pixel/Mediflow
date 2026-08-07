@@ -60,13 +60,14 @@ export class PaymentService {
     payeeName: string = DEFAULT_PAYEE_NAME
   ): DirectUpiPayload {
     const cleanAmount = (Math.round(amount * 100) / 100).toFixed(2);
+    const targetVpa = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || vpa || DEFAULT_PILOT_VPA;
     const sanitizedPayee = encodeURIComponent(payeeName);
     const sanitizedInvoice = encodeURIComponent(invoiceId.substring(0, 30));
 
-    const upiDeepLink = `https://razorpay.me/@vitalsync3758?amount=${cleanAmount}`;
+    const upiDeepLink = `upi://pay?pa=${targetVpa}&pn=${sanitizedPayee}&am=${cleanAmount}&tn=${sanitizedInvoice}&cu=INR`;
 
     return {
-      vpa: 'razorpay.me/@vitalsync3758',
+      vpa: targetVpa,
       payeeName,
       amount,
       invoiceId,

@@ -33,6 +33,7 @@ export class RealtimeSyncService {
     // Map Postgres CDC snake_case fields to camelCase expected by frontend models
     if (record.patient_id !== undefined) normalized.patientId = record.patient_id;
     if (record.doctor_id !== undefined) normalized.doctorId = record.doctor_id;
+    if (record.pod_id !== undefined) normalized.podId = record.pod_id;
     if (record.encounter_id !== undefined) normalized.encounterId = record.encounter_id;
     if (record.patient_code !== undefined) normalized.patientCode = record.patient_code;
     if (record.token_number !== undefined) normalized.tokenNumber = record.token_number;
@@ -63,6 +64,18 @@ export class RealtimeSyncService {
     if (record.test_code !== undefined) normalized.testCode = record.test_code;
     if (record.test_name !== undefined) normalized.testName = record.test_name;
     if (record.invoice_id !== undefined) normalized.invoiceId = record.invoice_id;
+    if (record.requisition_id !== undefined) normalized.requisitionId = record.requisition_id;
+    if (record.loinc_code !== undefined) normalized.loincCode = record.loinc_code;
+    if (record.prescription_file_url !== undefined) normalized.prescriptionFileUrl = record.prescription_file_url;
+    if (record.approved_by !== undefined) normalized.approvedBy = record.approved_by;
+    if (record.approved_at !== undefined) normalized.approvedAt = record.approved_at;
+    if (record.batch_number !== undefined) normalized.batchNumber = record.batch_number;
+    if (record.expiry_date !== undefined) normalized.expiryDate = record.expiry_date;
+    if (record.hold_status !== undefined) normalized.holdStatus = record.hold_status;
+    if (record.reagent_deductions !== undefined) normalized.reagentDeductions = record.reagent_deductions;
+    if (record.rejection_reason !== undefined) normalized.rejectionReason = record.rejection_reason;
+    if (record.revisit_scheduled_at !== undefined) normalized.revisitScheduledAt = record.revisit_scheduled_at;
+    if (record.revisit_note !== undefined) normalized.revisitNote = record.revisit_note;
 
     return normalized;
   }
@@ -290,6 +303,13 @@ export class RealtimeSyncService {
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
 
     this.heartbeatTimer = setInterval(() => {
+      // Refresh heartbeat timestamp if channel is joined and browser is online
+      const isJoined = this.activeChannel && (this.activeChannel as any).state === 'joined';
+      if (isJoined && navigator.onLine) {
+        this.lastPingSuccess = Date.now();
+        return;
+      }
+
       const elapsedSincePing = Date.now() - this.lastPingSuccess;
 
       if (elapsedSincePing > 25000 || !navigator.onLine) {
@@ -299,8 +319,6 @@ export class RealtimeSyncService {
           this.scheduleAutoReconnect();
         }
       }
-      // Do NOT reset lastPingSuccess here — it must only be updated by actual
-      // channel events (SUBSCRIBED status, or incoming CDC payloads via autoIngestPayload)
     }, 10000);
   }
 

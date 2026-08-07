@@ -101,14 +101,15 @@ class TelemetryServiceClass {
 
     console.log(`%c[Mixpanel Log] Event: ${eventName}`, 'color: #33b5e5; font-weight: bold;', properties);
 
-    // Persist BI logs directly toremote Supabase database for long-term audit analytics
+    // Persist BI logs directly to remote Supabase database for long-term audit analytics
     supabase.from('activity_logs').insert({
-      action: eventName,
+      action_type: eventName,
       details: payload,
-      record_id: properties.recordId || 'telemetry-event'
+      record_id: properties.recordId || 'telemetry-event',
+      pod_id: getPodContext().podId
     }).then(({ error }) => {
       if (error) {
-        console.error('[Telemetry-Mixpanel] Remote ingestion failed. Logging locally to offline storage.');
+        console.error('[Telemetry-Mixpanel] Remote ingestion failed:', error);
       }
     });
   }

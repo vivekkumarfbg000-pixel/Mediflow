@@ -459,7 +459,16 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         is_verified_for_billing: true
       };
 
-      const { error: insertErr } = await supabase.from('pods').insert([newPod]);
+      const dbPodPayload = {
+        id: newPod.id,
+        name: newPod.name,
+        location: newPod.location,
+        clinic_code: newPod.clinic_code,
+        is_active: true,
+        created_at: newPod.created_at
+      };
+
+      const { error: insertErr } = await supabase.from('pods').insert([dbPodPayload]);
       if (insertErr) {
         console.error("[SaaS Admin] Failed to provision pod:", insertErr);
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
