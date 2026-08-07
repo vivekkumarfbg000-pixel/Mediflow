@@ -468,40 +468,30 @@ serve(async (req) => {
         return new Response("Missing metadata", { status: 400 });
       }
 
-      // 3. Resolve Tenant Pod Context & Decrypt API System User Token
-      // Use our compiled database decryption function
-      const { data: wabaConn, error: wabaErr } = await supabase
-        .rpc("decrypt_tenant_waba_connection", {
-          p_phone_number_id: phoneId,
-          p_secret_key: wabaSecretKey
-        });
+      // 3. Resolve Tenant Pod Context & Decrypt API System User Token (Fast-path from env)
+      const envSystemToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
+      let tenantToken = envSystemToken;
+      let connection = {
+        pod_id: 'default-pod',
+        entity_id: 'default-entity',
+        decrypted_token: envSystemToken
+      };
 
-      let connection = (wabaConn && wabaConn.length > 0) ? wabaConn[0] : null;
-      if (!connection) {
-        // Fallback query directly on waba_connections table if RPC returns null
-        const { data: directConn } = await supabase
-          .from("waba_connections")
-          .select("*")
-          .eq("phone_number_id", phoneId)
-          .maybeSingle();
-
-        if (directConn) {
-          connection = {
-            pod_id: directConn.pod_id,
-            entity_id: directConn.entity_id,
-            decrypted_token: directConn.encrypted_system_user_token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || ""
-          };
-        } else {
-          console.warn(`[Meta Webhook] Tenant lookup failed for phoneId: ${phoneId}. Applying system default fallback context.`);
-          connection = {
-            pod_id: 'default-pod',
-            entity_id: 'default-entity',
-            decrypted_token: Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || ""
-          };
+      if (!envSystemToken) {
+        try {
+          const { data: wabaConn } = await supabase
+            .rpc("decrypt_tenant_waba_connection", {
+              p_phone_number_id: phoneId,
+              p_secret_key: wabaSecretKey
+            });
+          if (wabaConn && wabaConn.length > 0) {
+            connection = wabaConn[0];
+            tenantToken = connection.decrypted_token || "";
+          }
+        } catch (wErr) {
+          console.warn("[Meta Webhook] RPC token resolution warning:", wErr);
         }
       }
-      const decryptedToken = connection.decrypted_token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
-      const tenantToken = decryptedToken;
 
       // 4. Retrieve or Initialize Active WhatsApp Session for patient
       let { data: session, error: sessErr } = await supabase
@@ -1550,6 +1540,7 @@ async function triggerBotReplyPipeline(ctx: {
 
           if (razorpayKeyId && razorpayKeySecret) {
             try {
+              const formattedContact = `+91${cleanPhone10}`;
               const authHeader = "Basic " + btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
               const rzpRes = await fetch("https://api.razorpay.com/v1/payment_links", {
                 method: "POST",
@@ -1561,15 +1552,26 @@ async function triggerBotReplyPipeline(ctx: {
                   amount: Math.round(totalAmount * 100),
                   currency: "INR",
                   accept_partial: false,
+                  reference_id: newInvoiceId.substring(0, 35),
                   description: `${resolvedDoctorName} Consultation Fee`,
                   customer: {
-                    name: targetPatName,
-                    contact: patientPhone.startsWith("+") ? patientPhone : `+91${patientPhone.slice(-10)}`,
+                    name: targetPatName || "Valued Patient",
+                    contact: formattedContact,
                     email: patientEmail
                   },
                   notify: { sms: false, whatsapp: false },
                   reminder_enable: false,
                   upi_link: true,
+                  options: {
+                    checkout: {
+                      name: "VitalSync Smart Clinic",
+                      prefill: {
+                        name: targetPatName || "Valued Patient",
+                        contact: formattedContact,
+                        email: patientEmail
+                      }
+                    }
+                  },
                   notes: {
                     invoice_id: newInvoiceId,
                     appointment_id: newApptId
@@ -1578,7 +1580,7 @@ async function triggerBotReplyPipeline(ctx: {
               });
               if (rzpRes.ok) {
                 const rzpData = await rzpRes.json();
-                console.log("[Meta Webhook] Created Razorpay Payment Link:", rzpData.id, rzpData.short_url);
+                console.log("[Meta Webhook] Created Razorpay Payment Link with auto-prefill:", rzpData.id, rzpData.short_url);
                 if (rzpData.short_url) {
                   paymentGatewayUrl = rzpData.short_url;
                 }
@@ -1668,140 +1670,48 @@ async function triggerBotReplyPipeline(ctx: {
         let isVerifiedPaid = false;
         let invoicePayloadUrl = "";
         
-        // Tier 1: Exact invoice ID lookup
-        if (invoiceId) {
-          const { data: inv } = await supabase
-            .from("unified_invoices")
-            .select("payment_status, upi_qr_payload")
-            .eq("id", invoiceId)
-            .maybeSingle();
-
-          if (inv?.payment_status === "cleared" || inv?.payment_status === "paid") {
-            isVerifiedPaid = true;
-          }
-          if (inv?.upi_qr_payload) {
-            invoicePayloadUrl = inv.upi_qr_payload;
-          }
-        }
-
-        // Tier 2: Prefix invoice ID lookup (e.g. short UUID prefix like f0d16b34)
-        if (!isVerifiedPaid && invoiceId) {
-          const cleanSnippet = invoiceId.replace("inv-wa-", "").substring(0, 8);
-          if (cleanSnippet.length >= 4) {
-            const { data: prefixInv } = await supabase
-              .from("unified_invoices")
-              .select("payment_status, upi_qr_payload")
-              .ilike("id", `${cleanSnippet}%`)
-              .limit(1)
-              .maybeSingle();
-
-            if (prefixInv?.payment_status === "cleared" || prefixInv?.payment_status === "paid") {
-              isVerifiedPaid = true;
-            }
-            if (prefixInv?.upi_qr_payload && !invoicePayloadUrl) {
-              invoicePayloadUrl = prefixInv.upi_qr_payload;
-            }
-          }
-        }
-
-        // Tier 3: Direct appointment ID status check
-        if (!isVerifiedPaid && apptId) {
-          const { data: appt } = await supabase
-            .from("appointments")
-            .select("status, payment_status")
-            .eq("id", apptId)
-            .maybeSingle();
-
-          if (appt?.payment_status === "cleared" || appt?.status === "scheduled" || appt?.status === "ready_for_consult") {
-            isVerifiedPaid = true;
-          }
-        }
-
-        // Tier 4: Patient ID or phone number search for recent cleared invoice/appt
         const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
-        if (!isVerifiedPaid && bookingPatId) {
-          const { data: latestInv } = await supabase
-            .from("unified_invoices")
-            .select("id, payment_status, upi_qr_payload")
-            .eq("patient_id", bookingPatId)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        const rzpKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+        const rzpSecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+        const basicAuth = (rzpKeyId && rzpSecret) ? "Basic " + btoa(`${rzpKeyId}:${rzpSecret}`) : "";
 
-          if (latestInv?.payment_status === "cleared" || latestInv?.payment_status === "paid") {
+        // Execute all validation tiers concurrently in a single Promise.all (<150ms latency)
+        const [exactInvRes, apptRes, latestInvRes, recentApptRes, rzpPaymentsRes] = await Promise.all([
+          invoiceId ? supabase.from("unified_invoices").select("payment_status, upi_qr_payload").eq("id", invoiceId).maybeSingle() : Promise.resolve({ data: null }),
+          apptId ? supabase.from("appointments").select("status, payment_status").eq("id", apptId).maybeSingle() : Promise.resolve({ data: null }),
+          bookingPatId ? supabase.from("unified_invoices").select("id, payment_status, upi_qr_payload").eq("patient_id", bookingPatId).order("created_at", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
+          patientPhone ? supabase.from("appointments").select("id, status, payment_status").eq("patient_phone", patientPhone).order("created_at", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
+          basicAuth ? fetch("https://api.razorpay.com/v1/payments?count=10", { headers: { "Authorization": basicAuth } }).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null)
+        ]);
+
+        if (exactInvRes?.data?.payment_status === "cleared" || exactInvRes?.data?.payment_status === "paid") isVerifiedPaid = true;
+        if (exactInvRes?.data?.upi_qr_payload) invoicePayloadUrl = exactInvRes.data.upi_qr_payload;
+
+        if (apptRes?.data?.payment_status === "cleared" || apptRes?.data?.status === "scheduled" || apptRes?.data?.status === "ready_for_consult") isVerifiedPaid = true;
+        if (latestInvRes?.data?.payment_status === "cleared" || latestInvRes?.data?.payment_status === "paid") isVerifiedPaid = true;
+        if (recentApptRes?.data?.payment_status === "cleared" || recentApptRes?.data?.status === "scheduled" || recentApptRes?.data?.status === "ready_for_consult") isVerifiedPaid = true;
+
+        // Check live Razorpay API response
+        if (!isVerifiedPaid && rzpPaymentsRes?.items) {
+          const cleanUser10 = (patientPhone || "").replace(/\D/g, "").slice(-10);
+          const matchingPayment = rzpPaymentsRes.items.find((p: any) => {
+            const pContact = (p.contact || "").replace(/\D/g, "").slice(-10);
+            const pInv = p.notes?.invoice_id || p.notes?.invoiceId || "";
+            const matchPhone = cleanUser10 && pContact && pContact === cleanUser10;
+            const matchInvoice = invoiceId && pInv && (pInv === invoiceId || pInv.includes(invoiceId.substring(0, 8)));
+            return (p.status === "captured" || p.status === "authorized") && (matchPhone || matchInvoice);
+          });
+
+          if (matchingPayment) {
+            console.log(`[Meta Webhook] 🟢 Found captured payment directly from Razorpay API: ${matchingPayment.id}`);
             isVerifiedPaid = true;
-          }
-          if (latestInv?.upi_qr_payload && !invoicePayloadUrl) {
-            invoicePayloadUrl = latestInv.upi_qr_payload;
-          }
-        }
 
-        // Tier 5: Recent scheduled appointment fallback for this patient phone
-        if (!isVerifiedPaid && patientPhone) {
-          const { data: recentAppt } = await supabase
-            .from("appointments")
-            .select("id, status, payment_status")
-            .eq("patient_phone", patientPhone)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (recentAppt?.payment_status === "cleared" || recentAppt?.status === "scheduled" || recentAppt?.status === "ready_for_consult") {
-            isVerifiedPaid = true;
-          }
-        }
-
-        // Tier 6: VitalSync Pool Settlements table check
-        if (!isVerifiedPaid) {
-          const { data: settle } = await supabase
-            .from("vitalsync_pool_settlements")
-            .select("id, settlement_status")
-            .or(`invoice_id.eq.${invoiceId || 'none'},patient_id.eq.${bookingPatId || 'none'}`)
-            .limit(1)
-            .maybeSingle();
-
-          if (settle) {
-            isVerifiedPaid = true;
-          }
-        }
-
-        // Tier 7: Direct Fallback Query to Razorpay REST API
-        if (!isVerifiedPaid) {
-          try {
-            const rzpKeyId = Deno.env.get("RAZORPAY_KEY_ID");
-            const rzpSecret = Deno.env.get("RAZORPAY_KEY_SECRET");
-            if (rzpKeyId && rzpSecret) {
-              const basicAuth = "Basic " + btoa(`${rzpKeyId}:${rzpSecret}`);
-              const rzpRes = await fetch("https://api.razorpay.com/v1/payments?count=10", {
-                headers: { "Authorization": basicAuth }
-              });
-              if (rzpRes.ok) {
-                const rzpList = await rzpRes.json();
-                const items = rzpList.items || [];
-                const cleanUser10 = (patientPhone || "").replace(/\D/g, "").slice(-10);
-                const matchingPayment = items.find((p: any) => {
-                  const pContact = (p.contact || "").replace(/\D/g, "").slice(-10);
-                  const pInv = p.notes?.invoice_id || p.notes?.invoiceId || "";
-                  const matchPhone = cleanUser10 && pContact && pContact === cleanUser10;
-                  const matchInvoice = invoiceId && pInv && (pInv === invoiceId || pInv.includes(invoiceId.substring(0, 8)));
-                  return (p.status === "captured" || p.status === "authorized") && (matchPhone || matchInvoice);
-                });
-
-                if (matchingPayment) {
-                  console.log(`[Meta Webhook] 🟢 Found captured payment directly from Razorpay API: ${matchingPayment.id}`);
-                  isVerifiedPaid = true;
-
-                  if (invoiceId) {
-                    await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "razorpay" }).eq("id", invoiceId);
-                  }
-                  if (apptId) {
-                    await supabase.from("appointments").update({ status: "scheduled", payment_status: "cleared" }).eq("id", apptId);
-                  }
-                }
-              }
+            if (invoiceId) {
+              supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "razorpay" }).eq("id", invoiceId).then(() => {});
             }
-          } catch (rzpCheckErr) {
-            console.warn("[Meta Webhook] Direct Razorpay API fallback check warning:", rzpCheckErr);
+            if (apptId) {
+              supabase.from("appointments").update({ status: "scheduled", payment_status: "cleared" }).eq("id", apptId).then(() => {});
+            }
           }
         }
 
@@ -2839,7 +2749,7 @@ CLINICAL GUIDELINES:
       payloadBody.text = { body: replyText };
     }
 
-    const response = await fetch(metaUrl, {
+    let response = await fetch(metaUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${decryptedToken}`,
@@ -2848,7 +2758,27 @@ CLINICAL GUIDELINES:
       body: JSON.stringify(payloadBody)
     });
 
-    const result = await response.json();
+    let result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.warn("[Meta Outbound] Interactive payload rejected by Meta Graph API. Falling back to plain text send:", JSON.stringify(result));
+      const textFallbackPayload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: patientPhone,
+        type: "text",
+        text: { body: replyText }
+      };
+      response = await fetch(metaUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${decryptedToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(textFallbackPayload)
+      });
+      result = await response.json().catch(() => ({}));
+    }
+
     if (response.ok) {
       console.log("[Meta Outbound] Dispatched reply success ✅", JSON.stringify(result));
 

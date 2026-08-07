@@ -167,24 +167,59 @@ serve(async (req) => {
         }).eq("patient_phone", clean10);
       }
 
-      // 4. Update WhatsApp session if active for this patient
+      // 4. Update WhatsApp session & dispatch confirmation receipt directly to WhatsApp
       if (clean10) {
         const { data: sess } = await supabase
           .from("whatsapp_sessions")
-          .select("id, session_data")
-          .eq("patient_phone", clean10)
+          .select("id, patient_phone, session_data")
+          .ilike("patient_phone", `%${clean10}%`)
+          .limit(1)
           .maybeSingle();
 
         if (sess) {
+          const sessData = sess.session_data || {};
+          const tokenNumber = sessData.tokenNumber || 1;
+          const approxTime = sessData.approxTime || "10:00 AM";
+          const selectedDisplay = sessData.selectedDateDisplay || new Date().toISOString().split("T")[0];
+          const doctorName = sessData.doctorName || "Doctor";
+          const clinicName = sessData.clinicName || "Connected Clinic";
+
           const updatedData = {
-            ...(sess.session_data || {}),
+            ...sessData,
             isVerifiedPaid: true,
             pendingInvoiceId: resolvedInvoiceId
           };
+
           await supabase
             .from("whatsapp_sessions")
-            .update({ session_data: updatedData })
+            .update({ current_state: "COMPLETED", session_data: updatedData })
             .eq("id", sess.id);
+
+          // Direct Outbound Meta Graph API Dispatch (<200ms)
+          const metaToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
+          const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || "549557451578330";
+          if (metaToken && sess.patient_phone) {
+            try {
+              const confirmText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${amountPaid.toFixed(2)}\n• Status: Confirmed ✅\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you for choosing VitalSync! 😊`;
+              await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${metaToken}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  messaging_product: "whatsapp",
+                  recipient_type: "individual",
+                  to: sess.patient_phone,
+                  type: "text",
+                  text: { body: confirmText }
+                })
+              });
+              console.log("[Razorpay Webhook] Dispatched confirmed WhatsApp receipt ✅");
+            } catch (outboundErr) {
+              console.warn("[Razorpay Webhook] Outbound WhatsApp receipt warning:", outboundErr);
+            }
+          }
         }
       }
     }

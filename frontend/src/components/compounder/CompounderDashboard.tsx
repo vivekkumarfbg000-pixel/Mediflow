@@ -847,6 +847,7 @@ export const CompounderDashboard: React.FC = () => {
     }));
 
     // Reset Form
+    document.body.style.overflow = '';
     setVitalsPatient(null);
     setTempVal('98.6');
     setBpVal('120/80');
@@ -855,6 +856,7 @@ export const CompounderDashboard: React.FC = () => {
     setSugarVal('');
 
     syncData();
+    fetchLiveAppointments();
   };
 
   const handlePushDosageWhatsApp = async (patient: Patient, dosageText: string) => {
