@@ -181,8 +181,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           if (!isActiveQueue && !searchQuery) return false;
         }
 
-        const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              p.phone.includes(searchQuery) ||
+        const matchesSearch = (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              (p.phone || '').includes(searchQuery) ||
                               (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchQuery.toLowerCase()));
         return matchesSearch;
       })

@@ -2180,7 +2180,11 @@ Keep the tone professional, clinical, objective, and precise.`;
         onClose={() => setIsRegistrationOpen(false)}
         onSuccess={(data) => {
           console.log('[Onboarding Success] Clinic Pod Created:', data);
-          window.location.reload();
+          const reloadKey = 'vitalsync_onboarding_reloaded';
+          if (!sessionStorage.getItem(reloadKey)) {
+            sessionStorage.setItem(reloadKey, '1');
+            window.location.reload();
+          }
         }}
       />
 

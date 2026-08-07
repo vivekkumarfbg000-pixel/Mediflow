@@ -226,11 +226,11 @@ export async function resolvePodContext(): Promise<PodContext> {
 export function clearPodContext(): void {
   _ctx = {
     userId:          null,
-    entityId:        FALLBACK_ENTITY_ID,
-    podId:           FALLBACK_POD_ID,
+    entityId:        'unassigned-entity',
+    podId:           'unassigned-pod',
     doctorId:        null,
-    labEntityId:     FALLBACK_LAB_ENTITY,
-    pharmacyEntityId: FALLBACK_PHARM_ENTITY,
+    labEntityId:     'unassigned-lab',
+    pharmacyEntityId: 'unassigned-pharmacy',
     loaded:          false,
   };
   _resolvePromise = null;

@@ -287,6 +287,7 @@ export const CompounderDashboard: React.FC = () => {
   const [searchApptPatient, setSearchApptPatient] = useState('');
   const [selectedApptPatient, setSelectedApptPatient] = useState<Patient | null>(null);
   const [apptPaymentMode, setApptPaymentMode] = useState<'cash' | 'upi' | 'razorpay' | 'cashfree' | 'paytm'>('cash');
+  const [isBookingAppt, setIsBookingAppt] = useState(false);
 
   // Vernacular Dosage Assistant States
   const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');
@@ -1091,7 +1092,7 @@ export const CompounderDashboard: React.FC = () => {
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Switched brand to cheaper alternative: ${alt.name} (Saved ₹${(billingItems[itemIdx].sellingPrice - alt.price).toFixed(2)} per unit!)`,
+        message: `Switched brand to cheaper alternative: ${alt.name} (Saved ₹${((billingItems[itemIdx]?.sellingPrice || 0) - (alt.price || 0)).toFixed(2)} per unit!)`,
         type: 'success',
         title: 'Generic Switch Success'
       }
@@ -1157,7 +1158,7 @@ export const CompounderDashboard: React.FC = () => {
       gstAmount: billingTotals.gstAmount,
       totalAmount: billingTotals.totalAmount,
       paymentMode: mode === 'whatsapp' ? 'whatsapp_pay' : 'cash',
-      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingTotals.totalAmount.toFixed(2)}&cu=INR&tn=VS-BILL-${billId.substring(4, 8)}`,
+      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(billingTotals.totalAmount || 0).toFixed(2)}&cu=INR&tn=VS-BILL-${(billId || '').substring(4, 8)}`,
       status: mode === 'cash' ? 'paid' : 'draft',
       source: 'counter',
       deliveryType: deliveryType,
@@ -2208,9 +2209,9 @@ export const CompounderDashboard: React.FC = () => {
                             <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">No patients found in registry.</p>
                           ) : (
                             patients.filter(p => 
-                              p.name.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                              p.phone.includes(searchApptPatient) ||
-                              p.id.toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                              (p.name || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
+                              (p.phone || '').includes(searchApptPatient) ||
+                              (p.id || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
                               (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
                             ).map(p => (
                               <div 
@@ -2257,9 +2258,9 @@ export const CompounderDashboard: React.FC = () => {
                                 onChange={(e) => setApptPaymentMode(e.target.value as any)}
                                 className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg cursor-pointer font-bold"
                               >
-                                <option value="razorpay">💳 Razorpay 0% Gateway (Primary)</option>
-                                <option value="upi">📱 Razorpay UPI Handle (razorpay.me/@vitalsync3758)</option>
                                 <option value="cash">💵 Cash Payment</option>
+                                <option value="upi">📱 UPI QR / Handle</option>
+                                <option value="razorpay">💳 Razorpay 0% Gateway</option>
                               </select>
                             </div>
 
@@ -2275,8 +2276,10 @@ export const CompounderDashboard: React.FC = () => {
                           <div className="flex justify-end pt-2">
                             <button
                               type="button"
+                              disabled={isBookingAppt}
                               onClick={async () => {
-                                if (!selectedApptPatient) return;
+                                if (!selectedApptPatient || isBookingAppt) return;
+                                setIsBookingAppt(true);
 
                                 try {
                                   const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
@@ -2310,6 +2313,7 @@ export const CompounderDashboard: React.FC = () => {
                                   const bookedPatient = { ...selectedApptPatient, tokenNumber: assignedToken };
                                   setSelectedApptPatient(null);
                                   setApptPaymentMode('cash');
+                                  setIsBookingAppt(false);
 
                                   syncData();
                                   fetchLiveAppointments();
@@ -2342,6 +2346,7 @@ export const CompounderDashboard: React.FC = () => {
                                   if (selectedApptPatient) {
                                     setVitalsPatient(selectedApptPatient);
                                   }
+                                  setIsBookingAppt(false);
                                 }
                               }}
                               className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-105 active:scale-95 text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform shadow-lg shadow-indigo-500/20"
@@ -3095,8 +3100,8 @@ export const CompounderDashboard: React.FC = () => {
                                 </span>
                               </td>
                               <td className="p-3.5 text-right">
-                                <div className="font-bold text-slate-850">₹{item.price.toFixed(2)}</div>
-                                <span className="text-[9px] text-slate-455 block font-mono">MRP: ₹{item.mrp.toFixed(2)}</span>
+                                <div className="font-bold text-slate-850">₹{(item.price || 0).toFixed(2)}</div>
+                                <span className="text-[9px] text-slate-455 block font-mono">MRP: ₹{(item.mrp || 0).toFixed(2)}</span>
                               </td>
                             </tr>
                           );

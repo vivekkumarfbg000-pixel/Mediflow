@@ -789,7 +789,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
 
                                   <div className="flex justify-between items-center pt-2">
                                     <div>
-                                      <span className="text-[9px] text-slate-500 block font-mono">Invoice ID: {invoice.id.substring(0, 8)}...</span>
+                                      <span className="text-[9px] text-slate-500 block font-mono">Invoice ID: {(invoice.id || 'N/A').substring(0, 8)}...</span>
                                       <span className="text-xs font-black text-slate-800">Pharmacy Fee: ₹{invoice.pharmacyFee}</span>
                                     </div>
                                     <div className="flex gap-2">
@@ -1081,7 +1081,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
 
                                   <div className="flex justify-between items-center pt-2">
                                     <div>
-                                      <span className="text-[9px] text-slate-500 block font-mono">Invoice: {invoice.id.substring(0, 8)}...</span>
+                                      <span className="text-[9px] text-slate-500 block font-mono">Invoice: {(invoice.id || 'N/A').substring(0, 8)}...</span>
                                       {activeEntity?.gstin && (
                                         <span className="text-[9.5px] text-indigo-600 block font-mono font-bold">GSTIN: {activeEntity.gstin}</span>
                                       )}
@@ -1119,7 +1119,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
     <div style="text-align:right">
       <div class="badge">PAID ✅</div>
       <div class="sub" style="margin-top:4px">Date: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-      <div class="sub">Invoice: ${invoice.id.substring(0,8)}...</div>
+      <div class="sub">Invoice: ${(invoice.id || 'N/A').substring(0,8)}...</div>
     </div>
   </div>
   <div class="section-title">Patient Details</div>
@@ -2354,7 +2354,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{bill.id.substring(0, 8)} • {bill.items.length} items</p>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {bill.items.length} items</p>
                           </div>
                           <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
                           <div className="flex gap-2">
@@ -2407,7 +2407,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                             ✓ PAID
                           </div>
                           <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} items</p>
+                          <p className="text-[10px] text-slate-500 font-mono">#{(bill.id || 'N/A').substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} items</p>
                           <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
                           <div className="flex gap-2 pt-1">
                             <button

@@ -595,7 +595,7 @@ export const BillingDashboard: React.FC = () => {
                                   <div className="text-[9px] text-slate-400 font-mono mt-0.5 truncate max-w-[80px]">{(entry.destinationEntityId || 'N/A').substring(0, 12)}...</div>
                                 </td>
                                 <td className="p-2.5 font-mono text-slate-700">₹{entry.grossAmount}</td>
-                                <td className="p-2.5 font-mono text-slate-500">{(entry.commissionRate * 100).toFixed(0)}%</td>
+                                <td className="p-2.5 font-mono text-slate-500">{((entry.commissionRate || 0) * 100).toFixed(0)}%</td>
                                 <td className="p-2.5 font-mono font-bold text-emerald-600">₹{entry.netPayout}</td>
                                 <td className="p-2.5 text-right">
                                   <span className={`text-[9px] font-bold tracking-wider px-2 py-0.5 rounded border font-mono uppercase ${

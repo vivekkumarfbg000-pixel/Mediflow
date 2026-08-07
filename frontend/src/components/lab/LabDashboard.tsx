@@ -350,7 +350,7 @@ export const LabDashboard: React.FC = () => {
       pharmacyFee: 0,
       platformFee: platformFee,
       totalAmount: total,
-      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-LAB-${req.id.substring(0,6)}`,
+      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-LAB-${(req.id || 'N/A').substring(0,6)}`,
       paymentStatus: 'pending' as const,
       createdAt: new Date().toISOString()
     };
@@ -977,7 +977,7 @@ export const LabDashboard: React.FC = () => {
                           </div>
 
                           <div className="flex justify-between items-center pt-1">
-                            <span className="text-[9px] text-slate-400 font-mono">ID: {req.id.substring(0, 8)}...</span>
+                            <span className="text-[9px] text-slate-400 font-mono">ID: {(req.id || 'N/A').substring(0, 8)}...</span>
                             {rep?.reportFileUrl ? (
                               <button 
                                 onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
@@ -1464,7 +1464,7 @@ export const LabDashboard: React.FC = () => {
     <div style="text-align:right">
       <div class="badge">PAID ✅</div>
       <div class="sub" style="margin-top:4px">Date: ${new Date(inv.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-      <div class="sub">Invoice: ${inv.id.substring(0,8)}...</div>
+      <div class="sub">Invoice: ${(inv.id || 'N/A').substring(0,8)}...</div>
     </div>
   </div>
   <div class="section-title">Patient Details</div>
@@ -2113,7 +2113,7 @@ export const LabDashboard: React.FC = () => {
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{bill.id.substring(0, 8)} • {bill.items.length} tests</p>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {bill.items.length} tests</p>
                           </div>
                           <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
                           <div className="flex gap-2">
@@ -2164,7 +2164,7 @@ export const LabDashboard: React.FC = () => {
                             ✓ PAID
                           </div>
                           <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">#{bill.id.substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} tests</p>
+                          <p className="text-[10px] text-slate-500 font-mono">#{(bill.id || 'N/A').substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} tests</p>
                           <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
                           <div className="flex gap-2 pt-1">
                             <button

@@ -1174,16 +1174,26 @@ export default function App() {
           'vitalsync_active_role',
           'vitalsync_active_pod',
           'patients',
+          'patient_registry',
           'saas_appointments',
+          'saas_invoices',
+          'saas_prescriptions',
+          'unified_invoices',
+          'financial_ledgers',
+          'medicine_bills',
+          'lab_requisitions',
+          'pathology_reports',
+          'encounters',
+          'whatsapp_sessions',
+          'whatsapp_broadcast_logs',
           'mediflow_patients',
           'mediflow_financial_ledgers',
           'mediflow_unified_invoices',
-          'patient_registry',
-          'medicine_bills',
-          'lab_requisitions',
+          'mediflow_active_pod',
           'vitalsync_admin_logged_in',
           'vitalsync_chunk_reloaded_guard',
           'vitalsync_support_tickets',
+          'founder_alerts',
           'wal_mem_outbox',
           'offline_sync_queue'
         ];
@@ -1198,7 +1208,6 @@ export default function App() {
           }
         }
 
-        localStorage.clear();
         sessionStorage.clear();
       } catch (_e) { /* ignore */ }
     }

@@ -379,12 +379,12 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                 </div>
                 
                 <div className="text-[10px] space-y-1.5 text-slate-600">
-                  <div className="flex justify-between font-medium"><span>Doctor Appt Fee:</span><span className="font-mono text-slate-800">₹{docFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between font-medium"><span>Lab Test charge:</span><span className="font-mono text-slate-800">₹{labFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between font-medium"><span>Pharmacy Prescr:</span><span className="font-mono text-slate-800">₹{pharmFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between font-medium"><span>Doctor Appt Fee:</span><span className="font-mono text-slate-800">₹{(docFee || 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between font-medium"><span>Lab Test charge:</span><span className="font-mono text-slate-800">₹{(labFee || 0).toFixed(2)}</span></div>
+                  <div className="flex justify-between font-medium"><span>Pharmacy Prescr:</span><span className="font-mono text-slate-800">₹{(pharmFee || 0).toFixed(2)}</span></div>
                   <div className="flex justify-between font-bold text-slate-900 border-t border-slate-100 pt-1.5 text-[11px]">
                     <span>Total Amount:</span>
-                    <span className="font-mono text-primary">₹{totalFee.toFixed(2)}</span>
+                    <span className="font-mono text-primary">₹{(totalFee || 0).toFixed(2)}</span>
                   </div>
                 </div>
 

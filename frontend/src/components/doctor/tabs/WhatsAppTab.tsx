@@ -180,7 +180,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
     const phone = s.patientPhone || s.patient_phone || s.phone || '';
     const matchPhone = phone.includes(chatSearch);
     const pat = patients.find(p => p.id === s.patientId || p.phone === phone);
-    const matchName = pat ? pat.name.toLowerCase().includes(chatSearch.toLowerCase()) : false;
+    const matchName = pat ? (pat.name || '').toLowerCase().includes(chatSearch.toLowerCase()) : false;
     return matchPhone || matchName;
   });
 

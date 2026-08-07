@@ -9,6 +9,7 @@ import { LabService, MASTER_TEST_CATALOG } from '../../../services/labService';
 import { BillingService } from '../../../services/billingService';
 import { PaymentService } from '../../../services/paymentService';
 import { PatientService } from '../../../services/patientService';
+import { getPodContext } from '../../../services/podContext';
 import { useSpecialization } from '../../../context/SpecializationContext';
 import { useClinic } from '../../../context/ClinicContext';
 import { WhatsAppService } from '../../../services/whatsappService';
@@ -319,7 +320,7 @@ export const BillHubTab: React.FC = () => {
       const latest = encounters[encounters.length - 1];
       if (latest) {
         latest.medications.forEach(med => {
-          const matched = inventory.find(i => i.name.toLowerCase() === med.medicineName.toLowerCase() || i.genericName.toLowerCase() === med.medicineName.toLowerCase());
+          const matched = inventory.find(i => i.name.toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
           medicinesList.push({
             name: med.medicineName,
             mrp: matched?.mrp || 120,
@@ -868,26 +869,71 @@ export const BillHubTab: React.FC = () => {
     setIsClearing(true);
 
     try {
-      const invoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
-      const newInvoice: UnifiedInvoice = {
-        id: invoiceId,
-        encounterId: 'walkin',
-        patientId: selectedPatient.id,
-        patientName: selectedPatient.name,
-        patientPhone: selectedPatient.phone,
-        doctorFee: billingLedger.consultTotal,
-        labFee: billingLedger.labSub,
-        pharmacyFee: billingLedger.pharmacySub,
-        platformFee: parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
-        totalAmount: billingLedger.finalTotal,
-        upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=VitalSync-${invoiceId}`,
-        paymentStatus: 'cleared',
-        paymentMethod: paymentMethod,
-        createdAt: new Date().toISOString()
-      };
+      // Find the existing saas consultation invoice for this patient
+      const saasInvoices = BillingService.getInvoices();
+      const consultInvoice = saasInvoices.find(
+        (i: any) => i.patientId === selectedPatient.id && i.type === 'consult' && i.status === 'unpaid'
+      );
 
-      BillingService.saveUnifiedInvoice(newInvoice);
-      BillingService.clearInvoice(invoiceId, paymentMethod);
+      let invoiceIdToClear: string;
+      let isNewUnifiedInvoice = false;
+
+      if (consultInvoice) {
+        // Clear the existing consultation invoice
+        invoiceIdToClear = consultInvoice.id;
+      } else {
+        // Fallback: create new unified invoice if no existing consult invoice found
+        const newInvoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
+        const newInvoice: UnifiedInvoice = {
+          id: newInvoiceId,
+          encounterId: 'walkin',
+          patientId: selectedPatient.id,
+          patientName: selectedPatient.name,
+          patientPhone: selectedPatient.phone,
+          doctorFee: billingLedger.consultTotal,
+          labFee: billingLedger.labSub,
+          pharmacyFee: billingLedger.pharmacySub,
+          platformFee: parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
+          totalAmount: billingLedger.finalTotal,
+          upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=VitalSync-${newInvoiceId}`,
+          paymentStatus: 'cleared',
+          paymentMethod: paymentMethod,
+          createdAt: new Date().toISOString()
+        };
+        BillingService.saveUnifiedInvoice(newInvoice);
+        invoiceIdToClear = newInvoiceId;
+        isNewUnifiedInvoice = true;
+      }
+
+      BillingService.clearInvoice(invoiceIdToClear, paymentMethod);
+
+      // If we created a new unified invoice (fallback), also create saas invoices for pharmacy/lab items
+      if (isNewUnifiedInvoice && (billingLedger.pharmacySub > 0 || billingLedger.labSub > 0)) {
+        if (billingLedger.pharmacySub > 0) {
+          BillingService.saveInvoice({
+            id: `inv-pharm-${crypto.randomUUID().substring(0, 8)}`,
+            podId: getPodContext().podId,
+            appointmentId: 'walkin',
+            type: 'pharmacy',
+            amount: billingLedger.pharmacySub,
+            status: 'paid',
+            createdAt: new Date().toISOString(),
+            patientId: selectedPatient.id
+          } as any);
+        }
+        if (billingLedger.labSub > 0) {
+          BillingService.saveInvoice({
+            id: `inv-lab-${crypto.randomUUID().substring(0, 8)}`,
+            podId: getPodContext().podId,
+            appointmentId: 'walkin',
+            type: 'lab',
+            amount: billingLedger.labSub,
+            status: 'paid',
+            createdAt: new Date().toISOString(),
+            patientId: selectedPatient.id
+          } as any);
+        }
+      }
 
       // 1. Premium Club Eligibility Onboarding Check
       if (billingLedger.isQualifyingFirstPurchase) {
@@ -911,7 +957,7 @@ export const BillHubTab: React.FC = () => {
         .map(m => `- *${m.name}*: 1-0-1 (twice daily) for 10 days (Take after meals).`)
         .join('\n');
       
-      const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://mediflow.in/invoices/${invoiceId}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
+      const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://mediflow.in/invoices/${invoiceIdToClear}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
       WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, invoiceMsg);
 
       setRefreshKey(prev => prev + 1);

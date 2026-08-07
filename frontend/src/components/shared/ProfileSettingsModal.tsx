@@ -872,7 +872,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                                     Type: <span className="uppercase text-slate-700 font-bold">{partner.entityType}</span>
                                   </span>
                                   <span className="text-slate-600 font-mono text-[8.5px]">
-                                    ({partner.id.substring(0, 8)})
+                                    ({(partner.id || 'N/A').substring(0, 8)})
                                   </span>
                                 </div>
                               </div>
