@@ -1667,6 +1667,8 @@ async function triggerBotReplyPipeline(ctx: {
         
         let isVerifiedPaid = false;
         let invoicePayloadUrl = "";
+        
+        // Tier 1: Exact invoice ID lookup
         if (invoiceId) {
           const { data: inv } = await supabase
             .from("unified_invoices")
@@ -1682,6 +1684,27 @@ async function triggerBotReplyPipeline(ctx: {
           }
         }
 
+        // Tier 2: Prefix invoice ID lookup (e.g. short UUID prefix like f0d16b34)
+        if (!isVerifiedPaid && invoiceId) {
+          const cleanSnippet = invoiceId.replace("inv-wa-", "").substring(0, 8);
+          if (cleanSnippet.length >= 4) {
+            const { data: prefixInv } = await supabase
+              .from("unified_invoices")
+              .select("payment_status, upi_qr_payload")
+              .ilike("id", `${cleanSnippet}%`)
+              .limit(1)
+              .maybeSingle();
+
+            if (prefixInv?.payment_status === "cleared" || prefixInv?.payment_status === "paid") {
+              isVerifiedPaid = true;
+            }
+            if (prefixInv?.upi_qr_payload && !invoicePayloadUrl) {
+              invoicePayloadUrl = prefixInv.upi_qr_payload;
+            }
+          }
+        }
+
+        // Tier 3: Direct appointment ID status check
         if (!isVerifiedPaid && apptId) {
           const { data: appt } = await supabase
             .from("appointments")
@@ -1694,6 +1717,7 @@ async function triggerBotReplyPipeline(ctx: {
           }
         }
 
+        // Tier 4: Patient ID or phone number search for recent cleared invoice/appt
         const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
         if (!isVerifiedPaid && bookingPatId) {
           const { data: latestInv } = await supabase
@@ -1709,6 +1733,21 @@ async function triggerBotReplyPipeline(ctx: {
           }
           if (latestInv?.upi_qr_payload && !invoicePayloadUrl) {
             invoicePayloadUrl = latestInv.upi_qr_payload;
+          }
+        }
+
+        // Tier 5: Recent scheduled appointment fallback for this patient phone
+        if (!isVerifiedPaid && patientPhone) {
+          const { data: recentAppt } = await supabase
+            .from("appointments")
+            .select("id, status, payment_status")
+            .eq("patient_phone", patientPhone)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (recentAppt?.payment_status === "cleared" || recentAppt?.status === "scheduled" || recentAppt?.status === "ready_for_consult") {
+            isVerifiedPaid = true;
           }
         }
 

@@ -790,7 +790,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </div>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-400 font-semibold mt-4">Includes Meta WhatsApp API dispatch + Instant Token #TK allocation.</p>
             </div>
 
             {/* Card 2: B2B Pharmacy & Pathology Settlements */}
@@ -821,7 +820,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </div>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-400 font-semibold mt-4">Automated Easy-Split disaggregation directly to commission pool.</p>
             </div>
 
             {/* Card 3: Counter Physical Consultations */}
@@ -852,7 +850,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </div>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-400 font-semibold mt-4">Immunity Rule 58: Counter doctor fees are 100% platform-fee exempt.</p>
             </div>
           </div>
         </div>
