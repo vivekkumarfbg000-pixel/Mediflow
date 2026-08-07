@@ -747,6 +747,117 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </section>
 
+      {/* Transparent Pricing & 3% Platform Fee Schedule Section */}
+      <section id="pricing" className="py-20 relative z-10 bg-white border-t border-slate-200">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="mb-12 text-center">
+            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-700 font-mono text-[10px] font-extrabold uppercase tracking-widest mb-3">
+              <Shield className="h-3.5 w-3.5 text-teal-600" />
+              100% Transparent Platform Pricing
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Platform Fee Schedule</h2>
+            <p className="text-slate-500 text-sm font-semibold mt-2 max-w-2xl mx-auto">
+              VitalSync operates on a transparent 3% platform model. Zero hidden charges, zero setup fees, and 0% commission on direct counter doctor consultations.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            {/* Card 1: Online WhatsApp Bookings */}
+            <div className="p-7 rounded-3xl bg-gradient-to-b from-teal-50/50 to-white border border-teal-200/80 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-teal-700 bg-teal-100 border border-teal-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+                    3% Platform Fee
+                  </span>
+                  <Sparkles className="h-4 w-4 text-teal-600" />
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900">Online WhatsApp Appointments</h3>
+                <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                  Charged directly to online patients booking consultations via WhatsApp Chatbot & Payment Links.
+                </p>
+                <div className="p-4 rounded-2xl bg-white border border-teal-100 text-xs space-y-2 font-mono">
+                  <div className="flex justify-between text-slate-500">
+                    <span>Doctor Consultation:</span>
+                    <span>₹500.00</span>
+                  </div>
+                  <div className="flex justify-between text-teal-700 font-bold">
+                    <span>Platform Convenience Fee (3%):</span>
+                    <span>₹15.00</span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
+                    <span>Total Patient Invoice:</span>
+                    <span>₹515.00</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold mt-4">Includes Meta WhatsApp API dispatch + Instant Token #TK allocation.</p>
+            </div>
+
+            {/* Card 2: B2B Pharmacy & Pathology Settlements */}
+            <div className="p-7 rounded-3xl bg-gradient-to-b from-indigo-50/50 to-white border border-indigo-200/80 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-indigo-700 bg-indigo-100 border border-indigo-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+                    3% Platform Fee
+                  </span>
+                  <Building2 className="h-4 w-4 text-indigo-600" />
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900">Pharmacy & Lab Settlements</h3>
+                <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                  Charged on digital Paytm / UPI billing settlements for pharmacy drug orders and pathology lab diagnostic requisitions.
+                </p>
+                <div className="p-4 rounded-2xl bg-white border border-indigo-100 text-xs space-y-2 font-mono">
+                  <div className="flex justify-between text-slate-500">
+                    <span>Digital Settlement:</span>
+                    <span>₹1,000.00</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-700 font-bold">
+                    <span>Platform Gateway Split (3%):</span>
+                    <span>₹30.00</span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
+                    <span>Net Vendor Credit:</span>
+                    <span>₹970.00</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold mt-4">Automated Easy-Split disaggregation directly to commission pool.</p>
+            </div>
+
+            {/* Card 3: Counter Physical Consultations */}
+            <div className="p-7 rounded-3xl bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-200/80 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+                    0% Platform Fee (100% Free)
+                  </span>
+                  <Award className="h-4 w-4 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900">Counter Physical Consultations</h3>
+                <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                  Direct walk-in checkups booked at the Compounder desk carry 0% platform fee. 100% of the consultation fee goes to the Doctor.
+                </p>
+                <div className="p-4 rounded-2xl bg-white border border-emerald-100 text-xs space-y-2 font-mono">
+                  <div className="flex justify-between text-slate-500">
+                    <span>Counter Consultation Fee:</span>
+                    <span>₹500.00</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-700 font-bold">
+                    <span>Platform Fee (0%):</span>
+                    <span>₹0.00</span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
+                    <span>Doctor Earnings:</span>
+                    <span>₹500.00 (100%)</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold mt-4">Immunity Rule 58: Counter doctor fees are 100% platform-fee exempt.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-6 relative z-10 bg-white border-t border-slate-200 text-slate-500">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:justify-between gap-8 text-xs font-semibold">
