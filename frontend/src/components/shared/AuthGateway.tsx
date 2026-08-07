@@ -26,9 +26,9 @@ interface ErrorDetails {
 const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
   ERR_INVALID_CREDENTIALS: {
     code: 'ERR_INVALID_CREDENTIALS',
-    message: 'Invalid Credentials',
-    description: 'The email address or security password entered does not match any clinician account.',
-    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+    message: 'Invalid Email or Password',
+    description: 'The email address or security password entered does not match any registered account. If you are new to VitalSync, please click "Doctor Signup" above to create your clinic profile.',
+    diagnostic: 'Double-check email spelling, or click the "Doctor Signup" tab to register a fresh account.'
   },
   invalid_credentials: {
     code: 'ERR_INVALID_CREDENTIALS',
@@ -854,24 +854,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         return;
       }
 
-      // 2. Perform authentication with a 15s timeout to prevent infinite loading
+      // 2. Perform authentication with a 25s timeout to prevent premature network failure
       const signInPromise = supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
       const signInTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(Object.assign(new Error('Authentication request timed out. Please check your connection.'), { code: 'ERR_NETWORK_FAILURE' })), 15000)
+        setTimeout(() => reject(Object.assign(new Error('Authentication request timed out. Please check your connection.'), { code: 'ERR_NETWORK_FAILURE' })), 25000)
       );
 
       const { data, error } = await Promise.race([signInPromise, signInTimeout]) as any;
 
       if (error) {
-        if (error.message?.includes('Invalid login credentials')) {
-          const authErr = new Error('Invalid email or password.');
-          (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
-          throw authErr;
-        }
-        throw error;
+        const authErr = new Error('Invalid email or password. If you are new to VitalSync, please click "Doctor Signup" to create your clinic profile.');
+        (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
+        throw authErr;
       }
 
       if (!data?.session) {
@@ -2096,6 +2093,19 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   <p className="text-[10px] text-clinical-300 leading-relaxed">
                     {ERROR_DICTIONARY[activeErrorCode].description}
                   </p>
+                  {activeErrorCode === 'ERR_INVALID_CREDENTIALS' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setActiveErrorCode(null);
+                        handleTabSelect('register');
+                      }}
+                      className="w-full mt-2.5 py-2.5 px-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-95"
+                    >
+                      <UserPlus className="h-4 w-4" /> Create Doctor Account (Signup) ➔
+                    </button>
+                  )}
                 </div>
 
                 <div className="bg-clinical-900/50 rounded-xl p-2.5 border border-clinical-800/40 text-[10px] leading-relaxed">
