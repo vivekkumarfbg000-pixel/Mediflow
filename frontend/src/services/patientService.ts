@@ -461,7 +461,11 @@ export class PatientService {
   static bulkRegisterPatients(patientList: Array<Omit<Patient, 'id' | 'createdAt'> & { id?: string }>): Patient[] {
     const registeredList: Patient[] = [];
     patientList.forEach(pData => {
-      const reg = this.registerPatient(pData);
+      const newId = (pData.id && this.isUUID(pData.id)) ? pData.id : crypto.randomUUID();
+      const reg = this.registerPatient({
+        ...pData,
+        id: newId
+      });
       registeredList.push(reg);
     });
     return registeredList;

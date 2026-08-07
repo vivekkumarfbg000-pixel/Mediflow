@@ -150,7 +150,11 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
     try {
       for (let i = 0; i < parsedList.length; i++) {
         const p = parsedList[i];
-        api.registerPatient(p);
+        const newPatientId = crypto.randomUUID();
+        api.registerPatient({
+          ...p,
+          id: newPatientId
+        });
         setImportProgress(Math.round(((i + 1) / parsedList.length) * 100));
         await new Promise(resolve => setTimeout(resolve, 80));
       }
