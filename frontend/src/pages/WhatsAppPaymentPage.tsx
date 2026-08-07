@@ -173,19 +173,41 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
 
       // Call razorpay-order Deno Edge Function
       let orderId = '';
-      let razorpayKeyId = 'rzp_test_default';
+      let razorpayKeyId = (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || '';
+      let fetchErrorMsg = '';
 
       try {
         const { data: orderData, error: orderErr } = await supabase.functions.invoke('razorpay-order', {
           body: { invoiceId, amount: amountRupees }
         });
 
-        if (!orderErr && orderData) {
-          orderId = orderData.orderId || orderData.id || '';
-          if (orderData.keyId) razorpayKeyId = orderData.keyId;
+        if (orderErr) {
+          fetchErrorMsg = orderErr.message || 'Error connecting to razorpay-order Edge Function.';
+        } else if (orderData) {
+          if (!orderData.success && orderData.error) {
+            fetchErrorMsg = orderData.error;
+          } else {
+            orderId = orderData.orderId || orderData.id || '';
+            if (orderData.keyId) razorpayKeyId = orderData.keyId;
+          }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn('[WhatsApp Payment] razorpay-order function warning:', e);
+        fetchErrorMsg = e.message || 'Razorpay Order invocation exception.';
+      }
+
+      // If Razorpay Key is missing or invalid, display clear configuration error instead of launching broken modal
+      if (!razorpayKeyId || razorpayKeyId === 'rzp_test_default') {
+        const detailMsg = fetchErrorMsg ? ` (${fetchErrorMsg})` : '';
+        setErrorMessage(`Razorpay credentials unverified in Supabase Secrets${detailMsg}. Please set RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET in Supabase Dashboard -> Secrets.`);
+        setProcessing(false);
+        return;
+      }
+
+      if (!orderId) {
+        setErrorMessage(`Unable to generate Razorpay Order ID${fetchErrorMsg ? `: ${fetchErrorMsg}` : ''}. Please verify Razorpay API keys.`);
+        setProcessing(false);
+        return;
       }
 
       const patientName = patient?.name || invoice?.patient_name || 'WhatsApp Patient';
@@ -200,7 +222,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
         name: 'VitalSync Smart Clinic',
         description: 'Doctor Consultation & Checkup Fee',
         image: 'https://vitalsync.in/logo.png',
-        order_id: orderId || undefined,
+        order_id: orderId,
         prefill: {
           name: patientName,
           contact: cleanPhone10,
@@ -221,7 +243,6 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
         handler: async (response: any) => {
           setProcessing(true);
           try {
-            // Verify payment on backend or mark invoice as cleared
             const { error: verifyErr } = await supabase.functions.invoke('razorpay-verify', {
               body: {
                 invoiceId,
