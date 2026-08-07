@@ -4,7 +4,7 @@ import { supabase, isMissingEnv } from '../../lib/supabaseClient';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
-  Users, Zap
+  Users, Zap, UserPlus
 } from 'lucide-react';
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 
