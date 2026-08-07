@@ -270,6 +270,7 @@ export interface Pod {
   isActive: boolean;
   createdAt: string;
   doctor_name?: string;
+  specialization?: string;
 }
 
 export interface Entity {
