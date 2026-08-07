@@ -313,11 +313,11 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         <div class="header">
           <div>
             <h1 class="title">VitalSync Connected Care Network</h1>
-            <div class="subtitle">${activePod?.name || activeProfile?.clinicName || (activeProfile?.display_name ? activeProfile.display_name + "'s Care Clinic" : 'VitalSync Care Clinic')} — Official Sales Mapping & Financial Payout Ledger</div>
+            <div class="subtitle">${activePod?.name || activePod?.doctor_name || 'VitalSync Care Clinic'} — Official Sales Mapping & Financial Payout Ledger</div>
           </div>
           <div style="text-align: right; font-size: 11px; color: #64748b;">
             <div><strong>Statement Date:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            <div><strong>Clinic Code:</strong> ${activePod?.clinicCode || activeProfile?.clinic_code || (activeProfile?.id ? 'MF-' + activeProfile.id.slice(0, 5).toUpperCase() : 'MF-CARE01')}</div>
+            <div><strong>Clinic Code:</strong> ${activePod?.clinicCode || 'MF-CARE01'}</div>
           </div>
         </div>
 
