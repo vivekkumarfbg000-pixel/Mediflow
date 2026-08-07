@@ -385,6 +385,7 @@ export class BillingService {
 
     let appts = load<Appointment[]>('saas_appointments', []);
     if (!isDemoAccount) {
+      const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -451,6 +452,7 @@ export class BillingService {
 
     let invoices = load<Invoice[]>('saas_invoices', []);
     if (!isDemoAccount) {
+      const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -458,6 +460,9 @@ export class BillingService {
       ]);
       const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
       invoices = invoices.filter(i => {
+        const pod = (i as any).podId || (i as any).pod_id;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (!pod && currentPodId) return false;
         const id = i.id || '';
         const pName = String((i as any).patientName || '').toLowerCase();
         const pId = String(i.patientId || '');
