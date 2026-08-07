@@ -545,7 +545,39 @@ export class PharmacyService {
   }
 
   static getInventoryHolds(): InventoryHold[] {
-    const holds = load<InventoryHold[]>('inventory_holds', []);
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(
+              parsed.isDemo === true ||
+              email === 'demo@mediflow.com' ||
+              email === 'doctor@mediflow.com' ||
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
+              name.includes('(demo)') ||
+              name.includes('(mock)')
+            );
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    let holds = load<InventoryHold[]>('inventory_holds', []);
+    if (!isDemoAccount) {
+      const currentPodId = getPodContext().podId;
+      holds = holds.filter(h => {
+        const pod = (h as any).podId || (h as any).pod_id;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (!pod && currentPodId) return false;
+        return true;
+      });
+    }
     return holds.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
   }
 
@@ -584,7 +616,40 @@ export class PharmacyService {
   }
 
   static getMedicineBills(): MedicineBill[] {
-    return load<MedicineBill[]>('medicine_bills', []);
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed) {
+            const email = String(parsed.email || '').toLowerCase();
+            const id = String(parsed.id || '').toLowerCase();
+            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
+            isDemoAccount = Boolean(
+              parsed.isDemo === true ||
+              email === 'demo@mediflow.com' ||
+              email === 'doctor@mediflow.com' ||
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
+              name.includes('(demo)') ||
+              name.includes('(mock)')
+            );
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    let bills = load<MedicineBill[]>('medicine_bills', []);
+    if (!isDemoAccount) {
+      const currentPodId = getPodContext().podId;
+      bills = bills.filter(b => {
+        const pod = (b as any).podId || (b as any).pod_id;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (!pod && currentPodId) return false;
+        return true;
+      });
+    }
+    return bills;
   }
 
   static saveMedicineBill(bill: MedicineBill): MedicineBill {
