@@ -591,7 +591,7 @@ export class BillingService {
   static createOTPackageInvoice(patientId: string, details: { procedure: string; eye: string; lensType: string; packageTier: string; totalAmount: number }): void {
     const apptId = crypto.randomUUID();
     const newInvoice: Invoice = {
-      id: `ot-inv-${Date.now()}`,
+      id: crypto.randomUUID(),
       appointmentId: apptId,
       patientId,
       type: 'ot' as any,
@@ -656,7 +656,7 @@ export class BillingService {
   static createGPProcedureInvoice(patientId: string, details: { procedure: string; room: string; totalAmount: number }): void {
     const apptId = crypto.randomUUID();
     const newInvoice: Invoice = {
-      id: `gp-proc-inv-${Date.now()}`,
+      id: crypto.randomUUID(),
       appointmentId: apptId,
       patientId,
       type: 'gp_procedure' as any,

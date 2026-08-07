@@ -895,11 +895,11 @@ export class WhatsAppService {
               '3': 'Evening Slot (5:00 PM - 6:30 PM)'
             };
             const selectedSlotText = slotMap[cleaned] || 'Morning Slot (10:00 AM - 11:30 AM)';
-            const apptId = `appt-virt-${Date.now()}`;
+            const apptId = crypto.randomUUID();
 
             // Auto-provision patient in local state & database if not existing yet
             if (!currentPat) {
-              const newPatId = `pat-${Date.now()}`;
+              const newPatId = crypto.randomUUID();
               currentPat = {
                 id: newPatId,
                 name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || `WhatsApp Patient (+91 ${phone.slice(-4)})`,
@@ -916,11 +916,13 @@ export class WhatsAppService {
               };
               PatientService.savePatient(currentPat!);
               try {
+                const podId = getPodContext().podId;
                 supabase.from('patient_registry').insert({
                   id: newPatId,
                   name: currentPat!.name,
                   phone: phone,
-                  registered_at: currentPat!.registeredAt
+                  registered_at: currentPat!.registeredAt,
+                  pod_id: (podId && podId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001') ? podId : null
                 }).then();
               } catch (_e) { /* ignore fallback error */ }
             }
@@ -1051,7 +1053,7 @@ export class WhatsAppService {
 
         case 'AWAITING_PAYMENT': {
           if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned.includes('paid') || cleaned.includes('done') || cleaned.includes('confirm') || cleaned === '1') {
-            const apptId = sessionData.pendingApptId || `appt-virt-${Date.now()}`;
+            const apptId = sessionData.pendingApptId || crypto.randomUUID();
             const invoiceId = sessionData.pendingInvoiceId;
             const patId = sessionData.bookingPatientId;
 
