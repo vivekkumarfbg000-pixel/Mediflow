@@ -1248,26 +1248,48 @@ async function triggerBotReplyPipeline(ctx: {
         }
         sessionData.bookingPatientId = fPatientId;
 
-        // Calculate next 4 dates
+        // Calculate IST time (UTC + 5:30) & Today booking cutoff
+        // Normal Today booking closes at 12:00 PM IST (12:00)
+        // Emergency SOS Today booking closes at 06:00 PM IST (18:00)
+        const now = new Date();
+        const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+        const istHour = istDate.getUTCHours();
+        const isSosBooking = sessionData.isSos === true || sessionData.consultationType === "sos";
+        const isTodayAvailable = isSosBooking ? (istHour < 18) : (istHour < 12);
+        const startOffset = isTodayAvailable ? 0 : 1;
+
         const dates: string[] = [];
         const displayDates: string[] = [];
         const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 0; i < 4; i++) {
+          const dayOffset = startOffset + i;
           const d = new Date();
-          d.setDate(d.getDate() + i);
+          d.setDate(d.getDate() + dayOffset);
           const yyyy = d.getFullYear();
           const mm = String(d.getMonth() + 1).padStart(2, "0");
           const dd = String(d.getDate()).padStart(2, "0");
           dates.push(`${yyyy}-${mm}-${dd}`);
-          displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                    : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
+
+          let label = `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+          if (dayOffset === 0) label = `Today (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})`;
+          else if (dayOffset === 1) label = `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})`;
+
+          displayDates.push(label);
         }
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
+
+        let cutoffNotice = "";
+        if (!isTodayAvailable) {
+          cutoffNotice = isSosBooking 
+            ? "\n\n*(Note: Emergency SOS bookings for Today closed at 06:00 PM IST)*"
+            : "\n\n*(Note: Normal checkup bookings for Today closed at 12:00 PM IST — Showing dates starting Tomorrow)*";
+        }
 
         nextState = "AWAITING_DATE_SELECTION";
-        replyText = `Aapka ${isVirtual ? "Virtual Video Call" : "Physical Clinic Visit"} select ho gaya hai. ${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
+        replyText = `Aapka ${isVirtual ? "Virtual Video Call" : "Physical Clinic Visit"} select ho gaya hai. ${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}${cutoffNotice}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else {
         replyText = "Please appointment booking ke liye 'VIRTUAL' ya 'PHYSICAL' reply kijiye.";
       }
@@ -1279,10 +1301,10 @@ async function triggerBotReplyPipeline(ctx: {
       const dateDisplayOptions = sessionData.dateDisplayOptions ?? [];
       
       if (isNaN(dateIdx) || dateIdx < 0 || dateIdx >= dateOptions.length) {
-        if (cleaned.includes("tomorrow") || cleaned.includes("kal") || cleaned.includes("1st")) dateIdx = 0;
-        else if (cleaned.includes("day 2") || cleaned.includes("2nd")) dateIdx = 1;
-        else if (cleaned.includes("day 3") || cleaned.includes("3rd")) dateIdx = 2;
-        else if (cleaned.includes("day 4") || cleaned.includes("4th")) dateIdx = 3;
+        if (cleaned.includes("today") || cleaned.includes("aaj")) dateIdx = 0;
+        else if (cleaned.includes("tomorrow") || cleaned.includes("kal")) dateIdx = sessionData.isTodayAvailable ? 1 : 0;
+        else if (cleaned.includes("day after") || cleaned.includes("parso")) dateIdx = sessionData.isTodayAvailable ? 2 : 1;
+        else if (cleaned.includes("day 4") || cleaned.includes("4th")) dateIdx = sessionData.isTodayAvailable ? 3 : 2;
       }
       
       if (dateIdx >= 0 && dateIdx < dateOptions.length) {
@@ -1292,20 +1314,32 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "AWAITING_SLOT_SELECTION";
         replyText = `Great! Aapne checkup ke liye *${dateDisplayOptions[dateIdx]}* select kiya hai. Ab aap checkup timing slot select kijiye:\n\n1️⃣ 10:00 AM - 12:00 PM (Morning)\n2️⃣ 02:00 PM - 04:00 PM (Afternoon)\n3️⃣ 06:00 PM - 08:00 PM (Evening)\n\nPlease option number (1, 2, ya 3) reply kijiye! ⏱️`;
       } else {
-        // Fallback generator
+        // Fallback generator evaluating IST cutoff
+        const now = new Date();
+        const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+        const istHour = istDate.getUTCHours();
+        const isSosBooking = sessionData.isSos === true || sessionData.consultationType === "sos";
+        const isTodayAvailable = isSosBooking ? (istHour < 18) : (istHour < 12);
+        const startOffset = isTodayAvailable ? 0 : 1;
+
         const dates: string[] = [];
         const displayDates: string[] = [];
         const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 1; i <= 4; i++) {
+        for (let i = 0; i < 4; i++) {
+          const dayOffset = startOffset + i;
           const d = new Date();
-          d.setDate(d.getDate() + i);
+          d.setDate(d.getDate() + dayOffset);
           const yyyy = d.getFullYear();
           const mm = String(d.getMonth() + 1).padStart(2, "0");
           const dd = String(d.getDate()).padStart(2, "0");
           dates.push(`${yyyy}-${mm}-${dd}`);
-          displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                    : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
+
+          let label = `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+          if (dayOffset === 0) label = `Today (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})`;
+          else if (dayOffset === 1) label = `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})`;
+
+          displayDates.push(label);
         }
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
@@ -1648,6 +1682,36 @@ async function triggerBotReplyPipeline(ctx: {
           }
         }
 
+        if (!isVerifiedPaid && apptId) {
+          const { data: appt } = await supabase
+            .from("appointments")
+            .select("status, payment_status")
+            .eq("id", apptId)
+            .maybeSingle();
+
+          if (appt?.payment_status === "cleared" || appt?.status === "scheduled" || appt?.status === "ready_for_consult") {
+            isVerifiedPaid = true;
+          }
+        }
+
+        const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
+        if (!isVerifiedPaid && bookingPatId) {
+          const { data: latestInv } = await supabase
+            .from("unified_invoices")
+            .select("id, payment_status, upi_qr_payload")
+            .eq("patient_id", bookingPatId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (latestInv?.payment_status === "cleared" || latestInv?.payment_status === "paid") {
+            isVerifiedPaid = true;
+          }
+          if (latestInv?.upi_qr_payload && !invoicePayloadUrl) {
+            invoicePayloadUrl = latestInv.upi_qr_payload;
+          }
+        }
+
         if (isVerifiedPaid) {
           if (apptId) {
             const isVirtualSlot = sessionData.consultationType === "virtual";
@@ -1667,16 +1731,17 @@ async function triggerBotReplyPipeline(ctx: {
           const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
 
           if (isSosBooking) {
-            replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-7654321098*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
+            replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-8986426029*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
           } else if (isVirtualSlot) {
             replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
           } else {
             replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) ya patient ID (${pCode}) show karein. Thank you for choosing VitalSync! 😊`;
           }
         } else {
-          // Payment NOT verified by Razorpay Webhook yet — block auto-confirmation!
-          const pUrl = invoicePayloadUrl || "https://securegw.paytm.in/theia/api/v1/showPaymentPage";
-          replyText = `⚠️ *Payment Verification Pending*\n\nAapka payment abhi Razorpay Gateway dwara confirm nahi hua hai. Please link par click karke payment complete karein:\n\n📱 *Razorpay Payment Gateway Link:*\n${pUrl}\n\nPayment complete hone par system Razorpay API Webhook se automatic verify kar dega! 🧾`;
+          const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
+          const fallbackUrl = invoiceId ? `${appBaseUrl}/pay/${invoiceId}` : `${appBaseUrl}/pay`;
+          const pUrl = (invoicePayloadUrl && !invoicePayloadUrl.includes("paytm.in")) ? invoicePayloadUrl : fallbackUrl;
+          replyText = `⚠️ *Payment Verification Pending*\n\nAapka payment abhi Gateway dwara confirm nahi hua hai. Please link par click karke payment complete karein:\n\n📱 *Instant Payment Gateway Link:*\n${pUrl}\n\nPayment complete hone par system Webhook se automatic verify kar dega! 🧾`;
         }
       } else if (cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned.includes("register") || cleaned.includes("onboard") || cleaned.includes("hello") || cleaned.includes("menu") || cleaned === "0") {
         nextState = "IDLE";
