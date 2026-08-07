@@ -770,12 +770,15 @@ export const CompounderDashboard: React.FC = () => {
 
     api.setActivePatient(registered);
     setBillingPatient(registered);
+    setSelectedApptPatient(registered);
+    setActiveTab('tokens');
+    setOpdSubTab('today_queue');
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Patient ${name} registered. Consultation fee (₹500.00) is pending at Payment Counter.`,
+        message: `Registered & Dispatched ${name} to Payment Counter. Please collect ₹500.00 (Cash / UPI QR) to confirm appointment.`,
         type: 'success',
-        title: 'Patient Registered — Payment Pending'
+        title: 'Patient Registered — Collect Payment'
       }
     }));
 
@@ -804,7 +807,9 @@ export const CompounderDashboard: React.FC = () => {
       // Auto-create pending appointment if not existing yet
       api.createGate1Consult(vitalsPatient.id, 'counter');
       setBillingPatient(vitalsPatient);
-      setActiveTab('invoice_generator');
+      setSelectedApptPatient(vitalsPatient);
+      setActiveTab('tokens');
+      setOpdSubTab('today_queue');
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           message: `⚠️ Consultation Fee Pending: Please collect ₹500.00 at the Payment Counter before dispatching ${vitalsPatient.name} to Doctor's chamber.`,
@@ -1279,14 +1284,17 @@ export const CompounderDashboard: React.FC = () => {
 
     // Refresh clinical lists
     setPatients(api.getPatients());
+    api.setActivePatient(registered);
     setBillingPatient(registered);
-    setActiveTab('invoice_generator');
+    setSelectedApptPatient(registered);
+    setActiveTab('tokens');
+    setOpdSubTab('today_queue');
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Registered & Assigned Patient: ${quickRegName.trim()} — Consultation fee (₹500.00) pending at Payment Counter.`,
+        message: `Registered & Dispatched: ${quickRegName.trim()} to Payment Counter. Please collect ₹500.00 (Cash / UPI QR).`,
         type: 'success',
-        title: 'Patient Registered — Payment Pending'
+        title: 'Patient Registered — Collect Payment'
       }
     }));
 
