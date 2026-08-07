@@ -1751,6 +1751,60 @@ async function triggerBotReplyPipeline(ctx: {
           }
         }
 
+        // Tier 6: VitalSync Pool Settlements table check
+        if (!isVerifiedPaid) {
+          const { data: settle } = await supabase
+            .from("vitalsync_pool_settlements")
+            .select("id, settlement_status")
+            .or(`invoice_id.eq.${invoiceId || 'none'},patient_id.eq.${bookingPatId || 'none'}`)
+            .limit(1)
+            .maybeSingle();
+
+          if (settle) {
+            isVerifiedPaid = true;
+          }
+        }
+
+        // Tier 7: Direct Fallback Query to Razorpay REST API
+        if (!isVerifiedPaid) {
+          try {
+            const rzpKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+            const rzpSecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+            if (rzpKeyId && rzpSecret) {
+              const basicAuth = "Basic " + btoa(`${rzpKeyId}:${rzpSecret}`);
+              const rzpRes = await fetch("https://api.razorpay.com/v1/payments?count=10", {
+                headers: { "Authorization": basicAuth }
+              });
+              if (rzpRes.ok) {
+                const rzpList = await rzpRes.json();
+                const items = rzpList.items || [];
+                const cleanUser10 = (patientPhone || "").replace(/\D/g, "").slice(-10);
+                const matchingPayment = items.find((p: any) => {
+                  const pContact = (p.contact || "").replace(/\D/g, "").slice(-10);
+                  const pInv = p.notes?.invoice_id || p.notes?.invoiceId || "";
+                  const matchPhone = cleanUser10 && pContact && pContact === cleanUser10;
+                  const matchInvoice = invoiceId && pInv && (pInv === invoiceId || pInv.includes(invoiceId.substring(0, 8)));
+                  return (p.status === "captured" || p.status === "authorized") && (matchPhone || matchInvoice);
+                });
+
+                if (matchingPayment) {
+                  console.log(`[Meta Webhook] 🟢 Found captured payment directly from Razorpay API: ${matchingPayment.id}`);
+                  isVerifiedPaid = true;
+
+                  if (invoiceId) {
+                    await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "razorpay" }).eq("id", invoiceId);
+                  }
+                  if (apptId) {
+                    await supabase.from("appointments").update({ status: "scheduled", payment_status: "cleared" }).eq("id", apptId);
+                  }
+                }
+              }
+            }
+          } catch (rzpCheckErr) {
+            console.warn("[Meta Webhook] Direct Razorpay API fallback check warning:", rzpCheckErr);
+          }
+        }
+
         if (isVerifiedPaid) {
           if (apptId) {
             const isVirtualSlot = sessionData.consultationType === "virtual";

@@ -100,15 +100,28 @@ serve(async (req) => {
       console.log(`[Razorpay Verify] 🟢 Signature verified successfully for invoice ${invoiceId}, payment ${razorpay_payment_id}`);
     }
 
-    // Retrieve invoice details from Supabase Postgres
-    const { data: invoice } = await supabase
+    // Retrieve invoice details from Supabase Postgres with resilient prefix lookup
+    let { data: invoice } = await supabase
       .from("unified_invoices")
       .select("*")
       .eq("id", invoiceId)
-      .single();
+      .maybeSingle();
 
+    if (!invoice) {
+      const cleanSnippet = invoiceId.replace("inv-wa-", "").substring(0, 8);
+      const { data: prefixInv } = await supabase
+        .from("unified_invoices")
+        .select("*")
+        .ilike("id", `${cleanSnippet}%`)
+        .limit(1)
+        .maybeSingle();
+      if (prefixInv) invoice = prefixInv;
+    }
+
+    const resolvedInvoiceId = invoice?.id || invoiceId;
     const amountPaid = invoice ? (Number(invoice.total_amount) || Number(invoice.totalAmount) || 515) : 515;
     const gatewayFee = Math.round(amountPaid * 0.02 * 100) / 100;
+    const patientId = invoice?.patient_id || invoice?.patientId;
 
     // 1. Mark invoice cleared in database
     await supabase
@@ -117,50 +130,51 @@ serve(async (req) => {
         payment_status: "cleared",
         payment_method: "razorpay"
       })
-      .eq("id", invoiceId);
+      .eq("id", resolvedInvoiceId);
 
     // 2. Insert into vitalsync_pool_settlements (with idempotency guard)
-    if (invoice) {
-      const { data: existingSettlement } = await supabase
-        .from("vitalsync_pool_settlements")
-        .select("id")
-        .eq("invoice_id", invoiceId)
-        .maybeSingle();
+    const { data: existingSettlement } = await supabase
+      .from("vitalsync_pool_settlements")
+      .select("id")
+      .eq("invoice_id", resolvedInvoiceId)
+      .maybeSingle();
 
-      if (!existingSettlement) {
-        const doctorFee = Number(invoice.doctor_fee) || 500;
-        const platformFee = Number(invoice.platform_fee) || 15;
-        const netProfit = Math.max(0, platformFee - gatewayFee);
+    if (!existingSettlement) {
+      const doctorFee = Number(invoice?.doctor_fee) || 500;
+      const platformFee = Number(invoice?.platform_fee) || 15;
+      const netProfit = Math.max(0, platformFee - gatewayFee);
 
-        await supabase.from("vitalsync_pool_settlements").insert({
-          invoice_id: invoiceId,
-          patient_id: invoice.patient_id || invoice.patientId,
-          total_amount: amountPaid,
-          doctor_share: doctorFee,
-          platform_share: platformFee,
-          gateway_fee: gatewayFee,
-          net_platform_profit: netProfit,
-          payment_method: "razorpay",
-          settlement_status: "completed",
-          created_at: new Date().toISOString()
-        });
-      } else {
-        console.log(`[Razorpay Verify] Settlement already exists for invoice ${invoiceId}, skipping duplicate insert.`);
-      }
+      await supabase.from("vitalsync_pool_settlements").insert({
+        invoice_id: resolvedInvoiceId,
+        patient_id: patientId || null,
+        total_amount: amountPaid,
+        doctor_share: doctorFee,
+        platform_share: platformFee,
+        gateway_fee: gatewayFee,
+        net_platform_profit: netProfit,
+        payment_method: "razorpay",
+        settlement_status: "completed",
+        created_at: new Date().toISOString()
+      });
+    }
 
-      // 3. Confirm appointment in database
-      if (invoice.appointment_id) {
-        await supabase.from("appointments").update({
-          status: "confirmed",
-          payment_status: "cleared"
-        }).eq("id", invoice.appointment_id);
-      }
+    // 3. Confirm appointment in database
+    if (invoice?.appointment_id) {
+      await supabase.from("appointments").update({
+        status: "scheduled",
+        payment_status: "cleared"
+      }).eq("id", invoice.appointment_id);
+    } else if (patientId) {
+      await supabase.from("appointments").update({
+        status: "scheduled",
+        payment_status: "cleared"
+      }).eq("patient_id", patientId);
     }
 
     return new Response(JSON.stringify({
       success: true,
       message: "Payment verified successfully",
-      invoiceId,
+      invoiceId: resolvedInvoiceId,
       paymentId: razorpay_payment_id
     }), {
       status: 200,

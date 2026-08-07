@@ -73,97 +73,122 @@ serve(async (req) => {
     const event = payload.event;
     if (event === "payment.captured" || event === "order.paid") {
       const payment = payload.payload?.payment?.entity || {};
-      const notes = payment.notes || {};
-      const invoiceId = notes.invoice_id;
+      const order = payload.payload?.order?.entity || {};
+      const notes = payment.notes || order.notes || {};
+      const invoiceId = notes.invoice_id || notes.invoiceId || "";
+      const rawContact = payment.contact || notes.phone || "";
+      const clean10 = rawContact.replace(/\D/g, "").slice(-10);
 
+      console.log(`[Razorpay Webhook] 🟢 Processing event ${event} for payment ${payment.id || order.id}, invoice: ${invoiceId}`);
+
+      // Fetch invoice details with prefix fallback
+      let invoice = null;
       if (invoiceId) {
-        console.log(`[Razorpay Webhook] 🟢 Clearing invoice ${invoiceId} for captured payment ${payment.id}`);
-
-        // Fetch invoice details
-        const { data: invoice } = await supabase
+        const { data: exactInv } = await supabase
           .from("unified_invoices")
           .select("*")
           .eq("id", invoiceId)
-          .single();
+          .maybeSingle();
 
-        const amountPaid = (payment.amount || 51500) / 100;
-        const gatewayFee = (payment.fee || Math.round(amountPaid * 0.02 * 100)) / 100;
+        if (exactInv) {
+          invoice = exactInv;
+        } else {
+          const cleanSnippet = invoiceId.replace("inv-wa-", "").substring(0, 8);
+          const { data: prefixInv } = await supabase
+            .from("unified_invoices")
+            .select("*")
+            .ilike("id", `${cleanSnippet}%`)
+            .limit(1)
+            .maybeSingle();
+          if (prefixInv) invoice = prefixInv;
+        }
+      }
 
-        // 1. Mark invoice cleared
+      const resolvedInvoiceId = invoice?.id || invoiceId;
+      const amountPaid = (payment.amount || 51500) / 100;
+      const gatewayFee = (payment.fee || Math.round(amountPaid * 0.02 * 100)) / 100;
+      const targetPatId = invoice?.patient_id || invoice?.patientId;
+
+      // 1. Mark invoice cleared in database
+      if (resolvedInvoiceId) {
         await supabase
           .from("unified_invoices")
           .update({
             payment_status: "cleared",
             payment_method: "razorpay"
           })
-          .eq("id", invoiceId);
+          .eq("id", resolvedInvoiceId);
+      }
 
-        // 2. Insert into vitalsync_pool_settlements (with idempotency guard)
-        if (invoice) {
-          const { data: existingSettlement } = await supabase
-            .from("vitalsync_pool_settlements")
-            .select("id")
-            .eq("invoice_id", invoiceId)
-            .maybeSingle();
+      // 2. Insert into vitalsync_pool_settlements (with idempotency guard)
+      if (resolvedInvoiceId) {
+        const { data: existingSettlement } = await supabase
+          .from("vitalsync_pool_settlements")
+          .select("id")
+          .eq("invoice_id", resolvedInvoiceId)
+          .maybeSingle();
 
-          if (!existingSettlement) {
-            const doctorFee = Number(invoice.doctor_fee) || 500;
-            const platformFee = Number(invoice.platform_fee) || 15;
-            const netProfit = Math.max(0, platformFee - gatewayFee);
+        if (!existingSettlement) {
+          const doctorFee = Number(invoice?.doctor_fee) || 500;
+          const platformFee = Number(invoice?.platform_fee) || 15;
+          const netProfit = Math.max(0, platformFee - gatewayFee);
 
-            await supabase.from("vitalsync_pool_settlements").insert({
-              invoice_id: invoiceId,
-              patient_id: invoice.patient_id || invoice.patientId,
-              total_amount: amountPaid,
-              doctor_share: doctorFee,
-              platform_share: platformFee,
-              gateway_fee: gatewayFee,
-              net_platform_profit: netProfit,
-              payment_method: "razorpay",
-              settlement_status: "completed",
-              created_at: new Date().toISOString()
-            });
-          } else {
-            console.log(`[Razorpay Webhook] Settlement already exists for invoice ${invoiceId}, skipping duplicate insert.`);
-          }
+          await supabase.from("vitalsync_pool_settlements").insert({
+            invoice_id: resolvedInvoiceId,
+            patient_id: targetPatId || null,
+            total_amount: amountPaid,
+            doctor_share: doctorFee,
+            platform_share: platformFee,
+            gateway_fee: gatewayFee,
+            net_platform_profit: netProfit,
+            payment_method: "razorpay",
+            settlement_status: "completed",
+            created_at: new Date().toISOString()
+          });
+        }
+      }
 
-          // 3. Confirm appointment in database & assign token
-          if (invoice.appointment_id) {
-            await supabase.from("appointments").update({
-              status: "confirmed",
-              payment_status: "cleared"
-            }).eq("id", invoice.appointment_id);
-          }
+      // 3. Confirm appointment in database & assign token
+      if (invoice?.appointment_id) {
+        await supabase.from("appointments").update({
+          status: "scheduled",
+          payment_status: "cleared"
+        }).eq("id", invoice.appointment_id);
+      } else if (targetPatId) {
+        await supabase.from("appointments").update({
+          status: "scheduled",
+          payment_status: "cleared"
+        }).eq("patient_id", targetPatId);
+      } else if (clean10) {
+        await supabase.from("appointments").update({
+          status: "scheduled",
+          payment_status: "cleared"
+        }).eq("patient_phone", clean10);
+      }
 
-          // 4. Update WhatsApp session state & send confirmation message via Edge Notifier
-          const patientId = invoice.patient_id || invoice.patientId;
-          const { data: patient } = await supabase
-            .from("patient_registry")
-            .select("phone, name")
-            .eq("id", patientId)
-            .single();
+      // 4. Update WhatsApp session if active for this patient
+      if (clean10) {
+        const { data: sess } = await supabase
+          .from("whatsapp_sessions")
+          .select("id, session_data")
+          .eq("patient_phone", clean10)
+          .maybeSingle();
 
-          if (patient?.phone) {
-            const tokenCode = (invoice.appointment_id || invoiceId).substring(0, 4).toUpperCase();
-            const confirmMsg = `🎉 *RAZORPAY PAYMENT VERIFIED & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name || 'Patient'}!\n • Payment Status: Cleared (Razorpay)\n • Token Number: #${tokenCode}\n • Amount Paid: ₹${amountPaid.toFixed(2)}\n\nPhysical visit token is active at Patna Clinic counter. Thank you for choosing VitalSync! 🩺`;
-
-            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-dispatch`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
-              },
-              body: JSON.stringify({
-                phone: patient.phone,
-                message: confirmMsg
-              })
-            }).catch(err => console.warn("[Razorpay Webhook] WhatsApp dispatch notification error:", err));
-          }
+        if (sess) {
+          const updatedData = {
+            ...(sess.session_data || {}),
+            isVerifiedPaid: true,
+            pendingInvoiceId: resolvedInvoiceId
+          };
+          await supabase
+            .from("whatsapp_sessions")
+            .update({ session_data: updatedData })
+            .eq("id", sess.id);
         }
       }
     }
 
-    return new Response(JSON.stringify({ status: "success" }), {
+    return new Response(JSON.stringify({ status: "ok" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
