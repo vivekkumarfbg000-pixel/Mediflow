@@ -42,6 +42,7 @@ export class BillingService {
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
+        if (!pod && currentPodId) return false;
         const id = i.id || '';
         const pName = String(i.patientName || '').toLowerCase();
         const pId = String(i.patientId || '');
@@ -256,6 +257,7 @@ export class BillingService {
       ledgers = ledgers.filter(l => {
         const pod = (l as any).podId || (l as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
+        if (!pod && currentPodId) return false;
         const id = l.id || '';
         const pName = String(l.patientName || '').toLowerCase();
         const pId = String((l as any).patientId || '');
@@ -394,6 +396,9 @@ export class BillingService {
         'vikram prasad', 'vikram verma'
       ]);
       appts = appts.filter(a => {
+        const pod = (a as any).podId || (a as any).pod_id;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (!pod && currentPodId) return false;
         const id = a.id || '';
         const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase().trim();
         const pId = String(a.patientId || '');
