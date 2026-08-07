@@ -768,11 +768,15 @@ export const CompounderDashboard: React.FC = () => {
     // Auto-create consultation appointment & invoice (₹500.00) in status 'pending_payment'
     api.createGate1Consult(registered.id, 'counter');
 
+    // Update patients state & sync across components
+    setPatients(api.getPatients());
     api.setActivePatient(registered);
     setBillingPatient(registered);
     setSelectedApptPatient(registered);
     setActiveTab('tokens');
     setOpdSubTab('today_queue');
+    syncData();
+    fetchLiveAppointments();
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
