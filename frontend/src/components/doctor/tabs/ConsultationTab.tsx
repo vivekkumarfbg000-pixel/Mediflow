@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
+import { BillingService } from '../../../services/billingService';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
 import { CheckCircle2 } from 'lucide-react';
 import { useClinic } from '../../../context/ClinicContext';
@@ -913,8 +914,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             const todayStr = new Date().toISOString().split('T')[0];
             const invoices = BillingService.getInvoices();
             const paidInvoicePatientIds = invoices
-              .filter(i => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
-              .map(i => i.patientId);
+              .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
+              .map((i: any) => i.patientId);
             const paidPatientIds = new Set([
               ...appointments
                 .filter(a => a.status !== 'pending_payment')
