@@ -1116,7 +1116,8 @@ export default function App() {
         'patients', 'mediflow_patients', 'patient_registry', 'mediflow_patient_registry',
         'saas_appointments', 'mediflow_saas_appointments', 'saas_invoices',
         'saas_financial_ledgers', 'mediflow_unified_invoices', 'mediflow_financial_ledgers',
-        'financial_ledgers', 'lab_requisitions', 'medicine_bills', 'unified_invoices'
+        'financial_ledgers', 'lab_requisitions', 'medicine_bills', 'unified_invoices',
+        'whatsapp_sessions', 'pathology_reports', 'inventory_holds', 'reagents'
       ];
       demoKeys.forEach(k => {
         try {
