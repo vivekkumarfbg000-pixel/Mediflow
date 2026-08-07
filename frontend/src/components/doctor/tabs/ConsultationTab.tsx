@@ -911,11 +911,16 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           {/* 4 Queue Filter Tabs (Awaiting Consultation, In Chamber, Today Registered, Completed Care Loop) */}
           {(() => {
             const todayStr = new Date().toISOString().split('T')[0];
-            const paidPatientIds = new Set(
-              appointments
+            const invoices = BillingService.getInvoices();
+            const paidInvoicePatientIds = invoices
+              .filter(i => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
+              .map(i => i.patientId);
+            const paidPatientIds = new Set([
+              ...appointments
                 .filter(a => a.status !== 'pending_payment')
-                .map(a => a.patientId || (a as any).patient_id)
-            );
+                .map(a => a.patientId || (a as any).patient_id),
+              ...paidInvoicePatientIds
+            ]);
 
             const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus));
             const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation');
