@@ -899,11 +899,12 @@ export const BillHubTab: React.FC = () => {
         consultInvoice.paymentMethod = paymentMethod;
         BillingService.saveInvoice(consultInvoice);
 
-        // Confirm appointment status
+        // Confirm appointment status — MUST set payment_status = 'cleared' to enforce payment gate (USP 3)
         const appts = BillingService.getAppointments();
         const targetAppt = appts.find(a => a.id === consultInvoice.appointmentId);
         if (targetAppt) {
           targetAppt.status = 'confirmed';
+          targetAppt.payment_status = 'cleared';
           BillingService.saveAppointments(appts);
         }
       }

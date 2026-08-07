@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { tryAcquirePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
 
 // =============================================================================
 // Mediflow — razorpay-webhook Edge Function
@@ -109,6 +110,20 @@ serve(async (req) => {
       const amountPaid = (payment.amount || 51500) / 100;
       const gatewayFee = (payment.fee || Math.round(amountPaid * 0.02 * 100)) / 100;
       const targetPatId = invoice?.patient_id || invoice?.patientId;
+
+      // IDEMPOTENCY: Acquire advisory lock to prevent duplicate processing of same invoice
+      // across concurrent webhook deliveries (Razorpay retries, Meta + Razorpay race)
+      if (resolvedInvoiceId) {
+        const lockResult = await tryAcquirePaymentLock(supabase, getInvoiceLockKey(resolvedInvoiceId));
+        if (!lockResult.acquired) {
+          console.log(`[Razorpay Webhook] ⏭️ Skipping duplicate processing for invoice ${resolvedInvoiceId} — lock held by another transaction`);
+          return new Response(JSON.stringify({ status: "ok", skipped: true, reason: "lock_held" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        console.log(`[Razorpay Webhook] 🔒 Lock acquired for invoice ${resolvedInvoiceId}`);
+      }
 
       // 1. Mark invoice cleared in database
       if (resolvedInvoiceId) {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { tryAcquirePaymentLock, getInvoiceLockKey, getAppointmentLockKey } from "../_shared/payment-lock.ts";
 
 // System-wide environment variables loaded from Supabase Vault/Secrets
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -1686,12 +1687,18 @@ async function triggerBotReplyPipeline(ctx: {
           basicAuth ? fetch("https://api.razorpay.com/v1/payments?count=10", { headers: { "Authorization": basicAuth } }).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null)
         ]);
 
-        if (exactInvRes?.data?.payment_status === "cleared" || exactInvRes?.data?.payment_status === "paid") isVerifiedPaid = true;
-        if (exactInvRes?.data?.upi_qr_payload) invoicePayloadUrl = exactInvRes.data.upi_qr_payload;
+        // SECURE: Only trust explicit payment_status fields, NOT workflow status
+        // appointment.status = "scheduled"/"ready_for_consult" are workflow states, NOT payment proof
+        const exactInvPaymentCleared = exactInvRes?.data?.payment_status === "cleared" || exactInvRes?.data?.payment_status === "paid";
+        const latestInvPaymentCleared = latestInvRes?.data?.payment_status === "cleared" || latestInvRes?.data?.payment_status === "paid";
+        const apptPaymentCleared = apptRes?.data?.payment_status === "cleared" || apptRes?.data?.payment_status === "paid";
+        const recentApptPaymentCleared = recentApptRes?.data?.payment_status === "cleared" || recentApptRes?.data?.payment_status === "paid";
 
-        if (apptRes?.data?.payment_status === "cleared" || apptRes?.data?.status === "scheduled" || apptRes?.data?.status === "ready_for_consult") isVerifiedPaid = true;
-        if (latestInvRes?.data?.payment_status === "cleared" || latestInvRes?.data?.payment_status === "paid") isVerifiedPaid = true;
-        if (recentApptRes?.data?.payment_status === "cleared" || recentApptRes?.data?.status === "scheduled" || recentApptRes?.data?.status === "ready_for_consult") isVerifiedPaid = true;
+        if (exactInvPaymentCleared || latestInvPaymentCleared || apptPaymentCleared || recentApptPaymentCleared) {
+          isVerifiedPaid = true;
+        }
+
+        if (exactInvRes?.data?.upi_qr_payload) invoicePayloadUrl = exactInvRes.data.upi_qr_payload;
 
         // Check live Razorpay API response
         if (!isVerifiedPaid && rzpPaymentsRes?.items) {
@@ -1718,7 +1725,22 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (isVerifiedPaid) {
-          if (apptId) {
+        // IDEMPOTENCY: Acquire advisory lock before updating payment status
+        // Prevents race between Meta Webhook verification and Razorpay Webhook
+        const lockKey = invoiceId ? getInvoiceLockKey(invoiceId) : (apptId ? getAppointmentLockKey(apptId) : '');
+        let lockAcquired = false;
+        if (lockKey) {
+          const lockResult = await tryAcquirePaymentLock(supabase, lockKey);
+          lockAcquired = lockResult.acquired;
+          if (!lockAcquired) {
+            console.log(`[Meta Webhook] ⏭️ Payment status update skipped for ${lockKey} — lock held by another transaction (likely Razorpay webhook)`);
+            // Still proceed to send confirmation to user, but don't double-update DB
+          } else {
+            console.log(`[Meta Webhook] 🔒 Lock acquired for payment status update: ${lockKey}`);
+          }
+        }
+
+        if (apptId) {
             const isVirtualSlot = sessionData.consultationType === "virtual";
             const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
             await supabase

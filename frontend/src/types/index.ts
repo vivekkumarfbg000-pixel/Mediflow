@@ -450,6 +450,7 @@ export interface Appointment {
   virtual_meeting_url?: string;
   source?: string;
   fee_status?: string;
+  payment_status?: 'pending' | 'cleared' | 'paid' | string;
   amount?: number;
 }
 
