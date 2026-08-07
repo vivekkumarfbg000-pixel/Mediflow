@@ -44,6 +44,7 @@ import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
 import { BrandMark } from './components/shared/BrandMark';
 import { WhatsAppPaymentPage } from './pages/WhatsAppPaymentPage';
+import { LegalPoliciesPage } from './pages/LegalPoliciesPage';
 import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
@@ -475,12 +476,21 @@ const setCrossDomainCookie = (active: boolean) => {
 };
 
 export default function App() {
-  // Public route interceptor for instant WhatsApp payment portal (/pay/:invoiceId or ?inv=...)
+  // Public route interceptor for payment portal and legal policy compliance pages (/terms, /privacy, /refund-policy, /contact-us)
   if (typeof window !== 'undefined') {
-    const pathName = window.location.pathname;
+    const pathName = window.location.pathname.toLowerCase();
     const searchParams = new URLSearchParams(window.location.search);
     if (pathName.startsWith('/pay') || (searchParams.has('inv') && !searchParams.has('tab'))) {
       return <WhatsAppPaymentPage />;
+    }
+    if (
+      pathName.startsWith('/terms') || 
+      pathName.startsWith('/privacy') || 
+      pathName.startsWith('/refund') || 
+      pathName.startsWith('/cancellation') || 
+      pathName.startsWith('/contact')
+    ) {
+      return <LegalPoliciesPage />;
     }
   }
 

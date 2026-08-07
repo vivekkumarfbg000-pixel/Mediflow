@@ -399,7 +399,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                   href={`upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${amountRupees.toFixed(2)}&cu=INR&tn=VS-APPT-${invoiceId.substring(0,8)}`}
                   className="py-2.5 px-2 rounded-xl bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/30 text-purple-300 font-bold text-[11px] flex flex-col items-center justify-center gap-1 transition-all active:scale-95 text-center"
                 >
-                  <span className="text-xs font-extrabold">📱 PhonePe</span>
+                  <span className="text-xs font-extrabold">📱 Dynamic UPI</span>
                   <span className="text-[9px] text-purple-400/80 font-normal">Direct App</span>
                 </a>
                 <a

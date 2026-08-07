@@ -1544,7 +1544,10 @@ async function triggerBotReplyPipeline(ctx: {
               });
               if (rzpRes.ok) {
                 const rzpData = await rzpRes.json();
-                console.log("[Meta Webhook] Created Razorpay Payment Link:", rzpData.id);
+                console.log("[Meta Webhook] Created Razorpay Payment Link:", rzpData.id, rzpData.short_url);
+                if (rzpData.short_url) {
+                  paymentGatewayUrl = rzpData.short_url;
+                }
               } else {
                 const errBody = await rzpRes.text();
                 console.error("[Meta Webhook] Razorpay API Error response:", errBody);
@@ -1554,8 +1557,10 @@ async function triggerBotReplyPipeline(ctx: {
             }
           }
 
-          // Direct VitalSync Payment Bridge URL (bypasses generic Razorpay mobile number entry screen)
-          paymentGatewayUrl = `https://app.vitalsync.in/pay/${newInvoiceId}?phone=${cleanPhone10}`;
+          if (!paymentGatewayUrl) {
+            const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
+            paymentGatewayUrl = `${appBaseUrl}/pay/${newInvoiceId}?phone=${cleanPhone10}`;
+          }
 
           // Insert Appointment Row
           try {
@@ -1605,8 +1610,8 @@ async function triggerBotReplyPipeline(ctx: {
           sessionData.pendingInvoiceId = newInvoiceId;
           sessionData.isSos = false;
 
-          const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync-mediflow.vercel.app";
-          const portalPaymentUrl = `${appBaseUrl}/pay/${newInvoiceId}`;
+          const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
+          const portalPaymentUrl = paymentGatewayUrl || `${appBaseUrl}/pay/${newInvoiceId}`;
 
           replyText = `📅 *Checkup Slot Selected!*\n\n${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai.\n\n*Fee Breakdown:*\n• Doctor Consultation Fee: ₹${doctorFee.toFixed(2)}\n• Online Convenience Platform Fee (3%): ₹${platformFee.toFixed(2)}\n---------------------------------------\n*Total Amount Payable: ₹${totalAmount.toFixed(2)}*${appliedDiscountNote}\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${portalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke token issue kar dega! 📑`;
         }
@@ -2004,7 +2009,10 @@ async function triggerBotReplyPipeline(ctx: {
             });
             if (rzpRes.ok) {
               const rzpData = await rzpRes.json();
-              console.log("[Meta Webhook] Created Razorpay SOS Payment Link:", rzpData.id);
+              console.log("[Meta Webhook] Created Razorpay SOS Payment Link:", rzpData.id, rzpData.short_url);
+              if (rzpData.short_url) {
+                paymentGatewayUrlSos = rzpData.short_url;
+              }
             } else {
               const errBody = await rzpRes.text();
               console.error("[Meta Webhook] Razorpay SOS API Error response:", errBody);
@@ -2014,7 +2022,10 @@ async function triggerBotReplyPipeline(ctx: {
           }
         }
 
-        paymentGatewayUrlSos = `https://app.vitalsync.in/pay/${sosInvoiceId}?phone=${cleanPhone10Sos}`;
+        if (!paymentGatewayUrlSos) {
+          const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
+          paymentGatewayUrlSos = `${appBaseUrl}/pay/${sosInvoiceId}?phone=${cleanPhone10Sos}`;
+        }
 
         try {
           const sosPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
@@ -2052,8 +2063,8 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.consultationType = "sos";
         nextState = "AWAITING_PAYMENT";
 
-        const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync-mediflow.vercel.app";
-        const sosPortalPaymentUrl = `${appBaseUrl}/pay/${sosInvoiceId}`;
+        const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
+        const sosPortalPaymentUrl = paymentGatewayUrlSos || `${appBaseUrl}/pay/${sosInvoiceId}`;
 
         replyText = `🚨 *EMERGENCY SOS CONSULT ROUTING* 🚨\n\n${resolvedDoctorName} ke queue mein top *PRIORITY #1* position reserve karne ke liye emergency fee pay karein:\n\n• Doctor Consult Fee: ₹${doctorSosFee.toFixed(2)} (Includes 20% Doctor Priority Charge)\n• VitalSync Platform Fee (+3%): ₹${platformFeeSos.toFixed(2)}\n---------------------------------------\n*Total Amount Payable*: ₹${totalSosFee.toFixed(2)}\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${sosPortalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke case Priority #1 par active kar dega! 🟢`;
 

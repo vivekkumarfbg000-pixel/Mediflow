@@ -404,7 +404,7 @@ export class WhatsAppService {
                 // Strict Security: Unpaid appointments remain pending. Do NOT auto-clear on unverified user text assertion.
                 nextState = 'AWAITING_PAYMENT';
                 const pendingAmt = pendingInvoices[0]?.totalAmount || 500;
-                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Bank/PhonePe/Gateway.\n\n• *Send UPI UTR*: Reply with your 12-digit UTR number (e.g. \`420198421092\`) or screenshot.\n• *Counter Cash/UPI*: Present UTR to compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after sending UTR. 🩺`;
+                replyMessage = `⏳ *Payment Verification Pending*\n\nPayment confirmation for ₹${pendingAmt.toFixed(2)} is not received yet from Bank/Payment Gateway.\n\n• *Send UPI UTR*: Reply with your 12-digit UTR number (e.g. \`420198421092\`) or screenshot.\n• *Counter Cash/UPI*: Present UTR to compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after sending UTR. 🩺`;
               }
             } else {
               nextState = 'COMPLETED';
@@ -1035,9 +1035,9 @@ export class WhatsAppService {
             const clinicName = WhatsAppService.getDynamicClinicName();
             const cleanPhone10 = (activePat.phone || '').replace(/\D/g, '').slice(-10);
             const targetInvoiceId = sessionData.pendingInvoiceId || `inv-wa-${apptId.substring(0, 8)}`;
-            const razorpayPayLink = `https://app.vitalsync.in/pay/${targetInvoiceId}?phone=${cleanPhone10}`;
+            const razorpayPayLink = `https://vitalsync.in/pay/${targetInvoiceId}?phone=${cleanPhone10}`;
             nextState = 'AWAITING_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (Tomorrow) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / PhonePe / Paytm / BHIM):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (Tomorrow) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / Paytm / BHIM / Any UPI):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
@@ -1089,7 +1089,7 @@ export class WhatsAppService {
             replyMessage = `🟢 *APPOINTMENT CONFIRMED & PAID!* \n\n${docName} ke saath aapka checkup slot confirm ho gaya hai! 📑\n\n• Token Number: *#TK-001*\n• Status: *Confirmed & Scheduled* 🟢\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nDoctor EMR aur Compounder Desk par aapki appointment live sync ho chuki hai! Thank you! 😊`;
           } else {
             const invId = sessionData.pendingInvoiceId || `inv-wa-${Date.now()}`;
-            const razorpayPayLink = `https://app.vitalsync.in/pay/${invId}`;
+            const razorpayPayLink = `https://vitalsync.in/pay/${invId}`;
             replyMessage = `Payment verification pending. Please Razorpay UPI payment complete karke *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye.\n\nPayment Link: ${razorpayPayLink}`;
           }
         }

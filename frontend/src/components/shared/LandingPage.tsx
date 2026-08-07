@@ -775,6 +775,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </button>
             </div>
 
+            <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-500 font-medium">
+              <a href="/terms" className="hover:text-cyan-600 transition-colors">Terms & Conditions</a>
+              <span>•</span>
+              <a href="/privacy" className="hover:text-cyan-600 transition-colors">Privacy Policy</a>
+              <span>•</span>
+              <a href="/refund-policy" className="hover:text-cyan-600 transition-colors">Refund Policy</a>
+              <span>•</span>
+              <a href="/contact-us" className="hover:text-cyan-600 transition-colors">Contact Us</a>
+            </div>
+
             <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-450">
               <span>© 2026 VitalSync Care Connected Ecosystem</span>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-200 hidden sm:inline" />
