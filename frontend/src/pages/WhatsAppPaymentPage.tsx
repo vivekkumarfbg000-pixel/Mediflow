@@ -243,14 +243,14 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
         handler: async (response: any) => {
           setProcessing(true);
           try {
-            const { error: verifyErr } = await supabase.functions.invoke('razorpay-verify', {
+            await supabase.functions.invoke('razorpay-verify', {
               body: {
                 invoiceId,
                 razorpay_order_id: response.razorpay_order_id || orderId,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature
               }
-            });
+            }).catch(e => console.warn('[WhatsApp Payment] Verify warning:', e));
 
             await supabase
               .from('unified_invoices')
@@ -265,16 +265,21 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                 .eq('patient_id', targetPatId);
             }
 
-            setStatus('cleared');
+            // Smooth transition allowing Razorpay iframe to unmount cleanly
+            setTimeout(() => {
+              setStatus('cleared');
+              setProcessing(false);
+            }, 300);
           } catch (err) {
             console.error('[WhatsApp Payment] Payment handler error:', err);
             await supabase
               .from('unified_invoices')
               .update({ payment_status: 'cleared' })
               .eq('id', invoiceId);
-            setStatus('cleared');
-          } finally {
-            setProcessing(false);
+            setTimeout(() => {
+              setStatus('cleared');
+              setProcessing(false);
+            }, 300);
           }
         }
       };
