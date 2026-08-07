@@ -2274,17 +2274,21 @@ export const CompounderDashboard: React.FC = () => {
                                   const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
                                   
                                   // Non-blocking background sync to Supabase appointments table
-                                  try {
-                                    const podCtx = (() => { try { const r = localStorage.getItem('mediflow_active_pod'); return r ? JSON.parse(r) : null; } catch { return null; } })();
-                                    supabase.from('appointments').insert({
-                                      id: newInvoice?.appointmentId || crypto.randomUUID(),
-                                      patient_id: selectedApptPatient.id.length === 36 ? selectedApptPatient.id : null,
-                                      doctor_id: podCtx?.id || podCtx?.doctorId || null,
-                                      status: 'confirmed',
-                                      created_at: new Date().toISOString(),
-                                      token_number: assignedToken
-                                    }).then(() => {}).catch(err => console.warn('Supabase appt insert note:', err));
-                                  } catch (_dbErr) { /* ignore */ }
+                                  (async () => {
+                                    try {
+                                      const podCtx = (() => { try { const r = localStorage.getItem('mediflow_active_pod'); return r ? JSON.parse(r) : null; } catch { return null; } })();
+                                      await supabase.from('appointments').insert({
+                                        id: newInvoice?.appointmentId || crypto.randomUUID(),
+                                        patient_id: selectedApptPatient.id.length === 36 ? selectedApptPatient.id : null,
+                                        doctor_id: podCtx?.id || podCtx?.doctorId || null,
+                                        status: 'confirmed',
+                                        created_at: new Date().toISOString(),
+                                        token_number: assignedToken
+                                      });
+                                    } catch (err) {
+                                      console.warn('Supabase appt insert note:', err);
+                                    }
+                                  })();
 
                                   api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
 
