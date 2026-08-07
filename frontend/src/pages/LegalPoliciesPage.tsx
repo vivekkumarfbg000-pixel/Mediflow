@@ -307,7 +307,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span> 5. Grievance Officer & Contact
                 </h4>
                 <p>
-                  In accordance with the Information Technology Act 2000 and rules made thereunder, questions regarding data protection can be addressed to our Privacy Officer at <strong>privacy@vitalsync.in</strong> or phone <strong>+91 9608032073</strong>.
+                  In accordance with the Information Technology Act 2000 and rules made thereunder, questions regarding data protection can be addressed to our Privacy Officer at <strong>privacy@vitalsync.in</strong> or phone <strong>+91 8986426029</strong>.
                 </p>
               </section>
             </div>
@@ -386,7 +386,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   <span className="w-2 h-2 rounded-full bg-amber-400"></span> 4. How to Request a Refund
                 </h4>
                 <p>
-                  To request a refund, please send your <strong>Invoice ID</strong> or <strong>Token Number</strong> along with the registered mobile number to <strong>refunds@vitalsync.in</strong> or WhatsApp support at <strong>+91 9608032073</strong>. Our billing desk reviews and clears verified refund requests within 24 hours.
+                  To request a refund, please send your <strong>Invoice ID</strong> or <strong>Token Number</strong> along with the registered mobile number to <strong>refunds@vitalsync.in</strong> or WhatsApp support at <strong>+91 8986426029</strong>. Our billing desk reviews and clears verified refund requests within 24 hours.
                 </p>
               </section>
             </div>
@@ -424,8 +424,8 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                     <h4 className="text-base font-bold text-white">Helpline & Support Desk</h4>
                   </div>
                   <div className="space-y-1 text-xs">
-                    <p className="text-sm font-semibold text-slate-200">Phone: +91 9608032073</p>
-                    <p className="text-slate-400">WhatsApp Desk: +91 9608032073</p>
+                    <p className="text-sm font-semibold text-slate-200">Phone: +91 8986426029</p>
+                    <p className="text-slate-400">WhatsApp Desk: +91 8986426029</p>
                     <p className="text-slate-400">Operating Hours: Mon - Sat (09:00 AM - 08:00 PM IST)</p>
                   </div>
                 </div>
@@ -461,7 +461,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   <span>Need instant verification assistance for Merchant Support Desk?</span>
                 </div>
                 <button
-                  onClick={() => window.location.href = 'tel:+919608032073'}
+                  onClick={() => window.location.href = 'tel:+918986426029'}
                   className="px-3.5 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <PhoneCall className="h-3.5 w-3.5" />
