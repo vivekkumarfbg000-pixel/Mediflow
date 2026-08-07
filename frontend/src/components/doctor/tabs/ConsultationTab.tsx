@@ -135,7 +135,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   handleSaveEncounter,
   handleLaunchVideoConsult
 }) => {
-  const { activePod, activeDoctorProfile } = useClinic();
+  const { activePod } = useClinic();
   const [appointments, setAppointments] = useState<Appointment[]>(api.getAppointments());
   const [aiHistory, setAiHistory] = useState<any[]>([]);
 
@@ -545,8 +545,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <p>Connected Care Clinic Network</p>
             </div>
             <div class="doc-info">
-              <strong>${activeDoctorProfile?.display_name || activePod?.doctor_name || 'Dr. Practitioner'}</strong><br/>
-              ${activeDoctorProfile?.specialization || 'Clinical Care Specialist'}<br/>
+              <strong>${activePod?.doctor_name || activePod?.name || 'Dr. Practitioner'}</strong><br/>
+              ${activePod?.specialization || 'Clinical Care Specialist'}<br/>
               ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'MF-CARE01'})<br/>
               Date: ${new Date().toLocaleDateString('en-IN')}
             </div>
