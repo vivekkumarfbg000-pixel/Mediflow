@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { tryAcquirePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
 
 // =============================================================================
 // Mediflow — cashfree-webhook Edge Function
@@ -8,12 +10,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // Updates unified_invoices and dispatches transactional WhatsApp alerts.
 // =============================================================================
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -78,53 +77,21 @@ serve(async (req) => {
 
     console.log("[cashfree-webhook] Signature verified successfully ✅");
 
-    // In-memory cache for processed event IDs (with TTL cleanup)
-const processedEventCache = new Map<string, number>();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-function isEventProcessed(eventId: string): boolean {
-  const now = Date.now();
-  const cached = processedEventCache.get(eventId);
-  if (cached && now - cached < CACHE_TTL_MS) {
-    return true;
-  }
-  if (cached) {
-    processedEventCache.delete(eventId);
-  }
-  return false;
-}
-
-function markEventProcessed(eventId: string): void {
-  processedEventCache.set(eventId, Date.now());
-}
-
     const event = JSON.parse(rawBody);
     const eventType = event.type;
     
-    // Generate unique event ID for idempotency
-    const eventId = `${eventType}_${orderId}_${event.data?.payment?.payment_id || event.payment_id || Date.now()}`;
-    
-    // Idempotency check: skip if already processed
-    if (isEventProcessed(eventId)) {
-      console.log(`[cashfree-webhook] ⏭️ Duplicate event skipped: ${eventId}`);
-      return new Response(JSON.stringify({ success: true, message: "Duplicate event ignored" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    
-    // Normalize order details
+    // Normalize order details FIRST
     const orderId = event.data?.order?.order_id || event.order_id || event.data?.order_id;
     const paymentStatus = event.data?.payment?.payment_status || event.payment_status || event.data?.payment_status;
     const totalAmount = event.data?.order?.order_amount || event.order_amount;
-
+    
     console.log(`[cashfree-webhook] Processing event: ${eventType} for Order: ${orderId}, Status: ${paymentStatus}`);
 
     if (paymentStatus === "SUCCESS" || eventType === "PAYMENT_SUCCESS_WEBHOOK") {
-      // 0. Fetch the current invoice status first to enforce idempotency
+      // 0. Fetch the current invoice status first
       const { data: existingInvoice, error: fetchErr } = await supabase
         .from("unified_invoices")
-        .select("id, payment_status, pod_id, patient_id, total_amount")
+        .select("id, payment_status, pod_id, patient_id, total_amount, appointment_id")
         .eq("cashfree_order_id", orderId)
         .maybeSingle();
 
@@ -151,6 +118,17 @@ function markEventProcessed(eventId: string): void {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      // IDEMPOTENCY: Acquire advisory lock to prevent duplicate processing of same invoice
+      const lockResult = await tryAcquirePaymentLock(supabase, getInvoiceLockKey(existingInvoice.id));
+      if (!lockResult.acquired) {
+        console.log(`[cashfree-webhook] ⏭️ Skipping duplicate processing for invoice ${existingInvoice.id} — lock held by another transaction`);
+        return new Response(JSON.stringify({ status: "ok", skipped: true, reason: "lock_held" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log(`[cashfree-webhook] 🔒 Lock acquired for invoice ${existingInvoice.id}`);
 
       // 1. Reconcile and update unified_invoices
       const { data: invoice, error: updateErr } = await supabase
@@ -208,33 +186,23 @@ function markEventProcessed(eventId: string): void {
       // 4. Update appointment status to 'ready_for_consult' and patient queueStatus to 'awaiting_consultation'
       // This ensures the patient appears in the Doctor's consultation queue
       try {
-        if (existingInvoice.patient_id) {
-          // Update appointment(s) for this patient linked to this invoice
-          const { data: appointments, error: apptFetchErr } = await supabase
+        if (existingInvoice.appointment_id) {
+          // Strict 1:1 binding to avoid queue corruption
+          const { error: apptUpdateErr } = await supabase
             .from("appointments")
-            .select("id, status")
-            .eq("patient_id", existingInvoice.patient_id)
-            .eq("pod_id", existingInvoice.pod_id)
-            .order("created_at", { ascending: false })
-            .limit(5);
-
-          if (!apptFetchErr && appointments && appointments.length > 0) {
-            for (const appt of appointments) {
-              if (appt.status === "pending_payment") {
-                const { error: apptUpdateErr } = await supabase
-                  .from("appointments")
-                  .update({ 
-                    status: "ready_for_consult",
-                    payment_status: "cleared"
-                  })
-                  .eq("id", appt.id);
-                
-                if (!apptUpdateErr) {
-                  console.log(`[cashfree-webhook] Appointment ${appt.id} updated to ready_for_consult ✅`);
-                }
-              }
-            }
+            .update({ 
+              status: "ready_for_consult",
+              payment_status: "cleared"
+            })
+            .eq("id", existingInvoice.appointment_id)
+            .eq("status", "pending_payment");
+          
+          if (!apptUpdateErr) {
+            console.log(`[cashfree-webhook] Appointment ${existingInvoice.appointment_id} updated to ready_for_consult ✅`);
           }
+        }
+
+        if (existingInvoice.patient_id) {
 
           // Update patient queue status in patient_registry
           const { error: patientUpdateErr } = await supabase

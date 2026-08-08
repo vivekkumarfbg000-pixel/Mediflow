@@ -145,7 +145,7 @@ export class RealtimeSyncService {
         // Single read-modify-write per table
         for (const storageKey of storageKeys) {
           clearStorageCache(storageKey);
-          const currentData = load<any[]>(storageKey, []);
+          let currentData = load<any[]>(storageKey, []);
           if (!Array.isArray(currentData)) continue;
 
           for (const payload of deduped) {
@@ -154,15 +154,15 @@ export class RealtimeSyncService {
             const record = this.normalizeRecord(rawRecord);
 
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const idx = currentData.findIndex((item: any) => item.id === record.id || (record.invoiceId && item.invoiceId === record.invoiceId));
+              const idx = currentData.findIndex((item: any) => item.id === record.id);
               if (idx >= 0) {
                 currentData[idx] = { ...currentData[idx], ...record };
               } else {
                 currentData.push(record);
               }
             } else if (payload.eventType === 'DELETE') {
-              const filtered = currentData.filter((item: any) => item.id !== record.id);
-              save(storageKey, filtered);
+              currentData = currentData.filter((item: any) => item.id !== record.id);
+              save(storageKey, currentData);
               continue;
             }
             save(storageKey, currentData);

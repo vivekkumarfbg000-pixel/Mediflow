@@ -83,6 +83,19 @@ serve(async (req) => {
 
       console.log(`[Razorpay Webhook] 🟢 Processing event ${event} for payment ${payment.id || order.id}, invoice: ${invoiceId}`);
 
+      // IDEMPOTENCY: Check if this payment event was already processed
+      const idempotencyKey = `razorpay_${event}_${payment.id}`;
+      const { data: existingKey } = await supabase
+        .from("webhook_idempotency_keys")
+        .select("id")
+        .eq("key", idempotencyKey)
+        .maybeSingle();
+
+      if (existingKey) {
+        console.log(`[Razorpay Webhook] ⏭️ Duplicate skipped: ${idempotencyKey}`);
+        return new Response(JSON.stringify({ success: true, skipped: true }), { status: 200 });
+      }
+
       // Fetch invoice details with prefix fallback
       let invoice = null;
       if (invoiceId) {
@@ -164,22 +177,13 @@ serve(async (req) => {
         }
       }
 
-      // 3. Confirm appointment in database & assign token
+      // 3. Confirm appointment in database (Strict 1:1 binding to avoid queue corruption)
       if (invoice?.appointment_id) {
         await supabase.from("appointments").update({
           status: "scheduled",
           payment_status: "cleared"
-        }).eq("id", invoice.appointment_id);
-      } else if (targetPatId) {
-        await supabase.from("appointments").update({
-          status: "scheduled",
-          payment_status: "cleared"
-        }).eq("patient_id", targetPatId);
-      } else if (clean10) {
-        await supabase.from("appointments").update({
-          status: "scheduled",
-          payment_status: "cleared"
-        }).eq("patient_phone", clean10);
+        }).eq("id", invoice.appointment_id)
+          .eq("status", "pending_payment");
       }
 
       // 4. Update WhatsApp session & dispatch confirmation receipt directly to WhatsApp
@@ -191,29 +195,39 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
+        let tokenNumber = 1;
+        let approxTime = "10:00 AM";
+        let selectedDisplay = new Date().toISOString().split("T")[0];
+        let doctorName = "Doctor";
+        let clinicName = "Connected Clinic";
+
         if (sess) {
           const sessData = sess.session_data || {};
-          const tokenNumber = sessData.tokenNumber || 1;
-          const approxTime = sessData.approxTime || "10:00 AM";
-          const selectedDisplay = sessData.selectedDateDisplay || new Date().toISOString().split("T")[0];
-          const doctorName = sessData.doctorName || "Doctor";
-          const clinicName = sessData.clinicName || "Connected Clinic";
+          
+          // Anti-Hijacking Guard: Only transition session if it strictly matches this invoice
+          if (sessData.pendingInvoiceId === resolvedInvoiceId) {
+            tokenNumber = sessData.tokenNumber || tokenNumber;
+            approxTime = sessData.approxTime || approxTime;
+            selectedDisplay = sessData.selectedDateDisplay || selectedDisplay;
+            doctorName = sessData.doctorName || doctorName;
+            clinicName = sessData.clinicName || clinicName;
 
-          const updatedData = {
-            ...sessData,
-            isVerifiedPaid: true,
-            pendingInvoiceId: resolvedInvoiceId
-          };
-
-          await supabase
-            .from("whatsapp_sessions")
-            .update({ current_state: "COMPLETED", session_data: updatedData })
-            .eq("id", sess.id);
+            const updatedData = { ...sessData, isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
+            await supabase
+              .from("whatsapp_sessions")
+              .update({ current_state: "COMPLETED", session_data: updatedData })
+              .eq("id", sess.id);
+          }
+        }
 
           // Direct Outbound Meta Graph API Dispatch (<200ms)
           const metaToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
           const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || "549557451578330";
-          if (metaToken && sess.patient_phone) {
+          
+          // Fallback to clean10 if sess.patient_phone is missing/hijacked
+          const outboundPhone = sess?.patient_phone || clean10;
+          
+          if (metaToken && outboundPhone) {
             try {
               const confirmText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${amountPaid.toFixed(2)}\n• Status: Confirmed ✅\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you for choosing VitalSync! 😊`;
               await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
@@ -225,7 +239,7 @@ serve(async (req) => {
                 body: JSON.stringify({
                   messaging_product: "whatsapp",
                   recipient_type: "individual",
-                  to: sess.patient_phone,
+                  to: outboundPhone,
                   type: "text",
                   text: { body: confirmText }
                 })
@@ -238,6 +252,9 @@ serve(async (req) => {
         }
       }
     }
+
+    // Record idempotency key to prevent duplicate processing
+    await supabase.from("webhook_idempotency_keys").insert({ key: idempotencyKey });
 
     return new Response(JSON.stringify({ status: "ok" }), {
       status: 200,

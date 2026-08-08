@@ -43,6 +43,15 @@ serve(async (req) => {
     const TXNAMOUNT = parseFloat(payload.TXNAMOUNT || payload.txnAmount || "500.00");
 
     const isSuccess = STATUS === "TXN_SUCCESS" || STATUS === "S" || payload.RESPCODE === "01";
+    const CHECKSUMHASH = payload.CHECKSUMHASH;
+
+    if (!CHECKSUMHASH) {
+      console.error("[Paytm Webhook] ❌ Missing CHECKSUMHASH. Rejecting request for API resiliency.");
+      return new Response(
+        JSON.stringify({ status: "ERROR", message: "Missing cryptographic checksum" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (isSuccess && ORDERID) {
       console.log(`[Paytm Webhook] TXN_SUCCESS verified for OrderID: ${ORDERID}, TxnID: ${TXNID}, Amount: ₹${TXNAMOUNT}`);
@@ -58,18 +67,11 @@ serve(async (req) => {
       let patientId = invRows?.patient_id;
 
       if (!targetInvoiceId) {
-        const { data: latestPending } = await supabase
-          .from("unified_invoices")
-          .select("*")
-          .eq("payment_status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (latestPending) {
-          targetInvoiceId = latestPending.id;
-          patientId = latestPending.patient_id;
-        }
+        console.error(`[Paytm Webhook] ❌ Invoice lookup failed for ORDERID: ${ORDERID}. Hallucination prevention active. Dropping request.`);
+        return new Response(
+          JSON.stringify({ status: "ERROR", message: "Invoice not found or ORDERID mismatch" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        );
       }
 
       if (targetInvoiceId) {
@@ -83,16 +85,17 @@ serve(async (req) => {
           })
           .eq("id", targetInvoiceId);
 
-        // Update Appointment status to confirmed
-        if (patientId) {
+        // Update Appointment status to confirmed (Strict 1:1 binding)
+        if (invRows?.appointment_id) {
           const tokenCode = targetInvoiceId.substring(0, 5).toUpperCase();
           await supabase
             .from("appointments")
             .update({
               status: "confirmed",
+              payment_status: "cleared",
               token_number: `#TK-${tokenCode}`
             })
-            .eq("patient_id", patientId)
+            .eq("id", invRows.appointment_id)
             .eq("status", "pending_payment");
         }
 

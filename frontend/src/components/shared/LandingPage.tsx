@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
+import { AppInstallBanner } from './AppInstallBanner';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
   X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye
@@ -1437,6 +1438,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       )}
 
+      {/* Floating App Install Banner (PWA Install Prompt) */}
+      <AppInstallBanner />
     </div>
   );
 };

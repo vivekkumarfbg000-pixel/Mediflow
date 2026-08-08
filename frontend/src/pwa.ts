@@ -7,66 +7,14 @@ export class PwaSyncManager {
   // 1. Initialize PWA Service Worker Registration
   static registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      // Disable service worker in development mode and local servers to prevent caching Vite dev modules and infinite reload loops
-      const isLocalHost = window.location.hostname === 'localhost' || 
-                          window.location.hostname === '127.0.0.1' || 
-                          window.location.hostname.startsWith('192.168.') || 
-                          window.location.hostname.startsWith('10.') || 
-                          window.location.hostname.startsWith('172.') || 
-                          window.location.hostname.endsWith('.local') ||
-                          window.location.port !== '';
-
-      if (import.meta.env.DEV || isLocalHost) {
-        console.log('[PWA-Client] Service Worker registration bypassed in development mode.');
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          for (const registration of registrations) {
-            registration.unregister();
-            console.log('[PWA-Client] Unregistered active service worker for development.');
-          }
-        });
-        return;
-      }
-
+      // Register Service Worker for PWA capabilities & offline caching
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
           .then((reg) => {
             console.log('[PWA-Client] Service Worker registered successfully! Scope:', reg.scope);
-            
-            // Check for updates periodically
-            setInterval(() => {
-              reg.update();
-            }, 30 * 1000); // Check every 30 seconds
-
-            // Handle background Service Worker updates cleanly without infinite reload loops
-            reg.addEventListener('updatefound', () => {
-              const installing = reg.installing;
-              if (installing) {
-                installing.addEventListener('statechange', () => {
-                  if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('[PWA-Client] New version available in background.');
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'System Enhanced ✨',
-                        message: 'Latest updates loaded in background. Smooth performance active.',
-                        type: 'info'
-                      }
-                    }));
-                    
-                    // Single session guard: Never reload automatically more than once per browser session
-                    if (typeof window !== 'undefined') {
-                      const hasReloaded = sessionStorage.getItem('mediflow_sw_auto_reloaded');
-                      if (!hasReloaded) {
-                        sessionStorage.setItem('mediflow_sw_auto_reloaded', 'true');
-                        console.log('[PWA-Client] Applying initial background cache refresh...');
-                      }
-                    }
-                  }
-                });
-              }
-            });
           })
           .catch((err) => {
-            console.error('[PWA-Client] Service Worker registration failed:', err);
+            console.warn('[PWA-Client] Service Worker registration failed:', err);
           });
       });
     }

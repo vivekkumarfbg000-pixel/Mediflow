@@ -883,15 +883,16 @@ async function triggerBotReplyPipeline(ctx: {
   if (globalGreetings.includes(cleaned)) {
     // ONLY allow state reset from safe states — prevent thrashing in payment/booking flows
     if (ALLOWED_RESET_FROM_STATES.has(state)) {
-      if (sessionData.consentGranted) {
-        state = "AWAITING_CONFIRMATION";
-        cleaned = "menu_reset";
-      } else {
-        state = "AWAITING_WELCOME";
-        cleaned = "hi";
-      }
+      // SAFE: update DB state BEFORE processing
+      const newState = sessionData.consentGranted ? "AWAITING_CONFIRMATION" : "AWAITING_WELCOME";
+      await supabase
+        .from("whatsapp_sessions")
+        .update({ current_state: newState, last_interaction: new Date().toISOString() })
+        .eq("id", session.id);
+      state = newState;
+      cleaned = "menu_reset";
     } else {
-      // In critical flow (payment/booking) — treat "hi" as conversational, not navigation
+      // CRITICAL FLOW: treat "hi" as conversational, NOT navigation
       replyText = "Aapka booking/payment flow chal raha hai. Please complete karein ya 'CANCEL' likhein.";
     }
   } else if (isPrimaryNavigation) {
