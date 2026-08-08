@@ -299,9 +299,9 @@ export class PaymentService {
     // Never fall back to a hardcoded placeholder key — it will cause Razorpay to
     // return "Oops! Something went wrong. Payment Failed" immediately.
     // The keyId MUST come from the server-side razorpay-order Edge Function.
-    const keyId = params.keyId || (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined);
+    const keyId = params.keyId;
     if (!keyId || keyId.trim() === '') {
-      console.error('[PaymentService] ❌ No Razorpay Key ID available. razorpay-order Edge Function may have failed to return keyId, or VITE_RAZORPAY_KEY_ID is not set in Vercel/env.');
+      console.error('[PaymentService] ❌ No Razorpay Key ID available. razorpay-order Edge Function must return keyId.');
       params.onError({ message: 'Razorpay is not configured. Please contact support.' });
       return;
     }

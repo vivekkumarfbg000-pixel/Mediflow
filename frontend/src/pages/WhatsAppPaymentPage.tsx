@@ -162,9 +162,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
       const amountRupees = Number(invoice?.total_amount) || Number(invoice?.totalAmount) || 515;
       const amountPaise = Math.round(amountRupees * 100);
 
-      // Call razorpay-order Deno Edge Function
+      // Call razorpay-order Deno Edge Function (returns orderId + keyId from Vault)
       let orderId = '';
-      let razorpayKeyId = (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || '';
+      let razorpayKeyId = '';
       let fetchErrorMsg = '';
 
       try {

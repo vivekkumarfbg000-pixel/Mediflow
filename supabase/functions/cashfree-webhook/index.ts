@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { tryAcquirePaymentLock, releasePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
 
 // =============================================================================
 // Mediflow — cashfree-webhook Edge Function
@@ -146,16 +145,6 @@ serve(async (req) => {
         });
       }
 
-      // IDEMPOTENCY: Acquire advisory lock to prevent duplicate processing of same invoice
-      const lockResult = await tryAcquirePaymentLock(supabase, getInvoiceLockKey(existingInvoice.id));
-      if (!lockResult.acquired) {
-        console.log(`[cashfree-webhook] ⏭️ Skipping duplicate processing for invoice ${existingInvoice.id} — lock held by another transaction`);
-        return new Response(JSON.stringify({ status: "ok", skipped: true, reason: "lock_held" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.log(`[cashfree-webhook] 🔒 Lock acquired for invoice ${existingInvoice.id}`);
       try {
         // 1. Reconcile and update unified_invoices
         const { data: invoice, error: updateErr } = await supabase
@@ -280,8 +269,8 @@ serve(async (req) => {
         } catch (wsErr) {
           console.error("[cashfree-webhook] Error calling whatsapp-dispatch:", wsErr);
         }
-      } finally {
-        await releasePaymentLock(supabase, getInvoiceLockKey(existingInvoice.id));
+      } catch (e: any) {
+        throw e;
       }
     } else {
       console.log(`[cashfree-webhook] Payment not successful, ignoring status update. Status: ${paymentStatus}`);

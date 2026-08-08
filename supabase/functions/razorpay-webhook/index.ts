@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { tryAcquirePaymentLock, releasePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
 
 // =============================================================================
 // Mediflow — razorpay-webhook Edge Function
@@ -122,20 +121,6 @@ serve(async (req) => {
       const gatewayFee = (payment.fee || Math.round(amountPaid * 0.02 * 100)) / 100;
       const targetPatId = invoice?.patient_id || invoice?.patientId;
 
-      // IDEMPOTENCY: Acquire advisory lock to prevent duplicate processing of same invoice
-      // across concurrent webhook deliveries (Razorpay retries, Meta + Razorpay race)
-      if (resolvedInvoiceId) {
-        const lockResult = await tryAcquirePaymentLock(supabase, getInvoiceLockKey(resolvedInvoiceId));
-        if (!lockResult.acquired) {
-          console.log(`[Razorpay Webhook] ⏭️ Skipping duplicate processing for invoice ${resolvedInvoiceId} — lock held by another transaction`);
-          return new Response(JSON.stringify({ status: "error", skipped: true, reason: "lock_held" }), {
-            status: 409,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        console.log(`[Razorpay Webhook] 🔒 Lock acquired for invoice ${resolvedInvoiceId}`);
-      }
-
       try {
         // Execute Atomic Payment Settlement RPC
         if (resolvedInvoiceId) {
@@ -223,11 +208,6 @@ serve(async (req) => {
           await supabase.from("webhook_idempotency_keys").insert({ key: idempotencyKey });
         } catch (idemErr) {
           console.warn(`[Razorpay Webhook] ⚠️ Idempotency key insert failed (non-fatal): ${idemErr}`);
-        }
-      } finally {
-        // Release session-scoped advisory lock after all processing completes
-        if (resolvedInvoiceId) {
-          await releasePaymentLock(supabase, getInvoiceLockKey(resolvedInvoiceId));
         }
       }
     }

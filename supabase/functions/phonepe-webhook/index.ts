@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { tryAcquirePaymentLock, releasePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,17 +107,6 @@ serve(async (req) => {
         });
       }
 
-      // IDEMPOTENCY: Acquire advisory lock to prevent concurrent webhook deliveries from duplicate processing
-      const lockResult = await tryAcquirePaymentLock(supabase, getInvoiceLockKey(targetInvoiceId));
-      if (!lockResult.acquired) {
-        console.log(`[PhonePe Webhook] ⏭️ Skipping duplicate processing for invoice ${targetInvoiceId} — lock held by another transaction`);
-        return new Response(JSON.stringify({ status: "ERROR", skipped: true, reason: "lock_held" }), {
-          status: 409,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.log(`[PhonePe Webhook] 🔒 Lock acquired for invoice ${targetInvoiceId}`);
-
       try {
         if (targetInvoiceId) {
           // Execute Atomic Payment Settlement RPC
@@ -133,9 +121,8 @@ serve(async (req) => {
             throw new Error(`RPC Settlement Failed: ${rpcError.message}`);
           }
         }
-      } finally {
-        // Release session-scoped advisory lock after all processing completes
-        await releasePaymentLock(supabase, getInvoiceLockKey(targetInvoiceId));
+      } catch (e: any) {
+        throw e;
       }
     }
 

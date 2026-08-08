@@ -109,30 +109,7 @@ export class BillingService {
       const platformAmt = parseFloat((invoiceAmount * 0.03).toFixed(2));
       const netRemainingForPool = Math.max(0, parseFloat((invoiceAmount - platformAmt).toFixed(2)));
 
-      // STEP 2: Use REMAINING AMOUNT (after VitalSync 3% platform fee) to fill / refill Commission Pool
-      const hasPharmaOrLab = (inv.pharmacyFee > 0 || inv.labFee > 0 || (inv as any).source === 'whatsapp' || (inv as any).type === 'lab' || (inv as any).type === 'pharmacy');
-      if (paymentMethod !== 'cash' && hasPharmaOrLab) {
-        this.recordPoolSettlement(
-          netRemainingForPool,
-          `counter-${paymentMethod}-${invoiceId.substring(0, 8)}`,
-          `Counter ${paymentMethod.toUpperCase()} Payment - Refilling Commission Pool (Net after 3% Platform Fee)`
-        );
-        
-        // Sync to Supabase vitalsync_pool_settlements
-        supabase.from('vitalsync_pool_settlements').insert({
-          invoice_id: invoiceId,
-          gateway_reference_id: `counter-${paymentMethod}-${invoiceId.substring(0, 8)}`,
-          payment_mode: paymentMethod,
-          amount: netRemainingForPool,
-          settlement_status: 'completed',
-          notes: `Counter ${paymentMethod.toUpperCase()} Payment - Net Commission Pool Refill (after 3% Platform Fee)`,
-          created_at: new Date().toISOString()
-        }).then(({ error }) => {
-          if (error) console.error('[BillingService] Error inserting counter pool settlement in Supabase:', error);
-        });
-      }
-
-      // Always trigger core invoice settlement & financial ledger splits creation
+      // Core Invoice Settlement & Financial Ledger Splits (Local IndexedDB)
       this.recordInvoicePayment(invoiceId, paymentMethod);
 
       const sessions = load<any[]>('whatsapp_sessions', []);
@@ -176,36 +153,9 @@ export class BillingService {
 
         session.sessionData.referral = null;
         save('whatsapp_sessions', sessions);
-
-        const dbRefLedger = {
-          invoice_id: invoiceId,
-          source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-          destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-          transaction_type: 'appointment_fee',
-          gross_amount: invoiceAmount,
-          commission_rate: 10,
-          net_payout: referralLedger.netPayout,
-          payment_status: 'cleared',
-          settled_at: new Date().toISOString()
-        };
-        const dbPlatLedger = {
-          invoice_id: invoiceId,
-          source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-          destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-          transaction_type: 'platform_fee',
-          gross_amount: invoiceAmount,
-          commission_rate: 3,
-          net_payout: platformAmt,
-          payment_status: 'cleared',
-          settled_at: new Date().toISOString()
-        };
-
-        supabase.from('financial_ledgers').insert([dbRefLedger, dbPlatLedger]).then(({ error }) => {
-          if (error) console.error('Error inserting referral ledger splits in Supabase:', error);
-        });
       }
 
-      // Clear patient inventory holds if pharmacy fee is paid
+      // Clear patient inventory holds (Local IndexedDB)
       if (inv.pharmacyFee > 0) {
         const holds = load<any[]>('inventory_holds', []);
         let holdsUpdated = false;
@@ -213,14 +163,6 @@ export class BillingService {
           if (h.patientId === inv.patientId && h.holdStatus === 'held') {
             h.holdStatus = 'dispensed';
             holdsUpdated = true;
-            
-            // Also update in Supabase
-            supabase.from('inventory_holds').update({
-              hold_status: 'dispensed',
-              dispensed_at: new Date().toISOString()
-            }).eq('id', h.id).then(({ error }) => {
-              if (error) console.error('Error dispensing inventory hold in Supabase:', error);
-            });
           }
         });
         if (holdsUpdated) {
@@ -228,11 +170,14 @@ export class BillingService {
         }
       }
 
-      supabase.from('unified_invoices').update({
-        payment_status: 'cleared'
-      }).eq('id', invoiceId).then(({ error }) => {
-        if (error) console.error('Error clearing invoice payment in Supabase:', error);
-        else writeAuditLog('invoice_payment_cleared', { invoiceId }, invoiceId);
+      // Atomic Backend Settlement via Postgres RPC
+      supabase.rpc('process_invoice_settlement', {
+        p_invoice_id: invoiceId,
+        p_payment_method: paymentMethod,
+        p_amount_paid: invoiceAmount
+      }).then(({ error }) => {
+        if (error) console.error('[BillingService] RPC process_invoice_settlement failed:', error);
+        else writeAuditLog('invoice_payment_cleared', { invoiceId, paymentMethod }, invoiceId);
       });
 
     }

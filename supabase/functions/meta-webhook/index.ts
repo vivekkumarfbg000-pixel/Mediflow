@@ -2,7 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { tryAcquirePaymentLock, releasePaymentLock, getInvoiceLockKey, getAppointmentLockKey } from "../_shared/payment-lock.ts";
 
 // System-wide environment variables loaded from Supabase Vault/Secrets
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";

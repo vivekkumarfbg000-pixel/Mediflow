@@ -2260,3 +2260,99 @@ EXCEPTION WHEN OTHERS THEN
     RETURN jsonb_build_object('success', false, 'error', SQLERRM);
 END;
 $$;
+
+-- Migration: WhatsApp Broadcast Engine (Server-Side Queue & Background Worker)
+-- Resolves the synchronous frontend-driven DoS vulnerability and cascading Meta API 429 rate limits.
+
+-- 1. Create the persistent queue table
+CREATE TABLE IF NOT EXISTS public.whatsapp_broadcast_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pod_id UUID NOT NULL,
+    campaign_id TEXT NOT NULL,
+    patient_id UUID NOT NULL,
+    patient_phone TEXT NOT NULL,
+    message_text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', -- pending, processing, delivered, failed
+    error_details TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index for background worker to quickly query pending campaigns
+CREATE INDEX IF NOT EXISTS idx_wa_broadcast_queue_status ON public.whatsapp_broadcast_queue(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_wa_broadcast_queue_campaign ON public.whatsapp_broadcast_queue(campaign_id);
+
+-- Enable RLS
+ALTER TABLE public.whatsapp_broadcast_queue ENABLE ROW LEVEL SECURITY;
+
+-- Allow access based on pod_id scoping
+CREATE POLICY "Enable read access for authenticated users by pod_id"
+ON public.whatsapp_broadcast_queue FOR SELECT
+USING (pod_id = (auth.jwt() ->> 'pod_id')::UUID OR auth.uid() IN (SELECT id FROM profiles WHERE role IN ('admin', 'doctor', 'compounder', 'pharmacy', 'lab')));
+
+CREATE POLICY "Enable insert access for authenticated users"
+ON public.whatsapp_broadcast_queue FOR INSERT
+WITH CHECK (true);
+
+-- 2. Create an RPC to safely enqueue campaigns based on target cohorts
+CREATE OR REPLACE FUNCTION public.enqueue_broadcast_campaign(
+    p_pod_id UUID,
+    p_campaign_id TEXT,
+    p_target_cohort TEXT, -- 'all', 'diabetes', 'hypertension', 'opd'
+    p_message_text TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_inserted_count INT := 0;
+BEGIN
+    -- This securely enqueues messages for all matching patients in the pod
+    -- preventing the frontend from downloading thousands of phones to the browser
+    
+    IF p_target_cohort = 'all' THEN
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT p_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE pod_id = p_pod_id AND phone IS NOT NULL AND length(phone) >= 10;
+        
+    ELSIF p_target_cohort = 'diabetes' THEN
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT p_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE pod_id = p_pod_id AND phone IS NOT NULL AND length(phone) >= 10
+          AND (condition ILIKE '%diabet%' OR tags::text ILIKE '%diabet%');
+          
+    ELSIF p_target_cohort = 'hypertension' THEN
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT p_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE pod_id = p_pod_id AND phone IS NOT NULL AND length(phone) >= 10
+          AND (condition ILIKE '%hyper%' OR tags::text ILIKE '%bp%' OR tags::text ILIKE '%hyper%');
+          
+    ELSIF p_target_cohort = 'opd' THEN
+        -- OPD only (based on encounters today or generic tag)
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT p_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE pod_id = p_pod_id AND phone IS NOT NULL AND length(phone) >= 10
+          AND id IN (SELECT DISTINCT patient_id FROM appointments WHERE pod_id = p_pod_id AND appointment_date = CURRENT_DATE);
+    ELSE
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid cohort');
+    END IF;
+
+    GET DIAGNOSTICS v_inserted_count = ROW_COUNT;
+    
+    -- Insert a summary log for the UI
+    INSERT INTO activity_logs (pod_id, action_type, details)
+    VALUES (p_pod_id, 'BROADCAST_ENQUEUED', jsonb_build_object(
+        'campaign_id', p_campaign_id,
+        'target', p_target_cohort,
+        'message', p_message_text,
+        'queued_count', v_inserted_count
+    ));
+
+    RETURN jsonb_build_object('success', true, 'queued_count', v_inserted_count, 'campaign_id', p_campaign_id);
+END;
+$$;

@@ -670,73 +670,73 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                     // Bug Fix #5: Do NOT clear broadcastMsg here — clear only after loop completes successfully
                     const messageContent = broadcastMsg.trim();
+                    const campaignId = `bc-${Date.now()}`;
 
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
-                        title: 'Broadcasting Started... 📢',
-                        message: `Dispatching campaign to ${targetPhones.length} patient(s) via Meta Graph API...`,
+                        title: 'Broadcasting Queued... 📢',
+                        message: `Enqueueing campaign for ${broadcastTarget} patients...`,
                         type: 'info'
                       }
                     }));
+                    
+                    try {
+                      // 1. Enqueue using the new Atomic RPC (Protects against tab closure context drops)
+                      const { data: rpcData, error: rpcErr } = await supabase.rpc('enqueue_broadcast_campaign', {
+                        p_pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                        p_campaign_id: campaignId,
+                        p_target_cohort: broadcastTarget,
+                        p_message_text: messageContent
+                      });
 
-                    let successCount = 0;
-                    let failCount = 0;
-                    const activePhoneId = activeWabaConnection?.phone_number_id || '';
-                    const activeToken = activeWabaConnection?.encrypted_system_user_token || '';
+                      if (rpcErr || !rpcData?.success) {
+                        throw new Error(rpcErr?.message || rpcData?.error || 'Failed to enqueue');
+                      }
 
-                    for (let i = 0; i < targetPhones.length; i++) {
-                      const rawPhone = targetPhones[i];
-                      const cleanPhone = (rawPhone || '').replace(/[^0-9]/g, '');
-                      if (!cleanPhone) continue;
-                      const formattedPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                      const queuedCount = rpcData.queued_count || 0;
 
-                      try {
-                        const invokeRes = await supabase.functions.invoke('meta-webhook', {
-                          body: {
-                            action: 'send_manual_message',
-                            patientPhone: formattedPhone,
-                            messageText: `📢 [BROADCAST CAMPAIGN]\n${messageContent}`,
-                            phoneId: activePhoneId || undefined,
-                            phoneNumberId: activePhoneId || undefined,
-                            systemToken: activeToken || undefined
-                          }
-                        });
-                        console.log(`[WhatsAppTab Broadcast] Sent to ${formattedPhone}:`, invokeRes);
-
-                        if (invokeRes?.data?.success || !invokeRes?.error) {
-                          successCount++;
-                        } else {
-                          failCount++;
+                      // 2. Trigger the background worker asynchronously (fire and forget)
+                      // This ensures Meta API limits are respected via server-side exponential backoff
+                      supabase.functions.invoke('whatsapp-broadcast-worker', {
+                        body: {
+                          campaign_id: campaignId,
+                          pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
                         }
-                      } catch (_err) {
-                        failCount++;
-                      }
+                      }).catch(e => console.warn('Worker trigger err', e));
 
-                      await new Promise(r => setTimeout(r, 66));
+                      const newLog = {
+                        id: campaignId,
+                        date: new Date().toISOString(),
+                        target: broadcastTarget,
+                        message: messageContent,
+                        count: queuedCount,
+                        status: `Processing ⏳ (${queuedCount} queued to background)`
+                      };
+
+                      const updatedLogs = [newLog, ...broadcastLogs];
+                      setBroadcastLogs(updatedLogs);
+                      localStorage.setItem('whatsapp_broadcast_logs', JSON.stringify(updatedLogs));
+                      
+                      // Bug Fix #5: Only clear broadcast message AFTER successfully enqueued
+                      setBroadcastMsg('');
+
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Campaign Processing in Background! 🎉',
+                          message: `${queuedCount} messages successfully queued. You can safely close this tab or navigate away.`,
+                          type: 'success'
+                        }
+                      }));
+                    } catch (err: any) {
+                      console.error('[WhatsAppTab Broadcast] Enqueue failed:', err);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Broadcast Failed ❌',
+                          message: err.message || 'Could not queue broadcast',
+                          type: 'error'
+                        }
+                      }));
                     }
-
-                    const newLog = {
-                      id: `bc-${Date.now()}`,
-                      date: new Date().toISOString(),
-                      target: broadcastTarget,
-                      message: messageContent,
-                      count: targetPhones.length,
-                      status: `Sent ✅ (${successCount} delivered, ${failCount} failed)`
-                    };
-
-                    const updatedLogs = [newLog, ...broadcastLogs];
-                    setBroadcastLogs(updatedLogs);
-                    localStorage.setItem('whatsapp_broadcast_logs', JSON.stringify(updatedLogs));
-                    // Bug Fix #5: Only clear broadcast message AFTER loop fully completes
-                    setBroadcastMsg('');
-
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Broadcast Campaign Completed! 🎉',
-                        message: `Dispatched to ${targetPhones.length} patient(s). ${successCount} Delivered, ${failCount} Failed.`,
-                        type: 'success'
-                      }
-                    }));
                   }}
                   disabled={!broadcastMsg.trim()}
                   className="px-5 py-2.5 bg-primary hover:bg-primary-505 disabled:bg-slate-200 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer text-white-force bg-primary-force border-0"
