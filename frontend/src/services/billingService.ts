@@ -73,7 +73,7 @@ export class BillingService {
     notify();
   }
 
-  static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): void {
+  static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): void {
     const invoices = this.getUnifiedInvoices();
     const idx = invoices.findIndex(i => i.id === invoiceId);
     if (idx !== -1) {
@@ -690,7 +690,7 @@ export class BillingService {
     notify();
   }
 
-  static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: Invoice['type'], amount: number, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): Promise<void> {
+  static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: Invoice['type'], amount: number, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     
     // Check if splits already exist for this invoiceId
@@ -874,7 +874,8 @@ export class BillingService {
         settled_at: new Date().toISOString(),
         platform_fee_deducted: platformAmt,
         gateway_disbursed_net: isCash ? 0.00 : s.netPayout,
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        pod_id: getPodContext().podId
       }));
 
       supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {
@@ -896,7 +897,7 @@ export class BillingService {
     }
   }
 
-  static async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): Promise<void> {
+  static async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
     const saasInvoices = this.getInvoices();
     const saasInv = saasInvoices.find(i => i.id === invoiceId);
     
@@ -1042,7 +1043,7 @@ export class BillingService {
     }
   }
 
-  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): Promise<void> {
+  static async markInvoicePaid(invoiceId: string, sendWhatsApp = true, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
     const { error } = await supabase.from('unified_invoices')
       .update({ payment_status: 'cleared', payment_method: paymentMethod })
       .eq('id', invoiceId);
@@ -1162,11 +1163,13 @@ export class BillingService {
     doctor_id: string;
     status?: string;
   }): Promise<string> {
+    const podId = getPodContext().podId;
     const { data, error } = await supabase.from('appointments').insert({
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
       status: appointment.status ?? 'pending_payment',
       created_at: new Date().toISOString(),
+      pod_id: podId
     }).select('id').single();
     if (error) {
       console.error('[Mediflow API] createAppointment error:', error);
@@ -1182,6 +1185,7 @@ export class BillingService {
       console.error('[Mediflow API] fetch patient for invoice error:', patientErr);
       throw patientErr;
     }
+    const podId = getPodContext().podId;
     const { data, error } = await supabase.from('unified_invoices').insert({
       encounter_id: appointmentId,
       patient_id: patientData.patient_id,
@@ -1192,6 +1196,7 @@ export class BillingService {
       total_amount: amount,
       payment_status: 'pending',  // DB constraint: only 'pending' | 'cleared' allowed
       created_at: new Date().toISOString(),
+      pod_id: podId
     }).select('id').single();
     if (error) {
       console.error('[Mediflow API] generateInvoice error:', error);
@@ -1252,7 +1257,8 @@ export class BillingService {
         extracted_config: sop.extractedConfig,
         is_active: sop.isActive,
         created_at: sop.createdAt || new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        pod_id: getPodContext().podId
       };
     });
 
@@ -1406,7 +1412,8 @@ export class BillingService {
       upi_qr_payload: invoice.upiQrPayload,
       payment_status: invoice.paymentStatus === 'cleared' ? 'paid' : (invoice.paymentStatus as any),
       payment_method: invoice.paymentMethod || null,
-      created_at: invoice.createdAt
+      created_at: invoice.createdAt,
+      pod_id: getPodContext().podId
     }).then(({ error }) => {
       if (error) console.error('[BillingService] Unified invoice sync failed:', error);
     });

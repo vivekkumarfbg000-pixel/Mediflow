@@ -684,7 +684,8 @@ export class PharmacyService {
         total_amount: bill.totalAmount,
         payment_mode: (bill.paymentMode as string) || 'cash',
         status: bill.status || 'draft',
-        source: bill.source || 'counter'
+        source: bill.source || 'counter',
+        pod_id: getPodContext().podId
       });
       if (error) {
         console.error('Error saving bill in Supabase:', error);
@@ -847,7 +848,8 @@ export class PharmacyService {
             commission_rate: splitPlat,
             net_payout: platformAmt,
             payment_status: 'cleared',
-            settled_at: new Date().toISOString()
+            settled_at: new Date().toISOString(),
+            pod_id: getPodContext().podId
           },
           {
             invoice_id: id,
@@ -858,7 +860,8 @@ export class PharmacyService {
             commission_rate: 100 - splitPlat,
             net_payout: pharmaAmt,
             payment_status: 'cleared',
-            settled_at: new Date().toISOString()
+            settled_at: new Date().toISOString(),
+            pod_id: getPodContext().podId
           }
         ];
 

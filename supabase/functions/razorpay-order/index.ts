@@ -51,12 +51,39 @@ serve(async (req) => {
 
     const { invoiceId, amount: requestedAmount } = validationResult.data;
 
-    // Retrieve invoice details from Supabase Postgres (optional lookup)
-    const { data: invoice } = await supabase
-      .from("unified_invoices")
-      .select("*, patient_registry(id, name, email, phone)")
-      .eq("id", invoiceId)
-      .maybeSingle();
+    // Retrieve invoice details from Supabase Postgres with resilient prefix lookup
+    let invoice: any = null;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const isUuid = uuidRegex.test(invoiceId);
+
+    if (isUuid) {
+      const { data: exactInv } = await supabase
+        .from("unified_invoices")
+        .select("*, patient_registry(id, name, email, phone)")
+        .eq("id", invoiceId)
+        .maybeSingle();
+      invoice = exactInv;
+    }
+
+    if (!invoice) {
+      const cleanSnippet = String(invoiceId).replace("inv-wa-", "").substring(0, 8);
+      const { data: prefixInvs } = await supabase
+        .rpc("find_invoice_by_prefix", { p_prefix: cleanSnippet });
+      if (prefixInvs && prefixInvs.length > 0) {
+        invoice = prefixInvs[0];
+      }
+    }
+
+    if (invoice && !invoice.patient_registry && invoice.patient_id) {
+      const { data: patient } = await supabase
+        .from("patient_registry")
+        .select("id, name, email, phone")
+        .eq("id", invoice.patient_id)
+        .maybeSingle();
+      if (patient) {
+        invoice.patient_registry = patient;
+      }
+    }
 
     const amountInRupees = requestedAmount || (invoice ? Number(invoice.total_amount) || Number(invoice.totalAmount) : 500);
     const amountInPaise = Math.round(amountInRupees * 100); // Razorpay requires amount in paise

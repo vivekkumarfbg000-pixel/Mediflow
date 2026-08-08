@@ -59,26 +59,16 @@ serve(async (req) => {
     const systemToken = rpcData[0].decrypted_token;
     const phoneId = wabaConn.phone_number_id;
 
-    // 2. Fetch a batch of pending jobs (e.g. up to 500 per execution to stay within Deno limits)
-    const { data: pendingJobs, error: qErr } = await supabase
-      .from("whatsapp_broadcast_queue")
-      .select("*")
-      .eq("campaign_id", campaign_id)
-      .eq("pod_id", pod_id)
-      .eq("status", "pending")
-      .order("created_at", { ascending: true })
-      .limit(500);
+    // 2. Fetch and lock a batch of pending jobs atomically using SKIP LOCKED RPC
+    const { data: pendingJobs, error: qErr } = await supabase.rpc("pop_pending_broadcast_batch", {
+      p_campaign_id: campaign_id,
+      p_pod_id: pod_id,
+      p_limit: 500
+    });
 
     if (qErr || !pendingJobs || pendingJobs.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: "No pending messages found." }), { status: 200, headers: corsHeaders });
+      return new Response(JSON.stringify({ success: true, message: "No pending messages found or batch locked." }), { status: 200, headers: corsHeaders });
     }
-
-    // Mark as processing
-    const jobIds = pendingJobs.map(j => j.id);
-    await supabase
-      .from("whatsapp_broadcast_queue")
-      .update({ status: 'processing', updated_at: new Date().toISOString() })
-      .in('id', jobIds);
 
     let deliveredCount = 0;
     let failedCount = 0;
@@ -154,25 +144,27 @@ serve(async (req) => {
           const currentTime = new Date().toISOString();
           const { data: dbSess } = await supabase
             .from("whatsapp_sessions")
-            .select("id, session_data")
+            .select("id, patient_phone")
             .like("patient_phone", `%${last10}%`)
             .maybeSingle();
 
           if (dbSess) {
-            const sData = dbSess.session_data || {};
-            const chatHistory = sData.chatHistory || [];
-            chatHistory.push({
+            const newMsg = {
               sender: "agent",
               text: `📢 [BROADCAST CAMPAIGN]\n${job.message_text}`,
               timestamp: currentTime,
               time: currentTime
-            });
-            sData.chatHistory = chatHistory;
+            };
 
-            await supabase
-              .from("whatsapp_sessions")
-              .update({ session_data: sData, last_interaction: currentTime })
-              .eq("id", dbSess.id);
+            await supabase.rpc('atomic_update_whatsapp_session', {
+              p_patient_phone: dbSess.patient_phone,
+              p_patient_id: null,
+              p_pod_id: null,
+              p_entity_id: null,
+              p_current_state: null,
+              p_message: newMsg,
+              p_session_data_updates: null
+            });
           }
         } catch (e) { /* ignore session append errors to keep loop fast */ }
       } else {

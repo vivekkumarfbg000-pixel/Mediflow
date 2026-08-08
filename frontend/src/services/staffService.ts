@@ -31,7 +31,8 @@ export class StaffService {
         staff_name: newStaff.staffName,
         role: newStaff.role,
         is_active: newStaff.isActive,
-        created_at: newStaff.createdAt
+        created_at: newStaff.createdAt,
+        pod_id: ctx.podId
       });
       if (error) console.error('Error inserting clinic staff into Supabase:', error);
       else writeAuditLog('clinic_staff_registered', { staffId: newStaff.id, name, role }, newStaff.id);

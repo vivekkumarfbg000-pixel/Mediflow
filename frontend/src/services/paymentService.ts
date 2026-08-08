@@ -420,7 +420,7 @@ export class PaymentService {
    */
   static async settleInvoiceAndCommissionPool(
     invoiceId: string,
-    paymentMethod: 'cash' | 'upi' | 'razorpay' | 'cashfree' | 'paytm' = 'upi',
+    paymentMethod: 'cash' | 'upi' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi',
     gatewayFee: number = 0
   ): Promise<boolean> {
     try {

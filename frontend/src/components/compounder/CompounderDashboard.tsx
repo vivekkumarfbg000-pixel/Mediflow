@@ -12,6 +12,7 @@ import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
 import { load } from '../../services/apiHelper';
+import { getPodContext } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import type {
   PharmacyInventoryItem,
@@ -296,9 +297,11 @@ export const CompounderDashboard: React.FC = () => {
 
   const fetchLiveAppointments = useCallback(async () => {
     try {
+      const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const { data, error } = await supabase
         .from('appointments')
         .select('*, patient_registry(id, name, phone, age, gender)')
+        .eq('pod_id', podId)
         .order('created_at', { ascending: false });
 
       if (data) {
@@ -2304,6 +2307,7 @@ export const CompounderDashboard: React.FC = () => {
                                   // Non-blocking background sync to Supabase appointments table
                                   (async () => {
                                     try {
+                                      const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
                                       const podCtx = (() => { try { const r = localStorage.getItem('mediflow_active_pod'); return r ? JSON.parse(r) : null; } catch { return null; } })();
                                       await supabase.from('appointments').insert({
                                         id: newInvoice?.appointmentId || crypto.randomUUID(),
@@ -2311,7 +2315,8 @@ export const CompounderDashboard: React.FC = () => {
                                         doctor_id: podCtx?.id || podCtx?.doctorId || null,
                                         status: 'confirmed',
                                         created_at: new Date().toISOString(),
-                                        token_number: assignedToken
+                                        token_number: assignedToken,
+                                        pod_id: podId
                                       });
                                     } catch (err) {
                                       console.warn('Supabase appt insert note:', err);

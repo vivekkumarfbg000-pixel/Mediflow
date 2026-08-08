@@ -20,10 +20,68 @@ if (!wabaSecretKey) {
 // Initialize Supabase Client with service key to bypass RLS for administrative routing
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+async function decryptWabaToken(phoneId: string): Promise<string | null> {
+  if (!wabaSecretKey) {
+    console.error("[meta-webhook] Cannot decrypt: WABA_DECRYPTION_KEY missing.");
+    return null;
+  }
+  try {
+    const { data: rpcData, error: rpcErr } = await supabase.rpc("decrypt_tenant_waba_connection", {
+      p_phone_number_id: phoneId,
+      p_secret_key: wabaSecretKey
+    });
+    if (rpcErr || !rpcData || rpcData.length === 0) {
+      console.error(`[meta-webhook] Decryption RPC failed for phoneId ${phoneId}:`, rpcErr);
+      return null;
+    }
+    return rpcData[0].decrypted_token;
+  } catch (err: any) {
+    console.error(`[meta-webhook] Exception in decryptWabaToken for phoneId ${phoneId}:`, err.message || err);
+    return null;
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// =============================================================================
+// Mediflow SRE Patch: Circuit Breaker for LLM API calls (Global Isolate Scope)
+// Prevents cascading failures and rate limit limits across concurrent calls
+// =============================================================================
+const LLM_CIRCUIT_BREAKERS = new Map<string, { failures: number; lastFailure: number; state: 'closed' | 'open' | 'half-open' }>();
+
+function getCircuitBreaker(key: string) {
+  if (!LLM_CIRCUIT_BREAKERS.has(key)) {
+    LLM_CIRCUIT_BREAKERS.set(key, { failures: 0, lastFailure: 0, state: 'closed' });
+  }
+  return LLM_CIRCUIT_BREAKERS.get(key)!;
+}
+
+async function callWithCircuitBreaker<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const cb = getCircuitBreaker(key);
+  if (cb.state === 'open') {
+    if (Date.now() - cb.lastFailure > 60000) { // 1min cooldown
+      cb.state = 'half-open';
+    } else {
+      throw new Error(`Circuit breaker OPEN for ${key} — LLM unavailable`);
+    }
+  }
+  try {
+    const result = await fn();
+    cb.failures = 0;
+    cb.state = 'closed';
+    return result;
+  } catch (e) {
+    cb.failures++;
+    cb.lastFailure = Date.now();
+    if (cb.failures >= 3) cb.state = 'open';
+    throw e;
+  }
+}
+
+const LLM_TIMEOUT_MS = 8000;
 
 serve(async (req) => {
   const url = new URL(req.url);
@@ -181,7 +239,12 @@ if (!isManualRelay) {
                 phoneId = dbConn.phone_number_id || phoneId;
               }
               if (dbConn.encrypted_system_user_token) {
-                systemToken = dbConn.encrypted_system_user_token;
+                const decrypted = await decryptWabaToken(phoneId);
+                if (decrypted) {
+                  systemToken = decrypted;
+                } else {
+                  systemToken = dbConn.encrypted_system_user_token;
+                }
               }
             }
           } catch (_e) {}
@@ -240,10 +303,12 @@ if (!isManualRelay) {
 
             if (realConn && realConn.phone_number_id && realConn.encrypted_system_user_token && realConn.phone_number_id !== phoneId) {
               console.log(`[Meta Webhook Outbound Relay] Retrying dispatch via production DB phoneId ${realConn.phone_number_id}...`);
+              const decrypted = await decryptWabaToken(realConn.phone_number_id);
+              const retryToken = decrypted || realConn.encrypted_system_user_token;
               const retryRes = await fetch(`https://graph.facebook.com/v21.0/${realConn.phone_number_id}/messages`, {
                 method: "POST",
                 headers: {
-                  "Authorization": `Bearer ${realConn.encrypted_system_user_token}`,
+                  "Authorization": `Bearer ${retryToken}`,
                   "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
@@ -302,34 +367,34 @@ if (!isManualRelay) {
         try {
           const last10 = cleanPhone.slice(-10);
           const currentTime = new Date().toISOString();
+
           const { data: dbSess } = await supabase
             .from("whatsapp_sessions")
-            .select("id, session_data")
+            .select("patient_phone")
             .like("patient_phone", `%${last10}%`)
             .maybeSingle();
 
           if (dbSess) {
-            const sData = dbSess.session_data || {};
-            const chatHistory = sData.chatHistory || [];
-            
-            chatHistory.push({
+            const msgObj = {
               sender: "agent",
               text: messageText,
               timestamp: currentTime,
               time: currentTime
-            });
-            
-            sData.chatHistory = chatHistory;
-            sData.humanOverride = true;
-            sData.human_override_started_at = currentTime;
+            };
+            const updates = {
+              humanOverride: true,
+              human_override_started_at: currentTime
+            };
 
-            await supabase
-              .from("whatsapp_sessions")
-              .update({
-                session_data: sData,
-                last_interaction: currentTime
-              })
-              .eq("id", dbSess.id);
+            await supabase.rpc('atomic_update_whatsapp_session', {
+              p_patient_phone: dbSess.patient_phone,
+              p_patient_id: null,
+              p_pod_id: null,
+              p_entity_id: null,
+              p_current_state: null,
+              p_message: msgObj,
+              p_session_data_updates: updates
+            });
           }
         } catch (_dbErr) {
           console.warn("[Meta Webhook Outbound Relay] Error refreshing takeover session state:", _dbErr);
@@ -367,7 +432,14 @@ if (!isManualRelay) {
               .maybeSingle();
             if (dbConn) {
               if (!phoneId && dbConn.phone_number_id) phoneId = dbConn.phone_number_id;
-              if (!systemToken && dbConn.encrypted_system_user_token) systemToken = dbConn.encrypted_system_user_token;
+              if (!systemToken && dbConn.encrypted_system_user_token) {
+                const decrypted = await decryptWabaToken(phoneId || dbConn.phone_number_id);
+                if (decrypted) {
+                  systemToken = decrypted;
+                } else {
+                  systemToken = dbConn.encrypted_system_user_token;
+                }
+              }
             }
           } catch (_e) {}
         }
@@ -403,30 +475,30 @@ if (!isManualRelay) {
         try {
           const last10 = cleanPhone.slice(-10);
           const currentTime = new Date().toISOString();
+
           const { data: dbSess } = await supabase
             .from("whatsapp_sessions")
-            .select("id, session_data")
+            .select("patient_phone")
             .like("patient_phone", `%${last10}%`)
             .maybeSingle();
 
           if (dbSess) {
-            const sData = dbSess.session_data || {};
-            const chatHistory = sData.chatHistory || [];
-            chatHistory.push({
+            const msgObj = {
               sender: "agent",
               text: `📢 [BROADCAST CAMPAIGN]\n${messageText}`,
               timestamp: currentTime,
               time: currentTime
-            });
-            sData.chatHistory = chatHistory;
+            };
 
-            await supabase
-              .from("whatsapp_sessions")
-              .update({
-                session_data: sData,
-                last_interaction: currentTime
-              })
-              .eq("id", dbSess.id);
+            await supabase.rpc('atomic_update_whatsapp_session', {
+              p_patient_phone: dbSess.patient_phone,
+              p_patient_id: null,
+              p_pod_id: null,
+              p_entity_id: null,
+              p_current_state: null,
+              p_message: msgObj,
+              p_session_data_updates: null
+            });
           }
         } catch (_bErr) {}
 
@@ -579,77 +651,45 @@ if (!isManualRelay) {
         }
       }
 
-      // 4. Retrieve or Initialize Active WhatsApp Session for patient
-      let { data: session, error: sessErr } = await supabase
+      // 4. Retrieve or Initialize Active WhatsApp Session for patient atomically
+      let { data: session } = await supabase
         .from("whatsapp_sessions")
         .select("*")
         .eq("patient_phone", patientPhone)
-        .single();
+        .maybeSingle();
 
       const currentTime = new Date().toISOString();
+      const clean10Digits = String(patientPhone).replace(/\D/g, "").slice(-10);
+      let patientId = null;
 
-      if (sessErr || !session) {
-        // Find patient in registry to link profile (flexible 10-digit/12-digit matching)
-        const clean10Digits = String(patientPhone).replace(/\D/g, "").slice(-10);
+      if (!session) {
+        // Find patient in registry to link profile
         const { data: patient } = await supabase
           .from("patient_registry")
           .select("id")
           .or(`phone.eq.${clean10Digits},phone.eq.${patientPhone},phone.eq.91${clean10Digits},phone.eq.+91${clean10Digits}`)
           .maybeSingle();
-
-        const newId = crypto.randomUUID();
-        const { data: newSess, error: createSessErr } = await supabase
-          .from("whatsapp_sessions")
-          .insert({
-            id: newId,
-            patient_phone: patientPhone,
-            patient_id: patient?.id ?? null,
-            current_state: "AWAITING_WELCOME",
-            last_interaction: currentTime,
-            session_data: {
-              chatHistory: [{ sender: "patient", text: messageText, timestamp: currentTime }],
-              humanOverride: false,
-              podId: connection.pod_id,
-              entityId: connection.entity_id
-            }
-          })
-          .select()
-          .single();
-
-        if (createSessErr) {
-          console.error("[Meta Webhook] Failed to initialize patient session:", createSessErr);
-          return new Response("Database write failure", { status: 500 });
-        }
-        session = newSess;
+        patientId = patient?.id ?? null;
       } else {
-        // Session exists. Update history log.
-        const sessionData = session.session_data ?? {};
-        const chatHistory = sessionData.chatHistory ?? [];
-        chatHistory.push({ sender: "patient", text: messageText, timestamp: currentTime, time: currentTime });
-
-        const updatedData = {
-          ...sessionData,
-          chatHistory,
-          podId: connection.pod_id,
-          entityId: connection.entity_id
-        };
-
-        const { data: nextSess, error: updateSessErr } = await supabase
-          .from("whatsapp_sessions")
-          .update({
-            session_data: updatedData,
-            last_interaction: currentTime
-          })
-          .eq("id", session.id)
-          .select()
-          .single();
-
-        if (updateSessErr) {
-          console.error("[Meta Webhook] Failed to update chat history:", updateSessErr);
-          return new Response("Database update failure", { status: 500 });
-        }
-        session = nextSess;
+        patientId = session.patient_id;
       }
+
+      const msgObj = { sender: "patient", text: messageText, timestamp: currentTime, time: currentTime };
+      const { data: nextSess, error: rpcErr } = await supabase.rpc('atomic_update_whatsapp_session', {
+        p_patient_phone: patientPhone,
+        p_patient_id: patientId,
+        p_pod_id: connection.pod_id,
+        p_entity_id: connection.entity_id,
+        p_current_state: session ? session.current_state : "AWAITING_WELCOME",
+        p_message: msgObj,
+        p_session_data_updates: session ? null : { humanOverride: false }
+      });
+
+      if (rpcErr || !nextSess) {
+        console.error("[Meta Webhook] Failed to initialize/update patient session atomically:", rpcErr);
+        return new Response("Database write failure", { status: 500 });
+      }
+      session = nextSess;
 
       // 5. Route to AI chatbot pipeline OR notify Human Team Inbox
       const sessionData = session.session_data ?? {};
@@ -662,8 +702,19 @@ if (!isManualRelay) {
         if (overrideStartTime === 0) {
           // Stamp current time if missing so takeover is maintained
           overrideStartTime = new Date().getTime();
-          sessionData.human_override_started_at = new Date().toISOString();
-          await supabase.from("whatsapp_sessions").update({ session_data: sessionData }).eq("id", session.id);
+          const updates = { human_override_started_at: new Date().toISOString() };
+          const { data: updatedSess } = await supabase.rpc('atomic_update_whatsapp_session', {
+            p_patient_phone: session.patient_phone,
+            p_patient_id: null,
+            p_pod_id: null,
+            p_entity_id: null,
+            p_current_state: null,
+            p_message: null,
+            p_session_data_updates: updates
+          });
+          if (updatedSess && updatedSess.session_data) {
+            session.session_data = updatedSess.session_data;
+          }
         }
 
         const nowTime = new Date().getTime();
@@ -672,13 +723,19 @@ if (!isManualRelay) {
         if (elapsedMinutes >= 10) {
           console.log(`[Meta Webhook] Human override expired (${elapsedMinutes.toFixed(1)} mins of clinician inactivity). Auto-reverting to AI Bot Mode.`);
           isHumanOverride = false;
-          sessionData.humanOverride = false;
-          sessionData.override_reverted_at = new Date().toISOString();
-
-          await supabase
-            .from("whatsapp_sessions")
-            .update({ session_data: sessionData })
-            .eq("id", session.id);
+          const updates = { humanOverride: false, override_reverted_at: new Date().toISOString() };
+          const { data: updatedSess } = await supabase.rpc('atomic_update_whatsapp_session', {
+            p_patient_phone: session.patient_phone,
+            p_patient_id: null,
+            p_pod_id: null,
+            p_entity_id: null,
+            p_current_state: null,
+            p_message: null,
+            p_session_data_updates: updates
+          });
+          if (updatedSess && updatedSess.session_data) {
+            session.session_data = updatedSess.session_data;
+          }
         }
       }
 
@@ -2645,40 +2702,8 @@ CLINICAL GUIDELINES:
 1. Always base your advice on ADA, KDIGO, or standard clinical protocols.
 2. If they have diabetes/sugar and are asking about sugar, explain that their average 3-month sugar level (HbA1c 7.2% or whatever is on file) requires reducing sugar/carbs. Suggest LOINC: 4544-3 tests.
 3. If creatinine is high (>1.2), caution them not to take heavy NSAIDs/pain-killers.
-// Circuit breaker for LLM API calls
-const LLM_CIRCUIT_BREAKERS = new Map<string, { failures: number; lastFailure: number; state: 'closed' | 'open' | 'half-open' }>();
-
-function getCircuitBreaker(key: string) {
-  if (!LLM_CIRCUIT_BREAKERS.has(key)) {
-    LLM_CIRCUIT_BREAKERS.set(key, { failures: 0, lastFailure: 0, state: 'closed' });
-  }
-  return LLM_CIRCUIT_BREAKERS.get(key)!;
-}
-
-async function callWithCircuitBreaker<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const cb = getCircuitBreaker(key);
-  if (cb.state === 'open') {
-    if (Date.now() - cb.lastFailure > 60000) { // 1min cooldown
-      cb.state = 'half-open';
-    } else {
-      throw new Error(`Circuit breaker OPEN for ${key} — LLM unavailable`);
-    }
-  }
-  try {
-    const result = await fn();
-    cb.failures = 0;
-    cb.state = 'closed';
-    return result;
-  } catch (e) {
-    cb.failures++;
-    cb.lastFailure = Date.now();
-    if (cb.failures >= 3) cb.state = 'open';
-    throw e;
-  }
-}
-
-const LLM_TIMEOUT_MS = 8000;
-
+            // Using global LLM_CIRCUIT_BREAKERS and callWithCircuitBreaker defined at top level
+            
             const chatHistoryMessages = chatHistory.slice(-5).map((h: any) => ({
               role: h.sender === "patient" ? "user" : "assistant",
               content: h.text
@@ -3117,19 +3142,22 @@ const LLM_TIMEOUT_MS = 8000;
   } catch (err) {
     console.error("[Meta Outbound] Failed to dispatch API message:", err);
   }
-
-  // 2. Persist state transition to DB after dispatching message to avoid blocking patient response
+  // 2. Persist state transition to DB atomically after dispatching message to avoid blocking patient response
   try {
-    await supabase
-      .from("whatsapp_sessions")
-      .update({
-        current_state: dbState,
-        patient_id: session.patient_id,
-        session_data: updatedData,
-        last_interaction: currentTime
-      })
-      .eq("id", session.id);
+    const botMessage = { sender: "bot", text: replyText, timestamp: currentTime, time: currentTime };
+    const sessionDataUpdates = { ...sessionData };
+    delete sessionDataUpdates.chatHistory;
+
+    await supabase.rpc('atomic_update_whatsapp_session', {
+      p_patient_phone: patientPhone,
+      p_patient_id: session.patient_id,
+      p_pod_id: connection.pod_id,
+      p_entity_id: connection.entity_id,
+      p_current_state: dbState,
+      p_message: botMessage,
+      p_session_data_updates: sessionDataUpdates
+    });
   } catch (updateErr) {
-    console.error("[Meta Webhook] Failed to update session after bot reply:", updateErr);
+    console.error("[Meta Webhook] Failed to update session atomically after bot reply:", updateErr);
   }
 }

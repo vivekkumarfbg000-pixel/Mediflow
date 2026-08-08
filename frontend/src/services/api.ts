@@ -438,7 +438,8 @@ class MediflowApiService {
                 doctor_id: ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
                 entity_id: ctx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
                 clinical_notes: payload.clinicalNotes,
-                status: 'active'
+                status: 'active',
+                pod_id: ctx.podId
               });
             if (encError) throw encError;
 
@@ -514,7 +515,8 @@ class MediflowApiService {
               chronic_conditions: payload.chronicConditions,
               abha_id: payload.abhaId,
               token_number: payload.tokenNumber,
-              registered_at_entity: ctx.entityId && ctx.entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' ? ctx.entityId : null
+              registered_at_entity: ctx.entityId && ctx.entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' ? ctx.entityId : null,
+              pod_id: ctx.podId
             });
             if (error) throw error;
             break;
@@ -532,7 +534,8 @@ class MediflowApiService {
               barcode: payload.barcode || `WALK-${Date.now()}-${payload.testCode}`,
               status: 'pending',
               assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
-              created_at: entry.timestamp
+              created_at: entry.timestamp,
+              pod_id: ctx.podId
             });
             if (error) throw error;
             break;
@@ -550,7 +553,8 @@ class MediflowApiService {
               status: 'pending',
               prescription_file_url: payload.prescriptionFileUrl,
               assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
-              created_at: entry.timestamp
+              created_at: entry.timestamp,
+              pod_id: ctx.podId
             });
             if (error) throw error;
             break;
@@ -1624,7 +1628,7 @@ class MediflowApiService {
     return BillingService.getUnifiedInvoices();
   }
 
-  clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): void {
+  clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): void {
     BillingService.clearInvoice(invoiceId, paymentMethod);
     this.notify();
   }
@@ -1696,7 +1700,7 @@ class MediflowApiService {
     return inv;
   }
 
-  async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' = 'upi'): Promise<void> {
+  async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
     await BillingService.recordInvoicePayment(invoiceId, paymentMethod);
     this.notify();
   }
@@ -1978,7 +1982,8 @@ class MediflowApiService {
           status: 'scheduled',
           appointment_time: slot.startISO,
           end_time: slot.endISO,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          pod_id: getPodContext().podId
         });
       } catch (dbErr) {
         console.warn('[EveningSlot] Supabase upsert failed (offline?), slot saved locally:', dbErr);
@@ -2008,7 +2013,8 @@ class MediflowApiService {
         doctor_id: slot.doctorId === 'doc-1' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' : slot.doctorId,
         status: 'scheduled',
         appointment_time: slot.startISO,
-        end_time: slot.endISO
+        end_time: slot.endISO,
+        pod_id: getPodContext().podId
       });
     } catch (dbErr) {
       console.warn('[EveningSlot] scheduleAppointment Supabase upsert failed:', dbErr);
@@ -2101,7 +2107,7 @@ class MediflowApiService {
     return LabBillingService.getLabTestBillById(id);
   }
 
-  payLabTestBill(id: string, paymentMethod: 'cash' | 'upi' | 'card' | 'paytm' = 'cash'): void {
+  payLabTestBill(id: string, paymentMethod: 'cash' | 'upi' | 'card' | 'paytm' | 'razorpay' | 'phonepe' = 'cash'): void {
     LabBillingService.payLabTestBill(id, paymentMethod);
     this.notify();
   }

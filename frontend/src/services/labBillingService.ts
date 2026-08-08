@@ -109,7 +109,7 @@ export class LabBillingService {
 
   // ── Payment Collection ──────────────────────────────────────────────────────
 
-  static payLabTestBill(id: string, paymentMethod: 'cash' | 'upi' | 'card' | 'paytm' = 'cash'): void {
+  static payLabTestBill(id: string, paymentMethod: 'cash' | 'upi' | 'card' | 'paytm' | 'razorpay' | 'phonepe' = 'cash'): void {
     const bills = this.getLabTestBills();
     const billIndex = bills.findIndex(b => b.id === id);
     if (billIndex < 0) return;
@@ -185,7 +185,8 @@ export class LabBillingService {
             commission_rate: splitPlat,
             net_payout: platformAmt,
             payment_status: 'cleared',
-            settled_at: new Date().toISOString()
+            settled_at: new Date().toISOString(),
+            pod_id: getPodContext().podId
           },
           {
             invoice_id: id,
@@ -196,7 +197,8 @@ export class LabBillingService {
             commission_rate: 100 - splitPlat,
             net_payout: labAmt,
             payment_status: 'cleared',
-            settled_at: new Date().toISOString()
+            settled_at: new Date().toISOString(),
+            pod_id: getPodContext().podId
           }
         ];
         supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {

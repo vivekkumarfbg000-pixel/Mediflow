@@ -608,6 +608,7 @@ DECLARE
     remaining_qty INT;
     allocated_qty INT;
     cur_batch RECORD;
+    v_pod_id UUID;
 BEGIN
     IF TG_OP = 'UPDATE' AND (OLD.status = 'completed' OR NEW.status != 'completed') THEN
         RETURN NEW;
@@ -615,6 +616,8 @@ BEGIN
     IF TG_OP = 'INSERT' AND NEW.status != 'completed' THEN
         RETURN NEW;
     END IF;
+
+    v_pod_id := NEW.pod_id;
 
     SELECT COALESCE(consultation_fee, 400.00) INTO doctor_fee
     FROM public.profiles
@@ -650,10 +653,10 @@ BEGIN
         SET price = v_test_price
         WHERE id = diag.id;
 
-        INSERT INTO public.lab_requisitions (encounter_id, patient_id, lab_entity_id, loinc_code, test_name, barcode, assigned_technician_id)
+        INSERT INTO public.lab_requisitions (encounter_id, patient_id, lab_entity_id, loinc_code, test_name, barcode, assigned_technician_id, pod_id)
         VALUES (NEW.id, NEW.patient_id, v_lab_entity_id, diag.loinc_code, diag.test_name,
                 'BAR-' || upper(substring(NEW.id::text, 1, 8)) || '-' || diag.loinc_code,
-                'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002')
+                'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', v_pod_id)
         ON CONFLICT (barcode) DO NOTHING;
                 
         lab_fee := lab_fee + v_test_price;
@@ -689,12 +692,12 @@ BEGIN
                     updated_at = now()
                 WHERE id = cur_batch.id;
 
-                INSERT INTO public.inventory_holds (
+                 INSERT INTO public.inventory_holds (
                     pharmacy_entity_id, encounter_id, patient_id, medicine_name, dosage, quantity,
-                    batch_number, expiry_date, hold_status
+                    batch_number, expiry_date, hold_status, pod_id
                 ) VALUES (
                     v_pharmacy_entity_id, NEW.id, NEW.patient_id, med.medicine_name, med.dosage, allocated_qty,
-                    cur_batch.batch_number, cur_batch.expiry_date, 'held'
+                    cur_batch.batch_number, cur_batch.expiry_date, 'held', v_pod_id
                 );
 
                 remaining_qty := remaining_qty - allocated_qty;
@@ -704,42 +707,42 @@ BEGIN
                 IF remaining_qty = needed_qty THEN
                     INSERT INTO public.inventory_holds (
                         pharmacy_entity_id, encounter_id, patient_id, medicine_name, dosage, quantity,
-                        batch_number, expiry_date, hold_status
+                        batch_number, expiry_date, hold_status, pod_id
                     ) VALUES (
                         v_pharmacy_entity_id, NEW.id, NEW.patient_id, med.medicine_name, med.dosage, remaining_qty,
-                        'OUT_OF_STOCK', NULL, 'held'
+                        'OUT_OF_STOCK', NULL, 'held', v_pod_id
                     );
                 ELSE
                     INSERT INTO public.inventory_holds (
                         pharmacy_entity_id, encounter_id, patient_id, medicine_name, dosage, quantity,
-                        batch_number, expiry_date, hold_status
+                        batch_number, expiry_date, hold_status, pod_id
                     ) VALUES (
                         v_pharmacy_entity_id, NEW.id, NEW.patient_id, med.medicine_name, med.dosage, remaining_qty,
-                        'SHORTAGE', NULL, 'held'
+                        'SHORTAGE', NULL, 'held', v_pod_id
                     );
                 END IF;
 
-                INSERT INTO public.activity_logs (action_type, details, entity_id)
+                INSERT INTO public.activity_logs (action_type, details, entity_id, pod_id)
                 VALUES ('INVENTORY_SHORTAGE', jsonb_build_object(
                     'medicine_name', med.medicine_name,
                     'requested_quantity', needed_qty,
                     'remaining_quantity', remaining_qty,
                     'encounter_id', NEW.id,
                     'pharmacy_entity_id', v_pharmacy_entity_id
-                ), v_pharmacy_entity_id);
+                ), v_pharmacy_entity_id, v_pod_id);
             END IF;
 
             pharmacy_fee := pharmacy_fee + 150;
         END LOOP;
     EXCEPTION
         WHEN OTHERS THEN
-            INSERT INTO public.activity_logs (action_type, details, entity_id)
+            INSERT INTO public.activity_logs (action_type, details, entity_id, pod_id)
             VALUES ('SYSTEM_ERROR', jsonb_build_object(
                 'trigger', 'on_encounter_submitted (Action B - Pharmacy holds)',
                 'error_message', SQLERRM,
                 'error_code', SQLSTATE,
                 'encounter_id', NEW.id
-            ), v_pharmacy_entity_id);
+            ), v_pharmacy_entity_id, v_pod_id);
     END;
 
     platform_fee := (doctor_fee + lab_fee + pharmacy_fee) * 0.03;
@@ -752,10 +755,10 @@ BEGIN
     SELECT phone INTO v_patient_phone FROM public.patient_registry WHERE id = NEW.patient_id;
 
     INSERT INTO public.unified_invoices
-        (encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total_amount, upi_qr_payload)
+        (encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total_amount, upi_qr_payload, pod_id)
     VALUES
         (NEW.id, NEW.patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total,
-         'upi://pay?pa=vitalsync@axl&pn=VitalSync&am=' || total || '&cu=INR&tn=VitalSync-' || NEW.id);
+         'upi://pay?pa=vitalsync@axl&pn=VitalSync&am=' || total || '&cu=INR&tn=VitalSync-' || NEW.id, v_pod_id);
 
     UPDATE public.whatsapp_sessions
     SET current_state = 'AWAITING_PAYMENT', last_interaction = now(),
@@ -2096,8 +2099,8 @@ BEGIN
                 last_interaction = NOW()
             WHERE id = v_existing_session.id;
             
-            INSERT INTO activity_logs (action_type, details, entity_id)
-            VALUES ('WHATSAPP_STATE_TRANSITION', jsonb_build_object('phone', p_patient_phone, 'newState', 'AWAITING_PAYMENT'), v_existing_session.id);
+            INSERT INTO activity_logs (action_type, details, entity_id, pod_id)
+            VALUES ('WHATSAPP_STATE_TRANSITION', jsonb_build_object('phone', p_patient_phone, 'newState', 'AWAITING_PAYMENT'), v_existing_session.id, p_pod_id);
         END IF;
     END IF;
 
@@ -2155,6 +2158,15 @@ BEGIN
     ELSE
         v_gateway_fee := 0; -- Cash / UPI Counter is 0% MDR
     END IF;
+
+    -- Counter Doctor Consultation Fee Immunity Protocol (Rule 58)
+    IF COALESCE(v_invoice.pharmacy_fee, 0) = 0 
+       AND COALESCE(v_invoice.lab_fee, 0) = 0 
+       AND p_payment_method IN ('cash', 'upi') 
+       AND COALESCE(v_invoice.source, '') != 'whatsapp' THEN
+        v_platform_fee := 0;
+        v_doctor_fee := v_amount;
+    END IF;
     
     v_net_profit := GREATEST(0, v_platform_fee - v_gateway_fee);
 
@@ -2183,11 +2195,11 @@ BEGIN
             INSERT INTO vitalsync_pool_settlements (
                 invoice_id, patient_id, total_amount, doctor_share, platform_share, 
                 gateway_fee, net_platform_profit, payment_mode, settlement_status, 
-                gateway_reference_id, created_at
+                gateway_reference_id, created_at, pod_id
             ) VALUES (
                 p_invoice_id, v_invoice.patient_id, v_amount, v_doctor_fee, v_platform_fee,
                 v_gateway_fee, v_net_profit, p_payment_method, 'completed', 
-                p_gateway_reference_id, NOW()
+                p_gateway_reference_id, NOW(), v_pod_id
             );
         END IF;
     ELSE
@@ -2195,11 +2207,11 @@ BEGIN
         INSERT INTO vitalsync_pool_settlements (
             invoice_id, patient_id, total_amount, doctor_share, platform_share, 
             gateway_fee, net_platform_profit, payment_mode, settlement_status, 
-            gateway_reference_id, created_at
+            gateway_reference_id, created_at, pod_id
         ) VALUES (
             p_invoice_id, v_invoice.patient_id, v_amount, v_doctor_fee, v_platform_fee,
             v_gateway_fee, v_net_profit, p_payment_method, 'completed', 
-            'counter-' || p_payment_method || '-' || SUBSTRING(p_invoice_id::TEXT, 1, 8), NOW()
+            'counter-' || p_payment_method || '-' || SUBSTRING(p_invoice_id::TEXT, 1, 8), NOW(), v_pod_id
         );
     END IF;
 
@@ -2217,40 +2229,74 @@ BEGIN
     -- Insert Platform Fee Record
     INSERT INTO financial_ledgers (
         invoice_id, source_entity_id, destination_entity_id, transaction_type,
-        gross_amount, commission_rate, net_payout, payment_status, settled_at
+        gross_amount, commission_rate, net_payout, payment_status, settled_at, pod_id
     ) VALUES (
         p_invoice_id, v_pod_id, v_pod_id, 'platform_fee',
-        v_amount, 3, v_platform_fee, 'cleared', NOW()
+        v_amount, 3, v_platform_fee, 'cleared', NOW(), v_pod_id
     );
 
     -- Insert Doctor/Appointment Record
     INSERT INTO financial_ledgers (
         invoice_id, source_entity_id, destination_entity_id, transaction_type,
-        gross_amount, commission_rate, net_payout, payment_status, settled_at
+        gross_amount, commission_rate, net_payout, payment_status, settled_at, pod_id
     ) VALUES (
         p_invoice_id, v_pod_id, v_pod_id, 'appointment_fee',
-        v_amount, 0, v_doctor_fee, 'cleared', NOW()
+        v_amount, 0, v_doctor_fee, 'cleared', NOW(), v_pod_id
     );
 
     -- Add Lab & Pharmacy commission splits dynamically
     IF COALESCE(v_invoice.lab_fee, 0) > 0 THEN
         INSERT INTO financial_ledgers (
             invoice_id, source_entity_id, destination_entity_id, transaction_type,
-            gross_amount, commission_rate, net_payout, payment_status, settled_at
+            gross_amount, commission_rate, net_payout, payment_status, settled_at, pod_id
         ) VALUES (
             p_invoice_id, v_pod_id, v_pod_id, 'lab_commission',
-            v_invoice.lab_fee, 0.5, (v_invoice.lab_fee * 0.5), 'cleared', NOW()
+            v_invoice.lab_fee, 0.5, (v_invoice.lab_fee * 0.5), 'cleared', NOW(), v_pod_id
         );
     END IF;
 
     IF COALESCE(v_invoice.pharmacy_fee, 0) > 0 THEN
         INSERT INTO financial_ledgers (
             invoice_id, source_entity_id, destination_entity_id, transaction_type,
-            gross_amount, commission_rate, net_payout, payment_status, settled_at
+            gross_amount, commission_rate, net_payout, payment_status, settled_at, pod_id
         ) VALUES (
             p_invoice_id, v_pod_id, v_pod_id, 'medicine_commission',
-            v_invoice.pharmacy_fee, 0.2, (v_invoice.pharmacy_fee * 0.2), 'cleared', NOW()
+            v_invoice.pharmacy_fee, 0.2, (v_invoice.pharmacy_fee * 0.2), 'cleared', NOW(), v_pod_id
         );
+    END IF;
+
+    -- Refill Commission Pool Protocol (Rule 57)
+    IF (COALESCE(v_invoice.pharmacy_fee, 0) > 0 OR COALESCE(v_invoice.lab_fee, 0) > 0) 
+       AND p_payment_method IN ('paytm', 'phonepe', 'razorpay', 'upi') THEN
+        DECLARE
+            v_current_pool NUMERIC := 0;
+            v_refill_amount NUMERIC := 0;
+            v_refill_needed NUMERIC := 0;
+        BEGIN
+            SELECT COALESCE(commission_pool_balance, 0) INTO v_current_pool
+            FROM public.pods
+            WHERE id = v_pod_id
+            FOR UPDATE;
+            
+            IF v_current_pool < 1000.00 THEN
+                v_refill_needed := 1000.00 - v_current_pool;
+                v_refill_amount := LEAST(v_refill_needed, v_amount - v_platform_fee);
+                
+                IF v_refill_amount > 0 THEN
+                    UPDATE public.pods
+                    SET commission_pool_balance = COALESCE(commission_pool_balance, 0) + v_refill_amount
+                    WHERE id = v_pod_id;
+                    
+                    INSERT INTO public.pool_transactions (
+                        pod_id, transaction_type, amount, reason, reference_id, balance_after
+                    ) VALUES (
+                        v_pod_id, 'credit', v_refill_amount, 
+                        'Pool Refill via Online Invoice #' || p_invoice_id, 
+                        p_invoice_id, (v_current_pool + v_refill_amount)
+                    );
+                END IF;
+            END IF;
+        END;
     END IF;
 
     RETURN jsonb_build_object('success', true, 'message', 'Invoice settlement completed atomically');
@@ -2381,9 +2427,13 @@ DECLARE
     v_default_session_data JSONB;
     v_chat_history JSONB;
 BEGIN
-    -- Determine default chat history array
+    -- Determine default chat history array (handle array vs single object)
     IF p_message IS NOT NULL THEN
-      v_chat_history := jsonb_build_array(p_message);
+      IF jsonb_typeof(p_message) = 'array' THEN
+        v_chat_history := p_message;
+      ELSE
+        v_chat_history := jsonb_build_array(p_message);
+      END IF;
     ELSE
       v_chat_history := '[]'::jsonb;
     END IF;
@@ -2448,6 +2498,41 @@ BEGIN
     END IF;
 
     RETURN to_jsonb(v_updated);
+END;
+$$;
+
+
+-- ─── Pop Pending Broadcast Batch RPC ──────────────────────────────────────
+-- Atomically fetches and transitions a batch of pending broadcast messages to 'processing'
+-- utilizing FOR UPDATE SKIP LOCKED to eliminate double-dispatch race conditions in workers.
+CREATE OR REPLACE FUNCTION public.pop_pending_broadcast_batch(
+    p_campaign_id TEXT,
+    p_pod_id UUID,
+    p_limit INTEGER
+)
+RETURNS SETOF public.whatsapp_broadcast_queue
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH locked_rows AS (
+        SELECT id
+        FROM public.whatsapp_broadcast_queue
+        WHERE campaign_id = p_campaign_id
+          AND pod_id = p_pod_id
+          AND status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT p_limit
+        FOR UPDATE SKIP LOCKED
+    )
+    UPDATE public.whatsapp_broadcast_queue q
+    SET status = 'processing',
+        updated_at = NOW()
+    FROM locked_rows
+    WHERE q.id = locked_rows.id
+    RETURNING q.*;
 END;
 $$;
 

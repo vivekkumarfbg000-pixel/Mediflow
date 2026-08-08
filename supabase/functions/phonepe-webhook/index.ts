@@ -81,12 +81,28 @@ serve(async (req) => {
     if (isSuccess && merchantTransactionId) {
       console.log(`[PhonePe Webhook] PAYMENT_SUCCESS verified for TxID: ${merchantTransactionId}, Amount: ₹${amountPaid}`);
 
-      // 1. Resolve unified invoice (Strictly match provided merchantTransactionId = invoice.id)
-      const { data: invRow } = await supabase
-        .from("unified_invoices")
-        .select("id, patient_id, payment_status, appointment_id")
-        .eq("id", merchantTransactionId)
-        .maybeSingle();
+      // 1. Resolve unified invoice with prefix fallback
+      let invRow = null;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const isUuid = uuidRegex.test(merchantTransactionId);
+
+      if (isUuid) {
+        const { data: exactInv } = await supabase
+          .from("unified_invoices")
+          .select("id, patient_id, payment_status, appointment_id")
+          .eq("id", merchantTransactionId)
+          .maybeSingle();
+        invRow = exactInv;
+      }
+
+      if (!invRow) {
+        const cleanSnippet = String(merchantTransactionId).replace("inv-wa-", "").substring(0, 8);
+        const { data: prefixInvs } = await supabase
+          .rpc("find_invoice_by_prefix", { p_prefix: cleanSnippet });
+        if (prefixInvs && prefixInvs.length > 0) {
+          invRow = prefixInvs[0];
+        }
+      }
 
       const targetInvoiceId = invRow?.id;
       const patientId = invRow?.patient_id;
@@ -120,9 +136,89 @@ serve(async (req) => {
           if (rpcError) {
             throw new Error(`RPC Settlement Failed: ${rpcError.message}`);
           }
+
+          // 2. Resolve patient phone to update WhatsApp session if it was initiated via bot
+          let patientPhone = "";
+          if (patientId) {
+            const { data: pat } = await supabase
+              .from("patient_registry")
+              .select("phone")
+              .eq("id", patientId)
+              .maybeSingle();
+            if (pat?.phone) {
+              patientPhone = pat.phone;
+            }
+          }
+
+          const clean10 = String(patientPhone).replace(/\D/g, "").slice(-10);
+          if (clean10) {
+            const { data: sess } = await supabase
+              .from("whatsapp_sessions")
+              .select("id, patient_phone, session_data")
+              .ilike("patient_phone", `%${clean10}%`)
+              .limit(1)
+              .maybeSingle();
+
+            let tokenNumber = 1;
+            let approxTime = "10:00 AM";
+            let selectedDisplay = new Date().toISOString().split("T")[0];
+            let doctorName = "Doctor";
+            let clinicName = "Connected Clinic";
+
+            if (sess) {
+              const sessData = sess.session_data || {};
+              
+              // Anti-Hijacking Guard: Only transition session if it strictly matches this invoice
+              if (sessData.pendingInvoiceId === targetInvoiceId) {
+                tokenNumber = sessData.tokenNumber || tokenNumber;
+                approxTime = sessData.approxTime || approxTime;
+                selectedDisplay = sessData.selectedDateDisplay || selectedDisplay;
+                doctorName = sessData.doctorName || doctorName;
+                clinicName = sessData.clinicName || clinicName;
+
+                const updates = { isVerifiedPaid: true, pendingInvoiceId: targetInvoiceId };
+                await supabase.rpc('atomic_update_whatsapp_session', {
+                  p_patient_phone: sess.patient_phone,
+                  p_patient_id: null,
+                  p_pod_id: null,
+                  p_entity_id: null,
+                  p_current_state: "COMPLETED",
+                  p_message: null,
+                  p_session_data_updates: updates
+                });
+
+                // Direct Outbound Meta Graph API Dispatch (<200ms)
+                const metaToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
+                const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || "549557451578330";
+                const outboundPhone = sess?.patient_phone || patientPhone;
+
+                if (metaToken && outboundPhone) {
+                  try {
+                    const confirmText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${(amountPaid || 500).toFixed(2)}\n• Status: Confirmed ✅\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you for choosing VitalSync! 😊`;
+                    await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+                      method: "POST",
+                      headers: {
+                        "Authorization": `Bearer ${metaToken}`,
+                        "Content-Type": "application/json"
+                      },
+                      body: JSON.stringify({
+                        messaging_product: "whatsapp",
+                        recipient_type: "individual",
+                        to: outboundPhone,
+                        type: "text",
+                        text: { body: confirmText }
+                      })
+                    });
+                  } catch (metaErr) {
+                    console.error("[PhonePe Webhook] Failed to dispatch WhatsApp confirmation:", metaErr);
+                  }
+                }
+              }
+            }
+          }
         }
       } catch (e: any) {
-        throw e;
+        console.error("[PhonePe Webhook] Settlement exception:", e);
       }
     }
 

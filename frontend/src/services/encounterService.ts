@@ -222,7 +222,7 @@ export class EncounterService {
               failed_at: new Date().toISOString()
             },
             entity_id: null,
-            pod_id: null
+            pod_id: ctx.podId
           });
         } catch (_logErr) {
           // If even logging fails, nothing more we can do on the client

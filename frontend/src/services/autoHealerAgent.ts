@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { PaymentService } from './paymentService';
 
 // ─── Telemetry Types ────────────────────────────────────────────────────────────
 
@@ -277,8 +278,8 @@ export class StateHealingEngine {
     return false;
   }
 
-  /** 💳 Phase 26: Cashfree Payment Gate Audit Sentinel */
-  static auditCashfreePaymentGate(): boolean {
+  /** 💳 Phase 26: Active Payment Gate Audit Sentinel */
+  static auditActivePaymentGate(): boolean {
     let healed = false;
     try {
       const rawAppts = localStorage.getItem('saas_appointments');
@@ -304,7 +305,7 @@ export class StateHealingEngine {
         }
       }
     } catch (e) {
-      /* ignore cashfree gate audit notice */
+      /* ignore active payment gate audit notice */
     }
     return healed;
   }
@@ -867,7 +868,7 @@ export class StateHealingEngine {
     await safeAwait(() => this.autoHealStateCorruptions(), 'autoHealStateCorruptions');
     await safeAwait(() => this.reconcileFinancialLedgerSplits(), 'reconcileFinancialLedgerSplits');
     await safeAwait(() => this.compressStorageQuota(), 'compressStorageQuota');
-    await safeAwait(() => this.auditCashfreePaymentGate(), 'auditCashfreePaymentGate');
+    await safeAwait(() => this.auditActivePaymentGate(), 'auditActivePaymentGate');
     await safeAwait(() => this.autoRepairUiStylingAnomalies(), 'autoRepairUiStylingAnomalies');
     await safeAwait(() => this.auditSubscriptionAndPaymentGate(), 'auditSubscriptionAndPaymentGate');
     await safeAwait(() => this.adaptToNetworkBandwidth(), 'adaptToNetworkBandwidth');
@@ -2885,21 +2886,19 @@ export class WabaBotSelfUnstick {
   }
 }
 
-// ── Phase 13: Cashfree Expired Payment Link Auto-Regenerator ───────────────
+// ── Phase 13: Expired Payment Link Auto-Regenerator ────────────────────────
 export class PaymentGateAutoHealer {
   static async regenerateExpiredPaymentLink(orderId: string, amount: number, customerPhone: string): Promise<string | null> {
     try {
-      console.log(`[PaymentGateAutoHealer] Regenerating Cashfree payment link for order '${orderId}'...`);
-      const { data, error } = await supabase.functions.invoke('cashfree-order', {
-        body: {
-          action: 'create_order',
-          orderId: `ORD-${Date.now()}`,
-          orderAmount: amount,
-          customerPhone
-        }
+      console.log(`[PaymentGateAutoHealer] Regenerating active gateway payment link for order '${orderId}'...`);
+      const res = await PaymentService.initiatePaymentOrder({
+        invoiceId: orderId,
+        amount,
+        patientPhone: customerPhone,
+        returnUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
       });
-      if (!error && data?.payment_session_id) {
-        return `https://payments.cashfree.com/order/#${data.payment_session_id}`;
+      if (res.success) {
+        return res.paymentSessionId || res.upiPayload?.upiDeepLink || null;
       }
     } catch (_e) {
       /* ignore payment link regen error */

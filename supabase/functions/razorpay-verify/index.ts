@@ -152,7 +152,8 @@ serve(async (req) => {
         net_platform_profit: netProfit,
         payment_method: "razorpay",
         settlement_status: "completed",
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        pod_id: invoice?.pod_id || invoice?.podId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
       });
     }
 

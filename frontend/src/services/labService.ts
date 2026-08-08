@@ -265,7 +265,8 @@ export class LabService {
           patient_id: req.patientId,
           patient_name: patient?.name || req.patientName || 'Unknown',
           biomarker_json: { testCode: req.testCode, testName: req.testName, resultValue },
-          status: 'approved' // lab tech submit = auto-approved at technician level
+          status: 'approved', // lab tech submit = auto-approved at technician level
+          pod_id: getPodContext().podId
         });
 
         // AI extraction and summary update
@@ -358,6 +359,7 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
+      pod_id: getPodContext().podId,
       lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,

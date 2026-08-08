@@ -241,40 +241,38 @@ export class WhatsAppService {
         const welcomeText = `⚠️ *Profile Not Found!* \n\nNamaste! Aapka contact number humare clinic database mein registered nahi hai. \n\nWhatsApp par appointment book karne ke liye, please pehle is link par click karke manually register kijiye: \n🔗 https://mediflow.in/register?phone=${phone} \n\nRegistration complete hone ke baad hume dobara message kijiye!`;
         
         const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+        const now = new Date().toISOString();
+        const patientMsg = { sender: 'patient', text, time: now, timestamp: now };
+        const botMsg = { sender: 'bot', text: welcomeText, time: now, timestamp: now };
+
         if (sessionIndex === -1) {
-          const newId = crypto.randomUUID();
           const newSession: WhatsAppSession = {
-            id: newId,
+            id: crypto.randomUUID(),
             patientPhone: phone,
             currentState: 'AWAITING_WELCOME',
-            lastInteraction: new Date().toISOString(),
+            lastInteraction: now,
             sessionData: {
-              chatHistory: [{ sender: 'bot', text: welcomeText, time: new Date().toISOString() }]
+              chatHistory: [botMsg]
             }
           };
           sessions.push(newSession);
           this.saveWhatsAppSessions(sessions);
-          
-          supabase.from('whatsapp_sessions').upsert({
-            patient_phone: phone,
-            patient_id: null,
-            current_state: 'AWAITING_WELCOME',
-            last_interaction: new Date().toISOString(),
-            session_data: newSession.sessionData
-          }, { onConflict: 'patient_phone' }).then();
         } else {
           const session = sessions[sessionIndex];
           session.sessionData.chatHistory = session.sessionData.chatHistory || [];
-          session.sessionData.chatHistory.push({ sender: 'patient', text, time: new Date().toISOString() });
-          session.sessionData.chatHistory.push({ sender: 'bot', text: welcomeText, time: new Date().toISOString() });
+          session.sessionData.chatHistory.push(patientMsg, botMsg);
           this.saveWhatsAppSessions(sessions);
-          
-          supabase.from('whatsapp_sessions').update({
-            session_data: session.sessionData,
-            last_interaction: new Date().toISOString()
-          }).eq('patient_phone', phone).then();
         }
-        
+
+        const podCtx = getPodContext();
+        supabase.rpc('atomic_update_whatsapp_session', {
+          p_patient_phone: phone,
+          p_patient_id: null,
+          p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+          p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          p_current_state: 'AWAITING_WELCOME',
+          p_message: sessionIndex === -1 ? botMsg : [patientMsg, botMsg]
+        }).then();
         this.sendWhatsAppMessagePayload(phone, 'mediflow_conversational_reply', { replyText: welcomeText });
         return;
       }
@@ -347,14 +345,16 @@ export class WhatsAppService {
             sessionData.consentGranted = true;
             sessionData.consentTime = new Date().toISOString();
             
-            const patient = PatientService.getPatients().find(p => p.phone === phone);
-            if (patient) {
-              await supabase.from('patient_consents').insert({
-                patient_id: patient.id,
-                data_sharing_consent: true,
-                consented_at: new Date().toISOString()
-              });
-            }
+             const patient = PatientService.getPatients().find(p => p.phone === phone);
+             if (patient) {
+               const podId = getPodContext().podId;
+               await supabase.from('patient_consents').insert({
+                 patient_id: patient.id,
+                 data_sharing_consent: true,
+                 consented_at: new Date().toISOString(),
+                 pod_id: podId
+               });
+             }
 
             replyMessage = `🎉 *Consent Recorded Successfully!* \n\nAapka profile secure clinical sync loop se link ho gaya hai. \n\n*Gateways Active:*\n1. Digital e-Prescriptions (e-Rx) 💊\n2. Realtime Pathology Reports 🧪\n3. UPI Integrated Invoices 💳\n\nType **A** to check active appointments, **I** for invoices, or type a general query to chat with AI:`;
           } else {
@@ -676,7 +676,8 @@ export class WhatsAppService {
               commission_rate: s.commissionRate * 100,
               net_payout: s.netPayout,
               payment_status: 'cleared',
-              settled_at: new Date().toISOString()
+              settled_at: new Date().toISOString(),
+              pod_id: getPodContext().podId
             }));
 
             supabase.from('financial_ledgers').insert(dbSplits).then(({ error }) => {
@@ -937,7 +938,7 @@ export class WhatsAppService {
                   name: currentPat!.name,
                   phone: phone,
                   registered_at: currentPat!.registeredAt,
-                  pod_id: (podId && podId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001') ? podId : null
+                  pod_id: podId
                 }).then();
               } catch (_e) { /* ignore fallback error */ }
             }
@@ -1034,6 +1035,7 @@ export class WhatsAppService {
               save('unified_invoices', uInvoices);
 
               try {
+                const podId = getPodContext().podId;
                 const { error } = await supabase.from('appointments').insert({
                   id: apptId,
                   patient_id: activePat.id,
@@ -1042,7 +1044,8 @@ export class WhatsAppService {
                   status: 'pending_payment',
                   source: 'whatsapp',
                   is_virtual: true,
-                  created_at: new Date().toISOString()
+                  created_at: new Date().toISOString(),
+                  pod_id: podId
                 });
                 if (error) console.error('[WhatsApp Booking] Error creating virtual appt in Supabase:', error);
               } catch (err) {
@@ -1181,12 +1184,20 @@ export class WhatsAppService {
         consentTime: null
       };
       this.saveWhatsAppSessions(sessions);
-      
-      supabase.from('whatsapp_sessions').update({
-        current_state: 'AWAITING_WELCOME',
-        last_interaction: new Date().toISOString(),
-        session_data: existing.sessionData
-      }).eq('patient_phone', phone).then(({ error }) => {
+
+      const updates = { ...existing.sessionData, consentGranted: false, consentTime: null };
+      delete updates.chatHistory;
+
+      const podCtx = getPodContext();
+      supabase.rpc('atomic_update_whatsapp_session', {
+        p_patient_phone: phone,
+        p_patient_id: existing.patientId || null,
+        p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+        p_current_state: 'AWAITING_WELCOME',
+        p_message: initialChat,
+        p_session_data_updates: updates
+      }).then(({ error }) => {
         if (error) console.error('Error updating whatsapp session in Supabase:', error);
         else {
           writeAuditLog('whatsapp_session_initiated', { phone }, existing.id);
@@ -1213,12 +1224,14 @@ export class WhatsAppService {
     this.saveWhatsAppSessions(sessions);
 
     supabase.from('patient_registry').select('id').eq('phone', phone).single().then(({ data: patient }) => {
+      const podId = getPodContext().podId;
       supabase.from('whatsapp_sessions').upsert({
         patient_phone: phone,
         patient_id: patient?.id || null,
         current_state: 'AWAITING_WELCOME',
         last_interaction: new Date().toISOString(),
-        session_data: newSession.sessionData
+        session_data: newSession.sessionData,
+        pod_id: podId
       }, { onConflict: 'patient_phone' }).then(({ error }) => {
         if (error) console.error('Error creating whatsapp session in Supabase:', error);
         else {
@@ -1241,31 +1254,34 @@ export class WhatsAppService {
         sessions[idx].sessionData = { ...sessions[idx].sessionData, ...data, currentState: state };
         this.saveWhatsAppSessions(sessions);
 
-        supabase.from('whatsapp_sessions').select('session_data').eq('patient_phone', phone).single().then(({ data: dbSess }) => {
-          const mergedData = { ...(dbSess?.session_data || {}), ...data, currentState: state };
-          
-          const allowed = ['AWAITING_WELCOME', 'AWAITING_CONFIRMATION', 'AWAITING_PAYMENT', 'BOOKING_VIRTUAL', 'COMPLETED', 'INACTIVE'];
-          let dbState: string = state;
-          if (!allowed.includes(state)) {
-            if (state === 'AWAITING_CONSENT') dbState = 'AWAITING_WELCOME';
-            else if (state === 'AWAITING_WELCOME_ACK') dbState = 'AWAITING_CONFIRMATION';
-            else if (state === 'MEDICINE_ORDERING') dbState = 'BOOKING_VIRTUAL';
-            else if (state === 'AWAITING_REFILL_CHOICE' as any) dbState = 'BOOKING_VIRTUAL';
-            else if (state === 'AWAITING_RESCHEDULE_TIME' as any) dbState = 'BOOKING_VIRTUAL';
-            else if (state === 'MEDICINE_AWAITING_PAYMENT') dbState = 'AWAITING_PAYMENT';
-            else if (state === 'MEDICINE_READY_FOR_PICKUP') dbState = 'COMPLETED';
-            else if (state === 'FAILED_DELIVERY') dbState = 'INACTIVE';
-            else dbState = 'AWAITING_WELCOME';
-          }
+        const updates = { ...data, currentState: state };
+        delete updates.chatHistory;
 
-          supabase.from('whatsapp_sessions').update({
-            current_state: dbState,
-            last_interaction: new Date().toISOString(),
-            session_data: mergedData
-          }).eq('patient_phone', phone).then(({ error }) => {
-            if (error) console.error('Error updating whatsapp state in Supabase:', error);
-            else writeAuditLog('whatsapp_session_state_updated', { phone, state: dbState }, sessions[idx].id);
-          });
+        const allowed = ['AWAITING_WELCOME', 'AWAITING_CONFIRMATION', 'AWAITING_PAYMENT', 'BOOKING_VIRTUAL', 'COMPLETED', 'INACTIVE'];
+        let dbState: string = state;
+        if (!allowed.includes(state)) {
+          if (state === 'AWAITING_CONSENT') dbState = 'AWAITING_WELCOME';
+          else if (state === 'AWAITING_WELCOME_ACK') dbState = 'AWAITING_CONFIRMATION';
+          else if (state === 'MEDICINE_ORDERING') dbState = 'BOOKING_VIRTUAL';
+          else if (state === 'AWAITING_REFILL_CHOICE' as any) dbState = 'BOOKING_VIRTUAL';
+          else if (state === 'AWAITING_RESCHEDULE_TIME' as any) dbState = 'BOOKING_VIRTUAL';
+          else if (state === 'MEDICINE_AWAITING_PAYMENT') dbState = 'AWAITING_PAYMENT';
+          else if (state === 'MEDICINE_READY_FOR_PICKUP') dbState = 'COMPLETED';
+          else if (state === 'FAILED_DELIVERY') dbState = 'INACTIVE';
+          else dbState = 'AWAITING_WELCOME';
+        }
+
+        supabase.rpc('atomic_update_whatsapp_session', {
+          p_patient_phone: phone,
+          p_patient_id: null,
+          p_pod_id: null,
+          p_entity_id: null,
+          p_current_state: dbState,
+          p_message: null,
+          p_session_data_updates: updates
+        }).then(({ error }) => {
+          if (error) console.error('Error updating whatsapp state in Supabase:', error);
+          else writeAuditLog('whatsapp_session_state_updated', { phone, state: dbState }, sessions[idx].id);
         });
       }
     } catch (e) {
@@ -1307,22 +1323,17 @@ export class WhatsAppService {
       return sDigits && targetDigits && sDigits === targetDigits;
     });
 
+    const now = new Date().toISOString();
+    const msgObj = { sender: 'bot', text, time: now, timestamp: now };
+
     if (existing) {
       const currentHistory = existing.sessionData?.chatHistory || [];
-      currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
+      currentHistory.push(msgObj);
       existing.sessionData = {
         ...existing.sessionData,
         chatHistory: currentHistory
       };
       this.saveWhatsAppSessions(sessions);
-      
-      supabase.from('whatsapp_sessions').update({
-        session_data: existing.sessionData,
-        last_interaction: new Date().toISOString()
-      }).eq('id', existing.id).then(({ error }) => {
-        if (error) console.error('Error updating whatsapp session:', error);
-        else writeAuditLog('WHATSAPP_BOT_OUTGOING_MESSAGE', { phone, message: text }, existing.id);
-      });
     } else {
       // Auto-provision session for new phone numbers (e.g. demo test dispatches / outbound reminders)
       const newSession: WhatsAppSession = {
@@ -1330,26 +1341,33 @@ export class WhatsAppService {
         patientPhone: phone,
         patientName: 'WhatsApp Demo Patient',
         currentState: 'AWAITING_WELCOME',
-        lastInteraction: new Date().toISOString(),
+        lastInteraction: now,
         sessionData: {
           step: 'main_menu',
-          chatHistory: [{ sender: 'bot', text, time: new Date().toISOString() }]
+          chatHistory: [msgObj]
         }
       };
       sessions.unshift(newSession);
       this.saveWhatsAppSessions(sessions);
-
-      supabase.from('whatsapp_sessions').insert([{
-        id: newSession.id,
-        patient_phone: phone,
-        patient_name: newSession.patientName,
-        last_interaction: newSession.lastInteraction,
-        session_data: newSession.sessionData
-      }]).then(({ error }) => {
-        if (error) console.error('Error creating whatsapp session:', error);
-        else writeAuditLog('WHATSAPP_BOT_OUTGOING_MESSAGE', { phone, message: text }, newSession.id);
-      });
     }
+
+    const podCtx = getPodContext();
+    supabase.rpc('atomic_update_whatsapp_session', {
+      p_patient_phone: phone,
+      p_patient_id: existing?.patientId || null,
+      p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+      p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      p_current_state: existing ? existing.currentState : 'AWAITING_WELCOME',
+      p_message: msgObj,
+      p_session_data_updates: existing ? null : { step: 'main_menu' }
+    }).then(({ data, error }) => {
+      if (error) {
+        console.error('[whatsappService] atomic_update_whatsapp_session failed:', error);
+      } else {
+        const sessId = data?.id || existing?.id;
+        writeAuditLog('WHATSAPP_BOT_OUTGOING_MESSAGE', { phone, message: text }, sessId);
+      }
+    });
   }
 
   static triggerProactiveRefillNudge(phone: string): void {

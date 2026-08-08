@@ -454,7 +454,8 @@ export const LabDashboard: React.FC = () => {
         barcode,
         quantitative_result: stringifiedPayload,
         created_at: requisitionDate,
-        updated_at: requisitionDate
+        updated_at: requisitionDate,
+        pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
       });
 
       const reportUuid = crypto.randomUUID();

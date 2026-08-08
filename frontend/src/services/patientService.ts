@@ -723,7 +723,8 @@ export class PatientService {
         data_sharing_consent: true,
         consented_at: consentTimestamp,
         consent_signature: consentSignature,
-        signature_algorithm: 'HMAC-SHA256'
+        signature_algorithm: 'HMAC-SHA256',
+        pod_id: getPodContext().podId
       });
       if (error) throw error;
       await writeAuditLog('IN_PERSON_CONSENT_GRANTED', { patientId, signaturePresent: !!consentSignature }, patientId);
@@ -781,7 +782,8 @@ export class PatientService {
         data_sharing_consent: true,
         consented_at: nowStr,
         consent_signature: `PHYSICAL_BYPASS_${newConsent.id}`,
-        signature_algorithm: 'HMAC-SHA256'
+        signature_algorithm: 'HMAC-SHA256',
+        pod_id: getPodContext().podId
       });
       if (error) throw error;
       await writeAuditLog('PHYSICAL_CONSENT_GRANTED', { 

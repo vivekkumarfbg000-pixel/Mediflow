@@ -162,11 +162,16 @@ serve(async (req) => {
               doctorName = sessData.doctorName || doctorName;
               clinicName = sessData.clinicName || clinicName;
 
-              const updatedData = { ...sessData, isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
-              await supabase
-                .from("whatsapp_sessions")
-                .update({ current_state: "COMPLETED", session_data: updatedData })
-                .eq("id", sess.id);
+              const updates = { isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
+              await supabase.rpc('atomic_update_whatsapp_session', {
+                p_patient_phone: sess.patient_phone,
+                p_patient_id: null,
+                p_pod_id: null,
+                p_entity_id: null,
+                p_current_state: "COMPLETED",
+                p_message: null,
+                p_session_data_updates: updates
+              });
             }
           }
 

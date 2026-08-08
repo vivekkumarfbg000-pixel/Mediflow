@@ -221,8 +221,8 @@ BEGIN
                 last_interaction = NOW()
             WHERE id = v_existing_session.id;
             
-            INSERT INTO activity_logs (action_type, details, entity_id)
-            VALUES ('WHATSAPP_STATE_TRANSITION', jsonb_build_object('phone', p_patient_phone, 'newState', 'AWAITING_PAYMENT'), v_existing_session.id);
+            INSERT INTO activity_logs (action_type, details, entity_id, pod_id)
+            VALUES ('WHATSAPP_STATE_TRANSITION', jsonb_build_object('phone', p_patient_phone, 'newState', 'AWAITING_PAYMENT'), v_existing_session.id, p_pod_id);
         END IF;
     END IF;
 
