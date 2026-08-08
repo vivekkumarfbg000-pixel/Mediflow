@@ -575,7 +575,7 @@ export class WhatsAppService {
               }
             } else {
               nextState = 'MEDICINE_AWAITING_PAYMENT';
-              replyMessage = `⏳ *Payment Verification Pending*\n\nPayment for ₹${draftBill?.totalAmount.toFixed(2)} is not received yet. UPI Link:\n${draftBill?.upiQrPayload}\n\n• *Online Gateway*: Auto-clears in ~10-30s once payment succeeds.\n• *Counter Cash/UPI*: Present your UPI UTR to the compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after completing payment. 📦`;
+              replyMessage = `⏳ *Payment Verification Pending*\n\nPayment for ₹${(draftBill?.totalAmount || 0).toFixed(2)} is not received yet. UPI Link:\n${draftBill?.upiQrPayload || 'N/A'}\n\n• *Online Gateway*: Auto-clears in ~10-30s once payment succeeds.\n• *Counter Cash/UPI*: Present your UPI UTR to the compounder at ${this.getDynamicClinicName()} counter.\n\nReply **STATUS** to re-check after completing payment. 📦`;
             }
           }
           break;
@@ -1058,7 +1058,7 @@ export class WhatsAppService {
             const cleanPhone10 = (activePat.phone || '').replace(/\D/g, '').slice(-10);
             const targetInvoiceId = sessionData.pendingInvoiceId || `inv-wa-${apptId.substring(0, 8)}`;
             const razorpayPayLink = `https://vitalsync.in/pay/${targetInvoiceId}?phone=${cleanPhone10}`;
-            nextState = 'AWAITING_PAYMENT';
+            nextState = 'AWAITING_VIRTUAL_PAYMENT';
             replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (Tomorrow) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / Paytm / BHIM / Any UPI):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
@@ -1066,7 +1066,7 @@ export class WhatsAppService {
         }
         break;
 
-        case 'AWAITING_PAYMENT': {
+        case 'AWAITING_VIRTUAL_PAYMENT': {
           if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned.includes('paid') || cleaned.includes('done') || cleaned.includes('confirm') || cleaned === '1') {
             const apptId = sessionData.pendingApptId || crypto.randomUUID();
             const invoiceId = sessionData.pendingInvoiceId;

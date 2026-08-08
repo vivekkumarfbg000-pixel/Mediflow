@@ -66,11 +66,13 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
     async function fetchInvoiceDetails() {
       setLoading(true);
       try {
-        let { data: inv, error: invErr } = await supabase
+        let inv: any;
+        const { data, error: _invErr } = await supabase
           .from('unified_invoices')
           .select('*, patient_registry(*)')
           .eq('id', invoiceId)
           .maybeSingle();
+        inv = data;
 
         // Prefix match fallback (e.g. short ID snippet 4F7044ED)
         if (!inv && invoiceId) {
@@ -150,17 +152,6 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
       document.body.appendChild(script);
     }
   }, []);
-
-  // Auto-launch Razorpay modal once invoice is loaded
-  useEffect(() => {
-    if (invoice && status === 'pending' && !autoLaunchedRef.current && !loading) {
-      autoLaunchedRef.current = true;
-      const timer = setTimeout(() => {
-        handleTriggerRazorpay();
-      }, 400);
-      return () => clearTimeout(timer);
-    }
-  }, [invoice, status, loading]);
 
   const handleTriggerRazorpay = async () => {
     if (!invoiceId || processing) return;
@@ -305,6 +296,17 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
       setProcessing(false);
     }
   };
+
+  // Auto-launch Razorpay modal once invoice is loaded
+  useEffect(() => {
+    if (invoice && status === 'pending' && !autoLaunchedRef.current && !loading) {
+      autoLaunchedRef.current = true;
+      const timer = setTimeout(() => {
+        handleTriggerRazorpay();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [invoice, status, loading]);
 
   const amountRupees = invoice ? (Number(invoice.total_amount) || Number(invoice.totalAmount) || 515) : 515;
   const doctorFee = invoice?.doctor_fee ? Number(invoice.doctor_fee) : 500;

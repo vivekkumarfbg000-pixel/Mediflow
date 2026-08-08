@@ -287,10 +287,10 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
             Cash bill recorded successfully
           </div>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-            Session: {result.session_id.substring(0, 8).toUpperCase()}
+            Session: {(result.session_id || '').substring(0, 8).toUpperCase()}
           </p>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
-            ₹{result.commission.toFixed(2)} commission {result.pool_status === 'deferred' ? 'deferred (pool low)' : 'deducted from pool'} •
+            ₹{(result.commission || 0).toFixed(2)} commission {result.pool_status === 'deferred' ? 'deferred (pool low)' : 'deducted from pool'} •
             Pool balance: ₹{result.pool_balance.toLocaleString()}
           </p>
         </div>

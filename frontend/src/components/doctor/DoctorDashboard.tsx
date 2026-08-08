@@ -455,10 +455,10 @@ export const DoctorDashboard: React.FC = () => {
       const currentPodId = activePod?.id || activeDoctorProfile?.pod_id || activeDoctorProfile?.podId || getPodContext().podId;
       const targetPodId = currentPodId || 'unassigned-pod';
 
-      let apptsQuery = supabase.from('appointments').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
-      let ledgersQuery = supabase.from('financial_ledgers').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
-      let patientsQuery = supabase.from('patient_registry').select('*').eq('pod_id', targetPodId).order('registered_at', { ascending: false });
-      let sessionsQuery = supabase.from('whatsapp_sessions').select('*').eq('pod_id', targetPodId).order('last_interaction', { ascending: false });
+      const apptsQuery = supabase.from('appointments').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
+      const ledgersQuery = supabase.from('financial_ledgers').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
+      const patientsQuery = supabase.from('patient_registry').select('*').eq('pod_id', targetPodId).order('registered_at', { ascending: false });
+      const sessionsQuery = supabase.from('whatsapp_sessions').select('*').eq('pod_id', targetPodId).order('last_interaction', { ascending: false });
 
       Promise.all([
         apptsQuery,

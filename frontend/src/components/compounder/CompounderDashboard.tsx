@@ -2884,7 +2884,7 @@ export const CompounderDashboard: React.FC = () => {
                               <tr key={req.id} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 transition-colors">
                                 <td className="p-3">
                                   <div className="font-bold text-slate-800">{req.patientName}</div>
-                                  <span className="text-[9px] text-slate-400 block font-mono">ID: {req.patientId.substring(0, 8)}</span>
+                                  <span className="text-[9px] text-slate-400 block font-mono">ID: {(req.patientId || '').substring(0, 8)}</span>
                                 </td>
                                 <td className="p-3">
                                   <div className="font-semibold text-slate-800">{req.testName}</div>
@@ -2941,7 +2941,7 @@ export const CompounderDashboard: React.FC = () => {
                           <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
                             <div>
                               <h4 className="font-bold text-xs text-slate-800">{report.patientName}</h4>
-                              <span className="text-[9px] text-slate-400 font-mono block">ID: {report.patientId.substring(0, 8)}</span>
+                              <span className="text-[9px] text-slate-400 font-mono block">ID: {(report.patientId || '').substring(0, 8)}</span>
                             </div>
                             <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-bold uppercase">
                               Verified
@@ -3507,7 +3507,7 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">Patient ID / Ref</div>
-                  <div className="text-xs font-bold font-mono">{activeWorkflowDetail.patientId.substring(0, 8).toUpperCase()}</div>
+                  <div className="text-xs font-bold font-mono">{(activeWorkflowDetail.patientId || '').substring(0, 8).toUpperCase()}</div>
                 </div>
               </div>
 

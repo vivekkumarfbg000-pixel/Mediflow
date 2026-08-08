@@ -34,9 +34,9 @@ export const BillingDashboard: React.FC = () => {
 
   const calcSplits = (inv: UnifiedInvoice) => {
     // Convert Rupee fees to integer paise
-    const doctorFeePaise = Math.round(inv.doctorFee * 100);
-    const labFeePaise = Math.round(inv.labFee * 100);
-    const pharmacyFeePaise = Math.round(inv.pharmacyFee * 100);
+    const doctorFeePaise = Math.round((inv.doctorFee || 0) * 100);
+    const labFeePaise = Math.round((inv.labFee || 0) * 100);
+    const pharmacyFeePaise = Math.round((inv.pharmacyFee || 0) * 100);
 
     // Compute TDS (0%) - Direct 100% full payout
     const docTdsPaise = 0;

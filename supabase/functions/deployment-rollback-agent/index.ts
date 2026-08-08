@@ -53,44 +53,82 @@ serve(async (req: Request) => {
 
     // 2. Execute Vercel Rollback API call if credentials present
     let vercelApiResponse: Record<string, unknown> = { note: "Vercel credentials not provided in env, simulated rollback signal" };
+    let rollbackSuccess = true;
+    let rollbackErrorDetail = "";
     
     if (vercelToken && vercelProjectId) {
-      const teamQuery = vercelTeamId ? `?teamId=${vercelTeamId}` : "";
-      // Fetch latest deployments from Vercel
-      const listResp = await fetch(
-        `https://api.vercel.com/v6/deployments${teamQuery}&projectId=${vercelProjectId}&limit=5`,
-        {
-          headers: { Authorization: `Bearer ${vercelToken}` },
-        }
-      );
-
-      if (listResp.ok) {
+      const queryParams = new URLSearchParams();
+      queryParams.append("projectId", vercelProjectId);
+      queryParams.append("limit", "5");
+      if (vercelTeamId) {
+        queryParams.append("teamId", vercelTeamId);
+      }
+      
+      const fetchUrl = `https://api.vercel.com/v6/deployments?${queryParams.toString()}`;
+      const listResp = await fetch(fetchUrl, {
+        headers: { Authorization: `Bearer ${vercelToken}` },
+      });
+ 
+      if (!listResp.ok) {
+        const errText = await listResp.text().catch(() => "Unknown Vercel list error");
+        rollbackSuccess = false;
+        rollbackErrorDetail = `Failed to list Vercel deployments: HTTP ${listResp.status} - ${errText}`;
+        console.error(`[deployment-rollback-agent] ${rollbackErrorDetail}`);
+      } else {
         const listData = await listResp.json();
         const deployments = listData.deployments || [];
         // Ready deployment that is NOT the broken latest one
         const previousHealthy = deployments.find(
           (d: { state: string; uid: string }, idx: number) => idx > 0 && d.state === "READY"
         );
-
+ 
         if (previousHealthy) {
-          // Promote previous healthy deployment
-          const promoteResp = await fetch(
-            `https://api.vercel.com/v13/deployments/${previousHealthy.uid}/promote${teamQuery}`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${vercelToken}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
+          const promoteParams = new URLSearchParams();
+          if (vercelTeamId) {
+            promoteParams.append("teamId", vercelTeamId);
+          }
+          const promoteQuery = promoteParams.toString() ? `?${promoteParams.toString()}` : "";
+          const promoteUrl = `https://api.vercel.com/v13/deployments/${previousHealthy.uid}/promote${promoteQuery}`;
+ 
+          const promoteResp = await fetch(promoteUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${vercelToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+          
           vercelApiResponse = await promoteResp.json().catch(() => ({ status: promoteResp.status }));
-          console.log(`[deployment-rollback-agent] Promoted deployment ${previousHealthy.uid}`);
+          
+          if (!promoteResp.ok) {
+            rollbackSuccess = false;
+            rollbackErrorDetail = `Failed to promote healthy Vercel deployment: HTTP ${promoteResp.status} - ${JSON.stringify(vercelApiResponse)}`;
+            console.error(`[deployment-rollback-agent] ${rollbackErrorDetail}`);
+          } else {
+            console.log(`[deployment-rollback-agent] Promoted deployment ${previousHealthy.uid} successfully.`);
+          }
+        } else {
+          rollbackSuccess = false;
+          rollbackErrorDetail = "No previous healthy 'READY' deployment found in history.";
+          console.error(`[deployment-rollback-agent] ${rollbackErrorDetail}`);
         }
       }
     }
-
-    // 3. Reset rollback_requested in Supabase & log history
+ 
+    if (!rollbackSuccess) {
+      // Fail closed: Do NOT clear rollback_requested, log failure to Telemetry
+      await supabase.from("ci_healer_log").insert({
+        workflow_name: "deployment-rollback-agent",
+        job_name: "auto-rollback",
+        failure_reason: triggerReason,
+        fix_applied: `Attempted Vercel promote but failed: ${rollbackErrorDetail.substring(0, 200)}`,
+        fix_succeeded: false,
+      }).catch(() => {/* non-blocking */});
+ 
+      throw new Error(rollbackErrorDetail);
+    }
+ 
+    // 3. Reset rollback_requested in Supabase & log history (Only on success)
     await supabase
       .from("deployment_health")
       .upsert({
@@ -99,8 +137,8 @@ serve(async (req: Request) => {
         trigger_reason: triggerReason,
         resolved_at: new Date().toISOString(),
       });
-
-    // 4. Log to ci_healer_log table
+ 
+    // 4. Log success to ci_healer_log table
     await supabase.from("ci_healer_log").insert({
       workflow_name: "deployment-rollback-agent",
       job_name: "auto-rollback",

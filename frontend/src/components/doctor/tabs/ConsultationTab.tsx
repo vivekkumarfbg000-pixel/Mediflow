@@ -1089,7 +1089,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         })()}
                       </div>
                       <span className="text-[9px] font-extrabold text-indigo-800 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md font-mono shrink-0">
-                        [{p.patientCode || p.tokenNumber || p.id.toUpperCase().substring(0, 6)}]
+                        [{p.patientCode || p.tokenNumber || (p.id || '').toUpperCase().substring(0, 6)}]
                       </span>
                     </div>
                     

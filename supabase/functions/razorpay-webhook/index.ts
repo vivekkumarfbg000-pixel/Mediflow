@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { tryAcquirePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
+import { tryAcquirePaymentLock, releasePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
 
 // =============================================================================
 // Mediflow — razorpay-webhook Edge Function
@@ -109,13 +109,11 @@ serve(async (req) => {
           invoice = exactInv;
         } else {
           const cleanSnippet = invoiceId.replace("inv-wa-", "").substring(0, 8);
-          const { data: prefixInv } = await supabase
-            .from("unified_invoices")
-            .select("*")
-            .ilike("id", `${cleanSnippet}%`)
-            .limit(1)
-            .maybeSingle();
-          if (prefixInv) invoice = prefixInv;
+          const { data: prefixInvs } = await supabase
+            .rpc("find_invoice_by_prefix", { p_prefix: cleanSnippet });
+          if (prefixInvs && prefixInvs.length > 0) {
+            invoice = prefixInvs[0];
+          }
         }
       }
 
@@ -130,95 +128,62 @@ serve(async (req) => {
         const lockResult = await tryAcquirePaymentLock(supabase, getInvoiceLockKey(resolvedInvoiceId));
         if (!lockResult.acquired) {
           console.log(`[Razorpay Webhook] ⏭️ Skipping duplicate processing for invoice ${resolvedInvoiceId} — lock held by another transaction`);
-          return new Response(JSON.stringify({ status: "ok", skipped: true, reason: "lock_held" }), {
-            status: 200,
+          return new Response(JSON.stringify({ status: "error", skipped: true, reason: "lock_held" }), {
+            status: 409,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         console.log(`[Razorpay Webhook] 🔒 Lock acquired for invoice ${resolvedInvoiceId}`);
       }
 
-      // 1. Mark invoice cleared in database
-      if (resolvedInvoiceId) {
-        await supabase
-          .from("unified_invoices")
-          .update({
-            payment_status: "cleared",
-            payment_method: "razorpay"
-          })
-          .eq("id", resolvedInvoiceId);
-      }
-
-      // 2. Insert into vitalsync_pool_settlements (with idempotency guard)
-      if (resolvedInvoiceId) {
-        const { data: existingSettlement } = await supabase
-          .from("vitalsync_pool_settlements")
-          .select("id")
-          .eq("invoice_id", resolvedInvoiceId)
-          .maybeSingle();
-
-        if (!existingSettlement) {
-          const doctorFee = Number(invoice?.doctor_fee) || 500;
-          const platformFee = Number(invoice?.platform_fee) || 15;
-          const netProfit = Math.max(0, platformFee - gatewayFee);
-
-          await supabase.from("vitalsync_pool_settlements").insert({
-            invoice_id: resolvedInvoiceId,
-            patient_id: targetPatId || null,
-            total_amount: amountPaid,
-            doctor_share: doctorFee,
-            platform_share: platformFee,
-            gateway_fee: gatewayFee,
-            net_platform_profit: netProfit,
-            payment_method: "razorpay",
-            settlement_status: "completed",
-            created_at: new Date().toISOString()
+      try {
+        // Execute Atomic Payment Settlement RPC
+        if (resolvedInvoiceId) {
+          const { error: rpcError } = await supabase.rpc('process_invoice_settlement', {
+            p_invoice_id: resolvedInvoiceId,
+            p_payment_method: 'razorpay',
+            p_amount_paid: amountPaid,
+            p_gateway_reference_id: payment.id
           });
-        }
-      }
 
-      // 3. Confirm appointment in database (Strict 1:1 binding to avoid queue corruption)
-      if (invoice?.appointment_id) {
-        await supabase.from("appointments").update({
-          status: "scheduled",
-          payment_status: "cleared"
-        }).eq("id", invoice.appointment_id)
-          .eq("status", "pending_payment");
-      }
-
-      // 4. Update WhatsApp session & dispatch confirmation receipt directly to WhatsApp
-      if (clean10) {
-        const { data: sess } = await supabase
-          .from("whatsapp_sessions")
-          .select("id, patient_phone, session_data")
-          .ilike("patient_phone", `%${clean10}%`)
-          .limit(1)
-          .maybeSingle();
-
-        let tokenNumber = 1;
-        let approxTime = "10:00 AM";
-        let selectedDisplay = new Date().toISOString().split("T")[0];
-        let doctorName = "Doctor";
-        let clinicName = "Connected Clinic";
-
-        if (sess) {
-          const sessData = sess.session_data || {};
-          
-          // Anti-Hijacking Guard: Only transition session if it strictly matches this invoice
-          if (sessData.pendingInvoiceId === resolvedInvoiceId) {
-            tokenNumber = sessData.tokenNumber || tokenNumber;
-            approxTime = sessData.approxTime || approxTime;
-            selectedDisplay = sessData.selectedDateDisplay || selectedDisplay;
-            doctorName = sessData.doctorName || doctorName;
-            clinicName = sessData.clinicName || clinicName;
-
-            const updatedData = { ...sessData, isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
-            await supabase
-              .from("whatsapp_sessions")
-              .update({ current_state: "COMPLETED", session_data: updatedData })
-              .eq("id", sess.id);
+          if (rpcError) {
+            throw new Error(`RPC Settlement Failed: ${rpcError.message}`);
           }
         }
+
+        // 4. Update WhatsApp session & dispatch confirmation receipt directly to WhatsApp
+        if (clean10) {
+          const { data: sess } = await supabase
+            .from("whatsapp_sessions")
+            .select("id, patient_phone, session_data")
+            .ilike("patient_phone", `%${clean10}%`)
+            .limit(1)
+            .maybeSingle();
+
+          let tokenNumber = 1;
+          let approxTime = "10:00 AM";
+          let selectedDisplay = new Date().toISOString().split("T")[0];
+          let doctorName = "Doctor";
+          let clinicName = "Connected Clinic";
+
+          if (sess) {
+            const sessData = sess.session_data || {};
+            
+            // Anti-Hijacking Guard: Only transition session if it strictly matches this invoice
+            if (sessData.pendingInvoiceId === resolvedInvoiceId) {
+              tokenNumber = sessData.tokenNumber || tokenNumber;
+              approxTime = sessData.approxTime || approxTime;
+              selectedDisplay = sessData.selectedDateDisplay || selectedDisplay;
+              doctorName = sessData.doctorName || doctorName;
+              clinicName = sessData.clinicName || clinicName;
+
+              const updatedData = { ...sessData, isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
+              await supabase
+                .from("whatsapp_sessions")
+                .update({ current_state: "COMPLETED", session_data: updatedData })
+                .eq("id", sess.id);
+            }
+          }
 
           // Direct Outbound Meta Graph API Dispatch (<200ms)
           const metaToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
@@ -250,11 +215,22 @@ serve(async (req) => {
             }
           }
         }
+
+        // Record idempotency key INSIDE the event block to prevent:
+        // 1. Writing `key: undefined` for non-payment events (scoping bug)
+        // 2. Wrapped in try-catch so a DB failure doesn't crash the 200 response
+        try {
+          await supabase.from("webhook_idempotency_keys").insert({ key: idempotencyKey });
+        } catch (idemErr) {
+          console.warn(`[Razorpay Webhook] ⚠️ Idempotency key insert failed (non-fatal): ${idemErr}`);
+        }
+      } finally {
+        // Release session-scoped advisory lock after all processing completes
+        if (resolvedInvoiceId) {
+          await releasePaymentLock(supabase, getInvoiceLockKey(resolvedInvoiceId));
+        }
       }
     }
-
-    // Record idempotency key to prevent duplicate processing
-    await supabase.from("webhook_idempotency_keys").insert({ key: idempotencyKey });
 
     return new Response(JSON.stringify({ status: "ok" }), {
       status: 200,

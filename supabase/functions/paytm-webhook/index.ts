@@ -46,12 +46,44 @@ serve(async (req) => {
     const CHECKSUMHASH = payload.CHECKSUMHASH;
 
     if (!CHECKSUMHASH) {
-      console.error("[Paytm Webhook] ❌ Missing CHECKSUMHASH. Rejecting request for API resiliency.");
+      console.error("[Paytm Webhook] ❌ Missing CHECKSUMHASH. Rejecting request.");
       return new Response(
         JSON.stringify({ status: "ERROR", message: "Missing cryptographic checksum" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // ── CRITICAL SECURITY: Actual HMAC-SHA256 Checksum Verification ──────────
+    // Sort all payload keys alphabetically (excluding CHECKSUMHASH itself),
+    // concatenate their values pipe-delimited, then HMAC-SHA256 with merchant key.
+    // Without this, ANY attacker can POST a fake TXN_SUCCESS with CHECKSUMHASH: "garbage".
+    const payloadKeysForChecksum = Object.keys(payload)
+      .filter(k => k !== "CHECKSUMHASH")
+      .sort();
+    const checksumString = payloadKeysForChecksum.map(k => `${payload[k] ?? ""}`).join("|");
+
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(PAYTM_MERCHANT_KEY);
+    const msgData = encoder.encode(checksumString);
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    );
+    const signatureBuffer = await crypto.subtle.sign("HMAC", cryptoKey, msgData);
+    const computedChecksumHex = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+    const computedChecksumBase64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+
+    // Compare against both hex and base64 encodings for maximum compatibility
+    if (CHECKSUMHASH !== computedChecksumHex && CHECKSUMHASH !== computedChecksumBase64) {
+      console.error(`[Paytm Webhook] ❌ CHECKSUMHASH verification FAILED. Computed: ${computedChecksumHex.substring(0, 16)}..., Received: ${String(CHECKSUMHASH).substring(0, 16)}...`);
+      return new Response(
+        JSON.stringify({ status: "ERROR", message: "Invalid checksum signature" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    console.log("[Paytm Webhook] ✅ CHECKSUMHASH cryptographically verified.");
+    // ─────────────────────────────────────────────────────────────────────────
 
     if (isSuccess && ORDERID) {
       console.log(`[Paytm Webhook] TXN_SUCCESS verified for OrderID: ${ORDERID}, TxnID: ${TXNID}, Amount: ₹${TXNAMOUNT}`);

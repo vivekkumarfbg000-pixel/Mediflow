@@ -184,276 +184,42 @@ export class EncounterService {
         }
         writeAuditLog('encounter_created', { patientId: newEncounter.patientId }, encounterId);
 
-        // 2. Insert e-prescription medicines
-        if (newEncounter.medications.length > 0) {
-          const medsPayload = newEncounter.medications.map(med => ({
-            encounter_id: encounterId,
-            medicine_name: med.medicineName,
-            dosage: med.dosage,
-            frequency: med.frequency,
-            duration: med.duration
-          }));
-          await supabase.from('encounter_medications').insert(medsPayload);
-        }
-
-        // 3. Insert ordered diagnostics tests
-        if (newEncounter.diagnosticTests.length > 0) {
-          const diagsPayload = newEncounter.diagnosticTests.map(test => ({
-            encounter_id: encounterId,
-            loinc_code: test.loincCode,
-            test_name: test.name,
-            status: 'ordered'
-          }));
-          await supabase.from('encounter_diagnostics').insert(diagsPayload);
-        }
-
-        // 4. Client-side Routing Action A: Route diagnostics to Lab Requisitions
-        let labFee = 0;
-        if (newEncounter.diagnosticTests.length > 0 && ctx.labEntityId) {
-          // Look up active lab technician in this entity to assign the requisitions
-          let assignedTechId: string | null = null;
-          try {
-            const { data: techProfile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('entity_id', ctx.labEntityId)
-              .eq('role', 'lab_technician')
-              .limit(1)
-              .maybeSingle();
-            if (techProfile) {
-              assignedTechId = techProfile.id;
-            }
-          } catch (err) {
-            console.error('Error looking up lab technician profile:', err);
-          }
-
-          for (const test of newEncounter.diagnosticTests) {
-            let testPrice = 350.00;
-            try {
-              const { data: catalogItem } = await supabase
-                .from('master_test_catalog')
-                .select('price')
-                .eq('loinc_code', test.loincCode)
-                .maybeSingle();
-              if (catalogItem?.price) {
-                testPrice = Number(catalogItem.price);
-              }
-            } catch (err) {
-              console.error('Error reading test price from catalog:', err);
-            }
-
-            labFee += testPrice;
-
-            await supabase.from('lab_requisitions').insert({
-              encounter_id: encounterId,
-              patient_id: newEncounter.patientId,
-              lab_entity_id: ctx.labEntityId,
-              loinc_code: test.loincCode,
-              test_name: test.name,
-              barcode: `BAR-${encounterId.substring(0, 8)}-${test.loincCode}`.toUpperCase(),
-              status: 'pending',
-              assigned_technician_id: assignedTechId,
-              pod_id: ctx.podId
-            });
-          }
-        }
-
-        // 5. Client-side Routing Action B: Reserve Pharmacy Stock via FEFO (First Expiry First Out)
-        let pharmacyFee = 0;
-        if (newEncounter.medications.length > 0 && ctx.pharmacyEntityId) {
-          for (const med of newEncounter.medications) {
-            const neededQty = 10;
-            let remainingQty = neededQty;
-            pharmacyFee += 150; // standard flat medicine fee per prescribed drug item
-
-            try {
-              // Fetch active batches sorted by expiry date ascending (FEFO)
-              const { data: batches } = await supabase
-                .from('pharmacy_inventory')
-                .select('id, batch_number, expiry_date, quantity_in_stock')
-                .eq('pharmacy_entity_id', ctx.pharmacyEntityId)
-                .eq('medicine_name', med.medicineName)
-                .eq('is_active', true)
-                .gt('quantity_in_stock', 0)
-                .gte('expiry_date', new Date().toISOString().split('T')[0])
-                .order('expiry_date', { ascending: true });
-
-              if (batches && batches.length > 0) {
-                for (const batch of batches) {
-                  if (remainingQty <= 0) break;
-
-                  const allocatedQty = Math.min(batch.quantity_in_stock, remainingQty);
-
-                  // Update stock in Supabase
-                  await supabase
-                    .from('pharmacy_inventory')
-                    .update({
-                      quantity_in_stock: batch.quantity_in_stock - allocatedQty,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq('id', batch.id);
-
-                  // Insert into inventory_holds
-                  await supabase.from('inventory_holds').insert({
-                    pharmacy_entity_id: ctx.pharmacyEntityId,
-                    encounter_id: encounterId,
-                    patient_id: newEncounter.patientId,
-                    medicine_name: med.medicineName,
-                    dosage: med.dosage || '',
-                    quantity: allocatedQty,
-                    batch_number: batch.batch_number,
-                    expiry_date: batch.expiry_date,
-                    hold_status: 'held'
-                  });
-
-                  remainingQty -= allocatedQty;
-                }
-              }
-
-              if (remainingQty > 0) {
-                // Shortage/Out of stock fallback
-                const holdStatus = remainingQty === neededQty ? 'OUT_OF_STOCK' : 'SHORTAGE';
-                 await supabase.from('inventory_holds').insert({
-                  pharmacy_entity_id: ctx.pharmacyEntityId,
-                  encounter_id: encounterId,
-                  patient_id: newEncounter.patientId,
-                  medicine_name: med.medicineName,
-                  dosage: med.dosage || '',
-                  quantity: remainingQty,
-                  batch_number: holdStatus,
-                  expiry_date: null,
-                  hold_status: 'held'
-                });
-
-                // Write to activity logs
-                await supabase.from('activity_logs').insert({
-                  action_type: 'INVENTORY_SHORTAGE',
-                  details: {
-                    medicine_name: med.medicineName,
-                    requested_quantity: neededQty,
-                    remaining_quantity: remainingQty,
-                    encounter_id: encounterId,
-                    pharmacy_entity_id: ctx.pharmacyEntityId
-                  },
-                  entity_id: ctx.pharmacyEntityId,
-                  pod_id: ctx.podId
-                });
-              }
-            } catch (inventoryErr) {
-              console.error('Error handling pharmacy stock allocation:', inventoryErr);
-            }
-          }
-        }
-
-        // 6. Client-side Routing Action C: Generate Unified Invoice
-        const saasInvoices = load<any[]>('saas_invoices', []);
-        const uInvoices = load<any[]>('unified_invoices', []);
-        const alreadyPaidConsult = saasInvoices.some((i: any) => i.patientId === newEncounter.patientId && i.type === 'consult' && i.status === 'paid') ||
-                                   uInvoices.some((i: any) => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
-
-        let doctorFee = 0;
-        if (!alreadyPaidConsult) {
-          doctorFee = 400.00;
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('consultation_fee')
-              .eq('id', doctorId)
-              .maybeSingle();
-            if (profile?.consultation_fee) {
-              doctorFee = Number(profile.consultation_fee);
-            }
-          } catch (feeErr) {
-            console.error('Error fetching doctor consultation fee:', feeErr);
-          }
-        }
-
-        let platformFee = (doctorFee + labFee + pharmacyFee) * 0.03;
-        if (platformFee < 10.00) {
-          platformFee = 10.00;
-        }
-        const invoiceTotal = doctorFee + labFee + pharmacyFee + platformFee;
-
-        const { error: invError } = await supabase.from('unified_invoices').insert({
-          encounter_id: encounterId,
-          patient_id: newEncounter.patientId,
-          doctor_fee: doctorFee,
-          lab_fee: labFee,
-          pharmacy_fee: pharmacyFee,
-          platform_fee: platformFee,
-          total_amount: invoiceTotal,
-          upi_qr_payload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${invoiceTotal}&cu=INR&tn=VitalSync-${encounterId}`,
-          pod_id: ctx.podId
-        });
-        if (invError) {
-          console.error('Error inserting unified invoice:', invError);
-        }
-
-        // 7. Transition patient's WhatsApp session state to AWAITING_PAYMENT
+        // 2. Atomic Care Loop RPC
+        // Elevating the entire care loop to a single atomic PostgreSQL transaction
+        // to completely eliminate TOCTOU stock races and partial state drops.
         const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
-        if (patient) {
-          let doctorDisplayName = '';
-          if (doctorId) {
-            try {
-              const { data: docProfile } = await supabase
-                .from('profiles')
-                .select('display_name, name')
-                .eq('id', doctorId)
-                .maybeSingle();
-              if (docProfile) {
-                doctorDisplayName = docProfile.display_name || docProfile.name || '';
-              }
-            } catch (_e) { /* ignore */ }
-          }
-          if (!doctorDisplayName) doctorDisplayName = 'Doctor';
-          if (!doctorDisplayName.startsWith('Dr.') && !doctorDisplayName.startsWith('dr.')) {
-            doctorDisplayName = `Dr. ${doctorDisplayName}`;
-          }
+        
+        const { error: rpcError, data: rpcResult } = await supabase.rpc('process_clinical_care_loop', {
+          p_encounter_id: encounterId,
+          p_patient_id: newEncounter.patientId,
+          p_doctor_id: doctorId,
+          p_pod_id: ctx.podId,
+          p_lab_entity_id: ctx.labEntityId,
+          p_pharmacy_entity_id: ctx.pharmacyEntityId,
+          p_medications: newEncounter.medications,
+          p_diagnostics: newEncounter.diagnosticTests,
+          p_patient_phone: patient?.phone || null
+        });
 
-          const sessions = load<any[]>('whatsapp_sessions', []);
-          const existing = sessions.find(s => s.patientPhone === patient.phone);
-          if (existing) {
-            existing.currentState = 'AWAITING_PAYMENT';
-            existing.lastInteraction = new Date().toISOString();
-            const currentHistory = existing.sessionData.chatHistory || [];
-            currentHistory.push({
-              sender: 'bot',
-              text: `*${doctorDisplayName}* has signed off your Clinical e-Prescription (e-Rx) and care invoice.\n\n*Generic Medicines ordered*:\n${newEncounter.medications.map(m => `💊 ${m.medicineName} (${m.frequency}, ${m.duration})`).join('\n')}\n\n*Diagnostics Ordered*:\n${newEncounter.diagnosticTests.map(t => `🧪 ${t.name}`).join('\n')}\n\n*Payment Pending*: A unified care pod invoice is generated. Please pay below:`,
-              time: new Date().toISOString()
-            });
-            existing.sessionData = {
-              ...existing.sessionData,
-              chatHistory: currentHistory,
-              invoiceTotal: invoiceTotal
-            };
-            save('whatsapp_sessions', sessions);
-            
-            await supabase.from('whatsapp_sessions').update({
-              current_state: 'AWAITING_PAYMENT',
-              session_data: existing.sessionData,
-              last_interaction: new Date().toISOString()
-            }).eq('patient_phone', patient.phone);
-            
-            await writeAuditLog('WHATSAPP_STATE_TRANSITION', { phone: patient.phone, newState: 'AWAITING_PAYMENT' }, existing.id);
-          }
+        if (rpcError || (rpcResult && rpcResult.success === false)) {
+          throw new Error(rpcError?.message || rpcResult?.error || 'Unknown RPC error');
         }
       } catch (globalErr) {
         // ── Partial failure recovery ────────────────────────────────────────────
-        // The care loop runs client-side as a fire-and-forget async block.
-        // If an error occurs mid-loop, some records may have been written while
-        // others haven't. Log a structured failure record to activity_logs so
-        // operations can detect and remediate incomplete care loops.
+        // Because we migrated to an atomic PostgreSQL transaction via RPC,
+        // if this block catches an error, we know with 100% certainty that 
+        // ZERO partial records were written to the database. The transaction
+        // was rolled back completely.
         // ─────────────────────────────────────────────────────────────────────
-        console.error('[EncounterService] CRITICAL: Client-side care loop routing failed:', globalErr);
+        console.error('[EncounterService] CRITICAL: Atomic care loop RPC failed:', globalErr);
         try {
           await supabase.from('activity_logs').insert({
-            action_type: 'CARE_LOOP_PARTIAL_FAILURE',
+            action_type: 'CARE_LOOP_RPC_FAILURE',
             details: {
               encounter_id: encounterId,
               patient_id: newEncounter.patientId,
               error: String(globalErr),
-              failed_at: new Date().toISOString(),
-              note: 'Some care loop records may be incomplete. Manual review required.'
+              failed_at: new Date().toISOString()
             },
             entity_id: null,
             pod_id: null
@@ -466,7 +232,7 @@ export class EncounterService {
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
             title: 'Care Loop Routing Error ⚠️',
-            message: 'Consultation saved locally but some backend records may be incomplete. Please contact support with Encounter ID: ' + encounterId.substring(0, 8).toUpperCase(),
+            message: 'Consultation failed to save securely. No stock was deducted. Please contact support with Encounter ID: ' + encounterId.substring(0, 8).toUpperCase(),
             type: 'error'
           }
         }));

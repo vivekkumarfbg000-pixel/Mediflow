@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { tryAcquirePaymentLock, getInvoiceLockKey, getAppointmentLockKey } from "../_shared/payment-lock.ts";
+import { tryAcquirePaymentLock, releasePaymentLock, getInvoiceLockKey, getAppointmentLockKey } from "../_shared/payment-lock.ts";
 
 // System-wide environment variables loaded from Supabase Vault/Secrets
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -299,9 +299,10 @@ if (!isManualRelay) {
           }
         }
 
-        // Update database session to maintain active Human Takeover mode & refresh timer
+        // Update database session to maintain active Human Takeover mode & append outbound message history
         try {
           const last10 = cleanPhone.slice(-10);
+          const currentTime = new Date().toISOString();
           const { data: dbSess } = await supabase
             .from("whatsapp_sessions")
             .select("id, session_data")
@@ -310,14 +311,24 @@ if (!isManualRelay) {
 
           if (dbSess) {
             const sData = dbSess.session_data || {};
+            const chatHistory = sData.chatHistory || [];
+            
+            chatHistory.push({
+              sender: "agent",
+              text: messageText,
+              timestamp: currentTime,
+              time: currentTime
+            });
+            
+            sData.chatHistory = chatHistory;
             sData.humanOverride = true;
-            sData.human_override_started_at = new Date().toISOString();
+            sData.human_override_started_at = currentTime;
 
             await supabase
               .from("whatsapp_sessions")
               .update({
                 session_data: sData,
-                last_interaction: new Date().toISOString()
+                last_interaction: currentTime
               })
               .eq("id", dbSess.id);
           }
@@ -1483,16 +1494,31 @@ async function triggerBotReplyPipeline(ctx: {
           console.warn("[Meta Webhook] Error fetching doctor profile:", err);
         }
 
-        // Count existing appointments for this date to determine Token Number
+        // Generate OPD Token Number via atomic Postgres RPC (prevents TOCTOU race condition)
+        // Scoped to pod_id to prevent cross-tenant token pollution in multi-tenant deployments
         let tokenSeq = 1;
+        const currentPodId = session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
         try {
-          const { count: apptCount } = await supabase
-            .from("appointments")
-            .select("id", { count: "exact", head: true })
-            .eq("virtual_date", selectedDate);
-          tokenSeq = (apptCount ?? 0) + 1;
+          const { data: tokenStr, error: tokenErr } = await supabase.rpc(
+            'generate_next_token_number',
+            { p_virtual_date: selectedDate, p_pod_id: currentPodId }
+          );
+          if (!tokenErr && tokenStr) {
+            // RPC returns 'T-06' format directly; extract sequence for approxTime calc
+            const seqMatch = (tokenStr as string).match(/T-(\d+)/);
+            tokenSeq = seqMatch ? parseInt(seqMatch[1], 10) : 1;
+          } else {
+            // Fallback: count locally if RPC not yet deployed
+            console.warn("[Meta Webhook] Token RPC unavailable, falling back to count:", tokenErr);
+            const { count: apptCount } = await supabase
+              .from("appointments")
+              .select("id", { count: "exact", head: true })
+              .eq("virtual_date", selectedDate)
+              .eq("pod_id", currentPodId);
+            tokenSeq = (apptCount ?? 0) + 1;
+          }
         } catch (err) {
-          console.warn("[Meta Webhook] Error fetching appointment count for token:", err);
+          console.warn("[Meta Webhook] Error generating token number:", err);
         }
 
         const isSosBookingSession = sessionData.isSos === true || sessionData.consultationType === "sos";
@@ -1645,7 +1671,7 @@ async function triggerBotReplyPipeline(ctx: {
                   amount: Math.round(totalAmount * 100),
                   currency: "INR",
                   accept_partial: false,
-                  reference_id: newInvoiceId.substring(0, 35),
+                  reference_id: newInvoiceId,
                   description: `${resolvedDoctorName} Consultation Fee`,
                   customer: {
                     name: targetPatName || "Valued Patient",
@@ -1794,14 +1820,15 @@ async function triggerBotReplyPipeline(ctx: {
         if (exactInvRes?.data?.upi_qr_payload) invoicePayloadUrl = exactInvRes.data.upi_qr_payload;
 
         // Check live Razorpay API response
-        if (!isVerifiedPaid && rzpPaymentsRes?.items) {
-          const cleanUser10 = (patientPhone || "").replace(/\D/g, "").slice(-10);
+        // SECURITY: Require BOTH invoice ID match AND exact amount match.
+        // Phone-only matching is PROHIBITED — it allows historic payments to satisfy new invoices (CVE-VITALSYNC-2026-001).
+        if (!isVerifiedPaid && rzpPaymentsRes?.items && invoiceId) {
+          const expectedAmountPaise = Math.round((Number(feeAmount) || 0) * 100);
           const matchingPayment = rzpPaymentsRes.items.find((p: any) => {
-            const pContact = (p.contact || "").replace(/\D/g, "").slice(-10);
             const pInv = p.notes?.invoice_id || p.notes?.invoiceId || "";
-            const matchPhone = cleanUser10 && pContact && pContact === cleanUser10;
-            const matchInvoice = invoiceId && pInv && (pInv === invoiceId || pInv.includes(invoiceId.substring(0, 8)));
-            return (p.status === "captured" || p.status === "authorized") && (matchPhone || matchInvoice);
+            const matchInvoice = pInv && (pInv === invoiceId || pInv.includes(invoiceId.substring(0, 8)));
+            const matchAmount = expectedAmountPaise > 0 && p.amount === expectedAmountPaise;
+            return (p.status === "captured" || p.status === "authorized") && matchInvoice && matchAmount;
           });
 
           if (matchingPayment) {
@@ -1818,44 +1845,50 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (isVerifiedPaid) {
-        // IDEMPOTENCY: Acquire advisory lock before updating payment status
-        // Prevents race between Meta Webhook verification and Razorpay Webhook
-        const lockKey = invoiceId ? getInvoiceLockKey(invoiceId) : (apptId ? getAppointmentLockKey(apptId) : '');
-        let lockAcquired = false;
-        if (lockKey) {
-          const lockResult = await tryAcquirePaymentLock(supabase, lockKey);
-          lockAcquired = lockResult.acquired;
-          if (!lockAcquired) {
-            console.log(`[Meta Webhook] ⏭️ Payment status update skipped for ${lockKey} — lock held by another transaction (likely Razorpay webhook)`);
-            // Still proceed to send confirmation to user, but don't double-update DB
-          } else {
-            console.log(`[Meta Webhook] 🔒 Lock acquired for payment status update: ${lockKey}`);
+          // IDEMPOTENCY: Acquire advisory lock before updating payment status
+          // Prevents race between Meta Webhook verification and Razorpay Webhook
+          const lockKey = invoiceId ? getInvoiceLockKey(invoiceId) : (apptId ? getAppointmentLockKey(apptId) : '');
+          let lockAcquired = false;
+          if (lockKey) {
+            const lockResult = await tryAcquirePaymentLock(supabase, lockKey);
+            lockAcquired = lockResult.acquired;
+            if (!lockAcquired) {
+              console.log(`[Meta Webhook] ⏭️ Payment status update skipped for ${lockKey} — lock held by another transaction (likely Razorpay webhook)`);
+              // Still proceed to send confirmation to user, but don't double-update DB
+            } else {
+              console.log(`[Meta Webhook] 🔒 Lock acquired for payment status update: ${lockKey}`);
+            }
           }
-        }
 
-        if (apptId) {
+          try {
+            if (apptId) {
+              const isVirtualSlot = sessionData.consultationType === "virtual";
+              const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
+              await supabase
+                .from("appointments")
+                .update({ status: finalStatus, payment_status: "cleared" })
+                .eq("id", apptId);
+            }
+
+            nextState = "COMPLETED";
             const isVirtualSlot = sessionData.consultationType === "virtual";
-            const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
-            await supabase
-              .from("appointments")
-              .update({ status: finalStatus, payment_status: "cleared" })
-              .eq("id", apptId);
-          }
+            const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
+            sessionData.isSos = false;
+            delete sessionData.isSos;
 
-          nextState = "COMPLETED";
-          const isVirtualSlot = sessionData.consultationType === "virtual";
-          const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
-          sessionData.isSos = false;
-          delete sessionData.isSos;
+            const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
 
-          const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
-
-          if (isSosBooking) {
-            replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-8986426029*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
-          } else if (isVirtualSlot) {
-            replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
-          } else {
-            replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) ya patient ID (${pCode}) show karein. Thank you for choosing VitalSync! 😊`;
+            if (isSosBooking) {
+              replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-8986426029*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
+            } else if (isVirtualSlot) {
+              replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
+            } else {
+              replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) ya patient ID (${pCode}) show karein. Thank you for choosing VitalSync! 😊`;
+            }
+          } finally {
+            if (lockKey && lockAcquired) {
+              await releasePaymentLock(supabase, lockKey);
+            }
           }
         } else {
           const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";

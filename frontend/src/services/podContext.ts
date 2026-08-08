@@ -145,7 +145,7 @@ export async function resolvePodContext(): Promise<PodContext> {
       );
 
       let podId = isDemoUser ? FALLBACK_POD_ID : user.id;
-      let entityId = isDemoUser ? FALLBACK_ENTITY_ID : (profile?.entity_id || user.id);
+      const entityId = isDemoUser ? FALLBACK_ENTITY_ID : (profile?.entity_id || user.id);
 
       if (profile?.entity_id) {
         const { data: userEntity } = await supabase

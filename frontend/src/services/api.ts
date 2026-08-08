@@ -109,6 +109,7 @@ export interface WALEntry {
   payload: any;
   timestamp: string;
   synced: boolean;
+  retryCount?: number;
 }
 
 class WALIndexedDB {
@@ -160,6 +161,7 @@ class WALIndexedDB {
       payload,
       timestamp: new Date().toISOString(),
       synced: false,
+      retryCount: 0,
     };
     return this.append(entry);
   }
@@ -217,7 +219,7 @@ class WALIndexedDB {
             updateReq.onsuccess = () => resolve();
             updateReq.onerror = () => reject(updateReq.error);
           } else {
-            resolve();
+            reject(new Error("Not found in IDB, try fallback"));
           }
         };
         request.onerror = () => reject(request.error);
@@ -232,7 +234,43 @@ class WALIndexedDB {
     }
   }
 
+  async incrementRetry(id: string): Promise<number> {
+    try {
+      const db = await this.getDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(this.storeName, 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+        const request = store.get(id);
+        request.onsuccess = () => {
+          const entry = request.result as WALEntry;
+          if (entry) {
+            entry.retryCount = (entry.retryCount || 0) + 1;
+            const updateReq = store.put(entry);
+            updateReq.onsuccess = () => resolve(entry.retryCount!);
+            updateReq.onerror = () => reject(updateReq.error);
+          } else {
+            reject(new Error("Not found in IDB, try fallback"));
+          }
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (e) {
+      const memOutbox = this.getMemOutbox();
+      const entry = memOutbox.find((x: any) => x.id === id);
+      if (entry) {
+        entry.retryCount = (entry.retryCount || 0) + 1;
+        try { localStorage.setItem('wal_mem_outbox', JSON.stringify(memOutbox)); } catch { /* ignore */ }
+        return entry.retryCount;
+      }
+      return 0;
+    }
+  }
+
   async deleteEntry(id: string): Promise<void> {
+    const memOutbox = this.getMemOutbox();
+    const filtered = memOutbox.filter((x: any) => x.id !== id);
+    try { localStorage.setItem('wal_mem_outbox', JSON.stringify(filtered)); } catch { /* ignore */ }
+
     try {
       const db = await this.getDB();
       return new Promise((resolve, reject) => {
@@ -243,9 +281,7 @@ class WALIndexedDB {
         request.onerror = () => reject(request.error);
       });
     } catch (e) {
-      const memOutbox = this.getMemOutbox();
-      const filtered = memOutbox.filter((x: any) => x.id !== id);
-      try { localStorage.setItem('wal_mem_outbox', JSON.stringify(filtered)); } catch { /* ignore */ }
+      // Memory outbox already handled above
     }
   }
 }
@@ -528,18 +564,37 @@ class MediflowApiService {
       } catch (err) {
         console.error(`[Mediflow WAL] Replay failed for entry ${entry.id}:`, err);
         const errString = String(err);
+        
+        // 1. Duplicate Keys are inherently resolved
         if (errString.includes('23505') || errString.includes('already exists') || errString.includes('duplicate key')) {
           await walDB.markSynced(entry.id);
           console.log(`[Mediflow WAL] Duplicate entry resolved. Marked as synced ✅`);
-        } else {
-          this.isWALReplaying = false;
-          break;
+          continue;
+        } 
+        
+        // 2. Permanent/Fatal Postgres Constraints or 4xx Validation Errors (Dead-Letter Queue fast path)
+        if (errString.includes('23503') || errString.includes('400') || errString.includes('row-level security') || errString.includes('Violates foreign key')) {
+          await walDB.markSynced(entry.id);
+          console.error(`[Mediflow WAL] 🚨 FATAL POISON PILL: Permanent constraint violation. Dead-lettering entry ${entry.id}.`);
+          continue;
         }
+
+        // 3. Transient errors (network drops, 500s) — Retry with DLQ limit
+        const retries = await walDB.incrementRetry(entry.id);
+        if (retries >= 3) {
+          await walDB.markSynced(entry.id);
+          console.error(`[Mediflow WAL] 🚨 DLQ THRESHOLD EXCEEDED: Dead-lettering entry ${entry.id} after 3 failed attempts.`);
+          continue;
+        }
+
+        console.warn(`[Mediflow WAL] Transient failure for entry ${entry.id}. Retry ${retries}/3. Aborting current queue batch.`);
+        this.isWALReplaying = false;
+        break; // Halt the queue for this transient batch cycle to prevent hammering the server
       }
     }
 
-    await this.syncFromSupabase();
     this.isWALReplaying = false;
+    await this.syncFromSupabase();
   }
 
   public async syncFromSupabase(): Promise<void> {

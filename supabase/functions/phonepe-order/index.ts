@@ -27,7 +27,11 @@ serve(async (req) => {
   try {
     const { amount, invoiceId, patientId, patientPhone, patientName, redirectUrl } = await req.json();
 
-    const merchantTransactionId = `MT_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+    if (!invoiceId) {
+      throw new Error("Missing invoiceId");
+    }
+
+    const merchantTransactionId = invoiceId;
     const amountInPaise = Math.round((amount || 500) * 100);
 
     const payload = {

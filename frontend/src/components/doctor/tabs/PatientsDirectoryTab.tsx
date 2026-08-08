@@ -85,7 +85,9 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
         const parseTime = (timeStr: string) => {
           if (!timeStr.includes(' ')) return timeStr; // fallback for non-AM/PM strings
           const [time, modifier] = timeStr.split(' ');
-          let [hours, minutes] = time.split(':');
+          const parts = time.split(':');
+          let hours = parts[0];
+          const minutes = parts[1];
           if (!hours || !minutes) return timeStr;
           if (hours === '12') hours = '00';
           if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { tryAcquirePaymentLock, releasePaymentLock, getInvoiceLockKey } from "../_shared/payment-lock.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,7 +45,17 @@ serve(async (req) => {
 
       if (xVerifyHeader !== expectedVerify) {
         console.warn("[PhonePe Webhook] Invalid X-VERIFY signature header mismatch.");
+        return new Response(JSON.stringify({ status: "ERROR", error: "Invalid signature" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
+    } else {
+      console.warn("[PhonePe Webhook] Missing X-VERIFY signature or payload.");
+      return new Response(JSON.stringify({ status: "ERROR", error: "Missing signature or payload" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Decode response payload
@@ -54,6 +65,10 @@ serve(async (req) => {
         decodedData = JSON.parse(atob(responseBase64));
       } catch (err) {
         console.error("[PhonePe Webhook] Error decoding response base64:", err);
+        return new Response(JSON.stringify({ status: "ERROR", error: "Malformed payload" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     } else {
       decodedData = bodyObj;
@@ -67,73 +82,60 @@ serve(async (req) => {
     if (isSuccess && merchantTransactionId) {
       console.log(`[PhonePe Webhook] PAYMENT_SUCCESS verified for TxID: ${merchantTransactionId}, Amount: ₹${amountPaid}`);
 
-      // 1. Resolve unified invoice
-      const { data: invRows } = await supabase
+      // 1. Resolve unified invoice (Strictly match provided merchantTransactionId = invoice.id)
+      const { data: invRow } = await supabase
         .from("unified_invoices")
-        .select("*")
-        .or(`id.eq.${merchantTransactionId},encounter_id.eq.${merchantTransactionId}`)
+        .select("id, patient_id, payment_status, appointment_id")
+        .eq("id", merchantTransactionId)
         .maybeSingle();
 
-      let targetInvoiceId = invRows?.id;
-      let patientId = invRows?.patient_id;
+      const targetInvoiceId = invRow?.id;
+      const patientId = invRow?.patient_id;
 
       if (!targetInvoiceId) {
-        // Fallback: find pending invoice
-        const { data: latestPending } = await supabase
-          .from("unified_invoices")
-          .select("*")
-          .eq("payment_status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (latestPending) {
-          targetInvoiceId = latestPending.id;
-          patientId = latestPending.patient_id;
-        }
+        console.error(`[PhonePe Webhook] Invoice not found for merchantTransactionId: ${merchantTransactionId}`);
+        return new Response(JSON.stringify({ status: "ERROR", error: "Invoice not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      if (targetInvoiceId) {
-        // Update Unified Invoice to cleared
-        await supabase
-          .from("unified_invoices")
-          .update({
-            payment_status: "cleared",
-            payment_method: "phonepe",
-            settled_at: new Date().toISOString()
-          })
-          .eq("id", targetInvoiceId);
+      if (invRow.payment_status === "cleared") {
+        console.log(`[PhonePe Webhook] ⏭️ Duplicate event skipped: Invoice ${targetInvoiceId} is already cleared.`);
+        return new Response(JSON.stringify({ status: "SUCCESS", message: "Duplicate event ignored" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-        // Update Appointment status to confirmed
-        if (patientId) {
-          const tokenCode = targetInvoiceId.substring(0, 5).toUpperCase();
-          await supabase
-            .from("appointments")
-            .update({
-              status: "confirmed",
-              token_number: `#TK-${tokenCode}`
-            })
-            .eq("patient_id", patientId)
-            .eq("status", "pending_payment");
-        }
+      // IDEMPOTENCY: Acquire advisory lock to prevent concurrent webhook deliveries from duplicate processing
+      const lockResult = await tryAcquirePaymentLock(supabase, getInvoiceLockKey(targetInvoiceId));
+      if (!lockResult.acquired) {
+        console.log(`[PhonePe Webhook] ⏭️ Skipping duplicate processing for invoice ${targetInvoiceId} — lock held by another transaction`);
+        return new Response(JSON.stringify({ status: "ERROR", skipped: true, reason: "lock_held" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.log(`[PhonePe Webhook] 🔒 Lock acquired for invoice ${targetInvoiceId}`);
 
-        // 2. Log idempotency settlement in vitalsync_pool_settlements
-        const { data: existingSettlement } = await supabase
-          .from("vitalsync_pool_settlements")
-          .select("id")
-          .eq("gateway_reference_id", phonepeTransactionId)
-          .maybeSingle();
-
-        if (!existingSettlement) {
-          await supabase.from("vitalsync_pool_settlements").insert({
-            invoice_id: targetInvoiceId,
-            gateway_reference_id: phonepeTransactionId,
-            payment_mode: "phonepe_upi",
-            amount: amountPaid || 500,
-            settlement_status: "completed",
-            created_at: new Date().toISOString()
+      try {
+        if (targetInvoiceId) {
+          // Execute Atomic Payment Settlement RPC
+          const { error: rpcError } = await supabase.rpc('process_invoice_settlement', {
+            p_invoice_id: targetInvoiceId,
+            p_payment_method: 'phonepe',
+            p_amount_paid: amountPaid || 500,
+            p_gateway_reference_id: phonepeTransactionId
           });
+
+          if (rpcError) {
+            throw new Error(`RPC Settlement Failed: ${rpcError.message}`);
+          }
         }
+      } finally {
+        // Release session-scoped advisory lock after all processing completes
+        await releasePaymentLock(supabase, getInvoiceLockKey(targetInvoiceId));
       }
     }
 
@@ -151,7 +153,7 @@ serve(async (req) => {
       JSON.stringify({ status: "ERROR", error: error.message }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200, // Return 200 to prevent retry storms
+        status: 500,
       }
     );
   }

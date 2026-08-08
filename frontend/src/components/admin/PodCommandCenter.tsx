@@ -284,7 +284,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     const groups: { [patientId: string]: { patientName: string; medicines: { id: string; name: string; qty: number; status: string }[]; totalItems: number; status: 'dispensed' | 'held' } } = {};
     inventoryHolds.forEach(h => {
       const patient = patients.find(p => p.id === h.patientId);
-      const name = patient ? patient.name : `Patient ${h.patientId.substring(0, 5)}`;
+      const name = patient ? patient.name : `Patient ${(h.patientId || '').substring(0, 5)}`;
       if (!groups[h.patientId]) {
         groups[h.patientId] = {
           patientName: name,

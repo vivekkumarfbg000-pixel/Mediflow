@@ -1751,4 +1751,512 @@ CREATE TRIGGER trg_on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user_signup();
 
+-- =============================================================================
+-- VITALSYNC SRE PATCH: WhatsApp Dispatch Lost Update Anomaly Fix
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.atomic_append_whatsapp_chat(
+  p_patient_phone TEXT,
+  p_patient_id UUID,
+  p_pod_id UUID,
+  p_message JSONB,
+  p_waba_error TEXT DEFAULT NULL,
+  p_current_time TIMESTAMPTZ DEFAULT NOW()
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.whatsapp_sessions (
+    patient_phone, 
+    patient_id, 
+    current_state, 
+    last_interaction, 
+    session_data,
+    pod_id
+  )
+  VALUES (
+    p_patient_phone, 
+    p_patient_id, 
+    'COMPLETED', 
+    p_current_time, 
+    jsonb_build_object(
+      'chatHistory', jsonb_build_array(p_message),
+      'podId', p_pod_id,
+      'wabaErrorMessage', p_waba_error
+    ),
+    p_pod_id
+  )
+  ON CONFLICT (patient_phone) DO UPDATE 
+  SET 
+    last_interaction = EXCLUDED.last_interaction,
+    current_state = 'COMPLETED',
+    session_data = jsonb_set(
+      jsonb_set(
+        COALESCE(public.whatsapp_sessions.session_data, '{}'::jsonb),
+        '{chatHistory}',
+        (COALESCE(public.whatsapp_sessions.session_data->'chatHistory', '[]'::jsonb) || p_message)
+      ),
+      '{wabaErrorMessage}',
+      to_jsonb(p_waba_error)
+    );
+END;
+$$;
 
+-- =============================================================================
+-- VITALSYNC SRE PATCH: Razorpay Webhook UUID Casting Type Crash Fix
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.find_invoice_by_prefix(p_prefix TEXT)
+RETURNS SETOF public.unified_invoices
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT * FROM public.unified_invoices
+  WHERE id::text LIKE p_prefix || '%';
+$$;
+
+
+
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+  p_virtual_date TEXT,
+  p_pod_id UUID
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_next_seq INT;
+BEGIN
+  -- Atomically count existing appointments for this date+pod
+  SELECT COUNT(*) + 1
+  INTO v_next_seq
+  FROM appointments
+  WHERE virtual_date = p_virtual_date
+    AND pod_id = p_pod_id;
+
+  RETURN 'T-' || LPAD(v_next_seq::TEXT, 2, '0');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO service_role;
+
+
+-- =============================================================================
+-- Mediflow: Session-Scoped Advisory Lock RPCs
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.try_acquire_session_lock(p_key BIGINT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN pg_try_advisory_lock(p_key);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.release_session_lock(p_key BIGINT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN pg_advisory_unlock(p_key);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.try_acquire_session_lock(BIGINT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.release_session_lock(BIGINT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.try_acquire_session_lock(BIGINT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.release_session_lock(BIGINT) TO authenticated;
+
+-- Migration: Atomic Care Loop RPC to fix Client-Side State Dropping & TOCTOU Race Conditions
+-- Implements robust transactional wrapper for encounter execution.
+
+CREATE OR REPLACE FUNCTION public.process_clinical_care_loop(
+    p_encounter_id UUID,
+    p_patient_id UUID,
+    p_doctor_id UUID,
+    p_pod_id UUID,
+    p_lab_entity_id UUID,
+    p_pharmacy_entity_id UUID,
+    p_medications JSONB,
+    p_diagnostics JSONB,
+    p_patient_phone TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_lab_fee NUMERIC := 0;
+    v_pharmacy_fee NUMERIC := 0;
+    v_doctor_fee NUMERIC := 0;
+    v_platform_fee NUMERIC := 0;
+    v_invoice_total NUMERIC := 0;
+    
+    v_assigned_tech_id UUID := NULL;
+    v_test JSONB;
+    v_test_price NUMERIC := 350.00;
+    
+    v_med JSONB;
+    v_needed_qty INT;
+    v_remaining_qty INT;
+    v_batch RECORD;
+    v_allocated_qty INT;
+    v_hold_status TEXT;
+    
+    v_already_paid_consult BOOLEAN := FALSE;
+    v_doctor_display_name TEXT := 'Doctor';
+    v_doctor_profile RECORD;
+    
+    v_meds_text TEXT := '';
+    v_diags_text TEXT := '';
+    v_bot_message TEXT;
+    v_existing_session RECORD;
+    v_current_history JSONB;
+    v_session_data JSONB;
+    v_new_history_entry JSONB;
+BEGIN
+    -- 1. Insert Diagnostics
+    IF jsonb_array_length(p_diagnostics) > 0 THEN
+        FOR v_test IN SELECT * FROM jsonb_array_elements(p_diagnostics)
+        LOOP
+            INSERT INTO encounter_diagnostics (encounter_id, loinc_code, test_name, status)
+            VALUES (p_encounter_id, v_test->>'loincCode', v_test->>'name', 'ordered');
+            
+            -- Prepare text for WhatsApp
+            v_diags_text := v_diags_text || '🧪 ' || (v_test->>'name') || E'\n';
+            
+            -- Route to Lab Requisitions
+            IF p_lab_entity_id IS NOT NULL THEN
+                -- Find lab technician
+                IF v_assigned_tech_id IS NULL THEN
+                    SELECT id INTO v_assigned_tech_id FROM profiles 
+                    WHERE entity_id = p_lab_entity_id AND role = 'lab_technician' LIMIT 1;
+                END IF;
+                
+                -- Get Price
+                v_test_price := 350.00;
+                SELECT price INTO v_test_price FROM master_test_catalog WHERE loinc_code = v_test->>'loincCode' LIMIT 1;
+                IF v_test_price IS NULL THEN v_test_price := 350.00; END IF;
+                
+                v_lab_fee := v_lab_fee + v_test_price;
+                
+                INSERT INTO lab_requisitions (
+                    encounter_id, patient_id, lab_entity_id, loinc_code, test_name, 
+                    barcode, status, assigned_technician_id, pod_id
+                ) VALUES (
+                    p_encounter_id, p_patient_id, p_lab_entity_id, v_test->>'loincCode', v_test->>'name',
+                    UPPER('BAR-' || SUBSTRING(p_encounter_id::TEXT, 1, 8) || '-' || (v_test->>'loincCode')),
+                    'pending', v_assigned_tech_id, p_pod_id
+                );
+            END IF;
+        END LOOP;
+    END IF;
+
+    -- 2. Reserve Pharmacy Stock (WITH PESSIMISTIC LOCKING)
+    IF jsonb_array_length(p_medications) > 0 THEN
+        FOR v_med IN SELECT * FROM jsonb_array_elements(p_medications)
+        LOOP
+            v_needed_qty := 10;
+            v_remaining_qty := v_needed_qty;
+            
+            IF p_pharmacy_entity_id IS NOT NULL THEN
+                v_pharmacy_fee := v_pharmacy_fee + 150;
+                
+                -- Prepare text for WhatsApp
+                v_meds_text := v_meds_text || '💊 ' || (v_med->>'medicineName') || ' (' || COALESCE(v_med->>'frequency', '') || ', ' || COALESCE(v_med->>'duration', '') || ')' || E'\n';
+                
+                -- FOR UPDATE strictly serializes concurrent stock deductions! (Fixes TOCTOU)
+                FOR v_batch IN 
+                    SELECT id, batch_number, expiry_date, quantity_in_stock 
+                    FROM pharmacy_inventory 
+                    WHERE pharmacy_entity_id = p_pharmacy_entity_id 
+                      AND medicine_name = v_med->>'medicineName'
+                      AND is_active = true 
+                      AND quantity_in_stock > 0 
+                      AND expiry_date >= CURRENT_DATE
+                    ORDER BY expiry_date ASC
+                    FOR UPDATE
+                LOOP
+                    IF v_remaining_qty <= 0 THEN EXIT; END IF;
+                    
+                    v_allocated_qty := LEAST(v_batch.quantity_in_stock, v_remaining_qty);
+                    
+                    UPDATE pharmacy_inventory 
+                    SET quantity_in_stock = quantity_in_stock - v_allocated_qty,
+                        updated_at = NOW()
+                    WHERE id = v_batch.id;
+                    
+                    INSERT INTO inventory_holds (
+                        pharmacy_entity_id, encounter_id, patient_id, medicine_name,
+                        dosage, quantity, batch_number, expiry_date, hold_status
+                    ) VALUES (
+                        p_pharmacy_entity_id, p_encounter_id, p_patient_id, v_med->>'medicineName',
+                        COALESCE(v_med->>'dosage', ''), v_allocated_qty, v_batch.batch_number, v_batch.expiry_date, 'held'
+                    );
+                    
+                    v_remaining_qty := v_remaining_qty - v_allocated_qty;
+                END LOOP;
+                
+                IF v_remaining_qty > 0 THEN
+                    IF v_remaining_qty = v_needed_qty THEN
+                        v_hold_status := 'OUT_OF_STOCK';
+                    ELSE
+                        v_hold_status := 'SHORTAGE';
+                    END IF;
+                    
+                    INSERT INTO inventory_holds (
+                        pharmacy_entity_id, encounter_id, patient_id, medicine_name,
+                        dosage, quantity, batch_number, expiry_date, hold_status
+                    ) VALUES (
+                        p_pharmacy_entity_id, p_encounter_id, p_patient_id, v_med->>'medicineName',
+                        COALESCE(v_med->>'dosage', ''), v_remaining_qty, v_hold_status, NULL, 'held'
+                    );
+                    
+                    INSERT INTO activity_logs (action_type, details, entity_id, pod_id)
+                    VALUES (
+                        'INVENTORY_SHORTAGE', 
+                        jsonb_build_object(
+                            'medicine_name', v_med->>'medicineName', 
+                            'requested_quantity', v_needed_qty, 
+                            'remaining_quantity', v_remaining_qty, 
+                            'encounter_id', p_encounter_id, 
+                            'pharmacy_entity_id', p_pharmacy_entity_id
+                        ), 
+                        p_pharmacy_entity_id, p_pod_id
+                    );
+                END IF;
+            END IF;
+        END LOOP;
+    END IF;
+
+    -- 3. Unified Invoice Generation
+    SELECT EXISTS (
+        SELECT 1 FROM unified_invoices 
+        WHERE (patient_id = p_patient_id OR patient_id::TEXT = p_patient_id::TEXT)
+          AND (payment_status = 'cleared' OR payment_status = 'paid')
+          AND (doctor_fee > 0 OR type = 'consult')
+    ) INTO v_already_paid_consult;
+
+    IF NOT v_already_paid_consult THEN
+        v_doctor_fee := 400.00;
+        SELECT consultation_fee, display_name, name INTO v_doctor_profile FROM profiles WHERE id = p_doctor_id LIMIT 1;
+        IF v_doctor_profile.consultation_fee IS NOT NULL THEN
+            v_doctor_fee := v_doctor_profile.consultation_fee;
+        END IF;
+        IF v_doctor_profile.display_name IS NOT NULL THEN
+            v_doctor_display_name := v_doctor_profile.display_name;
+        ELSIF v_doctor_profile.name IS NOT NULL THEN
+            v_doctor_display_name := v_doctor_profile.name;
+        END IF;
+    END IF;
+
+    v_platform_fee := (v_doctor_fee + v_lab_fee + v_pharmacy_fee) * 0.03;
+    IF v_platform_fee < 10.00 THEN v_platform_fee := 10.00; END IF;
+    v_invoice_total := v_doctor_fee + v_lab_fee + v_pharmacy_fee + v_platform_fee;
+
+    INSERT INTO unified_invoices (
+        encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee, platform_fee, total_amount,
+        upi_qr_payload, pod_id
+    ) VALUES (
+        p_encounter_id, p_patient_id, v_doctor_fee, v_lab_fee, v_pharmacy_fee, v_platform_fee, v_invoice_total,
+        'upi://pay?pa=vitalsync@axl&pn=VitalSync&am=' || v_invoice_total || '&cu=INR&tn=VitalSync-' || p_encounter_id, p_pod_id
+    );
+
+    -- 4. Mutate WhatsApp Bot State
+    IF p_patient_phone IS NOT NULL THEN
+        SELECT id, session_data INTO v_existing_session FROM whatsapp_sessions WHERE patient_phone = p_patient_phone LIMIT 1;
+        
+        IF v_existing_session.id IS NOT NULL THEN
+            IF NOT v_doctor_display_name ILIKE 'Dr.%' THEN
+                v_doctor_display_name := 'Dr. ' || v_doctor_display_name;
+            END IF;
+            
+            v_bot_message := '*' || v_doctor_display_name || '* has signed off your Clinical e-Prescription (e-Rx) and care invoice.';
+            IF LENGTH(v_meds_text) > 0 THEN v_bot_message := v_bot_message || E'\n\n*Generic Medicines ordered*:\n' || v_meds_text; END IF;
+            IF LENGTH(v_diags_text) > 0 THEN v_bot_message := v_bot_message || E'\n\n*Diagnostics Ordered*:\n' || v_diags_text; END IF;
+            v_bot_message := v_bot_message || E'\n\n*Payment Pending*: A unified care pod invoice is generated. Please pay below:';
+            
+            v_session_data := v_existing_session.session_data;
+            v_current_history := COALESCE(v_session_data->'chatHistory', '[]'::JSONB);
+            v_new_history_entry := jsonb_build_object('sender', 'bot', 'text', v_bot_message, 'time', NOW());
+            v_current_history := v_current_history || v_new_history_entry;
+            
+            v_session_data := jsonb_set(v_session_data, '{chatHistory}', v_current_history);
+            v_session_data := jsonb_set(v_session_data, '{invoiceTotal}', to_jsonb(v_invoice_total));
+            
+            UPDATE whatsapp_sessions 
+            SET current_state = 'AWAITING_PAYMENT',
+                session_data = v_session_data,
+                last_interaction = NOW()
+            WHERE id = v_existing_session.id;
+            
+            INSERT INTO activity_logs (action_type, details, entity_id)
+            VALUES ('WHATSAPP_STATE_TRANSITION', jsonb_build_object('phone', p_patient_phone, 'newState', 'AWAITING_PAYMENT'), v_existing_session.id);
+        END IF;
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'invoiceTotal', v_invoice_total);
+EXCEPTION WHEN OTHERS THEN
+    -- In the event of ANY failure, Postgres will automatically rollback the entire transaction.
+    RAISE WARNING 'Care loop transaction failed: %', SQLERRM;
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+-- Migration: Atomic Payment Settlement RPC
+-- Fixes Split-Brain Data Corruption for Counter and Online Webhook Payments
+
+CREATE OR REPLACE FUNCTION public.process_invoice_settlement(
+    p_invoice_id UUID,
+    p_payment_method TEXT,
+    p_amount_paid NUMERIC DEFAULT NULL,
+    p_gateway_reference_id TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_invoice RECORD;
+    v_doctor_fee NUMERIC := 0;
+    v_platform_fee NUMERIC := 0;
+    v_gateway_fee NUMERIC := 0;
+    v_net_profit NUMERIC := 0;
+    v_amount NUMERIC := 0;
+    v_pod_id UUID;
+BEGIN
+    -- 1. Lock the invoice to prevent concurrent webhook/counter race conditions
+    SELECT * INTO v_invoice 
+    FROM unified_invoices 
+    WHERE id = p_invoice_id 
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invoice not found');
+    END IF;
+
+    IF v_invoice.payment_status = 'cleared' THEN
+        RETURN jsonb_build_object('success', true, 'skipped', true, 'message', 'Invoice already cleared');
+    END IF;
+
+    v_amount := COALESCE(p_amount_paid, v_invoice.total_amount);
+    v_doctor_fee := COALESCE(v_invoice.doctor_fee, 500);
+    v_platform_fee := COALESCE(v_invoice.platform_fee, 15);
+    v_pod_id := v_invoice.pod_id;
+
+    IF p_payment_method IN ('razorpay', 'phonepe', 'paytm') THEN
+        v_gateway_fee := ROUND(v_amount * 0.02, 2); -- Typical 2% digital gateway fee
+    ELSE
+        v_gateway_fee := 0; -- Cash / UPI Counter is 0% MDR
+    END IF;
+    
+    v_net_profit := GREATEST(0, v_platform_fee - v_gateway_fee);
+
+    -- 2. Mark Invoice as Cleared
+    UPDATE unified_invoices 
+    SET payment_status = 'cleared',
+        payment_method = p_payment_method,
+        settled_at = NOW(),
+        updated_at = NOW()
+    WHERE id = p_invoice_id;
+
+    -- 3. Confirm associated Appointment
+    IF v_invoice.appointment_id IS NOT NULL THEN
+        UPDATE appointments 
+        SET status = 'confirmed',
+            payment_status = 'cleared',
+            token_number = '#TK-' || UPPER(SUBSTRING(p_invoice_id::TEXT, 1, 5)),
+            updated_at = NOW()
+        WHERE id = v_invoice.appointment_id 
+          AND status = 'pending_payment';
+    END IF;
+
+    -- 4. Generate Idempotent Pool Settlement
+    IF p_gateway_reference_id IS NOT NULL THEN
+        IF NOT EXISTS (SELECT 1 FROM vitalsync_pool_settlements WHERE gateway_reference_id = p_gateway_reference_id) THEN
+            INSERT INTO vitalsync_pool_settlements (
+                invoice_id, patient_id, total_amount, doctor_share, platform_share, 
+                gateway_fee, net_platform_profit, payment_mode, settlement_status, 
+                gateway_reference_id, created_at
+            ) VALUES (
+                p_invoice_id, v_invoice.patient_id, v_amount, v_doctor_fee, v_platform_fee,
+                v_gateway_fee, v_net_profit, p_payment_method, 'completed', 
+                p_gateway_reference_id, NOW()
+            );
+        END IF;
+    ELSE
+        -- Generate a unique counter reference
+        INSERT INTO vitalsync_pool_settlements (
+            invoice_id, patient_id, total_amount, doctor_share, platform_share, 
+            gateway_fee, net_platform_profit, payment_mode, settlement_status, 
+            gateway_reference_id, created_at
+        ) VALUES (
+            p_invoice_id, v_invoice.patient_id, v_amount, v_doctor_fee, v_platform_fee,
+            v_gateway_fee, v_net_profit, p_payment_method, 'completed', 
+            'counter-' || p_payment_method || '-' || SUBSTRING(p_invoice_id::TEXT, 1, 8), NOW()
+        );
+    END IF;
+
+    -- 5. Auto-Dispense Pharmacy Inventory Holds
+    -- Strict Row-Level Locking on inventory_holds to prevent concurrent dispatch
+    UPDATE inventory_holds 
+    SET hold_status = 'dispensed',
+        dispensed_at = NOW(),
+        updated_at = NOW()
+    WHERE patient_id = v_invoice.patient_id 
+      AND hold_status = 'held'
+      AND encounter_id = v_invoice.encounter_id;
+
+    -- 6. Generate Financial Ledger Splits (Platform Fee & Doctor Fee)
+    -- Insert Platform Fee Record
+    INSERT INTO financial_ledgers (
+        invoice_id, source_entity_id, destination_entity_id, transaction_type,
+        gross_amount, commission_rate, net_payout, payment_status, settled_at
+    ) VALUES (
+        p_invoice_id, v_pod_id, v_pod_id, 'platform_fee',
+        v_amount, 3, v_platform_fee, 'cleared', NOW()
+    );
+
+    -- Insert Doctor/Appointment Record
+    INSERT INTO financial_ledgers (
+        invoice_id, source_entity_id, destination_entity_id, transaction_type,
+        gross_amount, commission_rate, net_payout, payment_status, settled_at
+    ) VALUES (
+        p_invoice_id, v_pod_id, v_pod_id, 'appointment_fee',
+        v_amount, 0, v_doctor_fee, 'cleared', NOW()
+    );
+
+    -- Add Lab & Pharmacy commission splits dynamically
+    IF COALESCE(v_invoice.lab_fee, 0) > 0 THEN
+        INSERT INTO financial_ledgers (
+            invoice_id, source_entity_id, destination_entity_id, transaction_type,
+            gross_amount, commission_rate, net_payout, payment_status, settled_at
+        ) VALUES (
+            p_invoice_id, v_pod_id, v_pod_id, 'lab_commission',
+            v_invoice.lab_fee, 0.5, (v_invoice.lab_fee * 0.5), 'cleared', NOW()
+        );
+    END IF;
+
+    IF COALESCE(v_invoice.pharmacy_fee, 0) > 0 THEN
+        INSERT INTO financial_ledgers (
+            invoice_id, source_entity_id, destination_entity_id, transaction_type,
+            gross_amount, commission_rate, net_payout, payment_status, settled_at
+        ) VALUES (
+            p_invoice_id, v_pod_id, v_pod_id, 'medicine_commission',
+            v_invoice.pharmacy_fee, 0.2, (v_invoice.pharmacy_fee * 0.2), 'cleared', NOW()
+        );
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'message', 'Invoice settlement completed atomically');
+EXCEPTION WHEN OTHERS THEN
+    -- In the event of ANY failure, Postgres will automatically rollback the entire transaction.
+    RAISE WARNING 'Invoice settlement transaction failed: %', SQLERRM;
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;

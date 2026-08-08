@@ -259,52 +259,24 @@ serve(async (req) => {
     }
 
     // 4. Simulator Fallback & Dashboard Synchronization
-    // Updates local whatsapp_sessions so that clinical compounder/doctor dashboards show messages in real-time
-    const { data: session, error: sessErr } = await supabase
-      .from("whatsapp_sessions")
-      .select("*")
-      .eq("patient_phone", patientPhone)
-      .maybeSingle();
+    // Uses the atomic JSONB append RPC to prevent Lost Update Anomalies under high concurrency
+    const chatMessage = {
+      sender: "bot",
+      text: plainTextMessage,
+      timestamp: currentTime
+    };
 
-    if (sessErr) {
-      console.error("[whatsapp-dispatch] Error loading patient session:", sessErr);
-    }
+    const { error: rpcUpdateErr } = await supabase.rpc("atomic_append_whatsapp_chat", {
+      p_patient_phone: patientPhone,
+      p_patient_id: patientId,
+      p_pod_id: podId,
+      p_message: chatMessage,
+      p_waba_error: wabaErrorMessage || null,
+      p_current_time: currentTime
+    });
 
-    if (session) {
-      const sessionData = session.session_data ?? {};
-      const chatHistory = sessionData.chatHistory ?? [];
-      chatHistory.push({
-        sender: "bot",
-        text: plainTextMessage,
-        timestamp: currentTime
-      });
-
-      await supabase
-        .from("whatsapp_sessions")
-        .update({
-          session_data: { ...sessionData, chatHistory, wabaErrorMessage },
-          last_interaction: currentTime,
-          current_state: "COMPLETED"
-        })
-        .eq("id", session.id);
-    } else {
-      await supabase
-        .from("whatsapp_sessions")
-        .insert({
-          patient_phone: patientPhone,
-          patient_id: patientId,
-          current_state: "COMPLETED",
-          last_interaction: currentTime,
-          session_data: {
-            chatHistory: [{
-              sender: "bot",
-              text: plainTextMessage,
-              timestamp: currentTime
-            }],
-            podId: podId,
-            wabaErrorMessage
-          }
-        });
+    if (rpcUpdateErr) {
+      console.error("[whatsapp-dispatch] 🚨 FATAL: Atomic chat append failed:", rpcUpdateErr);
     }
 
     // Register transactional dispatch activity

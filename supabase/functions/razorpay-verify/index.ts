@@ -109,13 +109,11 @@ serve(async (req) => {
 
     if (!invoice) {
       const cleanSnippet = invoiceId.replace("inv-wa-", "").substring(0, 8);
-      const { data: prefixInv } = await supabase
-        .from("unified_invoices")
-        .select("*")
-        .ilike("id", `${cleanSnippet}%`)
-        .limit(1)
-        .maybeSingle();
-      if (prefixInv) invoice = prefixInv;
+      const { data: prefixInvs } = await supabase
+        .rpc("find_invoice_by_prefix", { p_prefix: cleanSnippet });
+      if (prefixInvs && prefixInvs.length > 0) {
+        invoice = prefixInvs[0];
+      }
     }
 
     const resolvedInvoiceId = invoice?.id || invoiceId;

@@ -476,23 +476,26 @@ const setCrossDomainCookie = (active: boolean) => {
 };
 
 export default function App() {
-  // Public route interceptor for payment portal and legal policy compliance pages (/terms, /privacy, /refund-policy, /contact-us)
-  if (typeof window !== 'undefined') {
-    const pathName = window.location.pathname.toLowerCase();
-    const searchParams = new URLSearchParams(window.location.search);
-    if (pathName.startsWith('/pay') || (searchParams.has('inv') && !searchParams.has('tab'))) {
-      return <WhatsAppPaymentPage />;
+  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal'>(null);
+
+  // Determine public page before any hooks that might be skipped
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const pathName = window.location.pathname.toLowerCase();
+      const searchParams = new URLSearchParams(window.location.search);
+      if (pathName.startsWith('/pay') || (searchParams.has('inv') && !searchParams.has('tab'))) {
+        setPublicPage('payment');
+      } else if (
+        pathName.startsWith('/terms') || 
+        pathName.startsWith('/privacy') || 
+        pathName.startsWith('/refund') || 
+        pathName.startsWith('/cancellation') || 
+        pathName.startsWith('/contact')
+      ) {
+        setPublicPage('legal');
+      }
     }
-    if (
-      pathName.startsWith('/terms') || 
-      pathName.startsWith('/privacy') || 
-      pathName.startsWith('/refund') || 
-      pathName.startsWith('/cancellation') || 
-      pathName.startsWith('/contact')
-    ) {
-      return <LegalPoliciesPage />;
-    }
-  }
+  }, []);
 
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     if (typeof window !== 'undefined') {
@@ -534,7 +537,7 @@ export default function App() {
     }
     return null;
   });
-  const [isBypassMode, setIsBypassMode] = useState<boolean>(false); // Production default (bypass mode disabled)
+  const [isBypassMode, setIsBypassMode] = useState<boolean>(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -556,6 +559,25 @@ export default function App() {
     }
     return false;
   });
+
+  // Determine public page in an effect that runs first
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const pathName = window.location.pathname.toLowerCase();
+      const searchParams = new URLSearchParams(window.location.search);
+      if (pathName.startsWith('/pay') || (searchParams.has('inv') && !searchParams.has('tab'))) {
+        setPublicPage('payment');
+      } else if (
+        pathName.startsWith('/terms') || 
+        pathName.startsWith('/privacy') || 
+        pathName.startsWith('/refund') || 
+        pathName.startsWith('/cancellation') || 
+        pathName.startsWith('/contact')
+      ) {
+        setPublicPage('legal');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Eagerly redirect to app subdomain if cross-subdomain session cookie is active
@@ -1056,10 +1078,10 @@ export default function App() {
       
       setToasts(prev => [...prev, newToast]);
       
-      // Auto dismiss after 1 second
+      // Auto dismiss after 4 seconds
       setTimeout(() => {
         setToasts(prev => prev.filter(t => t.id !== id));
-      }, 1000);
+      }, 4000);
     };
 
     window.addEventListener('mediflow-toast', handleToast);

@@ -123,6 +123,9 @@ serve(async (req) => {
     const cfEnv     = Deno.env.get("CASHFREE_ENV") ?? ""; // Must be set to "production" in Vault before go-live
     const resolvedEnv = cfEnv || "sandbox";
 
+    let isStaleOrder = false;
+    let orderId = `VITAL-${invoiceId}`;
+
     // IDEMPOTENCY: Check if order already exists for this invoice
     if (invoice.cashfree_order_id) {
       console.log(`[cashfree-order] Idempotency hit: Invoice ${invoiceId} already has order_id ${invoice.cashfree_order_id}`);
@@ -140,20 +143,36 @@ serve(async (req) => {
         });
         if (existingRes.ok) {
           const existingData = await existingRes.json();
-          return new Response(JSON.stringify({
-            order_id: existingData.order_id,
-            payment_session_id: existingData.payment_session_id,
-            paymentSessionId: existingData.payment_session_id,
-            cf_order_id: existingData.cf_order_id,
-            environment: resolvedEnv,
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          const existingAmount = Number(existingData.order_amount);
+          
+          // SECURITY check: Ensure the registered order amount matches the current invoice total exactly
+          if (existingAmount === amount) {
+            console.log(`[cashfree-order] Cached order amount matches current invoice total (₹${amount}). Returning cached session.`);
+            return new Response(JSON.stringify({
+              order_id: existingData.order_id,
+              payment_session_id: existingData.payment_session_id,
+              paymentSessionId: existingData.payment_session_id,
+              cf_order_id: existingData.cf_order_id,
+              environment: resolvedEnv,
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          } else {
+            console.warn(`[cashfree-order] STALE SESSION DETECTED: Invoice amount has changed (Invoice: ₹${amount}, Cashfree Order: ₹${existingAmount}). Invalidating cache and generating new versioned order.`);
+            isStaleOrder = true;
+          }
         }
       } catch (e) {
         console.warn("[cashfree-order] Failed to fetch existing order, will create new:", e);
       }
+    }
+
+    if (isStaleOrder) {
+      // Cashfree order_id limit is 45 characters.
+      // Shorten UUID (first 18 chars) to keep total length within limits: 6 + 18 + 1 + 6 = 31 chars.
+      const uuidPart = invoiceId.replace(/-/g, "").substring(0, 18);
+      orderId = `VITAL-${uuidPart}-${Date.now().toString().slice(-6)}`;
     }
 
     if (!appId || !secretKey) {
@@ -184,9 +203,6 @@ serve(async (req) => {
       : "https://sandbox.cashfree.com/pg/orders";
 
     console.log(`[cashfree-order] Using Cashfree environment: ${resolvedEnv.toUpperCase()}`);
-
-
-    const orderId = `VITAL-${invoiceId}`;
 
     const body: Record<string, any> = {
       order_amount:   amount,

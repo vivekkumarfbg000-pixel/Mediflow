@@ -101,6 +101,7 @@ export interface WhatsAppSession {
     | 'AWAITING_WELCOME'
     | 'AWAITING_CONFIRMATION'
     | 'AWAITING_PAYMENT'
+    | 'AWAITING_VIRTUAL_PAYMENT'
     | 'BOOKING_VIRTUAL'
     | 'COMPLETED'
     | 'FAILED_DELIVERY'

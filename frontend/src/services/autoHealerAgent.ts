@@ -840,8 +840,22 @@ export class StateHealingEngine {
     };
 
     const safeAwait = async (fn: () => any, label: string) => {
-      checkAbort();
-      try { await Promise.resolve(fn()); } catch (e) { console.warn(`[Auto-Healer] ${label} error:`, e); }
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      
+      const abortPromise = new Promise<never>((_, reject) => {
+        const onAbort = () => reject(new DOMException(`Timeout on ${label}`, 'AbortError'));
+        if (signal.aborted) onAbort();
+        signal.addEventListener('abort', onAbort, { once: true });
+      });
+
+      try {
+        await Promise.race([Promise.resolve(fn()), abortPromise]);
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          throw e; // Ruthlessly bubble the abort error up to shatter the loop
+        }
+        console.warn(`[Auto-Healer] ${label} error:`, e);
+      }
     };
 
     await safeAwait(() => MemoryLeakDetector.checkHeapHealth(), 'MemoryLeakDetector');
