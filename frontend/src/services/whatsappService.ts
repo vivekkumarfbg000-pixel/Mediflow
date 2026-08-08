@@ -1083,23 +1083,15 @@ export class WhatsAppService {
               BillingService.saveAppointment(targetAppt);
             }
 
-            // 2. Clear invoice status in local state & unified_invoices
+            // 2. Clear invoice status in local state & unified_invoices via BillingService
             if (invoiceId) {
-              const invoices = BillingService.getUnifiedInvoices();
-              const targetInv = invoices.find(i => i.id === invoiceId);
-              if (targetInv) {
-                targetInv.paymentStatus = 'cleared';
-                save('unified_invoices', invoices);
-              }
+              BillingService.clearInvoice(invoiceId, 'upi');
             }
 
             // 3. Update Supabase Database records in real-time
             try {
               if (apptId) {
                 await supabase.from('appointments').update({ status: 'scheduled' }).eq('id', apptId);
-              }
-              if (invoiceId) {
-                await supabase.from('unified_invoices').update({ payment_status: 'cleared' }).eq('id', invoiceId);
               }
             } catch (err) {
               console.error('[WhatsApp Payment] Error updating Supabase appointment status:', err);
@@ -1191,7 +1183,7 @@ export class WhatsAppService {
       const podCtx = getPodContext();
       supabase.rpc('atomic_update_whatsapp_session', {
         p_patient_phone: phone,
-        p_patient_id: existing.patientId || null,
+        p_patient_id: existing.sessionData?.patientId || null,
         p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
         p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
         p_current_state: 'AWAITING_WELCOME',
@@ -1254,7 +1246,7 @@ export class WhatsAppService {
         sessions[idx].sessionData = { ...sessions[idx].sessionData, ...data, currentState: state };
         this.saveWhatsAppSessions(sessions);
 
-        const updates = { ...data, currentState: state };
+        const updates = { ...data, currentState: state } as Record<string, any>;
         delete updates.chatHistory;
 
         const allowed = ['AWAITING_WELCOME', 'AWAITING_CONFIRMATION', 'AWAITING_PAYMENT', 'BOOKING_VIRTUAL', 'COMPLETED', 'INACTIVE'];
@@ -1354,7 +1346,7 @@ export class WhatsAppService {
     const podCtx = getPodContext();
     supabase.rpc('atomic_update_whatsapp_session', {
       p_patient_phone: phone,
-      p_patient_id: existing?.patientId || null,
+      p_patient_id: existing?.sessionData?.patientId || null,
       p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
       p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
       p_current_state: existing ? existing.currentState : 'AWAITING_WELCOME',

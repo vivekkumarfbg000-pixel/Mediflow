@@ -2894,6 +2894,7 @@ export class PaymentGateAutoHealer {
       const res = await PaymentService.initiatePaymentOrder({
         invoiceId: orderId,
         amount,
+        patientName: 'Auto-Healer Patient',
         patientPhone: customerPhone,
         returnUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
       });

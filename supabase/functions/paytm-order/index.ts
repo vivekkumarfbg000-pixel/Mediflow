@@ -25,9 +25,8 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, invoiceId, patientId, patientPhone, patientName } = await req.json();
-
-    const orderId = `PYTM_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+    const cleanInvoiceId = (invoiceId || 'direct').replace(/[^a-zA-Z0-9-]/g, '').substring(0, 20);
+    const orderId = `PYTM_${cleanInvoiceId}_${Date.now().toString().slice(-6)}`;
     const cleanAmount = (Math.round((amount || 500) * 100) / 100).toFixed(2);
     const sanitizedPhone = (patientPhone || '').replace(/\D/g, '').slice(-10) || '9999999999';
 
