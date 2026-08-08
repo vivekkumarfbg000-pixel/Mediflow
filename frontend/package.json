@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc -b --force && vite build",
+    "build:analyze": "tsc -b --force && vite build --mode analyze",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bundle:analyze": "npx vite-bundle-analyzer dist"
   },
   "dependencies": {
     "@sentry/react": "^10.63.0",
@@ -34,9 +36,11 @@
     "globals": "^17.6.0",
     "postcss": "^8.5.15",
     "puppeteer-core": "^25.1.0",
+    "rollup-plugin-visualizer": "^5.12.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vite-bundle-analyzer": "^0.10.0"
   }
 }

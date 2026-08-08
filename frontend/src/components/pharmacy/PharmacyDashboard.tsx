@@ -4,7 +4,6 @@ import { PaymentService } from '../../services/paymentService';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { useSpecialization } from '../../context/SpecializationContext';
-import { generateSpectaclePdfCard } from '../../utils/pdfGenerator';
 import type { InventoryHold, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
   Calendar, 
