@@ -145,7 +145,10 @@ export async function resolvePodContext(): Promise<PodContext> {
       );
 
       let podId = isDemoUser ? FALLBACK_POD_ID : user.id;
-      const entityId = isDemoUser ? FALLBACK_ENTITY_ID : (profile?.entity_id || user.id);
+      // Rule 76: If profile.entity_id is NULL for live user, generate user-isolated pod ID
+      // to prevent new accounts from querying/inheriting demo clinic data
+      const resolvedEntityId = profile?.entity_id || (isDemoUser ? FALLBACK_ENTITY_ID : `user-${user.id}`);
+      const entityId = isDemoUser ? FALLBACK_ENTITY_ID : resolvedEntityId;
 
       if (profile?.entity_id) {
         const { data: userEntity } = await supabase
@@ -156,6 +159,9 @@ export async function resolvePodContext(): Promise<PodContext> {
         if (userEntity?.pod_id) {
           podId = userEntity.pod_id;
         }
+      } else if (!isDemoUser) {
+        // Rule 76: Live user with no entity_id -> generate user-isolated pod ID
+        podId = `pod-${user.id}`;
       }
 
       let labEntityId = isDemoUser ? FALLBACK_LAB_ENTITY : user.id;

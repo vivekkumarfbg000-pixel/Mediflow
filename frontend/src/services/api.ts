@@ -1342,8 +1342,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  collectLabSample(reqId: string): void {
-    LabService.collectLabSample(reqId);
+  async collectLabSample(reqId: string): Promise<void> {
+    await LabService.collectLabSample(reqId);
     this.notify();
   }
 
@@ -1356,8 +1356,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  replenishReagentStock(reagentName: string, volumeToAdd: number): void {
-    LabService.replenishReagentStock(reagentName, volumeToAdd);
+  async replenishReagentStock(reagentName: string, volumeToAdd: number): Promise<void> {
+    await LabService.replenishReagentStock(reagentName, volumeToAdd);
     this.notify();
   }
 
@@ -1508,8 +1508,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>, entityId?: string): PharmacyInventoryItem {
-    const res = PharmacyService.addPharmacyInventoryItem(item, entityId);
+  async addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>, entityId?: string): Promise<PharmacyInventoryItem> {
+    const res = await PharmacyService.addPharmacyInventoryItem(item, entityId);
     this.notify();
     return res;
   }
@@ -1560,8 +1560,8 @@ class MediflowApiService {
     return PharmacyService.getMedicineBills();
   }
 
-  saveMedicineBill(bill: MedicineBill): MedicineBill {
-    const res = PharmacyService.saveMedicineBill(bill);
+  async saveMedicineBill(bill: MedicineBill): Promise<MedicineBill> {
+    const res = await PharmacyService.saveMedicineBill(bill);
     this.notify();
     return res;
   }

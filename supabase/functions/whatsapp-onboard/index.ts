@@ -84,7 +84,7 @@ serve(async (req) => {
       }
 
       // Normalize phone number — strip non-digits, ensure country code
-      const rawDigits = clinicPhone.replace(/\D/g, "");
+      const rawDigits = String(clinicPhone).replace(/\D/g, "");
       // Support +91XXXXXXXXXX or 91XXXXXXXXXX or just 10-digit
       const normalizedPhone = rawDigits.length === 10 ? `91${rawDigits}` : rawDigits;
       const countryCode = normalizedPhone.substring(0, 2); // e.g. "91"
@@ -192,7 +192,7 @@ serve(async (req) => {
             if (data) encryptedToken = data;
           } catch (_cErr) {}
 
-          const rawDigits = clinicPhone.replace(/\D/g, "");
+          const rawDigits = String(clinicPhone).replace(/\D/g, "");
           const normalizedPhone = rawDigits.length === 10 ? `+91${rawDigits}` : `+${rawDigits}`;
 
           const connRecord = {
@@ -364,7 +364,7 @@ serve(async (req) => {
       }
 
       // ── Step 4: Normalize phone number for storage ─────────────────────────
-      const rawDigits = clinicPhone.replace(/\D/g, "");
+      const rawDigits = String(clinicPhone).replace(/\D/g, "");
       const normalizedPhone = rawDigits.length === 10 ? `+91${rawDigits}` : `+${rawDigits}`;
 
       // ── Step 5: Upsert waba_connection record for this clinic pod ──────────

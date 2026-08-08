@@ -78,7 +78,7 @@ serve(async (req) => {
       const notes = payment.notes || order.notes || paymentLink.notes || {};
       const invoiceId = notes.invoice_id || notes.invoiceId || "";
       const rawContact = payment.contact || paymentLink.customer?.contact || notes.phone || "";
-      const clean10 = rawContact.replace(/\D/g, "").slice(-10);
+      const clean10 = String(rawContact).replace(/\D/g, "").slice(-10);
 
       console.log(`[Razorpay Webhook] 🟢 Processing event ${event} for payment ${payment.id || order.id}, invoice: ${invoiceId}`);
 
@@ -107,7 +107,7 @@ serve(async (req) => {
         if (exactInv) {
           invoice = exactInv;
         } else {
-          const cleanSnippet = invoiceId.replace("inv-wa-", "").substring(0, 8);
+          const cleanSnippet = String(invoiceId).replace("inv-wa-", "").substring(0, 8);
           const { data: prefixInvs } = await supabase
             .rpc("find_invoice_by_prefix", { p_prefix: cleanSnippet });
           if (prefixInvs && prefixInvs.length > 0) {

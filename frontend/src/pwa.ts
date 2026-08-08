@@ -117,9 +117,10 @@ export class PwaSyncManager {
     }));
 
     try {
-      for (const item of queue) {
+      let successCount = 0;
+      while (queue.length > 0) {
+        const item = queue[0];
         if (item.actionType === 'saveMedicineBill') {
-          // Re-sync local storage values and publish directly to remote database
           await api.saveMedicineBill(item.payload);
         } else if (item.actionType === 'addPharmacyInventoryItem') {
           await api.addPharmacyInventoryItem(item.payload);
@@ -128,11 +129,14 @@ export class PwaSyncManager {
         } else if (item.actionType === 'replenishReagentStock') {
           await api.replenishReagentStock(item.payload.reagentName, item.payload.volume);
         }
+        
+        // Item processed successfully, remove from queue and save
+        queue.shift();
+        localStorage.setItem('offline_sync_queue', JSON.stringify(queue));
+        successCount++;
       }
 
-      // Evict synchronized queue buffer
-      localStorage.removeItem('offline_sync_queue');
-      console.log('[PWA-Sync] Core queue synchronization completed successfully! 🟢');
+      console.log(`[PWA-Sync] Core queue synchronization completed successfully! Processed ${successCount} items. 🟢`);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {

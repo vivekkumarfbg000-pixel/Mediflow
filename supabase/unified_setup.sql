@@ -2356,3 +2356,98 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'queued_count', v_inserted_count, 'campaign_id', p_campaign_id);
 END;
 $$;
+
+
+-- =============================================================================
+-- VITALSYNC SRE PATCH: Atomic Session State & Chat Append RPC
+-- Fixes JSONB Read-Modify-Write Lost Update Anomaly in Webhooks & Client
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.atomic_update_whatsapp_session(
+    p_patient_phone TEXT,
+    p_patient_id UUID,
+    p_pod_id UUID,
+    p_entity_id UUID,
+    p_current_state TEXT,
+    p_message JSONB,
+    p_session_data_updates JSONB DEFAULT NULL,
+    p_waba_error TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_updated RECORD;
+    v_default_session_data JSONB;
+    v_chat_history JSONB;
+BEGIN
+    -- Determine default chat history array
+    IF p_message IS NOT NULL THEN
+      v_chat_history := jsonb_build_array(p_message);
+    ELSE
+      v_chat_history := '[]'::jsonb;
+    END IF;
+
+    -- Build default session data JSONB
+    v_default_session_data := jsonb_build_object(
+      'chatHistory', v_chat_history,
+      'podId', p_pod_id,
+      'entityId', p_entity_id,
+      'wabaErrorMessage', p_waba_error
+    );
+
+    -- Apply initial overrides if provided
+    IF p_session_data_updates IS NOT NULL THEN
+      v_default_session_data := v_default_session_data || p_session_data_updates;
+    END IF;
+
+    -- Insert or update atomically under unique constraint on patient_phone
+    INSERT INTO public.whatsapp_sessions (
+        patient_phone, 
+        patient_id, 
+        current_state, 
+        last_interaction, 
+        session_data,
+        pod_id
+    )
+    VALUES (
+        p_patient_phone, 
+        p_patient_id, 
+        COALESCE(p_current_state, 'IDLE'), 
+        NOW(), 
+        v_default_session_data,
+        p_pod_id
+    )
+    ON CONFLICT (patient_phone) DO UPDATE 
+    SET 
+        patient_id = COALESCE(p_patient_id, whatsapp_sessions.patient_id),
+        current_state = COALESCE(p_current_state, whatsapp_sessions.current_state),
+        last_interaction = NOW(),
+        session_data = jsonb_set(
+            CASE 
+              WHEN p_message IS NOT NULL THEN
+                jsonb_set(
+                    COALESCE(whatsapp_sessions.session_data, '{}'::jsonb),
+                    '{chatHistory}',
+                    (COALESCE(whatsapp_sessions.session_data->'chatHistory', '[]'::jsonb) || p_message)
+                )
+              ELSE
+                COALESCE(whatsapp_sessions.session_data, '{}'::jsonb)
+            END,
+            '{wabaErrorMessage}',
+            to_jsonb(p_waba_error)
+        )
+    RETURNING * INTO v_updated;
+
+    -- If additional session data updates are passed, merge them to avoid loss
+    IF p_session_data_updates IS NOT NULL THEN
+        UPDATE public.whatsapp_sessions
+        SET session_data = session_data || p_session_data_updates
+        WHERE id = v_updated.id
+        RETURNING * INTO v_updated;
+    END IF;
+
+    RETURN to_jsonb(v_updated);
+END;
+$$;
+

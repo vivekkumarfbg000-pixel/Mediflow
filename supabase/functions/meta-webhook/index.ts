@@ -205,7 +205,7 @@ if (!isManualRelay) {
           });
         }
 
-        let cleanPhone = patientPhone.replace(/[^0-9]/g, "");
+        let cleanPhone = String(patientPhone).replace(/[^0-9]/g, "");
         if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
         console.log(`[Meta Webhook Outbound Relay] Dispatching text to ${cleanPhone} via phoneId ${phoneId}...`);
@@ -379,7 +379,7 @@ if (!isManualRelay) {
           });
         }
 
-        let cleanPhone = patientPhone.replace(/[^0-9]/g, "");
+        let cleanPhone = String(patientPhone).replace(/[^0-9]/g, "");
         if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
         const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
@@ -590,7 +590,7 @@ if (!isManualRelay) {
 
       if (sessErr || !session) {
         // Find patient in registry to link profile (flexible 10-digit/12-digit matching)
-        const clean10Digits = patientPhone.replace(/\D/g, "").slice(-10);
+        const clean10Digits = String(patientPhone).replace(/\D/g, "").slice(-10);
         const { data: patient } = await supabase
           .from("patient_registry")
           .select("id")
@@ -1653,7 +1653,7 @@ async function triggerBotReplyPipeline(ctx: {
           const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
           const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
           const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
-          const cleanPhone10 = patientPhone.replace(/\D/g, "").slice(-10) || "9608032073";
+          const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10) || "9608032073";
           const patientEmail = patient?.email || `patient_${cleanPhone10}@vitalsync.in`;
 
           if (razorpayKeyId && razorpayKeySecret) {
@@ -2217,7 +2217,7 @@ async function triggerBotReplyPipeline(ctx: {
         let paymentGatewayUrlSos = "";
         const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
         const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
-        const cleanPhone10Sos = patientPhone.replace(/\D/g, "").slice(-10) || "9608032073";
+        const cleanPhone10Sos = String(patientPhone).replace(/\D/g, "").slice(-10) || "9608032073";
         const patientEmailSos = patient?.email || `emergency_${cleanPhone10Sos}@vitalsync.in`;
 
         if (razorpayKeyId && razorpayKeySecret) {
@@ -2574,7 +2574,7 @@ async function triggerBotReplyPipeline(ctx: {
             if (!aiPayUrl) {
               aiPayUrl = `https://securegw.paytm.in/theia/api/v1/showPaymentPage?orderId=AI-QUOTA-${patientPhone.substring(5)}`;
             } else {
-              const cleanPhone10Ai = patientPhone.replace(/\D/g, "").slice(-10) || "9608032073";
+              const cleanPhone10Ai = String(patientPhone).replace(/\D/g, "").slice(-10) || "9608032073";
               const encNameAi = encodeURIComponent(patient?.name || "Patient");
               const encEmailAi = encodeURIComponent(patient?.email || `patient_${cleanPhone10Ai}@vitalsync.in`);
               const sepAi = aiPayUrl.includes("?") ? "&" : "?";
@@ -2707,6 +2707,9 @@ const LLM_TIMEOUT_MS = 8000;
                 }),
                 signal: groqController.signal
               });
+              if (!response.ok && (response.status === 429 || response.status >= 500)) {
+                throw new Error(`Groq Upstream Failure: HTTP ${response.status}`);
+              }
               return response;
             });
 
@@ -2754,6 +2757,9 @@ const LLM_TIMEOUT_MS = 8000;
                     }),
                     signal: geminiController.signal
                   });
+                  if (!response.ok && (response.status === 429 || response.status >= 500)) {
+                    throw new Error(`Gemini Upstream Failure: HTTP ${response.status}`);
+                  }
                   return response;
                 });
 

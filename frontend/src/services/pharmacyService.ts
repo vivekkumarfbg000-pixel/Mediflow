@@ -366,7 +366,7 @@ export class PharmacyService {
     return results;
   }
 
-  static addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>, entityId?: string): PharmacyInventoryItem {
+  static async addPharmacyInventoryItem(item: Omit<PharmacyInventoryItem, 'id' | 'addedAt'>, entityId?: string): Promise<PharmacyInventoryItem> {
     const items = this.getPharmacyInventory();
     const newItem: PharmacyInventoryItem = {
       ...item,
@@ -389,9 +389,13 @@ export class PharmacyService {
       updated_at: new Date().toISOString()
     };
 
-    supabase.from('pharmacy_inventory').insert(dbRow).then(({ error }) => {
-      if (error) console.error('[PharmacyService] Error inserting inventory item in Supabase:', error);
-    });
+    if (navigator.onLine) {
+      const { error } = await supabase.from('pharmacy_inventory').insert(dbRow);
+      if (error) {
+        console.error('[PharmacyService] Error inserting inventory item in Supabase:', error);
+        throw error;
+      }
+    }
 
     writeAuditLog('pharmacy_inventory_added', { itemId: newItem.id, name: newItem.name, batch: newItem.batchNumber, stock: newItem.stock }, newItem.id);
     return newItem;
@@ -554,14 +558,11 @@ export class PharmacyService {
           if (parsed) {
             const email = String(parsed.email || '').toLowerCase();
             const id = String(parsed.id || '').toLowerCase();
-            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
             isDemoAccount = Boolean(
               parsed.isDemo === true ||
               email === 'demo@mediflow.com' ||
               email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
-              name.includes('(demo)') ||
-              name.includes('(mock)')
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
             );
           }
         }
@@ -625,14 +626,11 @@ export class PharmacyService {
           if (parsed) {
             const email = String(parsed.email || '').toLowerCase();
             const id = String(parsed.id || '').toLowerCase();
-            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
             isDemoAccount = Boolean(
               parsed.isDemo === true ||
               email === 'demo@mediflow.com' ||
               email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
-              name.includes('(demo)') ||
-              name.includes('(mock)')
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
             );
           }
         }
@@ -652,7 +650,7 @@ export class PharmacyService {
     return bills;
   }
 
-  static saveMedicineBill(bill: MedicineBill): MedicineBill {
+  static async saveMedicineBill(bill: MedicineBill): Promise<MedicineBill> {
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
     const validBillId = isUUID(bill.id) ? bill.id : crypto.randomUUID();
     if (validBillId !== bill.id) {
@@ -675,7 +673,7 @@ export class PharmacyService {
         detail: { actionType: 'saveMedicineBill', payload: bill }
       }));
     } else {
-      supabase.from('medicine_bills').upsert({
+      const { error } = await supabase.from('medicine_bills').upsert({
         id: bill.id,
         patient_id: bill.patientId,
         subtotal: bill.subtotal,
@@ -684,39 +682,39 @@ export class PharmacyService {
         item_discount_amount: bill.itemDiscountAmount || 0,
         gst_amount: bill.gstAmount || 0,
         total_amount: bill.totalAmount,
-        payment_mode: (bill.paymentMode as string) || 'cash', // fallback prevents DB check constraint violation
+        payment_mode: (bill.paymentMode as string) || 'cash',
         status: bill.status || 'draft',
         source: bill.source || 'counter'
-      }).then(({ error }) => {
-        if (error) {
-          console.error('Error saving bill in Supabase:', error);
-        } else {
-          // Sync line items
-          supabase.from('medicine_bill_items').delete().eq('bill_id', bill.id).then(({ error: delErr }) => {
-            if (delErr) {
-              console.error('Error clearing old bill items in Supabase:', delErr);
-            }
-            if (bill.items && bill.items.length > 0) {
-              const dbItems = bill.items.map(item => ({
-                bill_id: bill.id,
-                inventory_item_id: item.inventoryItemId,
-                name: item.name,
-                batch_number: item.batchNumber,
-                expiry_date: item.expiryDate,
-                quantity: item.quantity,
-                mrp: item.mrp,
-                selling_price: item.sellingPrice,
-                discount_percent: item.discountPercent || 0,
-                gst_percent: item.gstPercent || 0,
-                line_total: item.lineTotal
-              }));
-              supabase.from('medicine_bill_items').insert(dbItems).then(({ error: insErr }) => {
-                if (insErr) console.error('Error inserting bill items in Supabase:', insErr);
-              });
-            }
-          });
-        }
       });
+      if (error) {
+        console.error('Error saving bill in Supabase:', error);
+        throw error;
+      }
+      const { error: delErr } = await supabase.from('medicine_bill_items').delete().eq('bill_id', bill.id);
+      if (delErr) {
+        console.error('Error clearing old bill items in Supabase:', delErr);
+        throw delErr;
+      }
+      if (bill.items && bill.items.length > 0) {
+        const dbItems = bill.items.map(item => ({
+          bill_id: bill.id,
+          inventory_item_id: item.inventoryItemId,
+          name: item.name,
+          batch_number: item.batchNumber,
+          expiry_date: item.expiryDate,
+          quantity: item.quantity,
+          mrp: item.mrp,
+          selling_price: item.sellingPrice,
+          discount_percent: item.discountPercent || 0,
+          gst_percent: item.gstPercent || 0,
+          line_total: item.lineTotal
+        }));
+        const { error: insErr } = await supabase.from('medicine_bill_items').insert(dbItems);
+        if (insErr) {
+          console.error('Error inserting bill items in Supabase:', insErr);
+          throw insErr;
+        }
+      }
     }
 
     return bill;
@@ -1134,14 +1132,11 @@ Thank you for choosing VitalSync! 🟢`;
           if (parsed) {
             const email = String(parsed.email || '').toLowerCase();
             const id = String(parsed.id || '').toLowerCase();
-            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
             isDemoAccount = Boolean(
               parsed.isDemo === true ||
               email === 'demo@mediflow.com' ||
               email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
-              name.includes('(demo)') ||
-              name.includes('(mock)')
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
             );
           }
         }

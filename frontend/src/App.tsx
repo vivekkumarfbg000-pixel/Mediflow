@@ -1124,7 +1124,8 @@ export default function App() {
     setSession(session);
     setActiveProfile(finalProfile);
 
-    // Purge leftover demo/mock cache keys from localStorage for live non-demo user accounts
+    // Rule 74: Strict explicit demo account identity matching (no substring "demo" matching)
+    // Prevents live users with "demo" in email/name from triggering mock data fallback
     const emailLower = String(finalProfile?.email || '').toLowerCase();
     const isDemoAccount = Boolean(
       finalProfile?.isDemo === true ||
@@ -1133,6 +1134,7 @@ export default function App() {
       finalProfile?.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
     );
 
+    // Rule 75: Live user zero-state baseline - purge demo keys on authenticated sign-in
     if (!isDemoAccount && typeof window !== 'undefined') {
       const demoKeys = [
         'patients', 'mediflow_patients', 'patient_registry', 'mediflow_patient_registry',

@@ -89,7 +89,7 @@ serve(async (req) => {
     let currentDelayMs = baseDelayMs;
 
     for (const job of pendingJobs) {
-      let cleanPhone = (job.patient_phone || "").replace(/[^0-9]/g, "");
+      let cleanPhone = String(job.patient_phone || "").replace(/[^0-9]/g, "");
       if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
       if (!cleanPhone) {

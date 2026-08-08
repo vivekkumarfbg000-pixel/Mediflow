@@ -107,14 +107,11 @@ export class LabService {
           if (parsed) {
             const email = String(parsed.email || '').toLowerCase();
             const id = String(parsed.id || '').toLowerCase();
-            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
             isDemoAccount = Boolean(
               parsed.isDemo === true ||
               email === 'demo@mediflow.com' ||
               email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
-              name.includes('(demo)') ||
-              name.includes('(mock)')
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
             );
           }
         }
@@ -151,20 +148,22 @@ export class LabService {
     notify();
   }
 
-  static collectLabSample(reqId: string): void {
+  static async collectLabSample(reqId: string): Promise<void> {
     const requisitions = this.getLabRequisitions();
     const idx = requisitions.findIndex(r => r.id === reqId);
     if (idx !== -1) {
       requisitions[idx].status = 'collected';
       save('lab_requisitions', requisitions);
 
-      supabase.from('lab_requisitions').update({
+      const { error } = await supabase.from('lab_requisitions').update({
         status: 'collected',
         updated_at: new Date().toISOString()
-      }).eq('id', reqId).then(({ error }) => {
-        if (error) console.error('Error collecting lab sample in Supabase:', error);
-        else writeAuditLog('lab_sample_collected', { reqId }, reqId);
-      });
+      }).eq('id', reqId);
+      if (error) {
+        console.error('Error collecting lab sample in Supabase:', error);
+        throw error;
+      }
+      writeAuditLog('lab_sample_collected', { reqId }, reqId);
     }
   }
 
@@ -301,7 +300,7 @@ export class LabService {
     }
   }
 
-  static replenishReagentStock(reagentName: string, volumeToAdd: number): void {
+  static async replenishReagentStock(reagentName: string, volumeToAdd: number): Promise<void> {
     const reagents = this.getReagentStocks();
     const idx = reagents.findIndex(r => r.reagentName === reagentName);
     if (idx !== -1) {
@@ -309,13 +308,14 @@ export class LabService {
       save('reagents', reagents);
       notify();
 
-      supabase.from('reagent_inventory')
+      const { error } = await supabase.from('reagent_inventory')
         .update({ stock_volume: reagents[idx].stockVolume })
-        .eq('reagent_name', reagentName)
-        .then(({ error }) => {
-          if (error) console.error('[Mediflow Lab] Failed to sync replenishment to Supabase:', error);
-          else writeAuditLog('reagent_manually_replenished', { reagentName, volumeAdded: volumeToAdd, newTotal: reagents[idx].stockVolume });
-        });
+        .eq('reagent_name', reagentName);
+      if (error) {
+        console.error('[Mediflow Lab] Failed to sync replenishment to Supabase:', error);
+        throw error;
+      }
+      writeAuditLog('reagent_manually_replenished', { reagentName, volumeAdded: volumeToAdd, newTotal: reagents[idx].stockVolume });
     }
   }
 
@@ -383,14 +383,11 @@ export class LabService {
           if (parsed) {
             const email = String(parsed.email || '').toLowerCase();
             const id = String(parsed.id || '').toLowerCase();
-            const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
             isDemoAccount = Boolean(
               parsed.isDemo === true ||
               email === 'demo@mediflow.com' ||
               email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' ||
-              name.includes('(demo)') ||
-              name.includes('(mock)')
+              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
             );
           }
         }
