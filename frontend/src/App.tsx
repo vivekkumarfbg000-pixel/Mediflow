@@ -476,26 +476,25 @@ const setCrossDomainCookie = (active: boolean) => {
 };
 
 export default function App() {
-  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal'>(null);
-
-  // Determine public page before any hooks that might be skipped
-  useEffect(() => {
+  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal'>(() => {
     if (typeof window !== 'undefined') {
       const pathName = window.location.pathname.toLowerCase();
       const searchParams = new URLSearchParams(window.location.search);
       if (pathName.startsWith('/pay') || (searchParams.has('inv') && !searchParams.has('tab'))) {
-        setPublicPage('payment');
-      } else if (
+        return 'payment';
+      }
+      if (
         pathName.startsWith('/terms') || 
         pathName.startsWith('/privacy') || 
         pathName.startsWith('/refund') || 
         pathName.startsWith('/cancellation') || 
         pathName.startsWith('/contact')
       ) {
-        setPublicPage('legal');
+        return 'legal';
       }
     }
-  }, []);
+    return null;
+  });
 
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     if (typeof window !== 'undefined') {
@@ -560,24 +559,7 @@ export default function App() {
     return false;
   });
 
-  // Determine public page in an effect that runs first
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const pathName = window.location.pathname.toLowerCase();
-      const searchParams = new URLSearchParams(window.location.search);
-      if (pathName.startsWith('/pay') || (searchParams.has('inv') && !searchParams.has('tab'))) {
-        setPublicPage('payment');
-      } else if (
-        pathName.startsWith('/terms') || 
-        pathName.startsWith('/privacy') || 
-        pathName.startsWith('/refund') || 
-        pathName.startsWith('/cancellation') || 
-        pathName.startsWith('/contact')
-      ) {
-        setPublicPage('legal');
-      }
-    }
-  }, []);
+
 
   useEffect(() => {
     // Eagerly redirect to app subdomain if cross-subdomain session cookie is active
@@ -1329,6 +1311,22 @@ export default function App() {
   const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
   const isDashboardSubdomain = hostname === 'app.vitalsync.in' || hostname.startsWith('app.');
   const isLandingPageDomain = hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in' || hostname === 'localhost' || hostname === '127.0.0.1';
+
+  // Render public pages without running the rest of the app logic
+  if (publicPage === 'payment') {
+    return (
+      <ToastProvider>
+        <WhatsAppPaymentPage />
+      </ToastProvider>
+    );
+  }
+  if (publicPage === 'legal') {
+    return (
+      <ToastProvider>
+        <LegalPoliciesPage />
+      </ToastProvider>
+    );
+  }
 
   // 1a. Password Recovery/Reset Mode Gate
   if (isRecoveryMode) {
