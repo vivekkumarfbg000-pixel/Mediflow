@@ -412,8 +412,9 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                     <h4 className="text-base font-bold text-white">Merchant Legal Entity Name</h4>
                   </div>
                   <div className="space-y-1 text-xs">
-                    <p className="text-sm font-semibold text-slate-200">VitalSync Smart Healthcare Technologies</p>
-                    <p className="text-slate-400">Brand Name: Mediflow / VitalSync Connected Clinic</p>
+                    <p className="text-sm font-semibold text-slate-200">VitalSync Technologies</p>
+                    <p className="text-slate-400">Brand Name: VitalSync Connected Clinic</p>
+                    <p className="text-slate-400">Founder: Vivek Kumar</p>
                     <p className="text-slate-400">Category: Healthcare SaaS & OPD Scheduling Platform</p>
                   </div>
                 </div>
@@ -484,7 +485,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
             <span>•</span>
             <button onClick={() => handleTabChange('contact')} className="hover:text-cyan-400 transition-colors">Contact & Merchant Info</button>
           </div>
-          <p>© 2026 VitalSync Healthcare Technologies. All Rights Reserved. Compliant with RBI, Razorpay & Cashfree Merchant Regulations.</p>
+          <p>© 2026 VitalSync Technologies. All Rights Reserved. Compliant with RBI, Razorpay & Cashfree Merchant Regulations.</p>
         </footer>
       </div>
     </div>
