@@ -960,7 +960,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               const docTabs = [
                 { id: 'pod_view', label: 'Pod', icon: 'hub' },
                 { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
-                { id: 'financials', label: 'Finance', icon: 'account_balance_wallet' },
+                { id: 'financials', label: 'Finance', icon: 'account_balance' },
                 { id: 'patients', label: 'Patients', icon: 'group' },
                 { id: 'whatsapp', label: 'WhatsApp', icon: 'chat' }
               ];

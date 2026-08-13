@@ -363,7 +363,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                     <span>5 to 7 Business Days</span>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-slate-400">
-                    <span>Net Banking / Wallet</span>
+                    <span>Net Banking</span>
                     <span>3 to 5 Business Days</span>
                   </div>
                 </div>

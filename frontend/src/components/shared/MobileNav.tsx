@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Home, 
   FileText, 
-  Wallet, 
+  CreditCard, 
   RefreshCw, 
   Activity, 
   Menu,
@@ -35,7 +35,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   const tabs: TabItem[] = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'records', label: 'Records', icon: FileText },
-    { id: 'wallet', label: 'Wallet', icon: Wallet },
+    { id: 'wallet', label: 'Payments', icon: CreditCard },
     { id: 'refills', label: 'Refills', icon: RefreshCw },
     { id: 'vitals', label: 'Health', icon: Activity },
     { id: 'book_appointment', label: 'Book', icon: Calendar }

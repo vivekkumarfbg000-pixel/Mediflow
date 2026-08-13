@@ -145,7 +145,7 @@ export const BillingDashboard: React.FC = () => {
       
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          message: 'UPI transaction cleared successfully. Bank router splits settled in multi-vendor wallets.',
+          message: 'UPI transaction cleared successfully. Bank router splits settled in multi-vendor accounts.',
           type: 'success',
           title: 'UPI Split Settled'
         }
@@ -203,7 +203,7 @@ export const BillingDashboard: React.FC = () => {
         <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-primary opacity-50" />
           <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-rose-500 text-[16px]">account_balance_wallet</span>
+            <span className="material-symbols-outlined text-rose-500 text-[16px]">receipt_long</span>
             Unified Bill Ledger
           </h2>
 
@@ -436,7 +436,7 @@ export const BillingDashboard: React.FC = () => {
                         </div>
                         <div>
                           <span className="font-bold block text-slate-800 text-xs">Clinic Consultation Fee</span>
-                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">DR_CLINIC_WALLET_01</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">DR_CLINIC_SETTLEMENT_01</span>
                         </div>
                       </div>
                       <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
@@ -459,7 +459,7 @@ export const BillingDashboard: React.FC = () => {
                         </div>
                         <div>
                           <span className="font-bold block text-slate-800 text-xs">Diagnostic Pathology Charge</span>
-                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">LAB_PARTNER_WALLET_02</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">LAB_PARTNER_SETTLEMENT_02</span>
                         </div>
                       </div>
                       <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
@@ -482,7 +482,7 @@ export const BillingDashboard: React.FC = () => {
                         </div>
                         <div>
                           <span className="font-bold block text-slate-800 text-xs">Pharmacy Medicine Holds Fee</span>
-                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">PHARMACY_PARTNER_WALLET_03</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">PHARMACY_PARTNER_SETTLEMENT_03</span>
                         </div>
                       </div>
                       <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
@@ -537,7 +537,7 @@ export const BillingDashboard: React.FC = () => {
                           ? 'text-amber-600 bg-amber-50 border-amber-200'
                           : 'text-emerald-600 bg-emerald-50 border-emerald-200'
                       }`}>
-                        {selectedInvoice.paymentStatus === 'pending' ? 'HELD_IN_ESCROW' : 'SETTLED_TO_WALLETS'}
+                        {selectedInvoice.paymentStatus === 'pending' ? 'HELD_IN_ESCROW' : 'SETTLED_TO_ACCOUNTS'}
                       </span>
                     </div>
                     
@@ -725,7 +725,7 @@ export const BillingDashboard: React.FC = () => {
                 <>
                   <h4 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest font-mono text-center flex items-center gap-1 justify-center">
                     <span className="material-symbols-outlined text-xs animate-pulse text-rose-500">qr_code_2</span>
-                    UNIFIED UPI SPLIT-WALLET ROUTER
+                    UNIFIED UPI SPLIT-PAYOUT ROUTER
                   </h4>
                   
                   {/* Dynamic Scannable QR Code */}
@@ -765,7 +765,7 @@ export const BillingDashboard: React.FC = () => {
                 <div className="text-center space-y-4 py-1 animate-fade-in w-full">
                   <div>
                     <h4 className="font-bold text-slate-800 text-xs uppercase tracking-widest font-mono mb-2">B2B Split Routing Wheel</h4>
-                    <p className="text-[10px] text-slate-500">Interactive live payout map. Click any wallet node to audit.</p>
+                    <p className="text-[10px] text-slate-500">Interactive live payout map. Click any settlement node to audit.</p>
                   </div>
 
                   <div className="relative bg-slate-50 rounded-2xl border border-slate-200/60 p-4">
@@ -828,13 +828,13 @@ export const BillingDashboard: React.FC = () => {
                         <div className="animate-fade-in">
                           <strong className="text-slate-800 block font-bold">Central Bank Escrow (Gross Amount)</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
-                            Aggregate amount ₹{selectedInvoice.totalAmount}.00 is currently held securely in banks UPI clearing channel awaiting final settlement to distributed wallets.
+                            Aggregate amount ₹{selectedInvoice.totalAmount}.00 is currently held securely in banks UPI clearing channel awaiting final settlement to distributed accounts.
                           </p>
                         </div>
                       )}
                       {selectedNode === 'clinic' && (
                         <div className="animate-fade-in">
-                          <strong className="text-indigo-700 block font-bold">DR_CLINIC_WALLET_01 (Consultation Cut)</strong>
+                          <strong className="text-indigo-700 block font-bold">DR_CLINIC_SETTLEMENT_01 (Consultation Cut)</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
                             Doctor Consultation share: Gross amount ₹{selectedInvoice.doctorFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).docNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).docTds}.00 reserved).
                           </p>
@@ -842,7 +842,7 @@ export const BillingDashboard: React.FC = () => {
                       )}
                       {selectedNode === 'lab' && (
                         <div className="animate-fade-in">
-                          <strong className="text-cyan-700 block font-bold">LAB_PARTNER_WALLET_02 (Pathology Cut)</strong>
+                          <strong className="text-cyan-700 block font-bold">LAB_PARTNER_SETTLEMENT_02 (Pathology Cut)</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
                             Pathology Test share: Gross amount ₹{selectedInvoice.labFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).labNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).labTds}.00 reserved).
                           </p>
@@ -850,7 +850,7 @@ export const BillingDashboard: React.FC = () => {
                       )}
                       {selectedNode === 'pharmacy' && (
                         <div className="animate-fade-in">
-                          <strong className="text-emerald-600 block font-bold">PHARMACY_PARTNER_WALLET_03 (POS Cut)</strong>
+                          <strong className="text-emerald-600 block font-bold">PHARMACY_PARTNER_SETTLEMENT_03 (POS Cut)</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
                             Pharmacy Medicine share: Gross amount ₹{selectedInvoice.pharmacyFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).pharmaNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).pharmaTds}.00 reserved).
                           </p>
@@ -917,7 +917,7 @@ export const BillingDashboard: React.FC = () => {
               <table className="w-full text-[11px] border-collapse border border-black/30">
               <thead>
                 <tr className="bg-slate-800/5 text-[10px] font-bold border-b border-black">
-                  <th className="p-2 border-r border-black/30 text-left">Destination Wallet ID</th>
+                  <th className="p-2 border-r border-black/30 text-left">Destination Account ID</th>
                   <th className="p-2 border-r border-black/30 text-left">Entity Segment</th>
                   <th className="p-2 border-r border-black/30 text-right">Gross Amount</th>
                   <th className="p-2 border-r border-black/30 text-right">10% TDS Res.</th>
@@ -926,21 +926,21 @@ export const BillingDashboard: React.FC = () => {
               </thead>
               <tbody>
                 <tr className="border-b border-black/30">
-                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">DR_CLINIC_WALLET_01</td>
+                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">DR_CLINIC_SETTLEMENT_01</td>
                   <td className="p-2 border-r border-black/30">Clinic Consultation Fee</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono">₹{selectedInvoice.doctorFee}.00</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).docTds}.00</td>
                   <td className="p-2 text-right font-mono font-bold">₹{calcSplits(selectedInvoice).docNet}.00</td>
                 </tr>
                 <tr className="border-b border-black/30">
-                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">LAB_PARTNER_WALLET_02</td>
+                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">LAB_PARTNER_SETTLEMENT_02</td>
                   <td className="p-2 border-r border-black/30">Pathology Diagnostics Charge</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono">₹{selectedInvoice.labFee}.00</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).labTds}.00</td>
                   <td className="p-2 text-right font-mono font-bold">₹{calcSplits(selectedInvoice).labNet}.00</td>
                 </tr>
                 <tr className="border-b border-black/30">
-                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">PHARMACY_PARTNER_WALLET_03</td>
+                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">PHARMACY_PARTNER_SETTLEMENT_03</td>
                   <td className="p-2 border-r border-black/30">Pharmacy Medication Reserve</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono">₹{selectedInvoice.pharmacyFee}.00</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).pharmaTds}.00</td>
@@ -968,9 +968,9 @@ export const BillingDashboard: React.FC = () => {
             <div className="space-y-4">
               <div className="border-b border-black pb-1 uppercase font-bold text-[9px] tracking-wide">Gateway Settlement Audit Logs</div>
               <div className="font-mono space-y-1 text-[9px]">
-                <div>[OK] Cr Clinic Wallet: +₹{calcSplits(selectedInvoice).docNet}.00</div>
-                <div>[OK] Cr Lab Wallet: +₹{calcSplits(selectedInvoice).labNet}.00</div>
-                <div>[OK] Cr Pharmacy Wallet: +₹{calcSplits(selectedInvoice).pharmaNet}.00</div>
+                <div>[OK] Cr Clinic Account: +₹{calcSplits(selectedInvoice).docNet}.00</div>
+                <div>[OK] Cr Lab Account: +₹{calcSplits(selectedInvoice).labNet}.00</div>
+                <div>[OK] Cr Pharmacy Account: +₹{calcSplits(selectedInvoice).pharmaNet}.00</div>
                 <div>[OK] Cr Platform Escrow: +₹{selectedInvoice.platformFee}.00</div>
               </div>
             </div>

@@ -2096,7 +2096,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             { id: 'pod_view',          label: 'Clinic Dashboard',     icon: 'dashboard' },
             { id: 'consultation',      label: 'Consultation Queue',     icon: 'clinical_notes' },
             { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: 'videocam' },
-            { id: 'financials',        label: 'Financial Reports',      icon: 'account_balance_wallet' },
+            { id: 'financials',        label: 'Financial Reports',      icon: 'account_balance' },
             { id: 'patients',          label: 'Patient Directory',      icon: 'group' },
             { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: 'chat' }
           ].map(tab => {

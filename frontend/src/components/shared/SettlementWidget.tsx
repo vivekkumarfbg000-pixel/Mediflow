@@ -144,10 +144,10 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         vendor_id: activeVendor.vendor_id ?? null,
         amount:    1, // placeholder: actual amount comes from invoice; >0 means routing is live
         label:     entityType === 'pharmacy'
-          ? 'PHARMACY_PARTNER_WALLET'
+          ? 'PHARMACY_PARTNER_SETTLEMENT'
           : entityType === 'lab'
-          ? 'LAB_PARTNER_WALLET'
-          : 'CLINIC_WALLET',
+          ? 'LAB_PARTNER_SETTLEMENT'
+          : 'CLINIC_SETTLEMENT_ACCOUNT',
       }]
     : [];
 
@@ -237,7 +237,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         <div className={`p-8 border border-dashed rounded-2xl text-center space-y-2 ${
           isDark ? 'border-outline-variant bg-slate-800/20' : 'border-slate-200 bg-slate-50/50'
         }`}>
-          <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-clinical-500' : 'text-slate-600'}`}>account_balance_wallet</span>
+          <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-clinical-500' : 'text-slate-600'}`}>account_balance</span>
           <div>
             <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>No Settlement Account Configured</h4>
             <p className={`text-[10px] mt-1 max-w-sm mx-auto ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>

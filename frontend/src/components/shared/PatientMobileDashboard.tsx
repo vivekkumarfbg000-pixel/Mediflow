@@ -7,7 +7,7 @@ import {
   Smartphone, 
   Home, 
   FileText, 
-  Wallet, 
+  CreditCard, 
   RefreshCw, 
   Activity, 
   AlertCircle, 
@@ -621,15 +621,15 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                 </div>
               )}
 
-              {/* TAB 3: WALLET & BILLING */}
+              {/* TAB 3: PAYMENTS & INSURANCE */}
               {activeTab === 'wallet' && (
                 <div className="space-y-4 animate-fade-in text-white">
                   <h3 className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wide">
-                    <Wallet className="h-4 w-4 text-cyan-400" />
-                    Digital Wallet & Insurance
+                    <CreditCard className="h-4 w-4 text-cyan-400" />
+                    Payments & Insurance
                   </h3>
 
-                  {/* ABHA Wallet Pass */}
+                  {/* ABHA Health Pass */}
                   <div className="bg-gradient-to-tr from-cyan-600 to-indigo-600 rounded-2xl p-4 text-white shadow-lg space-y-4 relative border border-cyan-400/20 overflow-hidden">
                     <div className="absolute -right-8 -bottom-8 w-24 h-24 rounded-full bg-white/5" />
                     <div className="flex justify-between items-start relative">
@@ -735,6 +735,26 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         </div>
                       ))
                     )}
+                  </div>
+
+                  {/* Policies & Compliance Links */}
+                  <div className="bg-zinc-900/60 p-4 border border-white/5 rounded-2xl text-zinc-400 space-y-3 mt-4">
+                    <h4 className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
+                      Patient Legal & Refund Policy
+                    </h4>
+                    <p className="text-[8.5px] leading-relaxed">
+                      Consultation bookings, medical prescription billing, and diagnostic reports follow strict healthcare merchant compliance.
+                    </p>
+                    <div className="flex flex-wrap gap-3 text-[9px] font-semibold text-cyan-400 border-t border-white/5 pt-2">
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-300 flex items-center gap-1">
+                        Terms & Conditions <ChevronRight className="h-2.5 w-2.5" />
+                      </a>
+                      <span className="text-zinc-650">•</span>
+                      <a href="/refund-policy" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-300 flex items-center gap-1">
+                        Refund & Cancellation <ChevronRight className="h-2.5 w-2.5" />
+                      </a>
+                    </div>
                   </div>
 
                 </div>

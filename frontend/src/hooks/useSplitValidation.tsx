@@ -35,10 +35,10 @@ export interface SplitValidationResult {
 }
 
 const NODE_LABELS: Record<string, string> = {
-  clinic: 'CLINIC_WALLET',
-  doctor: 'DOCTOR_WALLET',
-  pharmacy: 'PHARMACY_PARTNER_WALLET',
-  lab: 'LAB_PARTNER_WALLET',
+  clinic: 'CLINIC_SETTLEMENT_ACCOUNT',
+  doctor: 'DOCTOR_SETTLEMENT_ACCOUNT',
+  pharmacy: 'PHARMACY_PARTNER_SETTLEMENT',
+  lab: 'LAB_PARTNER_SETTLEMENT',
 };
 
 function resolveLabel(node: SplitNode, index: number): string {

@@ -408,7 +408,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-3xl text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 p-2.5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
-              account_balance_wallet
+              account_balance
             </span>
             <div>
               <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
