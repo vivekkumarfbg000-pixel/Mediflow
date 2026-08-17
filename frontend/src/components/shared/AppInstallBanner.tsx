@@ -91,10 +91,38 @@ export const AppInstallBanner: React.FC = () => {
     };
   }, []);
 
+  const downloadDesktopAppFile = () => {
+    try {
+      const fileContent = `[InternetShortcut]
+URL=https://app.vitalsync.in/?source=pwa
+IconIndex=0
+IconFile=https://app.vitalsync.in/favicon.svg
+HotKey=0
+IDList=
+[{000214A0-0000-0000-C000-000000000046}]
+Prop3=19,0
+[InternetShortcut.W]
+URL=https://app.vitalsync.in/?source=pwa
+`;
+      const blob = new Blob([fileContent], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'VitalSync-Clinical-App.url';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn('[VitalSync Download] Direct file creation fallback:', err);
+      window.open('https://app.vitalsync.in/?source=pwa', '_blank');
+    }
+  };
+
   const handleInstallClick = async () => {
     const promptInstance = deferredPrompt || (window as any).deferredPwaPrompt;
 
-    // DIRECT NATIVE INSTALL (Triggers native browser install popup in-place)
+    // 1. Direct Native Browser PWA Install Prompt
     if (promptInstance) {
       try {
         await promptInstance.prompt();
@@ -102,22 +130,16 @@ export const AppInstallBanner: React.FC = () => {
         if (choiceResult.outcome === 'accepted') {
           setIsVisible(false);
           setIsInstalled(true);
+          return;
         }
       } catch (err) {
         console.error('[VitalSync PWA] Native prompt execution error:', err);
-        // Fallback modal if prompt fails
-        if (isIos) setShowIosModal(true);
-        else setShowDesktopModal(true);
       }
-      return;
     }
 
-    // IF NATIVE PROMPT IS NOT AVAILABLE (e.g. iOS or manual browser instructions)
-    if (isIos) {
-      setShowIosModal(true);
-    } else {
-      setShowDesktopModal(true);
-    }
+    // 2. Direct 1-Click Desktop App Download (Immediate File Trigger)
+    downloadDesktopAppFile();
+    setShowDesktopModal(true);
   };
 
   const handleDismiss = () => {
@@ -148,7 +170,7 @@ export const AppInstallBanner: React.FC = () => {
             className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-500 hover:to-blue-600 text-white font-extrabold text-xs px-4 py-2 rounded-full shadow-md shadow-indigo-600/30 transition-all duration-300 transform hover:scale-[1.04] active:scale-95 flex items-center gap-1.5 cursor-pointer shrink-0 border border-indigo-400/30"
           >
             <Download className="w-3.5 h-3.5 text-white" />
-            <span>Install app</span>
+            <span>Download App</span>
           </button>
 
           <button
@@ -162,58 +184,59 @@ export const AppInstallBanner: React.FC = () => {
         </div>
       </div>
 
-      {/* ── DESKTOP CHROME/EDGE FALLBACK MODAL ────────────────────────────── */}
+      {/* ── DIRECT DOWNLOAD CONFIRMATION MODAL ────────────────────────────── */}
       {showDesktopModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-          <div className="bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative text-white space-y-4">
+          <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative text-white space-y-4">
             <button
               onClick={() => setShowDesktopModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-                <Monitor className="w-5 h-5" />
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20">
+                <Download className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-extrabold text-base text-white">Install VitalSync App</h3>
-                <p className="text-xs text-slate-400">Fast 1-tap app icon on your desktop</p>
+                <h3 className="font-extrabold text-base text-white">VitalSync Clinical App</h3>
+                <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Desktop App Ready
+                </p>
               </div>
             </div>
 
-            <div className="space-y-3 pt-2 text-xs text-slate-300">
-              <div className="flex items-start gap-3 bg-slate-850/60 p-3 rounded-xl border border-slate-800">
-                <div className="w-6 h-6 rounded-full bg-indigo-600/20 text-indigo-400 font-bold flex items-center justify-center shrink-0 border border-indigo-500/30">
-                  1
-                </div>
-                <div>
-                  <p className="font-semibold text-white flex items-center gap-1.5">
-                    Look at the Address Bar (Top Right)
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Click the <span className="text-indigo-300 font-bold">(⊕ Install)</span> or Desktop icon in your Chrome/Edge URL bar</p>
-                </div>
-              </div>
+            <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl space-y-3 text-xs">
+              <p className="text-slate-300 leading-relaxed">
+                Click below to download the direct 1-tap desktop launcher or open the live dashboard.
+              </p>
+              
+              <button
+                type="button"
+                onClick={downloadDesktopAppFile}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer border border-indigo-400/30"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Desktop App (.url)</span>
+              </button>
 
-              <div className="flex items-start gap-3 bg-slate-850/60 p-3 rounded-xl border border-slate-800">
-                <div className="w-6 h-6 rounded-full bg-indigo-600/20 text-indigo-400 font-bold flex items-center justify-center shrink-0 border border-indigo-500/30">
-                  2
-                </div>
-                <div>
-                  <p className="font-semibold text-white flex items-center gap-1.5">
-                    Or Open Browser Menu (⋮)
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Select "Install VitalSync..." or "Save and share -{">"} Install app"</p>
-                </div>
-              </div>
+              <a
+                href="https://app.vitalsync.in/?source=pwa"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700 block text-center"
+              >
+                <Monitor className="w-4 h-4" />
+                <span>Open app.vitalsync.in Dashboard</span>
+              </a>
             </div>
 
             <button
               onClick={() => setShowDesktopModal(false)}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"
+              className="w-full py-2 text-slate-400 hover:text-slate-200 font-semibold text-xs transition-colors cursor-pointer"
             >
-              Got it
+              Close
             </button>
           </div>
         </div>
