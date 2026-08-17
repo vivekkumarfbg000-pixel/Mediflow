@@ -1310,7 +1310,13 @@ export default function App() {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.');
   const isDashboardSubdomain = hostname === 'app.vitalsync.in' || hostname.startsWith('app.');
-  const isLandingPageDomain = hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in' || hostname === 'localhost' || hostname === '127.0.0.1';
+  const isPwaLaunch = typeof window !== 'undefined' && (
+    window.location.search.includes('source=pwa') ||
+    window.location.search.includes('install=true') ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true
+  );
+  const isLandingPageDomain = !isPwaLaunch && !isDashboardSubdomain && !isAdminSubdomain && (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in' || hostname === 'localhost' || hostname === '127.0.0.1');
 
   // Render public pages without running the rest of the app logic
   if (publicPage === 'payment') {

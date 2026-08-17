@@ -1,11 +1,12 @@
 {
-  "name": "VitalSync Connected Care Network",
+  "name": "VitalSync Clinical Dashboard",
   "short_name": "VitalSync",
-  "description": "Hyper-Local Multi-Tenant Care Pod SaaS Network",
-  "start_url": "/",
+  "description": "VitalSync Hyper-Local Multi-Tenant Clinical Dashboard & Care Pod Network",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#090d16",
   "theme_color": "#0f62fe",
   "icons": [

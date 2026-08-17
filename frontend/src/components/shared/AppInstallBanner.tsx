@@ -72,19 +72,38 @@ export const AppInstallBanner: React.FC = () => {
 
     window.addEventListener('vitalsync-pwa-prompt-ready', handlePromptReady);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    // 6. Auto-trigger install prompt if routed from landing page with ?install=true
+    let timer: any = null;
+    if (typeof window !== 'undefined' && window.location.search.includes('install=true')) {
+      timer = setTimeout(() => {
+        const pInstance = (window as any).deferredPwaPrompt;
+        if (pInstance && typeof pInstance.prompt === 'function') {
+          pInstance.prompt().catch(() => {/* ignore */});
+        }
+      }, 600);
+    }
 
     return () => {
       window.removeEventListener('vitalsync-pwa-prompt-ready', handlePromptReady);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
   const handleInstallClick = async () => {
+    // 1. If currently on marketing landing page (vitalsync.in / www.vitalsync.in), redirect to app.vitalsync.in for Dashboard PWA download
+    if (typeof window !== 'undefined') {
+      const curHost = window.location.hostname;
+      if (curHost === 'vitalsync.in' || curHost === 'www.vitalsync.in') {
+        window.location.href = 'https://app.vitalsync.in?install=true';
+        return;
+      }
+    }
+
     const promptInstance = deferredPrompt || (window as any).deferredPwaPrompt;
 
-    // DIRECT NATIVE INSTALL (This is what triggers the Sehat Point style popup)
+    // DIRECT NATIVE INSTALL (Triggers native browser install prompt)
     if (promptInstance) {
       try {
         await promptInstance.prompt();
