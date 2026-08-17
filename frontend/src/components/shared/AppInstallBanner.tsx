@@ -92,18 +92,9 @@ export const AppInstallBanner: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    // 1. If currently on marketing landing page (vitalsync.in / www.vitalsync.in), redirect to app.vitalsync.in for Dashboard PWA download
-    if (typeof window !== 'undefined') {
-      const curHost = window.location.hostname;
-      if (curHost === 'vitalsync.in' || curHost === 'www.vitalsync.in') {
-        window.location.href = 'https://app.vitalsync.in?install=true';
-        return;
-      }
-    }
-
     const promptInstance = deferredPrompt || (window as any).deferredPwaPrompt;
 
-    // DIRECT NATIVE INSTALL (Triggers native browser install prompt)
+    // DIRECT NATIVE INSTALL (Triggers native browser install popup in-place)
     if (promptInstance) {
       try {
         await promptInstance.prompt();
@@ -114,14 +105,14 @@ export const AppInstallBanner: React.FC = () => {
         }
       } catch (err) {
         console.error('[VitalSync PWA] Native prompt execution error:', err);
-        // Fallback if prompt fails
+        // Fallback modal if prompt fails
         if (isIos) setShowIosModal(true);
         else setShowDesktopModal(true);
       }
       return;
     }
 
-    // IF NATIVE PROMPT IS NOT AVAILABLE (e.g. localhost limitations, iOS, or already dismissed)
+    // IF NATIVE PROMPT IS NOT AVAILABLE (e.g. iOS or manual browser instructions)
     if (isIos) {
       setShowIosModal(true);
     } else {
