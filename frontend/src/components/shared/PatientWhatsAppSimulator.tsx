@@ -389,13 +389,23 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                 </div>
 
                 {/* Simulated payment trigger button */}
-                <button
-                  onClick={() => handleSendMessage('pay')}
-                  className="w-full btn-primary py-2 text-center text-xs font-bold rounded-lg hover:scale-102 transition-transform flex justify-center items-center gap-1.5 text-white-force"
-                >
-                  <span className="material-symbols-outlined text-xs">qr_code_scanner</span>
-                  Settle Invoice via UPI (Kotak Split Routing)
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleSendMessage('UPI Payment Screenshot: UTR 620584739102 for ₹515.00')}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 text-center text-xs font-bold rounded-lg hover:scale-102 transition-transform flex justify-center items-center gap-1.5 cursor-pointer text-white-force shadow-md shadow-emerald-600/20"
+                  >
+                    <span className="material-symbols-outlined text-xs">photo_camera</span>
+                    Simulate Direct UPI Screenshot (0% MDR AI OCR)
+                  </button>
+
+                  <button
+                    onClick={() => handleSendMessage('pay')}
+                    className="w-full btn-primary py-2 text-center text-xs font-bold rounded-lg hover:scale-102 transition-transform flex justify-center items-center gap-1.5 text-white-force"
+                  >
+                    <span className="material-symbols-outlined text-xs">qr_code_scanner</span>
+                    Settle Invoice via Standard UPI Gateway
+                  </button>
+                </div>
               </div>
             )}
 

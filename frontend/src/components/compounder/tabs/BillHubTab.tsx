@@ -139,18 +139,19 @@ export const BillHubTab: React.FC = () => {
   const handleAddSuggestedItem = (s: any) => {
     if (s.type === 'pharmacy') {
       const med = s.item as PharmacyInventoryItem;
-      if (!manualMedicinesList.some(m => m.name.toLowerCase() === med.name.toLowerCase())) {
+      const medName = med.name || 'Medicine';
+      if (!manualMedicinesList.some(m => (m.name || '').toLowerCase() === medName.toLowerCase())) {
         setManualMedicinesList(prev => [...prev, {
-          name: med.name,
-          mrp: med.mrp,
-          price: med.price,
-          batch: med.batchNumber,
-          stock: med.stock
+          name: medName,
+          mrp: med.mrp || 0,
+          price: med.price || 0,
+          batch: med.batchNumber || 'BATCH-01',
+          stock: med.stock || 0
         }]);
       }
       setSelectedMedicines(prev => ({
         ...prev,
-        [med.name.toLowerCase()]: { selected: true, qty: 10 }
+        [medName.toLowerCase()]: { selected: true, qty: 10 }
       }));
     } else {
       const test = s.item as DiagnosticTest;

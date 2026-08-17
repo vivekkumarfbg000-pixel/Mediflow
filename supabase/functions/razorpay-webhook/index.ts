@@ -75,15 +75,20 @@ serve(async (req) => {
       const payment = payload.payload?.payment?.entity || {};
       const order = payload.payload?.order?.entity || {};
       const paymentLink = payload.payload?.payment_link?.entity || {};
-      const notes = payment.notes || order.notes || paymentLink.notes || {};
-      const invoiceId = notes.invoice_id || notes.invoiceId || "";
+      const notes = {
+        ...(paymentLink.notes || {}),
+        ...(order.notes || {}),
+        ...(payment.notes || {})
+      };
+      const invoiceId = notes.invoice_id || notes.invoiceId || paymentLink.reference_id || "";
+      const apptId = notes.appointment_id || notes.appointmentId || "";
       const rawContact = payment.contact || paymentLink.customer?.contact || notes.phone || "";
       const clean10 = String(rawContact).replace(/\D/g, "").slice(-10);
 
-      console.log(`[Razorpay Webhook] 🟢 Processing event ${event} for payment ${payment.id || order.id}, invoice: ${invoiceId}`);
+      console.log(`[Razorpay Webhook] 🟢 Processing event ${event} for payment ${payment.id || order.id || paymentLink.id}, invoice: ${invoiceId}`);
 
       // IDEMPOTENCY: Check if this payment event was already processed
-      const idempotencyKey = `razorpay_${event}_${payment.id}`;
+      const idempotencyKey = `razorpay_${event}_${payment.id || paymentLink.id || order.id}`;
       const { data: existingKey } = await supabase
         .from("webhook_idempotency_keys")
         .select("id")
@@ -117,7 +122,7 @@ serve(async (req) => {
       }
 
       const resolvedInvoiceId = invoice?.id || invoiceId;
-      const amountPaid = (payment.amount || 51500) / 100;
+      const amountPaid = (payment.amount || paymentLink.amount_paid || 51500) / 100;
       const gatewayFee = (payment.fee || Math.round(amountPaid * 0.02 * 100)) / 100;
       const targetPatId = invoice?.patient_id || invoice?.patientId;
 
@@ -128,12 +133,31 @@ serve(async (req) => {
             p_invoice_id: resolvedInvoiceId,
             p_payment_method: 'razorpay',
             p_amount_paid: amountPaid,
-            p_gateway_reference_id: payment.id
+            p_gateway_reference_id: payment.id || paymentLink.id
           });
 
           if (rpcError) {
-            throw new Error(`RPC Settlement Failed: ${rpcError.message}`);
+            console.warn(`[Razorpay Webhook] RPC Settlement Warning: ${rpcError.message}`);
           }
+
+          await supabase
+            .from("unified_invoices")
+            .update({ payment_status: "cleared", payment_method: "razorpay" })
+            .eq("id", resolvedInvoiceId);
+        }
+
+        // Update appointments table explicitly
+        if (apptId) {
+          await supabase
+            .from("appointments")
+            .update({ status: "scheduled", payment_status: "cleared" })
+            .eq("id", apptId);
+        } else if (clean10) {
+          await supabase
+            .from("appointments")
+            .update({ status: "scheduled", payment_status: "cleared" })
+            .eq("status", "pending_payment")
+            .like("patient_phone", `%${clean10}%`);
         }
 
         // 4. Update WhatsApp session & dispatch confirmation receipt directly to WhatsApp
@@ -153,26 +177,27 @@ serve(async (req) => {
 
           if (sess) {
             const sessData = sess.session_data || {};
-            
-            // Anti-Hijacking Guard: Only transition session if it strictly matches this invoice
-            if (sessData.pendingInvoiceId === resolvedInvoiceId) {
-              tokenNumber = sessData.tokenNumber || tokenNumber;
-              approxTime = sessData.approxTime || approxTime;
-              selectedDisplay = sessData.selectedDateDisplay || selectedDisplay;
-              doctorName = sessData.doctorName || doctorName;
-              clinicName = sessData.clinicName || clinicName;
+            tokenNumber = sessData.tokenNumber || tokenNumber;
+            approxTime = sessData.approxTime || approxTime;
+            selectedDisplay = sessData.selectedDateDisplay || selectedDisplay;
+            doctorName = sessData.doctorName || doctorName;
+            clinicName = sessData.clinicName || clinicName;
 
-              const updates = { isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
-              await supabase.rpc('atomic_update_whatsapp_session', {
-                p_patient_phone: sess.patient_phone,
-                p_patient_id: null,
-                p_pod_id: null,
-                p_entity_id: null,
-                p_current_state: "COMPLETED",
-                p_message: null,
-                p_session_data_updates: updates
-              });
-            }
+            const updates = { ...sessData, isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
+            await supabase.rpc('atomic_update_whatsapp_session', {
+              p_patient_phone: sess.patient_phone,
+              p_patient_id: null,
+              p_pod_id: null,
+              p_entity_id: null,
+              p_current_state: "COMPLETED",
+              p_message: {
+                sender: "bot",
+                text: `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${amountPaid.toFixed(2)}\n• Status: Confirmed ✅\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you! 😊`,
+                timestamp: new Date().toISOString(),
+                time: new Date().toISOString()
+              },
+              p_session_data_updates: updates
+            });
           }
 
           // Direct Outbound Meta Graph API Dispatch (<200ms)

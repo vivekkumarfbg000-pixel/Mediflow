@@ -737,6 +737,54 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                     )}
                   </div>
 
+                  {/* 0% MDR Direct UPI Settle Instructions */}
+                  <div className="bg-zinc-900 border border-emerald-500/20 rounded-2xl p-4 space-y-3 relative overflow-hidden">
+                    <div className="absolute right-0 top-0 w-16 h-16 bg-emerald-500/5 rounded-bl-full flex items-center justify-center">
+                      <Coins className="h-5 w-5 text-emerald-400/30" />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[7.5px] bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold text-emerald-400 uppercase">
+                        0% MDR Platform VPA
+                      </span>
+                      <h4 className="text-xs font-extrabold tracking-wide mt-1.5 text-white">Direct UPI Settle</h4>
+                      <p className="text-[9px] text-zinc-400">Avoid gateway charges by paying directly to the clinic's official VPA:</p>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-zinc-950 px-3 py-2 rounded-xl border border-white/5">
+                      <span className="text-xs font-mono font-bold text-cyan-400 tracking-wide select-all">vitalsync@axl</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('vitalsync@axl');
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'VPA Copied! 📋',
+                              message: 'vitalsync@axl has been copied to your clipboard.',
+                              type: 'success'
+                            }
+                          }));
+                        }}
+                        className="p-1.5 text-[9px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                      >
+                        Copy
+                      </button>
+                    </div>
+
+                    <div className="text-[9px] text-zinc-400 space-y-1.5 pt-1 border-t border-white/5">
+                      <div className="flex gap-1.5">
+                        <span className="text-emerald-400 font-bold">1.</span>
+                        <span>Copy VPA above & pay the exact Invoice amount from GPay/PhonePe.</span>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <span className="text-emerald-400 font-bold">2.</span>
+                        <span>Take a screenshot of the payment receipt.</span>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <span className="text-emerald-400 font-bold">3.</span>
+                        <span>Open WhatsApp chat & upload the screenshot. Our AI will automatically verify the UTR and issue your Token!</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Policies & Compliance Links */}
                   <div className="bg-zinc-900/60 p-4 border border-white/5 rounded-2xl text-zinc-400 space-y-3 mt-4">
                     <h4 className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">

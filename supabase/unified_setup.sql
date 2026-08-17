@@ -2536,3 +2536,51 @@ BEGIN
 END;
 $$;
 
+
+-- =============================================================================
+-- STEP 15: UPI Screenshot Auto-Reconciliation Engine (0% MDR)
+-- =============================================================================
+
+-- Ensure UTR columns exist across clinical ledger and booking tables
+ALTER TABLE IF EXISTS public.unified_invoices 
+    ADD COLUMN IF NOT EXISTS utr_number VARCHAR(100);
+
+ALTER TABLE IF EXISTS public.appointments 
+    ADD COLUMN IF NOT EXISTS utr_number VARCHAR(100);
+
+ALTER TABLE IF EXISTS public.saas_invoices 
+    ADD COLUMN IF NOT EXISTS utr_number VARCHAR(100);
+
+-- Table to store incoming Bank SMS / UPI Credit notifications
+CREATE TABLE IF NOT EXISTS public.bank_upi_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utr VARCHAR(50) UNIQUE NOT NULL, -- 12-digit UPI Transaction Ref (e.g. 620584739102)
+    amount NUMERIC(10, 2) NOT NULL,
+    sender VARCHAR(100),
+    raw_message TEXT,
+    is_reconciled BOOLEAN DEFAULT FALSE,
+    invoice_id UUID REFERENCES public.unified_invoices(id),
+    pod_id UUID NOT NULL REFERENCES public.pods(id) DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.bank_upi_transactions ENABLE ROW LEVEL SECURITY;
+
+-- Drop policy if exists
+DROP POLICY IF EXISTS "Enforce tenant pod isolation for bank transactions" ON public.bank_upi_transactions;
+
+-- Create policy for authenticated staff lookup
+CREATE POLICY "Enforce tenant pod isolation for bank transactions" ON public.bank_upi_transactions
+    FOR ALL TO authenticated USING (pod_id = public.get_user_pod());
+
+-- Service role bypass / service access
+GRANT ALL ON public.bank_upi_transactions TO service_role;
+GRANT SELECT, INSERT, UPDATE ON public.bank_upi_transactions TO authenticated, anon;
+
+-- Add index for fast UTR and amount match lookup
+CREATE INDEX IF NOT EXISTS idx_bank_upi_transactions_utr_amount ON public.bank_upi_transactions (utr, amount);
+CREATE INDEX IF NOT EXISTS idx_bank_upi_transactions_reconciled ON public.bank_upi_transactions (is_reconciled);
+
+
+

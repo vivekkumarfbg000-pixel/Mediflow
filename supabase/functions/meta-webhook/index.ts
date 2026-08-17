@@ -41,6 +41,89 @@ async function decryptWabaToken(phoneId: string): Promise<string | null> {
   }
 }
 
+async function downloadMetaMedia(mediaId: string, systemToken: string): Promise<Uint8Array | null> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+      headers: {
+        "Authorization": `Bearer ${systemToken}`
+      }
+    });
+    if (!res.ok) {
+      console.error(`[Meta Webhook] Failed to fetch media metadata for ${mediaId}: ${res.status}`);
+      return null;
+    }
+    const mediaMetadata = await res.json();
+    const downloadUrl = mediaMetadata.url;
+    if (!downloadUrl) {
+      console.error(`[Meta Webhook] No download URL found in media metadata for ${mediaId}`);
+      return null;
+    }
+
+    const downloadRes = await fetch(downloadUrl, {
+      headers: {
+        "Authorization": `Bearer ${systemToken}`
+      }
+    });
+    if (!downloadRes.ok) {
+      console.error(`[Meta Webhook] Failed to download media binary from URL: ${downloadRes.status}`);
+      return null;
+    }
+    const buffer = await downloadRes.arrayBuffer();
+    return new Uint8Array(buffer);
+  } catch (err: any) {
+    console.error(`[Meta Webhook] Exception downloading media ${mediaId}:`, err.message || err);
+    return null;
+  }
+}
+
+async function extractUpiDetailsFromScreenshot(base64Image: string, mimeType: string, geminiKey: string): Promise<{ utr: string | null; amount: number | null }> {
+  try {
+    const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: "Analyze this UPI payment screenshot. Extract the 12-digit UPI Transaction ID (also called UTR, Ref No, or Transaction ID) and the total transaction Amount. Return ONLY a valid JSON object matching this schema: { \"utr\": \"12-digit-string-or-null\", \"amount\": number-or-null }. Do not wrap it in markdown code blocks or add any other text."
+            },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Image
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
+    };
+
+    const response = await fetch(apiEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
+      throw new Error(`Gemini API error ${response.status}: ${JSON.stringify(errBody)}`);
+    }
+
+    const result = await response.json();
+    const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const parsed = JSON.parse(textResponse.trim());
+    return {
+      utr: parsed.utr ? String(parsed.utr).trim().replace(/\D/g, "") : null,
+      amount: parsed.amount ? parseFloat(parsed.amount) : null
+    };
+  } catch (err: any) {
+    console.error("[Meta Webhook] Gemini OCR failed:", err);
+    return { utr: null, amount: null };
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -580,6 +663,7 @@ if (!isManualRelay) {
       
       let messageText = "";
       let replyId: string | undefined = undefined;
+      let isScreenshotProcessing = false;
       if (message.type === "interactive") {
         const reply = message.interactive?.button_reply;
         const listReply = message.interactive?.list_reply;
@@ -615,6 +699,28 @@ if (!isManualRelay) {
         else if (replyId === "menu_more") messageText = "more";
         else if (replyId === "menu_list") messageText = "list";
         else messageText = replyTitle ?? "";
+      } else if (message.type === "button") {
+        const btnPayload = message.button?.payload || "";
+        const btnText = message.button?.text || "";
+        replyId = btnPayload;
+        
+        if (btnPayload === "btn_grant" || btnPayload === "menu_grant" || btnPayload === "1") messageText = "1";
+        else if (btnPayload === "btn_book" || btnPayload === "menu_book" || btnPayload === "book") messageText = "book";
+        else if (btnPayload === "menu_physical" || btnPayload === "physical" || btnPayload === "btn_physical") messageText = "physical";
+        else if (btnPayload === "menu_virtual" || btnPayload === "virtual" || btnPayload === "btn_virtual") messageText = "virtual";
+        else if (btnPayload === "btn_pay" || btnPayload === "pay" || btnPayload.includes("pay")) messageText = "pay";
+        else if (btnPayload === "btn_stop" || btnPayload === "btn_main_menu" || btnPayload === "menu") messageText = "menu";
+        else if (btnPayload === "btn_slot_1") messageText = "1";
+        else if (btnPayload === "btn_slot_2") messageText = "2";
+        else if (btnPayload === "btn_slot_3") messageText = "3";
+        else if (btnPayload === "btn_date_1") messageText = "1";
+        else if (btnPayload === "btn_date_2") messageText = "2";
+        else if (btnPayload === "btn_date_3") messageText = "3";
+        else if (btnPayload === "btn_date_4") messageText = "4";
+        else messageText = btnText || btnPayload || "";
+      } else if (message.type === "image") {
+        messageText = "[Image Uploaded]";
+        isScreenshotProcessing = true;
       } else {
         messageText = message.text?.body ?? "";
       }
@@ -765,7 +871,10 @@ if (!isManualRelay) {
         incomingText: messageText,
         decryptedToken: tenantToken,
         phoneId,
-        replyId
+        replyId,
+        isScreenshotProcessing,
+        messageRaw: message,
+        connection
       });
 
       return new Response("Success", { status: 200 });
@@ -801,9 +910,14 @@ async function triggerBotReplyPipeline(ctx: {
   decryptedToken: string;
   phoneId: string;
   replyId?: string;
+  isScreenshotProcessing?: boolean;
+  messageRaw?: any;
+  connection?: any;
 }) {
-  const { session, incomingText, decryptedToken, phoneId, replyId } = ctx;
+  const { session, incomingText, decryptedToken, phoneId, replyId, isScreenshotProcessing = false, messageRaw, connection } = ctx;
   const patientPhone = session.patient_phone;
+  const podId = connection?.pod_id || session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
+  const entityId = connection?.entity_id || session.entity_id || podId;
   let state = session.current_state;
   let cleaned = incomingText.trim().toLowerCase();
 
@@ -1759,6 +1873,9 @@ async function triggerBotReplyPipeline(ctx: {
                 if (rzpData.short_url) {
                   paymentGatewayUrl = rzpData.short_url;
                 }
+                if (rzpData.id) {
+                  sessionData.rzpPaymentLinkId = rzpData.id;
+                }
               } else {
                 const errBody = await rzpRes.text();
                 console.error("[Meta Webhook] Razorpay API Error response:", errBody);
@@ -1790,6 +1907,7 @@ async function triggerBotReplyPipeline(ctx: {
                 virtual_time: slotText,
                 virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
                 token_number: tokenNumber,
+                unified_invoice_id: newInvoiceId,
                 pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
                 entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
               });
@@ -1798,8 +1916,6 @@ async function triggerBotReplyPipeline(ctx: {
           } catch (err) {
             console.error("[Meta Webhook] Error creating appointment record:", err);
           }
-
-          // Parse slot timing string into a Clean Timestamp
 
           // Insert Unified Invoice Row with Platform Fee (₹500 Doctor Fee + ₹15 Platform Fee = ₹515.00)
           try {
@@ -1812,6 +1928,7 @@ async function triggerBotReplyPipeline(ctx: {
                 total_amount: totalAmount,
                 payment_status: "pending",
                 upi_qr_payload: paymentGatewayUrl,
+                appointment_id: newApptId,
                 pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
               });
               if (invErr) console.error("[Meta Webhook] Database Invoice Insert Error:", invErr);
@@ -1835,35 +1952,202 @@ async function triggerBotReplyPipeline(ctx: {
       break;
 
     case "AWAITING_PAYMENT":
-      if (cleaned.includes("pay") || cleaned.includes("clear") || cleaned.includes("paid") || cleaned.includes("done") || cleaned.includes("confirm") || cleaned === "1") {
-        const apptId = sessionData.pendingApptId;
-        const invoiceId = sessionData.pendingInvoiceId;
-        const tokenNumber = sessionData.tokenNumber || 1;
-        const approxTime = sessionData.approxTime || "10:00 AM";
-        const selectedDisplay = sessionData.selectedDateDisplay || new Date().toISOString().split("T")[0];
-        const doctorName = sessionData.doctorName || resolvedDoctorName;
-        const clinicName = sessionData.clinicName || resolvedClinicName;
-        const feeAmount = sessionData.feeAmount || resolvedConsultationFee;
-        
+      const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
+      const invoiceId = sessionData.pendingInvoiceId;
+      const apptId = sessionData.pendingApptId;
+      const tokenNumber = sessionData.tokenNumber || 1;
+      const approxTime = sessionData.approxTime || "10:00 AM";
+      const selectedDisplay = sessionData.selectedDateDisplay || new Date().toISOString().split("T")[0];
+      const doctorName = sessionData.doctorName || resolvedDoctorName;
+      const clinicName = sessionData.clinicName || resolvedClinicName;
+      const feeAmount = sessionData.feeAmount || resolvedConsultationFee;
+      const isVirtualSlot = sessionData.consultationType === "virtual";
+      const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
+
+      // 1. Screenshot OCR Processing
+      if (isScreenshotProcessing && messageRaw?.image?.id) {
+        const imageId = messageRaw.image.id;
+        const mimeType = messageRaw.image.mime_type || "image/jpeg";
+
+        // 1. Download Meta Media
+        const mediaBytes = await downloadMetaMedia(imageId, decryptedToken);
+        if (!mediaBytes) {
+          replyText = "⚠️ *Download Failed*\n\nHum aapka screenshot download nahi kar paaye. Please link par click karke payment karein ya screenshot dobara send karein.";
+          break;
+        }
+
+        // 2. Base64 encode safely (Avoid stack overflow on spreading large arrays)
+        let binary = "";
+        const len = mediaBytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(mediaBytes[i]);
+        }
+        const base64Image = btoa(binary);
+
+        // 3. Gemini Vision OCR Extract
+        const geminiKey = Deno.env.get("GEMINI_API_KEY");
+        if (!geminiKey) {
+          console.error("[Meta Webhook] GEMINI_API_KEY missing from environment.");
+          replyText = "⚠️ *AI Service Offline*\n\nHumara OCR engine abhi unavailable hai. Please standard payment gateway link se pay karein ya 12-digit UTR text mein reply karein.";
+          break;
+        }
+
+        const ocrResult = await extractUpiDetailsFromScreenshot(base64Image, mimeType, geminiKey);
+        const utr = ocrResult.utr;
+        const amount = ocrResult.amount;
+
+        console.log(`[Meta Webhook] OCR parsed UTR: ${utr}, Amount: ₹${amount}`);
+
+        if (!utr || !amount) {
+          replyText = "⚠️ *Screenshot Reader Error*\n\nHum aapke screenshot se UPI Transaction ID (12-digit UTR) ya Amount read nahi kar paaye. Please apna 12-digit UTR number type karke reply karein ya payment link se pay karein.";
+          break;
+        }
+
+        // 4. Query bank ledger in public.bank_upi_transactions
+        const { data: matchedTx, error: txErr } = await supabase
+          .from("bank_upi_transactions")
+          .select("*")
+          .eq("utr", utr)
+          .maybeSingle();
+
+        if (txErr) {
+          console.error("[Meta Webhook] Error fetching bank transactions:", txErr);
+        }
+
+        if (matchedTx) {
+          if (matchedTx.is_reconciled) {
+            replyText = `❌ *Duplicate Transaction* \n\nTransaction ID *${utr}* pehle hi use kiya ja chuka hai. Ek hi payment reference multiple bookings ke liye use nahi ki ja sakti.`;
+            break;
+          }
+
+          // Check amount discrepancy (1 Rupee tolerance)
+          const expectedFee = Number(feeAmount) || 515;
+          const diff = Math.abs(matchedTx.amount - expectedFee);
+          if (diff > 1.5) {
+            replyText = `⚠️ *Amount Mismatch*\n\nScreen par transaction ₹${matchedTx.amount.toFixed(2)} ka dikh raha hai, jabki aapki booking fee ₹${expectedFee.toFixed(2)} hai. Please correct amount pay karein.`;
+            break;
+          }
+
+          // 5. Match & Reconcile
+          const { error: updErr } = await supabase
+            .from("bank_upi_transactions")
+            .update({ is_reconciled: true, invoice_id: invoiceId })
+            .eq("id", matchedTx.id);
+
+          if (!updErr) {
+            if (invoiceId) {
+              await supabase.rpc('process_invoice_settlement', {
+                p_invoice_id: invoiceId,
+                p_payment_method: 'upi',
+                p_amount_paid: matchedTx.amount,
+                p_gateway_reference_id: utr
+              });
+              await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "upi", utr_number: utr }).eq("id", invoiceId);
+            }
+
+            if (apptId) {
+              const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
+              await supabase
+                .from("appointments")
+                .update({ status: finalStatus, payment_status: "cleared", utr_number: utr })
+                .eq("id", apptId);
+            }
+
+            nextState = "COMPLETED";
+            const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
+
+            if (isVirtualSlot) {
+              replyText = `🎉 *PAYMENT VERIFIED via AI OCR!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
+            } else {
+              replyText = `🎉 *PAYMENT VERIFIED via AI OCR!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you! 😊`;
+            }
+          } else {
+            console.error("[Meta Webhook] Failed to update reconciled status:", updErr);
+            replyText = "⚠️ *Database Lock Error*\n\nTransaction match ho gaya hai lekin database update fail ho gaya. Please try again or contact counter.";
+          }
+
+        } else {
+          sessionData.pendingVerificationUtr = utr;
+          sessionData.pendingVerificationAmount = amount;
+          replyText = `⏳ *Direct UPI Verification In Progress*\n\nHumne aapke screenshot se Transaction ID *${utr}* (₹${amount.toFixed(2)}) read kar liya hai.\n\nBank se settlement SMS sync hote hi automatic token activate ho jayega! Tab tak aap 2 mins wait karein ya **STATUS** reply karein. 🤝`;
+        }
+
+      // 2. Direct 12-digit UTR text entry (e.g. 620584739102 or UTR 620584739102)
+      } else if (cleaned.match(/\b([3-6]\d{11}|\d{12})\b/)) {
+        const utrMatch = cleaned.match(/\b([3-6]\d{11}|\d{12})\b/);
+        const utr = utrMatch ? utrMatch[0] : "";
+
+        const { data: matchedTx, error: txErr } = await supabase
+          .from("bank_upi_transactions")
+          .select("*")
+          .eq("utr", utr)
+          .maybeSingle();
+
+        if (txErr) {
+          console.error("[Meta Webhook] Error fetching bank transactions for text UTR:", txErr);
+        }
+
+        if (matchedTx) {
+          if (matchedTx.is_reconciled) {
+            replyText = `❌ *Duplicate Transaction*\n\nTransaction ID *${utr}* pehle hi use kiya ja chuka hai. Ek hi payment reference multiple bookings ke liye use nahi ki ja sakti.`;
+            break;
+          }
+
+          const { error: updErr } = await supabase
+            .from("bank_upi_transactions")
+            .update({ is_reconciled: true, invoice_id: invoiceId })
+            .eq("id", matchedTx.id);
+
+          if (!updErr) {
+            if (invoiceId) {
+              await supabase.rpc('process_invoice_settlement', {
+                p_invoice_id: invoiceId,
+                p_payment_method: 'upi',
+                p_amount_paid: matchedTx.amount,
+                p_gateway_reference_id: utr
+              });
+              await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "upi", utr_number: utr }).eq("id", invoiceId);
+            }
+
+            if (apptId) {
+              const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
+              await supabase
+                .from("appointments")
+                .update({ status: finalStatus, payment_status: "cleared", utr_number: utr })
+                .eq("id", apptId);
+            }
+
+            nextState = "COMPLETED";
+            const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
+            replyText = `🎉 *PAYMENT VERIFIED VIA DIRECT UPI (0% MDR)!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you for choosing VitalSync! 😊`;
+          } else {
+            replyText = "⚠️ *Database Lock Error*\n\nTransaction match ho gaya hai lekin database update fail ho gaya. Please try again.";
+          }
+        } else {
+          sessionData.pendingVerificationUtr = utr;
+          replyText = `⏳ *Direct UPI Verification Pending*\n\nHumne aapka 12-digit UTR *${utr}* note kar liya hai.\n\nBank se settlement SMS sync hote hi token automatic confirm ho jayega! Tab tak aap 2 mins wait karein ya **STATUS** reply karein. 🤝`;
+        }
+
+      // 3. User checking status / asserting payment
+      } else if (cleaned.includes("pay") || cleaned.includes("clear") || cleaned.includes("paid") || cleaned.includes("done") || cleaned.includes("confirm") || cleaned.includes("status") || cleaned.includes("check") || cleaned === "1") {
         let isVerifiedPaid = false;
         let invoicePayloadUrl = "";
         
-        const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
         const rzpKeyId = Deno.env.get("RAZORPAY_KEY_ID");
         const rzpSecret = Deno.env.get("RAZORPAY_KEY_SECRET");
         const basicAuth = (rzpKeyId && rzpSecret) ? "Basic " + btoa(`${rzpKeyId}:${rzpSecret}`) : "";
 
         // Execute all validation tiers concurrently in a single Promise.all (<150ms latency)
-        const [exactInvRes, apptRes, latestInvRes, recentApptRes, rzpPaymentsRes] = await Promise.all([
+        const [exactInvRes, apptRes, latestInvRes, recentApptRes, rzpPaymentsRes, rzpPlinkRes] = await Promise.all([
           invoiceId ? supabase.from("unified_invoices").select("payment_status, upi_qr_payload").eq("id", invoiceId).maybeSingle() : Promise.resolve({ data: null }),
           apptId ? supabase.from("appointments").select("status, payment_status").eq("id", apptId).maybeSingle() : Promise.resolve({ data: null }),
           bookingPatId ? supabase.from("unified_invoices").select("id, payment_status, upi_qr_payload").eq("patient_id", bookingPatId).order("created_at", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
           patientPhone ? supabase.from("appointments").select("id, status, payment_status").eq("patient_phone", patientPhone).order("created_at", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
-          basicAuth ? fetch("https://api.razorpay.com/v1/payments?count=10", { headers: { "Authorization": basicAuth } }).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null)
+          basicAuth ? fetch("https://api.razorpay.com/v1/payments?count=15", { headers: { "Authorization": basicAuth } }).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+          (basicAuth && sessionData.rzpPaymentLinkId) ? fetch(`https://api.razorpay.com/v1/payment_links/${sessionData.rzpPaymentLinkId}`, { headers: { "Authorization": basicAuth } }).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null)
         ]);
 
-        // SECURE: Only trust explicit payment_status fields, NOT workflow status
-        // appointment.status = "scheduled"/"ready_for_consult" are workflow states, NOT payment proof
+        // SECURE: Check explicit database payment status
         const exactInvPaymentCleared = exactInvRes?.data?.payment_status === "cleared" || exactInvRes?.data?.payment_status === "paid";
         const latestInvPaymentCleared = latestInvRes?.data?.payment_status === "cleared" || latestInvRes?.data?.payment_status === "paid";
         const apptPaymentCleared = apptRes?.data?.payment_status === "cleared" || apptRes?.data?.payment_status === "paid";
@@ -1875,50 +2159,54 @@ async function triggerBotReplyPipeline(ctx: {
 
         if (exactInvRes?.data?.upi_qr_payload) invoicePayloadUrl = exactInvRes.data.upi_qr_payload;
 
-        // Check live Razorpay API response
-        // SECURITY: Require BOTH invoice ID match AND exact amount match.
-        // Phone-only matching is PROHIBITED — it allows historic payments to satisfy new invoices (CVE-VITALSYNC-2026-001).
-        if (!isVerifiedPaid && rzpPaymentsRes?.items && invoiceId) {
-          const expectedAmountPaise = Math.round((Number(feeAmount) || 0) * 100);
+        // 1. Direct Razorpay Payment Link Status Verification
+        if (!isVerifiedPaid && rzpPlinkRes) {
+          if (rzpPlinkRes.status === "paid" || (rzpPlinkRes.amount_paid && rzpPlinkRes.amount_paid > 0)) {
+            console.log(`[Meta Webhook] 🟢 Verified paid from Razorpay Payment Link API: ${sessionData.rzpPaymentLinkId}`);
+            isVerifiedPaid = true;
+          }
+        }
+
+        // 2. Direct Razorpay Payments Verification (by invoice notes OR matching patient phone & amount)
+        if (!isVerifiedPaid && rzpPaymentsRes?.items) {
+          const expectedAmountPaise = Math.round((Number(feeAmount) || 515) * 100);
+          const clean10 = String(patientPhone).replace(/\D/g, "").slice(-10);
+
           const matchingPayment = rzpPaymentsRes.items.find((p: any) => {
             const pInv = p.notes?.invoice_id || p.notes?.invoiceId || "";
-            const matchInvoice = pInv && (pInv === invoiceId || pInv.includes(invoiceId.substring(0, 8)));
-            const matchAmount = expectedAmountPaise > 0 && p.amount === expectedAmountPaise;
-            return (p.status === "captured" || p.status === "authorized") && matchInvoice && matchAmount;
+            const matchInvoice = pInv && (pInv === invoiceId || pInv.includes(String(invoiceId).substring(0, 8)));
+            const matchContact = clean10 && p.contact && String(p.contact).replace(/\D/g, "").endsWith(clean10);
+            const matchAmount = expectedAmountPaise > 0 && Math.abs(p.amount - expectedAmountPaise) <= 100;
+            return (p.status === "captured" || p.status === "authorized") && ((matchInvoice && matchAmount) || (matchContact && matchAmount));
           });
 
           if (matchingPayment) {
             console.log(`[Meta Webhook] 🟢 Found captured payment directly from Razorpay API: ${matchingPayment.id}`);
             isVerifiedPaid = true;
-
-            if (invoiceId) {
-              supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "razorpay" }).eq("id", invoiceId).then(() => {});
-            }
-            if (apptId) {
-              supabase.from("appointments").update({ status: "scheduled", payment_status: "cleared" }).eq("id", apptId).then(() => {});
-            }
           }
         }
 
         if (isVerifiedPaid) {
           // IDEMPOTENCY: Acquire advisory lock before updating payment status
-          // Prevents race between Meta Webhook verification and Razorpay Webhook
           const lockKey = invoiceId ? getInvoiceLockKey(invoiceId) : (apptId ? getAppointmentLockKey(apptId) : '');
           let lockAcquired = false;
           if (lockKey) {
             const lockResult = await tryAcquirePaymentLock(supabase, lockKey);
             lockAcquired = lockResult.acquired;
-            if (!lockAcquired) {
-              console.log(`[Meta Webhook] ⏭️ Payment status update skipped for ${lockKey} — lock held by another transaction (likely Razorpay webhook)`);
-              // Still proceed to send confirmation to user, but don't double-update DB
-            } else {
-              console.log(`[Meta Webhook] 🔒 Lock acquired for payment status update: ${lockKey}`);
-            }
           }
 
           try {
+            if (invoiceId) {
+              await supabase.rpc('process_invoice_settlement', {
+                p_invoice_id: invoiceId,
+                p_payment_method: 'razorpay',
+                p_amount_paid: Number(feeAmount) || 515,
+                p_gateway_reference_id: sessionData.rzpPaymentLinkId || 'rzp_verified'
+              });
+              await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "razorpay" }).eq("id", invoiceId);
+            }
+
             if (apptId) {
-              const isVirtualSlot = sessionData.consultationType === "virtual";
               const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
               await supabase
                 .from("appointments")
@@ -1927,8 +2215,6 @@ async function triggerBotReplyPipeline(ctx: {
             }
 
             nextState = "COMPLETED";
-            const isVirtualSlot = sessionData.consultationType === "virtual";
-            const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
             sessionData.isSos = false;
             delete sessionData.isSos;
 
@@ -1950,15 +2236,22 @@ async function triggerBotReplyPipeline(ctx: {
           const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
           const fallbackUrl = invoiceId ? `${appBaseUrl}/pay/${invoiceId}` : `${appBaseUrl}/pay`;
           const pUrl = (invoicePayloadUrl && !invoicePayloadUrl.includes("paytm.in")) ? invoicePayloadUrl : fallbackUrl;
-          replyText = `⚠️ *Payment Verification Pending*\n\nAapka payment abhi Gateway dwara confirm nahi hua hai. Please link par click karke payment complete karein:\n\n📱 *Instant Payment Gateway Link:*\n${pUrl}\n\nPayment complete hone par system Webhook se automatic verify kar dega! 🧾`;
+          replyText = `⏳ *Payment Verification Pending*\n\nPayment confirmation abhi receive nahi hua hai. Aap neeche diye gaye methods se settle kar sakte hain:\n\n1️⃣ *Instant Gateway Link (GPay / PhonePe / Paytm / Cards)*:\n${pUrl}\n\n2️⃣ *Direct UPI (0% Platform Fee)*: Pay ₹${(Number(feeAmount) || 515).toFixed(2)} to \`vitalsync@axl\` and screenshot upload karein ya 12-digit UTR reply karein.\n\n3️⃣ *Counter Payment*: Clinic counter par cash/UPI pay karke token active karwayen.\n\nType **MENU** or **0** to restart or cancel booking. 🩺`;
         }
-      } else if (cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned.includes("register") || cleaned.includes("onboard") || cleaned.includes("hello") || cleaned.includes("menu") || cleaned === "0") {
+
+      // 4. Global navigation / Reset (Anti-Lockup)
+      } else if (cleaned.includes("menu") || cleaned.includes("hi") || cleaned.includes("hello") || cleaned.includes("hey") || cleaned.includes("namaste") || cleaned.includes("restart") || cleaned.includes("reset") || cleaned.includes("cancel") || cleaned.includes("book") || cleaned.includes("start") || cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned === "0") {
         nextState = "IDLE";
-        replyText = `🏥 *INSTANT PAPERLESS ABHA CHECK-IN SUCCESSFUL!* 🟢\n\nNamaste! Welcome to *VitalSync Smart Clinic*.\n\nAapka OPD registration & check-in process start ho gaya hai. Please Neeche diye gaye menu se service choose karein:`;
+        replyText = `🏥 *Namaste! Welcome to VitalSync Smart Clinic* 🟢\n\nAapka main menu open ho gaya hai. Please service select karne ke liye option number reply karein:`;
+
       } else if (["stop consent", "stop", "revoke"].includes(cleaned)) {
-        replyText = "Dues pending rehne par consent cancel nahi kiya ja sakta. Please pehle apna payment clear kijiye.";
+        replyText = "Dues pending rehne par consent cancel nahi kiya ja sakta. Please pehle apna payment clear kijiye ya **MENU** type karein.";
+
+      // 5. Default Guidance
       } else {
-        replyText = "Payment pending hai. Settle karne ke liye QR code scan kijiye, ya 'PAY' reply kijiye.";
+        const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
+        const fallbackUrl = invoiceId ? `${appBaseUrl}/pay/${invoiceId}` : `${appBaseUrl}/pay`;
+        replyText = `💳 *Payment Pending*\n\nCheckup booking complete karne ke liye:\n• *Online Link*: ${fallbackUrl}\n• *Direct UPI*: Pay to \`vitalsync@axl\` and upload screenshot / 12-digit UTR\n• *Check Status*: Reply **STATUS** ya **PAID**\n• *Main Menu*: Reply **MENU** ya **0** to restart or re-book. 🩺`;
       }
       break;
 
@@ -3151,8 +3444,8 @@ CLINICAL GUIDELINES:
     await supabase.rpc('atomic_update_whatsapp_session', {
       p_patient_phone: patientPhone,
       p_patient_id: session.patient_id,
-      p_pod_id: connection.pod_id,
-      p_entity_id: connection.entity_id,
+      p_pod_id: podId,
+      p_entity_id: entityId,
       p_current_state: dbState,
       p_message: botMessage,
       p_session_data_updates: sessionDataUpdates

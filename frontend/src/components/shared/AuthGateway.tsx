@@ -4,7 +4,7 @@ import { supabase, isMissingEnv } from '../../lib/supabaseClient';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
-  Users, Zap, UserPlus
+  Users, Zap, UserPlus, ExternalLink
 } from 'lucide-react';
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 
@@ -333,6 +333,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [tosAccepted, setTosAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsModalTab, setTermsModalTab] = useState<'terms' | 'privacy'>('terms');
 
   // Common Registration states (compat)
   const [displayName, setDisplayName] = useState('');
@@ -1970,41 +1971,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       <div className="z-10 flex flex-col space-y-5">
 
-        {/* ⚡ 1-Click Instant Demo Bypass Panel */}
-        <div className="bg-gradient-to-r from-slate-900/95 via-indigo-950/95 to-slate-900/95 border border-cyan-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-xl shadow-cyan-950/20 text-white font-sans pointer-events-auto">
-          <div className="flex items-center justify-between border-b border-white/10 pb-2">
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-400 animate-bounce" />
-              <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest">
-                1-Click Instant Demo Login
-              </span>
-            </div>
-            <span className="text-[9px] font-bold text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-400/30 font-mono">
-              BYPASS AUTH MODE
-            </span>
-          </div>
-
-          <p className="text-[10px] text-slate-300 leading-relaxed font-medium">
-            Click any role below to bypass authentication and launch the workspace immediately:
-          </p>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-0.5">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.role}
-                type="button"
-                onClick={() => handleDemoBypass(acc)}
-                className="flex items-center gap-2 p-2 rounded-xl bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/40 transition-all text-left cursor-pointer group"
-              >
-                <span className="text-base flex-shrink-0">{acc.icon}</span>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-bold text-cyan-200 group-hover:text-cyan-100 truncate">{acc.label}</span>
-                  <span className="text-[8px] text-slate-400 group-hover:text-slate-200 truncate">{acc.name}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Sliding Tab Selector */}
         {initialSignupTab !== 'ops' && (
@@ -2619,7 +2585,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       I accept the{' '}
                       <button
                         type="button"
-                        onClick={() => setShowTermsModal(true)}
+                        onClick={() => {
+                          setTermsModalTab('terms');
+                          setShowTermsModal(true);
+                        }}
                         className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                       >
                         Terms of Service
@@ -2627,7 +2596,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       and{' '}
                       <button
                         type="button"
-                        onClick={() => setShowTermsModal(true)}
+                        onClick={() => {
+                          setTermsModalTab('privacy');
+                          setShowTermsModal(true);
+                        }}
                         className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                       >
                         Privacy Policy
@@ -3130,7 +3102,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                           I accept the{' '}
                           <button
                             type="button"
-                            onClick={() => setShowTermsModal(true)}
+                            onClick={() => {
+                              setTermsModalTab('terms');
+                              setShowTermsModal(true);
+                            }}
                             className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                           >
                             Terms of Service
@@ -3138,7 +3113,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                           and{' '}
                           <button
                             type="button"
-                            onClick={() => setShowTermsModal(true)}
+                            onClick={() => {
+                              setTermsModalTab('privacy');
+                              setShowTermsModal(true);
+                            }}
                             className="text-cyan-600 hover:text-cyan-800 underline font-bold"
                           >
                             Privacy Policy
@@ -3346,8 +3324,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       {/* Terms of Service & Privacy Policy Modal */}
       {showTermsModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in text-slate-800 font-sans">
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-6">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in text-slate-800 font-sans">
+          <div className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-5">
             <button
               onClick={() => setShowTermsModal(false)}
               className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
@@ -3355,52 +3333,163 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               <X className="h-5 w-5" />
             </button>
 
+            {/* Modal Header */}
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded-2xl">
+              <div className="p-3 bg-gradient-to-tr from-cyan-500 to-teal-500 text-white rounded-2xl shadow-md shadow-cyan-500/20">
                 <FileText className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-xl font-extrabold text-slate-900">VitalSync Terms & Privacy</h3>
-                <p className="text-xs text-slate-500">Effective Date: June 2026</p>
+                <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                  VitalSync <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-100 text-cyan-800 font-bold border border-cyan-200">Doctor Legal Framework</span>
+                </h3>
+                <p className="text-xs text-slate-500">NMC Telemedicine, DPDP Act 2023 & Merchant Agreement | Effective Aug 2026</p>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto pr-2">
-              <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">1. Nature of Service & Operational Tools</h4>
-                <p>
-                  VitalSync provides digital infrastructure coordinating e-prescriptions, laboratory requests, adjacent pharmacy inventory holds, and split-billing ledger calculations. The Platform does not practice medicine, provide clinical diagnoses, or offer medical advice.
-                </p>
-              </section>
-
-              <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">2. Clinical Responsibility & Malpractice Waiver</h4>
-                <p>
-                  The registered medical practitioner is solely responsible for all patient diagnoses, drug selections, dosages, drug-to-drug interactions, and clinical actions. VitalSync and its operators hold zero liability for medical negligence, misdiagnosis, or adverse patient outcomes resulting from Platform usage. The Clinic agrees to defend and indemnify VitalSync against any malpractice claims.
-                </p>
-              </section>
-
-              <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">3. DPDP Act 2023 & Patient Consent</h4>
-                <p>
-                  The Clinic acts as the Data Fiduciary and VitalSync acts as the Data Processor. The Clinic warrants it has obtained necessary lawful consent from patients before logging clinical details. VitalSync uses Row-Level Security (RLS) to isolate database records and enforces WhatsApp-based patient consent validation before data dispatch.
-                </p>
-              </section>
-
-              <section className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">4. Limitation of Liability & Jurisdiction</h4>
-                <p>
-                  The Platform is provided "as-is". VitalSync's cumulative financial liability for server outages, database errors, or contract claims is strictly capped at the subscription fees paid by the Clinic in the preceding three (3) months. Disputes are subject to the exclusive jurisdiction of the courts of Patna, Bihar, India.
-                </p>
-              </section>
+            {/* Tab Switcher */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setTermsModalTab('terms')}
+                className={`py-2 px-3 rounded-xl transition-all cursor-pointer ${
+                  termsModalTab === 'terms'
+                    ? 'bg-white text-cyan-800 shadow-sm border border-slate-200/80 font-extrabold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                1. Doctor Terms of Service 🩺
+              </button>
+              <button
+                type="button"
+                onClick={() => setTermsModalTab('privacy')}
+                className={`py-2 px-3 rounded-xl transition-all cursor-pointer ${
+                  termsModalTab === 'privacy'
+                    ? 'bg-white text-cyan-800 shadow-sm border border-slate-200/80 font-extrabold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                2. Privacy Policy & DPDP 🔒
+              </button>
             </div>
 
-            <button
-              onClick={() => setShowTermsModal(false)}
-              className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl text-xs uppercase tracking-widest transition-all cursor-pointer shadow-md"
-            >
-              I Understand & Agree
-            </button>
+            {/* Scrollable Content Body */}
+            <div className="space-y-4 text-xs text-slate-600 leading-relaxed overflow-y-auto pr-2 max-h-[50vh]">
+              {termsModalTab === 'terms' ? (
+                <div className="space-y-4">
+                  <section className="space-y-1.5 bg-cyan-50/60 p-3.5 rounded-2xl border border-cyan-100">
+                    <h4 className="text-xs font-bold text-cyan-900 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-cyan-600"></span> 1. Practitioner Eligibility & NMC Telemedicine Compliance
+                    </h4>
+                    <p className="text-slate-700 text-[11px] leading-relaxed">
+                      By registering, the Doctor warrants and certifies that they are a <strong>Registered Medical Practitioner (RMP)</strong> holding a valid, active registration with the National Medical Commission (NMC) or appropriate State Medical Council in India. All virtual video consultations and e-prescriptions adhere to the <em>Telemedicine Practice Guidelines 2020</em>.
+                    </p>
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> 2. Independent Clinical Autonomy & Malpractice Indemnity
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      VitalSync provides digital clinic management, OPD queue routing, and electronic medical record (EMR) software infrastructure. <strong>VitalSync does not practice medicine or make clinical diagnoses.</strong> The treating Doctor retains 100% professional clinical autonomy for all diagnoses, drug selections, dosages, drug-to-drug interaction reviews, and clinical interventions. The Clinic/Doctor agrees to defend, indemnify, and hold harmless VitalSync and its operators against any clinical malpractice, misdiagnosis, or negligence claims.
+                    </p>
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> 3. AI Clinical Scribe & CDSS Decision Support Aids
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      AI-assisted transcription, clinical anomaly alerts, and automated Hinglish summaries are supplementary decision-support aids. The Doctor is strictly required to review, verify, and approve all clinical notes and e-prescriptions before final sign-off.
+                    </p>
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> 4. Digital Prescriptions & Pharmacy Dispensing Compliance
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      E-prescriptions generated through VitalSync include the Doctor&apos;s registration number and comply with the Pharmacy Act and Drugs and Cosmetics Rules. Schedule X and restricted habit-forming drugs must not be prescribed over telemedicine in accordance with statutory guidelines.
+                    </p>
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> 5. Billing, Settlements & Limitation of Liability
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      Doctor consultation fees collected physically at clinic counters carry 0% platform deductions. Platform convenience fees (3% / ₹15.00) apply only to digital bookings. VitalSync&apos;s cumulative liability for software disruptions is strictly capped at subscription fees paid in the preceding three (3) months. Disputes are subject to the exclusive jurisdiction of the courts in Patna, Bihar, India.
+                    </p>
+                  </section>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <section className="space-y-1.5 bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-100">
+                    <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-600"></span> 1. DPDP Act 2023 & Clinical Data Governance
+                    </h4>
+                    <p className="text-slate-700 text-[11px] leading-relaxed">
+                      In compliance with the <strong>Digital Personal Data Protection (DPDP) Act 2023</strong> and the Information Technology Act 2000, the Clinic acts as the <em>Data Fiduciary</em> and VitalSync operates as the technical <em>Data Processor</em>. Patient medical records are processed solely to fulfill healthcare consultations and diagnostic workflows.
+                    </p>
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> 2. Multi-Tenant Pod Isolation (RLS) & Encryption
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      All patient records, invoices, lab reports, and doctor notes are protected by strict PostgreSQL <strong>Row-Level Security (RLS)</strong> policies. Data is completely isolated per clinic pod and encrypted both in transit (256-bit SSL/TLS) and at rest.
+                    </p>
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> 3. Patient Consent & WhatsApp Communications
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      VitalSync requires explicit patient consent before dispatching digital OPD tokens, prescription summaries, and lab reports over official WhatsApp channels. We strictly do <strong>NOT</strong> sell, rent, or monetize patient or doctor data to third-party advertisers.
+                    </p>
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> 4. Grievance Redressal Officer
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      For any privacy inquiries or statutory data requests, contact our Data Protection Officer at <strong>privacy@vitalsync.in</strong> or phone <strong>+91 8986426029</strong> (Kankarbagh, Patna, Bihar).
+                    </p>
+                  </section>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+              <a
+                href={termsModalTab === 'privacy' ? '/privacy' : '/terms'}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full sm:w-auto py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>Open Full Legal Center</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTosAccepted(true);
+                  if (validationErrors.tos) {
+                    const newErrors = { ...validationErrors };
+                    delete newErrors.tos;
+                    setValidationErrors(newErrors);
+                  }
+                  setShowTermsModal(false);
+                }}
+                className="w-full sm:flex-1 py-2.5 px-4 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-cyan-600/20"
+              >
+                I Understand & Accept Terms
+              </button>
+            </div>
           </div>
         </div>
       )}
