@@ -1424,13 +1424,15 @@ export default function App() {
     return <LandingPage onAuthSuccess={handleAuthSuccess} />;
   }
 
-  // 2a. Fallback Routing for single-domain environments (Vercel previews, custom domains, direct IPs)
+  // 2a. Fallback Routing for single-domain environments (Vercel previews, custom domains, direct IPs, PWA launches)
   // If the host is not one of the pre-configured subdomains, we check query params:
-  // - ?console=true or ?tab=register/join: Render the dashboard login page / signup flow.
+  // - ?console=true, ?tab=register/join, or PWA launch: Render the dashboard login page / signup flow.
   // - If session exists: Fall through and render the dashboard workspace.
   // - Otherwise: Render the Landing Page.
   const isSingleDomain = !isLandingPageDomain && !isDashboardSubdomain && !isAdminSubdomain;
-  const isConsoleRequested = new URLSearchParams(window.location.search).get('console') === 'true' || new URLSearchParams(window.location.search).get('tab') !== null;
+  const isConsoleRequested = new URLSearchParams(window.location.search).get('console') === 'true' || 
+    new URLSearchParams(window.location.search).get('tab') !== null ||
+    isPwaLaunch;
 
   if (isSingleDomain) {
     if (!session || !activeProfile) {
