@@ -1249,7 +1249,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // 4. Show registration success screen with generated clinic code!
       const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
-      setRegisteredClinicCode(generatedCode || 'MED-' + Math.floor(1000 + Math.random() * 9000));
+      const finalCode = generatedCode || 'MF-' + clinicName.trim().replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+      setRegisteredClinicCode(finalCode);
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
       }
@@ -1257,18 +1258,53 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Clinic Registered successfully! 🎉',
-          message: `Welcome ${finalDisplayName}! Your clinical network code is active.`,
+          message: `Welcome ${finalDisplayName}! Your clinic code ${finalCode} is active.`,
           type: 'success'
         }
       }));
 
-      // 5. Automatically log the doctor into the workspace!
+      // Fetch profile to resolve newly created entity_id
+      let entityId = null;
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('entity_id')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+        if (prof?.entity_id) entityId = prof.entity_id;
+      } catch (_e) { /* ignore */ }
+
+      // 5. Automatically log the doctor into the workspace with deterministic clinicCode!
       const synthesizedProfile = {
         id: authData.user.id,
+        entity_id: entityId,
         role: 'doctor',
         display_name: finalDisplayName,
-        email: email.trim()
+        email: email.trim(),
+        clinic_code: finalCode,
+        clinicCode: finalCode
       };
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vitalsync_cached_profile', JSON.stringify(synthesizedProfile));
+        localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify({
+          id: entityId || authData.user.id,
+          name: clinicName.trim(),
+          clinicCode: finalCode,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        }));
+        localStorage.setItem('vitalsync_active_pod', JSON.stringify({
+          id: entityId || authData.user.id,
+          name: clinicName.trim(),
+          clinic_code: finalCode,
+          clinicCode: finalCode,
+          health_score: 100,
+          is_verified_for_billing: true,
+          platform_fee_percent: 2.5
+        }));
+      }
+
       if (activeSession) {
         onAuthSuccess(activeSession, synthesizedProfile);
       }
@@ -1407,16 +1443,23 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         /* ignore */
       }
 
+      const targetCode = clinicCode.trim().toUpperCase();
       if (!profile) {
         profile = {
           id: authData.user.id,
           role: partnerType,
           display_name: displayName.trim(),
-          email: email.trim()
+          email: email.trim(),
+          clinic_code: targetCode,
+          clinicCode: targetCode
         };
+      } else {
+        profile.clinic_code = targetCode;
+        profile.clinicCode = targetCode;
       }
 
       if (typeof window !== 'undefined') {
+        localStorage.setItem('vitalsync_cached_profile', JSON.stringify(profile));
         (window as any).__mediflow_registering = false;
       }
 

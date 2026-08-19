@@ -581,7 +581,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             <div class="doc-info">
               <strong>${activePod?.doctor_name || activePod?.name || 'Dr. Practitioner'}</strong><br/>
               ${(activePod as any)?.specialization || 'Clinical Care Specialist'}<br/>
-              ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'MF-CARE01'})<br/>
+              ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'MF-APEX'})<br/>
               Date: ${new Date().toLocaleDateString('en-IN')}
             </div>
           </div>

@@ -564,14 +564,14 @@ export class WhatsAppService {
             const currentBill = liveBills.find(b => b.id === draftBill?.id) || draftBill;
 
             if (currentBill && currentBill.status === 'paid') {
-              const voiceUrl = `https://vitalsync.in/api/voice-slips/VS-VOICE-${currentBill.id.substring(4, 8)}.mp3`;
+              const voiceUrl = `https://vitalsync.in/api/voice-slips/VS-VOICE-${(currentBill.id || 'N/A').substring(4, 8)}.mp3`;
               if (currentBill.deliveryType === 'shiprocket') {
                 nextState = 'COMPLETED';
                 const shipId = `SR-${Math.floor(100000 + Math.random() * 900000)}`;
                 replyMessage = `🟢 *Payment Verified & Cleared!* \n\nShiprocket logistics partner se order arrange kar diya hai. \n🚀 *Tracking ID: ${shipId}*\n\nMedicines 24-48 hours mein deliver ho jayengi. VitalSync digital ecosystem choose karne ke liye shukriya! 📦\n\n🔊 *Listen to Medication audio advice*:\n${voiceUrl}`;
               } else {
                 nextState = 'MEDICINE_READY_FOR_PICKUP';
-                replyMessage = `🟢 *Payment Verified & Cleared!* \n\nMedicines counter collection ke liye packing department mein bhej di gayi hain. \n\nShow this invoice ref to compounder at clinic counter: \n🔖 *Ref ID: #${currentBill.id.substring(4, 10).toUpperCase()}*\n\n🔊 *Listen to Medication audio advice*:\n${voiceUrl}`;
+                replyMessage = `🟢 *Payment Verified & Cleared!* \n\nMedicines counter collection ke liye packing department mein bhej di gayi hain. \n\nShow this invoice ref to compounder at clinic counter: \n🔖 *Ref ID: #${(currentBill.id || 'N/A').substring(4, 10).toUpperCase()}*\n\n🔊 *Listen to Medication audio advice*:\n${voiceUrl}`;
               }
             } else {
               nextState = 'MEDICINE_AWAITING_PAYMENT';

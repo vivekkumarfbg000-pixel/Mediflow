@@ -454,7 +454,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
                       className={`flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 font-mono text-[10px] font-bold shadow-lg transition-all duration-300 ${getStatusColor(step.status)}`}
                       title={`${step.name}: ${step.message}`}
                     >
-                      {step.status === 'success' ? <CheckCircle2 className="h-4.5 w-4.5" /> : step.status === 'error-halted' ? <AlertTriangle className="h-4.5 w-4.5" /> : step.name.substring(0, 4)}
+                      {step.status === 'success' ? <CheckCircle2 className="h-4.5 w-4.5" /> : step.status === 'error-halted' ? <AlertTriangle className="h-4.5 w-4.5" /> : (step.name || '').substring(0, 4)}
                     </div>
                     <span className="text-[10px] font-semibold text-slate-600 tracking-wide">{step.name}</span>
                   </div>

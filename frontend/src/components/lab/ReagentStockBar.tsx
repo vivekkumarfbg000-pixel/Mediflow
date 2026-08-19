@@ -159,7 +159,7 @@ export const ReagentStockBar: React.FC<ReagentStockBarProps> = React.memo(({
         )}
         {(status === 'normal' || status === 'low' || status === 'critical') && (
           <span>
-            {currentVolume?.toFixed(1)} / {maxVolume} {unit}
+            {(currentVolume ?? 0).toFixed(1)} / {maxVolume} {unit}
             <span className="ml-1 opacity-60">({(pct || 0).toFixed(0)}%)</span>
           </span>
         )}

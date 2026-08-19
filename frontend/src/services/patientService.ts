@@ -187,10 +187,10 @@ export class PatientService {
       const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
       let result;
       if (activeItem.operation === 'register_patient') {
-        const podId = getPodContext().podId;
+        const podId = activeItem.payload?.pod_id || getPodContext().podId;
         const insertPayload = {
           ...activeItem.payload,
-          pod_id: (podId && podId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001') ? podId : null
+          pod_id: podId || null
         };
         result = await supabase.from('patient_registry').upsert(insertPayload, { onConflict: 'id' });
         try {
@@ -475,7 +475,8 @@ export class PatientService {
         abha_id: newPatient.abhaId,
         token_number: newPatient.tokenNumber,
         patient_code: newPatient.patientCode,
-        registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') ? getPodContext().entityId : null
+        registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') ? getPodContext().entityId : null,
+        pod_id: currentPodId
       },
       timestamp: new Date().toISOString(),
       attempts: 0

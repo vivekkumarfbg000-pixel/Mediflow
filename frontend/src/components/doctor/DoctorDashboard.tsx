@@ -1179,7 +1179,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     api.createEncounter({
       patientId: selectedPatient.id,
       patientName: selectedPatient.name,
-      doctorId: 'doc-1',
+      doctorId: getPodContext().doctorId || activeDoctorProfile?.id || 'doc-1',
       clinicalNotes: finalNotes,
       medications: finalMedications,
       diagnosticTests: selectedTests
@@ -2081,7 +2081,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <span className="text-slate-600">·</span>
                 Clinic Code:
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
-                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || ('MF-' + (activeDoctorProfile?.id ? activeDoctorProfile.id.slice(0, 5).toUpperCase() : 'LIVE01'))}
+                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || 'MF-APEX'}
                 </span>
                 <span className={`flex sm:hidden items-center gap-1 text-[10px] font-semibold pl-1 font-mono ${isOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full animate-pulse inline-block ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />

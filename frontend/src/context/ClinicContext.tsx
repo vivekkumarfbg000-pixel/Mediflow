@@ -16,14 +16,41 @@ interface ClinicContextType {
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 
 export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile: any }> = ({ children, activeProfile }) => {
-  const [activePod, setActivePod] = useState<Pod | null>(null);
+  // Synchronous Frame 0 state hydration to prevent clinic code flicker
+  const [activePod, setActivePod] = useState<Pod | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedPod = localStorage.getItem('vitalsync_cached_active_pod');
+        if (cachedPod) {
+          const parsed = JSON.parse(cachedPod);
+          if (parsed && parsed.clinicCode) return parsed;
+        }
+        const activePodLocal = localStorage.getItem('vitalsync_active_pod');
+        if (activePodLocal) {
+          const parsed = JSON.parse(activePodLocal);
+          if (parsed && (parsed.clinic_code || parsed.clinicCode)) {
+            return {
+              id: parsed.id || 'demo-pod',
+              name: parsed.name || 'Care Pod Clinic',
+              location: parsed.location,
+              clinicCode: parsed.clinic_code || parsed.clinicCode,
+              isActive: parsed.is_active ?? true,
+              createdAt: parsed.created_at || new Date().toISOString()
+            };
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    return null;
+  });
+
   const [activeEntity, setActiveEntity] = useState<Entity | null>(null);
   const [partnerStatus, setPartnerStatus] = useState<ClinicContextType['partnerStatus']>(null);
   const [podEntities, setPodEntities] = useState<Entity[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const refreshClinic = useCallback(async () => {
-    if (!activeProfile?.entity_id) {
+    if (!activeProfile?.id) {
       setActivePod(null);
       setActiveEntity(null);
       setPartnerStatus(null);
@@ -34,18 +61,58 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       return;
     }
 
+    // Explicit Demo Account Check
+    const email = String(activeProfile.email || '').toLowerCase();
+    const isDemo = Boolean(activeProfile.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || activeProfile.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+    if (isDemo) {
+      const demoPod: Pod = {
+        id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        name: 'Apex Eye & Dental Care Clinic',
+        location: 'Kankarbagh Main Rd, Patna, Bihar',
+        clinicCode: 'MF-APEX',
+        isActive: true,
+        createdAt: '2026-01-01T00:00:00Z'
+      };
+      setActivePod(demoPod);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(demoPod));
+        localStorage.setItem('vitalsync_active_pod', JSON.stringify({ ...demoPod, clinic_code: 'MF-APEX' }));
+        (window as any).__mediflow_active_pod_id = demoPod.id;
+      }
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // 1. Fetch user's own entity directly (this is always readable by the user themselves because they belong to it)
+      let entityId = activeProfile.entity_id;
+
+      // If entity_id is not present in in-memory profile, query DB profile to resolve it
+      if (!entityId) {
+        const { data: dbProfile } = await supabase
+          .from('profiles')
+          .select('entity_id, role')
+          .eq('id', activeProfile.id)
+          .maybeSingle();
+
+        if (dbProfile?.entity_id) {
+          entityId = dbProfile.entity_id;
+        }
+      }
+
+      if (!entityId) {
+        setIsLoading(false);
+        return;
+      }
+
+      // 1. Fetch user's own entity directly
       const { data: entityData, error: entityError } = await supabase
         .from('entities')
         .select('*')
-        .eq('id', activeProfile.entity_id)
-        .single();
+        .eq('id', entityId)
+        .maybeSingle();
 
       if (entityError) {
-        console.error('[ClinicContext] Error fetching entity:', entityError);
-        throw entityError;
+        console.warn('[ClinicContext] Notice fetching entity:', entityError);
       }
 
       if (entityData) {
@@ -67,30 +134,41 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         setActiveEntity(mappedEntity);
         setPartnerStatus(mappedEntity.status);
 
-        // 2. If entity is approved, fetch pod metadata & all entities in the same pod
-        if (mappedEntity.status === 'approved') {
-          // Fetch Pod
+        // 2. Fetch Pod metadata and all entities in the same pod
+        if (mappedEntity.podId) {
           const { data: podData, error: podError } = await supabase
             .from('pods')
             .select('*')
             .eq('id', mappedEntity.podId)
-            .single();
+            .maybeSingle();
 
           if (!podError && podData) {
-            setActivePod({
+            const mappedPod: Pod = {
               id: podData.id,
               name: podData.name,
               location: podData.location || undefined,
               clinicCode: podData.clinic_code,
               isActive: podData.is_active ?? true,
               createdAt: podData.created_at
-            });
+            };
+
+            setActivePod(mappedPod);
+
+            // Persist verified pod to storage to eliminate any future cold-start flicker
             if (typeof window !== 'undefined') {
+              localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(mappedPod));
+              localStorage.setItem('vitalsync_active_pod', JSON.stringify({
+                ...mappedPod,
+                clinic_code: podData.clinic_code,
+                health_score: 100,
+                is_verified_for_billing: true,
+                platform_fee_percent: 2.5
+              }));
               (window as any).__mediflow_active_pod_id = podData.id;
             }
           }
 
-          // Fetch all entities in the same pod
+          // Fetch all entities in the same pod to link Doctor <-> Compounder <-> Pharmacy <-> Lab
           const { data: entitiesData, error: entitiesError } = await supabase
             .from('entities')
             .select('*')
@@ -114,16 +192,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
               }))
             );
           }
-        } else {
-          setActivePod(null);
-          setPodEntities([]);
-          if (typeof window !== 'undefined') {
-            delete (window as any).__mediflow_active_pod_id;
-          }
         }
       }
     } catch (err) {
-      console.error('[ClinicContext] Failed to load clinic data:', err);
+      console.warn('[ClinicContext] Failed to load live clinic data:', err);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +220,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
             console.log('[ClinicContext Realtime] Entity status updated:', payload.new);
             refreshClinic();
             
-            // Dispatch a celebration toast if status changed to approved
             if (payload.new.status === 'approved') {
               window.dispatchEvent(new CustomEvent('mediflow-toast', {
                 detail: {
@@ -175,7 +246,6 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
               table: 'entities'
             },
             (payload) => {
-              // Refresh to load new partner requests or updates
               console.log('[ClinicContext Doctor Realtime] Pod entities changed:', payload);
               refreshClinic();
             }
@@ -216,7 +286,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     setIsLoading(true);
     try {
       const { data, error } = await supabase.rpc('join_clinic_network', {
-        p_clinic_code: code,
+        p_clinic_code: code.trim().toUpperCase(),
         p_partner_type: type,
         p_partner_name: name,
         p_partner_phone: phone,

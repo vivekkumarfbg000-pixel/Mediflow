@@ -201,10 +201,10 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
         return;
       }
 
-      const patientName = patient?.name || invoice?.patient_name || 'WhatsApp Patient';
-      const rawPhone = patient?.phone || invoice?.patient_phone || '9608032073';
-      const cleanPhone10 = rawPhone.replace(/\D/g, '').slice(-10) || '9608032073';
-      const patientEmail = patient?.email || `patient_${cleanPhone10}@vitalsync.in`;
+      const patientName = patient?.name || invoice?.patient_name || 'Patient';
+      const rawPhone = patient?.phone || invoice?.patient_phone || invoice?.phone || '';
+      const cleanPhone10 = rawPhone.replace(/\D/g, '').slice(-10);
+      const patientEmail = patient?.email || (cleanPhone10 ? `patient_${cleanPhone10}@vitalsync.in` : 'patient@vitalsync.in');
 
       const options = {
         key: razorpayKeyId,

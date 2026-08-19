@@ -80,6 +80,10 @@ jobs:
         run: npm run check:ligatures
         continue-on-error: false
 
+      - name: 🛡️ Verify Military-Grade System Invariants (Google/Meta Standard)
+        run: npm run check:invariants
+        continue-on-error: false
+
       - name: TypeScript strict type check
         run: npx tsc --noEmit
         continue-on-error: false

@@ -167,8 +167,10 @@ export async function resolvePodContext(): Promise<PodContext> {
       let labEntityId = isDemoUser ? FALLBACK_LAB_ENTITY : user.id;
       let pharmacyEntityId = isDemoUser ? FALLBACK_PHARM_ENTITY : user.id;
 
+      let resolvedDoctorId = profile?.role === 'doctor' ? user.id : null;
+
       if (podId && podId !== FALLBACK_POD_ID) {
-        // Look up all entities for this pod to find lab and pharmacy
+        // Look up all entities for this pod to find lab, pharmacy, and doctor clinic entity
         const { data: siblings } = await supabase
           .from('entities')
           .select('id, entity_type')
@@ -177,8 +179,19 @@ export async function resolvePodContext(): Promise<PodContext> {
         if (siblings && siblings.length > 0) {
           const lab = siblings.find(e => e.entity_type === 'lab');
           const pharm = siblings.find(e => e.entity_type === 'pharmacy');
+          const clinicEntity = siblings.find(e => e.entity_type === 'clinic');
           if (lab) labEntityId = lab.id;
           if (pharm) pharmacyEntityId = pharm.id;
+
+          if (!resolvedDoctorId && clinicEntity) {
+            const { data: docProf } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('entity_id', clinicEntity.id)
+              .eq('role', 'doctor')
+              .maybeSingle();
+            if (docProf?.id) resolvedDoctorId = docProf.id;
+          }
         }
       }
 
@@ -202,7 +215,7 @@ export async function resolvePodContext(): Promise<PodContext> {
         userId: user.id,
         entityId,
         podId,
-        doctorId: profile?.role === 'doctor' ? user.id : null,
+        doctorId: resolvedDoctorId,
         labEntityId,
         pharmacyEntityId,
         loaded: true,

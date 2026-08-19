@@ -287,7 +287,7 @@ export class BillingService {
         }
 
         const newLedger: FinancialLedgerEntry = {
-          id: `tx-auto-${inv.id.substring(0, 8)}`,
+          id: `tx-auto-${(inv.id || 'N/A').substring(0, 8)}`,
           invoiceId: inv.id,
           sourceEntityId: 'clinic-admin-entity',
           destinationEntityId: 'clinic-admin-entity',

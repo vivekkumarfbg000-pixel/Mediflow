@@ -1407,6 +1407,7 @@ CREATE TABLE IF NOT EXISTS public.scheduled_reminders (
 );
 
 ALTER TABLE public.scheduled_reminders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow service role full access to scheduled_reminders" ON public.scheduled_reminders;
 CREATE POLICY "Allow service role full access to scheduled_reminders"
 ON public.scheduled_reminders FOR ALL TO service_role USING (true) WITH CHECK (true);
 
@@ -1486,7 +1487,8 @@ DECLARE
     'saas_invoices',
     'saas_prescriptions',
     'vitalsync_pool_settlements',
-    'clinic_sops'
+    'clinic_sops',
+    'bank_upi_transactions'
   ];
 BEGIN
   -- Create publication if it doesn't exist
@@ -1507,18 +1509,23 @@ END $$;
 
 -- Ensure public select policies exist for realtime CDC consumption
 DROP POLICY IF EXISTS "Allow public select on appointments" ON public.appointments;
+DROP POLICY IF EXISTS "Enforce CDC isolation on appointments" ON public.appointments;
 CREATE POLICY "Enforce CDC isolation on appointments" ON public.appointments FOR SELECT TO authenticated USING (pod_id = public.get_user_pod());
 
 DROP POLICY IF EXISTS "Allow public select on financial_ledgers" ON public.financial_ledgers;
+DROP POLICY IF EXISTS "Enforce CDC isolation on financial_ledgers" ON public.financial_ledgers;
 CREATE POLICY "Enforce CDC isolation on financial_ledgers" ON public.financial_ledgers FOR SELECT TO authenticated USING (pod_id = public.get_user_pod());
 
 DROP POLICY IF EXISTS "Allow public select on unified_invoices" ON public.unified_invoices;
+DROP POLICY IF EXISTS "Enforce CDC isolation on unified_invoices" ON public.unified_invoices;
 CREATE POLICY "Enforce CDC isolation on unified_invoices" ON public.unified_invoices FOR SELECT TO authenticated USING (pod_id = public.get_user_pod());
 
 DROP POLICY IF EXISTS "Allow public select on patient_registry" ON public.patient_registry;
+DROP POLICY IF EXISTS "Enforce CDC isolation on patient_registry" ON public.patient_registry;
 CREATE POLICY "Enforce CDC isolation on patient_registry" ON public.patient_registry FOR SELECT TO authenticated USING (pod_id = public.get_user_pod());
 
 DROP POLICY IF EXISTS "Allow public select on whatsapp_sessions" ON public.whatsapp_sessions;
+DROP POLICY IF EXISTS "Enforce CDC isolation on whatsapp_sessions" ON public.whatsapp_sessions;
 CREATE POLICY "Enforce CDC isolation on whatsapp_sessions" ON public.whatsapp_sessions FOR SELECT TO authenticated USING (pod_id = public.get_user_pod());
 
 -- =============================================================================
@@ -2332,10 +2339,12 @@ CREATE INDEX IF NOT EXISTS idx_wa_broadcast_queue_campaign ON public.whatsapp_br
 ALTER TABLE public.whatsapp_broadcast_queue ENABLE ROW LEVEL SECURITY;
 
 -- Allow access based on pod_id scoping
+DROP POLICY IF EXISTS "Enable read access for authenticated users by pod_id" ON public.whatsapp_broadcast_queue;
 CREATE POLICY "Enable read access for authenticated users by pod_id"
 ON public.whatsapp_broadcast_queue FOR SELECT
 USING (pod_id = (auth.jwt() ->> 'pod_id')::UUID OR auth.uid() IN (SELECT id FROM profiles WHERE role IN ('admin', 'doctor', 'compounder', 'pharmacy', 'lab')));
 
+DROP POLICY IF EXISTS "Enable insert access for authenticated users" ON public.whatsapp_broadcast_queue;
 CREATE POLICY "Enable insert access for authenticated users"
 ON public.whatsapp_broadcast_queue FOR INSERT
 WITH CHECK (true);

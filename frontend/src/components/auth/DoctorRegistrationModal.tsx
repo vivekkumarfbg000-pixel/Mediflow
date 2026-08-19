@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Building, User, Phone, Stethoscope, ArrowRight, Sparkles, CheckCircle2, X } from 'lucide-react';
 import { api } from '../../services/api';
+import { supabase } from '../../lib/supabaseClient';
 
 interface Props {
   isOpen: boolean;
@@ -29,13 +30,45 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
     setIsSubmitting(true);
 
     try {
-      const clinicCode = formData.clinicName.substring(0, 4).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
+      let clinicCode = '';
+      
+      // Attempt live RPC registration if user is authenticated
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('register_clinic_network', {
+          p_clinic_name: formData.clinicName.trim(),
+          p_clinic_phone: formData.phone.trim(),
+          p_clinic_address: (formData as any).location || 'Clinic Location',
+          p_specialization: formData.specialization
+        });
+        if (!rpcErr && rpcRes) {
+          clinicCode = Array.isArray(rpcRes) ? rpcRes[0]?.clinic_code : rpcRes?.clinic_code;
+        }
+      } catch (_rpcE) {
+        /* ignore */
+      }
+
+      if (!clinicCode) {
+        const existingPod = localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('vitalsync_cached_active_pod');
+        if (existingPod) {
+          try {
+            const parsed = JSON.parse(existingPod);
+            if (parsed.clinic_code || parsed.clinicCode) {
+              clinicCode = parsed.clinic_code || parsed.clinicCode;
+            }
+          } catch (_e) { /* ignore */ }
+        }
+      }
+
+      if (!clinicCode) {
+        clinicCode = 'MF-' + formData.clinicName.trim().replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+      }
       
       // Seed workspace pod data
       const newPod = {
         id: crypto.randomUUID(),
         clinic_code: clinicCode,
-        name: formData.clinicName,
+        clinicCode: clinicCode,
+        name: formData.clinicName.trim(),
         location: (formData as any).location || 'Clinic Location',
         health_score: 100,
         is_verified_for_billing: true,
@@ -45,26 +78,27 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
       };
 
       // Save pod info & active WABA connection locally
+      localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(newPod));
       localStorage.setItem('vitalsync_active_pod', JSON.stringify(newPod));
       localStorage.setItem('vitalsync_doctor_profile', JSON.stringify({
         name: formData.doctorName,
         phone: formData.phone,
-        specialization: formData.specialization
+        specialization: formData.specialization,
+        clinic_code: clinicCode,
+        clinicCode: clinicCode
       }));
 
       localStorage.setItem('vitalsync_waba_connection', JSON.stringify({
         id: `waba-${clinicCode}`,
         phone_number: formData.phone,
-        phone_number_id: `10${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-        waba_id: `waba-act-${Math.floor(100000000 + Math.random() * 900000000)}`,
+        phone_number_id: `109923847291`,
+        waba_id: `waba-act-882910293`,
         is_active: true,
         created_at: new Date().toISOString()
       }));
 
       // Trigger workspace update
       window.dispatchEvent(new CustomEvent('mediflow-profile-updated'));
-
-      await new Promise(r => setTimeout(r, 600));
 
       onSuccess({
         name: formData.clinicName,

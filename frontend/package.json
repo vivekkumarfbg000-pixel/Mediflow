@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite --host",
     "check:ligatures": "node scripts/verify-no-ligatures.js",
-    "build": "node scripts/verify-no-ligatures.js && tsc -b --force && vite build",
-    "build:analyze": "node scripts/verify-no-ligatures.js && tsc -b --force && vite build --mode analyze",
+    "check:invariants": "node scripts/verify-system-invariants.js",
+    "build": "node scripts/verify-system-invariants.js && tsc -b --force && vite build",
+    "build:analyze": "node scripts/verify-system-invariants.js && tsc -b --force && vite build --mode analyze",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "node scripts/verify-no-ligatures.js && tsc --noEmit",
+    "typecheck": "node scripts/verify-system-invariants.js && tsc --noEmit",
     "test": "npm run build",
     "preview": "vite preview",
     "bundle:analyze": "npx vite-bundle-analyzer dist"
