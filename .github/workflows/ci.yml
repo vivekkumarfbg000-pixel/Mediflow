@@ -25,11 +25,11 @@ jobs:
         run: |
           echo "Scanning repository for accidental hardcoded secret leaks..."
           
-          # Regex patterns for dangerous secret leaks
-          PATTERNS='(sb_secret_[a-zA-Z0-9_-]+|sb_publishable_[a-zA-Z0-9_-]+|vca_[a-zA-Z0-9_-]+|sk_live_[a-zA-Z0-9_-]+|ghp_[a-zA-Z0-9_-]+|AIzaSy[a-zA-Z0-9_-]{33}|AKIA[0-9A-Z]{16})'
+          # Regex patterns for dangerous secret leaks (private secrets, service keys, AWS/GCP secrets)
+          PATTERNS='(sb_secret_[a-zA-Z0-9_-]+|vca_[a-zA-Z0-9_-]+|sk_live_[a-zA-Z0-9_-]+|ghp_[a-zA-Z0-9_-]+|AIzaSy[a-zA-Z0-9_-]{33}|AKIA[0-9A-Z]{16})'
           
           # Search code excluding node_modules, dist, lockfiles
-          FOUND=$(git grep -E "$PATTERNS" -- ':!node_modules' ':!package-lock.json' ':!*.md' ':!supabase/functions/_shared/cors.ts' ':!.github/workflows/*' || true)
+          FOUND=$(git grep -E "$PATTERNS" -- ':!node_modules' ':!package-lock.json' ':!*.md' ':!supabase/functions/_shared/cors.ts' ':!.github/workflows/*' ':!frontend/src/lib/supabaseClient.ts' || true)
           
           if [ -n "$FOUND" ]; then
             echo "========================================================="

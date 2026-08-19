@@ -176,34 +176,20 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
       const amountRupees = Number(invoice?.total_amount) || Number(invoice?.totalAmount) || 515;
       const amountPaise = Math.round(amountRupees * 100);
 
-      // Call razorpay-order Deno Edge Function with direct resilient endpoint fallback
+      // Call razorpay-order Deno Edge Function
       let orderId = '';
       let razorpayKeyId = '';
 
       try {
-        const sbUrl = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://kguupaybvbngyzyofjun.supabase.co';
-        const sbKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
-        
-        const res = await fetch(`${sbUrl}/functions/v1/razorpay-order`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': sbKey,
-            'Authorization': `Bearer ${sbKey}`
-          },
-          body: JSON.stringify({ invoiceId, amount: amountRupees })
+        const { data: orderData, error: orderErr } = await supabase.functions.invoke('razorpay-order', {
+          body: { invoiceId, amount: amountRupees }
         });
 
-        if (res.ok) {
-          const orderData = await res.json();
-          orderId = orderData.orderId || orderData.id || '';
-          if (orderData.keyId) razorpayKeyId = orderData.keyId;
-        } else {
-          const { data: orderData } = await supabase.functions.invoke('razorpay-order', {
-            body: { invoiceId, amount: amountRupees }
-          });
-          if (orderData?.orderId) orderId = orderData.orderId;
-          if (orderData?.keyId) razorpayKeyId = orderData.keyId;
+        if (!orderErr && orderData) {
+          if (orderData.success) {
+            orderId = orderData.orderId || orderData.id || '';
+            if (orderData.keyId) razorpayKeyId = orderData.keyId;
+          }
         }
       } catch (e: any) {
         console.warn('[WhatsApp Payment] razorpay-order function warning:', e);
