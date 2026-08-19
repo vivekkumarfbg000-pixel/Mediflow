@@ -470,7 +470,7 @@ export const DoctorDashboard: React.FC = () => {
 
       const apptsQuery = supabase.from('appointments').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
       const ledgersQuery = supabase.from('financial_ledgers').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
-      const patientsQuery = supabase.from('patient_registry').select('*').eq('pod_id', targetPodId).order('registered_at', { ascending: false });
+      const patientsQuery = supabase.from('patient_registry').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
       const sessionsQuery = supabase.from('whatsapp_sessions').select('*').eq('pod_id', targetPodId).order('last_interaction', { ascending: false });
 
       Promise.all([
@@ -481,6 +481,11 @@ export const DoctorDashboard: React.FC = () => {
       ]).then(([apptsRes, ledgersRes, patientsRes, sessionsRes]) => {
         const existingPats = api.getPatients();
         const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
+        if (patientsRes.data) {
+          patientsRes.data.forEach((p: any) => {
+            if (p.id && p.name) patNameMap.set(p.id, p.name);
+          });
+        }
 
         if (apptsRes.data && apptsRes.data.length > 0) {
           const dbAppts: Appointment[] = apptsRes.data.map((a: any) => {
