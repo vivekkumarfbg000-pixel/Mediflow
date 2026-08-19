@@ -2,6 +2,17 @@ import React from 'react';
 import { api } from '../../../services/api';
 import { BillingService } from '../../../services/billingService';
 import type { Patient } from '../../../types';
+import { 
+  Users, 
+  Search, 
+  RefreshCw, 
+  AlertTriangle, 
+  Video, 
+  Brain, 
+  UploadCloud, 
+  CheckCircle2,
+  CalendarCheck 
+} from 'lucide-react';
 
 interface PatientsDirectoryTabProps {
   patients: Patient[];
@@ -196,7 +207,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
         <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl h-full flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">group</span>
+              <Users className="w-5 h-5 text-indigo-600 shrink-0" />
               <h2 className="text-base font-bold text-slate-800">Patient Directory</h2>
             </div>
             <div className="relative">
@@ -207,7 +218,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 onChange={e => setPatientSearchQuery(e.target.value)}
                 className="w-full input-field py-2 pl-9 text-xs"
               />
-              <span className="material-symbols-outlined text-slate-600 absolute left-3 top-2.5 text-sm">search</span>
+              <Search className="text-slate-400 absolute left-3 top-2.5 w-4 h-4 shrink-0" />
             </div>
 
             <div className="space-y-2 lg:max-h-[480px] max-h-none lg:overflow-y-auto pr-1">
@@ -237,14 +248,18 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                       <span className="flex items-center gap-1.5 truncate">
                         <span className="truncate">{p.name}</span>
                         {p.syncStatus === 'pending' && (
-                          <span className="material-symbols-outlined text-[12px] text-amber-555 animate-spin" title="Syncing to Supabase...">sync</span>
+                          <span title="Syncing to Supabase..." className="inline-flex">
+                            <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
+                          </span>
                         )}
                         {p.syncStatus === 'failed' && (
-                          <span className="material-symbols-outlined text-[12px] text-rose-500 animate-pulse" title="Sync failed. Auto-retrying...">report_problem</span>
+                          <span title="Sync failed. Auto-retrying..." className="inline-flex">
+                            <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse shrink-0" />
+                          </span>
                         )}
                         {hasVirtual && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[8px] font-extrabold uppercase tracking-wider animate-pulse">
-                            <span className="material-symbols-outlined text-[10px] font-black text-emerald-800">video_call</span>
+                            <Video className="w-2.5 h-2.5 text-emerald-800 shrink-0" />
                             Virtual
                           </span>
                         )}
@@ -491,7 +506,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   onClick={() => api.dispatchWhatsAppLoyaltyOffer(selectedDirectoryPatient.id, 'quick_booking')}
                   className="p-3 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/50 rounded-xl text-left space-y-2 hover:scale-102 transition-all cursor-pointer border-slate-200"
                 >
-                  <span className="material-symbols-outlined text-amber-600 text-lg">event_available</span>
+                  <CalendarCheck className="w-4 h-4 text-amber-600" />
                   <strong className="block text-[11px] text-slate-700 font-semibold">Portal Invite Link</strong>
                   <p className="text-[9px] text-slate-400 leading-normal">Invoice and home lab sample booking portal.</p>
                 </button>
@@ -502,7 +517,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             <div className="space-y-3 pt-4 border-t border-slate-100">
               <div className="flex justify-between items-center">
                 <h3 className="text-xs font-bold text-slate-705 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm text-secondary">psychology</span>
+                  <Brain className="w-4 h-4 text-indigo-600 shrink-0" />
                   AI Chronic Longitudinal Health Summary
                 </h3>
                 <button
@@ -510,9 +525,9 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     const sum = api.generateAIPatientSummary(selectedDirectoryPatient.id);
                     setPatientRAGSummary(sum);
                   }}
-                  className="text-primary hover:text-primary-700 text-xs font-bold flex items-center gap-0.5 cursor-pointer border-0 bg-transparent"
+                  className="text-primary hover:text-primary-700 text-xs font-bold flex items-center gap-1 cursor-pointer border-0 bg-transparent"
                 >
-                  <span className="material-symbols-outlined text-sm">sync</span> Generate Summary
+                  <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Generate Summary
                 </button>
               </div>
 
@@ -531,7 +546,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-xs rounded-2xl space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-xl">publish</span>
+                  <UploadCloud className="w-5 h-5 text-indigo-600 shrink-0" />
                   <h3 className="text-sm font-bold text-slate-800">Bulk Patient Onboarder</h3>
                 </div>
                 <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase">
@@ -596,10 +611,12 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             </div>
 
             <div className="glass-panel p-10 bg-white border-slate-200/80 shadow-sm rounded-2xl flex flex-col items-center justify-center text-center space-y-3">
-              <span className="material-symbols-outlined text-slate-200 text-5xl">group</span>
+              <Users className="w-12 h-12 text-slate-200 shrink-0" />
               <div>
-                <h3 className="text-slate-700 font-bold text-xs">No Patient Selected</h3>
-                <p className="text-[11px] text-slate-400 mt-1 max-w-sm">Select an active patient registry profile from the directory on the left to dispatch loyalty rewards or generate chronic summaries.</p>
+                <h4 className="text-sm font-bold text-slate-700">No Patient Selected</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                  Select an active patient registry profile from the directory on the left or paste new profiles above.
+                </p>
               </div>
             </div>
           </div>

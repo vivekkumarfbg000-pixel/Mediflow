@@ -20,7 +20,16 @@ import {
   Search, 
   UserPlus, 
   X, 
-  Clock 
+  Clock,
+  HeartPulse,
+  FlaskConical,
+  TestTube2,
+  Pill,
+  Package,
+  MessageSquare,
+  RefreshCw,
+  AlertTriangle,
+  Coins
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -773,7 +782,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <div className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-555 text-[18px]">medical_services</span>
+                  <HeartPulse className="w-4 h-4 text-rose-500 shrink-0" />
                   Triage Alerts & Vitals
                 </h2>
                 <span className="text-[10px] font-bold px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/30 text-rose-700 dark:text-rose-400 rounded-full font-mono">
@@ -783,8 +792,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
                 {criticalPatients.length === 0 ? (
-                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     All waiting patients are stable
                   </div>
                 ) : (
@@ -831,16 +840,16 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <div className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-teal-555 text-[18px]">biotech</span>
+                  <FlaskConical className="w-4 h-4 text-teal-500 shrink-0" />
                   Lab Reports Sign-Off
                 </h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={restockAllReagents}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-white transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-white transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
                     title="Restock Lab Reagents (+500ml)"
                   >
-                    <span className="material-symbols-outlined text-sm">science</span>
+                    <TestTube2 className="w-3.5 h-3.5 shrink-0" />
                     Restock Reagents
                   </button>
                   <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/30 text-teal-700 dark:text-teal-400 rounded-full shrink-0">
@@ -851,8 +860,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
               <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-0.5">
                 {pendingReports.length === 0 ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs text-center rounded-xl flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs text-center rounded-xl flex items-center justify-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     All lab reports signed off
                   </div>
                 ) : (
@@ -926,16 +935,16 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <div className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-violet-555 text-[18px]">medication</span>
+                  <Pill className="w-4 h-4 text-violet-500 shrink-0" />
                   E-Rx Fulfillment
                 </h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={restockPharmacyOOS}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-violet-700 dark:text-violet-400 hover:text-violet-850 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-violet-700 dark:text-violet-400 hover:text-violet-850 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
                     title="Restock Low Stock Pharmacy SKUs (+100 items)"
                   >
-                    <span className="material-symbols-outlined text-sm">inventory_2</span>
+                    <Package className="w-3.5 h-3.5 shrink-0" />
                     Restock SKUs
                   </button>
                   <span className="text-[10px] font-bold px-2.5 py-0.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850/30 text-violet-700 dark:text-violet-400 rounded-full font-mono shrink-0">
@@ -946,8 +955,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
               <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
                 {groupedHolds.filter(g => g.status === 'held').length === 0 ? (
-                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     All prescriptions dispensed
                   </div>
                 ) : (
@@ -988,16 +997,16 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <div className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-emerald-555 text-[18px]">chat_bubble</span>
+                  <MessageSquare className="w-4 h-4 text-emerald-500 shrink-0" />
                   Patient Inquiries Feed
                 </h2>
                 {sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length > 0 && (
                   <button
                     onClick={triggerFailedMessageRetry}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-rose-600 dark:text-rose-455 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-rose-600 dark:text-rose-455 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
                     title="Flush and retry all failed messages"
                   >
-                    <span className="material-symbols-outlined text-sm">sync_problem</span>
+                    <RefreshCw className="w-3.5 h-3.5 shrink-0" />
                     Retry Failed ({sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length})
                   </button>
                 )}
@@ -1051,14 +1060,14 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <div className="h-1 w-full bg-amber-500 absolute top-0 left-0" />
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-550 text-[18px]">payments</span>
+                <Coins className="w-4 h-4 text-amber-500 shrink-0" />
                 Revenue Split Ledger
               </h2>
               <span className="text-[10px] font-mono font-semibold text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 px-2 py-0.5 rounded-full">Bihar Zone</span>
             </div>
 
             {/* KPI Cards */}
-              <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="grid grid-cols-3 gap-3 mb-5">
                 <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/75 dark:border-white/5 rounded-xl text-center shadow-xs">
                   <div className="text-[9px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-widest">Gross</div>
                   <div className="text-sm font-bold font-mono mt-1 text-slate-900 dark:text-white">₹{financialMetrics.grossRev.toLocaleString('en-IN')}</div>
@@ -1133,7 +1142,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           <div className="absolute top-0 left-0 w-full h-1 bg-rose-500" />
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-rose-100 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/30 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-rose-600 dark:text-rose-455 text-[20px] animate-pulse">warning</span>
+              <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-455 animate-pulse shrink-0" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-rose-800 dark:text-rose-400">Critical Triage Alert</h3>

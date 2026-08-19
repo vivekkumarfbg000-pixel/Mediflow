@@ -53,7 +53,20 @@ import {
   Activity,
   LogOut,
   Users,
-  Stethoscope
+  Stethoscope,
+  Calendar,
+  CalendarCheck,
+  CalendarPlus,
+  Clock,
+  Video,
+  Layers,
+  FlaskConical,
+  ShoppingBag,
+  CheckCircle2,
+  AlertTriangle,
+  HeartPulse,
+  UserPlus,
+  Phone
 } from 'lucide-react';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
@@ -1938,10 +1951,7 @@ export const CompounderDashboard: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="Enter Staff Name"
-                    value={newStaffName}
-                    onChange={(e) => setNewStaffName(e.target.value)}
-                    className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-850 rounded-lg"
+                      className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-850 rounded-lg"
                   />
                   <div className="flex gap-2">
                     <select
@@ -1981,7 +1991,7 @@ export const CompounderDashboard: React.FC = () => {
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px]">queue</span>
+                <Layers className="w-4 h-4 shrink-0" />
                 Today's Active OPD Queue 🏥
                 <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
                   {appointments.length}
@@ -1995,7 +2005,7 @@ export const CompounderDashboard: React.FC = () => {
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                <Calendar className="w-4 h-4 shrink-0" />
                 Doctor Schedules & Advance Bookings 📅
                 <span className="ml-1 bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
                   {appointments.filter(a => a.is_virtual || a.isVirtual || (a.virtual_date && a.virtual_date !== new Date().toISOString().split('T')[0]) || (a.virtualDate && a.virtualDate !== new Date().toISOString().split('T')[0])).length}
@@ -2011,7 +2021,7 @@ export const CompounderDashboard: React.FC = () => {
                   <div className="flex items-center justify-between gap-4 mb-4">
                     <div>
                       <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-cyan-500 text-[20px]">videocam</span>
+                        <Video className="w-5 h-5 text-cyan-500 shrink-0" />
                         Virtual Video Consultations Roster (वर्चुअल वीडियो परामर्श)
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -2025,7 +2035,7 @@ export const CompounderDashboard: React.FC = () => {
 
                   {appointments.filter(a => a.is_virtual || a.isVirtual).length === 0 ? (
                     <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
-                      <span className="material-symbols-outlined text-3xl text-slate-400 mb-2">videocam_off</span>
+                      <Video className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50 shrink-0" />
                       <p className="text-xs font-medium text-slate-500 dark:text-slate-400">No virtual video appointments scheduled for today.</p>
                     </div>
                   ) : (
@@ -2057,7 +2067,7 @@ export const CompounderDashboard: React.FC = () => {
                                 <span className="text-xs font-normal text-slate-500">({pat?.phone || 'N/A'})</span>
                               </h4>
                               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[14px]">schedule</span>
+                                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                 Slot: {appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'} · Date: {appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
                               </p>
                             </div>
@@ -2069,8 +2079,7 @@ export const CompounderDashboard: React.FC = () => {
                                 rel="noreferrer"
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-sm"
                               >
-                                <span className="material-symbols-outlined text-[16px]">videocam</span>
-                                Join Video Call 💻
+                                Join Video Room
                               </a>
                             </div>
                           </div>
@@ -2142,7 +2151,7 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-purple-600 opacity-80" />
                   <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-purple-500 text-[20px]">calendar_view_week</span>
+                    <Calendar className="w-5 h-5 text-purple-500 shrink-0" />
                     Doctor Weekly Roster & Slot Capacity Matrix (डॉक्टर समय सारणी)
                   </h2>
 
@@ -2185,7 +2194,7 @@ export const CompounderDashboard: React.FC = () => {
                   <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
                     <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-indigo-500 text-[18px]">calendar_today</span>
+                      <CalendarPlus className="w-4 h-4 text-indigo-500 shrink-0" />
                       Book Consultation Appointment (अपॉइंटमेंट बुकिंग)
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">

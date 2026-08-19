@@ -6,6 +6,23 @@
 @custom-variant dark (&:where(.dark, .dark *));
 @config "../tailwind.config.js";
 
+/* Static @font-face fallback definitions for Material Symbols and Icons */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url(https://fonts.gstatic.com/s/materialsymbolsoutlined/v218/kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPknoUcbi-TDzg.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url(https://fonts.gstatic.com/s/materialicons/v142/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2) format('woff2');
+}
+
 /* Mandatory Material Symbols Font Ligature Enforcer */
 .material-symbols-outlined,
 .material-icons {

@@ -15,7 +15,8 @@ import {
   Users, FlaskConical, Package, FileText, MessageSquare,
   TrendingUp, ClipboardList, Stethoscope, AlertTriangle,
   Wifi, DatabaseZap, RefreshCw, Plus, TestTube2,
-  Syringe, Calendar, CreditCard, Bot, ShieldOff
+  Syringe, Calendar, CreditCard, Bot, ShieldOff,
+  CheckCircle2, CalendarCheck, Pill, Receipt
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -336,7 +337,7 @@ export function EmptyState({
 // Use instead of: <p className="text-xs text-slate-500">No pending draws. Queue is clear ✓</p>
 
 interface InlineEmptyStateProps {
-  icon?: string;  // material-symbols-outlined icon name
+  icon?: React.ReactNode;
   label: string;
   sublabel?: string;
   variant?: 'neutral' | 'success' | 'warning';
@@ -344,7 +345,7 @@ interface InlineEmptyStateProps {
 }
 
 export function InlineEmptyState({
-  icon = 'check_circle',
+  icon,
   label,
   sublabel,
   variant = 'neutral',
@@ -378,8 +379,12 @@ export function InlineEmptyState({
       className={`flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-xl border ${c.container} ${className}`}
       role="status"
     >
-      <div className="w-8 h-8 flex items-center justify-center shrink-0 overflow-hidden">
-        <span className={`material-symbols-outlined text-2xl ${c.icon}`}>{icon}</span>
+      <div className={`w-8 h-8 flex items-center justify-center shrink-0 overflow-hidden ${c.icon}`}>
+        {typeof icon === 'string' ? (
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+        ) : (
+          icon || <CheckCircle2 className="w-5 h-5 shrink-0" />
+        )}
       </div>
       <p className={`text-[11px] font-semibold tracking-wide uppercase text-center leading-tight ${c.label}`}>
         {label}
@@ -402,37 +407,37 @@ interface ZeroQueueStateProps {
 }
 
 const QUEUE_CONFIGS: Record<ZeroQueueStateProps['queueType'], {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   sublabel: string;
 }> = {
   lab_draws: {
-    icon: 'science',
+    icon: <FlaskConical className="w-5 h-5 shrink-0" />,
     label: 'Queue is Clear',
     sublabel: 'All pending draws have been processed.',
   },
   patient_queue: {
-    icon: 'groups',
+    icon: <Users className="w-5 h-5 shrink-0" />,
     label: 'No Patients in Queue',
     sublabel: 'Patients registered by the compounder will appear here.',
   },
   appointments: {
-    icon: 'event_available',
+    icon: <CalendarCheck className="w-5 h-5 shrink-0" />,
     label: 'No Appointments Today',
     sublabel: 'Bookings via WhatsApp or portal will appear here.',
   },
   prescriptions: {
-    icon: 'medication',
+    icon: <Pill className="w-5 h-5 shrink-0" />,
     label: 'No Pending Prescriptions',
     sublabel: 'Prescriptions awaiting payment will appear here.',
   },
   billing: {
-    icon: 'receipt_long',
+    icon: <Receipt className="w-5 h-5 shrink-0" />,
     label: 'No Pending Bills',
     sublabel: 'Bills from completed consultations will appear here.',
   },
   lab_orders: {
-    icon: 'biotech',
+    icon: <TestTube2 className="w-5 h-5 shrink-0" />,
     label: 'No Lab Orders',
     sublabel: 'Doctor-requested test requisitions will appear here.',
   },
