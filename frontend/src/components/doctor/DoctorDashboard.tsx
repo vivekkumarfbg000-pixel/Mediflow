@@ -561,9 +561,13 @@ export const DoctorDashboard: React.FC = () => {
             age: String(p.age || 30),
             gender: p.gender || 'Male',
             referral_code: p.referral_code,
-            allergies: [],
-            chronicConditions: [],
-            createdAt: p.registered_at || new Date().toISOString()
+            tokenNumber: p.token_number || p.tokenNumber || undefined,
+            token_number: p.token_number || p.tokenNumber || undefined,
+            queueStatus: p.queue_status || p.queueStatus || 'awaiting_consultation',
+            queue_status: p.queue_status || p.queueStatus || 'awaiting_consultation',
+            allergies: p.allergies || [],
+            chronicConditions: p.chronic_conditions || [],
+            createdAt: p.created_at || new Date().toISOString()
           } as any));
 
           const localPatients = api.getPatients();

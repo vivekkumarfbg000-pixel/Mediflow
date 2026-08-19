@@ -2053,11 +2053,25 @@ async function triggerBotReplyPipeline(ctx: {
             console.error("[Meta Webhook] Error creating appointment record:", err);
           }
 
-          // Insert Unified Invoice Row matching Postgres schema
+          // Insert Encounter and Unified Invoice Row matching Postgres schema
+          const newEncounterId = crypto.randomUUID();
+          try {
+            await supabase.from("encounters").insert({
+              id: newEncounterId,
+              patient_id: bookingPatId,
+              doctor_id: doctorId,
+              entity_id: "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
+              pod_id: safePodId,
+              status: "active"
+            });
+          } catch (encErr) {
+            console.error("[Meta Webhook] Error creating encounter record:", encErr);
+          }
+
           try {
             const { error: invErr } = await supabase.from("unified_invoices").insert({
               id: newInvoiceId,
-              encounter_id: crypto.randomUUID(),
+              encounter_id: newEncounterId,
               patient_id: bookingPatId,
               doctor_fee: doctorFee,
               lab_fee: 0,
