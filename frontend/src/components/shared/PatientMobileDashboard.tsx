@@ -23,7 +23,11 @@ import {
   Sparkles,
   LogOut,
   X,
-  User
+  User,
+  Pill,
+  Brain,
+  Calendar,
+  QrCode
 } from 'lucide-react';
 import { MobileNav } from './MobileNav';
 import { MetricCard } from './MetricCard';
@@ -487,7 +491,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       <div className="flex justify-between items-center">
                         <div className="flex gap-2.5 items-center">
                           <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-cyan-400 shrink-0">
-                            <span className="material-symbols-outlined text-sm">pill</span>
+                            <Pill className="w-4 h-4" />
                           </div>
                           <div>
                             <h5 className="font-extrabold text-white text-[11px]">Metformin 500mg</h5>
@@ -500,7 +504,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       <div className="flex justify-between items-center">
                         <div className="flex gap-2.5 items-center">
                           <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-emerald-400 shrink-0">
-                            <span className="material-symbols-outlined text-sm">pill</span>
+                            <Pill className="w-4 h-4" />
                           </div>
                           <div>
                             <h5 className="font-extrabold text-white text-[11px]">Atorvastatin 10mg</h5>
@@ -584,7 +588,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                             {translatedRagReportId === rep.id ? (
                               isRagTranslating ? (
                                 <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl animate-pulse text-center space-y-2 text-cyan-400">
-                                  <span className="material-symbols-outlined text-lg animate-spin">sync</span>
+                                  <RefreshCw className="w-5 h-5 mx-auto animate-spin" />
                                   <p className="text-[8px] font-bold font-mono tracking-widest uppercase">Running Vector RAG Translation...</p>
                                 </div>
                               ) : (
@@ -607,7 +611,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                                 onClick={() => handleTranslateRAG(rep.id, rep.testName, rep.results || '')}
                                 className="w-full py-2 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white font-bold text-[9px] uppercase tracking-wider rounded-xl transition-all shadow-md flex justify-center items-center gap-1 cursor-pointer"
                               >
-                                <span className="material-symbols-outlined text-xs">psychology</span>
+                                <Brain className="w-3.5 h-3.5" />
                                 Run plain-language RAG AI Advisor
                               </button>
                             )}
@@ -641,7 +645,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         <p className="text-[8px] text-cyan-200">ABHA No: 12-3456-7890-1234</p>
                       </div>
                       <div className="w-8 h-8 bg-white/10 border border-slate-200/60 rounded-xl flex items-center justify-center">
-                        <span className="material-symbols-outlined text-lg text-cyan-300 font-bold">badge</span>
+                        <ShieldCheck className="w-5 h-5 text-cyan-300 font-bold" />
                       </div>
                     </div>
 
@@ -836,7 +840,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       <div className="flex justify-between items-start">
                         <div className="flex gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-cyan-400 shrink-0">
-                            <span className="material-symbols-outlined text-sm font-bold">pill</span>
+                            <Pill className="w-4 h-4" />
                           </div>
                           <div>
                             <h4 className="font-extrabold text-white text-[11px]">Metformin 500mg</h4>
@@ -858,7 +862,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       <div className="flex justify-between items-start">
                         <div className="flex gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-white/5 border border-slate-200/60 flex items-center justify-center text-emerald-400 shrink-0">
-                            <span className="material-symbols-outlined text-sm font-bold">pill</span>
+                            <Pill className="w-4 h-4" />
                           </div>
                           <div>
                             <h4 className="font-extrabold text-white text-[11px]">Atorvastatin 10mg</h4>
@@ -996,7 +1000,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
               {activeTab === 'book_appointment' && (
                 <div className="space-y-4 animate-fade-in text-white text-left">
                   <h3 className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wide">
-                    <span className="material-symbols-outlined text-cyan-400 text-base">calendar_month</span>
+                    <Calendar className="w-4 h-4 text-cyan-400 shrink-0" />
                     Book Family/Friend Appointment
                   </h3>
                   
@@ -1125,7 +1129,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                           type="submit"
                           className="w-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider py-2.5 transition-all shadow-md flex justify-center items-center gap-1.5 cursor-pointer text-white-force"
                         >
-                          <span className="material-symbols-outlined text-xs text-white-force">lock</span>
+                          <Lock className="w-3.5 h-3.5 text-white-force" />
                           Register & Pay OPD Fee (₹500)
                         </button>
                       </div>
@@ -1153,7 +1157,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       onClick={() => setIsUpiModalOpen(false)}
                       className="p-1 hover:bg-white/5 rounded-full text-zinc-400"
                     >
-                      <span className="material-symbols-outlined text-sm font-bold">close</span>
+                      <X className="w-4 h-4 font-bold" />
                     </button>
                   </div>
 
@@ -1211,12 +1215,12 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       >
                         {isPaying ? (
                           <>
-                            <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                             Processing secure split payout...
                           </>
                         ) : (
                           <>
-                            <span className="material-symbols-outlined text-xs text-white-force font-bold">lock</span>
+                            <Lock className="w-3.5 h-3.5 text-white-force font-bold" />
                             Pay UPI splits (₹{activeUpiInvoice.totalAmount}.00)
                           </>
                         )}
@@ -1269,7 +1273,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         disabled={isPaying}
                         className="w-full py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white-force cursor-pointer shadow-md flex justify-center items-center gap-2"
                       >
-                        <span className="material-symbols-outlined text-sm text-white-force">qr_code_2</span>
+                        <QrCode className="w-4 h-4 text-white-force" />
                         <span>Pay via Razorpay (0% MDR Gateway)</span>
                       </button>
                     </div>

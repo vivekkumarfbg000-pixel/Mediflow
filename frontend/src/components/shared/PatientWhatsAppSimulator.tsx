@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import type { Patient, WhatsAppSession, ChatMessage } from '../../types';
-import { Send, Check, Phone, Video, MoreVertical, ShieldAlert, Award, Smartphone } from 'lucide-react';
+import { Send, Check, Phone, Video, MoreVertical, ShieldAlert, Award, Smartphone, Play, Pause, Mic, X, Receipt, Camera, QrCode } from 'lucide-react';
 
 interface PatientWhatsAppSimulatorProps {
   isOpen: boolean;
@@ -27,9 +27,11 @@ const VoiceNotePlayer: React.FC<{
         onClick={onTogglePlay}
         className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer shrink-0"
       >
-        <span className="material-symbols-outlined text-xl">
-          {isPlaying ? 'pause' : 'play_arrow'}
-        </span>
+        {isPlaying ? (
+          <Pause className="w-4 h-4 text-white shrink-0 fill-current" />
+        ) : (
+          <Play className="w-4 h-4 text-white shrink-0 fill-current ml-0.5" />
+        )}
       </button>
 
       <div className="flex-1 flex flex-col gap-1 min-w-0">
@@ -52,7 +54,7 @@ const VoiceNotePlayer: React.FC<{
         <div className="flex justify-between items-center text-[8.5px] text-slate-500 font-mono">
           <span>{isPlaying ? displayTime : '0:14'}</span>
           <span className="flex items-center gap-0.5 text-emerald-600 font-bold">
-            <span className="material-symbols-outlined text-[10px]">mic</span>
+            <Mic className="w-2.5 h-2.5 shrink-0" />
             Voice Note
           </span>
         </div>
@@ -226,7 +228,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
           onClick={onClose}
           className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
         >
-          <span className="material-symbols-outlined text-sm font-bold">close</span>
+          <X className="w-4 h-4" />
         </button>
       </div>
 
@@ -372,7 +374,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
               <div className="bg-white rounded-2xl p-3.5 border border-primary/20 shadow-xl text-slate-800 self-center max-w-[92%] space-y-3.5 animate-fade-in">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                   <div className="flex gap-1.5 items-center text-primary font-bold text-xs">
-                    <span className="material-symbols-outlined text-sm">payments</span>
+                    <Receipt className="w-4 h-4 shrink-0 text-primary" />
                     Unified Care Invoice
                   </div>
                   <span className="text-[8px] font-mono bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>
@@ -394,7 +396,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                     onClick={() => handleSendMessage('UPI Payment Screenshot: UTR 620584739102 for ₹515.00')}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 text-center text-xs font-bold rounded-lg hover:scale-102 transition-transform flex justify-center items-center gap-1.5 cursor-pointer text-white-force shadow-md shadow-emerald-600/20"
                   >
-                    <span className="material-symbols-outlined text-xs">photo_camera</span>
+                    <Camera className="w-3.5 h-3.5 shrink-0" />
                     Simulate Direct UPI Screenshot (0% MDR AI OCR)
                   </button>
 
@@ -402,7 +404,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                     onClick={() => handleSendMessage('pay')}
                     className="w-full btn-primary py-2 text-center text-xs font-bold rounded-lg hover:scale-102 transition-transform flex justify-center items-center gap-1.5 text-white-force"
                   >
-                    <span className="material-symbols-outlined text-xs">qr_code_scanner</span>
+                    <QrCode className="w-3.5 h-3.5 shrink-0" />
                     Settle Invoice via Standard UPI Gateway
                   </button>
                 </div>

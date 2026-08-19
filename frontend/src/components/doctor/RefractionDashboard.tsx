@@ -23,7 +23,10 @@ import {
   Clock, 
   ChevronRight,
   TrendingUp,
-  Inbox
+  Inbox,
+  Glasses,
+  Monitor,
+  Gauge
 } from 'lucide-react';
 import { ZeroQueueState } from '../shared/EmptyState';
 
@@ -416,7 +419,7 @@ export const RefractionDashboard: React.FC = () => {
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-905 flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-indigo-650 text-base font-bold">visibility</span>
+                    <Eye className="w-4 h-4 text-indigo-650 font-bold shrink-0" />
                     Refraction & Eye Diagnostics (अपवर्तन जांच)
                   </h2>
                   <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Recording ophthalmic metrics for: <strong>{refractionPatient.name}</strong></p>
@@ -434,7 +437,7 @@ export const RefractionDashboard: React.FC = () => {
                 {/* Visual Acuity */}
                 <div className="space-y-3 bg-slate-50 p-4 border border-slate-200 rounded-2xl">
                   <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-indigo-500 text-xs font-black">visibility</span>
+                    <Eye className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                     Visual Acuity (दृष्टि तीक्ष्णता)
                   </h3>
                   
@@ -490,7 +493,7 @@ export const RefractionDashboard: React.FC = () => {
                 {/* Autorefraction */}
                 <div className="space-y-3 bg-slate-50 p-4 border border-slate-200 rounded-2xl">
                   <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-indigo-500 text-xs font-black">computer</span>
+                    <Monitor className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                     Autorefractometer (AR) Readings (कंप्यूटर जांच)
                   </h3>
                   
@@ -517,7 +520,7 @@ export const RefractionDashboard: React.FC = () => {
                 {/* Subjective Spectacle Power */}
                 <div className="space-y-3 bg-slate-50 p-4 border border-slate-200 rounded-2xl">
                   <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-indigo-500 text-xs font-black">eyeglasses</span>
+                    <Glasses className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                     Subjective Spec Trial (चश्मा फाइनल पावर)
                   </h3>
                   <OphthalmicRefractionGrid value={subjectiveRx} onChange={setSubjectiveRx} />
@@ -526,7 +529,7 @@ export const RefractionDashboard: React.FC = () => {
                 {/* Intraocular Pressure */}
                 <div className="space-y-3 bg-slate-50 p-4 border border-slate-200 rounded-2xl">
                   <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-indigo-500 text-xs font-black">speed</span>
+                    <Gauge className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                     Tonometry / Intraocular Pressure (IOP)
                   </h3>
                   

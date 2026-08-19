@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Landmark, RefreshCw, CheckCircle2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useSplitValidation, SplitValidationGate } from '../../hooks/useSplitValidation.tsx';
 import type { SplitNode } from '../../hooks/useSplitValidation.tsx';
@@ -157,7 +158,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
   if (loading) {
     return (
       <div className={`p-6 rounded-2xl flex items-center justify-center ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
-        <span className="material-symbols-outlined animate-spin text-xl">autorenew</span>
+        <RefreshCw className="animate-spin text-xl w-5 h-5 shrink-0" />
         <span className="text-xs ml-2">Loading banking configurations...</span>
       </div>
     );
@@ -172,7 +173,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
       }`}>
         <div>
           <h2 className="text-sm font-bold flex items-center gap-1.5">
-            <span className={`material-symbols-outlined text-base font-bold ${isDark ? 'text-secondary' : 'text-primary'}`}>account_balance</span>
+            <Landmark className={`w-4 h-4 shrink-0 font-bold ${isDark ? 'text-secondary' : 'text-primary'}`} />
             {displayName} Bank Onboarding (Cashfree splits)
           </h2>
           <p className={`text-[10px] mt-0.5 ${isDark ? 'text-clinical-400' : 'text-slate-400'}`}>
@@ -207,7 +208,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold shadow-sm ${
               isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100/60 text-emerald-600'
             }`}>
-              <span className="material-symbols-outlined text-xl">verified</span>
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -237,7 +238,9 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         <div className={`p-8 border border-dashed rounded-2xl text-center space-y-2 ${
           isDark ? 'border-outline-variant bg-slate-800/20' : 'border-slate-200 bg-slate-50/50'
         }`}>
-          <span className={`material-symbols-outlined text-4xl ${isDark ? 'text-clinical-500' : 'text-slate-600'}`}>account_balance</span>
+          <div className="flex justify-center">
+            <Landmark className={`w-10 h-10 ${isDark ? 'text-clinical-500' : 'text-slate-600'}`} />
+          </div>
           <div>
             <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>No Settlement Account Configured</h4>
             <p className={`text-[10px] mt-1 max-w-sm mx-auto ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
@@ -272,7 +275,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
             <div className="flex justify-between items-start">
               <div>
                 <h3 className={`text-sm font-extrabold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                  <span className={`material-symbols-outlined font-bold ${isDark ? 'text-secondary' : 'text-primary'}`}>account_balance</span>
+                  <Landmark className={`w-4 h-4 font-bold shrink-0 ${isDark ? 'text-secondary' : 'text-primary'}`} />
                   Bank Settlements Setup
                 </h3>
                 <p className={`text-[11px] mt-1 ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
@@ -285,7 +288,7 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
                   isDark ? 'text-clinical-400 hover:text-white' : 'text-slate-600 hover:text-slate-600'
                 }`}
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <X className="w-5 h-5" />
               </button>
             </div>
 

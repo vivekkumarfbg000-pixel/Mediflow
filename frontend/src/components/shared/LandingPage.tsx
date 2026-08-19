@@ -3,7 +3,7 @@ import { BrandMark } from './BrandMark';
 import { AppInstallBanner } from './AppInstallBanner';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye
+  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye, MessageSquare
 } from 'lucide-react';
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
@@ -879,7 +879,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 onClick={handleContactSupport}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-all shadow-sm cursor-pointer select-none font-sans text-xs"
               >
-                <span className="material-symbols-outlined text-sm font-bold text-white leading-none">chat</span>
+                <MessageSquare className="w-4 h-4 text-white shrink-0" />
                 <span>Contact Support via WhatsApp</span>
               </button>
             </div>

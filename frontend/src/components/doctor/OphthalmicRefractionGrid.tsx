@@ -1,4 +1,5 @@
 import React from 'react';
+import { Eye } from 'lucide-react';
 import type { RefractionRx } from '../../types/ophthalmic';
 
 interface OphthalmicRefractionGridProps {
@@ -146,7 +147,7 @@ export const OphthalmicRefractionGrid: React.FC<OphthalmicRefractionGridProps> =
     <div className="glass-panel p-5 border-slate-200/80 shadow-sm bg-white space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <span className="material-symbols-outlined text-indigo-500 text-lg">visibility</span>
+          <Eye className="w-4 h-4 text-indigo-500 shrink-0" />
           Spectacle / Lens Refraction Rx
         </h3>
         <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
