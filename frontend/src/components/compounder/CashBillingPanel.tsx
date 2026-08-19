@@ -1,4 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  Pill, 
+  FlaskConical, 
+  AlertTriangle, 
+  MinusCircle, 
+  PlusCircle, 
+  Percent, 
+  AlertCircle, 
+  CheckCircle2, 
+  RefreshCw, 
+  Receipt 
+} from 'lucide-react';
 
 // =============================================================================
 // Mediflow — CashBillingPanel
@@ -146,9 +158,11 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <span className="material-symbols-outlined text-base text-emerald-600">
-              {entityType === 'pharmacy' ? 'medication' : 'biotech'}
-            </span>
+            {entityType === 'pharmacy' ? (
+              <Pill className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <FlaskConical className="w-4 h-4 text-emerald-600 shrink-0" />
+            )}
             Cash {entityType === 'pharmacy' ? 'Pharmacy' : 'Lab'} Billing
           </h2>
           <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
@@ -177,7 +191,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
       {/* Low pool notice */}
       {isPoolLow && (
         <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl px-4 py-3">
-          <span className="material-symbols-outlined text-amber-600 text-base mt-0.5">warning</span>
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-[11px] text-amber-700 dark:text-amber-300">
             Pool balance is below ₹200. Cash commissions will be deferred and collected from your next online payment settlements.
           </p>
@@ -225,18 +239,18 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
             <button
               onClick={() => removeItem(idx)}
               disabled={items.length === 1}
-              className="col-span-1 flex justify-center text-slate-400 hover:text-red-500 disabled:opacity-30 transition-colors"
+              className="col-span-1 flex justify-center text-slate-400 hover:text-red-500 disabled:opacity-30 transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-base">remove_circle</span>
+              <MinusCircle className="w-4 h-4" />
             </button>
           </div>
         ))}
 
         <button
           onClick={addItem}
-          className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-semibold transition-colors mt-1"
+          className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-semibold transition-colors mt-1 cursor-pointer"
         >
-          <span className="material-symbols-outlined text-base">add_circle</span>
+          <PlusCircle className="w-4 h-4" />
           Add item
         </button>
       </div>
@@ -260,7 +274,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
           </div>
           <div className="flex justify-between text-indigo-600 dark:text-indigo-400">
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[12px]">percent</span>
+              <Percent className="w-3 h-3" />
               Platform fee (3%)
             </span>
             <span className="font-mono font-bold">₹{commissionAmount.toFixed(2)}</span>
@@ -274,7 +288,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
       {/* Error */}
       {error && (
         <div className="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40 rounded-xl px-4 py-3">
-          <span className="material-symbols-outlined text-red-500 text-base mt-0.5">error</span>
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
           <p className="text-[11px] text-red-700 dark:text-red-300">{error}</p>
         </div>
       )}
@@ -283,7 +297,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
       {result && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-xl px-4 py-3 space-y-1">
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-sm">
-            <span className="material-symbols-outlined text-base">check_circle</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             Cash bill recorded successfully
           </div>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
@@ -300,16 +314,16 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
       <button
         onClick={handleSubmit}
         disabled={loading || !isValid || grossAmount <= 0}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors"
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors cursor-pointer"
       >
         {loading ? (
           <>
-            <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+            <RefreshCw className="w-4 h-4 animate-spin" />
             Recording...
           </>
         ) : (
           <>
-            <span className="material-symbols-outlined text-base">receipt_long</span>
+            <Receipt className="w-4 h-4" />
             Record ₹{grossAmount.toFixed(2)} Cash Sale
           </>
         )}

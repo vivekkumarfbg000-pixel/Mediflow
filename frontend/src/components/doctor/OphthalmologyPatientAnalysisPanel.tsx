@@ -1,6 +1,7 @@
 import React from 'react';
 import type { HistoricalBiomarker, Patient } from '../../types';
 import { getAcuityRank, OPHTHALMIC_EYE_CARE_COPY } from '../../types/ophthalmic';
+import { FileText, X, AlertTriangle, CheckCircle2, FolderArchive, FlaskConical } from 'lucide-react';
 
 interface OphthalmologyPatientAnalysisPanelProps {
   selectedPatient: Patient | null;
@@ -75,7 +76,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-800 text-2xl font-bold">clinical_notes</span>
+                <FileText className="w-6 h-6 text-indigo-800 shrink-0 font-bold" />
                 <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider font-sans">{OPHTHALMIC_EYE_CARE_COPY.analysisTitle}</h2>
               </div>
               <p className="text-xs text-slate-600 mt-1">
@@ -95,7 +96,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                 onClick={onCloseAnalysis}
                 className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors cursor-pointer border-0"
               >
-                <span className="material-symbols-outlined text-base">close</span>
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -164,7 +165,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                   <div className="space-y-2">
                     {complications.map((item, index) => (
                       <div key={index} className="p-3 bg-rose-50 border border-rose-200/60 rounded-xl flex items-center gap-2.5 text-xs text-rose-800">
-                        <span className="material-symbols-outlined text-rose-600 text-sm shrink-0">warning</span>
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                         <span className="font-bold">{item}</span>
                       </div>
                     ))}
@@ -176,11 +177,11 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                 <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">4. Safe Prescribing Directives</h3>
                 <div className="p-4 bg-indigo-50 border border-indigo-200/60 rounded-2xl text-[11px] text-indigo-800 space-y-2">
                   <div className="flex gap-2 animate-fade-in">
-                    <span className="material-symbols-outlined text-xs text-indigo-800 shrink-0 font-bold">check_circle</span>
+                    <CheckCircle2 className="w-3 h-3 text-indigo-800 shrink-0 font-bold mt-0.5" />
                     <span>{isIopHigh ? 'STRICT CONFLICT: Avoid dilating drops (Atropine/Tropicamide) to prevent acute angle closure.' : 'Dilating drops cleared within safe intraocular pressure thresholds.'}</span>
                   </div>
                   <div className="flex gap-2 animate-fade-in">
-                    <span className="material-symbols-outlined text-xs text-indigo-800 shrink-0 font-bold">check_circle</span>
+                    <CheckCircle2 className="w-3 h-3 text-indigo-800 shrink-0 font-bold mt-0.5" />
                     <span>{isAcuityDropped ? 'Review spectacle prescription. Reroute to Optical Shop for lens grinding.' : 'Visual acuity cleared within functional limits.'}</span>
                   </div>
                 </div>
@@ -205,7 +206,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
     <>
       <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white mt-4">
         <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-lg">folder_zip</span>
+          <FolderArchive className="w-4 h-4 text-primary shrink-0" />
           {OPHTHALMIC_EYE_CARE_COPY.timelineTitle}
         </h2>
         <p className="text-[10px] text-slate-600 mb-4">{OPHTHALMIC_EYE_CARE_COPY.timelineSubtitle}</p>
@@ -223,8 +224,8 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                 className="w-full text-left p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex justify-between items-center w-full">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-xs text-indigo-500">labs</span>
+                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                     Report Dated: {report.date}
                   </span>
                   <span className="text-[8px] bg-indigo-50 border border-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider font-mono">

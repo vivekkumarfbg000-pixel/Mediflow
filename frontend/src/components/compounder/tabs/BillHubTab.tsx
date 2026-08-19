@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle
+  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { EncounterService } from '../../../services/encounterService';
@@ -1428,7 +1428,7 @@ export const BillHubTab: React.FC = () => {
                       {/* Premium Care Club Membership alert banners */}
                       {billingLedger.isRefillPurchase && (
                         <div className="p-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-start gap-1.5 mb-2 text-left animate-fade-in select-none">
-                          <span className="material-symbols-outlined text-emerald-500 text-xs mt-0.5 font-bold">verified</span>
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
                           <div className="text-[9px] text-emerald-850 dark:text-emerald-300 leading-normal font-semibold">
                             <span className="font-bold block uppercase text-[8px] tracking-wider text-emerald-700">Premium Club Active</span>
                             Flat 10% discount on refills automatically applied to medicines.

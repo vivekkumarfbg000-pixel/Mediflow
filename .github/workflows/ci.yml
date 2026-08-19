@@ -76,6 +76,10 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: 🛡️ Verify Zero Unrendered Font Ligatures (Vector SVG Guard)
+        run: npm run check:ligatures
+        continue-on-error: false
+
       - name: TypeScript strict type check
         run: npx tsc --noEmit
         continue-on-error: false

@@ -21,7 +21,23 @@ import {
   AlertCircle,
   History,
   Coins,
-  Settings
+  Settings,
+  Pill,
+  Package,
+  Receipt,
+  Database,
+  CalendarX,
+  Landmark,
+  Network,
+  ShieldCheck,
+  Eye,
+  Info,
+  Printer,
+  FileCheck,
+  QrCode,
+  PlusCircle,
+  X,
+  Send
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
@@ -616,7 +632,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 border-b-0 md:border-b border-slate-200 pb-3 md:pb-6">
         <div className="hidden md:block">
           <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-            <span className="material-symbols-outlined text-indigo-600 text-[20px]">medication</span>
+            <Pill className="w-5 h-5 text-indigo-600 shrink-0" />
             {nomenclature.pharmacyTitle}
             <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest ${
               isOnline 
@@ -649,14 +665,14 @@ const unsubscribeApi = api.subscribe(syncLocal);
       {/* HORIZONTAL TAB SWITCHER */}
       <div className="hidden md:flex overflow-x-auto gap-2 pb-2.5 no-scrollbar select-none -mb-px">
         {[
-          { id: 'prescription_queue', label: 'Prescription Queue', icon: 'inventory_2', badge: activeHoldsCount },
-          { id: 'billing_invoices', label: 'Billing & Invoices', icon: 'receipt_long' },
-          { id: 'inventory_catalog', label: 'Inventory Catalog', icon: 'database' },
-          { id: 'stock_alerts', label: 'Stock Alerts', icon: 'warning', badge: criticalStockCount, alert: true },
-          { id: 'expiry_tracker', label: 'Expiry Tracker', icon: 'event_busy', badge: criticalExpiryCount, warning: true },
-          { id: 'settlements', label: 'Settlements', icon: 'account_balance' },
-          { id: 'pod_connect', label: 'Pod Interconnect', icon: 'hub' },
-          { id: 'profile_settings', label: 'Profile & GSTIN', icon: 'settings' }
+          { id: 'prescription_queue', label: 'Prescription Queue', icon: <Package className="w-4 h-4 shrink-0" />, badge: activeHoldsCount },
+          { id: 'billing_invoices', label: 'Billing & Invoices', icon: <Receipt className="w-4 h-4 shrink-0" /> },
+          { id: 'inventory_catalog', label: 'Inventory Catalog', icon: <Database className="w-4 h-4 shrink-0" /> },
+          { id: 'stock_alerts', label: 'Stock Alerts', icon: <AlertTriangle className="w-4 h-4 shrink-0" />, badge: criticalStockCount, alert: true },
+          { id: 'expiry_tracker', label: 'Expiry Tracker', icon: <CalendarX className="w-4 h-4 shrink-0" />, badge: criticalExpiryCount, warning: true },
+          { id: 'settlements', label: 'Settlements', icon: <Landmark className="w-4 h-4 shrink-0" /> },
+          { id: 'pod_connect', label: 'Pod Interconnect', icon: <Network className="w-4 h-4 shrink-0" /> },
+          { id: 'profile_settings', label: 'Profile & GSTIN', icon: <Settings className="w-4 h-4 shrink-0" /> }
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -669,7 +685,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                   : 'bg-slate-50 border-slate-200/60 text-slate-650 hover:border-slate-300 hover:text-slate-850 hover:bg-slate-100/50'
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
+              {tab.icon}
               {tab.label}
               {tab.badge !== undefined && tab.badge > 0 && (
                 <span className={`ml-1 px-1.5 py-0.5 text-[9px] rounded-full font-bold text-white ${
@@ -695,7 +711,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-emerald-400 text-base">verified</span>
+                    <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
                     Gate 3: Paid Invoice Dispensation Verification Hub
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
@@ -934,7 +950,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                               <div key={idx} className="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-slate-800 w-full">
                                                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                                                   <div className="flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-indigo-400 text-sm">visibility</span>
+                                                    <Eye className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                                                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-350">Refraction Rx / Spectacles</span>
                                                   </div>
                                                   <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded font-black font-mono">
@@ -992,7 +1008,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
 
                                                 <div className="bg-indigo-50/50 border border-indigo-100 p-2.5 rounded-lg text-[9.5px] text-slate-700 leading-relaxed text-left space-y-1">
                                                   <p className="font-bold text-indigo-950 flex items-center gap-1">
-                                                    <span className="material-symbols-outlined text-[11px] text-indigo-600 font-bold">info</span>
+                                                    <Info className="w-3 h-3 text-indigo-600 shrink-0" />
                                                     Bilingual Usage Advice / उपयोग निर्देश:
                                                   </p>
                                                   <p className="font-medium">
@@ -1059,7 +1075,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                                     }}
                                                     className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[8px] uppercase tracking-wider flex items-center gap-1 border-0 cursor-pointer transition-colors active:scale-95 font-mono"
                                                   >
-                                                    <span className="material-symbols-outlined text-[9px]">print</span>
+                                                    <Printer className="w-3 h-3 shrink-0" />
                                                     Print Rx Card
                                                   </button>
                                                 </div>
@@ -1146,7 +1162,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                       }}
                                       className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer flex items-center gap-1"
                                     >
-                                      <span className="material-symbols-outlined text-xs animate-pulse">print</span>
+                                      <Printer className="w-3 h-3 animate-pulse shrink-0" />
                                       Print Dispense Slip
                                     </button>
                                   </div>
@@ -1435,7 +1451,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
             <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-200/60 pb-4 gap-4">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-400 text-[16px]">event_busy</span>
+                  <CalendarX className="w-4 h-4 text-rose-400 shrink-0" />
                   Consolidated Facility Expiry Tracker (FEFO)
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
@@ -1604,7 +1620,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
             {/* Split rules display */}
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-base">policy</span>
+                <FileCheck className="w-4 h-4 text-indigo-600 shrink-0" />
                 Active SOP Split Configuration
               </h3>
               <p className="text-xs text-slate-500">
@@ -1637,7 +1653,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
             <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-400 text-base">hub</span>
+                  <Network className="w-4 h-4 text-indigo-400 shrink-0" />
                   Pod Connection HUD
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
@@ -1706,7 +1722,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
             <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
               <div>
                 <h2 className="text-sm font-semibold text-slate-855 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-600 text-base">settings</span>
+                  <Settings className="w-4 h-4 text-indigo-600 shrink-0" />
                   Pharmacy Profile & Settings
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
@@ -1780,7 +1796,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
             
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
               <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
-                <span className="material-symbols-outlined text-teal-600 animate-pulse">qr_code_scanner</span>
+                <QrCode className="w-4 h-4 text-teal-600 animate-pulse shrink-0" />
                 FEFO Barcode Scan Verification
               </h3>
               <button
@@ -1788,9 +1804,9 @@ const unsubscribeApi = api.subscribe(syncLocal);
                   setScanningHold(null);
                   setScannerStage('idle');
                 }}
-                className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent"
+                className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1901,11 +1917,11 @@ const unsubscribeApi = api.subscribe(syncLocal);
             
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 mb-4">
               <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
-                <span className="material-symbols-outlined text-teal-600">add_circle</span>
+                <PlusCircle className="w-4 h-4 text-teal-600 shrink-0" />
                 Manual Register Batch Medicine
               </h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
-                <span className="material-symbols-outlined text-lg">close</span>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -2082,8 +2098,8 @@ const unsubscribeApi = api.subscribe(syncLocal);
                 <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
                 Smart CSV Template Importer
               </h3>
-              <button onClick={() => setIsCsvImportOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent">
-                <span className="material-symbols-outlined text-lg">close</span>
+              <button onClick={() => setIsCsvImportOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer border-0 bg-transparent flex items-center justify-center">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -2193,7 +2209,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
             <div>
               <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-400 text-base">receipt_long</span>
+                <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
                 Pharmacy Billing & Invoices
               </h2>
               <p className="text-xs text-slate-500 mt-1">
@@ -2420,7 +2436,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                               }}
                               className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
                             >
-                              <span className="material-symbols-outlined text-[12px]">print</span> Print
+                              <Printer className="w-3 h-3 shrink-0" /> Print
                             </button>
                             <button
                               onClick={() => {
@@ -2431,7 +2447,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                               }}
                               className="flex-1 px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
                             >
-                              <span className="material-symbols-outlined text-[12px]">send</span> WhatsApp
+                              <Send className="w-3 h-3 shrink-0" /> WhatsApp
                             </button>
                           </div>
                         </div>

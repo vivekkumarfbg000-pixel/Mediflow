@@ -1,6 +1,26 @@
 import React, { useMemo } from 'react';
 import { api } from '../../../services/api';
 import type { ClinicSop } from '../../../types';
+import { 
+  Shield, 
+  Upload, 
+  ListChecks, 
+  Coins, 
+  Sparkles, 
+  RefreshCw, 
+  Terminal, 
+  CheckCircle2, 
+  Stethoscope, 
+  PieChart, 
+  Scale, 
+  AlertCircle, 
+  FlaskConical, 
+  ChevronRight, 
+  Rocket, 
+  User, 
+  Network, 
+  History 
+} from 'lucide-react';
 
 interface SopConfigTabProps {
   sopFile: File | null;
@@ -163,7 +183,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-            <span className="material-symbols-outlined text-violet-600">policy</span>
+            <Shield className="w-6 h-6 text-violet-600 shrink-0" />
             Clinic SOP Center
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">Upload clinic Standard Operating Procedure — AI extracts fee structures, lab prices, splits, and workflow rules</p>
@@ -179,12 +199,12 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       {/* Sub-tabs */}
       <div className="flex gap-2 p-1 bg-slate-100/70 border border-slate-200/50 rounded-2xl w-fit">
         {[
-          { id: 'upload', label: 'Upload New SOP', icon: 'upload_file' },
-          { id: 'active', label: 'Active SOP & Rules', icon: 'rule' }
+          { id: 'upload', label: 'Upload New SOP', icon: <Upload className="w-3.5 h-3.5" /> },
+          { id: 'active', label: 'Active SOP & Rules', icon: <ListChecks className="w-3.5 h-3.5" /> }
         ].map(t => (
           <button key={t.id} onClick={() => setSopActiveSubTab(t.id as any)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border-0 ${sopActiveSubTab === t.id ? 'bg-white text-violet-700 shadow-sm border border-violet-100' : 'bg-transparent text-slate-500 hover:text-slate-700'}`}>
-            <span className="material-symbols-outlined text-sm">{t.icon}</span>
+            {t.icon}
             {t.label}
           </button>
         ))}
@@ -216,7 +236,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/30 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[20px]">payments</span>
+                      <Coins className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
                     </div>
                     <div>
                       <h3 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">Revenue Split Ledger</h3>
@@ -296,7 +316,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       onChange={handleFileUpload}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     />
-                    <span className="material-symbols-outlined text-base">upload_file</span>
+                    <Upload className="w-4 h-4 shrink-0" />
                     {sopFile ? `📄 ${sopFile.name}` : 'Upload SOP Document (.txt / .pdf / .doc)'}
                     {sopFile && (
                       <span className="ml-1 px-1.5 py-0.5 bg-emerald-100 border border-emerald-200 rounded-md text-emerald-700 text-[9px] font-bold">Ready</span>
@@ -328,12 +348,12 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
           >
             {isExtractingSop ? (
               <>
-                <span className="material-symbols-outlined text-lg animate-spin">autorenew</span>
+                <RefreshCw className="w-5 h-5 animate-spin" />
                 AI Extraction in Progress...
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-lg">auto_awesome</span>
+                <Sparkles className="w-5 h-5" />
                 Extract & Analyse SOP with Gemini AI
               </>
             )}
@@ -343,7 +363,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
           {extractionLogs.length > 0 && (
             <div className="rounded-2xl bg-violet-50/40 border border-violet-100 p-4 space-y-1.5 font-mono text-slate-700 shadow-sm">
               <p className="text-xs text-violet-600 font-bold mb-2 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm animate-pulse">terminal</span>
+                <Terminal className="w-4 h-4 animate-pulse text-violet-600" />
                 AI Extraction Console
               </p>
               {extractionLogs.map((log, i) => (
@@ -366,7 +386,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
           {extractedConfig && (
             <div className="space-y-4 animate-fade-in">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-500">verified</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                 <h3 className="font-bold text-slate-800 text-sm">AI-Extracted Configuration Preview</h3>
                 <span className="text-xs text-slate-600">— review before activating</span>
               </div>
@@ -375,7 +395,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 {/* Doctor Fee */}
                 <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 space-y-2">
                   <div className="flex items-center gap-2 text-blue-700 font-bold text-xs uppercase tracking-wider">
-                    <span className="material-symbols-outlined text-base">stethoscope</span>
+                    <Stethoscope className="w-4 h-4 shrink-0" />
                     Doctor Fee
                   </div>
                   <div className="flex items-center gap-2">
@@ -392,7 +412,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 {/* Commission Splits */}
                 <div className="p-4 rounded-2xl bg-violet-50 border border-violet-100 space-y-2">
                   <div className="flex items-center gap-2 text-violet-700 font-bold text-xs uppercase tracking-wider">
-                    <span className="material-symbols-outlined text-base">pie_chart</span>
+                    <PieChart className="w-4 h-4 shrink-0" />
                     Lab Splits (%)
                   </div>
                   <div className="space-y-1.5">
@@ -418,7 +438,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 {/* Total Split Check */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                   <div className="flex items-center gap-2 text-slate-600 font-bold text-xs uppercase tracking-wider">
-                    <span className="material-symbols-outlined text-base">balance</span>
+                    <Scale className="w-4 h-4 shrink-0" />
                     Split Validation
                   </div>
                   {(() => {
@@ -426,7 +446,11 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     const isValid = Math.abs(total - 100) < 0.01;
                     return (
                       <div className={`flex items-center gap-2 p-2 rounded-lg ${isValid ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                        <span className="material-symbols-outlined text-base">{isValid ? 'check_circle' : 'error'}</span>
+                        {isValid ? (
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                        )}
                         <span className="text-xs font-bold">Total: {total.toFixed(1)}% {isValid ? '✓ Valid' : 'Must equal 100%'}</span>
                       </div>
                     );
@@ -437,7 +461,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               {/* Test Prices */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center gap-2 text-slate-700 font-bold text-xs uppercase tracking-wider">
-                  <span className="material-symbols-outlined text-base">biotech</span>
+                  <FlaskConical className="w-4 h-4 shrink-0" />
                   Lab Test Prices (per catalog item)
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -463,13 +487,13 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               {extractedConfig.guidelines.length > 0 && (
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 space-y-2">
                   <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase tracking-wider">
-                    <span className="material-symbols-outlined text-base">checklist</span>
+                    <ListChecks className="w-4 h-4 shrink-0" />
                     Extracted Workflow Guidelines
                   </div>
                   <ul className="space-y-1.5">
                     {extractedConfig.guidelines.map((g: string, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-amber-800">
-                        <span className="material-symbols-outlined text-amber-500 text-sm mt-0.5 flex-shrink-0">arrow_right</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
                         {g}
                       </li>
                     ))}
@@ -482,7 +506,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 onClick={handleActivateSop}
                 className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-sm shadow-lg hover:shadow-emerald-400/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer border-0"
               >
-                <span className="material-symbols-outlined text-lg">rocket_launch</span>
+                <Rocket className="w-5 h-5 shrink-0" />
                 Activate SOP — Apply to Billing, Splits & Workflows
               </button>
             </div>
@@ -495,7 +519,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
         <div className="space-y-5">
           {!activeSop ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-600">
-              <span className="material-symbols-outlined text-6xl">policy</span>
+              <Shield className="w-16 h-16 text-slate-300" />
               <p className="font-semibold text-sm">No active SOP found</p>
               <button onClick={() => setSopActiveSubTab('upload')} className="px-6 py-3 bg-violet-600 text-white rounded-2xl text-xs font-bold hover:bg-violet-750 cursor-pointer border-0">
                 Upload Your First SOP →
@@ -520,15 +544,15 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig?.doctor_fee ?? 500}`, icon: 'stethoscope', colorClasses: 'bg-blue-50 border-blue-100 text-blue-500 text-blue-700' },
-                  { label: 'Doctor Split', value: `${activeSop.extractedConfig?.splits?.doctor ?? 40}%`, icon: 'person', colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-500 text-indigo-700' },
-                  { label: 'Platform Split', value: `${activeSop.extractedConfig?.splits?.platform ?? 3}%`, icon: 'hub', colorClasses: 'bg-violet-50 border-violet-100 text-violet-500 text-violet-700' },
-                  { label: 'Lab Split', value: `${activeSop.extractedConfig?.splits?.lab ?? 57}%`, icon: 'emerald', colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-500 text-emerald-700' },
+                  { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig?.doctor_fee ?? 500}`, icon: <Stethoscope className="w-5 h-5 text-blue-500 mx-auto" />, colorClasses: 'bg-blue-50 border-blue-100 text-blue-700' },
+                  { label: 'Doctor Split', value: `${activeSop.extractedConfig?.splits?.doctor ?? 40}%`, icon: <User className="w-5 h-5 text-indigo-500 mx-auto" />, colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
+                  { label: 'Platform Split', value: `${activeSop.extractedConfig?.splits?.platform ?? 3}%`, icon: <Network className="w-5 h-5 text-violet-500 mx-auto" />, colorClasses: 'bg-violet-50 border-violet-100 text-violet-700' },
+                  { label: 'Lab Split', value: `${activeSop.extractedConfig?.splits?.lab ?? 57}%`, icon: <Coins className="w-5 h-5 text-emerald-500 mx-auto" />, colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
                 ].map((stat: any) => {
-                  const [bg, border, iconColor, textColor] = stat.colorClasses.split(' ');
+                  const [bg, border, textColor] = stat.colorClasses.split(' ');
                   return (
                     <div key={stat.label} className={`p-4 rounded-2xl ${bg} border ${border} text-center`}>
-                      <span className={`material-symbols-outlined ${iconColor} text-xl`}>{stat.icon}</span>
+                      <div className="mb-1">{stat.icon}</div>
                       <p className={`text-lg font-extrabold ${textColor} mt-1`}>{stat.value}</p>
                       <p className="text-[10px] text-slate-500 mt-0.5 font-semibold">{stat.label}</p>
                     </div>
@@ -539,7 +563,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               {/* Lab Test Prices */}
               <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
                 <h4 className="font-bold text-slate-750 text-sm flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base text-blue-500">biotech</span>
+                  <FlaskConical className="w-4 h-4 text-blue-500 shrink-0" />
                   Active Lab Test Price Schedule
                 </h4>
                 <div className="divide-y divide-slate-100">
@@ -565,7 +589,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               {(activeSop.extractedConfig?.guidelines || []).length > 0 && (
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 space-y-2">
                   <h4 className="font-bold text-amber-700 text-sm flex items-center gap-2">
-                    <span className="material-symbols-outlined text-base">checklist</span>
+                    <ListChecks className="w-4 h-4 text-amber-600 shrink-0" />
                     Active Workflow Guidelines
                   </h4>
                   <ul className="space-y-2">
@@ -583,7 +607,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               {sops.length > 1 && (
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                   <h4 className="font-bold text-slate-600 text-xs uppercase tracking-wider flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm">history</span>
+                    <History className="w-4 h-4 text-slate-500 shrink-0" />
                     Previous SOPs
                   </h4>
                   <div className="space-y-2">
@@ -612,7 +636,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
               <button onClick={() => setSopActiveSubTab('upload')}
                 className="w-full py-3 rounded-2xl border-2 border-dashed border-violet-300 text-violet-600 font-bold text-sm hover:bg-violet-50 transition cursor-pointer flex items-center justify-center gap-2 bg-transparent">
-                <span className="material-symbols-outlined text-base">upload_file</span>
+                <Upload className="w-4 h-4 shrink-0" />
                 Upload & Replace with New SOP
               </button>
             </>

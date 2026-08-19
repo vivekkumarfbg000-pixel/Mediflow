@@ -742,10 +742,10 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                         <div className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
                           <span>{p.name}</span>
                           {p.syncStatus === 'pending' && (
-                            <span className="material-symbols-outlined text-[12px] text-amber-555 animate-spin" title="Syncing to Supabase...">sync</span>
+                            <span title="Syncing to Supabase..."><RefreshCw className="w-3 h-3 text-amber-500 animate-spin" /></span>
                           )}
                           {p.syncStatus === 'failed' && (
-                            <span className="material-symbols-outlined text-[12px] text-rose-500 animate-pulse" title="Sync failed. Auto-retrying...">report_problem</span>
+                            <span title="Sync failed. Auto-retrying..."><AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse" /></span>
                           )}
                           {p.tokenNumber && (
                             <span className="text-[9px] font-mono px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 rounded border border-indigo-200 dark:border-indigo-800/30">

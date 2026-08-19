@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BiometryData } from '../../types/ophthalmic';
+import { FlaskConical } from 'lucide-react';
 
 interface BiometryWorksheetProps {
   value: BiometryData;
@@ -32,7 +33,7 @@ export const BiometryWorksheet: React.FC<BiometryWorksheetProps> = ({
     <div className="glass-panel p-5 border-slate-200/80 shadow-sm bg-white space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <span className="material-symbols-outlined text-indigo-500 text-lg">biotech</span>
+          <FlaskConical className="w-4 h-4 text-indigo-500 shrink-0" />
           Cataract Pre-Op Biometry & IOL Planner
         </h3>
         <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">

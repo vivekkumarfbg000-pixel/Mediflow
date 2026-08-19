@@ -1,4 +1,23 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  MessageSquare, 
+  MessagesSquare, 
+  Send, 
+  Search, 
+  Zap, 
+  Megaphone, 
+  QrCode, 
+  Info, 
+  ArrowLeft, 
+  Bot, 
+  X, 
+  AlertCircle, 
+  AlertTriangle, 
+  RefreshCw, 
+  ShieldCheck, 
+  CheckCircle2, 
+  Radio 
+} from 'lucide-react';
 import { api } from '../../../services/api';
 import { supabase } from '../../../lib/supabaseClient';
 import type { Patient } from '../../../types';
@@ -196,7 +215,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <div className="absolute top-0 left-0 w-full h-[2.5px] bg-emerald-500" />
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 font-extrabold shadow-sm animate-pulse shrink-0">
-                <span className="material-symbols-outlined text-xl sm:text-2xl">cell_tower</span>
+                <Radio className="w-6 h-6 text-emerald-500" />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -242,7 +261,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
           <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-xs rounded-3xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2.5px] bg-gradient-to-r from-blue-500 via-primary to-indigo-500 opacity-60" />
             <div className="flex gap-3.5 items-start">
-              <span className="material-symbols-outlined text-primary text-3xl sm:text-4xl mt-0.5">chat_bubble</span>
+              <MessageSquare className="w-8 h-8 text-primary mt-0.5 shrink-0" />
               <div className="space-y-1">
                 <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Activate Clinic WhatsApp Chatbot in 10 Seconds</h3>
                 <p className="text-[11px] text-slate-500 leading-relaxed max-w-2xl font-sans">
@@ -254,7 +273,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               onClick={() => setWabaFormOpen(true)}
               className="px-4 py-2.5 bg-primary hover:bg-primary-505 text-white border border-primary/25 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-primary-force shrink-0"
             >
-              <span className="material-symbols-outlined text-sm font-bold text-white-force">connect_without_contact</span>
+              <Zap className="w-4 h-4 text-white font-bold" />
               Connect Business Number
             </button>
           </div>
@@ -274,7 +293,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
             }`}
           >
-            <span className="material-symbols-outlined text-sm">chat</span>
+            <MessageSquare className="w-3.5 h-3.5" />
             Conversations
             <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-white/20 text-white font-bold">
               {filteredSessions.length}
@@ -293,8 +312,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
             }`}
           >
-            <span className="material-symbols-outlined text-sm">campaign</span>
-            📢 Broadcast
+            <Megaphone className="w-3.5 h-3.5" />
+            Broadcast
           </button>
 
           <button
@@ -306,7 +325,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
             }`}
           >
-            <span className="material-symbols-outlined text-sm">qr_code_2</span>
+            <QrCode className="w-3.5 h-3.5" />
             Setup
           </button>
         </div>
@@ -320,7 +339,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <div className="space-y-3.5">
               <div className="flex justify-between items-center">
                 <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-base font-bold">question_answer</span>
+                  <MessagesSquare className="w-4 h-4 text-primary" />
                   Patient Conversations
                 </h2>
                 <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-blue-50 text-blue-500 rounded-full">
@@ -330,7 +349,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
               {/* Search Bar */}
               <div className="relative">
-                <span className="material-symbols-outlined text-slate-600 text-base absolute left-3 top-2.5">search</span>
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search by name or phone..."
@@ -393,8 +412,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 text-[9px] text-slate-400 flex items-center gap-1 leading-relaxed">
-              <span className="material-symbols-outlined text-xs">info</span>
+            <div className="pt-4 border-t border-slate-100 text-[9px] text-slate-400 flex items-center gap-1.5 leading-relaxed">
+              <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               * Uses Supabase Realtime to broadcast incoming patient responses instantly.
             </div>
           </div>
@@ -479,7 +498,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       onClick={() => setMobileSelectedPatientChat(false)}
                       className="lg:hidden text-[10px] font-bold text-primary hover:text-primary-600 flex items-center gap-0.5 px-2 py-0.5 bg-blue-50 rounded-lg"
                     >
-                      <span className="material-symbols-outlined text-xs">arrow_back</span> Back
+                      <ArrowLeft className="w-3.5 h-3.5" /> Back
                     </button>
                     <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone)?.name ?? 'Linked Patient'}
@@ -535,7 +554,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               <div className="border-t border-slate-100 pt-3">
                 <div className="p-3 bg-blue-50/60 border border-blue-100/80 rounded-2xl text-center text-xs text-slate-600 flex flex-col items-center justify-center gap-1">
                   <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                    <span className="material-symbols-outlined text-base text-blue-600">smart_toy</span>
+                    <Bot className="w-4 h-4 text-blue-600" />
                     100% Autonomous AI Chatbot Operating 24/7
                   </div>
                   <p className="text-[10px] text-slate-500">
@@ -548,7 +567,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
           ) : (
             <div className="glass-panel p-8 sm:p-12 bg-white border-slate-200/60 shadow-sm rounded-3xl min-h-[420px] flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2.5px] bg-primary/20" />
-              <span className="material-symbols-outlined text-slate-300 text-5xl sm:text-6xl">chat</span>
+              <MessageSquare className="w-14 h-14 text-slate-300" />
               <div>
                 <h3 className="text-slate-700 font-extrabold uppercase text-xs tracking-wider">No Patient Conversation Selected</h3>
                 <p className="text-xs text-slate-400 mt-2 max-w-sm font-sans">
@@ -741,7 +760,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   disabled={!broadcastMsg.trim()}
                   className="px-5 py-2.5 bg-primary hover:bg-primary-505 disabled:bg-slate-200 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer text-white-force bg-primary-force border-0"
                 >
-                  <span className="material-symbols-outlined text-sm font-bold text-white-force">campaign</span>
+                  <Megaphone className="w-4 h-4 text-white font-bold" />
                   Send Broadcast Campaign
                 </button>
               </div>
@@ -796,7 +815,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <div className="p-6 pb-4 flex justify-between items-start">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <span className="material-symbols-outlined text-emerald-500 font-bold">whatsapp</span>
+                  <MessageSquare className="w-4 h-4 text-emerald-500 font-bold" />
                   Activate Clinic WhatsApp
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1">
@@ -815,9 +834,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   setOnboardError('');
                   setOnboardPhoneNumberId('');
                 }}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors border-0 bg-transparent"
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors border-0 bg-transparent flex items-center justify-center"
               >
-                <span className="material-symbols-outlined text-lg">close</span>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -845,7 +864,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
               {/* ── Error Banner ──────────────────────────────────────────── */}
               {onboardError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex gap-2 items-start text-rose-700 animate-fade-in">
-                  <span className="material-symbols-outlined text-rose-500 text-base flex-shrink-0 mt-0.5">error</span>
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <p className="text-[11px] leading-relaxed">{onboardError}</p>
                 </div>
               )}
@@ -858,7 +877,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                   {/* ⚠️ Personal Number Warning */}
                   <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3">
-                    <span className="material-symbols-outlined text-amber-500 text-lg flex-shrink-0 mt-0.5">warning</span>
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                     <div className="text-[11px] text-amber-800 leading-relaxed">
                       <strong className="block mb-0.5">⚠️ Use a dedicated clinic number</strong>
                       The phone number you enter will be <strong>migrated to WhatsApp Business API</strong> and will no longer work on the standard WhatsApp personal app. Please use a separate SIM card or clinic landline — <strong>not your personal WhatsApp number</strong>.
@@ -1067,9 +1086,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isOnboarding ? (
-                      <><span className="material-symbols-outlined text-sm animate-spin">sync</span> Sending OTP...</>
+                      <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sending OTP...</>
                     ) : (
-                      <><span className="material-symbols-outlined text-sm">send</span> Send Verification Code</>
+                      <><Send className="w-3.5 h-3.5" /> Send Verification Code</>
                     )}
                   </button>
                 </div>
@@ -1189,9 +1208,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     className="w-full py-3 bg-primary hover:bg-primary-505 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer text-white-force bg-primary-force"
                   >
                     {isOnboarding ? (
-                      <><span className="material-symbols-outlined text-sm animate-spin text-white-force">sync</span> Verifying...</>
+                      <><RefreshCw className="w-3.5 h-3.5 animate-spin text-white-force" /> Verifying...</>
                     ) : (
-                      <><span className="material-symbols-outlined text-sm text-white-force">verified</span> Verify &amp; Activate Clinic</>
+                      <><ShieldCheck className="w-3.5 h-3.5 text-white-force" /> Verify &amp; Activate Clinic</>
                     )}
                   </button>
 
@@ -1215,7 +1234,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 <div className="space-y-4 animate-fade-in text-center">
                   <div className="py-4">
                     <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-emerald-300 flex items-center justify-center mx-auto mb-3">
-                      <span className="material-symbols-outlined text-emerald-500 text-3xl">check_circle</span>
+                      <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                     </div>
                     <h4 className="text-base font-extrabold text-slate-800 mb-1">Clinic WhatsApp is LIVE! 🎉</h4>
                     <p className="text-xs text-slate-500 leading-relaxed">

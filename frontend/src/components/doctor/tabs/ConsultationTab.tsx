@@ -3,7 +3,40 @@ import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
-import { CheckCircle2 } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  Users, 
+  FolderArchive, 
+  FlaskConical, 
+  ArrowLeft, 
+  Lock, 
+  ShieldCheck, 
+  FileText, 
+  FileEdit, 
+  BarChart3, 
+  AlertTriangle, 
+  Mic, 
+  Brain, 
+  MessageSquare, 
+  Send, 
+  Printer, 
+  Pill, 
+  Clock, 
+  Plus, 
+  BookOpen, 
+  ExternalLink, 
+  Scale, 
+  ArrowRight, 
+  ShieldAlert, 
+  ArrowLeftRight, 
+  Trash2, 
+  Search, 
+  Check, 
+  Stethoscope, 
+  ChevronDown, 
+  ChevronUp, 
+  X 
+} from 'lucide-react';
 import { useClinic } from '../../../context/ClinicContext';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
 import { OphthalmicRefractionGrid } from '../OphthalmicRefractionGrid';
@@ -901,7 +934,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
             <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">group</span>
+              <Users className="w-5 h-5 text-primary shrink-0" />
               Consultation Queue
             </h2>
             <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
@@ -1117,7 +1150,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         )}
                         {virtualAppt && (
                           <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-md animate-pulse font-sans">
-                            <span className="material-symbols-outlined text-[10px] text-emerald-700">check_circle</span>
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-700 shrink-0" />
                             📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
                           </span>
                         )}
@@ -1134,7 +1167,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         {selectedPatient && !isOphthalmology && (
           <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white mt-4">
             <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-lg">folder_zip</span>
+              <FolderArchive className="w-4 h-4 text-primary shrink-0" />
               Biomarker Reports History
             </h2>
             <p className="text-[10px] text-slate-600 mb-4">Click a report to open a full-screen clinical AI analysis</p>
@@ -1156,8 +1189,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     className="w-full text-left p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between"
                   >
                     <div className="flex justify-between items-center w-full">
-                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs text-indigo-500">labs</span>
+                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <FlaskConical className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                         Report Dated: {report.date}
                       </span>
                       <span className="text-[8px] bg-indigo-50 border border-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider font-mono">
@@ -1206,13 +1239,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             onClick={() => setSelectedPatient(null)}
             className="lg:hidden inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 pb-2 cursor-pointer transition active:scale-95 border-0 bg-transparent p-0"
           >
-            <span className="material-symbols-outlined text-sm font-bold">arrow_back</span>
+            <ArrowLeft className="w-3.5 h-3.5 font-bold" />
             Back to Patients Queue
           </button>
           {!isConsentActive && (
                 <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-white/95 border border-rose-500/20 p-8 text-center animate-fade-in">
               <div className="w-14 h-14 rounded-full bg-rose-50/50 border border-rose-500/20 flex items-center justify-center mb-4 text-rose-500 animate-pulse">
-                <span className="material-symbols-outlined text-2xl">lock</span>
+                <Lock className="w-6 h-6" />
               </div>
               <h3 className="text-slate-800 font-bold text-sm mb-2">Compliance Lock: Active Consent Missing</h3>
               <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-5">
@@ -1221,7 +1254,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               {/* Time-Bound Physical Consent Form */}
               <div className="w-full max-w-sm bg-slate-50 border border-slate-200/60 p-4.5 rounded-2xl text-left space-y-4 animate-fade-in shadow-sm select-none">
                 <div className="flex gap-2 items-center text-slate-800 font-bold text-xs">
-                  <span className="material-symbols-outlined text-indigo-600 text-base">shield_with_heart</span>
+                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
                   Record Time-Bound Physical Consent
                 </div>
                 
@@ -1274,7 +1307,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     }}
                     className="flex-1 bg-indigo-600 hover:bg-indigo-750 active:scale-[0.97] text-white text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl transition-all shadow flex justify-center items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
                   >
-                    <span className="material-symbols-outlined text-[13px] text-white-force">check_circle</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white-force" />
                     Grant 24h Consent
                   </button>
                 </div>
@@ -1286,7 +1319,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           {activePhysicalConsent && (
             <div className="p-3.5 bg-amber-50/70 border border-amber-200/50 rounded-2xl flex items-center justify-between mb-4 animate-fade-in select-none">
               <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-amber-600 text-lg">shield_with_heart</span>
+                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
                 <div className="text-[10px] text-amber-955 leading-relaxed font-sans">
                   <span className="font-bold text-amber-955">Active Physical Consent</span> • Purpose: <span className="font-semibold text-amber-900">{(activePhysicalConsent.consent_purpose || '').replace(/_/g, ' ')}</span>
                   <span className="block text-[9px] text-amber-800 mt-0.5 font-medium font-mono">Expires in: {remainingTime} ({new Date(activePhysicalConsent.expires_at).toLocaleTimeString()})</span>
@@ -1305,7 +1338,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl">clinical_notes</span>
+                <FileText className="w-5 h-5 text-primary shrink-0" />
                 Electronic Consultation Record
               </h2>
               <p className="text-xs text-slate-500 mt-1 font-medium flex items-center gap-2 flex-wrap">
@@ -1363,7 +1396,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             <div className="space-y-5 animate-fade-in">
               {/* Handwritten prescription workflow notice */}
               <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-start gap-2.5 my-3">
-                <span className="material-symbols-outlined text-indigo-600 text-lg mt-0.5">edit_note</span>
+                <FileEdit className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="text-[10px] text-indigo-950 leading-relaxed">
                   <strong className="font-bold text-[11px] text-indigo-950 block mb-0.5">Handwritten Rx Support Enabled</strong>
                   Prefer paper? Write the prescription by hand as usual. The compounder will scan it at the counter, and our clinical AI will automatically reserve medicine inventory and queue pathology tests.
@@ -1525,7 +1558,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <div className="flex justify-between items-start pb-2 border-b border-slate-200/80">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-indigo-600 text-xl font-bold">query_stats</span>
+                      <BarChart3 className="w-5 h-5 text-indigo-600 shrink-0 font-bold" />
                       <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">AI Predictive Lab Pattern & Risk Disease Analyzer</h3>
                     </div>
                     <p className="text-[10px] text-slate-600 mt-1">Advanced multi-biomarker trajectory & disease prediction engine</p>
@@ -1731,7 +1764,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 </div>
                 <div className="space-y-3">
                   <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1.5 font-mono">
-                    <span className="material-symbols-outlined text-xs text-indigo-600">warning</span>
+                    <AlertTriangle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                     AI Predictive Disease & Pattern Warnings
                   </h4>
                   {riskAlerts.length === 0 ? (
@@ -1748,9 +1781,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                             ? 'bg-amber-50 border-amber-200/60 text-amber-900'
                             : 'bg-indigo-50 border-indigo-200 text-indigo-800'
                         }`}>
-                          <span className="material-symbols-outlined text-base font-bold mt-0.5 shrink-0">
-                            {alert.type === 'critical' ? 'gavel' : alert.type === 'warning' ? 'error' : 'info'}
-                          </span>
+                          {alert.type === 'critical' ? (
+                            <Scale className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 font-bold" />
+                          ) : alert.type === 'warning' ? (
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 font-bold" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5 font-bold" />
+                          )}
                           <div>
                             <strong className="font-extrabold text-[11px] uppercase tracking-wider block">{alert.title}</strong>
                             <p className="text-[10px] text-slate-700 pt-0.5 font-sans leading-relaxed">{alert.desc}</p>
@@ -1780,7 +1817,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-xs text-primary font-bold">edit_note</span>
+                <FileEdit className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
                 Final 10-15 Min Suggestions & Directions
               </label>
               <textarea
@@ -1796,7 +1833,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             <div className="p-4.5 bg-white border border-slate-200 rounded-2xl space-y-4 animate-fade-in text-slate-800">
               <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-xs">mic</span>
+                  <Mic className="w-3.5 h-3.5 shrink-0" />
                   Audio Suggestion Scribe (Local Recording first)
                 </span>
                 <span className="text-[9px] font-bold font-mono px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md">
@@ -1821,7 +1858,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       onClick={startAudioRecording}
                       className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md cursor-pointer border-0 text-white-force"
                     >
-                      <span className="material-symbols-outlined text-sm font-bold shrink-0">mic</span>
+                      <Mic className="w-3.5 h-3.5 font-bold shrink-0" />
                       Record Clinical Advice
                     </button>
                   )}
@@ -1837,7 +1874,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       disabled={isTranscribing}
                       className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 uppercase transition-all shadow-xs cursor-pointer shrink-0 border-0 text-white-force"
                     >
-                      <span className="material-symbols-outlined text-xs font-bold text-white-force">psychology</span>
+                      <Brain className="w-3.5 h-3.5 font-bold text-white-force shrink-0" />
                       {isTranscribing ? 'Scribing...' : 'Transcribe with AI'}
                     </button>
                   </div>
@@ -1899,7 +1936,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             {hinglishSummary && (
               <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-xl space-y-3 animate-fade-in text-left">
                 <h4 className="font-bold text-[10px] text-indigo-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-xs">chat</span>
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0" />
                   Hinglish Clinical Summary
                 </h4>
                 <div className="text-xs text-slate-700 leading-relaxed scroll-list max-h-[200px] pr-1">
@@ -1918,7 +1955,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   }}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
                 >
-                  <span className="material-symbols-outlined text-xs text-white-force">send</span>
+                  <Send className="w-3.5 h-3.5 text-white-force" />
                   Send to Patient WhatsApp
                 </button>
               </div>
@@ -1928,7 +1965,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             {activeHistory && activeHistory.length > 0 && (
               <div className="border-t border-slate-200/80 pt-4 space-y-4 text-left">
                 <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <span className="material-symbols-outlined text-rose-500 text-sm">analytics</span>
+                  <BarChart3 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                   Revisit Mode: Comparative Lab Trend Analysis
                 </h3>
                 <p className="text-[10px] text-slate-600 leading-relaxed font-sans">
@@ -1980,7 +2017,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     {/* Header */}
                     <div className="flex items-center justify-between">
                       <h4 className="font-bold text-[10px] text-rose-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-xs">analytics</span>
+                        <BarChart3 className="w-3.5 h-3.5 shrink-0" />
                         Evidence-Based Comparative CDSS Report
                       </h4>
                       <div className="flex items-center gap-2">
@@ -1989,7 +2026,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           onClick={handlePrintClinicalReferral}
                           className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded-lg border border-rose-200/50 flex items-center gap-1 cursor-pointer transition-all"
                         >
-                          <span className="material-symbols-outlined text-[11px]">print</span>
+                          <Printer className="w-3 h-3 shrink-0" />
                           Print Referral Note
                         </button>
                         <span className="text-[9px] bg-indigo-500/10 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Active</span>
@@ -2007,7 +2044,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     {comparativeTrend.suggestedCompositions && comparativeTrend.suggestedCompositions.length > 0 && (
                       <div className="space-y-2.5">
                         <h5 className="font-extrabold text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs text-rose-600">medication</span>
+                          <Pill className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                           Suggested Medicine Compositions & Dosages
                         </h5>
                         <div className="grid grid-cols-1 gap-3">
@@ -2019,7 +2056,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                                   <span className="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200/40 font-mono">{comp.composition}</span>
                                 </div>
                                 <p className="text-[11px] text-indigo-700 font-semibold flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-[10px]">schedule</span>
+                                  <Clock className="w-3 h-3 shrink-0" />
                                   Dosage: {comp.suggested_dosage}
                                 </p>
                                 <p className="text-[10px] text-slate-500 leading-normal">
@@ -2070,7 +2107,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                                 }}
                                 className="self-start md:self-center bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold px-3 py-1.5 rounded-lg border border-indigo-200/50 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
                               >
-                                <span className="material-symbols-outlined text-[11px]">add</span>
+                                <Plus className="w-3 h-3 shrink-0" />
                                 Add to Rx
                               </button>
                             </div>
@@ -2083,7 +2120,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     {comparativeTrend.citations && comparativeTrend.citations.length > 0 && (
                       <div className="space-y-2.5">
                         <h5 className="font-extrabold text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs text-rose-600">library_books</span>
+                          <BookOpen className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                           NCBI PubMed Reference Library
                         </h5>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2111,9 +2148,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                                     }}
                                     className="text-[9px] font-bold text-indigo-600 hover:text-indigo-850 flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
                                   >
-                                    <span className="material-symbols-outlined text-[11px]">
-                                      {expandedCitationPmid === c.pmid ? 'keyboard_arrow_up' : 'quick_reference_all'}
-                                    </span>
+                                    {expandedCitationPmid === c.pmid ? (
+                                      <ChevronUp className="w-3 h-3 text-indigo-600 shrink-0" />
+                                    ) : (
+                                      <ChevronDown className="w-3 h-3 text-indigo-600 shrink-0" />
+                                    )}
                                     {expandedCitationPmid === c.pmid ? 'Hide Abstract' : 'Quick Summary (Abstract)'}
                                   </button>
                                   {expandedCitationPmid === c.pmid && (
@@ -2134,7 +2173,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                                   rel="noreferrer"
                                   className="text-[9px] text-indigo-600 hover:text-indigo-850 font-bold flex items-center gap-0.5 no-underline"
                                 >
-                                  Full Paper <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                                  Full Paper <ExternalLink className="w-2.5 h-2.5 shrink-0 inline-block" />
                                 </a>
                               </div>
                             </div>
@@ -2145,7 +2184,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
                     {/* CDSS Medical Disclaimer */}
                     <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex gap-2.5">
-                      <span className="material-symbols-outlined text-rose-600 text-xs shrink-0 font-bold">gavel</span>
+                      <Scale className="w-3.5 h-3.5 text-rose-600 shrink-0 font-bold" />
                       <p className="text-[9px] text-rose-800/90 leading-relaxed">
                         <strong>CDSS Legal Disclaimer:</strong> The suggested drug compositions, active compounds, target dosages, and medical literature citations are provided strictly for clinical decision support. They do not constitute formal prescription directives. The attending licensed practitioner retains full clinical responsibility and absolute prescribing authority.
                       </p>
@@ -2165,7 +2204,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       }}
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
                     >
-                      <span className="material-symbols-outlined text-xs text-white-force">send</span>
+                      <Send className="w-3.5 h-3.5 text-white-force" />
                       Push Trend report to Patient WhatsApp
                     </button>
                   </div>
@@ -2179,7 +2218,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         {/* Clinical Notes (placed at the bottom of the workup tab) */}
             <div className="space-y-2 text-left mt-4 pt-4 border-t border-slate-100">
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                <span className="material-symbols-outlined text-xs text-indigo-500 font-bold">edit_note</span>
+                <FileEdit className="w-3.5 h-3.5 text-indigo-500 font-bold shrink-0" />
                 Consultation & Clinical Notes
               </label>
               <textarea
@@ -2199,7 +2238,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer border-0 text-white-force"
               >
                 Proceed to Prescription
-                <span className="material-symbols-outlined text-xs font-bold text-white-force">arrow_forward</span>
+                <ArrowRight className="w-3.5 h-3.5 font-bold text-white-force" />
               </button>
             </div>
           </div>
@@ -2211,7 +2250,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <div className="bg-rose-500/10 border border-rose-500/20 text-rose-850 dark:text-rose-400 p-4.5 rounded-2xl space-y-2.5 animate-fade-in text-left">
                 <div className="flex justify-between items-center border-b border-rose-200/50 dark:border-rose-800/30 pb-2">
                   <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-                    <span className="material-symbols-outlined text-[16px] text-rose-500 font-bold animate-pulse">shield_alert</span>
+                    <ShieldAlert className="w-4 h-4 text-rose-500 font-bold animate-pulse shrink-0" />
                     Clinical Decision Safety Warnings (CDSS)
                   </h4>
                   <span className="text-[9px] font-black font-mono bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/20">
@@ -2243,7 +2282,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           >
             <div className="flex justify-between items-center">
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-xs text-primary font-bold">medication</span>
+                <Pill className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
                 Prescribe Medications (e-Rx)
               </label>
               <button
@@ -2251,7 +2290,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 onClick={() => setIsPrescriptionModalOpen(true)}
                 className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-500 text-indigo-700 hover:text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wide flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
               >
-                <span className="material-symbols-outlined text-xs font-bold">receipt_long</span>
+                <FileText className="w-3.5 h-3.5 font-bold shrink-0" />
                 Interactive E-Rx Pad
               </button>
             </div>
@@ -2294,7 +2333,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return (
                   <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 animate-fade-in shadow-xs">
                     <div className="flex gap-2.5 items-start">
-                      <span className="material-symbols-outlined text-amber-600 text-base font-bold shrink-0">warning</span>
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 font-bold" />
                       <div className="space-y-1">
                         <h5 className="font-extrabold text-[11px] text-amber-850 uppercase tracking-wide">Nephrotoxic NSAID Alert (Renal Risk)</h5>
                         <p className="text-[10px] text-amber-700 leading-relaxed font-medium">
@@ -2329,7 +2368,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       }}
                       className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg border-0 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap self-stretch md:self-auto text-center justify-center text-white-force"
                     >
-                      <span className="material-symbols-outlined text-[11px]">swap_horiz</span>
+                      <ArrowLeftRight className="w-3 h-3 shrink-0" />
                       Swap with Paracetamol
                     </button>
                   </div>
@@ -2349,7 +2388,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
                     <div className="space-y-2 flex-1 pr-4">
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-indigo-500 text-base font-bold">medication</span>
+                        <Pill className="w-4 h-4 text-indigo-500 font-bold shrink-0" />
                         <strong className="text-slate-800 text-xs font-bold font-sans tracking-tight">{med.medicineName}</strong>
                       </div>
                       
@@ -2375,7 +2414,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition-colors cursor-pointer border border-slate-200/60 hover:border-rose-200"
                       title="Remove Medication"
                     >
-                      <span className="material-symbols-outlined text-sm">delete</span>
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
@@ -2448,7 +2487,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       }}
                       className="w-full input-field py-2 text-xs bg-white border-slate-200 pr-8"
                     />
-                    <span className="material-symbols-outlined text-slate-400 absolute right-2.5 top-2.5 text-sm pointer-events-none">search</span>
+                    <Search className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
                   </div>
 
                   {/* Autocomplete Dropdown Panel */}
@@ -2472,7 +2511,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         >
                           <div>
                             <div className="font-semibold flex items-center gap-1.5">
-                              <span className="material-symbols-outlined text-xs text-indigo-500">medication</span>
+                              <Pill className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                               {item.name}
                             </div>
                             <div className="text-[10px] text-slate-650 mt-0.5">
@@ -2612,7 +2651,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   onClick={handleAddMedication}
                   className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0 text-white-force self-end"
                 >
-                  <span className="material-symbols-outlined text-xs font-bold text-white-force">add</span>
+                  <Plus className="w-3.5 h-3.5 font-bold text-white-force" />
                   Add to Prescription
                 </button>
               </div>
@@ -2625,14 +2664,14 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           <div className="space-y-3 text-left">
             <div className="flex justify-between items-center">
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-xs text-primary">biotech</span>
+                <FlaskConical className="w-3.5 h-3.5 text-primary" />
                 Diagnostic Panel & Radiology Requisitions ({selectedTests.length} Selected)
               </label>
             </div>
 
             {/* Quick search & custom test creator */}
             <div className="relative">
-              <span className="material-symbols-outlined text-slate-400 absolute left-3 top-2.5 text-sm">search</span>
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search blood tests, fever panels, X-Ray, USG, MRI or type custom test..."
@@ -2691,7 +2730,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
                       isChecked ? 'bg-indigo-600 border-indigo-600 text-white-force' : 'border-slate-300 bg-white'
                     }`}>
-                      {isChecked && <span className="material-symbols-outlined text-xs font-bold text-white-force">check</span>}
+                      {isChecked && <Check className="w-3.5 h-3.5 font-bold text-white-force" />}
                     </div>
                   </button>
                 );
@@ -2707,7 +2746,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-205 pb-2">
                     <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-indigo-650 text-base font-bold">clinical_notes</span>
+                      <FileText className="w-4 h-4 text-indigo-650 font-bold shrink-0" />
                       Refractionist Station Diagnostics (अपवर्तन रिपोर्ट)
                     </h3>
                     {selectedPatient.vitals.dilationStatus && (
@@ -2798,7 +2837,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <div className="glass-panel p-5 border-slate-200 bg-slate-50/40 shadow-xs rounded-2xl space-y-4 text-left my-4">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-indigo-600 text-xl">medical_services</span>
+                    <Stethoscope className="w-5 h-5 text-indigo-600 shrink-0" />
                     <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cataract Surgery Booking & IOL Planner</h3>
                   </div>
                   <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded font-mono font-bold uppercase">
@@ -2922,7 +2961,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             <div className="glass-panel p-5 border-slate-200 bg-slate-50/40 shadow-xs rounded-2xl space-y-4 text-left my-4">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-600 text-xl">medical_services</span>
+                  <Stethoscope className="w-5 h-5 text-indigo-600 shrink-0" />
                   <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">GP Minor OT & Daycare Procedure Booking</h3>
                 </div>
                 <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded font-mono font-bold uppercase">
@@ -2993,7 +3032,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           {/* Pod-to-Pod Network Referral */}
           <div className="border-t border-slate-100 pt-5 mt-5 space-y-3 text-left">
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-xs text-primary font-bold">groups</span>
+              <Users className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
               Refer to Pod Partner Specialist
             </label>
             <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -3014,7 +3053,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317102">Dr. Anjali (Gynecologist) - South Hub</option>
                   <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317101">Dr. Raj (Pediatrician) - Regional Hub</option>
                 </select>
-                <span className="material-symbols-outlined text-slate-600 absolute right-3 top-2.5 text-sm pointer-events-none">arrow_drop_down</span>
+                <ChevronDown className="w-4 h-4 text-slate-600 absolute right-3 top-2.5 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -3044,7 +3083,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             {/* Header: Title & Close Action */}
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-600 text-2xl font-bold">receipt_long</span>
+                <FileText className="w-6 h-6 text-indigo-600 font-bold shrink-0" />
                 <div>
                   <h3 className="text-sm md:text-base font-black text-slate-800 uppercase tracking-wider font-sans">
                     Interactive Clinical E-Prescription Pad
@@ -3057,7 +3096,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 onClick={() => setIsPrescriptionModalOpen(false)}
                 className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0"
               >
-                <span className="material-symbols-outlined text-base">close</span>
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -3115,7 +3154,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 {/* LEFT HALF: Medication builder & cards list */}
                 <div className="space-y-4 text-left p-4.5 bg-slate-50/20 border border-slate-200/50 rounded-2xl">
                   <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100">
-                    <span className="material-symbols-outlined text-indigo-500 text-base">medication</span>
+                    <Pill className="w-4 h-4 text-indigo-500 shrink-0" />
                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">
                       1. Medications Prescription details (Rx)
                     </h4>
@@ -3154,7 +3193,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           }}
                           className="w-full input-field py-1.5 text-xs bg-slate-50 border-slate-200 pr-8"
                         />
-                        <span className="material-symbols-outlined text-slate-400 absolute right-2.5 top-2 text-sm pointer-events-none">search</span>
+                        <Search className="w-4 h-4 text-slate-400 absolute right-2.5 top-2 pointer-events-none" />
                       </div>
 
                       {/* Autocomplete Dropdown inside Modal */}
@@ -3178,7 +3217,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                             >
                               <div>
                                 <div className="font-semibold flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-[11px] text-indigo-500">medication</span>
+                                  <Pill className="w-3 h-3 text-indigo-500 shrink-0" />
                                   {item.name}
                                 </div>
                                 <div className="text-[9px] text-slate-500 mt-0.5">
@@ -3263,7 +3302,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         onClick={handleAddMedication}
                         className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-[10px] px-4 py-2 rounded-xl active:scale-[0.98] transition-all flex items-center gap-1 cursor-pointer border-0 text-white-force self-end"
                       >
-                        <span className="material-symbols-outlined text-[11px] font-bold text-white-force">add</span>
+                        <Plus className="w-3 h-3 font-bold text-white-force shrink-0" />
                         Prescribe
                       </button>
                     </div>
@@ -3282,7 +3321,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
                             <div className="flex-1 pr-3">
                               <div className="flex items-center gap-1.5">
-                                <span className="material-symbols-outlined text-indigo-500 text-xs font-bold">medication</span>
+                                <Pill className="w-3.5 h-3.5 text-indigo-500 font-bold shrink-0" />
                                 <strong className="text-slate-800 text-[11px] font-bold">{med.medicineName}</strong>
                               </div>
                               <span className="text-[9px] text-slate-500 block mt-0.5">
@@ -3294,7 +3333,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                               onClick={() => handleRemoveMedication(idx)}
                               className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
                             >
-                              <span className="material-symbols-outlined text-[13px]">delete</span>
+                              <Trash2 className="w-3.5 h-3.5 shrink-0" />
                             </button>
                           </div>
                         ))}
@@ -3311,7 +3350,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <div className="space-y-4 text-left p-4.5 bg-slate-50/20 border border-slate-200/50 rounded-2xl flex flex-col h-full min-h-[380px]">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-teal-600 text-base">biotech</span>
+                      <FlaskConical className="w-4 h-4 text-teal-600 shrink-0" />
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">
                         2. Diagnostics Requisitions (Dx)
                       </h4>
@@ -3323,7 +3362,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
                   {/* Search diagnostics filter */}
                   <div className="relative">
-                    <span className="material-symbols-outlined text-slate-400 text-xs absolute left-2.5 top-2 pointer-events-none">search</span>
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search diagnostic test name or LOINC..."
@@ -3336,7 +3375,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         onClick={() => setTestSearchQuery('')} 
                         className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-700 cursor-pointer border-0 bg-transparent"
                       >
-                        <span className="material-symbols-outlined text-xs">close</span>
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
@@ -3370,7 +3409,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                             <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center shrink-0 transition-all ${
                               isChecked ? 'bg-indigo-600 border-indigo-600 text-white-force' : 'border-slate-300 bg-slate-50'
                             }`}>
-                              {isChecked && <span className="material-symbols-outlined text-[10px] font-bold text-white-force">check</span>}
+                              {isChecked && <Check className="w-3 h-3 font-bold text-white-force" />}
                             </div>
                           </button>
                         );
@@ -3394,7 +3433,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   onClick={() => setIsPrescriptionModalOpen(false)}
                   className="w-full sm:w-auto bg-indigo-650 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer border-0 text-white-force shadow-md"
                 >
-                  <span className="material-symbols-outlined text-xs text-white-force">check_circle</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-white-force shrink-0" />
                   Save & Apply Workspace
                 </button>
               </div>

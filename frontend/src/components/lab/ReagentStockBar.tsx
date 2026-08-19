@@ -1,4 +1,5 @@
 import React from 'react';
+import { RefreshCw, AlertCircle, AlertTriangle, FlaskConical } from 'lucide-react';
 
 // =============================================================================
 // ReagentStockBar — Defensive volumetric stock bar for lab reagents
@@ -140,19 +141,19 @@ export const ReagentStockBar: React.FC<ReagentStockBarProps> = React.memo(({
       <div className={`text-[9px] font-mono ${config.labelColor}`}>
         {status === 'awaiting' && (
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[11px] animate-spin">sync</span>
+            <RefreshCw className="w-3 h-3 animate-spin" />
             Awaiting Telemetry...
           </span>
         )}
         {status === 'error' && (
           <span className="flex items-center gap-1 text-purple-500 dark:text-purple-400">
-            <span className="material-symbols-outlined text-[11px]">error</span>
+            <AlertCircle className="w-3 h-3" />
             Invalid analyzer reading
           </span>
         )}
         {status === 'empty' && (
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[11px]">warning</span>
+            <AlertTriangle className="w-3 h-3" />
             Empty — Refill Required
           </span>
         )}
@@ -197,7 +198,7 @@ export const ReagentStockGrid: React.FC<ReagentStockGridProps> = React.memo(({
   if (!reagents || reagents.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 gap-2 text-slate-400 dark:text-slate-600">
-        <span className="material-symbols-outlined text-3xl">science</span>
+        <FlaskConical className="w-8 h-8" />
         <p className="text-xs font-medium">No reagents configured</p>
       </div>
     );

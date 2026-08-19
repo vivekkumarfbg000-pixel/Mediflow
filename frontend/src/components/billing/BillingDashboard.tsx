@@ -9,7 +9,15 @@ import {
   Building,
   User,
   AlertCircle,
-  Printer
+  Printer,
+  Receipt,
+  CheckCircle2,
+  ArrowLeft,
+  Building2,
+  GitFork,
+  BarChart3,
+  Clock,
+  ArrowLeftRight
 } from 'lucide-react';
 
 export const BillingDashboard: React.FC = () => {
@@ -203,7 +211,7 @@ export const BillingDashboard: React.FC = () => {
         <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-primary opacity-50" />
           <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-rose-500 text-[16px]">receipt_long</span>
+            <Receipt className="w-4 h-4 text-rose-500 shrink-0" />
             Unified Bill Ledger
           </h2>
 
@@ -305,7 +313,7 @@ export const BillingDashboard: React.FC = () => {
                           </span>
                         </div>
                         <p className="text-[9px] text-emerald-600 font-bold uppercase mt-2 tracking-wider flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[10px]">check_circle</span>
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                           Cleared
                         </p>
                       </button>
@@ -332,7 +340,7 @@ export const BillingDashboard: React.FC = () => {
                 onClick={() => setSelectedInvoice(null)}
                 className="lg:hidden inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 pb-2 cursor-pointer transition active:scale-[0.97] border-0 bg-transparent p-0"
               >
-                <span className="material-symbols-outlined text-sm font-bold">arrow_back</span>
+                <ArrowLeft className="w-3.5 h-3.5 font-bold" />
                 Back to Bill Ledger List
               </button>
               <div className="border-b border-slate-200 pb-4">
@@ -354,7 +362,7 @@ export const BillingDashboard: React.FC = () => {
                   )}
                 </div>
                 <h3 className="font-semibold text-slate-850 text-sm mt-3 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-indigo-600 text-[16px]">account_balance</span>
+                  <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
                   Unified Split-Bill
                   <span className="text-slate-500 font-medium text-xs font-mono uppercase bg-slate-100 px-2 py-0.5 rounded ml-1">
                     ({(selectedInvoice.id || '').substring(0, 8)}...)
@@ -386,7 +394,7 @@ export const BillingDashboard: React.FC = () => {
                       : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm font-bold">receipt</span>
+                  <Receipt className="w-3.5 h-3.5 font-bold" />
                   Customer Invoice
                 </button>
                 <button
@@ -398,7 +406,7 @@ export const BillingDashboard: React.FC = () => {
                       : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm font-bold">account_tree</span>
+                  <GitFork className="w-3.5 h-3.5 font-bold" />
                   B2B Commission Ledger
                 </button>
                 <button
@@ -410,7 +418,7 @@ export const BillingDashboard: React.FC = () => {
                       : 'text-slate-500 hover:text-slate-800 hover:bg-white/70'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm font-bold">bar_chart</span>
+                  <BarChart3 className="w-3.5 h-3.5 font-bold" />
                   Executive Analytics
                 </button>
               </div>
@@ -571,7 +579,7 @@ export const BillingDashboard: React.FC = () => {
                     const invoiceLedgers = ledgerEntries.filter(l => l.invoiceId === selectedInvoice.id);
                     return invoiceLedgers.length === 0 ? (
                       <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-center">
-                        <span className="material-symbols-outlined text-xl text-slate-400 block mb-2">receipt_long</span>
+                        <Receipt className="w-6 h-6 text-slate-400 mx-auto block mb-2" />
                         <p className="text-[11px] text-slate-500">No ledger rows yet. Trigger UPI callback to generate splits.</p>
                         <p className="text-[10px] text-slate-400 mt-1 font-mono">DB trigger <code>trg_payment_cleared</code> populates rows on payment clearance.</p>
                       </div>
@@ -636,7 +644,7 @@ export const BillingDashboard: React.FC = () => {
                   {/* Revenue Splits 3D Cylinder Grouped Bars */}
                   <div className="p-5 border border-slate-200 shadow-lg relative overflow-hidden bg-slate-50/50 rounded-2xl">
                     <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-widest font-mono mb-4 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-emerald-600 text-sm animate-pulse">analytics</span>
+                      <BarChart3 className="w-4 h-4 text-emerald-600 shrink-0 animate-pulse" />
                       Executive Clinic Revenue Splits & SaaS Commission
                     </h4>
 
@@ -668,7 +676,7 @@ export const BillingDashboard: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 border border-slate-200 bg-slate-50/50 rounded-2xl space-y-3">
                       <h5 className="font-extrabold text-slate-800 text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-amber-600 text-sm">schedule</span>
+                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                         FEFO Expiry Burn Velocity
                       </h5>
                       <div className="flex items-center gap-4">
@@ -685,7 +693,7 @@ export const BillingDashboard: React.FC = () => {
 
                     <div className="p-4 border border-slate-200 bg-slate-50/50 rounded-2xl space-y-3">
                       <h5 className="font-extrabold text-slate-800 text-[10px] uppercase tracking-widest font-mono flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-rose-500 text-sm">swap_horiz</span>
+                        <ArrowLeftRight className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         Generic Brand Cost Savings
                       </h5>
                       <div className="flex items-center gap-4">
@@ -724,7 +732,7 @@ export const BillingDashboard: React.FC = () => {
               {selectedInvoice.paymentStatus === 'pending' ? (
                 <>
                   <h4 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest font-mono text-center flex items-center gap-1 justify-center">
-                    <span className="material-symbols-outlined text-xs animate-pulse text-rose-500">qr_code_2</span>
+                    <QrCode className="w-3.5 h-3.5 text-rose-500 shrink-0 animate-pulse" />
                     UNIFIED UPI SPLIT-PAYOUT ROUTER
                   </h4>
                   

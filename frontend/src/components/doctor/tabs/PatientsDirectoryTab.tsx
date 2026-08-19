@@ -11,7 +11,10 @@ import {
   Brain, 
   UploadCloud, 
   CheckCircle2,
-  CalendarCheck 
+  CalendarCheck,
+  Info,
+  Gift,
+  Pill
 } from 'lucide-react';
 
 interface PatientsDirectoryTabProps {
@@ -304,7 +307,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-3.5 animate-fade-in relative overflow-hidden text-left">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
-                        <span className="material-symbols-outlined text-lg">video_call</span>
+                        <Video className="w-4 h-4" />
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Telemedicine Status</h4>
@@ -374,7 +377,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
-                        <span className="material-symbols-outlined text-lg font-bold">video_call</span>
+                        <Video className="w-4 h-4 font-bold" />
                       </div>
                       <div>
                         <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Telemedicine Hub</h4>
@@ -463,14 +466,14 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                       rel="noopener noreferrer"
                       className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-widest transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:scale-102 active:scale-98 text-white-force bg-emerald-600-force border-0"
                     >
-                      <span className="material-symbols-outlined text-sm font-bold text-white-force">videocam</span>
+                      <Video className="w-4 h-4 text-white" />
                       Start Video Call
                     </a>
                   </div>
 
                   {/* USP explanation message */}
                   <div className="p-3 bg-emerald-50/50 border border-emerald-100/60 rounded-2xl flex gap-2.5 items-start text-emerald-800">
-                    <span className="material-symbols-outlined text-emerald-600 text-base flex-shrink-0">info</span>
+                    <Info className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                     <p className="text-[10px] leading-relaxed">
                       <strong>💡 Monetization Hub:</strong> Virtual consultations are free for patients. Utilize your e-Prescription (e-Rx) or referral lab order buttons below to capture commissions on medicines and pathology tests.
                     </p>
@@ -482,7 +485,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             {/* loyalty discounts dispatcher */}
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-sm text-amber-500">reward</span>
+                <Gift className="w-4 h-4 text-amber-500 shrink-0" />
                 WhatsApp Loyalty Offers Console
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -490,7 +493,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   onClick={() => api.dispatchWhatsAppLoyaltyOffer(selectedDirectoryPatient.id, 'discount_30')}
                   className="p-3 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/50 rounded-xl text-left space-y-2 hover:scale-102 transition-all cursor-pointer border-slate-200"
                 >
-                  <span className="material-symbols-outlined text-teal-600 text-lg">local_pharmacy</span>
+                  <Pill className="w-5 h-5 text-teal-600" />
                   <strong className="block text-[11px] text-slate-700 font-semibold">30% Off Medicine Coupon</strong>
                   <p className="text-[9px] text-slate-400 leading-normal">For repeat glycemic drugs refill orders.</p>
                 </button>
@@ -498,7 +501,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   onClick={() => api.dispatchWhatsAppLoyaltyOffer(selectedDirectoryPatient.id, 'virtual_appointment')}
                   className="p-3 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/50 rounded-xl text-left space-y-2 hover:scale-102 transition-all cursor-pointer border-slate-200"
                 >
-                  <span className="material-symbols-outlined text-blue-600 text-lg">video_call</span>
+                  <Video className="w-5 h-5 text-blue-600" />
                   <strong className="block text-[11px] text-slate-700 font-semibold">10-Day Virtual Invite</strong>
                   <p className="text-[9px] text-slate-400 leading-normal">Invite to virtual telemedicine follow-up.</p>
                 </button>

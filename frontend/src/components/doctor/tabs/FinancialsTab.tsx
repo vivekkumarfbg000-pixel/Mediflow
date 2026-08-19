@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Landmark, FileText, Pill, FlaskConical, Activity, Search } from 'lucide-react';
 import type { FinancialLedgerEntry } from '../../../types';
 import { SettlementWidget } from '../../shared/SettlementWidget';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
@@ -388,14 +389,14 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         </PointerGlowCard>
 
         {[
-          { label: 'Doctor Consultation Fees', val: `₹${apptFees.toLocaleString()}`, split: '100% Doctor Fee (0% Platform Deducted)', icon: 'clinical_notes', color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Medicine Referral Income', val: `₹${pharmacyComm.toLocaleString()}`, split: `${docMedSplit}% SOP Doctor Referral Share`, icon: 'medication', color: 'text-teal-600 dark:text-teal-400' },
-          { label: 'Lab Test Referral Income', val: `₹${labComm.toLocaleString()}`, split: `${docLabSplit}% SOP Doctor Referral Share`, icon: 'biotech', color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Doctor Consultation Fees', val: `₹${apptFees.toLocaleString()}`, split: '100% Doctor Fee (0% Platform Deducted)', icon: <FileText className="w-5 h-5" />, color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Medicine Referral Income', val: `₹${pharmacyComm.toLocaleString()}`, split: `${docMedSplit}% SOP Doctor Referral Share`, icon: <Pill className="w-5 h-5" />, color: 'text-teal-600 dark:text-teal-400' },
+          { label: 'Lab Test Referral Income', val: `₹${labComm.toLocaleString()}`, split: `${docLabSplit}% SOP Doctor Referral Share`, icon: <FlaskConical className="w-5 h-5" />, color: 'text-amber-600 dark:text-amber-400' },
         ].map((item, i) => (
           <PointerGlowCard key={i} containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
             <div className="flex justify-between items-center">
               <span className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">{item.label}</span>
-              <span className={`material-symbols-outlined text-lg ${item.color}`}>{item.icon}</span>
+              <span className={`shrink-0 ${item.color}`}>{item.icon}</span>
             </div>
             <div className="text-xl font-bold mt-2 text-slate-850 dark:text-white">{item.val}</div>
             <p className="text-[10px] text-slate-500 dark:text-zinc-450 mt-1">{item.split}</p>
@@ -407,9 +408,9 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
       <div className="rounded-2xl border border-indigo-200/80 dark:border-indigo-500/20 bg-white dark:bg-slate-950/80 p-6 space-y-4 shadow-sm text-slate-800 dark:text-white">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-3xl text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 p-2.5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
-              account_balance
-            </span>
+            <div className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 p-2.5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20 shrink-0">
+              <Landmark className="w-6 h-6" />
+            </div>
             <div>
               <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 Commission Pool Balance
@@ -543,7 +544,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           <div className="h-44 relative border-l border-b border-slate-200 p-2">
             {chartData.length === 0 || maxVal === 500 && chartData.every(d => d.clinic === 0 && d.pharmacy === 0 && d.lab === 0) ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                <span className="material-symbols-outlined text-slate-300 text-3xl mb-1.5">monitoring</span>
+                <Activity className="w-8 h-8 text-slate-300 mb-1.5" />
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">No Transaction Data Yet</p>
                 <p className="text-[9px] text-slate-400 max-w-[200px] mt-0.5">Earnings lines will automatically plot here once patient bills are generated.</p>
               </div>
@@ -662,11 +663,12 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
               onClick={exportFinancialLedgersPDF}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl border border-indigo-200 dark:border-indigo-500/30 transition-all cursor-pointer shadow-xs"
             >
-              <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+              <FileText className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
               Download PDF Statement 📄
             </button>
 
             <div className="relative flex-1 md:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search by Patient Name, Payment Mode..."
@@ -674,7 +676,6 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 onChange={e => setFinancialSearch(e.target.value)}
                 className="w-full input-field py-1.5 pl-9 text-xs"
               />
-              <span className="material-symbols-outlined text-slate-600 absolute left-3 top-2 text-sm">search</span>
             </div>
           </div>
         </div>

@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc -b --force && vite build",
-    "build:analyze": "tsc -b --force && vite build --mode analyze",
+    "check:ligatures": "node scripts/verify-no-ligatures.js",
+    "build": "node scripts/verify-no-ligatures.js && tsc -b --force && vite build",
+    "build:analyze": "node scripts/verify-no-ligatures.js && tsc -b --force && vite build --mode analyze",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/verify-no-ligatures.js && tsc --noEmit",
     "test": "npm run build",
     "preview": "vite preview",
     "bundle:analyze": "npx vite-bundle-analyzer dist"

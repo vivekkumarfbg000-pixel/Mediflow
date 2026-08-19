@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import {
+  FlaskConical, Receipt, UserPlus, Upload, BarChart3, Landmark, Network, X, Check,
+  Lock, Tag, ClipboardEdit, ShieldCheck, FileText, Printer, Send, Search,
+  UserCheck, CheckCircle2, RefreshCw, PlusCircle, Info, PieChart,
+  CloudUpload, Microscope, Calendar, Coins, Activity
+} from 'lucide-react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { PaymentService } from '../../services/paymentService';
 import { useSpecialization } from '../../context/SpecializationContext';
@@ -524,7 +530,7 @@ export const LabDashboard: React.FC = () => {
                     : isActive ? 'bg-white border-teal-500 text-teal-600 shadow-[0_0_12px_rgba(var(--secondary-rgb),0.6)]'
                     : 'bg-slate-50 border-slate-200 text-slate-500'
                 }`}>
-                  {isCompleted ? <span className="material-symbols-outlined text-xs font-bold">check</span> : idx + 1}
+                  {isCompleted ? <Check className="w-3.5 h-3.5 text-white" /> : idx + 1}
                 </div>
                 <span className={`text-[9px] mt-1.5 font-bold tracking-tight ${isActive ? 'text-teal-600' : isCompleted ? 'text-indigo-600' : 'text-slate-500'}`}>
                   {step.label}
@@ -576,14 +582,14 @@ export const LabDashboard: React.FC = () => {
     );
   };
 
-  const tabItems: { id: LabTab; label: string; icon: string; badge?: number }[] = [
-    { id: 'queue', label: 'Test Queue', icon: 'biotech', badge: pendingList.length + collectedList.length },
-    { id: 'billing_invoices', label: 'Billing & Invoices', icon: 'receipt_long' },
-    { id: 'walkin', label: 'Walk-in Register', icon: 'person_add', badge: walkinList.length },
-    { id: 'upload_report', label: 'Direct Report Upload', icon: 'upload_file' },
-    { id: 'analytics', label: 'Analytics', icon: 'bar_chart' },
-    { id: 'settlements', label: 'Settlements', icon: 'account_balance' },
-    { id: 'pod_network', label: 'Pod Network', icon: 'hub' }
+  const tabItems: { id: LabTab; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: 'queue', label: 'Test Queue', icon: <FlaskConical className="w-4 h-4 shrink-0" />, badge: pendingList.length + collectedList.length },
+    { id: 'billing_invoices', label: 'Billing & Invoices', icon: <Receipt className="w-4 h-4 shrink-0" /> },
+    { id: 'walkin', label: 'Walk-in Register', icon: <UserPlus className="w-4 h-4 shrink-0" />, badge: walkinList.length },
+    { id: 'upload_report', label: 'Direct Report Upload', icon: <Upload className="w-4 h-4 shrink-0" /> },
+    { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4 shrink-0" /> },
+    { id: 'settlements', label: 'Settlements', icon: <Landmark className="w-4 h-4 shrink-0" /> },
+    { id: 'pod_network', label: 'Pod Network', icon: <Network className="w-4 h-4 shrink-0" /> }
   ];
 
   /* ══════════════════════════════════════════════════════════════
@@ -597,8 +603,8 @@ export const LabDashboard: React.FC = () => {
       {viewingDocUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-800/80 backdrop-blur-md">
           <div className="bg-white rounded-2xl w-full max-w-2xl p-6 border border-slate-200 shadow-2xl relative">
-            <button onClick={() => setViewingDocUrl(null)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full text-slate-500">
-              <span className="material-symbols-outlined">close</span>
+            <button onClick={() => setViewingDocUrl(null)} className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full text-slate-500 cursor-pointer">
+              <X className="w-5 h-5" />
             </button>
             <h3 className="text-slate-800 font-bold mb-4">Document Preview</h3>
             <iframe src={viewingDocUrl} className="w-full h-[60vh] rounded-lg border border-slate-200" title="Document Viewer" />
@@ -618,7 +624,7 @@ export const LabDashboard: React.FC = () => {
                 : 'bg-slate-50 border-slate-200/60 text-slate-650 hover:border-slate-300 hover:text-slate-850 hover:bg-slate-100/50'
             }`}
           >
-            <span className="material-symbols-outlined text-[16px]">{tab.icon}</span>
+            {tab.icon}
             {tab.label}
             {tab.badge !== undefined && tab.badge > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-slate-800 text-[9px] font-black flex items-center justify-center">
@@ -658,7 +664,7 @@ export const LabDashboard: React.FC = () => {
                         {!isConsentActive && !isWalkin && (
                           <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm border border-rose-500/20 p-4 text-center animate-fade-in">
                             <div className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-2 text-rose-500 animate-pulse">
-                              <span className="material-symbols-outlined text-base">lock</span>
+                              <Lock className="w-4 h-4 text-rose-500" />
                             </div>
                             <h4 className="text-slate-800 font-bold text-xs">Consent Lock</h4>
                             <p className="text-[9px] text-slate-500 mt-1">Patient consent not verified.</p>
@@ -683,7 +689,7 @@ export const LabDashboard: React.FC = () => {
                             </div>
                           </div>
                           <p className="text-xs font-bold text-indigo-600 mt-2 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">science</span>
+                            <FlaskConical className="w-3.5 h-3.5 text-indigo-600" />
                             {req.testName}
                           </p>
                           <div className="mt-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
@@ -781,9 +787,9 @@ export const LabDashboard: React.FC = () => {
                         ) : (
                           <button
                             onClick={() => handleCollectSample(req)}
-                            className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold bg-gradient-to-r from-indigo-600 to-teal-500 border-0"
+                            className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold bg-gradient-to-r from-indigo-600 to-teal-500 border-0 cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-sm font-bold">science</span>
+                            <FlaskConical className="w-3.5 h-3.5" />
                             Collect Sample
                           </button>
                         )}
@@ -814,7 +820,7 @@ export const LabDashboard: React.FC = () => {
                         {!isConsentActive && (
                           <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-slate-800/90 backdrop-blur-sm border border-rose-500/20 p-4 text-center animate-fade-in">
                             <div className="w-8 h-8 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-2 text-rose-500 animate-pulse">
-                              <span className="material-symbols-outlined text-base">lock</span>
+                              <Lock className="w-4 h-4 text-rose-500" />
                             </div>
                             <h4 className="text-slate-800 font-bold text-xs">Consent Lock</h4>
                           </div>
@@ -825,14 +831,14 @@ export const LabDashboard: React.FC = () => {
                             <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">Processing</span>
                           </div>
                           <p className="text-xs font-bold text-teal-600 mt-2 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">science</span>
+                            <FlaskConical className="w-3.5 h-3.5 text-teal-600" />
                             {req.testName}
                           </p>
                           <div className="mt-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
                             {renderStepper(req.status)}
                           </div>
                           <div className="mt-3 flex items-center gap-2 bg-slate-50/70 border border-slate-200 p-2.5 rounded-lg">
-                            <span className="material-symbols-outlined text-sm text-indigo-600">label</span>
+                            <Tag className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                             <div className="text-[10px] text-slate-600">
                               Barcode <strong className="text-slate-800 font-mono">{req.barcode}</strong>
                             </div>
@@ -849,9 +855,9 @@ export const LabDashboard: React.FC = () => {
                         )}
                         <button
                           onClick={() => handleOpenSubmit(req)}
-                          className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold bg-gradient-to-r from-indigo-600 to-teal-500"
+                          className="btn-primary py-2 text-xs flex items-center justify-center gap-2 active:scale-95 transition-all w-full font-bold bg-gradient-to-r from-indigo-600 to-teal-500 cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-sm font-bold">input</span>
+                          <ClipboardEdit className="w-3.5 h-3.5" />
                           Input Analyzer Result
                         </button>
                       </div>
@@ -865,7 +871,7 @@ export const LabDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-indigo-500 opacity-50" />
               <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-teal-600 text-[16px]">verified</span>
+                <ShieldCheck className="w-5 h-5 text-teal-600 shrink-0" />
                 Completed Diagnostic Report Cards
               </h2>
               {completedList.length === 0 ? (
@@ -919,7 +925,7 @@ export const LabDashboard: React.FC = () => {
                                     onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
                                     className="ml-auto px-2.5 py-1 bg-slate-200 hover:bg-white/20 border border-white/20 hover:border-white/30 text-slate-800 rounded text-[10px] flex items-center gap-1 font-bold cursor-pointer active:scale-95 transition-transform"
                                   >
-                                    <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                    <FileText className="w-3.5 h-3.5" />
                                     View Doc
                                   </button>
                                 ) : (
@@ -984,7 +990,7 @@ export const LabDashboard: React.FC = () => {
                                 onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
                                 className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-black font-bold rounded-lg text-[9px] flex items-center gap-1 cursor-pointer border-0 active:scale-95 transition"
                               >
-                                <span className="material-symbols-outlined text-[12px]">picture_as_pdf</span>
+                                <FileText className="w-3.5 h-3.5" />
                                 View Report
                               </button>
                             ) : (
@@ -1007,7 +1013,7 @@ export const LabDashboard: React.FC = () => {
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden animate-fade-in">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-indigo-500 opacity-50" />
                 <h3 className="font-semibold text-slate-800 mb-2 flex items-center gap-2 text-sm">
-                  <span className="material-symbols-outlined text-teal-600 text-[16px]">edit_document</span>
+                  <ClipboardEdit className="w-4 h-4 text-teal-600 shrink-0" />
                   Biomarker Entry Form
                 </h3>
                 <p className="text-xs text-slate-500 mb-4">Enter quantitative clinical metrics.</p>
@@ -1111,7 +1117,7 @@ export const LabDashboard: React.FC = () => {
                     <span className="text-[10px] text-slate-700 font-bold uppercase tracking-wider font-mono block text-slate-800">Attach Lab Report File (PDF / Image)</span>
                     <div className="flex gap-4 items-center">
                       <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-200 hover:border-teal-500 rounded-xl p-3 bg-slate-50 text-center cursor-pointer text-[11px] font-semibold text-slate-600 hover:text-slate-800 transition-colors">
-                        <span className="material-symbols-outlined text-teal-600 text-base">upload_file</span>
+                        <Upload className="w-4 h-4 text-teal-600 shrink-0" />
                         <span>{reportFile ? reportFile.name : 'Upload Report Document'}</span>
                         <input 
                           type="file" 
@@ -1182,7 +1188,7 @@ export const LabDashboard: React.FC = () => {
                   </div>
 
                   <div className="flex gap-2 justify-end pt-2">
-                    <button type="button" onClick={() => setActiveReqId(null)} className="btn-secondary py-1.5 px-3 text-xs">
+                    <button type="button" onClick={() => setActiveReqId(null)} className="btn-secondary py-1.5 px-3 text-xs cursor-pointer">
                       Cancel
                     </button>
                     <button type="submit" className="btn-primary py-1.5 px-4 text-xs font-bold bg-gradient-to-r from-secondary to-indigo-500 hover:scale-105 active:scale-95 transition-transform cursor-pointer">
@@ -1194,7 +1200,7 @@ export const LabDashboard: React.FC = () => {
             ) : (
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
                 <div className="text-center py-6">
-                  <span className="material-symbols-outlined text-4xl text-slate-400">edit_document</span>
+                  <ClipboardEdit className="w-10 h-10 text-slate-400 mx-auto" />
                   <p className="text-xs text-slate-400 mt-2">Select a collected sample from the queue to enter analyzer results.</p>
                 </div>
               </div>
@@ -1213,7 +1219,7 @@ export const LabDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
               <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-400 text-[18px]">person_add</span>
+                <UserPlus className="w-4 h-4 text-blue-400 shrink-0" />
                 Walk-in Lab Test Registration
               </h2>
               <p className="text-[11px] text-slate-500 mb-5 leading-relaxed">
@@ -1227,7 +1233,7 @@ export const LabDashboard: React.FC = () => {
                     Search Patient
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[16px]">search</span>
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search by name or phone..."
@@ -1265,7 +1271,7 @@ export const LabDashboard: React.FC = () => {
                 {/* Selected patient badge */}
                 {walkinPatientId && !walkinSearch && (
                   <div className="flex items-center gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                    <span className="material-symbols-outlined text-blue-400 text-[18px]">person_check</span>
+                    <UserCheck className="w-4 h-4 text-blue-400 shrink-0" />
                     <div className="flex-1">
                       <div className="text-xs font-bold text-slate-800">
                         {patients.find(p => p.id === walkinPatientId)?.name || 'Selected Patient'}
@@ -1331,7 +1337,7 @@ export const LabDashboard: React.FC = () => {
                   </label>
                   <div className="flex items-center gap-3">
                     <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors">
-                      <span className="material-symbols-outlined text-xl text-blue-400">upload_file</span>
+                      <Upload className="w-5 h-5 text-blue-400 shrink-0" />
                       <span>{walkinFileUrl ? 'Re-upload / Change Slip' : 'Upload File (JPG, PNG, PDF)'}</span>
                       <input 
                         type="file" 
@@ -1353,7 +1359,7 @@ export const LabDashboard: React.FC = () => {
                   {walkinFileUrl && (
                     <div className="flex items-center justify-between mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                       <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">check_circle</span>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                         Slip Attached
                       </span>
                       <button 
@@ -1370,12 +1376,12 @@ export const LabDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!walkinPatientId || !walkinTestCode || walkinBusy}
-                  className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all"
+                  className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
                 >
                   {walkinBusy ? (
-                    <span className="material-symbols-outlined text-base animate-spin">sync</span>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
-                    <span className="material-symbols-outlined text-base">add_circle</span>
+                    <PlusCircle className="w-4 h-4" />
                   )}
                   {walkinBusy ? 'Registering...' : 'Register Walk-in Test'}
                 </button>
@@ -1384,7 +1390,7 @@ export const LabDashboard: React.FC = () => {
 
             {/* Info box */}
             <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl text-[11px] text-blue-300 leading-relaxed">
-              <span className="material-symbols-outlined text-base mt-0.5 flex-shrink-0">info</span>
+              <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
               <span>
                 Walk-in tests are auto-tagged with a <strong className="font-mono">WALK-</strong> barcode prefix and appear immediately in the test queue. No encounter ID is required — billing is handled separately at the counter.
               </span>
@@ -1396,12 +1402,12 @@ export const LabDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-50" />
               <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-400 text-[16px]">receipt_long</span>
+                <Receipt className="w-4 h-4 text-blue-400 shrink-0" />
                 Walk-in Test History ({walkinList.length})
               </h2>
               {walkinList.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-sm space-y-2">
-                  <span className="material-symbols-outlined text-3xl text-slate-300 block">person_add</span>
+                  <UserPlus className="w-8 h-8 text-slate-300 mx-auto block" />
                   No walk-in tests registered yet today.
                 </div>
               ) : (
@@ -1485,7 +1491,7 @@ export const LabDashboard: React.FC = () => {
                                 }}
                                 className="px-2.5 py-1 bg-slate-200 hover:bg-slate-350 text-slate-800 text-[9px] font-black rounded-lg cursor-pointer flex items-center gap-1 border-0"
                               >
-                                <span className="material-symbols-outlined text-[11px]">print</span>
+                                <Printer className="w-3 h-3" />
                                 Receipt
                               </button>
                             </div>
@@ -1539,7 +1545,7 @@ export const LabDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-60" />
               <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-600 text-[18px]">upload_file</span>
+                <Upload className="w-4 h-4 text-indigo-600 shrink-0" />
                 Direct Pathology Report Upload
               </h2>
               <p className="text-[11px] text-slate-500 mb-5 leading-relaxed">
@@ -1553,7 +1559,7 @@ export const LabDashboard: React.FC = () => {
                     Search Patient
                   </label>
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[16px]">search</span>
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search by name or phone..."
@@ -1590,7 +1596,7 @@ export const LabDashboard: React.FC = () => {
                 {/* Selected patient badge */}
                 {directPatientId && !directSearch && (
                   <div className="flex items-center gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
-                    <span className="material-symbols-outlined text-indigo-600 text-[18px]">person_check</span>
+                    <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
                     <div className="flex-1">
                       <div className="text-xs font-bold text-slate-800">
                         {patients.find(p => p.id === directPatientId)?.name || 'Selected Patient'}
@@ -1655,7 +1661,7 @@ export const LabDashboard: React.FC = () => {
                   </label>
                   <div className="flex items-center gap-3">
                     <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-200 hover:border-indigo-500 rounded-xl p-3 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors">
-                      <span className="material-symbols-outlined text-xl text-indigo-600">upload_file</span>
+                      <Upload className="w-5 h-5 text-indigo-600 shrink-0" />
                       <span>{directFile ? directFile.name : 'Upload Report File (JPG, PNG, PDF)'}</span>
                       <input 
                         type="file" 
@@ -1678,7 +1684,7 @@ export const LabDashboard: React.FC = () => {
                   {directFilePreviewUrl && (
                     <div className="flex items-center justify-between mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                       <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">check_circle</span>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                         Report File Loaded
                       </span>
                       <button 
@@ -1695,12 +1701,12 @@ export const LabDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!directPatientId || !directTestCode || directBusy}
-                  className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all bg-gradient-to-r from-indigo-600 to-teal-500"
+                  className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all bg-gradient-to-r from-indigo-600 to-teal-500 cursor-pointer"
                 >
                   {directBusy ? (
-                    <span className="material-symbols-outlined text-base animate-spin">sync</span>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
-                    <span className="material-symbols-outlined text-base">cloud_upload</span>
+                    <CloudUpload className="w-4 h-4" />
                   )}
                   {directBusy ? 'Submitting to database...' : 'Submit Report to Database'}
                 </button>
@@ -1713,7 +1719,7 @@ export const LabDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-indigo-500 opacity-60" />
               <h3 className="font-semibold text-slate-800 mb-2 flex items-center gap-2 text-sm">
-                <span className="material-symbols-outlined text-teal-600 text-[16px]">edit_document</span>
+                <ClipboardEdit className="w-4 h-4 text-teal-600 shrink-0" />
                 Report Biomarker Details
               </h3>
               <p className="text-xs text-slate-500 mb-4">Specify the biomarker metrics corresponding to the uploaded report.</p>
@@ -1802,10 +1808,10 @@ export const LabDashboard: React.FC = () => {
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Total Tests Processed', value: totalTests, icon: 'bar_chart', color: 'primary' },
-              { label: "Today's Tests", value: todayCompleted.length, icon: 'today', color: 'emerald' },
-              { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString('en-IN')}`, icon: 'currency_rupee', color: 'amber' },
-              { label: 'Walk-in Tests', value: walkinList.length, icon: 'person_add', color: 'blue' }
+              { label: 'Total Tests Processed', value: totalTests, icon: <BarChart3 className="w-5 h-5 text-indigo-600" />, color: 'primary' },
+              { label: "Today's Tests", value: todayCompleted.length, icon: <Calendar className="w-5 h-5 text-emerald-500" />, color: 'emerald' },
+              { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString('en-IN')}`, icon: <Coins className="w-5 h-5 text-amber-500" />, color: 'amber' },
+              { label: 'Walk-in Tests', value: walkinList.length, icon: <UserPlus className="w-5 h-5 text-blue-500" />, color: 'blue' }
             ].map(card => (
               <div key={card.label} className="glass-panel p-5 border-slate-200/60 relative overflow-hidden">
                 <div className={`absolute top-0 left-0 w-full h-[2px] ${
@@ -1813,11 +1819,7 @@ export const LabDashboard: React.FC = () => {
                   card.color === 'emerald' ? 'bg-emerald-500' :
                   card.color === 'amber' ? 'bg-amber-500' : 'bg-blue-500'
                 } opacity-60`} />
-                <span className={`material-symbols-outlined text-[22px] ${
-                  card.color === 'primary' ? 'text-indigo-600' :
-                  card.color === 'emerald' ? 'text-emerald-400' :
-                  card.color === 'amber' ? 'text-amber-400' : 'text-blue-400'
-                }`}>{card.icon}</span>
+                <div className="mb-2">{card.icon}</div>
                 <div className="text-2xl font-bold text-slate-800 mt-2 font-mono">{card.value}</div>
                 <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mt-1">{card.label}</div>
               </div>
@@ -1829,7 +1831,7 @@ export const LabDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-50" />
               <h2 className="text-sm font-semibold text-slate-800 mb-5 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-600 text-[16px]">pie_chart</span>
+                <PieChart className="w-4 h-4 text-indigo-600 shrink-0" />
                 Test Frequency Breakdown
               </h2>
               {testBreakdown.length === 0 ? (
@@ -1861,7 +1863,7 @@ export const LabDashboard: React.FC = () => {
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-indigo-500 opacity-50" />
               <h2 className="text-sm font-semibold text-slate-800 mb-5 flex items-center gap-2">
-                <span className="material-symbols-outlined text-teal-600 text-[16px]">lab_research</span>
+                <Microscope className="w-4 h-4 text-teal-600 shrink-0" />
                 LOINC Test Catalog & Pricing
               </h2>
               <div className="space-y-2">
@@ -1884,7 +1886,7 @@ export const LabDashboard: React.FC = () => {
           <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-amber-500 opacity-40" />
             <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-amber-400 text-[16px]">receipt_long</span>
+              <Receipt className="w-4 h-4 text-amber-500 shrink-0" />
               Chemical Reagent Deduction Audit Log
             </h2>
             {completedList.flatMap(r => r.reagentDeductions || []).length === 0 ? (
@@ -1935,7 +1937,7 @@ export const LabDashboard: React.FC = () => {
           {/* Split rules display */}
           <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <span className="material-symbols-outlined text-indigo-600 text-base">policy</span>
+              <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
               Active SOP Split Configuration
             </h3>
             <p className="text-xs text-slate-500">
@@ -1969,7 +1971,7 @@ export const LabDashboard: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
             <div>
               <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-400 text-base">receipt_long</span>
+                <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
                 Lab Billing & Invoices
               </h2>
               <p className="text-xs text-slate-500 mt-1">
@@ -2147,7 +2149,7 @@ export const LabDashboard: React.FC = () => {
                   )}
                 </div>
 
-                {/* 3. Paid Invoices (Print & Send to Patient) */}
+                {/* 3. Paid Invoices (Receipts & WhatsApp) */}
                 <div>
                   <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -2158,28 +2160,27 @@ export const LabDashboard: React.FC = () => {
                       No paid invoices yet.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {paidBills.slice(0, 12).map(bill => (
-                        <div key={bill.id} className="p-4 bg-white border border-emerald-200 rounded-xl space-y-2 relative">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {paidBills.map(bill => (
+                        <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
                           <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                            ✓ PAID
+                            PAID
                           </div>
-                          <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">#{(bill.id || 'N/A').substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} tests</p>
-                          <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                          <div className="flex gap-2 pt-1">
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {bill.items.length} tests</p>
+                          </div>
+                          <div className="text-xs font-black text-emerald-600">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
+                          <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                const html = api.generateLabInvoiceHtml(bill);
-                                const blob = new Blob([html], { type: 'text/html' });
-                                const url = URL.createObjectURL(blob);
+                                const url = URL.createObjectURL(new Blob([`Lab Invoice #${bill.id}\nPatient: ${bill.patientName}\nTotal: ₹${(bill.totalAmount || 0).toFixed(2)}`], { type: 'text/plain' }));
                                 window.open(url, '_blank');
-                                // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
                                 setTimeout(() => URL.revokeObjectURL(url), 1500);
                               }}
                               className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
                             >
-                              <span className="material-symbols-outlined text-[12px]">print</span> Print
+                              <Printer className="w-3 h-3" /> Print
                             </button>
                             <button
                               onClick={() => {
@@ -2190,7 +2191,7 @@ export const LabDashboard: React.FC = () => {
                               }}
                               className="flex-1 px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
                             >
-                              <span className="material-symbols-outlined text-[12px]">send</span> WhatsApp
+                              <Send className="w-3 h-3" /> WhatsApp
                             </button>
                           </div>
                         </div>
@@ -2210,7 +2211,7 @@ export const LabDashboard: React.FC = () => {
           <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
             <div>
               <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-400 text-base">hub</span>
+                <Network className="w-4 h-4 text-indigo-400 shrink-0" />
                 Pod Network HUB
               </h2>
               <p className="text-xs text-slate-500 mt-1">
@@ -2281,11 +2282,11 @@ export const LabDashboard: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-[3px] bg-indigo-600" />
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-600 text-[16px]">label</span>
+                <Tag className="w-4 h-4 text-indigo-600 shrink-0" />
                 Specimen Label Printer
               </h3>
-              <button onClick={() => setPrintLabelReq(null)} className="text-slate-500 hover:text-slate-800 transition-colors">
-                <span className="material-symbols-outlined text-lg">close</span>
+              <button onClick={() => setPrintLabelReq(null)} className="text-slate-500 hover:text-slate-800 transition-colors cursor-pointer">
+                <X className="w-5 h-5" />
               </button>
             </div>
             <div id="specimen-label-print-area" className="p-4 bg-white text-black rounded-lg border-2 border-dashed border-black/30 font-sans shadow-inner space-y-4">
@@ -2323,7 +2324,7 @@ export const LabDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setPrintLabelReq(null)}
-                className="px-4 py-2 rounded-lg bg-white border border-slate-200 text-xs text-slate-600 font-semibold hover:bg-white-high"
+                className="px-4 py-2 rounded-lg bg-white border border-slate-200 text-xs text-slate-600 font-semibold hover:bg-white-high cursor-pointer"
               >
                 Close
               </button>
@@ -2345,9 +2346,9 @@ export const LabDashboard: React.FC = () => {
                     }
                   }
                 }}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-black bg-teal-600 hover:bg-teal-600/80 flex items-center gap-1.5"
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-black bg-teal-600 hover:bg-teal-600/80 flex items-center gap-1.5 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-sm font-bold">print</span>
+                <Printer className="w-3.5 h-3.5" />
                 Print Label
               </button>
             </div>
@@ -2364,7 +2365,7 @@ export const LabDashboard: React.FC = () => {
               <div className="absolute inset-0 rounded-full border-4 border-indigo-500/10 border-t-primary animate-spin" />
               <div className="absolute inset-2 rounded-full border-4 border-teal-200 border-b-secondary animate-spin [animation-direction:reverse] [animation-duration:1.5s]" />
               <div className="absolute inset-4 rounded-full bg-white border border-indigo-100 flex items-center justify-center text-indigo-600 animate-pulse shadow-sm">
-                <span className="material-symbols-outlined text-2xl">science</span>
+                <FlaskConical className="w-6 h-6 text-indigo-600" />
               </div>
             </div>
             <div className="space-y-2">
@@ -2389,14 +2390,14 @@ export const LabDashboard: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-600 to-teal-500" />
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-600 text-base">receipt_long</span>
+                <Receipt className="w-4 h-4 text-indigo-600 shrink-0" />
                 Prescription / Request Slip Viewer
               </h3>
               <button
                 onClick={() => setViewingDocUrl(null)}
                 className="p-1.5 text-slate-600 hover:text-slate-800 bg-white/5 hover:bg-slate-200 border-0 rounded-lg cursor-pointer transition active:scale-95 flex items-center"
               >
-                <span className="material-symbols-outlined text-sm font-bold">close</span>
+                <X className="w-4 h-4" />
               </button>
             </div>
             
