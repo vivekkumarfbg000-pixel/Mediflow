@@ -984,10 +984,11 @@ async function triggerBotReplyPipeline(ctx: {
   let consents: any[] = [];
   
   try {
+    const clean10 = String(patientPhone).replace(/\D/g, "").slice(-10);
     const [patRes, consentRes] = await Promise.all([
       session.patient_id
-        ? supabase.from("patient_registry").select("*").eq("id", session.patient_id).single()
-        : supabase.from("patient_registry").select("*").eq("phone", patientPhone).maybeSingle(),
+        ? supabase.from("patient_registry").select("*").eq("id", session.patient_id).maybeSingle()
+        : supabase.from("patient_registry").select("*").or(`phone.eq.${clean10},phone.eq.${patientPhone},phone.eq.91${clean10}`).maybeSingle(),
       session.patient_id
         ? supabase.from("patient_consents").select("*").eq("patient_id", session.patient_id)
         : Promise.resolve({ data: [] })
@@ -999,6 +1000,8 @@ async function triggerBotReplyPipeline(ctx: {
   } catch (pErr) {
     console.warn("[Meta Webhook] Parallel fetch error:", pErr);
   }
+
+  const patientName = patient?.name || sessionData.familyDetails?.name || sessionData.tempNewPatientName || "Valued Patient";
 
   // Dynamically resolve active Doctor Profile (display_name, consultation_fee) and Clinic Name for this session/pod
   let resolvedDoctorName = "Doctor";
