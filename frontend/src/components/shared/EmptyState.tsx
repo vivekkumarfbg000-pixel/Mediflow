@@ -378,7 +378,9 @@ export function InlineEmptyState({
       className={`flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-xl border ${c.container} ${className}`}
       role="status"
     >
-      <span className={`material-symbols-outlined text-2xl ${c.icon}`}>{icon}</span>
+      <div className="w-8 h-8 flex items-center justify-center shrink-0 overflow-hidden">
+        <span className={`material-symbols-outlined text-2xl ${c.icon}`}>{icon}</span>
+      </div>
       <p className={`text-[11px] font-semibold tracking-wide uppercase text-center leading-tight ${c.label}`}>
         {label}
       </p>

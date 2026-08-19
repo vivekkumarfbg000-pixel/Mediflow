@@ -21,7 +21,14 @@ import {
   FileText,
   Eye,
   Sun,
-  Moon
+  Moon,
+  LayoutDashboard,
+  ClipboardList,
+  CreditCard,
+  Users,
+  MessageSquare,
+  FlaskConical,
+  UploadCloud
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
@@ -958,13 +965,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {(() => {
             if (currentRole === 'doctor') {
               const docTabs = [
-                { id: 'pod_view', label: 'Pod', icon: 'hub' },
-                { id: 'consultation', label: 'Consult', icon: 'clinical_notes' },
-                { id: 'financials', label: 'Finance', icon: 'account_balance' },
-                { id: 'patients', label: 'Patients', icon: 'group' },
-                { id: 'whatsapp', label: 'WhatsApp', icon: 'chat' }
+                { id: 'pod_view', label: 'Pod', icon: LayoutDashboard },
+                { id: 'consultation', label: 'Consult', icon: ClipboardList },
+                { id: 'financials', label: 'Finance', icon: CreditCard },
+                { id: 'patients', label: 'Patients', icon: Users },
+                { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare }
               ];
               return docTabs.map(t => {
+                const Icon = t.icon;
                 const isActive = activeDoctorTab === t.id;
                 return (
                   <button
@@ -979,8 +987,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       isActive ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                      <span className="material-symbols-outlined text-[20px]">{t.icon}</span>
+                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                      <Icon className="h-4 w-4 shrink-0" />
                     </div>
                     <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
@@ -1016,8 +1024,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                      <Icon className="h-4 w-4" />
+                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                      <Icon className="h-4 w-4 shrink-0" />
                     </div>
                     <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
@@ -1056,8 +1064,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                      <Icon className="h-4 w-4" />
+                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                      <Icon className="h-4 w-4 shrink-0" />
                     </div>
                     <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-emerald-600 dark:text-emerald-400' : 'font-semibold'}`}>
                       {t.label}
@@ -1069,12 +1077,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             if (currentRole === 'lab') {
               const labTabs = [
-                { id: 'queue', label: 'Queue', icon: 'biotech' },
-                { id: 'walkin', label: 'Walk-in', icon: 'person_add' },
-                { id: 'upload_report', label: 'Upload', icon: 'upload_file' },
-                { id: 'settlements', label: 'Ledger', icon: 'account_balance' }
+                { id: 'queue', label: 'Queue', icon: FlaskConical },
+                { id: 'walkin', label: 'Walk-in', icon: UserPlus },
+                { id: 'upload_report', label: 'Upload', icon: UploadCloud },
+                { id: 'settlements', label: 'Ledger', icon: CreditCard }
               ];
               return labTabs.map(t => {
+                const Icon = t.icon;
                 const isActive = activeLabTab === t.id;
                 return (
                   <button
@@ -1090,8 +1099,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                      <span className="material-symbols-outlined text-[20px]">{t.icon}</span>
+                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                      <Icon className="h-4 w-4 shrink-0" />
                     </div>
                     <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-teal-600 dark:text-teal-400' : 'font-semibold'}`}>
                       {t.label}
@@ -1126,8 +1135,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                      <Icon className="h-4 w-4" />
+                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                      <Icon className="h-4 w-4 shrink-0" />
                     </div>
                     <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
@@ -1161,8 +1170,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
-                  <div className={`flex items-center justify-center h-5 transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
-                    <Icon className="h-4 w-4" />
+                  <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                    <Icon className="h-4 w-4 shrink-0" />
                   </div>
                   <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                     {label}

@@ -11,7 +11,13 @@ import {
   AlertTriangle,
   ShieldAlert,
   Activity,
-  HeartPulse
+  HeartPulse,
+  LayoutDashboard,
+  ClipboardList,
+  Video,
+  CreditCard,
+  Users,
+  MessageSquare
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { useSpecialization } from '../../context/SpecializationContext';
@@ -2093,28 +2099,31 @@ Keep the tone professional, clinical, objective, and precise.`;
         {/* Desktop tab nav — integrated into header */}
         <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px">
           {[
-            { id: 'pod_view',          label: 'Clinic Dashboard',     icon: 'dashboard' },
-            { id: 'consultation',      label: 'Consultation Queue',     icon: 'clinical_notes' },
-            { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: 'videocam' },
-            { id: 'financials',        label: 'Financial Reports',      icon: 'account_balance' },
-            { id: 'patients',          label: 'Patient Directory',      icon: 'group' },
-            { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: 'chat' }
+            { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard },
+            { id: 'consultation',      label: 'Consultation Queue',     icon: ClipboardList },
+            { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video },
+            { id: 'financials',        label: 'Financial Reports',      icon: CreditCard },
+            { id: 'patients',          label: 'Patient Directory',      icon: Users },
+            { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare }
           ].map(tab => {
+            const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-[11px] font-bold rounded-lg transition-all duration-300 cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold rounded-lg transition-all duration-300 cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 shadow-xs border border-slate-200/50 dark:border-white/5'
                     : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
                 }`}
               >
-                <span className={`material-symbols-outlined text-[15px] ${
-                  isActive ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-zinc-500'
-                }`}>{tab.icon}</span>
-                {tab.label}
+                <div className="w-4 h-4 flex items-center justify-center shrink-0 overflow-hidden">
+                  <Icon className={`w-3.5 h-3.5 ${
+                    isActive ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-zinc-500'
+                  }`} />
+                </div>
+                <span>{tab.label}</span>
               </button>
             );
           })}

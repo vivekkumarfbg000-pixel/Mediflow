@@ -7,11 +7,12 @@
 @config "../tailwind.config.js";
 
 /* Mandatory Material Symbols Font Ligature Enforcer */
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined', 'Material Icons', sans-serif !important;
+.material-symbols-outlined,
+.material-icons {
+  font-family: 'Material Symbols Outlined', 'Material Icons' !important;
   font-weight: normal;
   font-style: normal;
-  font-size: 20px;
+  font-size: 24px;
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
@@ -22,7 +23,13 @@
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'liga' 1, 'liga';
+  font-feature-settings: 'liga';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  user-select: none;
+  max-width: 1.2em;
+  max-height: 1.2em;
+  overflow: hidden;
 }
 
 @theme {

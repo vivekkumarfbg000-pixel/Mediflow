@@ -11,6 +11,17 @@ import { PharmacyService } from '../../services/pharmacyService';
 import { PointerGlowCard } from '../ui/PointerGlowCard';
 import { SkeletonMetric, SkeletonCard, SkeletonRow } from '../ui/SkeletonLoader';
 import { ZeroQueueState } from '../shared/EmptyState';
+import { 
+  Users, 
+  ClipboardList, 
+  Stethoscope, 
+  CheckCircle2, 
+  CreditCard, 
+  Search, 
+  UserPlus, 
+  X, 
+  Clock 
+} from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PodCommandCenter.tsx — Mediflow B2B Glassmorphic Matrix Console
@@ -514,7 +525,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           {/* Left info */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-amber-600 text-[20px]">payments</span>
+              <CreditCard className="w-5 h-5 text-amber-600 shrink-0" />
             </div>
             <div>
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">
@@ -597,11 +608,11 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </>
         ) : (
           [
-            { id: 'all',       label: 'Total Registered',         value: patientMetrics.total,                icon: 'group',          accent: 'indigo',   sub: 'Total checked-in patients' },
-            { id: 'awaiting',  label: 'Awaiting Consultation',    value: patientMetrics.awaitingConsultation, icon: 'clinical_notes',  accent: 'amber',    sub: 'Patients waiting in queue' },
-            { id: 'active',    label: 'In Consultation',          value: patientMetrics.inConsultation,       icon: 'stethoscope',     accent: 'teal',     sub: 'Active patient encounters' },
-            { id: 'completed', label: 'Completed Care Loop',      value: patientMetrics.completed,            icon: 'task_alt',        accent: 'emerald',  sub: 'Completed clinic visits'  },
-          ].map(({ id, label, value, icon, accent, sub }) => {
+            { id: 'all',       label: 'Total Registered',         value: patientMetrics.total,                icon: Users,          accent: 'indigo',   sub: 'Total checked-in patients' },
+            { id: 'awaiting',  label: 'Awaiting Consultation',    value: patientMetrics.awaitingConsultation, icon: Clock,          accent: 'amber',    sub: 'Patients waiting in queue' },
+            { id: 'active',    label: 'In Consultation',          value: patientMetrics.inConsultation,       icon: Stethoscope,    accent: 'teal',     sub: 'Active patient encounters' },
+            { id: 'completed', label: 'Completed Care Loop',      value: patientMetrics.completed,            icon: CheckCircle2,   accent: 'emerald',  sub: 'Completed clinic visits'  },
+          ].map(({ id, label, value, icon: Icon, accent, sub }) => {
             const isSelected = selectedMetric === id || (selectedMetric === null && id === 'awaiting');
             
             const borderStyles = {
@@ -629,7 +640,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                 }`}
               >
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${iconBgStyles}`}>
-                  <span className="material-symbols-outlined text-[22px]">{icon}</span>
+                  <Icon className="w-5 h-5 shrink-0" />
                 </div>
                 <div>
                   <div className="text-xl font-bold font-mono text-slate-900 dark:text-white leading-tight">
@@ -660,14 +671,16 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             <div className="p-5 flex flex-col flex-1">
               <div className="flex justify-between items-center mb-3">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-indigo-550 text-[18px]">
-                    {selectedMetric === 'all' ? 'group' : selectedMetric === 'active' ? 'stethoscope' : selectedMetric === 'completed' ? 'task_alt' : 'clinical_notes'}
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    {selectedMetric === 'all' ? <Users className="w-4 h-4 text-indigo-500" /> : selectedMetric === 'active' ? <Stethoscope className="w-4 h-4 text-teal-500" /> : selectedMetric === 'completed' ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <ClipboardList className="w-4 h-4 text-indigo-500" />}
+                  </div>
+                  <span>
+                    {selectedMetric === 'all' && 'Registered Patients Today'}
+                    {selectedMetric === 'awaiting' && 'Consultation Queue (Awaiting)'}
+                    {selectedMetric === 'active' && 'Active Consultations (In Progress)'}
+                    {selectedMetric === 'completed' && 'Completed Consultations'}
+                    {(selectedMetric === null) && 'Active Consultation Queue'}
                   </span>
-                  {selectedMetric === 'all' && 'Registered Patients Today'}
-                  {selectedMetric === 'awaiting' && 'Consultation Queue (Awaiting)'}
-                  {selectedMetric === 'active' && 'Active Consultations (In Progress)'}
-                  {selectedMetric === 'completed' && 'Completed Consultations'}
-                  {(selectedMetric === null) && 'Active Consultation Queue'}
                 </h2>
                 <div className="flex items-center gap-2">
                   <button
@@ -675,8 +688,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                     className="p-1 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded text-indigo-700 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-white transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
                     title="Quick check-in a new random patient for consultation"
                   >
-                    <span className="material-symbols-outlined text-sm">person_add</span>
-                    Check-in Walk-in
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Check-in Walk-in</span>
                   </button>
                   <span className="text-[10px] font-bold px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded-full font-mono shrink-0">
                     {filteredPatients.length} {selectedMetric === 'completed' ? 'Completed' : selectedMetric === 'active' ? 'Active' : 'Total'}
@@ -686,17 +699,17 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
               {/* Search Patient in Queue */}
               <div className="relative mb-3">
-                <span className="material-symbols-outlined text-slate-400 text-[14px] absolute left-3 top-2">search</span>
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search patient name or token…"
-                  className="w-full bg-slate-50 border border-slate-200 text-[11px] px-8 py-1.5 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 text-[11px] pl-8 pr-8 py-1.5 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 transition-all"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2 text-slate-400 hover:text-slate-700 cursor-pointer border-0 bg-transparent">
-                    <span className="material-symbols-outlined text-[13px]">close</span>
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
