@@ -163,9 +163,9 @@ serve(async (req) => {
 
       await supabase.rpc('atomic_update_whatsapp_session', {
         p_patient_phone: waitingSess.patient_phone,
-        p_patient_id: null,
-        p_pod_id: null,
-        p_entity_id: null,
+        p_patient_id: waitingSess.patient_id || null,
+        p_pod_id: waitingSess.pod_id || null,
+        p_entity_id: waitingSess.pod_id || null,
         p_current_state: "COMPLETED",
         p_message: {
           sender: "agent",

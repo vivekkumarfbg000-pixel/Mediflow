@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import type { Patient, WhatsAppSession, ChatMessage } from '../../types';
-import { Send, Check, Phone, Video, MoreVertical, ShieldAlert, Award, Smartphone, Play, Pause, Mic, X, Receipt, Camera, QrCode } from 'lucide-react';
+import { Send, Check, Phone, Video, MoreVertical, ShieldAlert, Award, Smartphone, Play, Pause, Mic, X, Receipt, Camera, QrCode, CreditCard, ExternalLink } from 'lucide-react';
 
 interface PatientWhatsAppSimulatorProps {
   isOpen: boolean;
@@ -323,6 +323,24 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                 >
                   {displayTargetText && <p className="whitespace-pre-line font-medium leading-normal">{displayTargetText}</p>}
                   
+                  {msg.text.includes('/pay') && (
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const payUrlMatch = msg.text.match(/(https?:\/\/[^\s]+)/);
+                          const targetUrl = payUrlMatch ? payUrlMatch[0] : `/pay/${pendingInvoice?.id || 'inv-default'}`;
+                          window.open(targetUrl, '_blank');
+                        }}
+                        className="w-full py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>💳 Open Razorpay Checkout (₹515.00)</span>
+                        <ExternalLink className="w-3 h-3 ml-0.5" />
+                      </button>
+                    </div>
+                  )}
+
                   {hasVoiceNote && (
                     <VoiceNotePlayer 
                       isPlaying={playingVoiceId === i} 

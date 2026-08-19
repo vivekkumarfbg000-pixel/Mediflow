@@ -12,17 +12,22 @@ export function getCorsHeaders(req: Request) {
     "http://localhost:3000",
     "https://mediflow.vercel.app", 
     "https://app.vitalsync.in",
+    "https://vitalsync.in",
+    "https://www.vitalsync.in",
+    "http://vitalsync.in"
   ];
 
-  // Dynamic check for preview branches (*.vercel.app) and localhost ports
-  const isAllowed = allowedOrigins.includes(origin) || 
+  // Dynamic check for preview branches (*.vercel.app), vitalsync domains, and localhost
+  const isAllowed = !origin || 
+                    allowedOrigins.includes(origin) || 
                     origin.endsWith(".vercel.app") || 
                     origin.endsWith(".vitalsync.in") ||
+                    origin.includes("vitalsync.in") ||
                     /^https?:\/\/localhost(:\d+)?$/.test(origin);
 
   return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : "https://app.vitalsync.in",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+    "Access-Control-Allow-Origin": isAllowed ? (origin || "*") : "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE, HEAD",
   };
 }

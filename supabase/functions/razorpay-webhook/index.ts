@@ -164,7 +164,7 @@ serve(async (req) => {
         if (clean10) {
           const { data: sess } = await supabase
             .from("whatsapp_sessions")
-            .select("id, patient_phone, session_data")
+            .select("id, patient_id, pod_id, patient_phone, session_data")
             .ilike("patient_phone", `%${clean10}%`)
             .limit(1)
             .maybeSingle();
@@ -186,9 +186,9 @@ serve(async (req) => {
             const updates = { ...sessData, isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
             await supabase.rpc('atomic_update_whatsapp_session', {
               p_patient_phone: sess.patient_phone,
-              p_patient_id: null,
-              p_pod_id: null,
-              p_entity_id: null,
+              p_patient_id: sess.patient_id || null,
+              p_pod_id: sess.pod_id || null,
+              p_entity_id: sess.pod_id || null,
               p_current_state: "COMPLETED",
               p_message: {
                 sender: "bot",
@@ -202,7 +202,7 @@ serve(async (req) => {
 
           // Direct Outbound Meta Graph API Dispatch (<200ms)
           const metaToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
-          const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || "549557451578330";
+          const phoneId = (sess?.session_data?.phoneId) || Deno.env.get("META_PHONE_NUMBER_ID") || "566416629883556";
           
           // Fallback to clean10 if sess.patient_phone is missing/hijacked
           const outboundPhone = sess?.patient_phone || clean10;
@@ -239,6 +239,8 @@ serve(async (req) => {
         } catch (idemErr) {
           console.warn(`[Razorpay Webhook] ⚠️ Idempotency key insert failed (non-fatal): ${idemErr}`);
         }
+      } catch (procErr: any) {
+        console.error("[Razorpay Webhook] Processing error:", procErr);
       }
     }
 

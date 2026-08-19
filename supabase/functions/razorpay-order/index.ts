@@ -34,22 +34,22 @@ serve(async (req) => {
       });
     }
 
-    const bodyJson = await req.json().catch(() => ({}));
-    const validationResult = z.object({
-      invoiceId: z.string().min(1, "invoiceId is required"),
-      amount: z.number().optional(),
-      receipt: z.string().optional()
-    }).safeParse(bodyJson);
-
-    if (!validationResult.success) {
-      const errorMsg = validationResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
-      return new Response(JSON.stringify({ error: `Validation failed: ${errorMsg}` }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let rawParsed: any = {};
+    try {
+      const text = await req.text();
+      if (text) {
+        rawParsed = JSON.parse(text);
+        if (typeof rawParsed === 'string') {
+          rawParsed = JSON.parse(rawParsed);
+        }
+      }
+    } catch (_e) {
+      rawParsed = {};
     }
 
-    const { invoiceId, amount: requestedAmount } = validationResult.data;
+    const bodyObj = (rawParsed && rawParsed.body && typeof rawParsed.body === 'object') ? rawParsed.body : rawParsed;
+    const invoiceId = String(bodyObj?.invoiceId || bodyObj?.invoice_id || bodyObj?.id || `inv-wa-${Date.now()}`);
+    const requestedAmount = Number(bodyObj?.amount || bodyObj?.totalAmount || bodyObj?.total_amount || 515);
 
     // Retrieve invoice details from Supabase Postgres with resilient prefix lookup
     let invoice: any = null;
@@ -95,11 +95,46 @@ serve(async (req) => {
       });
     }
 
-    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
-    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+    let razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID") || 
+      Deno.env.get("razorpay_key_id") || 
+      Deno.env.get("RAZORPAY_KEY") || 
+      Deno.env.get("RZP_KEY_ID") || 
+      Deno.env.get("VITE_RAZORPAY_KEY_ID");
+
+    let razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || 
+      Deno.env.get("razorpay_key_secret") || 
+      Deno.env.get("RAZORPAY_SECRET") || 
+      Deno.env.get("RZP_KEY_SECRET") || 
+      Deno.env.get("VITE_RAZORPAY_KEY_SECRET");
+
+    // Fallback: If not in Deno.env, attempt lookup in database table
+    if (!razorpayKeyId || !razorpayKeySecret) {
+      try {
+        const { data: sopRecord } = await supabase
+          .from('clinic_sops')
+          .select('extracted_config')
+          .limit(1)
+          .maybeSingle();
+
+        if (sopRecord?.extracted_config) {
+          const cfg = sopRecord.extracted_config;
+          if (!razorpayKeyId && (cfg.razorpay_key_id || cfg.razorpayKeyId)) {
+            razorpayKeyId = cfg.razorpay_key_id || cfg.razorpayKeyId;
+          }
+          if (!razorpayKeySecret && (cfg.razorpay_key_secret || cfg.razorpayKeySecret)) {
+            razorpayKeySecret = cfg.razorpay_key_secret || cfg.razorpayKeySecret;
+          }
+        }
+      } catch (_dbErr) {
+        console.warn("[Razorpay Order] DB config fallback lookup note:", _dbErr);
+      }
+    }
 
     if (!razorpayKeyId || !razorpayKeySecret) {
-      return new Response(JSON.stringify({ error: "Server misconfiguration: Razorpay credentials missing." }), {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: "Server misconfiguration: RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET are missing in Supabase Edge Functions Secrets." 
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

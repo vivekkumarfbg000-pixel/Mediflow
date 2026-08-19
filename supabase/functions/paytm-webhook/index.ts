@@ -152,7 +152,7 @@ serve(async (req) => {
         if (clean10) {
           const { data: sess } = await supabase
             .from("whatsapp_sessions")
-            .select("id, patient_phone, session_data")
+            .select("id, patient_id, pod_id, patient_phone, session_data")
             .ilike("patient_phone", `%${clean10}%`)
             .limit(1)
             .maybeSingle();
@@ -177,9 +177,9 @@ serve(async (req) => {
               const updates = { isVerifiedPaid: true, pendingInvoiceId: targetInvoiceId };
               await supabase.rpc('atomic_update_whatsapp_session', {
                 p_patient_phone: sess.patient_phone,
-                p_patient_id: null,
-                p_pod_id: null,
-                p_entity_id: null,
+                p_patient_id: sess.patient_id || null,
+                p_pod_id: sess.pod_id || null,
+                p_entity_id: sess.pod_id || null,
                 p_current_state: "COMPLETED",
                 p_message: null,
                 p_session_data_updates: updates

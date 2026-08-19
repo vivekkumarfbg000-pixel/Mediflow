@@ -2419,11 +2419,11 @@ $$;
 -- =============================================================================
 CREATE OR REPLACE FUNCTION public.atomic_update_whatsapp_session(
     p_patient_phone TEXT,
-    p_patient_id UUID,
-    p_pod_id UUID,
-    p_entity_id UUID,
-    p_current_state TEXT,
-    p_message JSONB,
+    p_patient_id UUID DEFAULT NULL,
+    p_pod_id UUID DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid,
+    p_entity_id UUID DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid,
+    p_current_state TEXT DEFAULT NULL,
+    p_message JSONB DEFAULT NULL,
     p_session_data_updates JSONB DEFAULT NULL,
     p_waba_error TEXT DEFAULT NULL
 )
@@ -2435,7 +2435,12 @@ DECLARE
     v_updated RECORD;
     v_default_session_data JSONB;
     v_chat_history JSONB;
+    v_effective_pod_id UUID;
+    v_effective_entity_id UUID;
 BEGIN
+    v_effective_pod_id := COALESCE(p_pod_id, 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid);
+    v_effective_entity_id := COALESCE(p_entity_id, v_effective_pod_id);
+
     -- Determine default chat history array (handle array vs single object)
     IF p_message IS NOT NULL THEN
       IF jsonb_typeof(p_message) = 'array' THEN
@@ -2450,8 +2455,8 @@ BEGIN
     -- Build default session data JSONB
     v_default_session_data := jsonb_build_object(
       'chatHistory', v_chat_history,
-      'podId', p_pod_id,
-      'entityId', p_entity_id,
+      'podId', v_effective_pod_id,
+      'entityId', v_effective_entity_id,
       'wabaErrorMessage', p_waba_error
     );
 
@@ -2475,7 +2480,7 @@ BEGIN
         COALESCE(p_current_state, 'IDLE'), 
         NOW(), 
         v_default_session_data,
-        p_pod_id
+        v_effective_pod_id
     )
     ON CONFLICT (patient_phone) DO UPDATE 
     SET 
@@ -2498,10 +2503,10 @@ BEGIN
         )
     RETURNING * INTO v_updated;
 
-    -- If additional session data updates are passed, merge them to avoid loss
+    -- Merge session_data_updates if provided
     IF p_session_data_updates IS NOT NULL THEN
         UPDATE public.whatsapp_sessions
-        SET session_data = session_data || p_session_data_updates
+        SET session_data = COALESCE(session_data, '{}'::jsonb) || p_session_data_updates
         WHERE id = v_updated.id
         RETURNING * INTO v_updated;
     END IF;
