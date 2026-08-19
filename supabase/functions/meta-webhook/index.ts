@@ -2002,49 +2002,73 @@ async function triggerBotReplyPipeline(ctx: {
             paymentGatewayUrl = `${appBaseUrl}/pay/${newInvoiceId}?phone=${cleanPhone10}`;
           }
 
-          // Insert Appointment Row
-          try {
-            if (bookingPatId) {
-              const { error: apptErr } = await supabase.from("appointments").insert({
-                id: newApptId,
-                patient_id: bookingPatId,
-                patient_name: targetPatName,
-                doctor_id: doctorId,
-                status: "pending_payment",
-                appointment_time: apptTimestamp,
-                appointment_date: selectedDate,
-                source: "whatsapp",
-                is_virtual: isVirtualSlot,
-                virtual_date: selectedDate,
-                virtual_time: slotText,
-                virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
-                token_number: tokenNumber,
-                unified_invoice_id: newInvoiceId,
-                pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
-                entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
+          let bookingPatId = sessionData.bookingPatientId || patient?.id || session.patient_id;
+          const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10) || "9608032073";
+          const safePodId = toValidUuid(session.pod_id || connection?.pod_id);
+          const safeEntityId = toValidUuid(session.entity_id || connection?.entity_id, safePodId);
+          const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
+          const patientEmail = patient?.email || `patient_${cleanPhone10}@vitalsync.in`;
+
+          // Auto-provision patient in patient_registry if not yet registered
+          if (!bookingPatId) {
+            bookingPatId = crypto.randomUUID();
+            try {
+              const { error: regErr } = await supabase.from("patient_registry").insert({
+                id: bookingPatId,
+                name: targetPatName,
+                phone: cleanPhone10,
+                pod_id: safePodId,
+                registered_at_entity: null,
+                token_number: String(tokenNumber),
+                queue_status: "awaiting_consultation"
               });
-              if (apptErr) console.error("[Meta Webhook] Database Appointment Insert Error:", apptErr);
+              if (regErr) {
+                console.error("[Meta Webhook] Auto-register patient error:", regErr);
+              } else {
+                session.patient_id = bookingPatId;
+                sessionData.bookingPatientId = bookingPatId;
+              }
+            } catch (pRegErr) {
+              console.error("[Meta Webhook] Auto-register patient exception:", pRegErr);
             }
+          }
+
+          // Insert Appointment Row matching Postgres schema
+          try {
+            const { error: apptErr } = await supabase.from("appointments").insert({
+              id: newApptId,
+              patient_id: bookingPatId,
+              doctor_id: doctorId,
+              status: "scheduled",
+              appointment_time: apptTimestamp,
+              is_virtual: isVirtualSlot,
+              virtual_date: selectedDate,
+              virtual_time: slotText,
+              virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
+              pod_id: safePodId,
+              entity_id: safeEntityId
+            });
+            if (apptErr) console.error("[Meta Webhook] Database Appointment Insert Error:", apptErr);
           } catch (err) {
             console.error("[Meta Webhook] Error creating appointment record:", err);
           }
 
-          // Insert Unified Invoice Row with Platform Fee (₹500 Doctor Fee + ₹15 Platform Fee = ₹515.00)
+          // Insert Unified Invoice Row matching Postgres schema
           try {
-            if (bookingPatId) {
-              const { error: invErr } = await supabase.from("unified_invoices").insert({
-                id: newInvoiceId,
-                patient_id: bookingPatId,
-                doctor_fee: doctorFee,
-                platform_fee: platformFee,
-                total_amount: totalAmount,
-                payment_status: "pending",
-                upi_qr_payload: paymentGatewayUrl,
-                appointment_id: newApptId,
-                pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
-              });
-              if (invErr) console.error("[Meta Webhook] Database Invoice Insert Error:", invErr);
-            }
+            const { error: invErr } = await supabase.from("unified_invoices").insert({
+              id: newInvoiceId,
+              encounter_id: crypto.randomUUID(),
+              patient_id: bookingPatId,
+              doctor_fee: doctorFee,
+              lab_fee: 0,
+              pharmacy_fee: 0,
+              platform_fee: platformFee,
+              total_amount: totalAmount,
+              payment_status: "pending",
+              upi_qr_payload: paymentGatewayUrl,
+              pod_id: safePodId
+            });
+            if (invErr) console.error("[Meta Webhook] Database Invoice Insert Error:", invErr);
           } catch (err) {
             console.error("[Meta Webhook] Error creating invoice record:", err);
           }
@@ -2258,8 +2282,15 @@ async function triggerBotReplyPipeline(ctx: {
           const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
           await supabase
             .from("appointments")
-            .update({ status: finalStatus, payment_status: "cleared" })
+            .update({ status: finalStatus })
             .eq("id", apptId);
+        }
+
+        if (bookingPatId) {
+          await supabase
+            .from("patient_registry")
+            .update({ queue_status: "awaiting_consultation", token_number: String(tokenNumber) })
+            .eq("id", bookingPatId);
         }
 
         nextState = "COMPLETED";
