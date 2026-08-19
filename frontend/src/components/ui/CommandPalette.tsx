@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, Command, Zap, User, Compass, Sun, Moon, SearchX, ArrowUp, ArrowDown, CornerDownLeft } from 'lucide-react';
 import { api } from '../../services/api';
-import { Search, Compass, Zap, User, Command } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -177,7 +177,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         <div className="flex-1 overflow-y-auto p-2 space-y-1 select-none">
           {filteredItems.length === 0 ? (
             <div className="py-8 text-center text-slate-400 dark:text-zinc-500 flex flex-col items-center gap-1.5">
-              <span className="material-symbols-outlined text-2xl">search_off</span>
+              <SearchX className="w-8 h-8 text-slate-400 dark:text-zinc-500 shrink-0" />
               <p className="text-xs font-semibold">No command or patient matches found</p>
             </div>
           ) : (
@@ -244,12 +244,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         <div className="px-4 py-2 bg-slate-50/50 dark:bg-slate-950/20 border-t border-slate-200/60 dark:border-white/5 flex items-center justify-between text-[9px] font-semibold text-slate-400 dark:text-zinc-500 shrink-0">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[12px]">keyboard_arrow_up</span>
-              <span className="material-symbols-outlined text-[12px]">keyboard_arrow_down</span>
+              <ArrowUp className="w-3 h-3 shrink-0" />
+              <ArrowDown className="w-3 h-3 shrink-0" />
               Navigate
             </span>
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[12px]">keyboard_return</span>
+              <CornerDownLeft className="w-3 h-3 shrink-0" />
               Select
             </span>
           </div>

@@ -4,6 +4,7 @@ import type { UserRole } from './components/shared/Navbar';
 import { api } from './services/api';
 import { StateHealingEngine, ProactiveHealthMonitor, BackendAgent } from './services/autoHealerAgent';
 import { PwaSyncManager } from './pwa';
+import { MessageSquare } from 'lucide-react';
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
@@ -424,7 +425,7 @@ function AppContent({
           className="fixed bottom-[80px] right-[16px] md:bottom-20 md:right-6 z-[9990] h-9 w-9 md:h-10 md:w-10 rounded-full bg-emerald-600/70 hover:bg-emerald-600 backdrop-blur-md opacity-75 hover:opacity-100 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 hover:scale-110 active:scale-95 transition-all duration-300 border border-white/30 cursor-pointer text-white-force"
           title="Open Patient WhatsApp Simulator"
         >
-          <span className="material-symbols-outlined text-sm md:text-base font-bold animate-pulse text-white-force">chat</span>
+          <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white shrink-0" />
         </button>
       )}
 

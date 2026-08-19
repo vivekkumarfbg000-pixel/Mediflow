@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { Ban, XCircle, Info } from 'lucide-react';
 
 // =============================================================================
 // useSplitValidation — UPI Split Payout Interruption Guard
@@ -127,22 +128,26 @@ export function useSplitValidation(
 // Wraps any payment trigger button and shows the block reason inline.
 // Import and use as: <SplitValidationGate validation={...}><button/></SplitValidationGate>
 
-import React from 'react';
+// =============================================================================
+// UI Helpers — Banner component for inline rendering
+// =============================================================================
 
-interface SplitValidationGateProps {
+export interface SplitGuardBannerProps {
   validation: SplitValidationResult;
-  children: React.ReactNode;
-  /** If false, renders children without gate even if validation fails (useful for preview) */
+  /** If true, blocks render of children when invalid */
+  blockChildrenOnInvalid?: boolean;
   enforced?: boolean;
+  children?: React.ReactNode;
 }
 
-export const SplitValidationGate: React.FC<SplitValidationGateProps> = ({
+export function SplitGuardBanner({
   validation,
-  children,
+  blockChildrenOnInvalid = true,
   enforced = true,
-}) => {
+  children,
+}: SplitGuardBannerProps) {
   const showBlock = enforced && !validation.isValid;
-  const showWarn = validation.isUnsplit;
+  const showWarn = enforced && validation.isUnsplit;
 
   return (
     <div className="space-y-2">
@@ -150,12 +155,12 @@ export const SplitValidationGate: React.FC<SplitValidationGateProps> = ({
       {showBlock && validation.invalidNodes.length > 0 && (
         <div className="rounded-xl border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-950/30 px-3 py-2.5 space-y-1">
           <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 text-[10px] font-black uppercase tracking-wider">
-            <span className="material-symbols-outlined text-sm">block</span>
+            <Ban className="w-3.5 h-3.5 shrink-0" />
             Payment Blocked — Split Routing Errors
           </div>
           {validation.invalidNodes.map((node, i) => (
             <div key={i} className="flex items-start gap-1.5 text-[10px] text-rose-600 dark:text-rose-400 font-mono">
-              <span className="material-symbols-outlined text-[11px] mt-0.5 shrink-0">cancel</span>
+              <XCircle className="w-3 h-3 text-rose-500 mt-0.5 shrink-0" />
               {node.reason}
             </div>
           ))}
@@ -165,7 +170,7 @@ export const SplitValidationGate: React.FC<SplitValidationGateProps> = ({
       {/* Unsplit order soft warning */}
       {showWarn && (
         <div className="rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 flex items-start gap-1.5">
-          <span className="material-symbols-outlined text-amber-500 text-sm mt-0.5 shrink-0">info</span>
+          <Info className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
           <p className="text-[10px] text-amber-700 dark:text-amber-400">
             No vendor splits configured — full amount will settle to the platform master account. Onboard vendors via Settlement Settings to enable auto-splits.
           </p>
@@ -173,11 +178,12 @@ export const SplitValidationGate: React.FC<SplitValidationGateProps> = ({
       )}
 
       {/* Children (payment button) — disabled if blocked */}
-      <div className={showBlock ? 'pointer-events-none opacity-50 select-none' : ''}>
+      <div className={showBlock && blockChildrenOnInvalid ? 'opacity-40 pointer-events-none' : ''}>
         {children}
       </div>
     </div>
   );
-};
+}
 
-SplitValidationGate.displayName = 'SplitValidationGate';
+export const SplitValidationGate = SplitGuardBanner;
+
