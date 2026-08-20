@@ -1333,11 +1333,15 @@ export class BillingService {
             totalOnlineOffsetReceived += uInv.doctorFee;
           }
         }
-        if (uInv.labFee > 0) {
+        if (uInv.labFee > 0 && paidInvoices.every(i => i.id !== uInv.id && i.appointmentId !== uInv.encounterId)) {
+          const docFee = Math.round(uInv.labFee * (labDoctorSplit / 100));
+          doctorLabReferralsEarned += docFee;
           const platFee = Math.round(uInv.labFee * 0.03);
           totalCashCommissionOwed += platFee;
         }
-        if (uInv.pharmacyFee > 0) {
+        if (uInv.pharmacyFee > 0 && paidInvoices.every(i => i.id !== uInv.id && i.appointmentId !== uInv.encounterId)) {
+          const docFee = Math.round(uInv.pharmacyFee * (medDoctorSplit / 100));
+          doctorMedicineReferralsEarned += docFee;
           const platFee = Math.round(uInv.pharmacyFee * 0.03);
           totalCashCommissionOwed += platFee;
         }

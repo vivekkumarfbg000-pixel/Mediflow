@@ -216,11 +216,33 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
           {/* ── Revenue Split Ledger Widget ─────────────────────────── */}
           {(() => {
             const financials = api.getFinancialLedgers();
+            const uInvoices = api.getUnifiedInvoices();
+            const saasInvoices = api.getInvoices();
+
+            const invMap = new Map<string, { totalAmount: number; paymentStatus: string; createdAt?: string }>();
+            uInvoices.forEach(i => {
+              invMap.set(i.id, {
+                totalAmount: Number(i.totalAmount) || ((Number(i.doctorFee) || 0) + (Number(i.labFee) || 0) + (Number(i.pharmacyFee) || 0)),
+                paymentStatus: i.paymentStatus || 'pending',
+                createdAt: i.createdAt
+              });
+            });
+            saasInvoices.forEach(i => {
+              if (!invMap.has(i.id) && !invMap.has(i.appointmentId)) {
+                invMap.set(i.id, {
+                  totalAmount: Number(i.amount) || 0,
+                  paymentStatus: i.status === 'paid' ? 'cleared' : 'pending',
+                  createdAt: i.createdAt
+                });
+              }
+            });
+
+            const allInvoices = Array.from(invMap.values());
             const todayStr = new Date().toISOString().split('T')[0];
-            const grossRev  = financials.reduce((s, l) => s + l.netPayout, 0);
-            const cleared   = financials.filter(l => l.paymentStatus === 'cleared').reduce((s, l) => s + l.netPayout, 0);
-            const pending   = financials.filter(l => l.paymentStatus === 'pending').reduce((s, l) => s + l.netPayout, 0);
-            const todayCount = financials.filter(l => l.createdAt?.startsWith(todayStr)).length;
+            const grossRev  = allInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+            const cleared   = allInvoices.filter(i => (i.paymentStatus as string) === 'cleared' || (i.paymentStatus as string) === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
+            const pending   = allInvoices.filter(i => (i.paymentStatus as string) === 'pending' || (i.paymentStatus as string) === 'unpaid').reduce((s, i) => s + (i.totalAmount || 0), 0);
+            const todayCount = allInvoices.filter(i => i.createdAt?.startsWith(todayStr)).length;
             const allTotal  = financials.reduce((s, l) => s + l.netPayout, 0) || 1;
 
             const categories = [

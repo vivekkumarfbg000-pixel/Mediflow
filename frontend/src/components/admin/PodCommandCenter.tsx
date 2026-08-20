@@ -137,18 +137,41 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }), [inventoryHolds, pharmacyInventory, todayStr]);
 
   const financialMetrics = useMemo(() => {
-    if (financials.length === 0) {
-      const uInvoices = api.getUnifiedInvoices();
-      const grossRev = uInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
-      const cleared = uInvoices.filter(i => (i.paymentStatus as string) === 'cleared' || (i.paymentStatus as string) === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
-      const pending = uInvoices.filter(i => (i.paymentStatus as string) === 'pending' || (i.paymentStatus as string) === 'unpaid').reduce((s, i) => s + (i.totalAmount || 0), 0);
-      return { grossRev, cleared, pending, todayLedgers: uInvoices.length };
-    }
-    const today = financials.filter(l => l.createdAt?.startsWith(todayStr));
-    const grossRev = financials.reduce((s, l) => s + (l.netPayout || l.grossAmount || 0), 0);
-    const cleared = financials.filter(l => (l.paymentStatus || 'cleared') === 'cleared').reduce((s, l) => s + (l.netPayout || l.grossAmount || 0), 0);
-    const pending = financials.filter(l => l.paymentStatus === 'pending').reduce((s, l) => s + (l.netPayout || l.grossAmount || 0), 0);
-    const todayLedgers = today.length;
+    const uInvoices = api.getUnifiedInvoices();
+    const saasInvoices = api.getInvoices();
+    
+    // Map distinct invoices by ID to eliminate multi-party split duplication
+    const invMap = new Map<string, { totalAmount: number; paymentStatus: string; createdAt?: string }>();
+    
+    uInvoices.forEach(i => {
+      invMap.set(i.id, {
+        totalAmount: Number(i.totalAmount) || ((Number(i.doctorFee) || 0) + (Number(i.labFee) || 0) + (Number(i.pharmacyFee) || 0)),
+        paymentStatus: i.paymentStatus || 'pending',
+        createdAt: i.createdAt
+      });
+    });
+
+    saasInvoices.forEach(i => {
+      if (!invMap.has(i.id) && !invMap.has(i.appointmentId)) {
+        invMap.set(i.id, {
+          totalAmount: Number(i.amount) || 0,
+          paymentStatus: i.status === 'paid' ? 'cleared' : 'pending',
+          createdAt: i.createdAt
+        });
+      }
+    });
+
+    const allInvoices = Array.from(invMap.values());
+    const grossRev = allInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+    const cleared = allInvoices
+      .filter(i => (i.paymentStatus as string) === 'cleared' || (i.paymentStatus as string) === 'paid')
+      .reduce((s, i) => s + (i.totalAmount || 0), 0);
+    const pending = allInvoices
+      .filter(i => (i.paymentStatus as string) === 'pending' || (i.paymentStatus as string) === 'unpaid')
+      .reduce((s, i) => s + (i.totalAmount || 0), 0);
+
+    const todayLedgers = allInvoices.filter(i => i.createdAt?.startsWith(todayStr)).length;
+
     return { grossRev, cleared, pending, todayLedgers };
   }, [financials, todayStr]);
 
