@@ -2370,9 +2370,9 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
                   <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                     <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
-                    {opdSubTab === 'today_queue' 
+                    {(opdSubTab as string) === 'today_queue' 
                       ? "Today's Appointments Queue (दैनिक नियुक्तियां)" 
-                      : opdSubTab === 'upcoming_advance' 
+                      : (opdSubTab as string) === 'upcoming_advance' 
                       ? "Upcoming Advance Bookings (अग्रिम नियुक्तियां - WhatsApp & Portal)" 
                       : "Past Appointments History (पूर्व नियुक्तियां)"}
                   </h2>
@@ -2381,19 +2381,19 @@ export const CompounderDashboard: React.FC = () => {
                       type="button"
                       onClick={() => setOpdSubTab('today_queue')}
                       className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                        opdSubTab === 'today_queue'
+                        (opdSubTab as string) === 'today_queue'
                           ? 'bg-indigo-600 text-white shadow-sm'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${opdSubTab === 'today_queue' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${(opdSubTab as string) === 'today_queue' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
                       Today's Live Queue
                     </button>
                     <button
                       type="button"
                       onClick={() => setOpdSubTab('upcoming_advance')}
                       className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                        opdSubTab === 'upcoming_advance'
+                        (opdSubTab as string) === 'upcoming_advance'
                           ? 'bg-indigo-600 text-white shadow-sm'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
@@ -2410,7 +2410,7 @@ export const CompounderDashboard: React.FC = () => {
                         }).length;
                         return count > 0 ? (
                           <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black ${
-                            opdSubTab === 'upcoming_advance' ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                            (opdSubTab as string) === 'upcoming_advance' ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                           }`}>
                             {count}
                           </span>
@@ -2421,7 +2421,7 @@ export const CompounderDashboard: React.FC = () => {
                       type="button"
                       onClick={() => setOpdSubTab('past_history')}
                       className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                        opdSubTab === 'past_history'
+                        (opdSubTab as string) === 'past_history'
                           ? 'bg-indigo-600 text-white shadow-sm'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
@@ -2440,11 +2440,11 @@ export const CompounderDashboard: React.FC = () => {
                     let confirmedAppts = appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                       const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
-                      if (!apptDate) return opdSubTab === 'today_queue';
+                      if (!apptDate) return (opdSubTab as string) === 'today_queue';
 
-                      if (opdSubTab === 'today_queue') {
+                      if ((opdSubTab as string) === 'today_queue') {
                         return apptDate === todayStr;
-                      } else if (opdSubTab === 'upcoming_advance') {
+                      } else if ((opdSubTab as string) === 'upcoming_advance') {
                         return apptDate > todayStr;
                       } else {
                         // past_history
@@ -2453,7 +2453,7 @@ export const CompounderDashboard: React.FC = () => {
                     });
 
                     // Sort appointments chronologically
-                    if (opdSubTab === 'today_queue') {
+                    if ((opdSubTab as string) === 'today_queue') {
                       // 1. Emergency SOS takes Priority #1 at top of queue
                       // 2. Awaiting / Active patients before seen/completed patients (demote seen from top)
                       // 3. Strict Sequential Token Number sorting (#TK-001 > #TK-002 > #TK-003)
@@ -2466,8 +2466,8 @@ export const CompounderDashboard: React.FC = () => {
 
                       confirmedAppts.sort((a, b) => {
                         // Priority #1: Emergency SOS
-                        const isSOSA = Boolean(a.isEmergency || (a as any).is_emergency || a.source?.includes('sos') || a.source?.includes('emergency') || a.tokenNumber?.includes('SOS') || a.tokenNumber?.startsWith('#EM-'));
-                        const isSOSB = Boolean(b.isEmergency || (b as any).is_emergency || b.source?.includes('sos') || b.source?.includes('emergency') || b.tokenNumber?.includes('SOS') || b.tokenNumber?.startsWith('#EM-'));
+                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || a.source?.includes('sos') || a.source?.includes('emergency') || a.tokenNumber?.includes('SOS') || a.tokenNumber?.startsWith('#EM-'));
+                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || b.source?.includes('sos') || b.source?.includes('emergency') || b.tokenNumber?.includes('SOS') || b.tokenNumber?.startsWith('#EM-'));
                         if (isSOSA && !isSOSB) return -1;
                         if (!isSOSA && isSOSB) return 1;
 
@@ -2475,8 +2475,8 @@ export const CompounderDashboard: React.FC = () => {
                         const patientA = patients.find(p => p.id === a.patientId);
                         const patientB = patients.find(p => p.id === b.patientId);
 
-                        const isDoneA = a.status === 'completed' || patientA?.queueStatus === 'completed' || patientA?.queueStatus === 'settled' || patientA?.queueStatus === 'pharmacy' || patientA?.queueStatus === 'lab';
-                        const isDoneB = b.status === 'completed' || patientB?.queueStatus === 'completed' || patientB?.queueStatus === 'settled' || patientB?.queueStatus === 'pharmacy' || patientB?.queueStatus === 'lab';
+                        const isDoneA = a.status === 'completed' || (patientA?.queueStatus as string) === 'completed' || (patientA?.queueStatus as string) === 'settled' || (patientA?.queueStatus as string) === 'pharmacy' || (patientA?.queueStatus as string) === 'lab';
+                        const isDoneB = b.status === 'completed' || (patientB?.queueStatus as string) === 'completed' || (patientB?.queueStatus as string) === 'settled' || (patientB?.queueStatus as string) === 'pharmacy' || (patientB?.queueStatus as string) === 'lab';
                         if (!isDoneA && isDoneB) return -1;
                         if (isDoneA && !isDoneB) return 1;
 
@@ -2488,14 +2488,14 @@ export const CompounderDashboard: React.FC = () => {
                         // Tie break by creation time
                         return (a.createdAt || '').localeCompare(b.createdAt || '');
                       });
-                    } else if (opdSubTab === 'upcoming_advance') {
+                    } else if ((opdSubTab as string) === 'upcoming_advance') {
                       // Closest upcoming appointment first
                       confirmedAppts.sort((a, b) => {
                         const dateA = a.appointmentTime || a.virtualDate || (a as any).virtual_date || a.createdAt || '';
                         const dateB = b.appointmentTime || b.virtualDate || (b as any).virtual_date || b.createdAt || '';
                         return dateA.localeCompare(dateB);
                       });
-                    } else if (opdSubTab === 'past_history') {
+                    } else if ((opdSubTab as string) === 'past_history') {
                       // Most recent past appointment first
                       confirmedAppts.sort((a, b) => {
                         const dateA = a.appointmentTime || a.virtualDate || (a as any).virtual_date || a.createdAt || '';
@@ -2509,13 +2509,6 @@ export const CompounderDashboard: React.FC = () => {
                         <ZeroQueueState 
                           queueType="appointments" 
                           className="mx-0"
-                          message={
-                            opdSubTab === 'today_queue' 
-                              ? "No appointments scheduled for today yet. Use the booking panel above to register today's patients." 
-                              : opdSubTab === 'upcoming_advance'
-                              ? "No upcoming advance bookings found. When WhatsApp chatbot schedules future patient appointments, they will appear here automatically."
-                              : "No past appointment records found."
-                          }
                         />
                       );
                     }
@@ -2537,7 +2530,7 @@ export const CompounderDashboard: React.FC = () => {
 
                       const isAwaitingVitals = patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus;
                       const isAwaitingConsult = patient.queueStatus === 'awaiting_consultation';
-                      const isSOS = Boolean(appt.isEmergency || (appt as any).is_emergency || appt.source?.includes('sos') || appt.source?.includes('emergency') || appt.tokenNumber?.includes('SOS') || appt.tokenNumber?.startsWith('#EM-'));
+                      const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || appt.source?.includes('sos') || appt.source?.includes('emergency') || appt.tokenNumber?.includes('SOS') || appt.tokenNumber?.startsWith('#EM-'));
 
                       return (
                         <div 

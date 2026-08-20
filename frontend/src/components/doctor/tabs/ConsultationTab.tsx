@@ -1078,8 +1078,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 })
                 .sort((a, b) => {
                   // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top
-                  const isSosA = Boolean(a.isEmergency || (a as any).is_emergency || (a as any).source?.includes('sos') || (a.tokenNumber && (a.tokenNumber.includes('E') || a.tokenNumber.includes('SOS') || a.tokenNumber.startsWith('#EM-'))));
-                  const isSosB = Boolean(b.isEmergency || (b as any).is_emergency || (b as any).source?.includes('sos') || (b.tokenNumber && (b.tokenNumber.includes('E') || b.tokenNumber.includes('SOS') || b.tokenNumber.startsWith('#EM-'))));
+                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || (a as any).source?.includes('sos') || (a.tokenNumber && (a.tokenNumber.includes('E') || a.tokenNumber.includes('SOS') || a.tokenNumber.startsWith('#EM-'))));
+                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || (b as any).source?.includes('sos') || (b.tokenNumber && (b.tokenNumber.includes('E') || b.tokenNumber.includes('SOS') || b.tokenNumber.startsWith('#EM-'))));
                   if (isSosA && !isSosB) return -1;
                   if (!isSosA && isSosB) return 1;
 
