@@ -370,14 +370,6 @@ export const DoctorDashboard: React.FC = () => {
       setIsRecording(true);
       setAudioUrl(null);
       setAudioBlob(null);
-
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Recording Started 🎙️',
-          message: 'Microphone is active. Speak clinical instructions now.',
-          type: 'info'
-        }
-      }));
     } catch (err) {
       console.error('[Mediflow] Failed to capture microphone:', err);
       alert('Microphone access is required to record instructions.');
@@ -1316,17 +1308,35 @@ Keep the tone professional, clinical, objective, and precise.`;
       }
     }));
 
-    // Find the next patient in the queue
+    // Find the next patient in today's active queue
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const allAppts = api.getAppointments();
+
+    const isPatientForToday = (p: Patient) => {
+      const patAppt = allAppts.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+      const apptDate = patAppt?.appointmentTime?.split('T')[0] || patAppt?.virtualDate || (patAppt as any)?.virtual_date || patAppt?.createdAt?.split('T')[0];
+      const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
+      return apptDate ? apptDate === todayStr : regDate.startsWith(todayStr);
+    };
+
     const activeQueue = api.getPatients()
-      .filter(p => p.queueStatus === 'awaiting_consultation' && p.id !== selectedPatient.id);
+      .filter(p => p.queueStatus === 'awaiting_consultation' && p.id !== selectedPatient.id && isPatientForToday(p));
     
-    const parseTokenNum = (token?: string) => {
+    const parseTokenNum = (token?: string | number) => {
       if (!token) return Infinity;
-      const match = token.match(/\d+/);
+      if (typeof token === 'number') return token;
+      const match = String(token).match(/\d+/);
       return match ? parseInt(match[0], 10) : Infinity;
     };
     
-    activeQueue.sort((a, b) => parseTokenNum(a.tokenNumber) - parseTokenNum(b.tokenNumber));
+    activeQueue.sort((a, b) => {
+      const isSosA = Boolean(a.isEmergency || (a as any).is_emergency || (a.tokenNumber && (a.tokenNumber.includes('E') || a.tokenNumber.includes('SOS') || a.tokenNumber.startsWith('#EM-'))));
+      const isSosB = Boolean(b.isEmergency || (b as any).is_emergency || (b.tokenNumber && (b.tokenNumber.includes('E') || b.tokenNumber.includes('SOS') || b.tokenNumber.startsWith('#EM-'))));
+      if (isSosA && !isSosB) return -1;
+      if (!isSosA && isSosB) return 1;
+      return parseTokenNum(a.tokenNumber) - parseTokenNum(b.tokenNumber);
+    });
     
     if (activeQueue.length > 0) {
       const nextPat = activeQueue[0];
@@ -1404,29 +1414,22 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </div>
 
                     {(() => {
-                      const virtualAppts = appointments.filter((a: Appointment) => a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') || a.source.includes('whatsapp') : false));
-                      const displayList: Array<{ appt: Appointment; patient: Patient; isFreeLoyalty: boolean }> = virtualAppts.length > 0 
-                        ? virtualAppts.map((a: Appointment) => {
-                            const p = patients.find((pat: Patient) => pat.id === a.patientId) || ({ id: a.patientId, name: 'Virtual Patient', phone: 'N/A', age: '30', gender: 'M', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() } as unknown as Patient);
-                            const isFreeLoyalty = a.amount === 0 || a.fee_status === 'waived_loyalty' || (a.source ? a.source.includes('loyalty') : false);
-                            return { appt: a, patient: p, isFreeLoyalty };
-                          })
-                        : patients.map((p: Patient, idx: number) => ({
-                            appt: {
-                              id: `v-${p.id}`,
-                              patientId: p.id,
-                              doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-                              status: 'confirmed',
-                              createdAt: new Date().toISOString(),
-                              is_virtual: true,
-                              virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${p.id}`,
-                              token_number: p.tokenNumber || String(idx + 1),
-                              amount: 0,
-                              source: 'whatsapp_free_loyalty'
-                            } as Appointment,
-                            patient: p,
-                            isFreeLoyalty: true
-                          }));
+                      const now = new Date();
+                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+                      const virtualAppts = appointments.filter((a: Appointment) => {
+                        if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                        const isVirt = Boolean(a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') : false));
+                        if (!isVirt) return false;
+                        const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                        return !apptDate || apptDate >= todayStr;
+                      });
+
+                      const displayList: Array<{ appt: Appointment; patient: Patient; isFreeLoyalty: boolean }> = virtualAppts.map((a: Appointment) => {
+                        const p = patients.find((pat: Patient) => pat.id === a.patientId) || ({ id: a.patientId, name: (a as any).patientName || 'Virtual Patient', phone: (a as any).patientPhone || 'N/A', age: '30', gender: 'M', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() } as unknown as Patient);
+                        const isFreeLoyalty = a.amount === 0 || a.fee_status === 'waived_loyalty' || (a.source ? a.source.includes('loyalty') : false);
+                        return { appt: a, patient: p, isFreeLoyalty };
+                      });
 
                       if (displayList.length === 0) {
                         return (
@@ -1441,8 +1444,8 @@ Keep the tone professional, clinical, objective, and precise.`;
                       return (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {displayList.map(({ appt, patient, isFreeLoyalty }: { appt: Appointment; patient: Patient; isFreeLoyalty: boolean }) => {
-                            const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${patient.id}`;
-                            const tokenNo = appt.token_number || patient.tokenNumber || '1';
+                            const meetUrl = appt.virtual_meeting_url || (appt as any).virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
+                            const tokenNo = appt.token_number || (appt as any).tokenNumber || patient.tokenNumber || '1';
 
                             return (
                               <div key={appt.id} className="p-5 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-4 hover:border-cyan-500/40 transition-all relative overflow-hidden">
@@ -2112,7 +2115,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 <span className="text-slate-600">·</span>
                 Clinic Code:
                 <span className="font-mono font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">
-                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || 'MF-APEX'}
+                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || 'VS-V01R'}
                 </span>
                 <span className={`flex sm:hidden items-center gap-1 text-[10px] font-semibold pl-1 font-mono ${isOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full animate-pulse inline-block ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />

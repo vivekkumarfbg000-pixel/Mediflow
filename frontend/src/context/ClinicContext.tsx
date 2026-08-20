@@ -69,14 +69,14 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
         name: 'Apex Eye & Dental Care Clinic',
         location: 'Kankarbagh Main Rd, Patna, Bihar',
-        clinicCode: 'MF-APEX',
+        clinicCode: 'VS-V01R',
         isActive: true,
         createdAt: '2026-01-01T00:00:00Z'
       };
       setActivePod(demoPod);
       if (typeof window !== 'undefined') {
         localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(demoPod));
-        localStorage.setItem('vitalsync_active_pod', JSON.stringify({ ...demoPod, clinic_code: 'MF-APEX' }));
+        localStorage.setItem('vitalsync_active_pod', JSON.stringify({ ...demoPod, clinic_code: 'VS-V01R' }));
         (window as any).__mediflow_active_pod_id = demoPod.id;
       }
       return;

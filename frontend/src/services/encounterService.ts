@@ -25,23 +25,30 @@ export class EncounterService {
     // Transition patient's local and database queue status to completed
     PatientService.updatePatientQueueStatus(newEncounter.patientId, 'completed');
 
-    // Auto-complete active same-day appointment status
+    // Auto-complete active same-day / advance appointment status
     const appts = load<any[]>('saas_appointments', []);
-    const todayStr = new Date().toDateString();
-    const appt = appts.find(a => 
-      a.patientId === newEncounter.patientId && 
-      new Date(a.createdAt).toDateString() === todayStr && 
-      a.status !== 'completed'
-    );
+    const now = new Date();
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = now.toDateString();
+
+    const appt = appts.find(a => {
+      const isMatchingPatient = a.patientId === newEncounter.patientId || (a as any).patient_id === newEncounter.patientId;
+      if (!isMatchingPatient) return false;
+      if (a.status === 'completed') return false;
+      const aDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+      return aDate === todayISO || new Date(a.createdAt).toDateString() === todayStr;
+    });
     if (appt) {
       appt.status = 'completed';
       save('saas_appointments', appts);
+      supabase.from('appointments').update({ status: 'completed' }).eq('id', appt.id).then();
     }
 
     // 1. Create local and Supabase lab requisitions for ordered diagnostic tests
     if (newEncounter.diagnosticTests.length > 0) {
       const existingReqs = load<any[]>('lab_requisitions', []);
       const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
+      const dbReqsToInsert: any[] = [];
       
       for (const test of newEncounter.diagnosticTests) {
         const reqId = crypto.randomUUID();
@@ -59,8 +66,23 @@ export class EncounterService {
           createdAt: new Date().toISOString()
         };
         existingReqs.unshift(newReq);
+        dbReqsToInsert.push({
+          id: reqId,
+          encounter_id: encounterId,
+          patient_id: newEncounter.patientId,
+          test_code: test.loincCode,
+          test_name: test.name,
+          barcode: barcode,
+          status: 'pending',
+          pod_id: ctx.podId,
+          lab_entity_id: ctx.labEntityId || null,
+          created_at: new Date().toISOString()
+        });
       }
       save('lab_requisitions', existingReqs);
+      if (dbReqsToInsert.length > 0) {
+        supabase.from('lab_requisitions').insert(dbReqsToInsert).then();
+      }
     }
 
     // 2. Create local inventory holds and update stocks for medications

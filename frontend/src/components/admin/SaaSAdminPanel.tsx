@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { SystemHealthCockpit } from './SystemHealthCockpit';
 import { api } from '../../services/api';
@@ -7,6 +8,7 @@ import { WhatsAppSupportBotService, type SupportEscalationTicket } from '../../s
 import { ClinicalCycleSimulatorModal } from './ClinicalCycleSimulatorModal';
 import { FounderAICopilotModal } from './FounderAICopilotModal';
 import { AIFleetCommanderTab } from './AIFleetCommanderTab';
+import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 import { 
   ShieldAlert, 
   Lock, 
@@ -21,6 +23,8 @@ import {
   Users,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
+  X,
   Database,
   RefreshCw,
   TrendingUp,
@@ -140,12 +144,53 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   const [authLoading, setAuthLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // SaaS Operations Metrics
-  const [onboardingStats, setOnboardingStats] = useState<OnboardingStats | null>(null);
-  const [revenueStats, setRevenueStats] = useState<RevenueStats | null>(null);
-  const [costStats, setCostStats] = useState<CostStats | null>(null);
-  const [podsList, setPodsList] = useState<PodInfo[]>([]);
+  // SaaS Operations Metrics — Pre-hydrated with synchronous factory defaults to eliminate blank tab flashes
+  const [onboardingStats, setOnboardingStats] = useState<OnboardingStats>(() => ({
+    total_pods: 1,
+    total_entities: 3,
+    clinics: 1,
+    pharmacies: 1,
+    labs: 1,
+    total_profiles: Math.max(api.getPatients().length, 12)
+  }));
+  const [revenueStats, setRevenueStats] = useState<RevenueStats>(() => {
+    const invoices = api.getUnifiedInvoices();
+    const totalGmv = invoices.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0) || 48500;
+    return {
+      total_gmv: totalGmv,
+      platform_commission: Math.round(totalGmv * 0.025),
+      paid_invoices: invoices.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length || 18,
+      unpaid_invoices: invoices.filter(i => i.paymentStatus === 'pending').length || 3
+    };
+  });
+  const [costStats, setCostStats] = useState<CostStats>(() => ({
+    waba_msgs_sent: 142,
+    waba_cost: 35.50,
+    ai_tasks_run: 84,
+    ai_cost: 12.60
+  }));
+  const [podsList, setPodsList] = useState<PodInfo[]>(() => [{
+    id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+    name: 'Apex Eye & Dental Care Clinic',
+    doctor_name: 'Dr. Vivek Kumar',
+    phone: '+919608032073',
+    location: 'Patna Central Hub',
+    clinic_code: 'APEX-01',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    daily_cost_budget: 500.00,
+    daily_spend: 0.00,
+    platform_fee_percent: 2.5,
+    lifetime_platform_revenue: 48500.00,
+    pending_cash_balance: 0.00,
+    is_verified_for_billing: true,
+    health_score: 100,
+    active_errors_count: 0
+  }]);
   const [metricsLoading, setMetricsLoading] = useState<boolean>(false);
+  const [podPendingDelete, setPodPendingDelete] = useState<PodInfo | null>(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState<string>('');
+  const [isDeletingPod, setIsDeletingPod] = useState<boolean>(false);
 
   // 1-Click Provisioning Agent Modal State
   const [isProvisionModalOpen, setIsProvisionModalOpen] = useState<boolean>(false);
@@ -331,7 +376,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         supabase.rpc('get_saas_onboarding_stats'),
         supabase.rpc('get_saas_revenue_stats'),
         supabase.rpc('get_saas_cost_stats'),
-        supabase.from('pods').select('*').order('created_at', { ascending: false }).limit(20)
+        supabase.from('pods').select('*').order('created_at', { ascending: false })
       ]);
 
       setOnboardingStats((onboarding as OnboardingStats) || {
@@ -379,7 +424,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
           name: 'Apex Eye & Dental Care Clinic',
           location: 'Clinic Hub',
-          clinic_code: 'MF-APEX',
+          clinic_code: 'VS-V01R',
           is_active: true,
           created_at: new Date().toISOString(),
           daily_cost_budget: 500.00,
@@ -448,7 +493,8 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
 
     setIsProvisioning(true);
     try {
-      const generatedCode = `MF-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const sequenceNumber = (podsList.length || 0) + 1;
+      const generatedCode = generateVitalSyncClinicCode(provisionForm.doctorName || provisionForm.name, sequenceNumber);
       const newPod: PodInfo = {
         id: crypto.randomUUID(),
         name: provisionForm.name,
@@ -520,6 +566,65 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
       }));
     } finally {
       setIsProvisioning(false);
+    }
+  };
+
+  // ── 2-Step Permanent Clinic Pod Deletion Execution (Founder Authority) ──────
+  const handleExecuteDeletePod = async () => {
+    if (!podPendingDelete) return;
+    const targetPod = podPendingDelete;
+    setIsDeletingPod(true);
+    try {
+      // 1. Safely unlink staff profiles associated with this pod
+      try {
+        await supabase.from('profiles').update({ pod_id: null, entity_id: null }).eq('pod_id', targetPod.id);
+      } catch (_e) {
+        /* non-fatal unlink error */
+      }
+
+      // 2. Delete the pod record from Supabase database
+      const { error } = await supabase.from('pods').delete().eq('id', targetPod.id);
+      if (error) throw error;
+
+      // 3. Update local state
+      setPodsList(prev => prev.filter(p => p.id !== targetPod.id));
+      setOnboardingStats(prev => prev ? {
+        ...prev,
+        total_pods: Math.max(0, prev.total_pods - 1),
+        total_entities: Math.max(0, prev.total_entities - 1),
+        clinics: Math.max(0, prev.clinics - 1)
+      } : prev);
+
+      // 4. Discard any local cached active pod if it matches
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem('vitalsync_active_pod');
+        if (cached && cached.includes(targetPod.id)) {
+          localStorage.removeItem('vitalsync_active_pod');
+          localStorage.removeItem('vitalsync_cached_active_pod');
+        }
+      }
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Clinic Pod Deleted 🗑️',
+          message: `Successfully deleted clinic "${targetPod.name}" (${targetPod.clinic_code}).`,
+          type: 'success'
+        }
+      }));
+
+      setPodPendingDelete(null);
+      setDeleteConfirmInput('');
+    } catch (err: any) {
+      console.error('[SaaS Admin] Failed to delete pod:', err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Deletion Failed ⚠️',
+          message: err.message || 'Database rejected deletion request.',
+          type: 'error'
+        }
+      }));
+    } finally {
+      setIsDeletingPod(false);
     }
   };
 
@@ -1455,24 +1560,24 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
         
         {/* ── Top Header Control Bar ───────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
-              <Terminal className="h-5 w-5" />
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+              <Terminal className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-sm sm:text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-1.5 flex-wrap">
                 VitalSync Admin Console
-                <span className="flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/40 px-2 py-0.5 text-[8.5px] sm:text-[9px] font-extrabold text-indigo-700 dark:text-indigo-400 tracking-wider uppercase animate-pulse">
+                <span className="flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/40 px-2 py-0.5 text-[8px] sm:text-[9px] font-extrabold text-indigo-700 dark:text-indigo-400 tracking-wider uppercase animate-pulse">
                   Platform Owner
                 </span>
               </h2>
-              <p className="text-[9.5px] sm:text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-extrabold mt-0.5">
+              <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-extrabold mt-0.5">
                 SaaS System Operations Cockpit
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 sm:flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto py-0.5 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -1486,7 +1591,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   }
                 }));
               }}
-              className={`inline-flex h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border text-[11px] font-extrabold cursor-pointer transition-all shrink-0 ${
+              className={`inline-flex h-8 sm:h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border text-[10px] sm:text-[11px] font-extrabold cursor-pointer transition-all shrink-0 whitespace-nowrap ${
                 isAutoPilotEnabled 
                   ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400 shadow-2xs' 
                   : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
@@ -1494,45 +1599,45 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
               title="Toggle Master AI Auto-Pilot Engine"
             >
               <span className={`w-2 h-2 rounded-full ${isAutoPilotEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span className="hidden xs:inline">Auto-Pilot: </span>{isAutoPilotEnabled ? 'ONLINE' : 'PAUSED'}
+              <span>{isAutoPilotEnabled ? 'Auto-Pilot: ONLINE' : 'Auto-Pilot: PAUSED'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsCopilotModalOpen(true)}
-              className="inline-flex h-9 items-center justify-center gap-1.5 px-3 rounded-xl border border-purple-300 dark:border-purple-800/60 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/60 dark:to-indigo-950/60 hover:from-purple-100 hover:to-indigo-100 text-purple-800 dark:text-purple-300 text-[11px] font-black transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 sm:h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border border-purple-300 dark:border-purple-800/60 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/60 dark:to-indigo-950/60 hover:from-purple-100 hover:to-indigo-100 text-purple-800 dark:text-purple-300 text-[10px] sm:text-[11px] font-black transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
               title="Open Autonomous Founder AI Chief of Staff"
             >
-              <Bot className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 dark:text-purple-400" />
               <span>Founder Copilot 🤖</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsSimulatorModalOpen(true)}
-              className="inline-flex h-9 items-center justify-center gap-1.5 px-3 rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[11px] font-extrabold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 sm:h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] sm:text-[11px] font-extrabold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
               title="Run 1-Click Meta/Google E2E Clinical Care Loop Simulator"
             >
               <Zap className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Simulate E2E Loop</span>
+              <span>Simulate E2E</span>
             </button>
 
             <button
               type="button"
               onClick={fetchSaaSMetrics}
               disabled={metricsLoading}
-              className="inline-flex h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold disabled:opacity-50 transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 sm:h-9 items-center justify-center gap-1 px-2.5 sm:px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] sm:text-[11px] font-bold disabled:opacity-50 transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
-              <RefreshCw className={`h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 ${metricsLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-600 dark:text-indigo-400 ${metricsLoading ? 'animate-spin' : ''}`} />
               <span>Sync</span>
             </button>
 
             <button
               type="button"
               onClick={handleSignOut}
-              className="inline-flex h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 sm:h-9 items-center justify-center gap-1 px-2.5 sm:px-3 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span>Sign Out</span>
             </button>
           </div>
@@ -1655,23 +1760,23 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center shrink-0">
                   <button
                     type="button"
                     onClick={handleRunChaosStressTest}
-                    className="inline-flex h-8 items-center gap-1.5 px-3 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0"
+                    className="inline-flex h-8 items-center justify-center gap-1 px-2.5 sm:px-3 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] sm:text-xs font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap"
                   >
                     <Activity className="h-3.5 w-3.5 text-rose-600" />
-                    Chaos Stress Test
+                    Chaos Test
                   </button>
 
                   <button
                     type="button"
                     onClick={handleGenerateRcaReport}
-                    className="inline-flex h-8 items-center gap-1.5 px-3 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0"
+                    className="inline-flex h-8 items-center justify-center gap-1 px-2.5 sm:px-3 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] sm:text-xs font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap"
                   >
                     <Terminal className="h-3.5 w-3.5 text-indigo-600" />
-                    Generate RCA Report
+                    RCA Report
                   </button>
                 </div>
               </div>
@@ -2055,7 +2160,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-1.5 pt-1">
+                          <div className="grid grid-cols-4 gap-1.5 pt-1">
                             <button
                               type="button"
                               onClick={() => handleInspectPodTelemetry(pod)}
@@ -2076,6 +2181,17 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                               className="px-2 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[9.5px] font-extrabold uppercase text-center transition-all cursor-pointer"
                             >
                               WhatsApp
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPodPendingDelete(pod);
+                                setDeleteConfirmInput('');
+                              }}
+                              className="px-2 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[9.5px] font-extrabold uppercase text-center transition-all cursor-pointer"
+                              title="Delete Clinic Pod (2-Step Verification)"
+                            >
+                              Delete
                             </button>
                           </div>
                         </div>
@@ -2144,26 +2260,26 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                                   Inspect Logs
                                 </button>
 
-                                  <button
-                                   type="button"
-                                   onClick={() => handleSendVideoTutorial(pod)}
-                                   className="px-2 py-1 rounded-lg border border-cyan-200 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-[10px] font-extrabold uppercase transition-all cursor-pointer"
-                                   title="Dispatch Interactive Video Onboarding Tutorial"
-                                 >
-                                   Tutorial
-                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendVideoTutorial(pod)}
+                                  className="px-2 py-1 rounded-lg border border-cyan-200 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-[10px] font-extrabold uppercase transition-all cursor-pointer"
+                                  title="Dispatch Interactive Video Onboarding Tutorial"
+                                >
+                                  Tutorial
+                                </button>
 
-                                 <button
-                                   type="button"
-                                   onClick={() => {
-                                     setSelectedWhiteLabelPod(pod);
-                                     setIsWhiteLabelModalOpen(true);
-                                   }}
-                                   className="px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-extrabold uppercase transition-all cursor-pointer"
-                                   title="Configure VIP Clinic Custom Branding & Rx Letterhead"
-                                 >
-                                   VIP Branding
-                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedWhiteLabelPod(pod);
+                                    setIsWhiteLabelModalOpen(true);
+                                  }}
+                                  className="px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-extrabold uppercase transition-all cursor-pointer"
+                                  title="Configure VIP Clinic Custom Branding & Rx Letterhead"
+                                >
+                                  VIP Branding
+                                </button>
 
                                 <button
                                   type="button"
@@ -2185,21 +2301,25 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
 
                                 <button
                                   type="button"
-                                  onClick={() => handleSendVideoTutorial(pod)}
-                                  className="px-2 py-1 rounded-lg border border-cyan-200 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-[10px] font-extrabold uppercase transition-all cursor-pointer"
-                                  title="Dispatch Interactive Video Onboarding Tutorial"
-                                >
-                                  Tutorial
-                                </button>
-
-                                <button
-                                  type="button"
                                   onClick={() => togglePodBillingVerification(pod.id, !!pod.is_verified_for_billing)}
                                   className={`px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase cursor-pointer ${
                                     pod.is_verified_for_billing ? 'text-rose-600 hover:text-rose-800' : 'text-emerald-600 hover:text-emerald-800'
                                   }`}
                                 >
                                   {pod.is_verified_for_billing ? 'Deactivate' : 'Verify'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPodPendingDelete(pod);
+                                    setDeleteConfirmInput('');
+                                  }}
+                                  className="px-2 py-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-extrabold uppercase transition-all cursor-pointer inline-flex items-center gap-1"
+                                  title="Delete Clinic Pod (2-Step Verification)"
+                                >
+                                  <Trash2 className="h-3 w-3 text-rose-600" />
+                                  Delete
                                 </button>
                               </td>
                             </tr>
@@ -3270,6 +3390,102 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           onClose={() => setIsCopilotModalOpen(false)}
           onNavigateTab={(tab) => setActiveTab(tab as any)}
         />
+
+        {/* ── 2-Step Account Destruction Verification Security Modal ─────────── */}
+        {podPendingDelete && createPortal(
+          <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in text-slate-800">
+            <div className="bg-white rounded-3xl border border-rose-200 shadow-2xl max-w-lg w-full p-6 space-y-5 relative">
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={() => { setPodPendingDelete(null); setDeleteConfirmInput(''); }}
+                className="absolute right-4 top-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              {/* Header */}
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[9px] font-black uppercase tracking-wider">
+                      Step 2: Destruction Security Gate
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight mt-1">
+                    Permanently Delete Clinic Pod?
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    This is a high-impact administrative action that permanently deletes the clinic account.
+                  </p>
+                </div>
+              </div>
+
+              {/* Impact Audit Box */}
+              <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200/80 space-y-2 text-xs text-rose-950 font-medium">
+                <div className="font-bold text-rose-900 uppercase tracking-wider text-[10px]">Blast Radius Audit:</div>
+                <ul className="space-y-1 text-[11px] list-disc list-inside text-rose-800">
+                  <li>Unlinks all doctor & staff profiles from pod <span className="font-mono font-bold text-rose-950">{podPendingDelete.name}</span></li>
+                  <li>Permanently wipes clinic code <span className="font-mono font-bold text-rose-950">{podPendingDelete.clinic_code}</span> from routing tables</li>
+                  <li>Halts all automated 24/7 WhatsApp care loops and reminders</li>
+                  <li>Removes all tenant isolation rules & spend budgets</li>
+                </ul>
+              </div>
+
+              {/* Verification Input Gate */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  To confirm, type the clinic code <span className="font-mono font-black text-rose-600 px-1.5 py-0.5 bg-rose-50 rounded border border-rose-200">{podPendingDelete.clinic_code}</span> below:
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={deleteConfirmInput}
+                  onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                  placeholder={`Type "${podPendingDelete.clinic_code}" to confirm`}
+                  className="w-full px-3.5 py-2.5 text-xs font-mono font-bold bg-slate-50 border border-slate-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none rounded-xl transition-all"
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setPodPendingDelete(null); setDeleteConfirmInput(''); }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteDeletePod}
+                  disabled={
+                    isDeletingPod || 
+                    (deleteConfirmInput.trim().toUpperCase() !== (podPendingDelete.clinic_code || '').toUpperCase() && 
+                     deleteConfirmInput.trim().toLowerCase() !== (podPendingDelete.name || '').toLowerCase())
+                  }
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+                >
+                  {isDeletingPod ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Deleting Pod...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Permanently Delete Pod
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       </div>
     );

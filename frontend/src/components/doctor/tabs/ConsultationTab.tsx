@@ -581,7 +581,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             <div class="doc-info">
               <strong>${activePod?.doctor_name || activePod?.name || 'Dr. Practitioner'}</strong><br/>
               ${(activePod as any)?.specialization || 'Clinical Care Specialist'}<br/>
-              ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'MF-APEX'})<br/>
+              ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'VS-V01R'})<br/>
               Date: ${new Date().toLocaleDateString('en-IN')}
             </div>
           </div>
@@ -944,20 +944,28 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* 4 Queue Filter Tabs (Awaiting Consultation, In Chamber, Today Registered, Completed Care Loop) */}
           {(() => {
-            const todayStr = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             const invoices = BillingService.getInvoices();
             const paidInvoicePatientIds = invoices
               .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
               .map((i: any) => i.patientId);
             const paidPatientIds = new Set([
               ...appointments
-                .filter(a => a.status !== 'pending_payment')
+                .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
                 .map(a => a.patientId || (a as any).patient_id),
               ...paidInvoicePatientIds
             ]);
 
-            const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus));
-            const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation');
+            const isPatientForToday = (p: Patient) => {
+              const patAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+              const apptDate = patAppt?.appointmentTime?.split('T')[0] || patAppt?.virtualDate || (patAppt as any)?.virtual_date || patAppt?.createdAt?.split('T')[0];
+              const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
+              return apptDate ? apptDate === todayStr : regDate.startsWith(todayStr);
+            };
+
+            const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus) && isPatientForToday(p));
+            const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && isPatientForToday(p));
             const todayRegList = patients.filter(p => {
               const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
               return regDate.startsWith(todayStr);
@@ -1022,26 +1030,36 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return match ? parseInt(match[0], 10) : Infinity;
               };
 
-              const todayStr = new Date().toISOString().split('T')[0];
+              const now = new Date();
+              const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
               const invoices = BillingService.getInvoices();
               const paidInvoicePatientIds = invoices
                 .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
                 .map((i: any) => i.patientId);
               const paidPatientIds = new Set([
                 ...appointments
-                  .filter(a => a.status !== 'pending_payment')
+                  .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
                   .map(a => a.patientId || (a as any).patient_id),
                 ...paidInvoicePatientIds
               ]);
+
+              const isPatientForToday = (p: Patient) => {
+                const patAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+                const apptDate = patAppt?.appointmentTime?.split('T')[0] || patAppt?.virtualDate || (patAppt as any)?.virtual_date || patAppt?.createdAt?.split('T')[0];
+                const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
+                return apptDate ? apptDate === todayStr : regDate.startsWith(todayStr);
+              };
 
               const queuePatients = patients
                 .filter(p => {
                   if (p.id === selectedPatient?.id) return true;
                   if (queueFilter === 'awaiting') {
                     if (!paidPatientIds.has(p.id)) return false;
+                    if (!isPatientForToday(p)) return false;
                     return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
                   }
                   if (queueFilter === 'in_consult') {
+                    if (!isPatientForToday(p)) return false;
                     return p.queueStatus === 'in_consultation';
                   }
                   if (queueFilter === 'today_registered') {
@@ -1059,9 +1077,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   return true;
                 })
                 .sort((a, b) => {
-                  // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens (T-02 E) move to top
-                  const isSosA = Boolean(a.tokenNumber && (a.tokenNumber.includes('E') || a.tokenNumber.includes('SOS')));
-                  const isSosB = Boolean(b.tokenNumber && (b.tokenNumber.includes('E') || b.tokenNumber.includes('SOS')));
+                  // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top
+                  const isSosA = Boolean(a.isEmergency || (a as any).is_emergency || (a as any).source?.includes('sos') || (a.tokenNumber && (a.tokenNumber.includes('E') || a.tokenNumber.includes('SOS') || a.tokenNumber.startsWith('#EM-'))));
+                  const isSosB = Boolean(b.isEmergency || (b as any).is_emergency || (b as any).source?.includes('sos') || (b.tokenNumber && (b.tokenNumber.includes('E') || b.tokenNumber.includes('SOS') || b.tokenNumber.startsWith('#EM-'))));
                   if (isSosA && !isSosB) return -1;
                   if (!isSosA && isSosB) return 1;
 
@@ -2101,14 +2119,6 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                                     setFlashPrescriptionPanel(true);
                                     setTimeout(() => setFlashPrescriptionPanel(false), 1500);
                                   }, 100);
-
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
-                                      title: 'e-Rx Appended 💊',
-                                      message: `Added ${comp.medicine_name} to prescription list.`,
-                                      type: 'success'
-                                    }
-                                  }));
                                 }}
                                 className="self-start md:self-center bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold px-3 py-1.5 rounded-lg border border-indigo-200/50 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
                               >

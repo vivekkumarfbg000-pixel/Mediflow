@@ -201,47 +201,47 @@ export const AIFleetCommanderTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in font-sans">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in font-sans overflow-x-hidden">
       
       {/* ── Top Hero Header ─────────────────────────────────────────────────── */}
-      <div className="p-5 rounded-3xl bg-gradient-to-r from-indigo-900 via-purple-900 to-slate-900 text-white shadow-xl relative overflow-hidden">
+      <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-indigo-900 via-purple-900 to-slate-900 text-white shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
+          <div className="space-y-1 sm:space-y-1.5">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center text-slate-950 font-black shadow-md">
-                <Cpu className="h-4.5 w-4.5" />
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center text-slate-950 font-black shadow-md shrink-0">
+                <Cpu className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               </div>
-              <h3 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
+              <h3 className="text-sm sm:text-lg font-black tracking-tight flex items-center gap-1.5 flex-wrap">
                 Mediflow Autonomous AI Fleet Commander
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[9.5px] font-extrabold uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[8.5px] sm:text-[9.5px] font-extrabold uppercase tracking-wider">
                   8 Agents Active 🟢
                 </span>
               </h3>
             </div>
-            <p className="text-xs text-indigo-200/80 max-w-2xl leading-relaxed">
+            <p className="text-[11px] sm:text-xs text-indigo-200/80 max-w-2xl leading-relaxed">
               Google/Meta Tier-1 Agentic Mesh orchestrating clinical safety, self-healing DevSecOps, financial reconciliation, and WhatsApp patient retention in real-time.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md text-right">
-              <div className="text-[9px] uppercase tracking-widest text-indigo-300 font-extrabold">Autonomous Coverage</div>
-              <div className="text-sm font-black text-white">100% Ecosystem</div>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md text-left sm:text-right">
+              <div className="text-[8.5px] sm:text-[9px] uppercase tracking-widest text-indigo-300 font-extrabold">Autonomous Coverage</div>
+              <div className="text-xs sm:text-sm font-black text-white">100% Ecosystem</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* ── 8 Autonomous Agent Grid ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
         {agentsList.map(agent => {
           const Icon = agent.icon;
           const isSelected = activeSimulationAgent === agent.id;
           return (
             <div
               key={agent.id}
-              className={`p-4 rounded-3xl border transition-all duration-200 flex flex-col justify-between space-y-3 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md ${
+              className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border transition-all duration-200 flex flex-col justify-between space-y-3 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md ${
                 isSelected
                   ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-indigo-500/10'
                   : 'border-slate-200/80 dark:border-slate-800'

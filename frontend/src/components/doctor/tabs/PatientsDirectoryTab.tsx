@@ -62,7 +62,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
         (p?.name || '').toLowerCase().includes(query) ||
         (p?.phone || '').includes(query) ||
         (p?.patientCode || '').toLowerCase().includes(query) ||
-        (p?.tokenNumber || '').toLowerCase().includes(query) ||
+        (p?.tokenNumber != null ? String(p.tokenNumber) : '').toLowerCase().includes(query) ||
         (p?.id || '').toLowerCase().includes(query) ||
         ((p?.abhaId || '').toLowerCase().includes(query))
       );

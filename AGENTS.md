@@ -56,15 +56,48 @@ You are helping a developer integrate Cashfree Payments.
 
 ## 🏛️ VitalSync Google/Meta Big Tech Engineering Master SOP Directive
 
-### 👑 Autonomous Big Tech Engineering Taskforce Protocol (Mandatory Default Behavior)
-Even when the user provides brief, informal, conversational, or underspecified prompts (e.g. "fix this button", "change color", "add a field", "solve this bug"), the AI agent **MUST NEVER** take shortcuts, guess blindly, or apply haphazard edits. The AI agent MUST automatically operate in full Google/Meta Engineering Taskforce mode:
-1. **Autonomous Architectural Impact Check**: Before touching code, search the codebase (`grep_search` / `view_file`) to identify all consumers, types, database schemas, and dependencies.
-2. **Surgical Invariance & Zero-Bypass Policy**: NEVER rewrite entire files or discard adjacent logic, comments, or CSS classes. Apply surgical, isolated diffs.
-3. **Defensive Nullish Safety Guard by Default**: Always wrap object property accesses with nullish defaults (`(str || '').toLowerCase()`, `(arr || []).map(...)`, `(num || 0).toFixed(2)`).
-4. **Modal Viewport Isolation**: Any new or modified overlay/modal MUST use `React.createPortal(modal, document.body)` with `fixed inset-0 z-[9999]` and body scroll lock cleanup.
-5. **Mandatory Post-Edit Verification Gate**: ALWAYS run `cmd /c npx tsc --noEmit` after making source code edits to verify exit code 0 before concluding.
-6. **Permanent Anti-Regression Codification**: If a bug was solved, document the root cause and ensure it aligns with rules 1–98 so it never recurs.
-7. **PromptGuard Live DOM & Daemon Bridge Grounding**: Query `http://localhost:9000/context` first on UI/layout tasks to anchor changes in the exact DOM node and file mapping without guessing.
+### 👑 Autonomous Big Tech Engineering Taskforce Protocol (Mandatory Non-Negotiable Standard)
+Even when the user provides brief, informal, conversational, or underspecified prompts (e.g. "fix this button", "change color", "add a field", "solve this bug"), the AI agent **MUST NEVER** take shortcuts, guess blindly, or apply haphazard edits. The AI agent MUST unconditionally execute in this exact sequence:
+
+1. **STEP 1: Root Cause Analysis (RCA)**:
+   - Deeply trace the issue through runtime logs, state machines, call stacks, or database schemas.
+   - Understand *why* it failed, not just *where* it failed. Isolate the systemic root cause before planning any solution.
+
+2. **STEP 2: Live DOM & Daemon Bridge Grounding**:
+   - For all UI, layout, component, or visual tasks, the FIRST tool call MUST query `http://localhost:9000/context` to extract the live DOM tree, active selectors, and exact component mappings without guessing.
+   - If the Daemon Bridge is offline, immediately emit an alert: *"⚠️ Daemon Bridge offline on port 9000 — please start it for live DOM anchoring."*
+
+3. **STEP 3: CTO Taskforce Implementation Plan (`implementation_plan.md`)**:
+   - Formulate a comprehensive Google/Meta-grade engineering plan detailing:
+     * **Cross-Console Blast Radius Audit**: Whenever an exported service function, type, hook, or context is modified, grep-search and explicitly list all consuming files across all 5 consoles (*Doctor EMR, Compounder Desk, Pharmacy POS, Pathology Lab, SaaS Admin*) to guarantee zero cascading side-effects.
+     * **Database Schema Idempotence Check**: If a change involves Supabase Postgres tables, RPCs, columns, or triggers, all proposed SQL must enforce strict idempotence (`ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, `CREATE TABLE IF NOT EXISTS`) so edge functions never throw HTTP 500 errors on schema mismatch.
+     * Root Cause Isolation findings.
+     * Proposed surgical file changes (`[MODIFY]`, `[NEW]`, `[DELETE]`).
+     * Verification & Anti-Regression strategy aligning with Rules 1–98.
+   - Create or update the `implementation_plan.md` artifact with `RequestFeedback: true`.
+
+4. **STEP 4: User Approval Gate**:
+   - STOP execution and wait for the user's explicit review and approval before modifying or touching any source code file.
+
+5. **STEP 5: Surgical Implementation & Zero-Bypass Policy**:
+   - Apply isolated, minimal diffs complying strictly with Rules 1–98.
+   - **Core 7 USPs Anti-Regression Shield**: Verify that no edits break or alter any of the 7 Core Invariants:
+     1. Sub-300ms Outbound WhatsApp Response Engine
+     2. 1-Tap Native WhatsApp Reply Buttons (`type: "button"`)
+     3. Payment Gateway Clearance Gate (Unpaid appointments filtered from active queues)
+     4. Emergency SOS Priority #1 Routing
+     5. 1-Click Pharmacy Delivery & Reminders
+     6. B2B Referral Reward Engine (10% OFF codes)
+     7. 360° Realtime Supabase CDC Sync
+   - **Database Schema Idempotence Execution & Automatic Migration Generation**: Whenever code interacts with tables, columns, RPCs, or data identifiers, create/update `supabase/migrations/` and `supabase/combined_upgrade.sql`.
+   - NEVER rewrite entire files or discard adjacent comments, formatting, or CSS classes.
+   - Defensively guard all property accesses (`(str || '').toLowerCase()`, `(arr || []).map(...)`, `(num || 0).toFixed(2)`).
+   - Any new or modified overlay/modal MUST use `React.createPortal(modal, document.body)` with `fixed inset-0 z-[9999]` and body scroll lock cleanup.
+
+6. **STEP 6: Mandatory Post-Edit Verification, SQL Snippet Delivery & Walkthrough**:
+   - Verify zero TypeScript compiler errors (`cmd /c npx tsc --noEmit` exit code 0).
+   - Create or update `walkthrough.md` summarizing the verified resolution, test results, and anti-regression audit.
+   - **MANDATORY AUTOMATIC SQL SNIPPET DELIVERY (ZERO-DELAY RULE)**: If any code change touches or interfaces with database schema, tables, RPCs, columns, or data identifiers, the AI agent MUST unconditionally output the complete, copy-paste ready SQL migration snippet with a **HIGH-PRIORITY MANDATORY WARNING** banner in the **EXACT SAME RESPONSE TURN** without waiting for the user to ask or remind.
 
 ### 1. System Architecture & Realtime CDC Data Flow Contract
 - **Engine Latency**: All Supabase Postgres Change Data Capture (CDC) events MUST be debounced at **`250ms`** in `src/services/api.ts` to ensure sub-300ms live synchronization across all active dashboards.

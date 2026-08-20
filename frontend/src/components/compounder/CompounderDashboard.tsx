@@ -111,7 +111,7 @@ export const CompounderDashboard: React.FC = () => {
   const { podEntities, activePod } = useClinic();
   const [activeTab, setActiveTab] = useState<'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('tokens');
   const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
-  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'schedules_advance'>('today_queue');
+  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'upcoming_advance' | 'past_history'>('today_queue');
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
   // Patient Directory Tab Local States
@@ -652,52 +652,16 @@ export const CompounderDashboard: React.FC = () => {
         const rawWeight = vitalsPatient.vitals.weight || '';
         const rawSugar = vitalsPatient.vitals.bloodSugar || '';
 
-        if (isOphthalmology) {
-          const vaOdMatch = String(rawTemp).match(/6\/\d+/);
-          setTempVal(vaOdMatch ? vaOdMatch[0] : '6/6');
-
-          const vaOsMatch = String(rawBp).match(/6\/\d+/);
-          setBpVal(vaOsMatch ? vaOsMatch[0] : '6/6');
-
-          const iopMatch = String(rawPulse).match(/\d+/);
-          setPulseVal(iopMatch ? iopMatch[0] : '16');
-
-          const aidedOdMatch = String(rawWeight).match(/6\/\d+/);
-          setWeightVal(aidedOdMatch ? aidedOdMatch[0] : '');
-
-          const aidedOsMatch = String(rawSugar).match(/6\/\d+/);
-          setSugarVal(aidedOsMatch ? aidedOsMatch[0] : '');
-        } else {
-          const tempMatch = String(rawTemp).match(/\d+\.?\d*/);
-          if (tempMatch) {
-            const parsed = parseFloat(tempMatch[0]);
-            setTempVal(parsed > 90 && parsed < 110 ? parsed.toFixed(1) : '98.6');
-          } else {
-            setTempVal('98.6');
-          }
-
-          const bpMatch = String(rawBp).match(/\d{2,3}\/\d{2,3}/);
-          setBpVal(bpMatch ? bpMatch[0] : '120/80');
-
-          const pulseMatch = String(rawPulse).match(/\d+/);
-          if (pulseMatch) {
-            const parsed = parseInt(pulseMatch[0]);
-            setPulseVal(parsed > 30 && parsed < 200 ? String(parsed) : '72');
-          } else {
-            setPulseVal('72');
-          }
-
-          const weightMatch = String(rawWeight).match(/^\d{2,3}/);
-          setWeightVal(weightMatch ? weightMatch[0] : '65');
-
-          const sugarMatch = String(rawSugar).match(/\d+/);
-          setSugarVal(sugarMatch ? sugarMatch[0] : '');
-        }
+        setTempVal(rawTemp || '98.6');
+        setBpVal(rawBp || '120/80');
+        setPulseVal(rawPulse || '72');
+        setWeightVal(rawWeight || '65');
+        setSugarVal(rawSugar || '');
       } else {
-        setTempVal(isOphthalmology ? '6/6' : '98.6');
-        setBpVal(isOphthalmology ? '6/6' : '120/80');
-        setPulseVal(isOphthalmology ? '16' : '72');
-        setWeightVal(isOphthalmology ? '' : '65');
+        setTempVal('98.6');
+        setBpVal('120/80');
+        setPulseVal('72');
+        setWeightVal('65');
         setSugarVal('');
       }
     }
@@ -872,18 +836,12 @@ export const CompounderDashboard: React.FC = () => {
 
     const recordedToken = vitalsPatient.tokenNumber || api.generateNextTokenNumber();
 
-    const finalTempVal = isOphthalmology ? (tempVal === '98.6' ? '6/6' : tempVal) : tempVal;
-    const finalBpVal = isOphthalmology ? (bpVal === '120/80' ? '6/6' : bpVal) : bpVal;
-    const finalPulseVal = isOphthalmology ? (pulseVal === '72' ? '16' : pulseVal) : pulseVal;
-    const finalWeightVal = isOphthalmology ? (weightVal === '65' ? '' : weightVal) : weightVal;
-    const finalSugarVal = isOphthalmology ? sugarVal || undefined : sugarVal || undefined;
-
     api.updatePatientVitalsAndToken(vitalsPatient.id, {
-      temperature: finalTempVal,
-      bloodPressure: finalBpVal,
-      pulseRate: finalPulseVal,
-      weight: finalWeightVal,
-      bloodSugar: finalSugarVal,
+      temperature: tempVal,
+      bloodPressure: bpVal,
+      pulseRate: pulseVal,
+      weight: weightVal,
+      bloodSugar: sugarVal || undefined,
       recordedAt: new Date().toISOString()
     }, recordedToken);
 
@@ -2001,26 +1959,42 @@ export const CompounderDashboard: React.FC = () => {
                 <Layers className="w-4 h-4 shrink-0" />
                 Today's Active OPD Queue 🏥
                 <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
-                  {appointments.length}
+                  {(() => {
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    return appointments.filter(a => {
+                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                      return apptDate === todayStr;
+                    }).length;
+                  })()}
                 </span>
               </button>
               <button
-                onClick={() => setOpdSubTab('schedules_advance')}
+                onClick={() => setOpdSubTab('upcoming_advance')}
                 className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  opdSubTab === 'schedules_advance'
+                  opdSubTab === 'upcoming_advance'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
                 }`}
               >
                 <Calendar className="w-4 h-4 shrink-0" />
-                Doctor Schedules & Advance Bookings 📅
+                Upcoming Advance Bookings 📅
                 <span className="ml-1 bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
-                  {appointments.filter(a => a.is_virtual || a.isVirtual || (a.virtual_date && a.virtual_date !== new Date().toISOString().split('T')[0]) || (a.virtualDate && a.virtualDate !== new Date().toISOString().split('T')[0])).length}
+                  {(() => {
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    return appointments.filter(a => {
+                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                      return Boolean(apptDate && apptDate > todayStr);
+                    }).length;
+                  })()}
                 </span>
               </button>
             </div>
 
-            {opdSubTab === 'schedules_advance' ? (
+            {opdSubTab === 'upcoming_advance' ? (
               <div className="space-y-8 animate-fade-in">
                 {/* Section 1: Virtual Video Consultations Roster */}
                 <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
@@ -2036,7 +2010,7 @@ export const CompounderDashboard: React.FC = () => {
                       </p>
                     </div>
                     <span className="text-xs font-mono font-bold px-3 py-1 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full">
-                      {appointments.filter(a => a.is_virtual || a.isVirtual).length} Active Video Consults
+                      {appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled' && (a.is_virtual || a.isVirtual)).length} Active Video Consults
                     </span>
                   </div>
 
@@ -2393,21 +2367,157 @@ export const CompounderDashboard: React.FC = () => {
               {/* Today's Appointments List */}
               <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
                   <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                     <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
-                    Today's Appointments Queue (दैनिक नियुक्तियां)
+                    {opdSubTab === 'today_queue' 
+                      ? "Today's Appointments Queue (दैनिक नियुक्तियां)" 
+                      : opdSubTab === 'upcoming_advance' 
+                      ? "Upcoming Advance Bookings (अग्रिम नियुक्तियां - WhatsApp & Portal)" 
+                      : "Past Appointments History (पूर्व नियुक्तियां)"}
                   </h2>
-                  <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 bg-indigo-500/10 text-indigo-600 border border-indigo-550/20 rounded-full animate-pulse">
-                    Live Status
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setOpdSubTab('today_queue')}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                        opdSubTab === 'today_queue'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${opdSubTab === 'today_queue' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
+                      Today's Live Queue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOpdSubTab('upcoming_advance')}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                        opdSubTab === 'upcoming_advance'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Calendar className="h-3 w-3" />
+                      Upcoming Advance
+                      {(() => {
+                        const now = new Date();
+                        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                        const count = appointments.filter(a => {
+                          if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                          const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                          return Boolean(apptDate && apptDate > todayStr);
+                        }).length;
+                        return count > 0 ? (
+                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black ${
+                            opdSubTab === 'upcoming_advance' ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                          }`}>
+                            {count}
+                          </span>
+                        ) : null;
+                      })()}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOpdSubTab('past_history')}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                        opdSubTab === 'past_history'
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Clock className="h-3 w-3" />
+                      Past & All History
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   {(() => {
-                    const confirmedAppts = appointments.filter(a => a.status !== 'pending_payment');
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+                    let confirmedAppts = appointments.filter(a => {
+                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                      if (!apptDate) return opdSubTab === 'today_queue';
+
+                      if (opdSubTab === 'today_queue') {
+                        return apptDate === todayStr;
+                      } else if (opdSubTab === 'upcoming_advance') {
+                        return apptDate > todayStr;
+                      } else {
+                        // past_history
+                        return apptDate < todayStr;
+                      }
+                    });
+
+                    // Sort appointments chronologically
+                    if (opdSubTab === 'today_queue') {
+                      // 1. Emergency SOS takes Priority #1 at top of queue
+                      // 2. Awaiting / Active patients before seen/completed patients (demote seen from top)
+                      // 3. Strict Sequential Token Number sorting (#TK-001 > #TK-002 > #TK-003)
+                      const parseTokenNum = (token?: string | number) => {
+                        if (!token) return 999999;
+                        if (typeof token === 'number') return token;
+                        const match = String(token).match(/\d+/);
+                        return match ? parseInt(match[0], 10) : 999999;
+                      };
+
+                      confirmedAppts.sort((a, b) => {
+                        // Priority #1: Emergency SOS
+                        const isSOSA = Boolean(a.isEmergency || (a as any).is_emergency || a.source?.includes('sos') || a.source?.includes('emergency') || a.tokenNumber?.includes('SOS') || a.tokenNumber?.startsWith('#EM-'));
+                        const isSOSB = Boolean(b.isEmergency || (b as any).is_emergency || b.source?.includes('sos') || b.source?.includes('emergency') || b.tokenNumber?.includes('SOS') || b.tokenNumber?.startsWith('#EM-'));
+                        if (isSOSA && !isSOSB) return -1;
+                        if (!isSOSA && isSOSB) return 1;
+
+                        // Priority #2: Demote completed/seen patients from top
+                        const patientA = patients.find(p => p.id === a.patientId);
+                        const patientB = patients.find(p => p.id === b.patientId);
+
+                        const isDoneA = a.status === 'completed' || patientA?.queueStatus === 'completed' || patientA?.queueStatus === 'settled' || patientA?.queueStatus === 'pharmacy' || patientA?.queueStatus === 'lab';
+                        const isDoneB = b.status === 'completed' || patientB?.queueStatus === 'completed' || patientB?.queueStatus === 'settled' || patientB?.queueStatus === 'pharmacy' || patientB?.queueStatus === 'lab';
+                        if (!isDoneA && isDoneB) return -1;
+                        if (isDoneA && !isDoneB) return 1;
+
+                        // Priority #3: Sequential Numeric Token Number (Token 1 before Token 2)
+                        const tokenA = parseTokenNum(a.tokenNumber || (a as any).token_number || patientA?.tokenNumber);
+                        const tokenB = parseTokenNum(b.tokenNumber || (b as any).token_number || patientB?.tokenNumber);
+                        if (tokenA !== tokenB) return tokenA - tokenB;
+
+                        // Tie break by creation time
+                        return (a.createdAt || '').localeCompare(b.createdAt || '');
+                      });
+                    } else if (opdSubTab === 'upcoming_advance') {
+                      // Closest upcoming appointment first
+                      confirmedAppts.sort((a, b) => {
+                        const dateA = a.appointmentTime || a.virtualDate || (a as any).virtual_date || a.createdAt || '';
+                        const dateB = b.appointmentTime || b.virtualDate || (b as any).virtual_date || b.createdAt || '';
+                        return dateA.localeCompare(dateB);
+                      });
+                    } else if (opdSubTab === 'past_history') {
+                      // Most recent past appointment first
+                      confirmedAppts.sort((a, b) => {
+                        const dateA = a.appointmentTime || a.virtualDate || (a as any).virtual_date || a.createdAt || '';
+                        const dateB = b.appointmentTime || b.virtualDate || (b as any).virtual_date || b.createdAt || '';
+                        return dateB.localeCompare(dateA);
+                      });
+                    }
+
                     if (confirmedAppts.length === 0) {
-                      return <ZeroQueueState queueType="appointments" className="mx-0" />;
+                      return (
+                        <ZeroQueueState 
+                          queueType="appointments" 
+                          className="mx-0"
+                          message={
+                            opdSubTab === 'today_queue' 
+                              ? "No appointments scheduled for today yet. Use the booking panel above to register today's patients." 
+                              : opdSubTab === 'upcoming_advance'
+                              ? "No upcoming advance bookings found. When WhatsApp chatbot schedules future patient appointments, they will appear here automatically."
+                              : "No past appointment records found."
+                          }
+                        />
+                      );
                     }
                     return confirmedAppts.map((appt) => {
                       const patient: any = patients.find(p => p.id === appt.patientId) || {
@@ -2427,27 +2537,37 @@ export const CompounderDashboard: React.FC = () => {
 
                       const isAwaitingVitals = patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus;
                       const isAwaitingConsult = patient.queueStatus === 'awaiting_consultation';
+                      const isSOS = Boolean(appt.isEmergency || (appt as any).is_emergency || appt.source?.includes('sos') || appt.source?.includes('emergency') || appt.tokenNumber?.includes('SOS') || appt.tokenNumber?.startsWith('#EM-'));
 
                       return (
                         <div 
                           key={appt.id} 
-                          className={`p-4 bg-slate-50 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${
-                            vitalsPatient?.id === patient.id 
+                          className={`p-4 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${
+                            isSOS
+                              ? 'border-rose-500 bg-rose-500/10 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30'
+                              : vitalsPatient?.id === patient.id 
                               ? 'border-rose-500/50 bg-rose-500/5 shadow-md shadow-rose-500/5' 
-                              : 'border-slate-200 hover:bg-slate-100/50'
+                              : 'bg-slate-50 border-slate-200 hover:bg-slate-100/50'
                           }`}
                         >
                           <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex items-center gap-2.5">
-                              <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-lg border ${
-                                appt.isVirtual
-                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
-                                  : (appt as any).source?.includes('whatsapp')
-                                  ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25'
-                                  : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
-                              }`}>
-                                {appt.isVirtual ? '📹 VIRTUAL CALL' : (appt as any).source?.includes('whatsapp') ? '🏥 PHYSICAL VISIT (WA)' : '🏢 COUNTER'}
-                              </span>
+                              {isSOS ? (
+                                <span className="flex items-center gap-1 text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-lg bg-rose-600 text-white shadow-md shadow-rose-600/30 animate-pulse">
+                                  <ShieldAlert className="h-3 w-3" />
+                                  🚨 EMERGENCY SOS PRIORITY #1
+                                </span>
+                              ) : (
+                                <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-lg border ${
+                                  appt.isVirtual
+                                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
+                                    : (appt as any).source?.includes('whatsapp')
+                                    ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25'
+                                    : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
+                                }`}>
+                                  {appt.isVirtual ? '📹 VIRTUAL CALL' : (appt as any).source?.includes('whatsapp') ? '🏥 PHYSICAL VISIT (WA)' : '🏢 COUNTER'}
+                                </span>
+                              )}
                               <h4 className="font-bold text-slate-805 text-xs">{patient.name}</h4>
                               <span className="text-slate-500 text-[10px] font-medium">({patient.age}y · {patient.gender})</span>
                             </div>
@@ -2467,6 +2587,26 @@ export const CompounderDashboard: React.FC = () => {
                               }`}>
                                 {appt.status === 'ready_for_consult' ? 'Paid & Active' : appt.status}
                               </span>
+
+                              {opdSubTab !== 'today_queue' && (() => {
+                                const aDate = appt.appointmentTime?.split('T')[0] || appt.virtualDate || (appt as any).virtual_date || appt.createdAt?.split('T')[0] || '';
+                                const isTomorrow = (() => {
+                                  const d = new Date();
+                                  d.setDate(d.getDate() + 1);
+                                  return aDate === `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                })();
+
+                                return (
+                                  <span className={`flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                                    isTomorrow 
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' 
+                                      : 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800'
+                                  }`}>
+                                    <Calendar className="h-2.5 w-2.5" />
+                                    {isTomorrow ? 'Tomorrow' : aDate || 'Scheduled'}
+                                  </span>
+                                );
+                              })()}
                             </div>
 
                             {patient.vitals && (

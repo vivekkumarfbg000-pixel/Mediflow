@@ -58,14 +58,6 @@ export class PwaSyncManager {
       
       console.log(`[PWA-Sync] Action queued locally: ${actionType}`, payload);
 
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          message: `Offline Sync: Operational ${actionType} action saved to offline queue.`,
-          type: 'info',
-          title: 'Transaction Queued'
-        }
-      }));
-
       // Fire a custom sync event for UI badge updates
       window.dispatchEvent(new CustomEvent('mediflow-pwa-sync-change'));
     } catch (e) {
@@ -107,14 +99,6 @@ export class PwaSyncManager {
 
     this.isSyncActive = true;
     console.log(`[PWA-Sync] Ingesting offline queue: ${queue.length} items to Supabase...`);
-
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        message: `Ingesting ${queue.length} offline transactions... Please keep dashboard open.`,
-        type: 'info',
-        title: 'Synchronizing Caches'
-      }
-    }));
 
     try {
       let successCount = 0;

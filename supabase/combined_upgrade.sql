@@ -1381,7 +1381,279 @@ REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER) FROM 
 GRANT EXECUTE ON FUNCTION public.check_rate_limit(TEXT, INTEGER, INTEGER) TO service_role;
 
 
+
+-- =============================================================================
+-- SECTION 25: VitalSync Personalized Clinic Code Architecture (VS-S03N)
+-- =============================================================================
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS clinic_code TEXT;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS doctor_name TEXT;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS daily_cost_budget NUMERIC DEFAULT 500.00;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS daily_spend NUMERIC DEFAULT 0.00;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS platform_fee_percent NUMERIC DEFAULT 2.5;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS lifetime_platform_revenue NUMERIC DEFAULT 0.00;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS pending_cash_balance NUMERIC DEFAULT 0.00;
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS is_verified_for_billing BOOLEAN DEFAULT TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pods_clinic_code_unique ON public.pods (clinic_code) WHERE clinic_code IS NOT NULL;
+
+DROP FUNCTION IF EXISTS public.register_clinic_network(TEXT, TEXT, TEXT, TEXT);
+
+CREATE OR REPLACE FUNCTION public.register_clinic_network(
+    p_clinic_name TEXT,
+    p_clinic_phone TEXT,
+    p_clinic_address TEXT,
+    p_specialization TEXT
+)
+RETURNS TABLE (clinic_code TEXT)
+AS $$
+DECLARE
+    v_pod_id UUID;
+    v_entity_id UUID;
+    v_clinic_code TEXT;
+    v_display_name TEXT;
+    v_clean_name TEXT;
+    v_first_char TEXT;
+    v_last_char TEXT;
+    v_seq INT;
+BEGIN
+    SELECT COALESCE(raw_user_meta_data->>'display_name', p_clinic_name)
+    INTO v_display_name 
+    FROM auth.users 
+    WHERE id = auth.uid();
+
+    SELECT COALESCE(COUNT(*), 0) + 1 INTO v_seq FROM public.pods;
+
+    v_clean_name := upper(regexp_replace(COALESCE(v_display_name, p_clinic_name), '^(dr\.?|doctor|prof\.?)\s*|[^a-zA-Z]', '', 'gi'));
+    IF length(v_clean_name) = 0 THEN
+        v_clean_name := 'DR';
+    END IF;
+
+    v_first_char := substring(v_clean_name, 1, 1);
+    IF length(v_clean_name) > 1 THEN
+        v_last_char := substring(v_clean_name, length(v_clean_name), 1);
+    ELSE
+        v_last_char := v_first_char;
+    END IF;
+
+    v_clinic_code := 'VS-' || v_first_char || lpad(v_seq::text, 2, '0') || v_last_char;
+
+    WHILE EXISTS (SELECT 1 FROM public.pods WHERE pods.clinic_code = v_clinic_code) LOOP
+        v_seq := v_seq + 1;
+        v_clinic_code := 'VS-' || v_first_char || lpad(v_seq::text, 2, '0') || v_last_char;
+    END LOOP;
+
+    INSERT INTO public.pods (name, clinic_code, is_active, doctor_name, phone, location)
+    VALUES (p_clinic_name, v_clinic_code, TRUE, COALESCE(v_display_name, p_clinic_name), p_clinic_phone, p_clinic_address)
+    RETURNING id INTO v_pod_id;
+
+    INSERT INTO public.entities (pod_id, entity_type, name, address, phone, status, is_active)
+    VALUES (v_pod_id, 'clinic', p_clinic_name, p_clinic_address, p_clinic_phone, 'approved', TRUE)
+    RETURNING id INTO v_entity_id;
+
+    INSERT INTO public.profiles (id, entity_id, pod_id, role, consultation_fee, display_name)
+    VALUES (auth.uid(), v_entity_id, v_pod_id, 'doctor', 400.00, COALESCE(v_display_name, 'Doctor'))
+    ON CONFLICT (id) DO UPDATE 
+    SET entity_id = EXCLUDED.entity_id, pod_id = EXCLUDED.pod_id, role = EXCLUDED.role, display_name = EXCLUDED.display_name;
+
+    UPDATE auth.users
+    SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object(
+        'clinic_name', p_clinic_name,
+        'clinic_code', v_clinic_code,
+        'specialization', p_specialization,
+        'role', 'doctor',
+        'pod_id', v_pod_id
+    )
+    WHERE id = auth.uid();
+
+    RETURN QUERY SELECT v_clinic_code;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE EXECUTE ON FUNCTION public.register_clinic_network(TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.register_clinic_network(TEXT, TEXT, TEXT, TEXT) TO authenticated;
+
+UPDATE public.pods 
+SET clinic_code = 'VS-V01R' 
+WHERE id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001' OR clinic_code = 'MF-APEX';
+
+-- =============================================================================
+-- ATOMIC CARE LOOP RPC (Process Encounter, Inventory, Requisitions & Invoices)
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.process_clinical_care_loop(
+    p_encounter_id UUID,
+    p_patient_id UUID,
+    p_doctor_id UUID,
+    p_pod_id UUID,
+    p_lab_entity_id UUID,
+    p_pharmacy_entity_id UUID,
+    p_medications JSONB,
+    p_diagnostics JSONB,
+    p_patient_phone TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_lab_fee NUMERIC := 0;
+    v_pharmacy_fee NUMERIC := 0;
+    v_doctor_fee NUMERIC := 0;
+    v_platform_fee NUMERIC := 0;
+    v_invoice_total NUMERIC := 0;
+    
+    v_assigned_tech_id UUID := NULL;
+    v_test JSONB;
+    v_test_price NUMERIC := 350.00;
+    
+    v_med JSONB;
+    v_needed_qty INT;
+    v_remaining_qty INT;
+    v_batch RECORD;
+    v_allocated_qty INT;
+    v_hold_status TEXT;
+    
+    v_already_paid_consult BOOLEAN := FALSE;
+    v_doctor_profile RECORD;
+BEGIN
+    -- 1. Insert Diagnostics & Lab Requisitions
+    IF jsonb_array_length(p_diagnostics) > 0 THEN
+        FOR v_test IN SELECT * FROM jsonb_array_elements(p_diagnostics)
+        LOOP
+            INSERT INTO public.encounter_diagnostics (encounter_id, loinc_code, test_name, status)
+            VALUES (p_encounter_id, v_test->>'loincCode', v_test->>'name', 'ordered');
+            
+            -- Route to Lab Requisitions (Supports both dedicated lab entity and in-house clinic pod)
+            IF p_lab_entity_id IS NOT NULL OR p_pod_id IS NOT NULL THEN
+                IF v_assigned_tech_id IS NULL AND p_lab_entity_id IS NOT NULL THEN
+                    SELECT id INTO v_assigned_tech_id FROM public.profiles 
+                    WHERE entity_id = p_lab_entity_id AND role = 'lab_technician' LIMIT 1;
+                END IF;
+                
+                v_test_price := 350.00;
+                SELECT price INTO v_test_price FROM public.master_test_catalog WHERE loinc_code = v_test->>'loincCode' LIMIT 1;
+                IF v_test_price IS NULL THEN v_test_price := 350.00; END IF;
+                
+                v_lab_fee := v_lab_fee + v_test_price;
+                
+                INSERT INTO public.lab_requisitions (
+                    encounter_id, patient_id, lab_entity_id, loinc_code, test_name, 
+                    barcode, status, assigned_technician_id, pod_id
+                ) VALUES (
+                    p_encounter_id, p_patient_id, p_lab_entity_id, v_test->>'loincCode', v_test->>'name',
+                    UPPER('BAR-' || SUBSTRING(p_encounter_id::TEXT, 1, 8) || '-' || (v_test->>'loincCode')),
+                    'pending', v_assigned_tech_id, p_pod_id
+                );
+            END IF;
+        END LOOP;
+    END IF;
+
+    -- 2. Reserve Pharmacy Stock (WITH PESSIMISTIC LOCKING)
+    IF jsonb_array_length(p_medications) > 0 THEN
+        FOR v_med IN SELECT * FROM jsonb_array_elements(p_medications)
+        LOOP
+            v_needed_qty := 10;
+            v_remaining_qty := v_needed_qty;
+            
+            IF p_pharmacy_entity_id IS NOT NULL THEN
+                v_pharmacy_fee := v_pharmacy_fee + 150;
+                
+                FOR v_batch IN 
+                    SELECT id, batch_number, expiry_date, quantity_in_stock 
+                    FROM public.pharmacy_inventory 
+                    WHERE pharmacy_entity_id = p_pharmacy_entity_id 
+                      AND medicine_name = v_med->>'medicineName'
+                      AND is_active = true 
+                      AND quantity_in_stock > 0 
+                      AND expiry_date >= CURRENT_DATE
+                    ORDER BY expiry_date ASC
+                    FOR UPDATE
+                LOOP
+                    IF v_remaining_qty <= 0 THEN EXIT; END IF;
+                    
+                    v_allocated_qty := LEAST(v_batch.quantity_in_stock, v_remaining_qty);
+                    
+                    UPDATE public.pharmacy_inventory 
+                    SET quantity_in_stock = quantity_in_stock - v_allocated_qty,
+                        updated_at = NOW()
+                    WHERE id = v_batch.id;
+                    
+                    INSERT INTO public.inventory_holds (
+                        pharmacy_entity_id, encounter_id, patient_id, medicine_name,
+                        dosage, quantity, batch_number, expiry_date, hold_status
+                    ) VALUES (
+                        p_pharmacy_entity_id, p_encounter_id, p_patient_id, v_med->>'medicineName',
+                        COALESCE(v_med->>'dosage', ''), v_allocated_qty, v_batch.batch_number, v_batch.expiry_date, 'held'
+                    );
+                    
+                    v_remaining_qty := v_remaining_qty - v_allocated_qty;
+                END LOOP;
+                
+                IF v_remaining_qty > 0 THEN
+                    IF v_remaining_qty = v_needed_qty THEN
+                        v_hold_status := 'OUT_OF_STOCK';
+                    ELSE
+                        v_hold_status := 'SHORTAGE';
+                    END IF;
+                    
+                    INSERT INTO public.inventory_holds (
+                        pharmacy_entity_id, encounter_id, patient_id, medicine_name,
+                        dosage, quantity, batch_number, expiry_date, hold_status
+                    ) VALUES (
+                        p_pharmacy_entity_id, p_encounter_id, p_patient_id, v_med->>'medicineName',
+                        COALESCE(v_med->>'dosage', ''), v_remaining_qty, v_hold_status, NULL, 'held'
+                    );
+                END IF;
+            END IF;
+        END LOOP;
+    END IF;
+
+    -- 3. Calculate Unified Invoice
+    SELECT EXISTS (
+        SELECT 1 FROM public.unified_invoices 
+        WHERE patient_id = p_patient_id 
+          AND payment_status = 'cleared'
+          AND (doctor_fee > 0 OR invoice_type = 'consult')
+    ) INTO v_already_paid_consult;
+
+    IF v_already_paid_consult THEN
+        v_doctor_fee := 0;
+    ELSE
+        SELECT consultation_fee, display_name INTO v_doctor_profile 
+        FROM public.profiles 
+        WHERE id = p_doctor_id LIMIT 1;
+        
+        v_doctor_fee := COALESCE(v_doctor_profile.consultation_fee, 400.00);
+    END IF;
+
+    v_platform_fee := GREATEST(10.00, (v_doctor_fee + v_lab_fee + v_pharmacy_fee) * 0.03);
+    v_invoice_total := v_doctor_fee + v_lab_fee + v_pharmacy_fee + v_platform_fee;
+
+    INSERT INTO public.unified_invoices (
+        id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
+        platform_fee, total_amount, payment_status, pod_id
+    ) VALUES (
+        gen_random_uuid(), p_encounter_id, p_patient_id, v_doctor_fee, v_lab_fee, v_pharmacy_fee,
+        v_platform_fee, v_invoice_total, 
+        CASE WHEN (v_doctor_fee = 0 AND v_lab_fee = 0 AND v_pharmacy_fee = 0) THEN 'cleared' ELSE 'pending' END,
+        p_pod_id
+    );
+
+    RETURN jsonb_build_object(
+        'success', TRUE,
+        'encounter_id', p_encounter_id,
+        'invoice_total', v_invoice_total,
+        'lab_fee', v_lab_fee,
+        'pharmacy_fee', v_pharmacy_fee
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.process_clinical_care_loop(UUID, UUID, UUID, UUID, UUID, UUID, JSONB, JSONB, TEXT) TO authenticated, anon;
+
 -- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
+
 

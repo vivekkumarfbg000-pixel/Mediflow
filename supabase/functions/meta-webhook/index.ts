@@ -953,6 +953,45 @@ if (!isManualRelay) {
   return new Response("Method not allowed", { status: 405 });
 });
 
+// IST (UTC + 5:30) Booking Date Options Generator (Rule 94)
+function generateBookingDateOptions(isSos: boolean = false): { dates: string[], displayDates: string[], isTodayAvailable: boolean } {
+  const now = new Date();
+  const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  const istHour = istTime.getUTCHours();
+  
+  // Normal Today booking cutoff is 12:00 PM IST (12:00). Emergency SOS Today cutoff is 06:00 PM IST (18:00)
+  const isTodayAvailable = isSos ? (istHour < 18) : (istHour < 12);
+  const startOffset = isTodayAvailable ? 0 : 1;
+
+  const dates: string[] = [];
+  const displayDates: string[] = [];
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  for (let i = 0; i < 4; i++) {
+    const dayOffset = startOffset + i;
+    const targetDate = new Date(istTime.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
+    const yyyy = targetDate.getUTCFullYear();
+    const mm = String(targetDate.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(targetDate.getUTCDate()).padStart(2, "0");
+    dates.push(`${yyyy}-${mm}-${dd}`);
+
+    const dayName = weekday[targetDate.getUTCDay()];
+    const monthName = months[targetDate.getUTCMonth()];
+    const dateNum = targetDate.getUTCDate();
+
+    let label = `${dayName}, ${dateNum} ${monthName}`;
+    if (dayOffset === 0) {
+      label = `Today (${dayName}, ${dateNum} ${monthName})`;
+    } else if (dayOffset === 1) {
+      label = `Tomorrow (${dayName}, ${dateNum} ${monthName})`;
+    }
+    displayDates.push(label);
+  }
+
+  return { dates, displayDates, isTodayAvailable };
+}
+
 // Mock helper pipeline that invokes multi-LLM capabilities and pushes response back via Meta Graph API
 async function triggerBotReplyPipeline(ctx: {
   session: any;
@@ -1104,8 +1143,8 @@ async function triggerBotReplyPipeline(ctx: {
   const isMenuButton = typeof replyId === "string" && (replyId.startsWith("menu_") || replyId === "btn_main_menu" || replyId === "btn_stop");
   const isPrimaryNavigation = isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book" || cleaned === "0" || cleaned === "cancel" || cleaned === "reset";
 
-  if (globalGreetings.includes(cleaned) || cleaned === "0" || cleaned === "cancel" || cleaned === "reset" || cleaned === "restart") {
-    const newState = sessionData.consentGranted ? "COMPLETED" : "AWAITING_WELCOME";
+  if (globalGreetings.includes(cleaned) || cleaned === "0" || cleaned === "cancel" || cleaned === "reset" || cleaned === "restart" || state === "COMPLETED") {
+    const newState = "AWAITING_CONFIRMATION";
     try {
       await supabase
         .from("whatsapp_sessions")
@@ -1116,11 +1155,9 @@ async function triggerBotReplyPipeline(ctx: {
     sessionData.pendingInvoiceId = null;
     sessionData.pendingApptId = null;
   } else if (isPrimaryNavigation) {
-    if (sessionData.consentGranted) {
-      state = "COMPLETED";
-      sessionData.pendingInvoiceId = null;
-      sessionData.pendingApptId = null;
-    }
+    state = "AWAITING_CONFIRMATION";
+    sessionData.pendingInvoiceId = null;
+    sessionData.pendingApptId = null;
   }
 
   // Explicit Interactive Button Routing & State Alignment:
@@ -1253,22 +1290,10 @@ async function triggerBotReplyPipeline(ctx: {
         (((cleaned === "1" || cleaned === "physical" || cleaned.includes("physical")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_physical" || replyId === "btn_physical")
       ) {
         sessionData.consultationType = "physical";
-        const dates: string[] = [];
-        const displayDates: string[] = [];
-        const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 1; i <= 4; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const dd = String(d.getDate()).padStart(2, "0");
-          dates.push(`${yyyy}-${mm}-${dd}`);
-          displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                    : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
-        }
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
 
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
@@ -1276,29 +1301,17 @@ async function triggerBotReplyPipeline(ctx: {
         (((cleaned === "2" || cleaned === "virtual" || cleaned.includes("virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
       ) {
         sessionData.consultationType = "virtual";
-        const dates: string[] = [];
-        const displayDates: string[] = [];
-        const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 1; i <= 4; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const dd = String(d.getDate()).padStart(2, "0");
-          dates.push(`${yyyy}-${mm}-${dd}`);
-          displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                    : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
-        }
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
 
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else {
         // Default welcome menu response
         nextState = "AWAITING_CONFIRMATION";
-        replyText = "Namaste! 🙏 Welcome to VitalSync Healthcare.\n\n🌟 *VITALSYNC PREMIUM MEMBER BENEFITS UNLOCKED* 🌟\nHamaare clinic counter / partner pharmacy & lab se billing karne par aapko milte hain:\n1️⃣ 100% FREE Virtual Video Follow-Up Consult (15-20 days mein)\n2️⃣ 10% OFF Lifetime Medicine Refills & Deliveries\n3️⃣ Daily WhatsApp Reminders + AI Longitudinal Health Summary\n4️⃣ Instant PDF Lab Report + Doctor Review Slot\n\nBatayein aaj hum aapki kis tarah help kar sakte hain?";
+        replyText = `Namaste ${patientName}! 🙏 Welcome to VitalSync Healthcare.\n\n🌟 *VITALSYNC CLINIC SERVICES* 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n2️⃣ Book Virtual Video Consult 💻\n3️⃣ View Lab Reports 🔬\n4️⃣ Emergency SOS Consultation 🚨\n5️⃣ Medicine Refills & Prescriptions 💊\n\nBatayein aaj hum aapki kis tarah help kar sakte hain?`;
       }
       break;
 
@@ -1622,35 +1635,8 @@ async function triggerBotReplyPipeline(ctx: {
         }
         sessionData.bookingPatientId = fPatientId;
 
-        // Calculate IST time (UTC + 5:30) & Today booking cutoff
-        // Normal Today booking closes at 12:00 PM IST (12:00)
-        // Emergency SOS Today booking closes at 06:00 PM IST (18:00)
-        const now = new Date();
-        const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-        const istHour = istDate.getUTCHours();
         const isSosBooking = sessionData.isSos === true || sessionData.consultationType === "sos";
-        const isTodayAvailable = isSosBooking ? (istHour < 18) : (istHour < 12);
-        const startOffset = isTodayAvailable ? 0 : 1;
-
-        const dates: string[] = [];
-        const displayDates: string[] = [];
-        const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 0; i < 4; i++) {
-          const dayOffset = startOffset + i;
-          const d = new Date();
-          d.setDate(d.getDate() + dayOffset);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const dd = String(d.getDate()).padStart(2, "0");
-          dates.push(`${yyyy}-${mm}-${dd}`);
-
-          let label = `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
-          if (dayOffset === 0) label = `Today (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})`;
-          else if (dayOffset === 1) label = `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})`;
-
-          displayDates.push(label);
-        }
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(isSosBooking);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
         sessionData.isTodayAvailable = isTodayAvailable;
@@ -1674,24 +1660,12 @@ async function triggerBotReplyPipeline(ctx: {
       let dateDisplayOptions = sessionData.dateDisplayOptions ?? [];
       
       if (!dateOptions || dateOptions.length === 0) {
-        const dates: string[] = [];
-        const displayDates: string[] = [];
-        const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 1; i <= 4; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const dd = String(d.getDate()).padStart(2, "0");
-          dates.push(`${yyyy}-${mm}-${dd}`);
-          displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                    : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
-        }
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(sessionData.isSos === true);
         dateOptions = dates;
         dateDisplayOptions = displayDates;
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
       }
 
       let dateIdx = -1;
@@ -2542,23 +2516,10 @@ async function triggerBotReplyPipeline(ctx: {
       ) {
         sessionData.consultationType = "physical";
         
-        // Calculate next 4 dates
-        const dates: string[] = [];
-        const displayDates: string[] = [];
-        const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 1; i <= 4; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const dd = String(d.getDate()).padStart(2, "0");
-          dates.push(`${yyyy}-${mm}-${dd}`);
-          displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                    : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
-        }
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
 
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
@@ -2566,24 +2527,10 @@ async function triggerBotReplyPipeline(ctx: {
         (((cleaned === "2" || cleaned === "virtual" || cleaned.includes("book virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
       ) {
         sessionData.consultationType = "virtual";
-        
-        // Calculate next 4 dates
-        const dates: string[] = [];
-        const displayDates: string[] = [];
-        const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        for (let i = 1; i <= 4; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const dd = String(d.getDate()).padStart(2, "0");
-          dates.push(`${yyyy}-${mm}-${dd}`);
-          displayDates.push(i === 1 ? `Tomorrow (${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]})` 
-                                    : `${weekday[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`);
-        }
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
 
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
@@ -3222,6 +3169,10 @@ CLINICAL GUIDELINES:
     default:
       replyText = "Namaste! VitalSync Automated Assistant online. Main aapki kya sahayata kar sakta hoon?";
       break;
+  }
+
+  if (!replyText || replyText.trim() === "") {
+    replyText = `Namaste ${patientName}! 🙏 Welcome to VitalSync Healthcare.\n\nBatayein aaj hum aapki kis tarah help kar sakte hain? Niche button daba kar service select kijiye:`;
   }
 
   const currentTime = new Date().toISOString();

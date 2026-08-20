@@ -155,14 +155,6 @@ export class ForecastService {
       const merged = [...newItems, ...forecasts.filter(f => !newItems.some(n => n.medicineName === f.medicineName))];
       save('seasonal_forecasts', merged);
       notify();
-
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'AI Forecast Complete ✅',
-          message: `Generated ${newItems.length} seasonal drug demand forecasts from active pod telemetry.`,
-          type: 'success'
-        }
-      }));
       return merged;
     } catch (err: any) {
       console.warn('[Mediflow AI] Seasonal forecast generator error, utilizing local seeded cache:', err);
@@ -222,13 +214,6 @@ export class ForecastService {
       });
       if (!res.ok) throw new Error(`generate-consult-room HTTP status ${res.status}`);
       const data = await res.json();
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Video Room Generated 🎥',
-          message: 'Zero-install consultation link dispatched to WhatsApp.',
-          type: 'success'
-        }
-      }));
       return { roomUrl: data.room_url };
     } catch (err: any) {
       console.warn('[Mediflow AI] Video room generator error, executing fallback:', err);
@@ -254,23 +239,9 @@ export class ForecastService {
       });
       if (!res.ok) throw new Error(`voice-scribe HTTP status ${res.status}`);
       const data = await res.json();
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Voice-Scribe Complete ✅',
-          message: 'Clinical session audio summarized successfully in Hinglish.',
-          type: 'success'
-        }
-      }));
       return data;
     } catch (err: any) {
       console.warn('[Mediflow AI] voice-scribe backend unreachable, using mock:', err);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'AI Voice-Scribe Fallback',
-          message: `Local server offline (${err.message || err}). Loaded Hinglish clinical scribe fallback.`,
-          type: 'warning'
-        }
-      }));
       await new Promise(r => setTimeout(r, 600));
       return { 
         summary: 'Patient presented with sugar test result and cough state. HbA1c is 7.2 percent, serum creatinine is 1.1 mg/dL, and patient has a mild dry cough for three days. No known drug allergy.', 
@@ -297,23 +268,9 @@ export class ForecastService {
       });
       if (!res.ok) throw new Error(`ocr-scan HTTP status ${res.status}`);
       const data = await res.json();
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'OCR Scan Complete ✅',
-          message: `Document parsed successfully with ${Object.keys(data.structured_data || {}).length} structured keys.`,
-          type: 'success'
-        }
-      }));
       return data;
     } catch (err: any) {
       console.warn('[Mediflow AI] ocr-scan backend unreachable, using mock:', err);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'AI OCR-Scan Fallback',
-          message: `Local server offline (${err.message || err}). Extracted report data.`,
-          type: 'warning'
-        }
-      }));
       await new Promise(r => setTimeout(r, 800));
       return {
         extracted_text: '(Clinical OCR) Document Type: Diagnostic Report\nHbA1c: 7.2%\nCreatinine: 1.1 mg/dL',
@@ -371,23 +328,9 @@ export class ForecastService {
       });
       if (!res.ok) throw new Error(`lab-trend HTTP status ${res.status}`);
       const data = await res.json();
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Lab Trend Analyzed ✅',
-          message: 'Biomarker trajectory recommendations parsed successfully.',
-          type: 'success'
-        }
-      }));
       return data;
     } catch (err: any) {
       console.warn('[Mediflow AI] lab-trend backend unreachable, using mock:', err);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'AI Lab-Trend Fallback',
-          message: `Local server offline (${err.message || err}). Extracted mock trend recommendations.`,
-          type: 'warning'
-        }
-      }));
       await new Promise(r => setTimeout(r, 400));
       return {
         analysis: 'HbA1c is 7.2% which is in the diabetic range. Levels show minor elevation compared to pre-check.',

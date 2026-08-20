@@ -407,10 +407,10 @@ export class PatientService {
 
     const activeTokens = patients
       .map(p => p.tokenNumber)
-      .filter((t): t is string => !!t && (t.startsWith('T-') || t.startsWith('TK-')));
+      .filter((t): t is string => !!t && (t.startsWith('T-') || t.startsWith('TK-') || t.startsWith('#TK-') || t.startsWith('#T-')));
 
     const tokenNums = [
-      ...activeTokens.map(t => parseInt(t.replace('T-', '').replace('TK-', '').replace('E', '').trim(), 10)),
+      ...activeTokens.map(t => parseInt(t.replace('#TK-', '').replace('TK-', '').replace('#T-', '').replace('T-', '').replace('E', '').replace('#', '').trim(), 10)),
       apptsForDate.length
     ].filter(n => !isNaN(n) && n > 0);
 

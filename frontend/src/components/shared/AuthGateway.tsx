@@ -5,8 +5,8 @@ import {
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
   Users, Zap, UserPlus, ExternalLink
-} from 'lucide-react';
 import { supabaseCircuit } from '../../services/autoHealerAgent';
+import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 
 interface LoginAttempt {
   email: string;
@@ -1249,7 +1249,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // 4. Show registration success screen with generated clinic code!
       const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
-      const finalCode = generatedCode || 'MF-' + clinicName.trim().replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+      const finalCode = generatedCode || generateVitalSyncClinicCode(clinicName, 1);
       setRegisteredClinicCode(finalCode);
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
@@ -1922,7 +1922,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                     type="text"
                     value={clinicCode}
                     onChange={(e) => setClinicCode(e.target.value)}
-                    placeholder="e.g. MF-0001"
+                    placeholder="e.g. VS-S03N"
                     className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans uppercase"
                     required
                   />
@@ -3201,7 +3201,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest pl-1">
-                        Clinic Network Code (MF-XXXX)
+                        Clinic Network Code (VS-XXXX)
                       </label>
                       <div className="relative">
                         <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -3218,7 +3218,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                               });
                             }
                           }}
-                          placeholder="MF-A1B2"
+                          placeholder="VS-S03N"
                           maxLength={10}
                           className={`w-full bg-white border ${validationErrors.clinicCode ? 'border-rose-500' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-mono font-bold`}
                           required

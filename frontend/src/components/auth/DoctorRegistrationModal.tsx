@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Building, User, Phone, Stethoscope, ArrowRight, Sparkles, CheckCircle2, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
+import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 
 interface Props {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
       }
 
       if (!clinicCode) {
-        clinicCode = 'MF-' + formData.clinicName.trim().replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+        clinicCode = generateVitalSyncClinicCode(formData.doctorName || formData.clinicName, 1);
       }
       
       // Seed workspace pod data

@@ -56,93 +56,88 @@ const TOAST_CONFIG: Record<ToastVariant, {
   iconClass: string;
   titleClass: string;
   textClass: string;
-  barClass: string;
+  dotClass: string;
 }> = {
   success: {
     icon: ({ className }) => <CheckCircle2 className={className} />,
-    bgClass: 'bg-emerald-950/90',
-    borderClass: 'border-emerald-500/30',
+    bgClass: 'bg-slate-950/95 text-white',
+    borderClass: 'border-emerald-500/40 shadow-[0_8px_30px_rgb(0,0,0,0.35)] shadow-emerald-500/10',
     iconClass: 'text-emerald-400',
-    titleClass: 'text-emerald-100',
-    textClass: 'text-emerald-300/80',
-    barClass: 'bg-emerald-500',
+    titleClass: 'text-emerald-300 font-semibold',
+    textClass: 'text-slate-200',
+    dotClass: 'bg-emerald-400 shadow-[0_0_8px_#34d399]',
   },
   error: {
     icon: ({ className }) => <XCircle className={className} />,
-    bgClass: 'bg-rose-950/90',
-    borderClass: 'border-rose-500/30',
+    bgClass: 'bg-slate-950/95 text-white',
+    borderClass: 'border-rose-500/40 shadow-[0_8px_30px_rgb(0,0,0,0.35)] shadow-rose-500/10',
     iconClass: 'text-rose-400',
-    titleClass: 'text-rose-100',
-    textClass: 'text-rose-300/80',
-    barClass: 'bg-rose-500',
+    titleClass: 'text-rose-300 font-semibold',
+    textClass: 'text-slate-200',
+    dotClass: 'bg-rose-400 shadow-[0_0_8px_#f43f5e]',
   },
   warning: {
     icon: ({ className }) => <AlertTriangle className={className} />,
-    bgClass: 'bg-amber-950/90',
-    borderClass: 'border-amber-500/30',
+    bgClass: 'bg-slate-950/95 text-white',
+    borderClass: 'border-amber-500/40 shadow-[0_8px_30px_rgb(0,0,0,0.35)] shadow-amber-500/10',
     iconClass: 'text-amber-400',
-    titleClass: 'text-amber-100',
-    textClass: 'text-amber-300/80',
-    barClass: 'bg-amber-500',
+    titleClass: 'text-amber-300 font-semibold',
+    textClass: 'text-slate-200',
+    dotClass: 'bg-amber-400 shadow-[0_0_8px_#fbbf24]',
   },
   info: {
     icon: ({ className }) => <Info className={className} />,
-    bgClass: 'bg-indigo-950/90',
-    borderClass: 'border-indigo-500/30',
-    iconClass: 'text-indigo-400',
-    titleClass: 'text-indigo-100',
-    textClass: 'text-indigo-300/80',
-    barClass: 'bg-indigo-500',
+    bgClass: 'bg-slate-950/95 text-white',
+    borderClass: 'border-cyan-500/40 shadow-[0_8px_30px_rgb(0,0,0,0.35)] shadow-cyan-500/10',
+    iconClass: 'text-cyan-400',
+    titleClass: 'text-cyan-300 font-semibold',
+    textClass: 'text-slate-200',
+    dotClass: 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]',
   },
 };
 
-const MAX_VISIBLE = 4;
-const DEFAULT_DURATION = 4500;
+const MAX_VISIBLE = 1; // Strict single-pill display for zero UI clutter
+const DEFAULT_DURATION = 2600; // Swift 2.6s auto-dismiss
 
-// ─── Individual Toast Component ───────────────────────────────────────────────
+// Intelligent Noise Gate: drops noisy background automated/telemetry toasts
+const NOISE_FILTER_KEYWORDS = [
+  'forecast', 'copilot', 'telemetry', 'cache', 'pwa', 'recording started',
+  'ping', 'status check', 'template copied', 'draft stored'
+];
+
+function isNoisyToast(message: string, title?: string): boolean {
+  const text = `${title || ''} ${message || ''}`.toLowerCase();
+  return NOISE_FILTER_KEYWORDS.some(kw => text.includes(kw));
+}
+
+// ─── Individual Toast Pill Component ──────────────────────────────────────────
 
 function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: string) => void }) {
   const config = TOAST_CONFIG[toast.variant];
   const IconComponent = config.icon;
   const [visible, setVisible] = useState(false);
-  const [progress, setProgress] = useState(100);
-  const progressRef = useRef<number | null>(null);
   const dismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Slide in
+    // Smooth slide-in
     const showTimeout = setTimeout(() => setVisible(true), 10);
 
     if (!toast.persistent) {
-      // Progress bar countdown
-      const startTime = Date.now();
-      const tick = () => {
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, 100 - (elapsed / toast.duration) * 100);
-        setProgress(remaining);
-        if (remaining > 0) {
-          progressRef.current = requestAnimationFrame(tick);
-        }
-      };
-      progressRef.current = requestAnimationFrame(tick);
-
-      // Auto dismiss
       dismissRef.current = setTimeout(() => {
         setVisible(false);
-        setTimeout(() => onDismiss(toast.id), 300);
+        setTimeout(() => onDismiss(toast.id), 250);
       }, toast.duration);
     }
 
     return () => {
       clearTimeout(showTimeout);
-      if (progressRef.current) cancelAnimationFrame(progressRef.current);
       if (dismissRef.current) clearTimeout(dismissRef.current);
     };
   }, [toast.id, toast.duration, toast.persistent, onDismiss]);
 
   const handleDismiss = () => {
     setVisible(false);
-    setTimeout(() => onDismiss(toast.id), 300);
+    setTimeout(() => onDismiss(toast.id), 250);
   };
 
   return (
@@ -151,48 +146,39 @@ function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: str
       aria-live={toast.variant === 'error' ? 'assertive' : 'polite'}
       aria-atomic="true"
       className={`
-        relative flex items-start gap-3 p-4 rounded-2xl
+        relative flex items-center gap-3 px-4 py-2.5 rounded-full
         ${config.bgClass} ${config.borderClass}
-        border backdrop-blur-xl shadow-xl shadow-black/20
-        transition-all duration-300 ease-out overflow-hidden
-        ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}
+        border backdrop-blur-2xl
+        transition-all duration-300 ease-out
+        ${visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-3'}
       `}
     >
-      {/* Icon */}
-      <div className="flex-shrink-0 mt-0.5">
-        <IconComponent className={`h-5 w-5 ${config.iconClass}`} />
+      {/* Status Dot / Icon */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className={`w-2 h-2 rounded-full ${config.dotClass} animate-pulse`} />
+        <IconComponent className={`h-4 w-4 ${config.iconClass}`} />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
+      {/* Message */}
+      <div className="flex items-center gap-2 min-w-0 pr-1">
         {toast.title && (
-          <p className={`text-sm font-semibold tracking-wide leading-tight mb-0.5 ${config.titleClass}`}>
-            {toast.title}
-          </p>
+          <span className={`text-xs ${config.titleClass} shrink-0`}>
+            {toast.title}:
+          </span>
         )}
-        <p className={`text-xs leading-relaxed font-medium ${config.textClass}`}>
+        <span className={`text-xs font-medium ${config.textClass} truncate max-w-[280px] sm:max-w-md`}>
           {toast.message}
-        </p>
+        </span>
       </div>
 
       {/* Dismiss button */}
       <button
         onClick={handleDismiss}
-        className="flex-shrink-0 p-1 rounded-lg text-slate-600 hover:text-white hover:bg-white/10 transition-all duration-150"
+        className="shrink-0 p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
         aria-label="Dismiss notification"
       >
-        <X className="h-3.5 w-3.5" />
+        <X className="h-3 w-3" />
       </button>
-
-      {/* Progress bar (bottom edge) */}
-      {!toast.persistent && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/5 rounded-b-2xl overflow-hidden">
-          <div
-            className={`h-full ${config.barClass} transition-none`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -201,6 +187,8 @@ function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: str
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const lastToastTimeRef = useRef<number>(0);
+  const lastToastMsgRef = useRef<string>('');
 
   const dismiss = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -215,7 +203,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     variant: ToastVariant,
     options: ToastOptions = {}
   ): string => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    // 1. Noise Filter Guard
+    if (isNoisyToast(message, options.title) && variant !== 'error') {
+      return ''; // Drop background automated spam quietly
+    }
+
+    // 2. Throttle Guard: Drop duplicate message fired within 2.5s
+    const now = Date.now();
+    if (lastToastMsgRef.current === message && now - lastToastTimeRef.current < 2500) {
+      return '';
+    }
+    lastToastMsgRef.current = message;
+    lastToastTimeRef.current = now;
+
+    const id = `toast-${now}-${Math.random().toString(36).slice(2, 7)}`;
     const item: ToastItem = {
       id,
       message,
@@ -223,17 +224,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       title: options.title,
       duration: options.duration ?? DEFAULT_DURATION,
       persistent: options.persistent ?? false,
-      createdAt: Date.now(),
+      createdAt: now,
     };
 
     setToasts(prev => {
-      // Deduplicate: prevent identical messages from stacking simultaneously
+      // Deduplicate: prevent identical messages
       const isDuplicate = prev.some(t => t.message === message);
       if (isDuplicate) return prev;
 
-      // Cap at MAX_VISIBLE — remove oldest if at capacity
-      const next = [...prev, item];
-      return next.length > MAX_VISIBLE ? next.slice(next.length - MAX_VISIBLE) : next;
+      // Single visible pill: newest replaces oldest smoothly
+      return [item];
     });
 
     return id;
@@ -256,7 +256,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const toast = useMemo(() => ({
     success: (message: string, options?: ToastOptions) => addToast(message, 'success', options),
-    error: (message: string, options?: ToastOptions) => addToast(message, 'error', { duration: 6000, ...options }),
+    error: (message: string, options?: ToastOptions) => addToast(message, 'error', { duration: 4500, ...options }),
     warning: (message: string, options?: ToastOptions) => addToast(message, 'warning', options),
     info: (message: string, options?: ToastOptions) => addToast(message, 'info', options),
     dismiss,
@@ -267,9 +267,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
 
-      {/* Toast stack — fixed top-right corner */}
+      {/* Ultra-Sleek Floating Pill Stack — Top-Center */}
       <div
-        className="fixed top-4 right-4 z-[100000] flex flex-col gap-2.5 w-full max-w-sm pointer-events-none"
+        className="fixed top-5 left-1/2 -translate-x-1/2 z-[100000] flex flex-col items-center gap-2 pointer-events-none w-auto max-w-[90vw]"
         aria-label="Notifications"
       >
         {toasts.map(t => (

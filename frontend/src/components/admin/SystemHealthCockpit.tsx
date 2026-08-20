@@ -291,40 +291,40 @@ ${rawTraceback}
   const totalUnresolved = useMemo(() => incidents.filter(i => i.status === 'unresolved').length, [incidents]);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm font-sans text-slate-800">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white shadow-sm font-sans text-slate-800">
       {/* Top accent bar */}
       <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500" />
 
-      <div className="p-6 space-y-6">
+      <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-6 overflow-x-hidden">
 
         {/* ── Header ──────────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-slate-50/70 rounded-2xl border border-slate-200/60">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20 shrink-0">
+          <div className="flex items-start gap-2.5 sm:gap-3">
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20 shrink-0">
               <Shield className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-800 text-xs tracking-tight flex items-center gap-2 flex-wrap">
+              <h3 className="font-extrabold text-slate-800 text-xs tracking-tight flex items-center gap-1.5 flex-wrap">
                 VitalSync Auto-Healer Agent
-                <span className="flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-[9px] font-bold text-emerald-700 tracking-wider uppercase animate-pulse">
+                <span className="flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 text-[8.5px] sm:text-[9px] font-bold text-emerald-700 tracking-wider uppercase animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                   Live 24/7
                 </span>
               </h3>
-              <p className="text-[10.5px] text-slate-500 font-medium mt-0.5">
+              <p className="text-[10px] sm:text-[10.5px] text-slate-500 font-medium mt-0.5">
                 Autonomous DevSecOps self-healing cockpit — real-time incident telemetry stream
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:items-center pt-1 sm:pt-0 shrink-0">
             <button
               type="button"
               onClick={runHealthChecks}
               disabled={isRefreshing}
-              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[85px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 items-center justify-center gap-1 px-2 sm:px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </button>
 
@@ -332,10 +332,10 @@ ${rawTraceback}
               type="button"
               onClick={() => fetchTelemetryLogs()}
               disabled={isRefreshing}
-              className="inline-flex h-8 items-center justify-center gap-1.5 px-3 min-w-[100px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 items-center justify-center gap-1 px-2 sm:px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer shadow-2xs whitespace-nowrap"
             >
-              <Activity className="h-3.5 w-3.5" />
-              Reload Logs
+              <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              Reload
             </button>
 
             <button
@@ -357,10 +357,10 @@ ${rawTraceback}
                 }
               }}
               disabled={isHealing}
-              className="inline-flex h-8 items-center justify-center gap-1.5 px-3.5 min-w-[155px] rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 text-[11px] font-extrabold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              className="inline-flex h-8 items-center justify-center gap-1 px-2 sm:px-3.5 rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 text-[10px] sm:text-[11px] font-extrabold transition-all cursor-pointer shadow-2xs whitespace-nowrap"
             >
-              <Zap className={`h-3.5 w-3.5 ${isHealing ? 'animate-spin text-purple-600' : 'text-purple-600'}`} />
-              {isHealing ? 'Healing...' : 'Trigger Auto-Heal Pass'}
+              <Zap className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isHealing ? 'animate-spin text-purple-600' : 'text-purple-600'}`} />
+              {isHealing ? 'Healing...' : 'Auto-Heal'}
             </button>
           </div>
         </div>
@@ -427,12 +427,12 @@ ${rawTraceback}
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                      <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:items-center pt-2 sm:pt-0 shrink-0">
                         {/* 1. Copy Error Log Button */}
                         <button
                           type="button"
                           onClick={() => handleCopyAlertErrorLog(alert, idx)}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer inline-flex items-center gap-1 ${
+                          className={`flex-1 sm:flex-none justify-center px-2 sm:px-2.5 py-1 rounded-lg text-[9.5px] sm:text-[10px] font-bold border transition-all cursor-pointer inline-flex items-center gap-1 ${
                             isCopied
                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs'
                               : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
@@ -442,12 +442,12 @@ ${rawTraceback}
                           {isCopied ? (
                             <>
                               <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                              Copied Log 📋
+                              Copied Log
                             </>
                           ) : (
                             <>
                               <Copy className="h-3 w-3 text-slate-600" />
-                              Copy Error Log
+                              Copy Log
                             </>
                           )}
                         </button>
@@ -462,17 +462,17 @@ ${rawTraceback}
                               setActiveAiRepairModalAlert(alert);
                             }
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1"
+                          className="flex-1 sm:flex-none justify-center px-2 sm:px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 text-[9.5px] sm:text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1"
                         >
                           <Sparkles className="h-3 w-3 text-purple-600" />
-                          View AI PR Fix ➔
+                          View AI Fix
                         </button>
 
                         {/* 3. Acknowledge & Resolve */}
                         <button
                           type="button"
                           onClick={() => handleResolveAlert(idx)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold transition-all cursor-pointer"
+                          className="flex-1 sm:flex-none justify-center px-2 sm:px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9.5px] sm:text-[10px] font-bold transition-all cursor-pointer text-center"
                         >
                           ✓ Resolve
                         </button>
@@ -608,7 +608,7 @@ ${rawTraceback}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <div className="p-2.5 rounded-xl bg-white/80 border border-slate-200/70 shadow-2xs">
               <div className="text-[9px] font-bold text-slate-400 uppercase">Webhook Circuit Breaker</div>
               <div className="font-extrabold text-emerald-700 mt-0.5 flex items-center gap-1">

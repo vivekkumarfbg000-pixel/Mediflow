@@ -318,7 +318,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           </div>
           <div style="text-align: right; font-size: 11px; color: #64748b;">
             <div><strong>Statement Date:</strong> ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            <div><strong>Clinic Code:</strong> ${activePod?.clinicCode || 'MF-APEX'}</div>
+            <div><strong>Clinic Code:</strong> ${activePod?.clinicCode || 'VS-V01R'}</div>
           </div>
         </div>
 

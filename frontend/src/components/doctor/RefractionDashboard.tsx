@@ -90,17 +90,26 @@ export const RefractionDashboard: React.FC = () => {
   const [biometryRx, setBiometryRx] = useState<BiometryData>(EMPTY_BIOMETRY);
   const [dilationDrops, setDilationDrops] = useState('Tropicamide 1%');
 
-  // Filter queue for Refractionist
+  // Filter queue for Refractionist (Scoped to Today)
+  const isPatientForToday = (p: Patient) => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
+    return regDate.startsWith(todayStr);
+  };
+
   const filteredPatients = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
     
-    // In Ophthalmology, refraction queue contains patients who need or are undergoing refraction,
+    // In Ophthalmology, refraction queue contains today's patients who need or are undergoing refraction,
     // or who have completed it (awaiting consultation).
     const list = patients.filter(p => 
-      p.queueStatus === 'awaiting_refraction' || 
-      p.queueStatus === 'refraction_in_progress' || 
-      p.queueStatus === 'awaiting_consultation' || 
-      p.queueStatus === 'in_consultation'
+      isPatientForToday(p) && (
+        p.queueStatus === 'awaiting_refraction' || 
+        p.queueStatus === 'refraction_in_progress' || 
+        p.queueStatus === 'awaiting_consultation' || 
+        p.queueStatus === 'in_consultation'
+      )
     );
 
     if (!query) return list;
@@ -113,9 +122,10 @@ export const RefractionDashboard: React.FC = () => {
 
   // Queue Metrics
   const metrics = useMemo(() => {
-    const awaiting = patients.filter(p => p.queueStatus === 'awaiting_refraction').length;
-    const inProgress = patients.filter(p => p.queueStatus === 'refraction_in_progress').length;
-    const completed = patients.filter(p => p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation').length;
+    const todayPatients = patients.filter(isPatientForToday);
+    const awaiting = todayPatients.filter(p => p.queueStatus === 'awaiting_refraction').length;
+    const inProgress = todayPatients.filter(p => p.queueStatus === 'refraction_in_progress').length;
+    const completed = todayPatients.filter(p => p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation').length;
     return { awaiting, inProgress, completed };
   }, [patients]);
 
@@ -202,9 +212,9 @@ export const RefractionDashboard: React.FC = () => {
   const handleInstillDrops = (patient: Patient) => {
     const updatedVitals = {
       ...(patient.vitals || {
-        temperature: '6/6',
-        bloodPressure: '6/6',
-        pulseRate: '16',
+        temperature: '98.6',
+        bloodPressure: '120/80',
+        pulseRate: '72',
         weight: '',
         recordedAt: new Date().toISOString()
       }),
@@ -227,9 +237,9 @@ export const RefractionDashboard: React.FC = () => {
   const handleMarkDilated = (patient: Patient) => {
     const updatedVitals = {
       ...patient.vitals,
-      temperature: patient.vitals?.temperature || '6/6',
-      bloodPressure: patient.vitals?.bloodPressure || '6/6',
-      pulseRate: patient.vitals?.pulseRate || '16',
+      temperature: patient.vitals?.temperature || '98.6',
+      bloodPressure: patient.vitals?.bloodPressure || '120/80',
+      pulseRate: patient.vitals?.pulseRate || '72',
       weight: patient.vitals?.weight || '',
       recordedAt: patient.vitals?.recordedAt || new Date().toISOString(),
       dilationStatus: 'dilated' as const,
