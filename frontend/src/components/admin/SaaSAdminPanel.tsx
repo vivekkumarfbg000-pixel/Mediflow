@@ -176,8 +176,8 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   const [supportLanguage, setSupportLanguage] = useState<'en' | 'hi'>('en');
 
   // VIP Clinic White-Labeling Branding Modal State
-  const [isVIPBrandingModalOpen, setIsVIPBrandingModalOpen] = useState<boolean>(false);
-  const [selectedVIPPod, setSelectedVIPPod] = useState<PodInfo | null>(null);
+  const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState<boolean>(false);
+  const [selectedWhiteLabelPod, setSelectedWhiteLabelPod] = useState<PodInfo | null>(null);
   const [isSimulatorModalOpen, setIsSimulatorModalOpen] = useState<boolean>(false);
   const [isCopilotModalOpen, setIsCopilotModalOpen] = useState<boolean>(false);
   const [whiteLabelForm, setWhiteLabelForm] = useState({ logoUrl: '', headerText: '', rxFooter: '' });
@@ -2905,10 +2905,14 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
 
                 </div>
 
+              </div>
+            )}
+
             {/* TAB: AI Fleet Commander Matrix */}
             {activeTab === 'ai_fleet' && (
               <AIFleetCommanderTab />
             )}
+          </div>
 
 
         {/* ── Enterprise Tenant Telemetry & CS Inspector Modal ───────────────── */}

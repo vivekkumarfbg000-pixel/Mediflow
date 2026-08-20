@@ -132,12 +132,12 @@ class TelemetryServiceClass {
     console.log(`%c[Mixpanel Log] Event: ${eventName}`, 'color: #33b5e5; font-weight: bold;', cleanProperties);
 
     // Persist BI logs directly to remote Supabase database for long-term audit analytics
-    supabase.from('activity_logs').insert({
+    Promise.resolve(supabase.from('activity_logs').insert({
       action_type: eventName,
       details: payload,
       record_id: properties.recordId || 'telemetry-event',
       pod_id: getPodContext().podId
-    }).then(({ error }) => {
+    })).then(({ error }: any) => {
       if (error) {
         console.error('[Telemetry-Mixpanel] Remote ingestion failed:', error);
       }

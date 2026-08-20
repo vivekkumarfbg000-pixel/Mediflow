@@ -126,8 +126,7 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
       // Create WhatsApp session
       WhatsAppService.pushWhatsAppMessageFromBot(
         simPhone,
-        `Welcome ${simName}! Your appointment is confirmed with Token #TK-SIM-01. Consultation fee ₹515.00 cleared via Gateway.`,
-        ['Physical Review at Clinic 🏥', 'Virtual Video Review 💻']
+        `Welcome ${simName}! Your appointment is confirmed with Token #TK-SIM-01. Consultation fee ₹515.00 cleared via Gateway.`
       );
 
       updateStep(0, 'completed', 'Patient registered, WhatsApp confirmation & ₹515 invoice cleared');
@@ -149,11 +148,12 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
         bloodSugar: '110 mg/dL',
         recordedAt: new Date().toISOString()
       };
-      api.savePatientVitals(simPatientId, simVitals as any);
-      api.updatePatientQueueStatus(simPatientId, 'waiting_doctor');
+      (simPatient as any).vitals = simVitals;
+      PatientService.savePatient(simPatient as any);
+      PatientService.updatePatientQueueStatus(simPatientId, 'awaiting_consultation');
 
       updateStep(1, 'completed', 'Vitals logged (BP 120/80, SpO2 99%, Pulse 74). Moved to Doctor Queue.');
-      logMessage('✅ Step 2 complete: Patient queue status updated to waiting_doctor.');
+      logMessage('✅ Step 2 complete: Patient queue status updated to awaiting_consultation.');
       setCurrentStepIndex(2);
 
       // ─────────────────────────────────────────────────────────────
@@ -171,17 +171,14 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
         { loincCode: '4544-3', name: 'HbA1c Glycated Hemoglobin', isStat: false }
       ];
 
-      const simEncounter = {
-        id: `enc-sim-${Date.now()}`,
+      EncounterService.createEncounter({
+        doctorId: 'doc-sim-01',
         patientId: simPatientId,
         patientName: simName,
         clinicalNotes: 'Type-2 Diabetes follow-up. Blood sugar stable. Prescribed anti-diabetics and 3-month HbA1c monitor.',
-        medications: simMedications,
-        diagnosticTests: simDiagnostics,
-        status: 'completed' as const,
-        createdAt: new Date().toISOString()
-      };
-      EncounterService.saveEncounter(simEncounter as any);
+        medications: simMedications as any,
+        diagnosticTests: simDiagnostics as any
+      });
 
       updateStep(2, 'completed', 'Encounter created with 2 medications + 1 LOINC requisition');
       logMessage('✅ Step 3 complete: Clinical Encounter saved with FEFO links.');
@@ -198,37 +195,32 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
       const newHold = {
         id: `hold-sim-${Date.now()}`,
         patientId: simPatientId,
-        pharmacyId: 'pharm-sim',
-        medicineName: 'Metformin 500mg',
-        dosage: '500mg',
-        quantity: 30,
-        holdStatus: 'held' as const,
-        batchNumber: 'BATCH-2026-X1',
-        expiryDate: '2027-12-31',
+        items: [
+          { drugId: 'med-01', drugName: 'Metformin 500mg', quantity: 60, batchNumber: 'BATCH-2026-X1' },
+          { drugId: 'med-02', drugName: 'Glimepiride 1mg', quantity: 30, batchNumber: 'BATCH-2026-Y2' }
+        ],
+        status: 'reserved' as const,
         createdAt: new Date().toISOString()
       };
-      holds.unshift(newHold as any);
+      holds.push(newHold as any);
       localStorage.setItem('inventory_holds', JSON.stringify(holds));
 
-      updateStep(3, 'completed', '30 units reserved from BATCH-2026-X1 (FEFO priority)');
-      logMessage('✅ Step 4 complete: Pharmacy inventory hold locked.');
+      updateStep(3, 'completed', '60x Metformin & 30x Glimepiride reserved with FEFO batch assignment');
+      logMessage('✅ Step 4 complete: FEFO Inventory hold created.');
       setCurrentStepIndex(4);
 
       // ─────────────────────────────────────────────────────────────
       // STEP 5: Pathology Lab Sample & Report
       // ─────────────────────────────────────────────────────────────
       updateStep(4, 'running');
-      logMessage('🧪 Step 5: Lab verifying specimen barcode & generating quantitative report...');
+      logMessage('🧪 Step 5: Pathology Lab processing LOINC 4544-3 HbA1c requisition...');
       await new Promise(r => setTimeout(r, 600));
 
-      const simReq = {
+      const reqs = LabService.getLabRequisitions();
+      const simReq = reqs.find(r => r.patientId === simPatientId) || {
         id: `req-sim-${Date.now()}`,
         patientId: simPatientId,
-        patientName: simName,
-        testCode: '4544-3',
         testName: 'HbA1c Glycated Hemoglobin',
-        barcode: 'BAR-SIM-88',
-        status: 'completed' as const,
         createdAt: new Date().toISOString()
       };
       const currentReqs = LabService.getLabRequisitions();
@@ -248,8 +240,7 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
 
       WhatsAppService.pushWhatsAppMessageFromBot(
         simPhone,
-        `🔬 *Lab Results Approved*: Your HbA1c report is ready (6.4% - Controlled). Please select your review preference:`,
-        ['Physical Review at Clinic 🏥', 'Virtual Video Review 💻']
+        `🔬 *Lab Results Approved*: Your HbA1c report is ready (6.4% - Controlled). Please select your review preference: 1️⃣ Physical Review at Clinic 🏥 or 2️⃣ Virtual Video Review 💻`
       );
 
       updateStep(5, 'completed', 'Touchpoint 2 message + 1-Tap native buttons sent to WhatsApp');

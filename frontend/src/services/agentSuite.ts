@@ -555,7 +555,7 @@ export class BioequivalentDrugSubstitutionAgent {
         stockQty: i.stock,
         batchNumber: i.batchNumber || 'BATCH-2026-X1',
         expiryDate: i.expiryDate || '2026-12-31',
-        pricePerUnit: i.unitPrice || 5.0
+        pricePerUnit: (i as any).salePrice || (i as any).unitPrice || 5.0
       }));
     }
 
@@ -572,7 +572,7 @@ export class BioequivalentDrugSubstitutionAgent {
         stockQty: invItem ? invItem.stock : 150,
         batchNumber: invItem?.batchNumber || 'BATCH-2026-X1',
         expiryDate: invItem?.expiryDate || '2027-06-30',
-        pricePerUnit: invItem?.unitPrice || 6.5,
+        pricePerUnit: (invItem as any)?.salePrice || (invItem as any)?.unitPrice || 6.5,
         savingsPercent: 12
       });
     });
@@ -594,7 +594,7 @@ export interface GrowthOpportunity {
 export class ClinicGrowthAndRetentionAgent {
   static analyzeClinicOpportunities(): GrowthOpportunity[] {
     const patients = api.getPatients();
-    const chronicPatients = patients.filter(p => (p.chronicConditions || []).length > 0 || (p.medicalHistory || []).some(m => m.toLowerCase().includes('diabetes') || m.toLowerCase().includes('hypertension')));
+    const chronicPatients = patients.filter(p => (p.chronicConditions || []).length > 0 || ((p as any).medicalHistory || []).some((m: any) => String(m || '').toLowerCase().includes('diabetes') || String(m || '').toLowerCase().includes('hypertension')));
 
     return [
       {

@@ -52,7 +52,7 @@ export class FounderAICopilotService {
         const clearedInvoices = invoices.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid');
         const totalGross = clearedInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
         const totalPlatformCommission = totalGross * 0.03;
-        const pendingCashInvoices = invoices.filter(i => i.paymentStatus === 'pending_payment' || i.paymentStatus === 'pending');
+        const pendingCashInvoices = invoices.filter(i => (i.paymentStatus as string) === 'pending_payment' || i.paymentStatus === 'pending');
         const totalPendingCash = pendingCashInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
 
         return {
