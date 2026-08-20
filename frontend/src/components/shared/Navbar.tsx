@@ -652,6 +652,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
           </button>
         </div>
+      </div>
       </nav>
 
       {/* Mobile Drawer Slide-over Panel Sheet */}
