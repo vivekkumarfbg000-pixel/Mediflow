@@ -682,7 +682,9 @@ class MediflowApiService {
       ] = await Promise.all([
         // 1. patient_consents
         supabaseCircuit.execute(async () => {
-          const { data, error } = await supabase.from('patient_consents').select('*').eq('data_sharing_consent', true);
+          let q = supabase.from('patient_consents').select('*').eq('data_sharing_consent', true);
+          if (currentPodId) q = q.eq('pod_id', currentPodId);
+          const { data, error } = await q;
           if (error) throw error;
           return data;
         }, () => {
@@ -1787,7 +1789,7 @@ class MediflowApiService {
     return res;
   }
 
-  async generateConsultRoom(appointmentId: string, patientPhone: string, doctorName = 'Dr. Sharma'): Promise<{ roomUrl: string }> {
+  async generateConsultRoom(appointmentId: string, patientPhone: string, doctorName?: string): Promise<{ roomUrl: string }> {
     return ForecastService.generateConsultRoom(appointmentId, patientPhone, doctorName);
   }
 
@@ -1833,8 +1835,8 @@ class MediflowApiService {
     }
   }
 
-  async generateConsultHinglishSummary(patientId: string, suggestionsText: string): Promise<string> {
-    return ForecastService.generateConsultHinglishSummary(patientId, suggestionsText);
+  async generateConsultHinglishSummary(patientId: string, suggestionsText: string, doctorName?: string): Promise<string> {
+    return ForecastService.generateConsultHinglishSummary(patientId, suggestionsText, doctorName);
   }
 
   async generateComparativeLabTrend(

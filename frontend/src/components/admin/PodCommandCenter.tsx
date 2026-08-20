@@ -201,9 +201,9 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }, [labMetrics, pharmacyMetrics, whatsappMetrics, financialMetrics]);
 
   const filteredPatients = useMemo(() => {
-    const parseTokenNum = (token?: string) => {
+    const parseTokenNum = (token?: string | number) => {
       if (!token) return Infinity;
-      const match = token.match(/\d+/);
+      const match = String(token).match(/\d+/);
       return match ? parseInt(match[0], 10) : Infinity;
     };
 
@@ -259,21 +259,21 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     }
     if (vitals.bloodPressure) {
       const parts = vitals.bloodPressure.split('/');
-      const systolic = parseInt(parts[0]);
+      const systolic = parseInt(parts[0] || '0', 10);
       if (!isNaN(systolic)) {
         if (systolic > 140) alerts.push(`High BP (${vitals.bloodPressure})`);
         else if (systolic < 90) alerts.push(`Low BP (${vitals.bloodPressure})`);
       }
     }
     if (vitals.pulseRate) {
-      let hr = parseInt(vitals.pulseRate);
+      let hr = parseInt(vitals.pulseRate, 10);
       if (!isNaN(hr)) {
         // Sanitize repeated digits (e.g. 72727272 -> 72)
         const hrStr = vitals.pulseRate.toString().trim();
         if (hrStr.length >= 4 && hrStr.length % 2 === 0) {
           const half = hrStr.substring(0, 2);
           if (hrStr.split(half).join('') === '') {
-            hr = parseInt(half);
+            hr = parseInt(half, 10);
           }
         }
         
@@ -286,18 +286,18 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       }
     }
     if (vitals.bloodSugar) {
-      let bs = parseInt(vitals.bloodSugar);
+      let bs = parseInt(vitals.bloodSugar, 10);
       if (!isNaN(bs)) {
         const bsStr = vitals.bloodSugar.toString().trim();
         if (bsStr.length >= 6 && bsStr.length % 3 === 0) {
           const pattern = bsStr.substring(0, 3);
           if (bsStr.split(pattern).join('') === '') {
-            bs = parseInt(pattern);
+            bs = parseInt(pattern, 10);
           }
         } else if (bsStr.length >= 4 && bsStr.length % 2 === 0) {
           const pattern = bsStr.substring(0, 2);
           if (bsStr.split(pattern).join('') === '') {
-            bs = parseInt(pattern);
+            bs = parseInt(pattern, 10);
           }
         }
         
@@ -777,7 +777,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                           )}
                         </div>
                         <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                          {p.age}y · {p.gender} · {p.chronicConditions.join(', ') || 'General Checkup'}
+                          {p.age}y · {p.gender} · {(p.chronicConditions || []).join(', ') || 'General Checkup'}
                         </div>
                       </div>
                       {onStartConsultation && (

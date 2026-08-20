@@ -41,7 +41,9 @@ export class EncounterService {
     if (appt) {
       appt.status = 'completed';
       save('saas_appointments', appts);
-      supabase.from('appointments').update({ status: 'completed' }).eq('id', appt.id).then();
+      supabase.from('appointments').update({ status: 'completed' }).eq('id', appt.id)
+        .then(res => { if (res?.error) console.error('[Mediflow] appointments update error:', res.error); })
+        .catch(err => console.error('[Mediflow] appointments background update caught:', err));
     }
 
     // 1. Create local and Supabase lab requisitions for ordered diagnostic tests
@@ -81,7 +83,9 @@ export class EncounterService {
       }
       save('lab_requisitions', existingReqs);
       if (dbReqsToInsert.length > 0) {
-        supabase.from('lab_requisitions').insert(dbReqsToInsert).then();
+        supabase.from('lab_requisitions').insert(dbReqsToInsert)
+          .then(res => { if (res?.error) console.error('[Mediflow] lab_requisitions insert error:', res.error); })
+          .catch(err => console.error('[Mediflow] lab_requisitions background insert caught:', err));
       }
     }
 
@@ -285,7 +289,7 @@ export class EncounterService {
       try {
         const payload = JSON.parse(r.quantitativeResult || '{}');
         const bio = payload.biomarkers || {};
-        const dateStr = r.createdAt.split('T')[0];
+        const dateStr = (r.createdAt || new Date().toISOString()).split('T')[0];
 
         let entry = dateMap.get(dateStr);
         if (!entry) {
@@ -323,7 +327,7 @@ export class EncounterService {
 
     const patientObj = PatientService.getPatients().find(p => p.id === patientId);
     if (patientObj && patientObj.vitals) {
-      const vDate = patientObj.vitals.recordedAt.split('T')[0];
+      const vDate = (patientObj.vitals.recordedAt || new Date().toISOString()).split('T')[0];
       const existing = historyList.find(h => h.date === vDate);
       if (existing) {
         existing.temperature = patientObj.vitals.temperature;

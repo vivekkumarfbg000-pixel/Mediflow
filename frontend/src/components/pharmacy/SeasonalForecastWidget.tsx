@@ -152,7 +152,7 @@ export const SeasonalForecastWidget: React.FC = () => {
               {/* Action Button */}
               <div className="mt-4 pt-3 border-t border-slate-100/50 flex justify-between items-center gap-2">
                 <span className="text-[8px] font-mono font-bold text-slate-600">
-                  Target: {fc.pharmacyId.split('-')[0].toUpperCase()}
+                  Target: {((fc.pharmacyId || 'PHARMA').split('-')[0] || 'PHARMA').toUpperCase()}
                 </span>
                 
                 {isActed ? (

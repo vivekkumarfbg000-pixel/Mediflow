@@ -84,15 +84,15 @@ export const BillHubTab: React.FC = () => {
         setBillingMode('digital');
         // Pre-select all digital medicines
         const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
-        latestEncounter.medications.forEach(m => {
-          initialMeds[m.medicineName.toLowerCase()] = { selected: true, qty: 10 };
+        (latestEncounter.medications || []).forEach(m => {
+          initialMeds[(m.medicineName || '').toLowerCase()] = { selected: true, qty: 10 };
         });
         setSelectedMedicines(initialMeds);
 
         // Pre-select all digital tests
         const initialTests: Record<string, boolean> = {};
-        latestEncounter.diagnosticTests.forEach(t => {
-          initialTests[t.loincCode] = true;
+        (latestEncounter.diagnosticTests || []).forEach(t => {
+          if (t?.loincCode) initialTests[t.loincCode] = true;
         });
         setSelectedTests(initialTests);
       } else {
@@ -178,7 +178,7 @@ export const BillHubTab: React.FC = () => {
 
     const findQty = (sentence: string, defaultValue = 10): number => {
       const matchDigit = sentence.match(/\b\d+\b/);
-      if (matchDigit) return parseInt(matchDigit[0]);
+      if (matchDigit) return parseInt(matchDigit[0], 10);
       
       for (const [word, val] of Object.entries(numberWords)) {
         if (sentence.includes(word)) return val;
@@ -193,11 +193,11 @@ export const BillHubTab: React.FC = () => {
     const newMedsRecord = { ...selectedMedicines };
 
     inventory.forEach(item => {
-      const nameLower = item.name.toLowerCase();
-      const genericLower = item.genericName ? item.genericName.toLowerCase() : '';
+      const nameLower = (item.name || '').toLowerCase();
+      const genericLower = item.genericName ? (item.genericName || '').toLowerCase() : '';
       
-      if (textLower.includes(nameLower) || (genericLower && textLower.includes(genericLower))) {
-        if (!newMedsList.some(m => m.name.toLowerCase() === item.name.toLowerCase())) {
+      if (nameLower && (textLower.includes(nameLower) || (genericLower && textLower.includes(genericLower)))) {
+        if (!newMedsList.some(m => (m.name || '').toLowerCase() === nameLower)) {
           newMedsList.push({
             name: item.name,
             mrp: item.mrp,
@@ -208,7 +208,7 @@ export const BillHubTab: React.FC = () => {
         }
         
         const qty = findQty(textLower);
-        newMedsRecord[item.name.toLowerCase()] = { selected: true, qty };
+        newMedsRecord[nameLower] = { selected: true, qty };
         recognizedItems.push(`${qty}x ${item.name}`);
       }
     });
@@ -218,8 +218,8 @@ export const BillHubTab: React.FC = () => {
     const newTestsRecord = { ...selectedTests };
 
     MASTER_TEST_CATALOG.forEach(test => {
-      const nameLower = test.name.toLowerCase();
-      if (textLower.includes(nameLower) || (textLower.includes('hba1c') && test.name.includes('HbA1c'))) {
+      const nameLower = (test.name || '').toLowerCase();
+      if (nameLower && (textLower.includes(nameLower) || (textLower.includes('hba1c') && (test.name || '').includes('HbA1c')))) {
         if (!newTestsList.some(t => t.loincCode === test.loincCode)) {
           newTestsList.push(test);
         }
@@ -287,9 +287,11 @@ export const BillHubTab: React.FC = () => {
     };
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setVoiceTranscript(`Transcribed: "${transcript}"`);
-      parseVoiceCommand(transcript);
+      const transcript = event.results?.[0]?.[0]?.transcript || '';
+      if (transcript) {
+        setVoiceTranscript(`Transcribed: "${transcript}"`);
+        parseVoiceCommand(transcript);
+      }
     };
 
     recognition.start();
@@ -320,8 +322,8 @@ export const BillHubTab: React.FC = () => {
       const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id);
       const latest = encounters[encounters.length - 1];
       if (latest) {
-        latest.medications.forEach(med => {
-          const matched = inventory.find(i => i.name.toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
+        (latest.medications || []).forEach(med => {
+          const matched = inventory.find(i => (i.name || '').toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
           medicinesList.push({
             name: med.medicineName,
             mrp: matched?.mrp || 120,
@@ -331,7 +333,7 @@ export const BillHubTab: React.FC = () => {
           });
         });
 
-        latest.diagnosticTests.forEach(test => {
+        (latest.diagnosticTests || []).forEach(test => {
           const matched = MASTER_TEST_CATALOG.find(t => t.loincCode === test.loincCode);
           testsList.push({
             loincCode: test.loincCode,
@@ -350,11 +352,11 @@ export const BillHubTab: React.FC = () => {
 
       if (manualExtractedData) {
         Object.entries(manualExtractedData.structured).forEach(([k, v]) => {
-          const itemLower = k.toLowerCase();
+          const itemLower = (k || '').toLowerCase();
           // Bug Fix A: guard genericName — may be undefined for CSV-imported batches
-          const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
+          const matchedMed = inventory.find(i => (i.name || '').toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
           if (matchedMed) {
-            if (!combinedMeds.some(m => m.name.toLowerCase() === matchedMed.name.toLowerCase())) {
+            if (!combinedMeds.some(m => (m.name || '').toLowerCase() === (matchedMed.name || '').toLowerCase())) {
               combinedMeds.push({
                 name: matchedMed.name,
                 mrp: matchedMed.mrp,
@@ -366,7 +368,7 @@ export const BillHubTab: React.FC = () => {
             return;
           }
 
-          const matchedTest = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase().includes(itemLower));
+          const matchedTest = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase().includes(itemLower));
           if (matchedTest) {
             if (!combinedTests.some(t => t.loincCode === matchedTest.loincCode)) {
               combinedTests.push(matchedTest);
@@ -375,8 +377,8 @@ export const BillHubTab: React.FC = () => {
           }
 
           // Fallback
-          const priceNum = parseFloat(v.replace(/[^0-9.]/g, '')) || 150;
-          if (!combinedMeds.some(m => m.name.toLowerCase() === k.toLowerCase())) {
+          const priceNum = parseFloat((v || '').toString().replace(/[^0-9.]/g, '')) || 150;
+          if (!combinedMeds.some(m => (m.name || '').toLowerCase() === itemLower)) {
             combinedMeds.push({
               name: k,
               mrp: priceNum + 20,
@@ -398,7 +400,8 @@ export const BillHubTab: React.FC = () => {
     let labSub = 0;
 
     medicinesList.forEach(m => {
-      const state = selectedMedicines[m.name.toLowerCase()];
+      const mNameLower = (m.name || '').toLowerCase();
+      const state = selectedMedicines[mNameLower];
       if (state?.selected) {
         pharmacySub += m.price * state.qty;
       }
@@ -494,10 +497,10 @@ export const BillHubTab: React.FC = () => {
       const diagnosticTestsList: any[] = [];
 
       Object.entries(result.structured_data).forEach(([k, v]) => {
-        const itemLower = k.toLowerCase();
+        const itemLower = (k || '').toLowerCase();
         // Bug Fix A: guard genericName — may be undefined for CSV-imported batches
-        const matchedMed = inventory.find(i => i.name.toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
-        const matchedTest = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase().includes(itemLower));
+        const matchedMed = inventory.find(i => (i.name || '').toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
+        const matchedTest = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase().includes(itemLower));
         
         if (matchedMed) {
           initialMeds[matchedMed.name.toLowerCase()] = { selected: true, qty: 10 };
@@ -543,25 +546,25 @@ export const BillHubTab: React.FC = () => {
         // 1. Look in structured data
         if (result.structured_data) {
           const keys = Object.keys(result.structured_data);
-          const nameKey = keys.find(k => k.toLowerCase().includes('name') || k.toLowerCase().includes('patient'));
+          const nameKey = keys.find(k => (k || '').toLowerCase().includes('name') || (k || '').toLowerCase().includes('patient'));
           if (nameKey) name = result.structured_data[nameKey];
           
-          const phoneKey = keys.find(k => k.toLowerCase().includes('phone') || k.toLowerCase().includes('mobile') || k.toLowerCase().includes('contact'));
+          const phoneKey = keys.find(k => (k || '').toLowerCase().includes('phone') || (k || '').toLowerCase().includes('mobile') || (k || '').toLowerCase().includes('contact'));
           if (phoneKey) phone = result.structured_data[phoneKey];
         }
         
         // 2. Look in raw text
         if (!name) {
-          const nameMatch = result.extracted_text.match(/(?:Patient\s*Name|Name)\s*:\s*([^\n\r]+)/i);
+          const nameMatch = (result.extracted_text || '').match(/(?:Patient\s*Name|Name)\s*:\s*([^\n\r]+)/i);
           if (nameMatch) name = nameMatch[1].trim();
         }
         if (!phone) {
-          const phoneMatch = result.extracted_text.match(/\b([6789]\d{9})\b/);
+          const phoneMatch = (result.extracted_text || '').match(/\b([6789]\d{9})\b/);
           if (phoneMatch) phone = phoneMatch[1].trim();
         }
         
         // 3. Fallbacks
-        if (!name && result.extracted_text.includes('Aarav Sharma')) {
+        if (!name && (result.extracted_text || '').includes('Aarav Sharma')) {
           name = 'Aarav Sharma';
         }
         if (!phone && name.toLowerCase() === 'aarav sharma') {
@@ -651,9 +654,9 @@ export const BillHubTab: React.FC = () => {
     if (type === 'pharmacy') {
       sectionTitle = 'Pharmacy Bill / Invoice';
       const rows = billingLedger.medicinesList
-        .filter(m => selectedMedicines[m.name.toLowerCase()]?.selected)
+        .filter(m => selectedMedicines[(m.name || '').toLowerCase()]?.selected)
         .map(m => {
-          const qty = selectedMedicines[m.name.toLowerCase()].qty;
+          const qty = selectedMedicines[(m.name || '').toLowerCase()].qty;
           return `<tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${m.name}<br/><span style="font-size:10px;color:#94a3b8">Batch: ${m.batch}</span></td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${m.price.toFixed(2)}</td>
@@ -673,10 +676,10 @@ export const BillHubTab: React.FC = () => {
       <tbody>${rows}</tbody>`;
 
       chargesBreakdown = `
-        <tr><td style="padding:6px 0;color:#64748b">Pharmacy Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.pharmacySub.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">CGST + SGST (5%):</td><td style="text-align:right;font-weight:600">₹${billingLedger.pharmGst.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">Discount Given:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${discountInput.toFixed(2)}</td></tr>
-        <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Net Payable:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${Math.max(0, billingLedger.pharmacySub + billingLedger.pharmGst - discountInput).toFixed(2)}</td></tr>`;
+        <tr><td style="padding:6px 0;color:#64748b">Pharmacy Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.pharmacySub || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">CGST + SGST (5%):</td><td style="text-align:right;font-weight:600">₹${(billingLedger.pharmGst || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">Discount Given:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(discountInput || 0).toFixed(2)}</td></tr>
+        <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Net Payable:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${Math.max(0, (billingLedger.pharmacySub || 0) + (billingLedger.pharmGst || 0) - (discountInput || 0)).toFixed(2)}</td></tr>`;
     } 
     else if (type === 'lab') {
       sectionTitle = 'Diagnostics Pathology Bill';
@@ -702,10 +705,10 @@ export const BillHubTab: React.FC = () => {
       <tbody>${rows}</tbody>`;
 
       chargesBreakdown = `
-        <tr><td style="padding:6px 0;color:#64748b">Diagnostics Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.labSub.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">CGST + SGST (18%):</td><td style="text-align:right;font-weight:600">₹${billingLedger.labGst.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">Discount Given:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${discountInput.toFixed(2)}</td></tr>
-        <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Net Payable:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${Math.max(0, billingLedger.labSub + billingLedger.labGst - discountInput).toFixed(2)}</td></tr>`;
+        <tr><td style="padding:6px 0;color:#64748b">Diagnostics Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.labSub || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">CGST + SGST (18%):</td><td style="text-align:right;font-weight:600">₹${(billingLedger.labGst || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">Discount Given:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(discountInput || 0).toFixed(2)}</td></tr>
+        <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Net Payable:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${Math.max(0, (billingLedger.labSub || 0) + (billingLedger.labGst || 0) - (discountInput || 0)).toFixed(2)}</td></tr>`;
     } 
     else {
       // Combined Bill
@@ -714,20 +717,20 @@ export const BillHubTab: React.FC = () => {
       if (includeConsult) {
         rows += `<tr>
           <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">OPD Consultation Fee</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${billingLedger.consultFee.toFixed(2)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${(billingLedger.consultFee || 0).toFixed(2)}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">1</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${billingLedger.consultFee.toFixed(2)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${(billingLedger.consultFee || 0).toFixed(2)}</td>
         </tr>`;
       }
       billingLedger.medicinesList
-        .filter(m => selectedMedicines[m.name.toLowerCase()]?.selected)
+        .filter(m => selectedMedicines[(m.name || '').toLowerCase()]?.selected)
         .forEach(m => {
-          const qty = selectedMedicines[m.name.toLowerCase()].qty;
+          const qty = selectedMedicines[(m.name || '').toLowerCase()].qty;
           rows += `<tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">[Pharmacy] ${m.name}<br/><span style="font-size:10px;color:#94a3b8">Batch: ${m.batch}</span></td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${m.price.toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${(m.price || 0).toFixed(2)}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">${qty}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${(m.price * qty).toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${((m.price || 0) * qty).toFixed(2)}</td>
           </tr>`;
         });
       billingLedger.testsList
@@ -752,12 +755,12 @@ export const BillHubTab: React.FC = () => {
       <tbody>${rows}</tbody>`;
 
       chargesBreakdown = `
-        <tr><td style="padding:6px 0;color:#64748b">Consultation Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.consultTotal.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">Pharmacy Items Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.pharmacySub.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">Diagnostics Subtotal:</td><td style="text-align:right;font-weight:600">₹${billingLedger.labSub.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">GST Amount (5% Pharm / 18% Lab):</td><td style="text-align:right;font-weight:600">₹${billingLedger.totalGst.toFixed(2)}</td></tr>
-        <tr><td style="padding:6px 0;color:#64748b">Discount Input:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${discountInput.toFixed(2)}</td></tr>
-        <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Grand Total Paid:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${billingLedger.finalTotal.toFixed(2)}</td></tr>`;
+        <tr><td style="padding:6px 0;color:#64748b">Consultation Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.consultTotal || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">Pharmacy Items Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.pharmacySub || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">Diagnostics Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.labSub || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">GST Amount (5% Pharm / 18% Lab):</td><td style="text-align:right;font-weight:600">₹${(billingLedger.totalGst || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b">Discount Input:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(discountInput || 0).toFixed(2)}</td></tr>
+        <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Grand Total Paid:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${(billingLedger.finalTotal || 0).toFixed(2)}</td></tr>`;
     }
 
     const printHtml = `<!DOCTYPE html>
@@ -918,9 +921,10 @@ export const BillHubTab: React.FC = () => {
         const activeInventory = PharmacyService.getPharmacyInventory();
         let invUpdated = false;
         billingLedger.medicinesList.forEach(m => {
-          const state = selectedMedicines[m.name.toLowerCase()];
+          const mNameLower = (m.name || '').toLowerCase();
+          const state = selectedMedicines[mNameLower];
           if (state?.selected) {
-            const itemInInv = activeInventory.find(inv => inv.name.toLowerCase() === m.name.toLowerCase());
+            const itemInInv = activeInventory.find(inv => (inv.name || '').toLowerCase() === mNameLower);
             if (itemInInv) {
               itemInInv.stock = Math.max(0, itemInInv.stock - state.qty);
               invUpdated = true;
@@ -1261,7 +1265,8 @@ export const BillHubTab: React.FC = () => {
                         </thead>
                         <tbody>
                           {billingLedger.medicinesList.map((m, idx) => {
-                            const state = selectedMedicines[m.name.toLowerCase()] || { selected: false, qty: 10 };
+                            const mNameLower = (m.name || '').toLowerCase();
+                            const state = selectedMedicines[mNameLower] || { selected: false, qty: 10 };
                             return (
                               <tr key={idx} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0">
                                 <td className="p-3">
@@ -1270,7 +1275,7 @@ export const BillHubTab: React.FC = () => {
                                     checked={state.selected}
                                     onChange={(e) => setSelectedMedicines(prev => ({
                                       ...prev,
-                                      [m.name.toLowerCase()]: { ...state, selected: e.target.checked }
+                                      [mNameLower]: { ...state, selected: e.target.checked }
                                     }))}
                                     className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                   />
@@ -1286,7 +1291,7 @@ export const BillHubTab: React.FC = () => {
                                       type="button"
                                       onClick={() => setSelectedMedicines(prev => ({
                                         ...prev,
-                                        [m.name.toLowerCase()]: { ...state, qty: Math.max(1, state.qty - 1) }
+                                        [mNameLower]: { ...state, qty: Math.max(1, state.qty - 1) }
                                       }))}
                                       className="px-2 py-1 text-slate-500 hover:bg-slate-100 cursor-pointer border-0 bg-transparent text-xs"
                                     >
@@ -1297,7 +1302,7 @@ export const BillHubTab: React.FC = () => {
                                       type="button"
                                       onClick={() => setSelectedMedicines(prev => ({
                                         ...prev,
-                                        [m.name.toLowerCase()]: { ...state, qty: state.qty + 1 }
+                                        [mNameLower]: { ...state, qty: state.qty + 1 }
                                       }))}
                                       className="px-2 py-1 text-slate-500 hover:bg-slate-100 cursor-pointer border-0 bg-transparent text-xs"
                                     >

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import type { Patient, WhatsAppSession, ChatMessage } from '../../types';
 import { Send, Check, Phone, Video, MoreVertical, ShieldAlert, Award, Smartphone, Play, Pause, Mic, X, Receipt, Camera, QrCode, CreditCard, ExternalLink } from 'lucide-react';
+import { useClinic } from '../../context/ClinicContext';
 
 interface PatientWhatsAppSimulatorProps {
   isOpen: boolean;
@@ -72,6 +73,7 @@ const VoiceNotePlayer: React.FC<{
 };
 
 export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> = ({ isOpen, onClose }) => {
+  const { activePod, activeProfile } = useClinic();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default to Aarav Sharma
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
@@ -309,12 +311,12 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
               if (hasVoiceNote) {
                 const parts = msg.text.split('https://vitalsync.in/api/voice-slips/');
                 displayTargetText = parts[0].trim();
-                voiceUrl = 'https://vitalsync.in/api/voice-slips/' + parts[1].split('\n')[0].trim();
+                voiceUrl = 'https://vitalsync.in/api/voice-slips/' + (parts[1] || '').split('\n')[0].trim();
               }
 
               return (
                 <div 
-                  key={i} 
+                  key={`msg-${i}-${msg.sender}-${msg.text.substring(0, 15)}`} 
                   className={`max-w-[85%] p-2 rounded-xl text-[11px] shadow-sm leading-relaxed ${
                     isBot 
                       ? 'bg-white text-slate-800 self-start rounded-tl-none border-l-2 border-emerald-500' 
@@ -368,7 +370,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                   Ecosystem Permission Access
                 </div>
                 <p className="text-[10px] text-slate-500 leading-relaxed font-sans">
-                  Dr. Sharma's Clinic is requesting permission to secure-sync e-Rx, lab result history, and invoice payments inside care pod.
+                  {activePod?.name || activeProfile?.clinicName || "Doctor's Clinic"} is requesting permission to secure-sync e-Rx, lab result history, and invoice payments inside care pod.
                 </p>
                 <div className="flex gap-2">
                   <button

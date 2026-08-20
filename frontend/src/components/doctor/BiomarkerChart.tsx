@@ -75,15 +75,15 @@ export const BiomarkerChart: React.FC<BiomarkerChartProps> = ({ patientId }) => 
   };
 
   // CDSS Warning Checks
-  const latest = history[history.length - 1];
-  const isCreatinineHigh = latest?.creatinine > 1.2;
+  const latest = history && history.length > 0 ? history[history.length - 1] : null;
+  const isCreatinineHigh = (latest?.creatinine ?? 0) > 1.2;
   
   // Calculate creatinine percentage change if baseline exists
   let creatinineSpike = false;
   let creatinineSpikePercentage = 0;
-  if (history.length > 1) {
-    const baseVal = history[0].creatinine;
-    const currentVal = latest.creatinine;
+  if (history && history.length > 1) {
+    const baseVal = history[0]?.creatinine ?? 0;
+    const currentVal = latest?.creatinine ?? 0;
     if (baseVal > 0) {
       creatinineSpikePercentage = Math.round(((currentVal - baseVal) / baseVal) * 100);
       if (creatinineSpikePercentage >= 20) {
@@ -243,8 +243,8 @@ export const BiomarkerChart: React.FC<BiomarkerChartProps> = ({ patientId }) => 
               </h4>
               <p className="text-rose-400/80 mt-1 leading-relaxed">
                 {creatinineSpike 
-                  ? `Creatinine level has spiked by ${creatinineSpikePercentage}% (baseline ${history[0].creatinine} $\\rightarrow$ current ${latest.creatinine} mg/dL). ` 
-                  : `Serum creatinine (${latest.creatinine} mg/dL) exceeds KDIGO thresholds. `}
+                  ? `Creatinine level has spiked by ${creatinineSpikePercentage}% (baseline ${history[0]?.creatinine ?? 0} $\\rightarrow$ current ${latest?.creatinine ?? 0} mg/dL). ` 
+                  : `Serum creatinine (${latest?.creatinine ?? 0} mg/dL) exceeds KDIGO thresholds. `}
                 NSAIDs (Ibuprofen, Diclofenac) are strictly contraindicated due to high acute kidney injury risk.
               </p>
             </div>

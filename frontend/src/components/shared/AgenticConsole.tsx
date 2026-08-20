@@ -62,8 +62,10 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
       };
 
       rec.onresult = (event: any) => {
-        const text = event.results[0][0].transcript;
-        setQuery(prev => (prev + ' ' + text).trim());
+        const text = event.results?.[0]?.[0]?.transcript || '';
+        if (text) {
+          setQuery(prev => (prev + ' ' + text).trim());
+        }
       };
 
       rec.onerror = (event: any) => {
@@ -82,7 +84,13 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
-      alert('Browser speech recognition not supported. Please use Chrome, Safari or Edge.');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Speech Recognition Unavailable',
+          message: 'Browser speech recognition is not supported in this environment. Please use Chrome, Edge, or Safari.',
+          type: 'warning'
+        }
+      }));
       return;
     }
 

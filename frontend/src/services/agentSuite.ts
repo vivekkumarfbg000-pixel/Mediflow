@@ -59,7 +59,7 @@ export class ClinicalSafetyAgent {
         const encDate = new Date(e.createdAt).toDateString();
         if (encDate !== todayStr) return false;
         
-        const hasSameDrug = e.medications.some(m => m.medicineName.toLowerCase() === cleanDrug || cleanDrug.includes(m.medicineName.toLowerCase()) || m.medicineName.toLowerCase().includes(cleanDrug));
+        const hasSameDrug = (e.medications || []).some(m => m.medicineName.toLowerCase() === cleanDrug || cleanDrug.includes(m.medicineName.toLowerCase()) || m.medicineName.toLowerCase().includes(cleanDrug));
         return hasSameDrug;
       });
 
@@ -85,13 +85,13 @@ export class ResourceAllocationAgent {
     message: string;
     detail?: string;
   } {
-    const reagents = api.getReagentStocks();
-    let match = reagents.find(r => r.reagentName.toLowerCase().includes('hba1c'));
+    const reagents = api.getReagentStocks() || [];
+    let match = reagents.find(r => (r.reagentName || '').toLowerCase().includes('hba1c'));
 
     if (testLoinc === '2160-0') {
-      match = reagents.find(r => r.reagentName.toLowerCase().includes('creatinine'));
+      match = reagents.find(r => (r.reagentName || '').toLowerCase().includes('creatinine'));
     } else if (testLoinc === '3024-7') {
-      match = reagents.find(r => r.reagentName.toLowerCase().includes('hemoglobin') || r.reagentName.toLowerCase().includes('drabkin'));
+      match = reagents.find(r => (r.reagentName || '').toLowerCase().includes('hemoglobin') || (r.reagentName || '').toLowerCase().includes('drabkin'));
     }
 
     const currentStock = match ? match.stockVolume : 100;
@@ -116,8 +116,8 @@ export class ResourceAllocationAgent {
     message: string;
     detail?: string;
   } {
-    const items = api.getPharmacyInventory();
-    const match = items.find(i => i.name.toLowerCase().includes(medicineName.toLowerCase()));
+    const items = api.getPharmacyInventory() || [];
+    const match = items.find(i => (i.name || '').toLowerCase().includes((medicineName || '').toLowerCase()));
 
     if (!match) {
       return {
@@ -563,7 +563,7 @@ export class BioequivalentDrugSubstitutionAgent {
     const substitutions: DrugSubstitution[] = [];
 
     data.alternatives.forEach(altName => {
-      const invItem = inventory.find(i => i.name.toLowerCase().includes(altName.toLowerCase()));
+      const invItem = inventory.find(i => (i.name || '').toLowerCase().includes((altName || '').toLowerCase()));
       substitutions.push({
         originalDrug: prescribedDrug,
         genericSalt: data.salt,

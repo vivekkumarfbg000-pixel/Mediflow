@@ -21,10 +21,10 @@ export const MobileChart: React.FC<MobileChartProps> = ({
   minVal,
   maxVal
 }) => {
-  if (points.length === 0) return null;
+  if (!points || points.length === 0) return null;
 
-  const min = minVal ?? Math.min(...points) - 5;
-  const max = maxVal ?? Math.max(...points) + 5;
+  const min = minVal ?? (points.length > 0 ? Math.min(...points) - 5 : 0);
+  const max = maxVal ?? (points.length > 0 ? Math.max(...points) + 5 : 100);
   const range = max - min || 1;
 
   const width = 320;
@@ -33,10 +33,10 @@ export const MobileChart: React.FC<MobileChartProps> = ({
   const usableWidth = width - paddingX * 2;
   const usableHeight = height - paddingY * 2;
 
-  // Compute dynamic SVG coordinates
+  // Compute dynamic SVG coordinates (guard against points.length === 1 NaN division)
   const svgPoints = points.map((p, idx) => {
-    const x = paddingX + (idx / (points.length - 1)) * usableWidth;
-    const y = paddingY + usableHeight - ((p - min) / range) * usableHeight;
+    const x = points.length > 1 ? paddingX + (idx / (points.length - 1)) * usableWidth : width / 2;
+    const y = paddingY + usableHeight - (((p ?? min) - min) / range) * usableHeight;
     return { x, y };
   });
 
@@ -45,7 +45,9 @@ export const MobileChart: React.FC<MobileChartProps> = ({
     ''
   );
 
-  const fillD = `${pathD} L ${svgPoints[svgPoints.length - 1].x} ${height - paddingY} L ${svgPoints[0].x} ${height - paddingY} Z`;
+  const fillD = points.length > 1 
+    ? `${pathD} L ${svgPoints[svgPoints.length - 1]?.x ?? width} ${height - paddingY} L ${svgPoints[0]?.x ?? 0} ${height - paddingY} Z`
+    : '';
 
   return (
     <div className="w-full bg-zinc-900 border border-white/5 rounded-2xl p-4 space-y-2 relative overflow-hidden">
@@ -107,10 +109,10 @@ export const MobileChart: React.FC<MobileChartProps> = ({
       </div>
 
       {/* Label Indices */}
-      {labels.length > 0 && (
+      {labels && labels.length > 0 && (
         <div className="flex justify-between items-center text-[8px] font-bold text-zinc-500 font-mono uppercase px-1">
           <span>{labels[0]}</span>
-          <span>{labels[labels.length - 1]}</span>
+          {labels.length > 1 && <span>{labels[labels.length - 1]}</span>}
         </div>
       )}
     </div>

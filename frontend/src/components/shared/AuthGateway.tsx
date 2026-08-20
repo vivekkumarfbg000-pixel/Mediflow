@@ -187,7 +187,7 @@ const checkLockout = (email: string): { locked: boolean; remainingSeconds: numbe
   const attempts = getLoginAttempts().filter(a => a.email.trim().toLowerCase() === email.trim().toLowerCase());
   if (attempts.length === 0) return { locked: false, remainingSeconds: 0 };
   
-  const lastFailureTime = new Date(attempts[0].timestamp).getTime();
+  const lastFailureTime = new Date(attempts[0]?.timestamp || Date.now()).getTime();
   const now = new Date().getTime();
   const diffSeconds = Math.floor((now - lastFailureTime) / 1000);
   const lockoutPeriod = 60; // 60 seconds

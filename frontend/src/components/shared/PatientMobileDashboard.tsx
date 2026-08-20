@@ -27,8 +27,11 @@ import {
   Pill,
   Brain,
   Calendar,
-  QrCode
+  QrCode,
+  ExternalLink,
+  ChevronDown
 } from 'lucide-react';
+import { useClinic } from '../../context/ClinicContext';
 import { MobileNav } from './MobileNav';
 import { MetricCard } from './MetricCard';
 import { MobileChart } from './MobileChart';
@@ -38,6 +41,7 @@ export interface PatientMobileDashboardProps {
 }
 
 export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ onSignOut }) => {
+  const { activePod } = useClinic();
   const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills' | 'vitals' | 'book_appointment'>('home');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -239,8 +243,8 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                 </div>
                 <h4 className="font-bold text-white">{activePatient.name}</h4>
                 <p className="text-[10px] text-zinc-400 leading-relaxed font-sans">
-                  <strong>Chronic list</strong>: {activePatient.chronicConditions.join(', ') || 'None'}<br/>
-                  <strong>Allergies</strong>: {activePatient.allergies.join(', ') || 'NKDA'}<br/>
+                  <strong>Chronic list</strong>: {(activePatient.chronicConditions || []).join(', ') || 'None'}<br/>
+                  <strong>Allergies</strong>: {(activePatient.allergies || []).join(', ') || 'NKDA'}<br/>
                   <strong>ABHA Card ID</strong>: {activePatient.abhaId || 'Not set'}
                 </p>
               </div>
@@ -407,7 +411,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         Patient Workspace
                       </span>
                       <h3 className="text-sm font-black text-white mt-0.5">
-                        Namaste, {activePatient?.name.split(' ')[0]} 👋
+                        Namaste, {(activePatient?.name || 'Patient').split(' ')[0]} 👋
                       </h3>
                     </div>
                     <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 font-black text-xs">
@@ -469,7 +473,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       accentColorClass="from-cyan-500/10 to-transparent"
                       detailsTitle="BP Clinical Summary"
                     >
-                      <p>Cardiovascular indices are within borderline-normal limits. Dr. Sharma advises a standard low-sodium diet regime.</p>
+                      <p>Cardiovascular indices are within borderline-normal limits. {activePod?.doctorName || 'Doctor'} advises a standard low-sodium diet regime.</p>
                     </MetricCard>
                   </div>
 
@@ -911,8 +915,8 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
 
                     {activePatient && (
                       <div className="text-[9.5px] text-zinc-400 font-sans leading-relaxed pt-2 border-t border-white/5">
-                        <strong>Chronic list</strong>: {activePatient.chronicConditions.join(', ') || 'None'}<br/>
-                        <strong>Allergies</strong>: {activePatient.allergies.join(', ') || 'NKDA'}<br/>
+                        <strong>Chronic list</strong>: {(activePatient.chronicConditions || []).join(', ') || 'None'}<br/>
+                        <strong>Allergies</strong>: {(activePatient.allergies || []).join(', ') || 'NKDA'}<br/>
                         <strong>ABHA ID</strong>: {activePatient.abhaId || 'Not set'}
                       </div>
                     )}

@@ -74,9 +74,12 @@ export class WhatsAppSupportBotService {
   // ── Level-10 AI RAG Agent & Diagnostic Snapshot Processor ────────────────
   static async processSupportQuery(
     queryText: string,
-    senderInfo: { name: string; clinicName: string; role: 'doctor' | 'compounder' | 'pharmacy' | 'patient'; podId?: string; phone?: string }
+    senderInfo: { name?: string; clinicName?: string; role?: 'doctor' | 'compounder' | 'pharmacy' | 'patient'; podId?: string; phone?: string }
   ): Promise<{ response: string; category: 'how_to' | 'auto_healed' | 'owner_escalation' }> {
-    const textLower = queryText.toLowerCase().trim();
+    const textLower = (queryText || '').toLowerCase().trim();
+    const senderName = senderInfo?.name || 'Partner';
+    const clinicTitle = senderInfo?.clinicName || 'Clinic';
+    const senderRole = senderInfo?.role || 'doctor';
 
     // ── SCENARIO 1: System Error / Sync Glitch (Activates Level-10 Auto-Healer) 
     if (
@@ -94,12 +97,12 @@ export class WhatsAppSupportBotService {
         /* ignore rpc fallback */
       }
 
-      const autoHealResp = `📊 *VITALSYNC AUTONOMOUS DIAGNOSTIC REPORT* ⚡\n──────────────────────────────────\n🟢 *System Uptime*      : 99.94% Nominal\n⚡ *Database Latency*   : 1.2ms (Zero Drift)\n🔒 *RLS Isolation*      : 100% Verified\n🏥 *Pod Health Status*  : REJUVENATED & OPERATIONAL\n──────────────────────────────────\nNamaste ${senderInfo.name}!\n\nOur 24/7 Autonomous DevSecOps Sentry detected a transient sync lock on your clinic pod (*${senderInfo.clinicName}*) and executed an instant 240ms auto-heal cycle.\n\n✅ *Action Taken*: Flushed orphaned sync locks & rejuvenated active sessions.\n\nPlease refresh your page now!`;
+      const autoHealResp = `📊 *VITALSYNC AUTONOMOUS DIAGNOSTIC REPORT* ⚡\n──────────────────────────────────\n🟢 *System Uptime*      : 99.94% Nominal\n⚡ *Database Latency*   : 1.2ms (Zero Drift)\n🔒 *RLS Isolation*      : 100% Verified\n🏥 *Pod Health Status*  : REJUVENATED & OPERATIONAL\n──────────────────────────────────\nNamaste ${senderName}!\n\nOur 24/7 Autonomous DevSecOps Sentry detected a transient sync lock on your clinic pod (*${clinicTitle}*) and executed an instant 240ms auto-heal cycle.\n\n✅ *Action Taken*: Flushed orphaned sync locks & rejuvenated active sessions.\n\nPlease refresh your page now!`;
 
       await this.logEscalationTicket({
-        clinic_name: senderInfo.clinicName,
-        doctor_name: senderInfo.name,
-        sender_role: senderInfo.role,
+        clinic_name: clinicTitle,
+        doctor_name: senderName,
+        sender_role: senderRole,
         query_text: queryText,
         category: 'auto_healed',
         status: 'resolved',
@@ -216,18 +219,18 @@ export class WhatsAppSupportBotService {
         {
           id: 'TKT-1042',
           clinic_name: 'Apex Super Specialty Care',
-          doctor_name: 'Dr. Rajesh Verma',
+          doctor_name: 'Lead Clinician',
           sender_role: 'doctor',
-          query_text: 'Need Cashfree Production API credential approval and domain CORS whitelisting.',
+          query_text: 'Need Payment Gateway API credential approval and domain CORS whitelisting.',
           category: 'owner_escalation',
           status: 'open',
           created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-          ai_proposed_fix: 'Auto-provision Production Cashfree App ID & Secret Key and whitelist clinic domain.'
+          ai_proposed_fix: 'Auto-provision Production Gateway App ID & Secret Key and whitelist clinic domain.'
         },
         {
           id: 'TKT-1043',
           clinic_name: 'City Heart & Diagnostic Clinic',
-          doctor_name: 'Dr. Ananya Sharma',
+          doctor_name: 'Consulting Physician',
           sender_role: 'doctor',
           query_text: 'Requesting custom Rx Prescription Letterhead footer & custom WhatsApp header text.',
           category: 'owner_escalation',

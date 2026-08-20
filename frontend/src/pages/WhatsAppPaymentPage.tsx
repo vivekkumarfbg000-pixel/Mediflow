@@ -437,7 +437,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                   <User className="h-4 w-4 text-teal-400" />
                   <span className="text-xs font-semibold text-slate-300">{patientName}</span>
                 </div>
-                <span className="text-[11px] font-mono text-slate-400">INV: {invoiceId.substring(0, 8).toUpperCase()}</span>
+                <span className="text-[11px] font-mono text-slate-400">INV: {(invoiceId || 'N/A').substring(0, 8).toUpperCase()}</span>
               </div>
 
               <div className="border-t border-white/5 pt-3 flex flex-col gap-1.5 text-xs">

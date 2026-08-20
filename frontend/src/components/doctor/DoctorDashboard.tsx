@@ -66,7 +66,7 @@ const WhatsAppTab = safeLazy(() => import('./tabs/WhatsAppTab').then(m => ({ def
 const SopConfigTab = safeLazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
 
 export const DoctorDashboard: React.FC = () => {
-  const { activePod, activeEntity } = useClinic();
+  const { activePod, activeEntity, activeProfile } = useClinic();
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule'>('pod_view');
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -249,18 +249,17 @@ export const DoctorDashboard: React.FC = () => {
         }
 
         // DB Fallback Hydration
-        const currentPodId = activePod?.id || getPodContext().podId;
+        const currentPodId = activePod?.id || getPodContext().podId || (typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('vitalsync_active_pod') || '{}')?.id) : null);
         let query = supabase.from('waba_connections').select('*');
         if (currentPodId) {
           query = query.or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`);
         }
         const { data, error } = await query
-          .or('is_active.eq.true,waba_status.eq.active')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        if (data && !error) {
+        if (data && !error && data.waba_status !== 'disconnected' && data.is_active !== false) {
           setActiveWabaConnection(data);
           localStorage.setItem('vitalsync_waba_connection', JSON.stringify(data));
         } else if (saved === 'disconnected') {
@@ -345,6 +344,16 @@ export const DoctorDashboard: React.FC = () => {
 
   const startAudioRecording = async () => {
     try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Microphone Not Supported',
+            message: 'Audio recording requires a secure (HTTPS) connection and a supported browser.',
+            type: 'error'
+          }
+        }));
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const chunks: Blob[] = [];
       const recorder = new window.MediaRecorder(stream);
@@ -372,7 +381,13 @@ export const DoctorDashboard: React.FC = () => {
       setAudioBlob(null);
     } catch (err) {
       console.error('[Mediflow] Failed to capture microphone:', err);
-      alert('Microphone access is required to record instructions.');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Microphone Access Required',
+          message: 'Please allow microphone access in your browser settings to record clinical audio instructions.',
+          type: 'error'
+        }
+      }));
     }
   };
 
@@ -410,7 +425,8 @@ export const DoctorDashboard: React.FC = () => {
     if (!selectedPatient) return;
     try {
       const apptId = `apt-${Date.now()}`;
-      const res = await api.generateConsultRoom(apptId, selectedPatient.phone, 'Dr. Sharma');
+      const doctorTitle = activePod?.doctorName || activeProfile?.display_name || 'Doctor';
+      const res = await api.generateConsultRoom(apptId, selectedPatient.phone, doctorTitle);
       if (res && res.roomUrl) {
         window.open(res.roomUrl, '_blank', 'noopener,noreferrer');
       }
@@ -786,22 +802,24 @@ export const DoctorDashboard: React.FC = () => {
   // Auto-select latest two reports when history is available
   useEffect(() => {
     if (!selectedPatient) return;
-    const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+    const history = api.getPatientHistoricalBiomarkers(selectedPatient.id) || [];
     if (history.length >= 2) {
-      setBaselineDate(prev => prev ?? history[history.length - 2].date);
-      setComparisonDate(prev => prev ?? history[history.length - 1].date);
+      setBaselineDate(prev => prev ?? history[history.length - 2]?.date);
+      setComparisonDate(prev => prev ?? history[history.length - 1]?.date);
     } else if (history.length === 1) {
-      setComparisonDate(prev => prev ?? history[0].date);
+      setComparisonDate(prev => prev ?? history[0]?.date);
     }
   }, [selectedPatient?.id]);
 
   useEffect(() => {
     if (!selectedPatient) return;
-    const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+    const history = api.getPatientHistoricalBiomarkers(selectedPatient.id) || [];
     if (!history || history.length === 0) return;
 
     const baseReport = history.find(h => h.date === baselineDate) ?? null;
-    const compReport = history.find(h => h.date === comparisonDate) ?? history[history.length - 1];
+    const compReport = history.find(h => h.date === comparisonDate) ?? (history.length > 0 ? history[history.length - 1] : null);
+
+    if (!compReport) return;
 
     // Evaluate clinical risks for CDSS anomalies
     const anomalies: string[] = [];
@@ -828,12 +846,12 @@ export const DoctorDashboard: React.FC = () => {
         anomalies.push(`Warning: Visual Acuity OS degraded from ${baseOS} to ${compOS}.`);
       }
     } else {
-      if (compReport.creatinine > 1.2) {
+      if ((compReport.creatinine ?? 0) > 1.2) {
         anomalies.push(`Warning: Serum Creatinine is ${compReport.creatinine} mg/dL (Abnormal > 1.2).${
           baseReport ? ` Up from ${baseReport.creatinine} mg/dL in ${baseReport.date}.` : ''
         }`);
       }
-      if (compReport.HbA1c > 6.5) {
+      if ((compReport.HbA1c ?? 0) > 6.5) {
         anomalies.push(`Alert: HbA1c is ${compReport.HbA1c}% (Diabetic threshold > 6.5%).${
           baseReport ? ` Changed from ${baseReport.HbA1c}% in ${baseReport.date}.` : ''
         }`);
@@ -901,8 +919,8 @@ export const DoctorDashboard: React.FC = () => {
 
         let defaultInsight = `### Clinical Advisory (Static Fallback)\n\n`;
         defaultInsight += `Patient **${selectedPatient.name}** (${selectedPatient.age}y, ${selectedPatient.gender}) shows `;
-        defaultInsight += selectedPatient.chronicConditions.length > 0
-          ? `chronic history of **${selectedPatient.chronicConditions.join(' & ')}**.\n\n`
+        defaultInsight += (selectedPatient.chronicConditions || []).length > 0
+          ? `chronic history of **${(selectedPatient.chronicConditions || []).join(' & ')}**.\n\n`
           : `no reported chronic conditions.\n\n`;
 
         if (isOphthalmology) {
@@ -973,8 +991,8 @@ Patient Profile:
 Name: ${selectedPatient.name}
 Age: ${selectedPatient.age}
 Gender: ${selectedPatient.gender}
-Chronic Conditions: ${selectedPatient.chronicConditions.join(', ') || 'None'}
-Allergies: ${selectedPatient.allergies.join(', ') || 'NKDA'}
+Chronic Conditions: ${(selectedPatient.chronicConditions || []).join(', ') || 'None'}
+Allergies: ${(selectedPatient.allergies || []).join(', ') || 'NKDA'}
 
 Biomarkers:
 ${isOphthalmology ? (
@@ -1015,11 +1033,15 @@ Keep the tone professional, clinical, objective, and precise.`;
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
           const edgeFnUrl = `${supabaseUrl}/functions/v1/ai-inference`;
 
+          const token = aiSession?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
           const response = await fetch(edgeFnUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${aiSession?.access_token ?? ''}`,
+              'Authorization': `Bearer ${token}`,
+              'apikey': anonKey
             },
             body: JSON.stringify({
               prompt: promptText,
@@ -1080,8 +1102,8 @@ Keep the tone professional, clinical, objective, and precise.`;
 
         let fallbackInsight = `### Clinical Advisory (Static Fallback)\n\n`;
         fallbackInsight += `Patient **${selectedPatient.name}** (${selectedPatient.age}y, ${selectedPatient.gender}) shows `;
-        fallbackInsight += selectedPatient.chronicConditions.length > 0
-          ? `chronic history of **${selectedPatient.chronicConditions.join(' & ')}**.\n\n`
+        fallbackInsight += (selectedPatient.chronicConditions || []).length > 0
+          ? `chronic history of **${(selectedPatient.chronicConditions || []).join(' & ')}**.\n\n`
           : `no reported chronic conditions.\n\n`;
 
         if (baseReport && compReport) {

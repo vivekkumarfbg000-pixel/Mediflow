@@ -599,7 +599,7 @@ export const BillingDashboard: React.FC = () => {
                             {invoiceLedgers.map(entry => (
                               <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="p-2.5">
-                                  <span className="capitalize font-semibold text-slate-800">{entry.transactionType.replace(/_/g, ' ')}</span>
+                                  <span className="capitalize font-semibold text-slate-800">{(entry.transactionType || 'fee').replace(/_/g, ' ')}</span>
                                   <div className="text-[9px] text-slate-400 font-mono mt-0.5 truncate max-w-[80px]">{(entry.destinationEntityId || 'N/A').substring(0, 12)}...</div>
                                 </td>
                                 <td className="p-2.5 font-mono text-slate-700">₹{entry.grossAmount}</td>

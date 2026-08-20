@@ -72,7 +72,13 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         .eq('id', activeVendor.id);
 
       if (error) {
-        alert("Error disconnecting account: " + error.message);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Disconnection Failed',
+            message: error.message || 'Could not disconnect settlement account.',
+            type: 'error'
+          }
+        }));
       } else {
         setActiveVendor(null);
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -84,14 +90,26 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         }));
       }
     } catch (err: any) {
-      alert("Failed to disconnect account: " + (err.message || err));
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Disconnection Error',
+          message: err?.message || 'Failed to disconnect settlement account.',
+          type: 'error'
+        }
+      }));
     }
   };
 
   const handleOnboardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vendorHolderName || !vendorAccountNumber || !vendorIfsc) {
-      alert("Please fill in all banking details.");
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Missing Banking Information',
+          message: 'Please fill in account holder name, account number, and IFSC code.',
+          type: 'error'
+        }
+      }));
       return;
     }
 
@@ -131,7 +149,13 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
         }
       }));
     } catch (err: any) {
-      alert("Bank onboarding registration failed: " + (err.message || err));
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Bank Onboarding Failed',
+          message: err?.message || 'Bank onboarding registration failed. Please verify IFSC and account details.',
+          type: 'error'
+        }
+      }));
     } finally {
       setIsSubmitting(false);
     }

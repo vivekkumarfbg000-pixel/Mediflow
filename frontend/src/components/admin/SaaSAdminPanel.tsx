@@ -255,17 +255,26 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           .lt('created_at', fifteenMinsAgo);
 
         if (stuckAppointments && stuckAppointments.length > 0) {
-          console.log(`[Cashfree Reconciliation Poller] Found ${stuckAppointments.length} expired unpaid payment(s). Updating status to cancelled...`);
+          console.log(`[Payment Reconciliation Poller] Found ${stuckAppointments.length} expired unpaid payment(s). Updating status to cancelled...`);
           for (const appt of stuckAppointments) {
             await supabase
               .from('appointments')
               .update({ status: 'cancelled', updated_at: new Date().toISOString() })
               .eq('id', appt.id);
-            console.log(`[Cashfree Reconciliation Poller] Auto-cancelled expired unpaid appointment: ${appt.id}`);
+
+            // Also update local storage cache immediately
+            try {
+              const localAppts = JSON.parse(localStorage.getItem('saas_appointments') || '[]');
+              const updatedAppts = localAppts.map((a: any) => a.id === appt.id ? { ...a, status: 'cancelled' } : a);
+              localStorage.setItem('saas_appointments', JSON.stringify(updatedAppts));
+              window.dispatchEvent(new CustomEvent('mediflow-appointments-updated'));
+            } catch { /* ignore */ }
+
+            console.log(`[Payment Reconciliation Poller] Auto-cancelled expired unpaid appointment: ${appt.id}`);
           }
         }
       } catch (_e) {
-        console.warn('[Cashfree Reconciliation Poller] Non-fatal check exception:', _e);
+        console.warn('[Payment Reconciliation Poller] Non-fatal check exception:', _e);
       }
     };
 
@@ -2343,7 +2352,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                     <div className="flex items-center gap-2">
                       <select
                         value={genCount}
-                        onChange={(e) => setGenCount(parseInt(e.target.value))}
+                        onChange={(e) => setGenCount(parseInt(e.target.value, 10))}
                         className="h-8 rounded-lg border border-slate-200 px-2 text-xs font-bold text-slate-700 outline-none cursor-pointer bg-white"
                       >
                         {[5, 10, 20, 50, 100].map(c => (
@@ -2366,7 +2375,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                             window.dispatchEvent(new CustomEvent('mediflow-toast', {
                               detail: {
                                 title: 'Generation Failed',
-                                message: err.message,
+                                message: err?.message || 'Failed to generate synthetic profiles.',
                                 type: 'error'
                               }
                             }));

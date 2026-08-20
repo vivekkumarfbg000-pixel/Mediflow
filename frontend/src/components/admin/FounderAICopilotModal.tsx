@@ -49,7 +49,7 @@ export const FounderAICopilotModal: React.FC<FounderAICopilotModalProps> = ({
   const [inputPrompt, setInputPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [executingChipId, setExecutingChipId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -63,8 +63,10 @@ export const FounderAICopilotModal: React.FC<FounderAICopilotModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
+    }
+  }, [messages, isProcessing]);
 
   if (!isOpen) return null;
 
@@ -192,7 +194,7 @@ export const FounderAICopilotModal: React.FC<FounderAICopilotModalProps> = ({
         </div>
 
         {/* ── Message Chat Stream ───────────────────────────────────────────────── */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/40 dark:bg-slate-900/60">
+        <div ref={chatScrollContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/40 dark:bg-slate-900/60">
           {messages.map(msg => {
             const isCopilot = msg.sender === 'copilot';
             return (
@@ -297,8 +299,6 @@ export const FounderAICopilotModal: React.FC<FounderAICopilotModalProps> = ({
               </div>
             </div>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
 
         {/* ── Input Box & Send Button ───────────────────────────────────────────── */}

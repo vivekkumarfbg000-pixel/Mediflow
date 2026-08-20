@@ -184,7 +184,7 @@ export class WhatsAppService {
           // NOW update local session history for instant patient/doctor sync (after Meta dispatch)
           if (variables?.replyText) {
             const sessions = this.getWhatsAppSessions();
-            const targetDigits = phone.replace(/\D/g, '').slice(-10);
+            const targetDigits = (phone || '').replace(/\D/g, '').slice(-10);
             const sessionIndex = sessions.findIndex(s => {
               const sPhone = (s.patientPhone || (s as any).patient_phone || (s as any).phone || '').replace(/\D/g, '').slice(-10);
               return sPhone === targetDigits;
@@ -231,9 +231,9 @@ export class WhatsAppService {
       const sessions = this.getWhatsAppSessions();
       
       // Check if patient exists in registry (flexible 10-digit matching)
-      const incomingLast10 = phone.replace(/\D/g, '').slice(-10);
+      const incomingLast10 = (phone || '').replace(/\D/g, '').slice(-10);
       const patient = PatientService.getPatients().find(p => {
-        const pDigits = p.phone.replace(/\D/g, '').slice(-10);
+        const pDigits = (p.phone || '').replace(/\D/g, '').slice(-10);
         return pDigits === incomingLast10;
       });
       if (!patient) {
@@ -272,7 +272,9 @@ export class WhatsAppService {
           p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           p_current_state: 'AWAITING_WELCOME',
           p_message: sessionIndex === -1 ? botMsg : [patientMsg, botMsg]
-        }).then();
+        })
+        .then(res => { if (res?.error) console.error('[Mediflow] atomic_update_whatsapp_session error:', res.error); })
+        .catch(err => console.error('[Mediflow] atomic_update_whatsapp_session caught:', err));
         this.sendWhatsAppMessagePayload(phone, 'mediflow_conversational_reply', { replyText: welcomeText });
         return;
       }
@@ -402,9 +404,15 @@ export class WhatsAppService {
                   BillingService.clearInvoice(targetInv.id, 'upi');
 
                   // Also update Supabase appointments & invoices table
-                  supabase.from('unified_invoices').update({ payment_status: 'cleared', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id).then();
-                  supabase.from('saas_invoices').update({ status: 'paid', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id).then();
-                  supabase.from('appointments').update({ status: 'scheduled', payment_status: 'cleared', utr_number: utrNumber }).eq('patient_id', patient.id).then();
+                  supabase.from('unified_invoices').update({ payment_status: 'cleared', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id)
+                    .then(res => { if (res?.error) console.error('[Mediflow] unified_invoices error:', res.error); })
+                    .catch(err => console.error('[Mediflow] unified_invoices caught:', err));
+                  supabase.from('saas_invoices').update({ status: 'paid', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id)
+                    .then(res => { if (res?.error) console.error('[Mediflow] saas_invoices error:', res.error); })
+                    .catch(err => console.error('[Mediflow] saas_invoices caught:', err));
+                  supabase.from('appointments').update({ status: 'scheduled', payment_status: 'cleared', utr_number: utrNumber }).eq('patient_id', patient.id)
+                    .then(res => { if (res?.error) console.error('[Mediflow] appointments error:', res.error); })
+                    .catch(err => console.error('[Mediflow] appointments caught:', err));
 
                   nextState = 'COMPLETED';
                   const tokenCode = (patient as any)?.tokenNumber || (targetInv as any)?.tokenNumber || '#TK-005';
@@ -477,7 +485,10 @@ export class WhatsAppService {
               let qty = 10;
 
               for (const item of activeInventory) {
-                if (cleaned.toLowerCase().includes(item.name.toLowerCase()) || cleaned.toLowerCase().includes(item.genericName.toLowerCase())) {
+                const nameLower = (item.name || '').toLowerCase();
+                const genericLower = (item.genericName || '').toLowerCase();
+                const cleanLower = (cleaned || '').toLowerCase();
+                if ((nameLower && cleanLower.includes(nameLower)) || (genericLower && cleanLower.includes(genericLower))) {
                   matchedItem = item;
                   break;
                 }
@@ -690,7 +701,7 @@ export class WhatsAppService {
               .filter(e => e.patientId === currentPat?.id && e.status === 'completed');
             const allMeds = new Set<string>();
             completed.forEach(enc => {
-              enc.medications.forEach(m => allMeds.add(m.medicineName));
+              (enc.medications || []).forEach(m => allMeds.add(m.medicineName));
             });
             const uniqueMeds = Array.from(allMeds);
 
@@ -725,7 +736,9 @@ export class WhatsAppService {
                 const appt = appts[0];
                 appt.status = 'cancelled';
                 BillingService.saveAppointment(appt);
-                supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appt.id).then();
+                supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appt.id)
+                  .then(res => { if (res?.error) console.error('[Mediflow] appointments cancel error:', res.error); })
+                  .catch(err => console.error('[Mediflow] appointments cancel caught:', err));
                 replyMessage = "❌ *Appointment Cancelled!* \n\nAapka active appointment cancel kar diya gaya hai. Agar wapas schedule karna ho toh **BOOK** reply kijiye.";
               } else {
                 replyMessage = "Aapke profile par koi active appointment scheduled nahi mila.";
@@ -750,11 +763,11 @@ export class WhatsAppService {
           } else if (cleaned.includes('summary') || cleaned.includes('soap') || cleaned.includes('schedule') || cleaned.includes('revisit')) {
             const completedEncounters = EncounterService.getEncounters()
               .filter(e => e.patientId === currentPat?.id && e.status === 'completed')
-              .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              .sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
             if (completedEncounters.length > 0) {
               const enc = completedEncounters[0];
-              const drugTable = enc.medications.map(m => `• ${m.medicineName} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join('\n');
+              const drugTable = (enc.medications || []).map(m => `• ${m.medicineName} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join('\n');
               
               replyMessage = `*Prescription aur Doctor's Notes Summary* 🩺\n\n*Doctor Notes*:\n'${enc.clinicalNotes}'\n\n*Dawa ka Schedule*:\n${drugTable || "Koi active dawa nahi likhi gayi hai."}\n\n*Follow-Up Advice*:\n${this.getDynamicDoctorName()} ne aapko **14 din** ke baad follow-up ke liye ${this.getDynamicClinicName()} branch mein bulaya hai. Hum aapko time par remind kar denge! 😊`;
             } else {
@@ -766,18 +779,18 @@ export class WhatsAppService {
           } else {
             const clearedInvoices = BillingService.getUnifiedInvoices()
               .filter(i => i.patientId === currentPat?.id && i.paymentStatus === 'cleared')
-              .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              .sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
             
             const lastPaidInvoice = clearedInvoices[0];
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            const hasPaidInLastWeek = lastPaidInvoice && new Date(lastPaidInvoice.createdAt) >= oneWeekAgo;
+            const hasPaidInLastWeek = lastPaidInvoice && new Date(lastPaidInvoice.createdAt || 0) >= oneWeekAgo;
 
             if (!hasPaidInLastWeek) {
               replyMessage = `*VitalSync AI Support Restricted* 🤖\n\nClinical AI Advice general health queries and RAG advisory are only accessible for **1 week (7 days)** after clearing your consultation/care fees. \n\n*Note*: Operational transactional features (such as booking appointments, virtual slot bookings, and medicine refills) remain **always active** for your profile. Please clear your recent dues or consult to unlock another week of rich clinical AI advice! 🟢`;
             } else {
               let chronicAdvice = "";
-              if (currentPat?.chronicConditions.some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar'))) {
+              if ((currentPat?.chronicConditions || []).some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar'))) {
                 chronicAdvice = "\n\n*Important RAG Note (Sugar patients ke liye)*: Aapka average 3-month sugar level (HbA1c 7.2%) thoda jyada hai. Meetha aur carbohydrate kam kijiye, LOINC: 4544-3 test har 3 mahine mein karayein, aur agar creatinine level 1.2 mg/dL se jyada ho toh heavy pain-killers (Ibuprofen) bilkul na lein.";
               } else {
                 chronicAdvice = "\n\n*RAG Clinical Guidelines Note*: Paani khoob pijiye, low-sodium diet lijiye, aur rozana apna checkup logs maintain kijiye.";
@@ -792,7 +805,7 @@ export class WhatsAppService {
         case 'AWAITING_REFILL_CHOICE': {
           const currentPat = PatientService.getPatients().find(p => p.phone === phone);
           const activeInventory = PharmacyService.getPharmacyInventory();
-          const optionIdx = parseInt(cleaned) - 1;
+          const optionIdx = parseInt(cleaned, 10) - 1;
           const refillOptions = sessionData.refillOptions || [];
           
           let selectedMedName = "";
@@ -806,12 +819,13 @@ export class WhatsAppService {
             if (numMatch) qty = Number(numMatch[0]);
           }
 
-          const matchedItem = activeInventory.find(item => 
-            item.name.toLowerCase().includes(selectedMedName.toLowerCase()) || 
-            selectedMedName.toLowerCase().includes(item.name.toLowerCase()) ||
-            item.genericName.toLowerCase().includes(selectedMedName.toLowerCase()) ||
-            selectedMedName.toLowerCase().includes(item.genericName.toLowerCase())
-          );
+          const matchedItem = activeInventory.find(item => {
+            const iName = (item.name || '').toLowerCase();
+            const iGeneric = (item.genericName || '').toLowerCase();
+            const sName = (selectedMedName || '').toLowerCase();
+            return (iName && sName && (iName.includes(sName) || sName.includes(iName))) ||
+                   (iGeneric && sName && (iGeneric.includes(sName) || sName.includes(iGeneric)));
+          });
 
           if (matchedItem) {
             const billId = `bill-${Date.now()}`;
@@ -885,7 +899,9 @@ export class WhatsAppService {
               BillingService.saveAppointment(appt);
               supabase.from('appointments').update({
                 status: 'ready_for_consult'
-              }).eq('id', apptId).then();
+              }).eq('id', apptId)
+                .then(res => { if (res?.error) console.error('[Mediflow] appointments update error:', res.error); })
+                .catch(err => console.error('[Mediflow] appointments update caught:', err));
               
               nextState = 'COMPLETED';
               replyMessage = `📅 *Appointment Rescheduled Successfully!* \n\nSlot: *${selectedSlotText}* (Tomorrow)\n\nDoctor aur Compounder ko alert bhej diya gaya hai. Thank you! 😊`;
@@ -939,7 +955,9 @@ export class WhatsAppService {
                   phone: phone,
                   registered_at: currentPat!.registeredAt,
                   pod_id: podId
-                }).then();
+                })
+                .then(res => { if (res?.error) console.error('[Mediflow] patient_registry insert error:', res.error); })
+                .catch(err => console.error('[Mediflow] patient_registry insert caught:', err));
               } catch (_e) { /* ignore fallback error */ }
             }
 

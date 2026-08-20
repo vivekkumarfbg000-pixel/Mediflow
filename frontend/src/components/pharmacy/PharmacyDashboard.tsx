@@ -406,7 +406,13 @@ const unsubscribeApi = api.subscribe(syncLocal);
   const handleAddMedicineSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.name || !addForm.batchNumber || !addForm.expiryDate || !addForm.price || !addForm.stock) {
-      alert('Please fill out all required fields.');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Missing Required Fields',
+          message: 'Please fill in medicine name, batch number, expiry date, price, and stock.',
+          type: 'error'
+        }
+      }));
       return;
     }
 
@@ -476,12 +482,12 @@ const unsubscribeApi = api.subscribe(syncLocal);
         }
 
         parsedRows.push({
-          name: cols[0],
-          genericName: cols[1],
+          name: cols[0] || 'Generic Medicine',
+          genericName: cols[1] || cols[0] || 'Generic',
           category: cols[2] || 'General',
-          manufacturer: cols[3],
-          batchNumber: cols[4],
-          expiryDate: cols[5],
+          manufacturer: cols[3] || 'Generic Labs',
+          batchNumber: cols[4] || `BAT-${Date.now().toString().substring(8)}`,
+          expiryDate: cols[5] || new Date(Date.now() + 180 * 24 * 3600 * 1000).toISOString().split('T')[0],
           mrp: Number(cols[6]) || Number(cols[7]) || 0,
           price: Number(cols[7]) || 0,
           stock: Number(cols[8]) || 0,
@@ -924,11 +930,11 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                       </span>
                                       <div className="space-y-1.5">
                                         {prescription.extractedMedicines.map((m, idx) => {
-                                          const isSpectacles = m.name.startsWith('Spectacles (');
+                                          const isSpectacles = (m.name || '').startsWith('Spectacles (');
                                           if (isSpectacles) {
                                             // Parse refraction from dosage field!
-                                            const odPart = m.dosage.split('|')[0] || '';
-                                            const osPart = m.dosage.split('|')[1] || '';
+                                            const odPart = (m.dosage || '').split('|')[0] || '';
+                                            const osPart = (m.dosage || '').split('|')[1] || '';
                                             
                                             const parseEye = (part: string) => {
                                               const sphMatch = part.match(/SPH\s+([^\s]+)/);
@@ -945,7 +951,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                             
                                             const od = parseEye(odPart);
                                             const os = parseEye(osPart);
-                                            const lensType = m.name.replace('Spectacles (', '').replace(')', '');
+                                            const lensType = (m.name || '').replace('Spectacles (', '').replace(')', '') || 'Standard';
                                             
                                             return (
                                               <div key={idx} className="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-slate-800 w-full">
@@ -1067,11 +1073,23 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                                             }
                                                           }));
                                                         } else {
-                                                          alert('Please allow popups to view the Spectacle Rx Card PDF');
+                                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                            detail: {
+                                                              title: 'Popup Blocked',
+                                                              message: 'Please allow popups to view the Spectacle Rx Card PDF.',
+                                                              type: 'warning'
+                                                            }
+                                                          }));
                                                         }
                                                       } catch (err) {
                                                         console.error('[Optical POS] Failed to generate PDF:', err);
-                                                        alert('Error compiling Spectacle Rx Card PDF.');
+                                                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                          detail: {
+                                                            title: 'PDF Generation Failed',
+                                                            message: 'Error compiling Spectacle Rx Card PDF.',
+                                                            type: 'error'
+                                                          }
+                                                        }));
                                                       }
                                                     }}
                                                     className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-[8px] uppercase tracking-wider flex items-center gap-1 border-0 cursor-pointer transition-colors active:scale-95 font-mono"
@@ -2272,9 +2290,9 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                     [{patient.patientCode || patient.tokenNumber || 'PAT'}]
                                   </span>
                                 </h4>
-                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone}</p>
+                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone || '—'}</p>
                               </div>
-                              <span className="text-xs font-black text-amber-600">₹{totalAmt.toFixed(0)}</span>
+                              <span className="text-xs font-black text-amber-600">₹{(totalAmt || 0).toFixed(0)}</span>
                             </div>
                             <div className="space-y-1">
                               {patientHolds.map(h => {
@@ -2282,7 +2300,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                 return (
                                   <div key={h.id} className="flex justify-between text-[10px] text-slate-600 font-mono">
                                     <span>💊 {h.medicineName} x{h.quantity}</span>
-                                    <span>₹{invItem ? (invItem.price * h.quantity).toFixed(0) : '150'}</span>
+                                    <span>₹{invItem ? ((invItem.price || 0) * (h.quantity || 1)).toFixed(0) : '150'}</span>
                                   </div>
                                 );
                               })}
@@ -2328,7 +2346,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                   gstAmount,
                                   totalAmount: subtotal + gstAmount,
                                   paymentMode: 'cash' as const,
-                                  upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(subtotal + gstAmount).toFixed(2)}&cu=INR`,
+                                  upiQrPayload: `upi://pay?pa=${activePod?.upiVpa || 'vitalsync@axl'}&pn=${encodeURIComponent(activePod?.name || 'VitalSync')}&am=${(subtotal + gstAmount).toFixed(2)}&cu=INR`,
                                   status: 'draft' as const,
                                   source: 'counter' as const,
                                   createdAt: new Date().toISOString()

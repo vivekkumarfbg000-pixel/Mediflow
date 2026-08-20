@@ -251,8 +251,8 @@ export class LabBillingService {
   <p class="clinic-name">VitalSync Connected Care Ecosystem</p>
 
   <div class="meta">
-    <span>Invoice #${bill.id.substring(0, 8).toUpperCase()}</span>
-    <span>${new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+    <span>Invoice #${(bill.id || 'N/A').substring(0, 8).toUpperCase()}</span>
+    <span>${new Date(bill.createdAt || Date.now()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
   </div>
 
   <div class="patient-info">
@@ -276,10 +276,10 @@ export class LabBillingService {
   </table>
 
   <table class="totals">
-    <tr><td>Subtotal</td><td>₹${bill.subtotal.toFixed(2)}</td></tr>
-    ${bill.discountAmount > 0 ? `<tr><td>Discount</td><td>-₹${bill.discountAmount.toFixed(2)}</td></tr>` : ''}
-    ${bill.gstAmount > 0 ? `<tr><td>GST</td><td>₹${bill.gstAmount.toFixed(2)}</td></tr>` : ''}
-    <tr class="grand-total"><td>Total Amount</td><td>₹${bill.totalAmount.toFixed(2)}</td></tr>
+    <tr><td>Subtotal</td><td>₹${(bill.subtotal || 0).toFixed(2)}</td></tr>
+    ${(bill.discountAmount || 0) > 0 ? `<tr><td>Discount</td><td>-₹${(bill.discountAmount || 0).toFixed(2)}</td></tr>` : ''}
+    ${(bill.gstAmount || 0) > 0 ? `<tr><td>GST</td><td>₹${(bill.gstAmount || 0).toFixed(2)}</td></tr>` : ''}
+    <tr class="grand-total"><td>Total Amount</td><td>₹${(bill.totalAmount || 0).toFixed(2)}</td></tr>
   </table>
 
   <p>
@@ -303,24 +303,24 @@ export class LabBillingService {
       `• ${item.testName} (${item.loincCode}) — ₹${item.lineTotal.toFixed(2)}`
     ).join('\n');
 
-    const discountText = bill.discountAmount > 0
-      ? `\n🎉 Discount Applied: -₹${bill.discountAmount.toFixed(2)}`
+    const discountText = (bill.discountAmount || 0) > 0
+      ? `\n🎉 Discount Applied: -₹${(bill.discountAmount || 0).toFixed(2)}`
       : '';
 
-    const gstText = bill.gstAmount > 0
-      ? `\n📋 GST: ₹${bill.gstAmount.toFixed(2)}`
+    const gstText = (bill.gstAmount || 0) > 0
+      ? `\n📋 GST: ₹${(bill.gstAmount || 0).toFixed(2)}`
       : '';
 
     return `🧪 *Lab Test Invoice — VitalSync Pathology*\n\n` +
-      `👤 *Patient:* ${bill.patientName}\n` +
-      `📱 *Phone:* +91 ${bill.patientPhone}\n` +
-      `📄 *Invoice:* #${bill.id.substring(0, 8).toUpperCase()}\n` +
-      `📅 *Date:* ${new Date(bill.createdAt).toLocaleString('en-IN')}\n\n` +
+      `👤 *Patient:* ${bill.patientName || 'Patient'}\n` +
+      `📱 *Phone:* +91 ${bill.patientPhone || 'N/A'}\n` +
+      `📄 *Invoice:* #${(bill.id || 'N/A').substring(0, 8).toUpperCase()}\n` +
+      `📅 *Date:* ${new Date(bill.createdAt || Date.now()).toLocaleString('en-IN')}\n\n` +
       `*Tests:*\n${itemsList}\n\n` +
-      `💰 Subtotal: ₹${bill.subtotal.toFixed(2)}` +
+      `💰 Subtotal: ₹${(bill.subtotal || 0).toFixed(2)}` +
       discountText +
       gstText +
-      `\n\n✅ *Grand Total: ₹${bill.totalAmount.toFixed(2)}*\n` +
+      `\n\n✅ *Grand Total: ₹${(bill.totalAmount || 0).toFixed(2)}*\n` +
       `💳 Payment Mode: ${bill.paymentMode?.toUpperCase() || 'PENDING'}\n` +
       `📊 Status: ${bill.status === 'paid' ? '✓ PAID' : '⚠ UNPAID'}\n\n` +
       `_Thank you for choosing VitalSync Connected Care!_`;

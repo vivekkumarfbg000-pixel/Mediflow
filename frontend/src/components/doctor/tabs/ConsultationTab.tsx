@@ -169,7 +169,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   handleSaveEncounter,
   handleLaunchVideoConsult
 }) => {
-  const { activePod } = useClinic();
+  const { activePod, activeProfile: clinicProfile } = useClinic();
   const [appointments, setAppointments] = useState<Appointment[]>(api.getAppointments());
   const [aiHistory, setAiHistory] = useState<any[]>([]);
 
@@ -289,7 +289,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const [lensType, setLensType] = useState('Monofocal');
   const [iolPower, setIolPower] = useState('');
   const [surgeryDate, setSurgeryDate] = useState('');
-  const [surgeryCoordinator, setSurgeryCoordinator] = useState('Sister Mary (OT Charge)');
+  const [surgeryCoordinator, setSurgeryCoordinator] = useState('OT Nurse In-Charge');
   const [surgeryPackage, setSurgeryPackage] = useState('Indian Monofocal (SICS)');
   const [isSurgerySaving, setIsSurgerySaving] = useState(false);
 
@@ -307,7 +307,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         setLensType(booking.lensType || 'Monofocal');
         setIolPower(booking.iolPower || '');
         setSurgeryDate(booking.date || '');
-        setSurgeryCoordinator(booking.coordinator || 'Sister Mary (OT Charge)');
+        setSurgeryCoordinator(booking.coordinator || 'OT Nurse In-Charge');
         setSurgeryPackage(booking.package || 'Indian Monofocal (SICS)');
       } else {
         setSurgeryEye('None');
@@ -315,7 +315,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         setLensType('Monofocal');
         setIolPower('');
         setSurgeryDate('');
-        setSurgeryCoordinator('Sister Mary (OT Charge)');
+        setSurgeryCoordinator('OT Nurse In-Charge');
         setSurgeryPackage('Indian Monofocal (SICS)');
       }
 
@@ -335,7 +335,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       setLensType('Monofocal');
       setIolPower('');
       setSurgeryDate('');
-      setSurgeryCoordinator('Sister Mary (OT Charge)');
+      setSurgeryCoordinator('OT Nurse In-Charge');
       setSurgeryPackage('Indian Monofocal (SICS)');
 
       setGpProcedureType('None');
@@ -579,7 +579,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <p>Connected Care Clinic Network</p>
             </div>
             <div class="doc-info">
-              <strong>${activePod?.doctor_name || activePod?.name || 'Dr. Practitioner'}</strong><br/>
+              <strong>${activePod?.doctorName || activePod?.doctor_name || clinicProfile?.display_name || 'Dr. Practitioner'}</strong><br/>
               ${(activePod as any)?.specialization || 'Clinical Care Specialist'}<br/>
               ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'VS-V01R'})<br/>
               Date: ${new Date().toLocaleDateString('en-IN')}
@@ -1024,9 +1024,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           
           <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
             {(() => {
-              const parseTokenNum = (token?: string) => {
+              const parseTokenNum = (token?: string | number) => {
                 if (!token) return Infinity;
-                const match = token.match(/\d+/);
+                const match = String(token).match(/\d+/);
                 return match ? parseInt(match[0], 10) : Infinity;
               };
 
@@ -1913,12 +1913,19 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <button
                 onClick={async () => {
                   if (!notes.trim()) {
-                    alert('Please write suggestions first.');
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'Notes Required',
+                        message: 'Please write consultation suggestions or clinical notes first.',
+                        type: 'warning'
+                      }
+                    }));
                     return;
                   }
                   setIsGeneratingSummary(true);
                   try {
-                    const summary = await api.generateConsultHinglishSummary(selectedPatient.id, notes);
+                    const doctorTitle = activePod?.doctorName || clinicProfile?.display_name || 'Doctor';
+                    const summary = await api.generateConsultHinglishSummary(selectedPatient.id, notes, doctorTitle);
                     setHinglishSummary(summary);
                     
                     const taskId = `task-hinglish-${selectedPatient.id}-${Date.now()}`;
@@ -2352,7 +2359,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       <div className="space-y-1">
                         <h5 className="font-extrabold text-[11px] text-amber-850 uppercase tracking-wide">Nephrotoxic NSAID Alert (Renal Risk)</h5>
                         <p className="text-[10px] text-amber-700 leading-relaxed font-medium">
-                          Attending patient has elevated Serum Creatinine ({currentCreatinine} mg/dL) or GFR ({Math.round(currentGfr * 10) / 10} mL/min). Clinical decision guidelines suggest avoiding nephrotoxic NSAIDs to prevent acute renal failure.
+                          Attending patient has elevated Serum Creatinine ({currentCreatinine || 0} mg/dL) or GFR ({Math.round((currentGfr || 90) * 10) / 10} mL/min). Clinical decision guidelines suggest avoiding nephrotoxic NSAIDs to prevent acute renal failure.
                         </p>
                       </div>
                     </div>
@@ -2718,14 +2725,16 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
               {testCatalog
-                .filter((test: DiagnosticTest) => 
-                  !testSearchQuery || 
-                  test.name.toLowerCase().includes(testSearchQuery.toLowerCase()) || 
-                  (test.category && test.category.toLowerCase().includes(testSearchQuery.toLowerCase())) ||
-                  test.loincCode.toLowerCase().includes(testSearchQuery.toLowerCase())
-                )
+                .filter((test: DiagnosticTest) => {
+                  if (!testSearchQuery) return true;
+                  const q = (testSearchQuery || '').toLowerCase();
+                  const nameLower = (test.name || '').toLowerCase();
+                  const catLower = (test.category || '').toLowerCase();
+                  const loincLower = (test.loincCode || '').toLowerCase();
+                  return nameLower.includes(q) || catLower.includes(q) || loincLower.includes(q);
+                })
                 .map((test: DiagnosticTest) => {
-                const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode || t.name.toLowerCase() === test.name.toLowerCase());
+                const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode || (t.name || '').toLowerCase() === (test.name || '').toLowerCase());
                 return (
                   <button
                     key={test.loincCode}
@@ -2946,9 +2955,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           onChange={e => setSurgeryCoordinator(e.target.value)}
                           className="w-full bg-white border border-slate-250 focus:border-indigo-400 rounded-lg py-1.5 px-2 text-xs text-slate-850 cursor-pointer"
                         >
-                          <option value="Sister Mary (OT Charge)">Sister Mary (OT Charge)</option>
-                          <option value="Brother Paul (OT Assistant)">Brother Paul (OT Assistant)</option>
-                          <option value="Dr. Verma (Anesthetist)">Dr. Verma (Anesthetist)</option>
+                          <option value="OT Nurse In-Charge">OT Nurse In-Charge</option>
+                          <option value="Senior OT Assistant">Senior OT Assistant</option>
+                          <option value="On-Duty Anesthetist">On-Duty Anesthetist</option>
                         </select>
                       </div>
                     </>
@@ -3122,10 +3131,10 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <div className="p-5 bg-slate-50/50 border border-slate-200 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-4 relative">
                 <div className="space-y-1 text-left border-r border-dashed border-slate-200 pr-4">
                   <h4 className="text-xs font-bold text-slate-900 uppercase">
-                    {isOphthalmology ? "Dr. Amit Arya, MS (Ophthalmology)" : "Dr. Sharma, MD (Medicine)"}
+                    {activePod?.doctorName || clinicProfile?.display_name || (isOphthalmology ? "Dr. Amit Arya, MS (Ophthalmology)" : "Consultant Physician")}
                   </h4>
                   <p className="text-[10px] text-slate-500 font-medium">
-                    {isOphthalmology ? "Ophthalmic Microsurgery & Refractive Consultant" : "General Medicine & Nephrology Specialist"}
+                    {isOphthalmology ? "Ophthalmic Microsurgery & Refractive Consultant" : "General Medicine & Clinical Consultant"}
                   </p>
                   <p className="text-[9px] text-slate-400 font-mono">
                     Reg No: MCI-84992-A • Phone: +91 99342 98453
@@ -3398,10 +3407,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   {/* Diagnostic catalog list grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 lg:overflow-y-auto lg:max-h-[260px] max-h-none pr-1 pt-1">
                     {testCatalog
-                      .filter(test => 
-                        test.name.toLowerCase().includes(testSearchQuery.toLowerCase()) || 
-                        test.loincCode.toLowerCase().includes(testSearchQuery.toLowerCase())
-                      )
+                      .filter(test => {
+                        const q = (testSearchQuery || '').toLowerCase();
+                        const nameLower = (test.name || '').toLowerCase();
+                        const loincLower = (test.loincCode || '').toLowerCase();
+                        return !q || nameLower.includes(q) || loincLower.includes(q);
+                      })
                       .map((test) => {
                         const isChecked = selectedTests.some(t => t.loincCode === test.loincCode);
                         return (

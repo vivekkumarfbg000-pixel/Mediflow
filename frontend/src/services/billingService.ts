@@ -935,9 +935,9 @@ export class BillingService {
               const podParsed = podRaw ? (() => { try { return JSON.parse(podRaw); } catch { return null; } })() : null;
               const doctorLabel = podParsed?.doctorName || 'Doctor';
               const text = `✅ *Consultation Fee Received!* \n\nPatient has been added to ${doctorLabel}'s active queue. Please enter the consultation chamber when called.`;
-              const currentHistory = existing.sessionData.chatHistory || [];
+              const currentHistory = existing.sessionData?.chatHistory || [];
               currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
-              existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
+              existing.sessionData = { ...(existing.sessionData || {}), chatHistory: currentHistory };
               save('whatsapp_sessions', sessions);
               supabase.from('whatsapp_sessions').update({
                 session_data: existing.sessionData,
@@ -959,7 +959,7 @@ export class BillingService {
                 patientName: PatientService.getPatients().find(p => p.id === appt.patientId)?.name || 'Unknown',
                 testCode: loinc,
                 testName: testName,
-                barcode: `BAR-${appt.id.substring(0, 8).toUpperCase()}-${loinc}`,
+                barcode: `BAR-${(appt.id || 'APPT').substring(0, 8).toUpperCase()}-${loinc}`,
                 status: 'pending',
                 prescriptionFileUrl: rx?.prescriptionFileUrl,
                 createdAt: new Date().toISOString()
@@ -1132,10 +1132,12 @@ export class BillingService {
     const pharmacyInventory = await import('./pharmacyService').then(m => m.PharmacyService.getPharmacyInventory());
     if (rx.extractedMedicines && rx.extractedMedicines.length > 0) {
       rx.extractedMedicines.forEach(med => {
-        const invItem = pharmacyInventory.find(i =>
-          i.name.toLowerCase().includes(med.name.toLowerCase()) ||
-          i.genericName.toLowerCase().includes(med.name.toLowerCase())
-        );
+        const invItem = pharmacyInventory.find(i => {
+          const iName = (i.name || '').toLowerCase();
+          const iGeneric = (i.genericName || '').toLowerCase();
+          const medName = (med.name || '').toLowerCase();
+          return (iName && medName && iName.includes(medName)) || (iGeneric && medName && iGeneric.includes(medName));
+        });
         if (invItem) {
           // Default qty = 10, use selling price
           pharmaTotal += invItem.price * 10;

@@ -258,8 +258,13 @@ export const LabDashboard: React.FC = () => {
         // Submit the standard lab result (updates local state and pushes to DB requisitions)
         await api.submitLabResult(activeReqId, jsonPayload);
 
-        // Parse payload
-        const parsedPayload = JSON.parse(jsonPayload);
+        // Parse payload safely
+        let parsedPayload: any = {};
+        try {
+          parsedPayload = JSON.parse(jsonPayload);
+        } catch {
+          parsedPayload = { raw: jsonPayload };
+        }
         
         // Save the full structured report (so the compounder can see it in Gate 2)
         const reportUuid = crypto.randomUUID();
@@ -293,7 +298,13 @@ export const LabDashboard: React.FC = () => {
         setGenericUnit('');
       } catch (err: any) {
         console.error(err);
-        alert(`Error publishing report: ${err.message || err}`);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Report Publish Failed',
+            message: err?.message || 'Error publishing lab diagnostic report.',
+            type: 'error'
+          }
+        }));
       } finally {
         setIsProcessing(false);
       }
@@ -497,7 +508,13 @@ export const LabDashboard: React.FC = () => {
       setActiveTab('queue');
     } catch (err: any) {
       console.error(err);
-      alert(`Error submitting direct report: ${err.message || err}`);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Direct Submission Failed',
+          message: err?.message || 'Error submitting direct lab report.',
+          type: 'error'
+        }
+      }));
     } finally {
       setDirectBusy(false);
     }
@@ -913,7 +930,7 @@ export const LabDashboard: React.FC = () => {
                                 {(req.reagentDeductions || []).map((ded, idx) => (
                                   <div key={idx} className="text-right text-[10px] text-rose-400 flex items-center justify-end gap-1.5 font-bold font-mono">
                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                                    -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
+                                    -{ded.volumeDeducted}{ded.unit} {(ded.reagentName || '').replace(' Reagent', '')}
                                   </div>
                                 ))}
                               </td>
@@ -976,7 +993,7 @@ export const LabDashboard: React.FC = () => {
                                   {(req.reagentDeductions || []).map((ded, idx) => (
                                     <div key={idx} className="text-[9px] text-rose-500 flex items-center gap-1 font-bold font-mono">
                                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                                      -{ded.volumeDeducted}{ded.unit} {ded.reagentName.replace(' Reagent', '')}
+                                      -{ded.volumeDeducted}{ded.unit} {(ded.reagentName || '').replace(' Reagent', '')}
                                     </div>
                                   ))}
                                 </div>

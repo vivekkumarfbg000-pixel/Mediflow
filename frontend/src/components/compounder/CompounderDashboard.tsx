@@ -277,7 +277,7 @@ export const CompounderDashboard: React.FC = () => {
     // Step 7: Pharmacy
     let s7_status: 'completed' | 'active' | 'pending' | 'skipped' = 'pending';
     if (latestEncounter) {
-      if (latestEncounter.medications.length === 0) {
+      if ((latestEncounter.medications || []).length === 0) {
         s7_status = 'skipped';
       } else {
         const allSettled = mbills.length > 0 && mbills.every(b => b.status === 'paid' || b.status === 'confirmed');
@@ -912,7 +912,13 @@ export const CompounderDashboard: React.FC = () => {
   const handleUploadReportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadPatientName || !uploadTestName || !uploadPatientId) {
-      alert('Please fill out all required fields.');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Missing Required Fields',
+          message: 'Please fill out patient name, test name, and patient ID.',
+          type: 'error'
+        }
+      }));
       return;
     }
 
@@ -993,7 +999,13 @@ export const CompounderDashboard: React.FC = () => {
     // Check if already in billing items
     const exists = billingItems.find(i => i.inventoryItemId === med.id);
     if (exists) {
-      alert('This batch is already added to checkout.');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Already Added',
+          message: 'This medicine batch is already added to checkout.',
+          type: 'warning'
+        }
+      }));
       return;
     }
 
@@ -1274,7 +1286,13 @@ export const CompounderDashboard: React.FC = () => {
   const handleQuickRegisterPatient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickRegName.trim() || !quickRegPhone.trim() || !quickRegAge) {
-      alert('Please fill in Name, Phone, and Age.');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Incomplete Registration',
+          message: 'Please fill in Name, Phone, and Age.',
+          type: 'error'
+        }
+      }));
       return;
     }
 

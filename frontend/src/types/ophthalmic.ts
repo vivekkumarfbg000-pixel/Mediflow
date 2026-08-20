@@ -56,20 +56,20 @@ export function parseRefractionRx(notes: string): RefractionRx | null {
 }
 
 // Format refraction as a clean WhatsApp Spectacle Card text
-export function formatSpectacleCard(rx: RefractionRx, patientName: string): string {
+export function formatSpectacleCard(rx: RefractionRx, patientName?: string): string {
   let card = `👓 *Digital Spectacle Prescription* 👓\n\n`;
-  card += `Patient: *${patientName}*\n\n`;
+  card += `Patient: *${patientName || 'Patient'}*\n\n`;
   card += `*Right Eye (OD):*\n`;
-  card += `  SPH: ${rx.od.sph || 'Plano'} | CYL: ${rx.od.cyl || '—'} | Axis: ${rx.od.axis || '—'}°`;
-  if (rx.od.add) card += ` | ADD: ${rx.od.add}`;
+  card += `  SPH: ${rx?.od?.sph || 'Plano'} | CYL: ${rx?.od?.cyl || '—'} | Axis: ${rx?.od?.axis || '—'}°`;
+  if (rx?.od?.add) card += ` | ADD: ${rx.od.add}`;
   card += `\n\n`;
   card += `*Left Eye (OS):*\n`;
-  card += `  SPH: ${rx.os.sph || 'Plano'} | CYL: ${rx.os.cyl || '—'} | Axis: ${rx.os.axis || '—'}°`;
-  if (rx.os.add) card += ` | ADD: ${rx.os.add}`;
+  card += `  SPH: ${rx?.os?.sph || 'Plano'} | CYL: ${rx?.os?.cyl || '—'} | Axis: ${rx?.os?.axis || '—'}°`;
+  if (rx?.os?.add) card += ` | ADD: ${rx.os.add}`;
   card += `\n\n`;
-  if (rx.pd) card += `*PD (Pupil Distance):* ${rx.pd} mm\n`;
-  card += `*Lens Type:* ${rx.lensType}\n`;
-  if (rx.notes) card += `*Notes:* ${rx.notes}\n`;
+  if (rx?.pd) card += `*PD (Pupil Distance):* ${rx.pd} mm\n`;
+  card += `*Lens Type:* ${rx?.lensType || 'Single Vision'}\n`;
+  if (rx?.notes) card += `*Notes:* ${rx.notes}\n`;
   card += `\n📍 Collect at your nearest partner Optical Shop.\n`;
   card += `💳 Pay securely via UPI link below.`;
   return card;

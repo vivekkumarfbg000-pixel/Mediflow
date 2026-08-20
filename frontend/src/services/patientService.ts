@@ -121,7 +121,7 @@ export class PatientService {
     let modifiedBackfill = false;
     const letterCounters: Record<string, number> = {};
     rawPatients.forEach(p => {
-      if (p.patientCode) {
+      if (p.patientCode && typeof p.patientCode === 'string') {
         const match = p.patientCode.match(/^([A-Z]+)(\d+)$/);
         if (match) {
           const letter = match[1];
@@ -534,7 +534,7 @@ export class PatientService {
       try {
         const payload = JSON.parse(r.quantitativeResult || '{}');
         const bio = payload.biomarkers || {};
-        const dateStr = r.createdAt.split('T')[0];
+        const dateStr = (r.createdAt || new Date().toISOString()).split('T')[0];
 
         let entry = dateMap.get(dateStr);
         if (!entry) {
@@ -587,7 +587,7 @@ export class PatientService {
 
     const patientObj = this.getPatients().find(p => p.id === patientId);
     if (patientObj && patientObj.vitals) {
-      const vDate = patientObj.vitals.recordedAt.split('T')[0];
+      const vDate = (patientObj.vitals.recordedAt || new Date().toISOString()).split('T')[0];
       const existing = historyList.find(h => h.date === vDate);
       if (existing) {
         existing.temperature = patientObj.vitals.temperature;
@@ -904,7 +904,7 @@ export class PatientService {
     const patient = patients.find(p => p.id === patientId);
     if (!patient) return 'No patient data resolved.';
 
-    return `Patient ${patient.name} (${patient.age}y, ${patient.gender}) presents active chronic management for ${patient.chronicConditions.join(', ') || 'general complaints'}. Overall wellness score: 84/100. CDSS recommends continuous monitoring of blood pressure, bi-weekly capillary blood glucose, and strict avoidance of documented allergy triggers (${patient.allergies.join(', ') || 'NKDA'}).`;
+    return `Patient ${patient.name} (${patient.age}y, ${patient.gender}) presents active chronic management for ${(patient.chronicConditions || []).join(', ') || 'general complaints'}. Overall wellness score: 84/100. CDSS recommends continuous monitoring of blood pressure, bi-weekly capillary blood glucose, and strict avoidance of documented allergy triggers (${(patient.allergies || []).join(', ') || 'NKDA'}).`;
   }
 
   static getSyntheticProfiles(): any[] {
@@ -964,13 +964,13 @@ export class PatientService {
     const bp = patient.vitals.bloodPressure || '';
     if (bp.includes('/')) {
       const [sysStr, diaStr] = bp.split('/');
-      const sys = parseInt(sysStr);
-      const dia = parseInt(diaStr);
+      const sys = parseInt(sysStr || '0', 10);
+      const dia = parseInt(diaStr || '0', 10);
       if (sys > 140 || dia > 90) {
         return { isAlert: true, reason: `High BP: ${bp} mmHg` };
       }
     }
-    const sugar = parseInt(patient.vitals.bloodSugar || '');
+    const sugar = parseInt(patient.vitals.bloodSugar || '', 10);
     if (!isNaN(sugar) && sugar > 200) {
       return { isAlert: true, reason: `High Sugar: ${sugar} mg/dL` };
     }
@@ -989,8 +989,8 @@ export class PatientService {
     if (patientEncounters.length === 0) {
       return { amount: baseFee, type: 'First Visit', baseAmount: baseFee };
     }
-    const sorted = [...patientEncounters].sort((a, b) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime());
-    const lastVisitDate = new Date(sorted[0].created_at || sorted[0].createdAt);
+    const sorted = [...patientEncounters].sort((a, b) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime());
+    const lastVisitDate = new Date(sorted[0]?.created_at || sorted[0]?.createdAt || Date.now());
     const diffDays = Math.floor((Date.now() - lastVisitDate.getTime()) / (24 * 3600 * 1000));
     if (diffDays <= 3) {
       return { amount: 0, type: 'Free Review', baseAmount: baseFee };

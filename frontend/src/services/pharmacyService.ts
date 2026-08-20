@@ -961,20 +961,20 @@ export class PharmacyService {
 
     return `🏥 *VITALSYNC PHARMACY INVOICE*
 ----------------------------------------
-Patient Name: *${bill.patientName}*
-Invoice Ref: #${bill.id.substring(4, 10).toUpperCase()}
-Date: ${new Date(bill.createdAt).toLocaleDateString()}${gstinText}
+Patient Name: *${bill.patientName || 'Patient'}*
+Invoice Ref: #${(bill.id || 'N/A').substring(4, 10).toUpperCase()}
+Date: ${new Date(bill.createdAt || Date.now()).toLocaleDateString()}${gstinText}
 
 *Medicines Ordered:*
 ${itemsList}
 
-Subtotal: ₹${bill.subtotal.toFixed(2)}${loyaltyText}${itemDiscountText}
-GST (Tax): ₹${bill.gstAmount.toFixed(2)}${deliveryText}
+Subtotal: ₹${(bill.subtotal || 0).toFixed(2)}${loyaltyText}${itemDiscountText}
+GST (Tax): ₹${(bill.gstAmount || 0).toFixed(2)}${deliveryText}
 ----------------------------------------
-*TOTAL AMOUNT PAYABLE: ₹${bill.totalAmount.toFixed(2)}*
+*TOTAL AMOUNT PAYABLE: ₹${(bill.totalAmount || 0).toFixed(2)}*
 
 📱 Pay securely via UPI link below:
-${bill.upiQrPayload || `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${bill.totalAmount.toFixed(2)}&cu=INR&tn=VS-BILL-${bill.id.substring(4, 8)}`}
+${bill.upiQrPayload || `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(bill.totalAmount || 0).toFixed(2)}&cu=INR&tn=VS-BILL-${(bill.id || 'N/A').substring(4, 8)}`}
 
 ${bill.deliveryType === 'shiprocket' 
   ? '📍 Your order will be dispatched via Shiprocket once payment is cleared!' 
@@ -983,18 +983,24 @@ Thank you for choosing VitalSync! 🟢`;
   }
 
   private static base64ToBlob(base64: string, mimeType: string): Blob {
-    const byteCharacters = atob(base64.split(',')[1] || base64);
-    const byteArrays = [];
-    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-      const slice = byteCharacters.slice(offset, offset + 512);
-      const byteNumbers = new Array(slice.length);
-      for (let i = 0; i < slice.length; i++) {
-        byteNumbers[i] = slice.charCodeAt(i);
+    try {
+      const cleanBase64 = (base64 || '').includes(',') ? base64.split(',')[1] : (base64 || '');
+      const byteCharacters = atob(cleanBase64.trim());
+      const byteArrays = [];
+      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      byteArrays.push(byteArray);
+      return new Blob(byteArrays, { type: mimeType });
+    } catch (_e) {
+      console.warn('[PharmacyService] base64ToBlob decoding failed, returning empty Blob fallback:', _e);
+      return new Blob([], { type: mimeType });
     }
-    return new Blob(byteArrays, { type: mimeType });
   }
 
   static async parseSupplierBillOCR(base64: string): Promise<MedicineImportRow[]> {
@@ -1028,14 +1034,14 @@ Thank you for choosing VitalSync! 🟢`;
           
           rows.push({
             name: key,
-            genericName: key.split(' ')[0],
-            category: key.toLowerCase().includes('metformin') ? 'Antidiabetic' : key.toLowerCase().includes('atorvastatin') ? 'Cardiovascular' : 'General',
+            genericName: (key || '').split(' ')[0] || key || 'Generic',
+            category: (key || '').toLowerCase().includes('metformin') ? 'Antidiabetic' : (key || '').toLowerCase().includes('atorvastatin') ? 'Cardiovascular' : 'General',
             manufacturer: 'Generic Labs',
             batchNumber: batchMatch ? batchMatch[1].trim() : `AI-${Date.now().toString().substring(8)}`,
             expiryDate: expMatch ? expMatch[1].trim() : new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().split('T')[0],
             mrp: mrpMatch ? parseFloat(mrpMatch[1]) : 20,
             price: mrpMatch ? parseFloat(mrpMatch[1]) * 0.9 : 18,
-            stock: qtyMatch ? parseInt(qtyMatch[1]) : 100,
+            stock: qtyMatch ? parseInt(qtyMatch[1], 10) : 100,
             unit: 'tabs',
             threshold: 20,
             dosage: key.match(/\d+mg/)?.[0] || '10mg',
@@ -1111,12 +1117,14 @@ Thank you for choosing VitalSync! 🟢`;
 
     names.forEach(name => {
       const today = new Date().toISOString().split('T')[0];
-      const match = inventory.find(item => 
-        (item.name.toLowerCase().includes(name.toLowerCase()) || 
-         item.genericName.toLowerCase().includes(name.toLowerCase())) &&
-        item.expiryDate >= today &&
-        item.stock > 0
-      );
+      const match = inventory.find(item => {
+        const iName = (item.name || '').toLowerCase();
+        const iGeneric = (item.genericName || '').toLowerCase();
+        const qName = (name || '').toLowerCase();
+        return ((iName && qName && iName.includes(qName)) || (iGeneric && qName && iGeneric.includes(qName))) &&
+          (item.expiryDate || '') >= today &&
+          (item.stock || 0) > 0;
+      });
       if (match) {
         matched.push(match);
       }
@@ -1272,8 +1280,8 @@ Thank you for choosing VitalSync! 🟢`;
   <p class="clinic-name">VitalSync Connected Care Ecosystem</p>
 
   <div class="meta">
-    <span>Invoice #${bill.id.substring(0, 8).toUpperCase()}</span>
-    <span>${new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+    <span>Invoice #${(bill.id || 'N/A').substring(0, 8).toUpperCase()}</span>
+    <span>${new Date(bill.createdAt || Date.now()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
   </div>
 
   <div class="patient-info">
@@ -1298,12 +1306,12 @@ Thank you for choosing VitalSync! 🟢`;
   </table>
 
   <table class="totals">
-    <tr><td>Subtotal</td><td>₹${bill.subtotal.toFixed(2)}</td></tr>
-    ${bill.itemDiscountAmount > 0 ? `<tr><td>Item Discount</td><td>-₹${bill.itemDiscountAmount.toFixed(2)}</td></tr>` : ''}
-    ${bill.loyaltyDiscountAmount > 0 ? `<tr><td>Loyalty Discount (${bill.loyaltyDiscountPercent}%)</td><td>-₹${bill.loyaltyDiscountAmount.toFixed(2)}</td></tr>` : ''}
-    ${bill.gstAmount > 0 ? `<tr><td>GST</td><td>₹${bill.gstAmount.toFixed(2)}</td></tr>` : ''}
-    ${(bill.deliveryCharge || 0) > 0 ? `<tr><td>Delivery (Shiprocket)</td><td>₹${bill.deliveryCharge?.toFixed(2)}</td></tr>` : ''}
-    <tr class="grand-total"><td>Total Amount</td><td>₹${bill.totalAmount.toFixed(2)}</td></tr>
+    <tr><td>Subtotal</td><td>₹${(bill.subtotal || 0).toFixed(2)}</td></tr>
+    ${(bill.itemDiscountAmount || 0) > 0 ? `<tr><td>Item Discount</td><td>-₹${(bill.itemDiscountAmount || 0).toFixed(2)}</td></tr>` : ''}
+    ${(bill.loyaltyDiscountAmount || 0) > 0 ? `<tr><td>Loyalty Discount (${bill.loyaltyDiscountPercent || 0}%)</td><td>-₹${(bill.loyaltyDiscountAmount || 0).toFixed(2)}</td></tr>` : ''}
+    ${(bill.gstAmount || 0) > 0 ? `<tr><td>GST</td><td>₹${(bill.gstAmount || 0).toFixed(2)}</td></tr>` : ''}
+    ${(bill.deliveryCharge || 0) > 0 ? `<tr><td>Delivery (Shiprocket)</td><td>₹${(bill.deliveryCharge || 0).toFixed(2)}</td></tr>` : ''}
+    <tr class="grand-total"><td>Total Amount</td><td>₹${(bill.totalAmount || 0).toFixed(2)}</td></tr>
   </table>
 
   <p>

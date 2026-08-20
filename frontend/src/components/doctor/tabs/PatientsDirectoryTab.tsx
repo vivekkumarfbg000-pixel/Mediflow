@@ -181,7 +181,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
           ...p,
           id: newPatientId
         });
-        setImportProgress(Math.round(((i + 1) / parsedList.length) * 100));
+        setImportProgress(Math.round(((i + 1) / (parsedList.length || 1)) * 100));
         await new Promise(resolve => setTimeout(resolve, 80));
       }
       setParsedList([]);

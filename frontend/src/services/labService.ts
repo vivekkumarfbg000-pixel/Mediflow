@@ -671,9 +671,17 @@ export class LabService {
     const idx = reports.findIndex(r => r.id === reportId);
     if (idx < 0) return;
 
-    const revisitAt = revisitDate && revisitTime
-      ? new Date(`${revisitDate}T${revisitTime}:00`).toISOString()
-      : undefined;
+    let revisitAt: string | undefined = undefined;
+    if (revisitDate && revisitTime) {
+      try {
+        const d = new Date(`${revisitDate}T${revisitTime}:00`);
+        if (!isNaN(d.getTime())) {
+          revisitAt = d.toISOString();
+        }
+      } catch (err) {
+        console.warn('Invalid revisit date/time:', err);
+      }
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     reports[idx].status = 'approved';

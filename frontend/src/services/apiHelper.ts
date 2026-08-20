@@ -46,20 +46,33 @@ export function clearStorageCache(key?: string) {
 const STORAGE_KEY_SALT = 'MediflowSecOpsStorageKey2026!';
 
 function obfuscate(text: string): string {
-  let result = '';
-  for (let i = 0; i < text.length; i++) {
-    result += String.fromCharCode(text.charCodeAt(i) ^ STORAGE_KEY_SALT.charCodeAt(i % STORAGE_KEY_SALT.length));
+  try {
+    const utf8Safe = encodeURIComponent(text);
+    let result = '';
+    for (let i = 0; i < utf8Safe.length; i++) {
+      result += String.fromCharCode(utf8Safe.charCodeAt(i) ^ STORAGE_KEY_SALT.charCodeAt(i % STORAGE_KEY_SALT.length));
+    }
+    return btoa(result);
+  } catch (_e) {
+    return btoa(unescape(encodeURIComponent(text)));
   }
-  return btoa(unescape(encodeURIComponent(result)));
 }
 
 function deobfuscate(encoded: string): string {
-  const raw = decodeURIComponent(escape(atob(encoded)));
-  let result = '';
-  for (let i = 0; i < raw.length; i++) {
-    result += String.fromCharCode(raw.charCodeAt(i) ^ STORAGE_KEY_SALT.charCodeAt(i % STORAGE_KEY_SALT.length));
+  try {
+    const raw = atob(encoded);
+    let result = '';
+    for (let i = 0; i < raw.length; i++) {
+      result += String.fromCharCode(raw.charCodeAt(i) ^ STORAGE_KEY_SALT.charCodeAt(i % STORAGE_KEY_SALT.length));
+    }
+    try {
+      return decodeURIComponent(result);
+    } catch (_uriErr) {
+      return decodeURIComponent(escape(result));
+    }
+  } catch (_atobErr) {
+    return encoded;
   }
-  return result;
 }
 
 export function load<T>(key: string, defaultValue: T): T {

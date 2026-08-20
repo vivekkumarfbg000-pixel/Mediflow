@@ -197,7 +197,7 @@ export class ForecastService {
     }
   }
 
-  static async generateConsultRoom(appointmentId: string, patientPhone: string, doctorName = 'Dr. Sharma'): Promise<{ roomUrl: string }> {
+  static async generateConsultRoom(appointmentId: string, patientPhone: string, doctorName?: string): Promise<{ roomUrl: string }> {
     if (this.FORCE_MOCK_DEMO) {
       return { roomUrl: `https://meet.jit.si/mediflow-consult-${appointmentId}` };
     }
@@ -362,12 +362,13 @@ export class ForecastService {
     }
   }
 
-  static async generateConsultHinglishSummary(patientId: string, suggestionsText: string): Promise<string> {
+  static async generateConsultHinglishSummary(patientId: string, suggestionsText: string, doctorName?: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 1000));
     const patient = PatientService.getPatients().find(p => p.id === patientId);
     const pName = patient ? patient.name : 'Patient';
+    const doc = doctorName || 'Doctor';
 
-    return `Namaste ${pName} ji. Dr. Sharma ne aapke suggestions record kiye hain:
+    return `Namaste ${pName} ji. ${doc} ne aapke suggestions record kiye hain:
 1. Aapko diet control karni hai aur meetha bilkul kam khana hai.
 2. ${suggestionsText || 'Aapki dawaiyaan update kar di gayi hain.'}
 3. Reports aane ke baad ek baar revisit time schedule par zaroor milein.
@@ -755,8 +756,8 @@ Dhyan rakhein aur time par medicine lein!`;
           base64Data = await new Promise<string>((resolve, reject) => {
             const r = new FileReader();
             r.onloadend = () => {
-              const resStr = r.result as string;
-              resolve(resStr.split(',')[1]);
+              const resStr = (r.result as string) || '';
+              resolve(resStr.includes(',') ? resStr.split(',')[1] : resStr);
             };
             r.onerror = reject;
             r.readAsDataURL(blob);
@@ -808,11 +809,15 @@ If no prescription image could be loaded or fetched, generate a highly realistic
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const edgeFnUrl = `${supabaseUrl}/functions/v1/ai-inference`;
 
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
       const response = await fetch(edgeFnUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${token}`,
+          'apikey': anonKey
         },
         body: JSON.stringify({
           model,
@@ -832,8 +837,16 @@ If no prescription image could be loaded or fetched, generate a highly realistic
         throw new Error('Gemini returned an empty response.');
       }
 
-      const cleanJson = text.trim();
-      const parsed = JSON.parse(cleanJson);
+      let cleanJson = text.trim();
+      if (cleanJson.includes('```')) {
+        cleanJson = cleanJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      }
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(cleanJson);
+      } catch {
+        parsed = { requestedLOINCCodes: [] };
+      }
 
       const mappedTests: DiagnosticTest[] = [];
       if (parsed.requestedLOINCCodes && Array.isArray(parsed.requestedLOINCCodes)) {
