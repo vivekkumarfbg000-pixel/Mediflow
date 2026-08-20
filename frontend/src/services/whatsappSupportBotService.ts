@@ -130,9 +130,9 @@ export class WhatsAppSupportBotService {
         : 'Grant Platform Admin access & generate API credentials.';
 
       await this.logEscalationTicket({
-        clinic_name: senderInfo.clinicName,
-        doctor_name: senderInfo.name,
-        sender_role: senderInfo.role,
+        clinic_name: senderInfo.clinicName || 'Clinic Pod',
+        doctor_name: senderInfo.name || 'Doctor',
+        sender_role: (senderInfo.role as any) || 'doctor',
         query_text: queryText,
         category: 'owner_escalation',
         status: 'open',
@@ -153,9 +153,9 @@ export class WhatsAppSupportBotService {
         const ragResp = `🤖 *VITALSYNC AI SUPPORT RAG ASSISTANT*\n\n${kb.answer}\n\nNeed further assistance? Reply directly to this WhatsApp chat!`;
         
         await this.logEscalationTicket({
-          clinic_name: senderInfo.clinicName,
-          doctor_name: senderInfo.name,
-          sender_role: senderInfo.role,
+          clinic_name: senderInfo.clinicName || 'Clinic Pod',
+          doctor_name: senderInfo.name || 'Doctor',
+          sender_role: (senderInfo.role as any) || 'doctor',
           query_text: queryText,
           category: 'how_to',
           status: 'resolved',
@@ -171,9 +171,9 @@ export class WhatsAppSupportBotService {
     const defaultResp = `🤖 *VITALSYNC AI SUPPORT BOT*\n\nNamaste ${senderInfo.name}! I am your 24/7 VitalSync Platform Assistant.\n\nI can help you with:\n1. *1-Tap Prescriptions & AI Scribe*\n2. *Tokens & Queue Management*\n3. *Cashfree Payments & Easy Split*\n4. *Pharmacy Refills & B2B Referrals*\n\nType your query or describe any issue to get instant assistance!`;
 
     await this.logEscalationTicket({
-      clinic_name: senderInfo.clinicName,
-      doctor_name: senderInfo.name,
-      sender_role: senderInfo.role,
+      clinic_name: senderInfo.clinicName || 'Clinic Pod',
+      doctor_name: senderInfo.name || 'Doctor',
+      sender_role: (senderInfo.role as any) || 'doctor',
       query_text: queryText,
       category: 'how_to',
       status: 'resolved',

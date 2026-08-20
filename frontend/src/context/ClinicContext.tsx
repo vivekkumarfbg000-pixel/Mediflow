@@ -4,6 +4,7 @@ import type { Pod, Entity } from '../types';
 
 interface ClinicContextType {
   activePod: Pod | null;
+  activeProfile?: any;
   activeEntity: Entity | null;
   partnerStatus: 'pending' | 'approved' | 'rejected' | 'revoked' | null;
   podEntities: Entity[];
@@ -329,6 +330,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
   return (
     <ClinicContext.Provider value={{
       activePod,
+      activeProfile,
       activeEntity,
       partnerStatus,
       podEntities,

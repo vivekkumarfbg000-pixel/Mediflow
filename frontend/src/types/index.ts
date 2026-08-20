@@ -272,6 +272,9 @@ export interface Pod {
   isActive: boolean;
   createdAt: string;
   doctor_name?: string;
+  doctorName?: string;
+  upiVpa?: string;
+  upi_vpa?: string;
   specialization?: string;
 }
 

@@ -41,9 +41,9 @@ export class EncounterService {
     if (appt) {
       appt.status = 'completed';
       save('saas_appointments', appts);
-      supabase.from('appointments').update({ status: 'completed' }).eq('id', appt.id)
-        .then(res => { if (res?.error) console.error('[Mediflow] appointments update error:', res.error); })
-        .catch(err => console.error('[Mediflow] appointments background update caught:', err));
+      Promise.resolve(supabase.from('appointments').update({ status: 'completed' }).eq('id', appt.id))
+        .then((res: any) => { if (res?.error) console.error('[Mediflow] appointments update error:', res.error); })
+        .catch((err: any) => console.error('[Mediflow] appointments background update caught:', err));
     }
 
     // 1. Create local and Supabase lab requisitions for ordered diagnostic tests
@@ -83,9 +83,9 @@ export class EncounterService {
       }
       save('lab_requisitions', existingReqs);
       if (dbReqsToInsert.length > 0) {
-        supabase.from('lab_requisitions').insert(dbReqsToInsert)
-          .then(res => { if (res?.error) console.error('[Mediflow] lab_requisitions insert error:', res.error); })
-          .catch(err => console.error('[Mediflow] lab_requisitions background insert caught:', err));
+        Promise.resolve(supabase.from('lab_requisitions').insert(dbReqsToInsert))
+          .then((res: any) => { if (res?.error) console.error('[Mediflow] lab_requisitions insert error:', res.error); })
+          .catch((err: any) => console.error('[Mediflow] lab_requisitions background insert caught:', err));
       }
     }
 

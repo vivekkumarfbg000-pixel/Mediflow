@@ -265,16 +265,16 @@ export class WhatsAppService {
         }
 
         const podCtx = getPodContext();
-        supabase.rpc('atomic_update_whatsapp_session', {
+        Promise.resolve(supabase.rpc('atomic_update_whatsapp_session', {
           p_patient_phone: phone,
           p_patient_id: null,
           p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
           p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
           p_current_state: 'AWAITING_WELCOME',
           p_message: sessionIndex === -1 ? botMsg : [patientMsg, botMsg]
-        })
-        .then(res => { if (res?.error) console.error('[Mediflow] atomic_update_whatsapp_session error:', res.error); })
-        .catch(err => console.error('[Mediflow] atomic_update_whatsapp_session caught:', err));
+        }))
+        .then((res: any) => { if (res?.error) console.error('[Mediflow] atomic_update_whatsapp_session error:', res.error); })
+        .catch((err: any) => console.error('[Mediflow] atomic_update_whatsapp_session caught:', err));
         this.sendWhatsAppMessagePayload(phone, 'mediflow_conversational_reply', { replyText: welcomeText });
         return;
       }
@@ -404,15 +404,15 @@ export class WhatsAppService {
                   BillingService.clearInvoice(targetInv.id, 'upi');
 
                   // Also update Supabase appointments & invoices table
-                  supabase.from('unified_invoices').update({ payment_status: 'cleared', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id)
-                    .then(res => { if (res?.error) console.error('[Mediflow] unified_invoices error:', res.error); })
-                    .catch(err => console.error('[Mediflow] unified_invoices caught:', err));
-                  supabase.from('saas_invoices').update({ status: 'paid', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id)
-                    .then(res => { if (res?.error) console.error('[Mediflow] saas_invoices error:', res.error); })
-                    .catch(err => console.error('[Mediflow] saas_invoices caught:', err));
-                  supabase.from('appointments').update({ status: 'scheduled', payment_status: 'cleared', utr_number: utrNumber }).eq('patient_id', patient.id)
-                    .then(res => { if (res?.error) console.error('[Mediflow] appointments error:', res.error); })
-                    .catch(err => console.error('[Mediflow] appointments caught:', err));
+                  Promise.resolve(supabase.from('unified_invoices').update({ payment_status: 'cleared', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id))
+                    .then((res: any) => { if (res?.error) console.error('[Mediflow] unified_invoices error:', res.error); })
+                    .catch((err: any) => console.error('[Mediflow] unified_invoices caught:', err));
+                  Promise.resolve(supabase.from('saas_invoices').update({ status: 'paid', payment_method: 'upi', utr_number: utrNumber }).eq('id', targetInv.id))
+                    .then((res: any) => { if (res?.error) console.error('[Mediflow] saas_invoices error:', res.error); })
+                    .catch((err: any) => console.error('[Mediflow] saas_invoices caught:', err));
+                  Promise.resolve(supabase.from('appointments').update({ status: 'scheduled', payment_status: 'cleared', utr_number: utrNumber }).eq('patient_id', patient.id))
+                    .then((res: any) => { if (res?.error) console.error('[Mediflow] appointments error:', res.error); })
+                    .catch((err: any) => console.error('[Mediflow] appointments caught:', err));
 
                   nextState = 'COMPLETED';
                   const tokenCode = (patient as any)?.tokenNumber || (targetInv as any)?.tokenNumber || '#TK-005';
@@ -736,9 +736,9 @@ export class WhatsAppService {
                 const appt = appts[0];
                 appt.status = 'cancelled';
                 BillingService.saveAppointment(appt);
-                supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appt.id)
-                  .then(res => { if (res?.error) console.error('[Mediflow] appointments cancel error:', res.error); })
-                  .catch(err => console.error('[Mediflow] appointments cancel caught:', err));
+                Promise.resolve(supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appt.id))
+                  .then((res: any) => { if (res?.error) console.error('[Mediflow] appointments cancel error:', res.error); })
+                  .catch((err: any) => console.error('[Mediflow] appointments cancel caught:', err));
                 replyMessage = "❌ *Appointment Cancelled!* \n\nAapka active appointment cancel kar diya gaya hai. Agar wapas schedule karna ho toh **BOOK** reply kijiye.";
               } else {
                 replyMessage = "Aapke profile par koi active appointment scheduled nahi mila.";
@@ -897,11 +897,11 @@ export class WhatsAppService {
               appt.virtualTime = selectedSlotText;
               appt.virtualDate = new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0];
               BillingService.saveAppointment(appt);
-              supabase.from('appointments').update({
+              Promise.resolve(supabase.from('appointments').update({
                 status: 'ready_for_consult'
-              }).eq('id', apptId)
-                .then(res => { if (res?.error) console.error('[Mediflow] appointments update error:', res.error); })
-                .catch(err => console.error('[Mediflow] appointments update caught:', err));
+              }).eq('id', apptId))
+                .then((res: any) => { if (res?.error) console.error('[Mediflow] appointments update error:', res.error); })
+                .catch((err: any) => console.error('[Mediflow] appointments update caught:', err));
               
               nextState = 'COMPLETED';
               replyMessage = `📅 *Appointment Rescheduled Successfully!* \n\nSlot: *${selectedSlotText}* (Tomorrow)\n\nDoctor aur Compounder ko alert bhej diya gaya hai. Thank you! 😊`;
@@ -949,15 +949,15 @@ export class WhatsAppService {
               PatientService.savePatient(currentPat!);
               try {
                 const podId = getPodContext().podId;
-                supabase.from('patient_registry').insert({
+                Promise.resolve(supabase.from('patient_registry').insert({
                   id: newPatId,
                   name: currentPat!.name,
                   phone: phone,
                   registered_at: currentPat!.registeredAt,
                   pod_id: podId
-                })
-                .then(res => { if (res?.error) console.error('[Mediflow] patient_registry insert error:', res.error); })
-                .catch(err => console.error('[Mediflow] patient_registry insert caught:', err));
+                }))
+                .then((res: any) => { if (res?.error) console.error('[Mediflow] patient_registry insert error:', res.error); })
+                .catch((err: any) => console.error('[Mediflow] patient_registry insert caught:', err));
               } catch (_e) { /* ignore fallback error */ }
             }
 
