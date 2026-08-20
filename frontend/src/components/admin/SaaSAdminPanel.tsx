@@ -2909,8 +2909,6 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
             {activeTab === 'ai_fleet' && (
               <AIFleetCommanderTab />
             )}
-        </div>
-
 
 
         {/* ── Enterprise Tenant Telemetry & CS Inspector Modal ───────────────── */}
