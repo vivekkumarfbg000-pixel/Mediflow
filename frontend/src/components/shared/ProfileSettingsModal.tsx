@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useClinic } from '../../context/ClinicContext';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -324,8 +325,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
   const isUserPodAdmin = activeProfile?.role === 'doctor';
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 md:p-8 animate-scale-up font-sans flex flex-col max-h-[85vh]">
         
         {/* Header Section */}
@@ -969,6 +970,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

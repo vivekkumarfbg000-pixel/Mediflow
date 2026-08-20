@@ -124,7 +124,7 @@ export class RealtimeSyncService {
         const deduped = this.deduplicateEvents(events);
         
         const storageMap: Record<string, string[]> = {
-          'appointments': ['appointments'],
+          'appointments': ['saas_appointments', 'appointments'],
           'financial_ledgers': ['financial_ledgers'],
           'unified_invoices': ['unified_invoices'],
           'patient_registry': ['patients', 'patient_registry'],

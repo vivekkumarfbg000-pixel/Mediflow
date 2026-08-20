@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { StateHealingEngine, ProactiveHealthMonitor, type ServiceHealth } from '../../services/autoHealerAgent';
 import {
@@ -97,7 +98,10 @@ ${rawTraceback}
     try {
       const raw = localStorage.getItem('founder_alerts');
       if (raw) {
-        setFounderAlerts(JSON.parse(raw));
+        const parsed: any[] = JSON.parse(raw);
+        // Filter out benign vitals and spending metrics from founder emergency alerts
+        const genuineErrors = parsed.filter(a => a.type !== 'VITALS_BREACH' && a.type !== 'VITALS_METRIC' && a.type !== 'SPENDING_ALERT');
+        setFounderAlerts(genuineErrors);
       } else {
         setFounderAlerts([]);
       }
@@ -105,6 +109,29 @@ ${rawTraceback}
       setFounderAlerts([]);
     }
   }, []);
+
+  const handleResolveAlert = (idx: number) => {
+    const updated = founderAlerts.filter((_, i) => i !== idx);
+    setFounderAlerts(updated);
+    try {
+      localStorage.setItem('founder_alerts', JSON.stringify(updated));
+    } catch { /* ignore */ }
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: { title: 'Alert Resolved ✅', message: 'Archived incident from active queue.', type: 'success' }
+    }));
+  };
+
+  const handleResolveIncident = async (incidentId: string) => {
+    setIncidents(prev => prev.map(inc => inc.id === incidentId ? { ...inc, status: 'healed' } : inc));
+    try {
+      await supabase.from('system_health_telemetry')
+        .update({ status: 'healed', updated_at: new Date().toISOString() })
+        .eq('id', incidentId);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Incident Marked Healed ✅', message: 'Status synchronized to remote database.', type: 'success' }
+      }));
+    } catch { /* ignore */ }
+  };
 
   const [nodes, setNodes] = useState<SystemNode[]>([
     { key: 'database',   label: 'Database Node',     icon: Database,     status: 'active' },
@@ -444,11 +471,7 @@ ${rawTraceback}
                         {/* 3. Acknowledge & Resolve */}
                         <button
                           type="button"
-                          onClick={() => {
-                            const updated = founderAlerts.filter((_, i) => i !== idx);
-                            localStorage.setItem('founder_alerts', JSON.stringify(updated));
-                            setFounderAlerts(updated);
-                          }}
+                          onClick={() => handleResolveAlert(idx)}
                           className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold transition-all cursor-pointer"
                         >
                           ✓ Resolve
@@ -531,7 +554,7 @@ ${rawTraceback}
               </div>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {nodes.map(node => {
               const c = nodeStatusColor(node.status);
               const NodeIcon = node.icon;
@@ -678,6 +701,19 @@ ${rawTraceback}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
+                          {log.status !== 'healed' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleResolveIncident(log.id);
+                              }}
+                              className="px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9.5px] font-bold transition-all cursor-pointer"
+                              title="Mark incident as manually resolved / healed"
+                            >
+                              ✓ Mark Healed
+                            </button>
+                          )}
                           {getStatusBadge(log.status)}
                           {healLog && (isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />)}
                         </div>
@@ -707,9 +743,9 @@ ${rawTraceback}
         </div>
 
         {/* ── Subsystem Live Diagnostic Inspector Modal ────────────────────────── */}
-        {selectedNode && (
+        {selectedNode && createPortal(
           <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 relative">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 relative max-h-[90vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -757,6 +793,7 @@ ${rawTraceback}
               <div className="flex gap-2 justify-end pt-2">
                 <button
                   type="button"
+                  disabled={isTestingNode}
                   onClick={async () => {
                     setIsTestingNode(true);
                     setNodeTestOutput(`> Initiating deep diagnostic ping to [${selectedNode.key}]...\n> Handshake start: ${new Date().toISOString()}`);
@@ -781,7 +818,6 @@ ${rawTraceback}
                       setIsTestingNode(false);
                     }
                   }}
-                  disabled={isTestingNode}
                   className="flex h-10 items-center justify-center gap-2 w-full px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs cursor-pointer shadow-md disabled:opacity-50"
                 >
                   <Zap className={`h-4 w-4 ${isTestingNode ? 'animate-spin' : ''}`} />
@@ -789,12 +825,13 @@ ${rawTraceback}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* ── AI Repair Inspector Modal ─────────────────────────────────────── */}
-        {activeAiRepairModalAlert && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+        {activeAiRepairModalAlert && createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-3">
@@ -895,7 +932,8 @@ ${rawTraceback}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
       </div>

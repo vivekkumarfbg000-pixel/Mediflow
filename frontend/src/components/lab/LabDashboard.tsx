@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FlaskConical, Receipt, UserPlus, Upload, BarChart3, Landmark, Network, X, Check,
   Lock, Tag, ClipboardEdit, ShieldCheck, FileText, Printer, Send, Search,
@@ -2276,8 +2277,8 @@ export const LabDashboard: React.FC = () => {
       )}
 
       {/* ── SPECIMEN LABEL PRINT MODAL ──────────────────────────── */}
-      {printLabelReq && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
+      {printLabelReq && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
           <div className="glass-panel max-w-md w-full p-6 border-indigo-200 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-indigo-600" />
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
@@ -2353,12 +2354,13 @@ export const LabDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── PROCESSING OVERLAY ──────────────────────────────────── */}
-      {isProcessing && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
+      {isProcessing && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
           <div className="glass-panel max-w-sm w-full p-8 border-indigo-200 shadow-2xl text-center space-y-6 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-600 to-teal-500 animate-pulse" />
             <div className="relative w-24 h-24 mx-auto">
@@ -2381,11 +2383,12 @@ export const LabDashboard: React.FC = () => {
               <div className="animate-pulse">&gt; Compiling biomarker quantitative report...</div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {viewingDocUrl && (
-        <div className="fixed inset-0 bg-slate-800/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
+      {viewingDocUrl && createPortal(
+        <div className="fixed inset-0 bg-slate-800/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white border border-slate-200/60 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden font-sans">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-600 to-teal-500" />
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
@@ -2418,7 +2421,8 @@ export const LabDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Desktop Enterprise Status Footer */}

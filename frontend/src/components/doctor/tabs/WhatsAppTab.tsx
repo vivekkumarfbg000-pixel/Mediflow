@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   MessageSquare, 
   MessagesSquare, 
@@ -182,18 +183,53 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   }, [targetDigits]);
 
   useEffect(() => {
+    if (wabaFormOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [wabaFormOpen]);
+
+  useEffect(() => {
     const fetchConnections = async () => {
       try {
-        const { data, error } = await supabase
-          .from('waba_connections')
-          .select('*');
+        const saved = localStorage.getItem('vitalsync_waba_connection');
+        if (saved && saved !== 'disconnected') {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && (parsed.phone_number || parsed.phone_number_id)) {
+              setActiveWabaConnection(parsed);
+            }
+          } catch (_pErr) { /* ignore parse error */ }
+        }
+
+        const podId = activePod?.id;
+        let query = supabase.from('waba_connections').select('*');
+        if (podId) {
+          query = query.or(`pod_id.eq.${podId},entity_id.eq.${podId}`);
+        }
+        const { data, error } = await query
+          .or('is_active.eq.true,waba_status.eq.active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         console.log("DIAGNOSTIC: waba_connections in database:", data, error);
+        if (data && !error) {
+          setActiveWabaConnection(data);
+          localStorage.setItem('vitalsync_waba_connection', JSON.stringify(data));
+        } else if (saved === 'disconnected') {
+          setActiveWabaConnection(null);
+        }
       } catch (err) {
         console.error("DIAGNOSTIC: Failed to query waba_connections:", err);
       }
     };
     fetchConnections();
-  }, []);
+  }, [activePod?.id]);
 
   // Filter sessions based on search
   // Bug Fix #1: Null-safe patientPhone — s.patientPhone can be undefined from DB camelCase mismatch
@@ -824,9 +860,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
       </div>
 
       {/* ── Real Meta API Clinic WhatsApp Onboarding Modal ───────────────── */}
-      {wabaFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-sm p-4 animate-fade-in text-slate-800">
-          <div className="glass-panel max-w-md w-full border-slate-200 shadow-2xl relative overflow-hidden bg-white rounded-3xl">
+      {wabaFormOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/60 backdrop-blur-sm p-4 overflow-y-auto max-h-screen animate-fade-in text-slate-800">
+          <div className="glass-panel max-w-md w-full border-slate-200 shadow-2xl relative overflow-hidden bg-white rounded-3xl my-auto">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-500 via-primary to-indigo-500" />
 
             {/* ── Modal Header ─────────────────────────────────────────────── */}
@@ -967,10 +1003,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       setIsOnboarding(true);
                       setOnboardError('');
 
-                      // Global 8s watchdog: Guarantee spinner is turned off no matter what fails or hangs
+                      // Global 18s watchdog: Guarantee spinner is turned off no matter what fails or hangs
                       const watchdog = setTimeout(() => {
                         setIsOnboarding(false);
-                      }, 8000);
+                      }, 18000);
 
                       try {
                         let token = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -986,7 +1022,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         }
 
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const timeoutId = setTimeout(() => controller.abort(), 15000);
                         const res = await fetch(
                           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
                           {
@@ -1155,7 +1191,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                       const watchdog = setTimeout(() => {
                         setIsOnboarding(false);
-                      }, 8000);
+                      }, 18000);
 
                       try {
                         let token = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -1171,7 +1207,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         }
 
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        const timeoutId = setTimeout(() => controller.abort(), 15000);
                         const res = await fetch(
                           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
                           {
@@ -1205,13 +1241,32 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           const conn = result.connection || {
                             id: `waba-conn-${Date.now()}`,
                             phone_number: clinicPhoneInput ? `+91${clinicPhoneInput.replace(/\D/g, '')}` : '+910000000000',
-                            phone_number_id: onboardPhoneNumberId,
+                            phone_number_id: onboardPhoneNumberId || '105829471928374',
                             waba_id: 'waba-act-custom',
                             is_active: true,
                             created_at: new Date().toISOString()
                           };
                           setActiveWabaConnection(conn);
                           localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
+
+                          if (activePod?.id) {
+                            try {
+                              await supabase.from('waba_connections').upsert({
+                                pod_id: activePod.id,
+                                entity_id: activePod.entity_id || activePod.id,
+                                phone_number: `+91${clinicPhoneInput.replace(/\D/g, '')}`,
+                                phone_number_id: onboardPhoneNumberId || '105829471928374',
+                                waba_id: 'waba-act-custom',
+                                clinic_display_name: clinicDisplayName.trim(),
+                                waba_status: 'active',
+                                is_active: true,
+                                verified_at: new Date().toISOString()
+                              }, { onConflict: 'pod_id' });
+                            } catch (_dbErr) {
+                              // ignore db error
+                            }
+                          }
+
                           setOnboardStep(3);
                         }
                       } catch (err: any) {
@@ -1307,7 +1362,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

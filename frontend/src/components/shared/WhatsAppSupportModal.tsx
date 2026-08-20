@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MessageSquare, Send, Sparkles, RefreshCw, X, ShieldAlert, CheckCircle, HelpCircle } from 'lucide-react';
 import { WhatsAppSupportBotService } from '../../services/whatsappSupportBotService';
 
@@ -78,7 +79,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
       </button>
 
       {/* ── Support Drawer Modal ──────────────────────────────────────────────── */}
-      {isOpen && (
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <div 
           className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in text-slate-800"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
@@ -188,7 +189,8 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

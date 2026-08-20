@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Smartphone, Send, CheckCircle2, Sparkles, X, FileText } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -23,7 +24,7 @@ export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
   const [isSending, setIsSending] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const handleSendTest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +54,7 @@ export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in text-slate-800">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 relative overflow-hidden max-h-[90vh] overflow-y-auto">
         
@@ -141,6 +142,7 @@ export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
         </form>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

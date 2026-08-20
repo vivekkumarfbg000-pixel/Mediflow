@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Building, User, Phone, Stethoscope, ArrowRight, Sparkles, CheckCircle2, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
@@ -113,7 +114,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in text-slate-800">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-6 relative overflow-hidden max-h-[90vh] overflow-y-auto">
         
@@ -134,83 +135,76 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
               <p className="text-[11px] text-slate-500 font-medium">Provision 24/7 VitalSync Pod in 30 Seconds</p>
             </div>
           </div>
-
           <button
             type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 cursor-pointer transition-colors"
+            className="h-8 w-8 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Clinic / Hospital Name
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Clinic / Hospital Name</label>
             <div className="relative">
-              <Building className="h-4 w-4 text-slate-400 absolute left-3.5 top-3" />
+              <Building className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 required
-                placeholder="e.g. Apex Heart Care & Multi Specialty"
                 value={formData.clinicName}
-                onChange={(e) => setFormData(f => ({ ...f, clinicName: e.target.value }))}
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-xs font-semibold bg-slate-50/50"
+                onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
+                placeholder="e.g. Apex Eye & Vision Care"
+                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Doctor Full Name
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Doctor Full Name</label>
             <div className="relative">
-              <User className="h-4 w-4 text-slate-400 absolute left-3.5 top-3" />
+              <User className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 required
-                placeholder="e.g. Dr. Rajesh Verma (MD)"
                 value={formData.doctorName}
-                onChange={(e) => setFormData(f => ({ ...f, doctorName: e.target.value }))}
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-xs font-semibold bg-slate-50/50"
+                onChange={(e) => setFormData({ ...formData, doctorName: e.target.value })}
+                placeholder="e.g. Dr. Amit Arya"
+                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Doctor Specialization
-            </label>
-            <select
-              value={formData.specialization}
-              onChange={(e) => setFormData(f => ({ ...f, specialization: e.target.value }))}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-xs font-semibold bg-slate-50/50"
-            >
-              <option value="General Medicine">General Medicine / Physician</option>
-              <option value="Ophthalmology">Ophthalmology (Eye Care)</option>
-              <option value="Pediatrics">Pediatrics (Child Care)</option>
-              <option value="Cardiology">Cardiology (Heart Care)</option>
-              <option value="Orthopedics">Orthopedics (Bone Care)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              WhatsApp Support Mobile Number
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Official WhatsApp Phone Number</label>
             <div className="relative">
-              <Phone className="h-4 w-4 text-slate-400 absolute left-3.5 top-3" />
+              <Phone className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="tel"
                 required
-                placeholder="+91 98765 43210"
                 value={formData.phone}
-                onChange={(e) => setFormData(f => ({ ...f, phone: e.target.value }))}
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none text-xs font-semibold bg-slate-50/50"
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="e.g. 9876543210"
+                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">Primary Clinical Specialization</label>
+            <select
+              value={formData.specialization}
+              onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium bg-white"
+            >
+              <option value="General Medicine">General Medicine</option>
+              <option value="Ophthalmology">Ophthalmology (Eye Care)</option>
+              <option value="Pediatrics">Pediatrics (Child Care)</option>
+              <option value="Cardiology">Cardiology (Heart Care)</option>
+              <option value="Dermatology">Dermatology (Skin Care)</option>
+              <option value="Dentistry">Dentistry (Dental Care)</option>
+            </select>
           </div>
 
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 flex items-start gap-2">
@@ -229,6 +223,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
         </form>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

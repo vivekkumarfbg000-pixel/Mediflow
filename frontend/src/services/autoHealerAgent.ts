@@ -1324,6 +1324,17 @@ export class StateHealingEngine {
         }
       }
 
+      if (healingSuccess) {
+        try {
+          const raw = localStorage.getItem('founder_alerts');
+          if (raw) {
+            const alerts: any[] = JSON.parse(raw);
+            const filtered = alerts.filter(a => a.subsystem !== subsystem);
+            localStorage.setItem('founder_alerts', JSON.stringify(filtered));
+          }
+        } catch { /* ignore */ }
+      }
+
       console.log(`[Auto-Healer] Incident resolved. Status: ${healingSuccess ? 'HEALED 🟢' : 'FAILED 🔴'}`);
 
       // 5. Broadcast healing event for UI refresh
@@ -2002,10 +2013,10 @@ export class WebVitalsGuardian {
           detail: { metric, value, threshold, timestamp: new Date().toISOString() }
         }));
       }
-      // Persist to founder alerts
-      const alerts: any[] = JSON.parse(localStorage.getItem('founder_alerts') || '[]');
-      alerts.unshift({ type: 'VITALS_BREACH', metric, value, threshold, createdAt: new Date().toISOString() });
-      localStorage.setItem('founder_alerts', JSON.stringify(alerts.slice(0, 20)));
+      // Persist to dedicated web vitals metrics (not founder alerts to prevent false bug alarms)
+      const metrics: any[] = JSON.parse(localStorage.getItem('web_vitals_metrics') || '[]');
+      metrics.unshift({ type: 'VITALS_METRIC', metric, value, threshold, createdAt: new Date().toISOString() });
+      localStorage.setItem('web_vitals_metrics', JSON.stringify(metrics.slice(0, 20)));
     } catch { /* ignore alert error */ }
   }
 }

@@ -78,6 +78,34 @@ class TelemetryServiceClass {
     }
   }
 
+  // PII & sensitive token sanitization helper (Rule 95)
+  private sanitizePayload(data: Record<string, any>): Record<string, any> {
+    try {
+      const sanitized: Record<string, any> = {};
+      for (const [key, val] of Object.entries(data)) {
+        if (typeof val === 'string') {
+          // Mask 10-digit Indian phone numbers
+          if (/^[6-9]\d{9}$/.test(val)) {
+            sanitized[key] = `XXXXXX${val.slice(-4)}`;
+          } else if (key.toLowerCase().includes('phone') && val.length >= 10) {
+            sanitized[key] = `XXXXXX${val.slice(-4)}`;
+          } else if (key.toLowerCase().includes('token') || key.toLowerCase().includes('secret') || key.toLowerCase().includes('key')) {
+            sanitized[key] = '***REDACTED***';
+          } else {
+            sanitized[key] = val;
+          }
+        } else if (val && typeof val === 'object' && !Array.isArray(val)) {
+          sanitized[key] = this.sanitizePayload(val);
+        } else {
+          sanitized[key] = val;
+        }
+      }
+      return sanitized;
+    } catch {
+      return data;
+    }
+  }
+
   // 2. Track Operations & Conversions Metrics (Mixpanel Gateway)
   track(eventName: string, properties: Record<string, any> = {}) {
     if (!this.isMixpanelInitialized) return;
@@ -91,15 +119,17 @@ class TelemetryServiceClass {
       }
     } catch { /* ignore */ }
 
+    const cleanProperties = this.sanitizePayload(properties);
+
     const payload = {
       event: eventName,
       timestamp: new Date().toISOString(),
       distinct_id: distinctId,
       pod_id: getPodContext().podId,
-      ...properties
+      ...cleanProperties
     };
 
-    console.log(`%c[Mixpanel Log] Event: ${eventName}`, 'color: #33b5e5; font-weight: bold;', properties);
+    console.log(`%c[Mixpanel Log] Event: ${eventName}`, 'color: #33b5e5; font-weight: bold;', cleanProperties);
 
     // Persist BI logs directly to remote Supabase database for long-term audit analytics
     supabase.from('activity_logs').insert({
@@ -111,6 +141,9 @@ class TelemetryServiceClass {
       if (error) {
         console.error('[Telemetry-Mixpanel] Remote ingestion failed:', error);
       }
+    }).catch(() => {
+      // Rule 93: Unhandled rejection immunity
+      /* non-blocking telemetry drop */
     });
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../services/api';
 import { PaymentService } from '../../services/paymentService';
 import { supabase } from '../../lib/supabaseClient';
@@ -1789,8 +1790,8 @@ const unsubscribeApi = api.subscribe(syncLocal);
       </div>
 
       {/* V2.0 PREMIUM LASER BARCODE SCANNER SIMULATION MODAL */}
-      {scanningHold && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
+      {scanningHold && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
           <div className="glass-panel max-w-md w-full p-6 border-teal-500/20 shadow-2xl space-y-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
@@ -1906,12 +1907,13 @@ const unsubscribeApi = api.subscribe(syncLocal);
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MANUAL REGISTER NEW MEDICINE MODAL */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
+      {isAddModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
           <div className="glass-panel max-w-2xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
@@ -2084,12 +2086,13 @@ const unsubscribeApi = api.subscribe(syncLocal);
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* CSV IMPORT PANEL MODAL */}
-      {isCsvImportOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
+      {isCsvImportOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/80 backdrop-blur-sm p-4 animate-fade-in">
           <div className="glass-panel max-w-3xl w-full p-6 border-slate-200/60 shadow-2xl relative overflow-hidden space-y-4">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-secondary to-primary" />
             
@@ -2197,7 +2200,8 @@ const unsubscribeApi = api.subscribe(syncLocal);
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
 

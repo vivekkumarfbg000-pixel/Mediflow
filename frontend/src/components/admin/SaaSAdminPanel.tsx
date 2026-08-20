@@ -4,6 +4,9 @@ import { SystemHealthCockpit } from './SystemHealthCockpit';
 import { api } from '../../services/api';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { WhatsAppSupportBotService, type SupportEscalationTicket } from '../../services/whatsappSupportBotService';
+import { ClinicalCycleSimulatorModal } from './ClinicalCycleSimulatorModal';
+import { FounderAICopilotModal } from './FounderAICopilotModal';
+import { AIFleetCommanderTab } from './AIFleetCommanderTab';
 import { 
   ShieldAlert, 
   Lock, 
@@ -31,7 +34,9 @@ import {
   LockKeyhole,
   LogOut,
   Plus,
-  Sparkles
+  Sparkles,
+  Zap,
+  Bot
 } from 'lucide-react';
 
 interface OnboardingStats {
@@ -104,7 +109,7 @@ interface BlacklistedIp {
   created_at: string;
 }
 
-type ActiveTab = 'saas_health' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
+type ActiveTab = 'saas_health' | 'ai_fleet' | 'onboarding' | 'revenue' | 'costs' | 'firewall';
 
 interface RateLimitRow {
   ip: string;
@@ -171,8 +176,10 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   const [supportLanguage, setSupportLanguage] = useState<'en' | 'hi'>('en');
 
   // VIP Clinic White-Labeling Branding Modal State
-  const [isWhiteLabelModalOpen, setIsWhiteLabelModalOpen] = useState<boolean>(false);
-  const [selectedWhiteLabelPod, setSelectedWhiteLabelPod] = useState<PodInfo | null>(null);
+  const [isVIPBrandingModalOpen, setIsVIPBrandingModalOpen] = useState<boolean>(false);
+  const [selectedVIPPod, setSelectedVIPPod] = useState<PodInfo | null>(null);
+  const [isSimulatorModalOpen, setIsSimulatorModalOpen] = useState<boolean>(false);
+  const [isCopilotModalOpen, setIsCopilotModalOpen] = useState<boolean>(false);
   const [whiteLabelForm, setWhiteLabelForm] = useState({ logoUrl: '', headerText: '', rxFooter: '' });
 
   // WhatsApp Autonomous Support Escalation Tickets State
@@ -1433,6 +1440,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
   if (isAdmin) {
     const agents = [
       { id: 'saas_health' as const, label: 'Health Auto Agent', desc: 'DevSecOps & Self-Healing', icon: Terminal },
+      { id: 'ai_fleet'    as const, label: 'AI Fleet Control 🤖', desc: '8 Autonomous Agents Matrix', icon: Bot },
       { id: 'onboarding'  as const, label: 'Onboarding Agent', desc: 'Pod & RLS Compliance', icon: Building },
       { id: 'revenue'     as const, label: 'CFO Finance Agent', desc: 'Split Retry & Ledger', icon: Coins },
       { id: 'costs'       as const, label: 'Cost Controller',    desc: 'Daily Budget Checker', icon: MessageSquare },
@@ -1491,6 +1499,26 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
 
             <button
               type="button"
+              onClick={() => setIsCopilotModalOpen(true)}
+              className="inline-flex h-9 items-center justify-center gap-1.5 px-3 rounded-xl border border-purple-300 dark:border-purple-800/60 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/60 dark:to-indigo-950/60 hover:from-purple-100 hover:to-indigo-100 text-purple-800 dark:text-purple-300 text-[11px] font-black transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
+              title="Open Autonomous Founder AI Chief of Staff"
+            >
+              <Bot className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <span>Founder Copilot 🤖</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsSimulatorModalOpen(true)}
+              className="inline-flex h-9 items-center justify-center gap-1.5 px-3 rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[11px] font-extrabold transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+              title="Run 1-Click Meta/Google E2E Clinical Care Loop Simulator"
+            >
+              <Zap className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Simulate E2E Loop</span>
+            </button>
+
+            <button
+              type="button"
               onClick={fetchSaaSMetrics}
               disabled={metricsLoading}
               className="inline-flex h-9 items-center justify-center gap-1.5 px-2.5 sm:px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold disabled:opacity-50 transition-all cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
@@ -1510,12 +1538,12 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           </div>
         </div>
 
-        {/* ── Virtual Operations Team Navigation (Laptop Header) ───────────────── */}
-        <div className="hidden lg:flex items-center gap-3 bg-slate-50/50 p-2.5 rounded-2xl border border-slate-200/60 mb-6 flex-wrap">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 mr-2">
-            Virtual Operations Team:
+        {/* ── Virtual Operations Team Navigation (Responsive Header) ───────────────── */}
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-2xl border border-slate-200/60 dark:border-white/10 mb-5 overflow-x-auto no-scrollbar">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 shrink-0 hidden sm:inline">
+            Virtual Team:
           </span>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap sm:flex-wrap">
             {agents.map(agent => {
               const Icon = agent.icon;
               const isActive = activeTab === agent.id;
@@ -1524,10 +1552,10 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   key={agent.id}
                   type="button"
                   onClick={() => setActiveTab(agent.id)}
-                  className={`flex items-center gap-2 py-2 px-3.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs ${
+                  className={`flex items-center gap-2 py-2 px-3 sm:px-3.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs whitespace-nowrap shrink-0 ${
                     isActive 
                       ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/15 hover:bg-indigo-700 hover:border-indigo-700' 
-                      : 'bg-white border-slate-200 text-slate-700 hover:scale-[1.01] hover:border-slate-350'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:scale-[1.01]'
                   }`}
                 >
                   <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
@@ -1727,8 +1755,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 </div>
               </div>
 
-              {/* Desktop Action Banner (Desktop Screens) */}
-              <div className="hidden lg:flex p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-cyan-500/10 border border-indigo-200/80 rounded-3xl justify-between items-center gap-3">
+              {/* Action Banner (Responsive Screens) */}
+              <div className="flex flex-col lg:flex-row p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-cyan-500/10 border border-indigo-200/80 rounded-3xl justify-between items-start lg:items-center gap-3">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-md shadow-indigo-500/20 shrink-0">
                     <Building className="h-5 w-5" />
@@ -2877,7 +2905,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
 
                 </div>
 
-              </div>
+            {/* TAB: AI Fleet Commander Matrix */}
+            {activeTab === 'ai_fleet' && (
+              <AIFleetCommanderTab />
             )}
         </div>
 
@@ -3225,6 +3255,19 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
             </div>
           </div>
         )}
+
+        {/* Meta E2E Clinical Cycle Simulator Modal */}
+        <ClinicalCycleSimulatorModal
+          isOpen={isSimulatorModalOpen}
+          onClose={() => setIsSimulatorModalOpen(false)}
+        />
+
+        {/* Founder AI Operations Copilot Modal */}
+        <FounderAICopilotModal
+          isOpen={isCopilotModalOpen}
+          onClose={() => setIsCopilotModalOpen(false)}
+          onNavigateTab={(tab) => setActiveTab(tab as any)}
+        />
 
       </div>
     );

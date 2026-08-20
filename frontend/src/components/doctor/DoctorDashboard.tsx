@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
 import { supabase } from '../../lib/supabaseClient';
@@ -235,23 +236,42 @@ export const DoctorDashboard: React.FC = () => {
   ]);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('vitalsync_waba_connection');
-      if (saved === 'disconnected' || !saved) {
-        setActiveWabaConnection(null);
-      } else {
-        const parsed = JSON.parse(saved);
-        if (parsed?.phone_number === '+919608032073' || parsed?.id === 'waba-conn-default-1001') {
-          localStorage.removeItem('vitalsync_waba_connection');
-          setActiveWabaConnection(null);
-        } else {
-          setActiveWabaConnection(parsed);
+    const hydrateWabaConnection = async () => {
+      try {
+        const saved = localStorage.getItem('vitalsync_waba_connection');
+        if (saved && saved !== 'disconnected') {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && (parsed.phone_number || parsed.phone_number_id)) {
+              setActiveWabaConnection(parsed);
+            }
+          } catch (_pErr) { /* ignore */ }
         }
+
+        // DB Fallback Hydration
+        const currentPodId = activePod?.id || getPodContext().podId;
+        let query = supabase.from('waba_connections').select('*');
+        if (currentPodId) {
+          query = query.or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`);
+        }
+        const { data, error } = await query
+          .or('is_active.eq.true,waba_status.eq.active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data && !error) {
+          setActiveWabaConnection(data);
+          localStorage.setItem('vitalsync_waba_connection', JSON.stringify(data));
+        } else if (saved === 'disconnected') {
+          setActiveWabaConnection(null);
+        }
+      } catch (_e) {
+        /* ignore parse/fetch error */
       }
-    } catch (_e) {
-      setActiveWabaConnection(null);
-    }
-  }, []);
+    };
+    hydrateWabaConnection();
+  }, [activePod?.id]);
 
   useEffect(() => {
     const logPool = [
@@ -1752,8 +1772,8 @@ Keep the tone professional, clinical, objective, and precise.`;
       }
     }
 
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/40 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/40 backdrop-blur-md p-4 md:p-8 animate-fade-in overflow-y-auto">
         <div className="glass-panel max-w-4xl w-full p-6 md:p-8 border-slate-200 shadow-2xl relative bg-white text-slate-800 rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-primary to-secondary" />
           
@@ -1954,7 +1974,8 @@ Keep the tone professional, clinical, objective, and precise.`;
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -1965,8 +1986,8 @@ Keep the tone professional, clinical, objective, and precise.`;
     const confidence = allergyAlert.confidenceScore || 99;
     const citation = allergyAlert.clinicalGuidelineCitation || 'NHA EMR Drug-Allergy Standards v2.0';
 
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/50 backdrop-blur-sm p-4 animate-fade-in">
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/50 backdrop-blur-sm p-4 animate-fade-in">
         <div className="glass-panel max-w-md w-full p-6 border-rose-500/30 shadow-2xl relative overflow-hidden space-y-4 bg-white text-slate-800">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-rose-500" />
           <div className="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -2050,7 +2071,8 @@ Keep the tone professional, clinical, objective, and precise.`;
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -2224,7 +2246,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         doctorName={headerDoctorTitle}
       />
 
-      {isPlacardModalOpen && (
+      {isPlacardModalOpen && createPortal(
         <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in text-slate-800">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
             <button
@@ -2239,7 +2261,8 @@ Keep the tone professional, clinical, objective, and precise.`;
               activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || localStorage.getItem('vitalsync_waba_number') || '+910000000000'}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Floating 24/7 Mediflow AI Support Widget */}

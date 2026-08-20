@@ -3459,8 +3459,8 @@ export const CompounderDashboard: React.FC = () => {
         </form>
       </div>
 
-      {viewingDocUrl && (
-        <div className="fixed inset-0 bg-slate-800/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
+      {viewingDocUrl && createPortal(
+        <div className="fixed inset-0 bg-slate-800/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white border border-slate-200/60 rounded-2xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 to-teal-500" />
             <div className="flex justify-between items-center pb-2 border-b border-white/5">
@@ -3493,11 +3493,12 @@ export const CompounderDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Interactive Workflow Document Viewer Modal */}
-      {activeWorkflowDetail && (
+      {activeWorkflowDetail && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] text-slate-800 dark:text-slate-100">
             {/* Header */}
@@ -3741,7 +3742,8 @@ export const CompounderDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Desktop Enterprise Status Footer */}

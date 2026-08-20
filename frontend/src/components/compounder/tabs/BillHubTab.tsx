@@ -977,7 +977,7 @@ export const BillHubTab: React.FC = () => {
 
   const dynamicUpiPayload = useMemo(() => {
     if (!billingLedger) return '';
-    return `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=BillHub-${selectedPatient?.id?.substring(0, 8)}`;
+    return `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=BillHub-${(selectedPatient?.id || 'pat-0000').substring(0, 8)}`;
   }, [billingLedger, selectedPatient]);
 
   return (

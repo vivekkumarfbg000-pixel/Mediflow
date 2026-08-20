@@ -24,8 +24,8 @@ const META_BASE_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS" || req.method === "HEAD") {
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   const supabase = createClient(
@@ -280,7 +280,7 @@ serve(async (req) => {
         };
 
         try {
-          await supabase.from("waba_connections").insert({
+          await supabase.from("waba_connections").upsert({
             pod_id: podId,
             entity_id: entityId ?? podId,
             phone_number_id: phoneNumberId,
@@ -289,10 +289,11 @@ serve(async (req) => {
             clinic_display_name: clinicName,
             encrypted_system_user_token: "mock-encrypted-token",
             waba_status: "active",
+            is_active: true,
             verified_at: new Date().toISOString()
-          });
+          }, { onConflict: "pod_id" });
         } catch (_dbErr) {
-          console.warn("[whatsapp-onboard] DB insert skipped in sandbox mode:", _dbErr);
+          console.warn("[whatsapp-onboard] DB upsert in sandbox mode:", _dbErr);
         }
 
         return new Response(

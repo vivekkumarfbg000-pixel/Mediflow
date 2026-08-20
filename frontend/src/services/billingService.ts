@@ -358,11 +358,12 @@ export class BillingService {
         }
         const id = a.id || '';
         const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase().trim();
-        const pId = String(a.patientId || '');
-        if (id.startsWith('appt-demo') || id.startsWith('appt-sample') || id.startsWith('appt-101') || id.startsWith('appt-102')) return false;
-        if (demoNames.has(pName)) return false;
-        if (pName.includes('test patient') || pName.includes('auto test')) return false;
+        const pId = String(a.patientId || (a as any).patient_id || '');
+        const isExplicitDemoId = id.startsWith('appt-demo') || id.startsWith('appt-sample') || id.startsWith('appt-101') || id.startsWith('appt-102');
+        if (isExplicitDemoId) return false;
         if (demoPatientIds.has(pId)) return false;
+        if (pName.includes('test patient') || pName.includes('auto test')) return false;
+        if (demoNames.has(pName) && (id.startsWith('appt-1') || id.startsWith('appt-2') || id.startsWith('demo-'))) return false;
         return true;
       });
     }

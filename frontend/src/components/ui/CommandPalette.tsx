@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Command, Zap, User, Compass, Sun, Moon, SearchX, ArrowUp, ArrowDown, CornerDownLeft } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -21,6 +22,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
+
+  // Body scroll lock
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   // Focus input on open
   useEffect(() => {
@@ -99,7 +112,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
 
     const commandMatches = staticCommands
-      .filter(cmd => cmd.label.toLowerCase().includes(cleanQuery) || cmd.shortcut.toLowerCase().includes(cleanQuery))
+      .filter(cmd => (cmd.label || '').toLowerCase().includes(cleanQuery) || (cmd.shortcut || '').toLowerCase().includes(cleanQuery))
       .map(cmd => ({ ...cmd, type: 'command' as const }));
 
     const patientMatches = patients
@@ -150,7 +163,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[9999] flex items-start justify-center pt-24 px-4 font-sans select-none animate-fade-in">
       <div 
         ref={paletteRef}
@@ -178,65 +191,73 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           {filteredItems.length === 0 ? (
             <div className="py-8 text-center text-slate-400 dark:text-zinc-500 flex flex-col items-center gap-1.5">
               <SearchX className="w-8 h-8 text-slate-400 dark:text-zinc-500 shrink-0" />
-              <p className="text-xs font-semibold">No command or patient matches found</p>
+              <p className="text-xs font-semibold">No matching commands or patients</p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-600">Try searching for name, phone, or /tab</p>
             </div>
           ) : (
-            (() => {
-              let currentCategory = '';
-              return filteredItems.map((item, idx) => {
-                const isSelected = idx === selectedIndex;
-                const showCategoryHeader = item.category !== currentCategory;
-                currentCategory = item.category;
-
-                return (
-                  <React.Fragment key={item.id}>
-                    {showCategoryHeader && (
-                      <div className="px-3.5 pt-2.5 pb-1 text-[9px] font-extrabold text-slate-400 dark:text-zinc-500 uppercase tracking-widest leading-none">
+            filteredItems.map((item, idx) => {
+              const isSelected = idx === selectedIndex;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    if (item.type === 'command') {
+                      item.action();
+                    } else if (item.type === 'patient') {
+                      if (onStartConsultation) {
+                        onStartConsultation(item.payload);
+                      }
+                      onClose();
+                    }
+                  }}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 ${
+                    isSelected 
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                      : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      isSelected 
+                        ? 'bg-white/20 text-white' 
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-zinc-400'
+                    }`}>
+                      {item.type === 'command' ? (
+                        item.category === 'Navigation' ? <Compass className="w-4 h-4" /> :
+                        item.category === 'Actions' ? (item.id === 'toggle_theme' ? <Sun className="w-4 h-4" /> : <Zap className="w-4 h-4" />) :
+                        <Command className="w-4 h-4" />
+                      ) : (
+                        <User className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold truncate">
+                        {item.label}
+                      </div>
+                      <div className={`text-[10px] truncate ${isSelected ? 'text-indigo-100' : 'text-slate-400 dark:text-zinc-500'}`}>
                         {item.category}
                       </div>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (item.type === 'command') {
-                          item.action();
-                        } else if (item.type === 'patient') {
-                          if (onStartConsultation) {
-                            onStartConsultation(item.payload);
-                          }
-                          onClose();
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold transition-all duration-150 border-0 cursor-pointer ${
-                        isSelected
-                          ? 'bg-indigo-50/80 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400'
-                          : 'bg-transparent text-slate-700 dark:text-zinc-300 hover:bg-slate-100/50 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 truncate">
-                        {item.type === 'command' ? (
-                          item.category === 'Navigation' ? (
-                            <Compass className={`h-4 w-4 ${isSelected ? 'text-indigo-550' : 'text-slate-400 dark:text-zinc-500'}`} />
-                          ) : (
-                            <Zap className={`h-4 w-4 ${isSelected ? 'text-indigo-550' : 'text-slate-400 dark:text-zinc-500'}`} />
-                          )
-                        ) : (
-                          <User className={`h-4 w-4 ${isSelected ? 'text-indigo-550' : 'text-slate-400 dark:text-zinc-500'}`} />
-                        )}
-                        <span className="truncate">{item.label}</span>
-                      </span>
-                      
-                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none ${
-                        isSelected
-                          ? 'bg-indigo-100/60 dark:bg-indigo-900/30 border-indigo-200/50 dark:border-indigo-800/40 text-indigo-600 dark:text-indigo-400'
-                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/60 dark:border-white/5 text-slate-400 dark:text-zinc-500'
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    {item.shortcut && (
+                      <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border ${
+                        isSelected 
+                          ? 'bg-white/20 border-white/30 text-white' 
+                          : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-zinc-400'
                       }`}>
                         {item.shortcut}
                       </span>
-                    </button>
-                  </React.Fragment>
-                );
-              });
-            })()
+                    )}
+                    {isSelected && (
+                      <CornerDownLeft className="w-3.5 h-3.5 text-white animate-pulse" />
+                    )}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
 
@@ -259,6 +280,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

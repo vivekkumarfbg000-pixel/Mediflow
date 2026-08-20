@@ -33,6 +33,7 @@ import {
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
 import { BrandMark } from './BrandMark';
+import { SyncStatusPill } from './SyncStatusPill';
 
 export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient' | 'saas_admin' | 'refraction';
 
@@ -318,17 +319,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-[#7AC47F]">Sync</span>
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="flex items-center gap-1 text-[9px] font-semibold text-emerald-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Live
-                  </span>
-                  <span className={`flex items-center gap-1 text-[8px] font-mono font-semibold px-1 py-0.2 rounded border ${
-                    offlineCount > 0
-                      ? 'text-amber-600 bg-amber-50/60 border-amber-200/60 animate-pulse'
-                      : 'text-cyan-600 bg-cyan-50/60 border-cyan-200/60'
-                  }`}>
-                    <span>{offlineCount > 0 ? `Queue: ${offlineCount}` : 'Synced'}</span>
-                  </span>
+                  <SyncStatusPill compact={false} />
                 </div>
               </div>
             )}
@@ -643,17 +634,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                  currentRole === 'billing' ? 'UPI Ledger' :
                  currentRole === 'saas_admin' ? 'Platform Admin' : 'Care Dashboard'}
               </h1>
-              
-              <span className={`flex items-center gap-0.5 text-[7px] font-mono px-1 py-0.2 rounded border transition-all duration-300 shrink-0 ${
-                isSyncing 
-                  ? 'bg-primary/10 text-primary border-primary/25'
-                  : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
-              }`}>
-                <span className={`w-1 h-1 rounded-full ${isSyncing ? 'bg-primary' : 'bg-emerald-500 animate-pulse'}`} />
-                {isSyncing ? 'Sync' : 'Live'}
-              </span>
             </div>
           </div>
+
+          {/* SRE Live Sync Status Pill & Theme Toggle */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <SyncStatusPill compact={true} />
 
           {/* Quick Mobile Theme Toggle Button */}
           <button

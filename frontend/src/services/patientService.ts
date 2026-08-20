@@ -398,7 +398,7 @@ export class PatientService {
   static generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
     const patients = this.getPatients();
     const appointments = load<any[]>('saas_appointments', []);
-    const dateStr = targetDate || new Date().toISOString().split('T')[0];
+    const dateStr = targetDate || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
     const apptsForDate = appointments.filter(a => {
       const apptDate = a.virtualDate || a.createdAt || '';

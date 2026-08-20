@@ -253,10 +253,31 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
           .subscribe();
       }
 
+      // Multi-Tab & Window synchronization (Rule 96)
+      const handleStorageSync = (e: StorageEvent) => {
+        if (e.key === 'vitalsync_active_pod' || e.key === 'vitalsync_cached_active_pod' || e.key === 'mediflow_active_profile') {
+          refreshClinic();
+        }
+      };
+      const handleCustomPodChange = () => refreshClinic();
+
+      window.addEventListener('storage', handleStorageSync);
+      window.addEventListener('mediflow-pod-change', handleCustomPodChange);
+
       return () => {
         supabase.removeChannel(channel);
         if (doctorChannel) supabase.removeChannel(doctorChannel);
+        window.removeEventListener('storage', handleStorageSync);
+        window.removeEventListener('mediflow-pod-change', handleCustomPodChange);
       };
+    } else {
+      const handleStorageSync = (e: StorageEvent) => {
+        if (e.key === 'vitalsync_active_pod' || e.key === 'vitalsync_cached_active_pod') {
+          refreshClinic();
+        }
+      };
+      window.addEventListener('storage', handleStorageSync);
+      return () => window.removeEventListener('storage', handleStorageSync);
     }
   }, [activeProfile, refreshClinic]);
 

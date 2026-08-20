@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../services/api';
 import { Search, Terminal, CornerDownLeft, Shield, User, Activity, Beaker, ShoppingBag, QrCode } from 'lucide-react';
 import type { UserRole } from './Navbar';
@@ -22,6 +23,18 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Body scroll lock
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,10 +80,11 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   }));
 
   const allItems = [...actions, ...patientActions];
+  const cleanQuery = (query || '').toLowerCase().trim();
 
   const filteredItems = allItems.filter(item =>
-    item.title.toLowerCase().includes(query.toLowerCase()) ||
-    item.category.toLowerCase().includes(query.toLowerCase())
+    (item.title || '').toLowerCase().includes(cleanQuery) ||
+    (item.category || '').toLowerCase().includes(cleanQuery)
   );
 
   useEffect(() => {
@@ -101,7 +115,15 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const categoryMap = filteredItems.reduce((acc: any, item, idx) => {
+    const category = item.category || 'General';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push({ ...item, globalIdx: idx });
+    return acc;
+  }, {});
+  const categories = Object.keys(categoryMap);
+
+  return createPortal(
     <div 
       className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-md flex items-start justify-center p-4 md:p-12 transition-all animate-fade-in"
       onClick={onClose}
@@ -113,8 +135,8 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       >
         <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary-600 via-accent-600 to-emerald-500" />
         
-        {/* Search header input */}
-        <div className="relative border-b border-slate-100/60 px-5 py-4 flex items-center gap-3.5">
+        {/* Search Input bar */}
+        <div className="flex items-center gap-3.5 px-5 py-4 border-b border-slate-100/80 bg-white">
           <Search className="h-5 w-5 text-slate-600 shrink-0" />
           <input
             ref={inputRef}
@@ -140,42 +162,36 @@ export const CommandBar: React.FC<CommandBarProps> = ({
               Scanning database... No matching commands or patients found.
             </div>
           ) : (
-            // Group by category
-            Object.entries(
-              filteredItems.reduce<Record<string, typeof filteredItems>>((acc, item) => {
-                acc[item.category] = acc[item.category] || [];
-                acc[item.category].push(item);
-                return acc;
-              }, {})
-            ).map(([category, items]) => (
-              <div key={category} className="space-y-1.5 animate-fade-in">
-                <span className="block text-[8px] text-slate-600 font-extrabold uppercase tracking-widest pl-2.5 mb-2">{category}</span>
+            categories.map(cat => (
+              <div key={cat} className="space-y-1.5">
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-600 px-3 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-300 inline-block" />
+                  {cat}
+                </span>
                 <div className="space-y-1">
-                  {items.map(item => {
-                    const globalIndex = filteredItems.indexOf(item);
-                    const isSelected = selectedIndex === globalIndex;
+                  {categoryMap[cat].map((item: any) => {
+                    const isSelected = item.globalIdx === selectedIndex;
                     const Icon = item.icon;
-
                     return (
                       <button
                         key={item.id}
+                        type="button"
                         onClick={() => {
                           item.action();
                           onClose();
                         }}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-300 relative text-left group cursor-pointer ${
+                        onMouseEnter={() => setSelectedIndex(item.globalIdx)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-left transition-all border cursor-pointer ${
                           isSelected
-                            ? 'bg-slate-50 border border-slate-100 shadow-sm'
-                            : 'bg-transparent border border-transparent'
+                            ? 'bg-slate-50 border-slate-200 shadow-sm scale-[1.005]'
+                            : 'bg-white border-transparent hover:bg-slate-50/50'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                            isSelected
-                              ? 'bg-primary text-white shadow-md shadow-primary/10'
-                              : 'bg-slate-50 text-slate-600'
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`p-2 rounded-xl transition-all ${
+                            isSelected ? 'bg-white shadow-xs text-primary-600' : 'bg-slate-50 text-slate-600'
                           }`}>
-                            <Icon className="h-4 w-4" />
+                            <Icon className="h-4 w-4 shrink-0" />
                           </div>
                           <span className={`text-xs font-bold transition-all ${
                             isSelected ? 'text-slate-900 font-extrabold' : 'text-slate-600'
@@ -216,6 +232,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
           </span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

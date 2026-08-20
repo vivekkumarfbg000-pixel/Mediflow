@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Landmark, RefreshCw, CheckCircle2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useSplitValidation, SplitValidationGate } from '../../hooks/useSplitValidation.tsx';
@@ -265,8 +266,8 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
       )}
 
       {/* Onboarding Modal */}
-      {vendorFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
+      {vendorFormOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
           <div className={`glass-panel max-w-md w-full p-6 shadow-2xl relative overflow-hidden space-y-4 rounded-3xl ${
             isDark ? 'bg-white border-slate-200/60 text-white' : 'bg-white border-slate-200 text-slate-800'
           }`}>
@@ -393,7 +394,8 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
