@@ -56,10 +56,13 @@ export class ClinicalSafetyAgent {
     if (encounters.length > 0) {
       const todayStr = new Date().toDateString();
       const duplicateFound = encounters.some(e => {
-        const encDate = new Date(e.createdAt).toDateString();
+        const encDate = new Date(e.createdAt || Date.now()).toDateString();
         if (encDate !== todayStr) return false;
         
-        const hasSameDrug = (e.medications || []).some(m => m.medicineName.toLowerCase() === cleanDrug || cleanDrug.includes(m.medicineName.toLowerCase()) || m.medicineName.toLowerCase().includes(cleanDrug));
+        const hasSameDrug = (e.medications || []).some(m => {
+          const mName = (m?.medicineName || '').toLowerCase();
+          return mName === cleanDrug || cleanDrug.includes(mName) || mName.includes(cleanDrug);
+        });
         return hasSameDrug;
       });
 
@@ -546,7 +549,7 @@ export class BioequivalentDrugSubstitutionAgent {
     const match = Object.entries(this.THERAPEUTIC_EQUIVALENCE_MAP).find(([key]) => clean.includes(key) || key.includes(clean));
 
     if (!match) {
-      const inStockItems = inventory.filter(i => i.stock > 0 && i.name.toLowerCase().includes(clean));
+      const inStockItems = inventory.filter(i => (i.stock || 0) > 0 && (i.name || '').toLowerCase().includes(clean));
       return inStockItems.map(i => ({
         originalDrug: prescribedDrug,
         genericSalt: i.genericName || clean,
