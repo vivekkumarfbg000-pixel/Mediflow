@@ -1044,29 +1044,33 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               ]);
 
               const isPatientForToday = (p: Patient) => {
-                const patAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
-                const apptDate = patAppt?.appointmentTime?.split('T')[0] || patAppt?.virtualDate || (patAppt as any)?.virtual_date || patAppt?.createdAt?.split('T')[0];
+                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+                if (patAppts.length > 0) {
+                  return patAppts.some(a => {
+                    const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || (a as any).appointment_date || (a as any).appointmentDate || a.createdAt?.split('T')[0];
+                    return apptDate === todayStr;
+                  });
+                }
                 const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
-                return apptDate ? apptDate === todayStr : regDate.startsWith(todayStr);
+                return regDate.startsWith(todayStr);
               };
 
               const queuePatients = patients
                 .filter(p => {
-                  if (p.id === selectedPatient?.id) return true;
                   if (queueFilter === 'awaiting') {
                     if (!paidPatientIds.has(p.id)) return false;
-                    if (!isPatientForToday(p)) return false;
+                    if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
                     return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
                   }
                   if (queueFilter === 'in_consult') {
-                    if (!isPatientForToday(p)) return false;
+                    if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
                     return p.queueStatus === 'in_consultation';
                   }
                   if (queueFilter === 'today_registered') {
-                    const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-                    return regDate.startsWith(todayStr);
+                    return isPatientForToday(p);
                   }
                   if (queueFilter === 'completed') {
+                    if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
                     return (
                       (p as any).queueStatus === 'completed' ||
                       (p as any).queueStatus === 'pharmacy' ||
@@ -1074,7 +1078,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       (p as any).queueStatus === 'settled'
                     );
                   }
-                  return true;
+                  return isPatientForToday(p) || p.id === selectedPatient?.id;
                 })
                 .sort((a, b) => {
                   // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top

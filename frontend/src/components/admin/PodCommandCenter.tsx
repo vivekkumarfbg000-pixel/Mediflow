@@ -8,6 +8,7 @@ import { PatientService } from '../../services/patientService';
 import { WhatsAppService } from '../../services/whatsappService';
 import { LabService } from '../../services/labService';
 import { PharmacyService } from '../../services/pharmacyService';
+import { BillingService } from '../../services/billingService';
 import { PointerGlowCard } from '../ui/PointerGlowCard';
 import { SkeletonMetric, SkeletonCard, SkeletonRow } from '../ui/SkeletonLoader';
 import { ZeroQueueState } from '../shared/EmptyState';
@@ -46,6 +47,7 @@ interface PodCommandCenterProps {
 export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsultation, hideHeader }) => {
   /* ─── State Management ─────────────────────────────────────────── */
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [labReqs, setLabReqs] = useState<LabRequisition[]>([]);
   const [inventoryHolds, setInventoryHolds] = useState<InventoryHold[]>([]);
   const [financials, setFinancials] = useState<FinancialLedgerEntry[]>([]);
@@ -84,6 +86,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   useEffect(() => {
     const sync = () => {
       setPatients(api.getPatients());
+      setAppointments(api.getAppointments());
       setLabReqs(api.getLabRequisitions());
       setInventoryHolds(api.getInventoryHolds());
       setFinancials(api.getFinancialLedgers());
@@ -117,8 +120,20 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     };
   }, []);
 
-  /* ─── Computed Metrics ─────────────────────────────────────────── */
+  /* ─── Computed Metrics ───────────────────────────────────────── */
   const todayStr = currentTime.toISOString().split('T')[0];
+
+  const isPatientForToday = (p: Patient) => {
+    const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+    if (patAppts.length > 0) {
+      return patAppts.some(a => {
+        const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || (a as any).appointment_date || (a as any).appointmentDate || a.createdAt?.split('T')[0];
+        return apptDate === todayStr;
+      });
+    }
+    const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
+    return regDate.startsWith(todayStr);
+  };
 
   const labMetrics = useMemo(() => ({
     total: labReqs.length,
@@ -182,12 +197,15 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     failed: sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length,
   }), [sessions]);
 
-  const patientMetrics = useMemo(() => ({
-    total: patients.length,
-    awaitingConsultation: patients.filter(p => p.queueStatus === 'awaiting_consultation').length,
-    inConsultation: patients.filter(p => (p.queueStatus as string) === 'in_consultation').length,
-    completed: patients.filter(p => p.queueStatus === 'completed').length,
-  }), [patients]);
+  const patientMetrics = useMemo(() => {
+    const todayPatients = patients.filter(isPatientForToday);
+    return {
+      total: todayPatients.length,
+      awaitingConsultation: todayPatients.filter(p => p.queueStatus === 'awaiting_consultation' || !p.queueStatus).length,
+      inConsultation: todayPatients.filter(p => (p.queueStatus as string) === 'in_consultation').length,
+      completed: todayPatients.filter(p => p.queueStatus === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab').length,
+    };
+  }, [patients, appointments, todayStr]);
 
   const overallHealthScore = useMemo(() => {
     let score = 100;
@@ -209,27 +227,36 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
     return patients
       .filter(p => {
-        // Handle metric-specific filters
-        if (selectedMetric === 'all') {
-          // Show all registered today (no filter by status)
-        } else if (selectedMetric === 'awaiting') {
-          if (p.queueStatus !== 'awaiting_consultation') return false;
-        } else if (selectedMetric === 'active') {
-          if (p.queueStatus !== 'in_consultation') return false;
-        } else if (selectedMetric === 'completed') {
-          if (p.queueStatus !== 'completed') return false;
-        } else {
-          // Default filter: Active Queue (Awaiting or In Consultation)
-          const isActiveQueue = p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation';
-          if (!isActiveQueue && !searchQuery) return false;
+        // If user is searching by text, allow searching all patients
+        if (searchQuery) {
+          return (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                 (p.phone || '').includes(searchQuery) ||
+                 (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchQuery.toLowerCase()));
         }
 
-        const matchesSearch = (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              (p.phone || '').includes(searchQuery) ||
-                              (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchQuery.toLowerCase()));
-        return matchesSearch;
+        // Must be a patient for today
+        if (!isPatientForToday(p)) return false;
+
+        // Handle metric-specific filters
+        if (selectedMetric === 'all') {
+          return true;
+        } else if (selectedMetric === 'awaiting') {
+          return p.queueStatus === 'awaiting_consultation' || !p.queueStatus;
+        } else if (selectedMetric === 'active') {
+          return p.queueStatus === 'in_consultation';
+        } else if (selectedMetric === 'completed') {
+          return p.queueStatus === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab';
+        } else {
+          // Default filter: Active Queue (Awaiting or In Consultation)
+          return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
+        }
       })
       .sort((a, b) => {
+        const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
+        const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
+        if (isSosA && !isSosB) return -1;
+        if (!isSosA && isSosB) return 1;
+
         const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2, 'completed': 3 };
         const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
         const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
@@ -239,7 +266,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         const tokenB = parseTokenNum(b.tokenNumber);
         return tokenA - tokenB;
       });
-  }, [patients, searchQuery, selectedMetric]);
+  }, [patients, appointments, searchQuery, selectedMetric, todayStr]);
 
   const lowStockSKUs = useMemo(() => {
     return pharmacyInventory.filter(item => item.stock <= item.threshold);
@@ -1113,46 +1140,49 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                 <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden flex gap-px relative shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
                   {/* Glossy overlay sheen */}
                   <div className="absolute inset-0 bg-gradient-to-b from-white/15 to-transparent pointer-events-none z-10" />
-                  {[
-                    { type: 'appointment_fee',    label: 'Consult',  color: 'bg-gradient-to-r from-indigo-500 to-indigo-600' },
-                    { type: 'lab_commission',      label: 'Lab',      color: 'bg-gradient-to-r from-teal-400 to-teal-500'   },
-                    { type: 'medicine_commission', label: 'Pharmacy', color: 'bg-gradient-to-r from-violet-500 to-violet-600' },
-                    { type: 'platform_fee',        label: 'Platform', color: 'bg-gradient-to-r from-slate-400 to-slate-500'  }
-                  ].map((item, index) => {
-                    const total = financials.filter(l => l.transactionType === item.type).reduce((s, l) => s + l.netPayout, 0);
-                    const allTotal = financials.reduce((s, l) => s + l.netPayout, 0) || 1;
-                    const pct = (total / allTotal) * 100;
-                    if (pct === 0) return null;
-                    return (
-                      <div
-                        key={index}
-                        className={`${item.color} h-full transition-all duration-700`}
-                        style={{ width: `${pct}%` }}
-                        title={`${item.label}: ₹${total} (${Math.round(pct)}%)`}
-                      />
-                    );
-                  })}
+                  {(() => {
+                    const poolStats = BillingService.calculateCommissionPoolBalance();
+                    const shares = [
+                      { type: 'appointment_fee', label: 'Consult', color: 'bg-gradient-to-r from-indigo-500 to-indigo-600', val: poolStats.doctorConsultsEarned },
+                      { type: 'lab_commission', label: 'Lab', color: 'bg-gradient-to-r from-teal-400 to-teal-500', val: poolStats.doctorLabReferralsEarned },
+                      { type: 'medicine_commission', label: 'Pharmacy', color: 'bg-gradient-to-r from-violet-500 to-violet-600', val: poolStats.doctorMedicineReferralsEarned },
+                      { type: 'platform_fee', label: 'Platform', color: 'bg-gradient-to-r from-slate-400 to-slate-500', val: poolStats.totalCashCommissionOwed }
+                    ];
+                    const allTotal = shares.reduce((s, item) => s + item.val, 0) || 1;
+                    return shares.map((item, index) => {
+                      const pct = (item.val / allTotal) * 100;
+                      if (pct === 0) return null;
+                      return (
+                        <div
+                          key={index}
+                          className={`${item.color} h-full transition-all duration-700`}
+                          style={{ width: `${pct}%` }}
+                          title={`${item.label}: ₹${item.val} (${Math.round(pct)}%)`}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
 
                 {/* Breakdown rows */}
                 <div className="space-y-2 pt-1">
-                  {[
-                    { type: 'appointment_fee',    label: 'Clinic Consult Payout',      dot: 'bg-indigo-500' },
-                    { type: 'lab_commission',      label: 'Lab Share Settlement',        dot: 'bg-teal-500'   },
-                    { type: 'medicine_commission', label: 'Pharmacy Share Settlement',   dot: 'bg-violet-500' },
-                    { type: 'platform_fee',        label: 'Platform Commission Split',   dot: 'bg-slate-400'  }
-                  ].map((item, index) => {
-                    const amt = financials.filter(l => l.transactionType === item.type).reduce((s, l) => s + l.netPayout, 0);
-                    return (
+                  {(() => {
+                    const poolStats = BillingService.calculateCommissionPoolBalance();
+                    return [
+                      { type: 'appointment_fee', label: 'Clinic Consult Payout', dot: 'bg-indigo-500', amt: poolStats.doctorConsultsEarned },
+                      { type: 'lab_commission', label: 'Lab Share Settlement', dot: 'bg-teal-500', amt: poolStats.doctorLabReferralsEarned },
+                      { type: 'medicine_commission', label: 'Pharmacy Share Settlement', dot: 'bg-violet-500', amt: poolStats.doctorMedicineReferralsEarned },
+                      { type: 'platform_fee', label: 'Platform Commission Split', dot: 'bg-slate-400', amt: poolStats.totalCashCommissionOwed }
+                    ].map((item, index) => (
                       <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
                         <span className="flex items-center gap-2 text-[11px] font-medium text-slate-700 dark:text-zinc-300">
                           <span className={`w-2 h-2 rounded-full ${item.dot} shrink-0`} />
                           {item.label}
                         </span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px]">₹{Math.round(amt).toLocaleString('en-IN')}</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px]">₹{Math.round(item.amt).toLocaleString('en-IN')}</span>
                       </div>
-                    );
-                  })}
+                    ));
+                  })()}
                 </div>
               </div>
             </PointerGlowCard>
