@@ -243,8 +243,8 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
                 }`}>Active</span>
               </div>
               <div className={`text-[10px] font-mono mt-1 space-y-0.5 ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>
-                <div>Holder Name: <strong className={isDark ? 'text-white' : 'text-slate-700 font-sans'}>{activeVendor.holder_name}</strong></div>
-                <div>Vendor ID: <strong className={isDark ? 'text-white' : 'text-slate-600'}>{activeVendor.vendor_id}</strong> • Bank Account: <strong className={isDark ? 'text-white' : 'text-slate-600'}>XXXX-XXXX-XXXX-{activeVendor.bank_account_last4}</strong></div>
+                <div>Holder Name: <strong className={isDark ? 'text-white' : 'text-slate-700 font-sans'}>{activeVendor.holder_name || activeVendor.holderName || 'Verified Partner'}</strong></div>
+                <div>Vendor ID: <strong className={isDark ? 'text-white' : 'text-slate-600'}>{activeVendor.vendor_id || activeVendor.vendorId || 'N/A'}</strong> • Bank Account: <strong className={isDark ? 'text-white' : 'text-slate-600'}>XXXX-XXXX-XXXX-{activeVendor.bank_account_last4 || activeVendor.bankAccountLast4 || 'XXXX'}</strong></div>
               </div>
             </div>
           </div>
