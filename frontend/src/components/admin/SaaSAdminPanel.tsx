@@ -2351,8 +2351,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                     </div>
                     <div className="flex items-center gap-2">
                       <select
-                        value={genCount}
-                        onChange={(e) => setGenCount(parseInt(e.target.value, 10))}
+                        value={genCount || 10}
+                        onChange={(e) => setGenCount(parseInt(e.target.value, 10) || 10)}
                         className="h-8 rounded-lg border border-slate-200 px-2 text-xs font-bold text-slate-700 outline-none cursor-pointer bg-white"
                       >
                         {[5, 10, 20, 50, 100].map(c => (
@@ -2363,11 +2363,12 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                         type="button"
                         onClick={() => {
                           try {
-                            api.generateSyntheticProfiles(genCount);
+                            const count = genCount || 10;
+                            api.generateSyntheticProfiles(count);
                             window.dispatchEvent(new CustomEvent('mediflow-toast', {
                               detail: {
                                 title: 'Profiles Generated',
-                                message: `Successfully generated ${genCount} synthetic profiles.`,
+                                message: `Successfully generated ${count} synthetic profiles.`,
                                 type: 'success'
                               }
                             }));
