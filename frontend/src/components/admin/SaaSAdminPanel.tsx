@@ -1282,7 +1282,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
       const phone = staff?.[0]?.phone || '9876543210';
       const name = staff?.[0]?.display_name || clinicName;
 
-      const reminderText = `Namaste ${name}! 🏥 Mediflow Platform Administration. Aapke clinic pod ka outstanding platform fee pending balance *₹${pendingCash.toFixed(2)}* hai. Please settle this amount to ensure unhindered billing splits routing and live AI services. Thank you!`;
+      const reminderText = `Namaste ${name}! 🏥 Mediflow Platform Administration. Aapke clinic pod ka outstanding platform fee pending balance *₹${(pendingCash || 0).toFixed(2)}* hai. Please settle this amount to ensure unhindered billing splits routing and live AI services. Thank you!`;
 
       // Dispatch the real conversational nudge to active session
       api.pushWhatsAppMessageFromBot(phone, reminderText);
@@ -1290,7 +1290,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Billing Reminder Sent 💬',
-          message: `Sent WhatsApp invoice reminder for ₹${pendingCash.toFixed(2)} to ${name} (${phone}).`,
+          message: `Sent WhatsApp invoice reminder for ₹${(pendingCash || 0).toFixed(2)} to ${name} (${phone}).`,
           type: 'success'
         }
       }));
