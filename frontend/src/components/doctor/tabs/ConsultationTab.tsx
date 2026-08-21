@@ -1078,8 +1078,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 })
                 .sort((a, b) => {
                   // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top
-                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || (a as any).source?.includes('sos') || (a.tokenNumber && (a.tokenNumber.includes('E') || a.tokenNumber.includes('SOS') || a.tokenNumber.startsWith('#EM-'))));
-                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || (b as any).source?.includes('sos') || (b.tokenNumber && (b.tokenNumber.includes('E') || b.tokenNumber.includes('SOS') || b.tokenNumber.startsWith('#EM-'))));
+                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || (a as any).source?.includes('sos') || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
+                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || (b as any).source?.includes('sos') || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
                   if (isSosA && !isSosB) return -1;
                   if (!isSosA && isSosB) return 1;
 
@@ -1103,7 +1103,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const isSelected = selectedPatient?.id === p.id;
                 const patientAppts = appointments.filter(a => a.patientId === p.id);
                 const virtualAppt = patientAppts.find(a => a.isVirtual);
-                const isEmergencySos = Boolean(p.tokenNumber && (p.tokenNumber.includes('E') || p.tokenNumber.includes('SOS')));
+                const isEmergencySos = Boolean(p.tokenNumber && (String(p.tokenNumber).includes('E') || String(p.tokenNumber).includes('SOS')));
 
                 return (
                   <button

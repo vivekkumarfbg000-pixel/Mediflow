@@ -340,8 +340,8 @@ export const CompounderDashboard: React.FC = () => {
             virtual_time: a.virtual_time,
             virtualMeetingUrl: a.virtual_meeting_url,
             virtual_meeting_url: a.virtual_meeting_url,
-            tokenNumber: a.token_number || 1,
-            token_number: a.token_number || 1,
+            tokenNumber: String(a.token_number || 1),
+            token_number: String(a.token_number || 1),
             source: a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical',
             patientName: patInfo.name || 'WhatsApp Patient',
             patientPhone: patInfo.phone || 'N/A',
@@ -2467,8 +2467,8 @@ export const CompounderDashboard: React.FC = () => {
 
                       confirmedAppts.sort((a, b) => {
                         // Priority #1: Emergency SOS
-                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || a.source?.includes('sos') || a.source?.includes('emergency') || a.tokenNumber?.includes('SOS') || a.tokenNumber?.startsWith('#EM-'));
-                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || b.source?.includes('sos') || b.source?.includes('emergency') || b.tokenNumber?.includes('SOS') || b.tokenNumber?.startsWith('#EM-'));
+                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || a.source?.includes('sos') || a.source?.includes('emergency') || String(a.tokenNumber || '').includes('SOS') || String(a.tokenNumber || '').startsWith('#EM-'));
+                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || b.source?.includes('sos') || b.source?.includes('emergency') || String(b.tokenNumber || '').includes('SOS') || String(b.tokenNumber || '').startsWith('#EM-'));
                         if (isSOSA && !isSOSB) return -1;
                         if (!isSOSA && isSOSB) return 1;
 
@@ -2531,7 +2531,7 @@ export const CompounderDashboard: React.FC = () => {
 
                       const isAwaitingVitals = patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus;
                       const isAwaitingConsult = patient.queueStatus === 'awaiting_consultation';
-                      const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || appt.source?.includes('sos') || appt.source?.includes('emergency') || appt.tokenNumber?.includes('SOS') || appt.tokenNumber?.startsWith('#EM-'));
+                      const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || appt.source?.includes('sos') || appt.source?.includes('emergency') || String(appt.tokenNumber || '').includes('SOS') || String(appt.tokenNumber || '').startsWith('#EM-'));
 
                       return (
                         <div 
