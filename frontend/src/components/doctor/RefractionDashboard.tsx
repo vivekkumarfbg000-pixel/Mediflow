@@ -231,7 +231,7 @@ export const RefractionDashboard: React.FC = () => {
       dilationStartTime: new Date().toISOString(),
       dilationDropsUsed: dilationDrops
     };
-    api.updatePatientVitalsAndToken(patient.id, updatedVitals as any, patient.tokenNumber || 'TK-1');
+    api.updatePatientVitalsAndToken(patient.id, updatedVitals as any, String(patient.tokenNumber || 'TK-1'));
     syncData();
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -254,7 +254,7 @@ export const RefractionDashboard: React.FC = () => {
       dilationStatus: 'dilated' as const,
       dilationStartTime: patient.vitals?.dilationStartTime
     };
-    api.updatePatientVitalsAndToken(patient.id, updatedVitals as any, patient.tokenNumber || 'TK-1');
+    api.updatePatientVitalsAndToken(patient.id, updatedVitals as any, String(patient.tokenNumber || 'TK-1'));
     syncData();
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {

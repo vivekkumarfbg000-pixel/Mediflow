@@ -91,7 +91,8 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
     return () => unsubscribe();
   }, []);
 
-  const activePatient = patients.find(p => p.phone === selectedPhone || (p as any).patient_phone === selectedPhone) || patients[0];
+  const cleanSelectedPhone = (selectedPhone || '').replace(/\D/g, '').slice(-10);
+  const activePatient = patients.find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanSelectedPhone) || patients[0];
   const activeInvoices = invoices.filter(i => (i.patientId || (i as any).patient_id) === activePatient?.id);
   const activeReports = reports.filter(r => (r.patientId || (r as any).patient_id) === activePatient?.id);
   const activeEncounters = encounters.filter(e => (e.patientId || (e as any).patient_id) === activePatient?.id);
