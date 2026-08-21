@@ -202,11 +202,11 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
   const startEditPartner = (partner: Entity) => {
     setEditingPartnerId(partner.id);
-    setEditName(partner.name);
+    setEditName(partner.name || '');
     setEditPhone(partner.phone || '');
     setEditAddress(partner.address || '');
-    setEditType(partner.entityType);
-    setEditStatus(partner.status);
+    setEditType(partner.entityType || 'clinic');
+    setEditStatus(partner.status || 'pending');
     setErrorMsg(null);
     setSuccessMsg(null);
   };
