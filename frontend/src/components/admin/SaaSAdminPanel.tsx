@@ -812,13 +812,15 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         ]
       };
 
-      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(slaData, null, 2));
+      const blob = new Blob([JSON.stringify(slaData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
       const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('href', url);
       downloadAnchor.setAttribute('download', `VitalSync_Tenant_Isolation_SLA_${Date.now()}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
+      URL.revokeObjectURL(url);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -941,13 +943,15 @@ Concurrent batch sync requests from B2B clinic pods exceeded 20 active connectio
 
 Status: 100% RESOLVED (Zero Collateral Data Loss)
 `;
-      const dataStr = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(rcaMarkdown);
+      const blob = new Blob([rcaMarkdown], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('href', url);
       downloadAnchor.setAttribute('download', `VitalSync_RCA_Incident_Report_${Date.now()}.md`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
+      URL.revokeObjectURL(url);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: { title: 'RCA Report Generated 📑', message: 'Downloaded VitalSync_RCA_Incident_Report.md.', type: 'success' }
