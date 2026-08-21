@@ -299,7 +299,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       if (pct < 0.5) return null;
                       return (
                         <div
-                          key={idx}
+                          key={`sop-bar-${idx}-${cat.type}`}
                           className={`${cat.bar} h-full transition-all duration-700 first:rounded-l-full last:rounded-r-full`}
                           style={{ width: `${pct}%` }}
                           title={`${cat.label}: ₹${Math.round(amt)} (${Math.round(pct)}%)`}
@@ -315,7 +315,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     const amt = financials.filter(l => l.transactionType === cat.type).reduce((s, l) => s + l.netPayout, 0);
                     const pct = allTotal > 0 ? ((amt / allTotal) * 100).toFixed(1) : '0.0';
                     return (
-                      <div key={idx} className="flex items-center justify-between bg-white/70 dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 hover:scale-[1.015] hover:shadow-xs transition-all duration-300">
+                      <div key={`sop-cat-${idx}-${cat.type}`} className="flex items-center justify-between bg-white/70 dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 hover:scale-[1.015] hover:shadow-xs transition-all duration-300">
                         <span className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">
                           <span className={`w-2.5 h-2.5 rounded-full ${cat.dot} shrink-0`} />
                           {cat.label}

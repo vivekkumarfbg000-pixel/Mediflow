@@ -870,7 +870,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {alerts.map((al, idx) => (
-                            <span key={idx} className="text-[8px] font-bold px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/30 text-rose-600 dark:text-rose-400 rounded font-mono">
+                            <span key={`alert-chip-${idx}-${al}`} className="text-[8px] font-bold px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/30 text-rose-600 dark:text-rose-400 rounded font-mono">
                               {al}
                             </span>
                           ))}
@@ -1014,7 +1014,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                   </div>
                 ) : (
                   groupedHolds.filter(g => g.status === 'held').map((group, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
+                    <div key={`group-hold-${idx}-${group.patientName}`} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">{group.patientName}</span>
                         <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400 shrink-0">
@@ -1157,7 +1157,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                       if (pct === 0) return null;
                       return (
                         <div
-                          key={index}
+                          key={`share-bar-${index}-${item.label}`}
                           className={`${item.color} h-full transition-all duration-700`}
                           style={{ width: `${pct}%` }}
                           title={`${item.label}: ₹${item.val} (${Math.round(pct)}%)`}
@@ -1177,7 +1177,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                       { type: 'medicine_commission', label: 'Pharmacy Share Settlement', dot: 'bg-violet-500', amt: poolStats.doctorMedicineReferralsEarned },
                       { type: 'platform_fee', label: 'Platform Commission Split', dot: 'bg-slate-400', amt: poolStats.totalCashCommissionOwed }
                     ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between bg-white dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
+                      <div key={`breakdown-row-${index}-${item.type}`} className="flex items-center justify-between bg-white dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
                         <span className="flex items-center gap-2 text-[11px] font-medium text-slate-700 dark:text-zinc-300">
                           <span className={`w-2 h-2 rounded-full ${item.dot} shrink-0`} />
                           {item.label}

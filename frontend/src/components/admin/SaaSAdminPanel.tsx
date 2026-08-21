@@ -3097,9 +3097,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 font-mono text-[11px] text-emerald-400 min-h-[140px] max-h-[220px] overflow-y-auto leading-relaxed shadow-inner">
                   {inspectingPodLogs.map((log, idx) => (
-                    <div key={idx} className="mb-2 pb-2 border-b border-slate-800/80 last:border-0">
+                    <div key={`pod-log-${log.id || idx}-${log.created_at || idx}`} className="mb-2 pb-2 border-b border-slate-800/80 last:border-0">
                       <div className="text-[10px] text-slate-400 font-sans font-semibold">
-                        [{new Date(log.created_at).toLocaleTimeString()}] Subsystem: {log.subsystem} · {log.error_code}
+                        [{log.created_at && !isNaN(new Date(log.created_at).getTime()) ? new Date(log.created_at).toLocaleTimeString() : 'Live'}] Subsystem: {log.subsystem} · {log.error_code}
                       </div>
                       <div className="text-emerald-300 mt-0.5">
                         {log.execution_logs?.[0]?.action_taken || 'Telemetry ping ok. Operational status verified.'}

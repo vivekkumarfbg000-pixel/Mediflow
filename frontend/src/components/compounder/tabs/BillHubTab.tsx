@@ -1268,7 +1268,7 @@ export const BillHubTab: React.FC = () => {
                             const mNameLower = (m.name || '').toLowerCase();
                             const state = selectedMedicines[mNameLower] || { selected: false, qty: 10 };
                             return (
-                              <tr key={idx} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0">
+                              <tr key={`bill-med-${idx}-${m.name}-${m.price}`} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0">
                                 <td className="p-3">
                                   <input
                                     type="checkbox"
@@ -1338,7 +1338,7 @@ export const BillHubTab: React.FC = () => {
                         </thead>
                         <tbody>
                           {billingLedger.testsList.map((t, idx) => (
-                            <tr key={idx} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0">
+                            <tr key={`bill-test-${idx}-${t.loincCode}-${t.name}`} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0">
                               <td className="p-3">
                                   <input
                                     type="checkbox"

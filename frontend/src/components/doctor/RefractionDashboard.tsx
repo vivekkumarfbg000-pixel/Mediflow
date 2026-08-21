@@ -403,7 +403,7 @@ export const RefractionDashboard: React.FC = () => {
                         </div>
                       ) : p.vitals.dilationStatus === 'instilled' ? (
                         <div className="flex items-center gap-2 w-full justify-between">
-                          {p.vitals.dilationStartTime && (
+                          {p.vitals.dilationStartTime && !isNaN(new Date(p.vitals.dilationStartTime).getTime()) && (
                             <span className="text-[9px] text-slate-500 font-mono">
                               Instilled: {new Date(p.vitals.dilationStartTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                             </span>

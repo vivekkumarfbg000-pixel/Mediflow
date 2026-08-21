@@ -340,7 +340,7 @@ export const AIFleetCommanderTab: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {growthOpportunities.map((opp, idx) => (
             <div
-              key={idx}
+              key={`growth-opp-${idx}-${opp.type}-${(opp.title || '').slice(0, 15)}`}
               className="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-blue-200/60 dark:border-slate-700 space-y-2.5 shadow-xs"
             >
               <div className="flex items-center justify-between">

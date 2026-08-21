@@ -404,7 +404,7 @@ ${rawTraceback}
                 const rawLog = alert.errorStack || alert.stack || alert.details || alert.rawLog || alert.trace || `Diagnostic Code: ERR_${alert.subsystem || 'SYS'}_EXHAUSTED\nTimestamp: ${alert.createdAt || alert.timestamp || new Date().toISOString()}\nRemediation Attempts: ${alert.attempts || alert.failedAttempts || 3} failed\nRecommended Action: ${alert.actionRequired || 'Manual inspection required'}`;
 
                 return (
-                  <div key={idx} className="p-3.5 rounded-xl bg-white/95 border border-rose-200 shadow-xs space-y-2.5">
+                  <div key={`founder-alert-${alert.id || idx}-${alert.createdAt || alert.timestamp || idx}`} className="p-3.5 rounded-xl bg-white/95 border border-rose-200 shadow-xs space-y-2.5">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
