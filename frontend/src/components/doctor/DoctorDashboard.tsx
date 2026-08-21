@@ -1353,8 +1353,8 @@ Keep the tone professional, clinical, objective, and precise.`;
     };
     
     activeQueue.sort((a, b) => {
-      const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
-      const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
+      const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).startsWith('#EM-') || String(a.tokenNumber).toUpperCase().includes('E-'))));
+      const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).startsWith('#EM-') || String(b.tokenNumber).toUpperCase().includes('E-'))));
       if (isSosA && !isSosB) return -1;
       if (!isSosA && isSosB) return 1;
       return parseTokenNum(a.tokenNumber) - parseTokenNum(b.tokenNumber);

@@ -292,7 +292,7 @@ export class WhatsAppService {
       if (!sessionData.clinicName) {
         let resolvedName = "Mediflow Clinic";
         try {
-          const patientObj = PatientService.getPatients().find(p => p.phone === phone);
+          const patientObj = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === incomingLast10);
           if (patientObj) {
             const { data: patientRow } = await supabase
               .from('patient_registry')
@@ -347,7 +347,7 @@ export class WhatsAppService {
             sessionData.consentGranted = true;
             sessionData.consentTime = new Date().toISOString();
             
-             const patient = PatientService.getPatients().find(p => p.phone === phone);
+             const patient = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === incomingLast10);
              if (patient) {
                const podId = getPodContext().podId;
                await supabase.from('patient_consents').insert({
@@ -380,7 +380,7 @@ export class WhatsAppService {
 
         case 'AWAITING_PAYMENT':
           {
-            const patient = PatientService.getPatients().find(p => p.phone === phone);
+            const patient = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === incomingLast10);
             if (patient) {
               const unifiedInvoices = BillingService.getUnifiedInvoices();
               const saasInvoices = load<any[]>('saas_invoices', []);
@@ -500,7 +500,7 @@ export class WhatsAppService {
               }
 
               if (matchedItem) {
-                let patientObj = PatientService.getPatients().find(p => p.phone === phone);
+                let patientObj = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === incomingLast10);
                 if (!patientObj) {
                   // Auto-register patient to prevent duplicate registers or unlinked draft invoice deadlocks
                   patientObj = PatientService.registerPatient({
@@ -601,7 +601,7 @@ export class WhatsAppService {
           break;
 
         case 'COMPLETED': {
-          const currentPat = PatientService.getPatients().find(p => p.phone === phone);
+          const currentPat = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === incomingLast10);
           const awaitingAction = sessionData.awaitingProactiveAction;
 
           if (cleaned === 'yes' && awaitingAction === 'refill') {
@@ -803,7 +803,7 @@ export class WhatsAppService {
         break;
 
         case 'AWAITING_REFILL_CHOICE': {
-          const currentPat = PatientService.getPatients().find(p => p.phone === phone);
+          const currentPat = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === incomingLast10);
           const activeInventory = PharmacyService.getPharmacyInventory();
           const optionIdx = parseInt(cleaned, 10) - 1;
           const refillOptions = sessionData.refillOptions || [];
@@ -916,7 +916,7 @@ export class WhatsAppService {
         break;
 
         case 'BOOKING_VIRTUAL': {
-          let currentPat = PatientService.getPatients().find(p => p.phone === phone);
+          let currentPat = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === incomingLast10);
           const awaitingAction = sessionData.awaitingProactiveAction;
 
           if (awaitingAction === 'virtual_slot' && ['1', '2', '3'].includes(cleaned)) {

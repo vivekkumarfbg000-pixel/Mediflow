@@ -3501,7 +3501,8 @@ export const CompounderDashboard: React.FC = () => {
               const sess = sessions.find(s => s.patientPhone === phone);
               if (sess) {
                 setActiveSession(sess);
-                const pat = patients.find(p => p.phone === phone);
+                const phoneDigits = (phone || '').replace(/\D/g, '').slice(-10);
+                const pat = patients.find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === phoneDigits);
                 if (pat) {
                   api.setActivePatient(pat);
                 }
@@ -3513,7 +3514,8 @@ export const CompounderDashboard: React.FC = () => {
           >
             <option value="">-- Select Active Loop --</option>
             {sessions.map(s => {
-              const pat = patients.find(p => p.phone === s.patientPhone);
+              const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+              const pat = patients.find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === sDigits);
               const name = pat ? pat.name : 'Unknown Patient';
               return (
                 <option key={s.id} value={s.patientPhone}>

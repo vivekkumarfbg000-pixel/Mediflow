@@ -1047,7 +1047,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                           // 5. Retrieve just-created invoice and open UPI modal
                           const createdInv = BillingService.getInvoices()
                             .filter(inv => inv.patientId === newPat.id && inv.status === 'unpaid' && inv.type === 'consult')
-                            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+                            .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
                           if (createdInv) {
                             // Map Invoice → UnifiedInvoice shape for UPI modal
                             handleTriggerUpiSheet({

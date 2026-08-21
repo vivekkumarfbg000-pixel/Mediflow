@@ -432,7 +432,7 @@ export class WorkflowOrchestratorAgent {
     if (!state) return 0;
     const steps = Object.values(state.steps);
     const done = steps.filter(s => s === 'success' || s === 'skipped').length;
-    return Math.round((done / steps.length) * 100);
+    return steps.length > 0 ? Math.round((done / steps.length) * 100) : 0;
   }
 
   static hasFailures(workflowId: string): boolean {

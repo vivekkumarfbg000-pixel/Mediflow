@@ -194,7 +194,7 @@ class WALIndexedDB {
         const request = store.getAll();
         request.onsuccess = () => {
           const all = request.result as WALEntry[];
-          resolve(all.filter(e => !e.synced).sort((a, b) => a.timestamp.localeCompare(b.timestamp)));
+          resolve(all.filter(e => !e.synced).sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))));
         };
         request.onerror = () => reject(request.error);
       });

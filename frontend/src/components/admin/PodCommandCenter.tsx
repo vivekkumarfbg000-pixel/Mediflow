@@ -380,7 +380,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       const history = s.sessionData?.chatHistory || [];
       const lastPatientMsg = [...history].reverse().find(m => m.sender === 'patient');
       if (lastPatientMsg) {
-        const patient = patients.find(p => p.phone === s.patientPhone);
+        const sPhoneDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+        const patient = patients.find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === sPhoneDigits);
         let text = lastPatientMsg.text.trim();
         const cleaned = text.toLowerCase();
         

@@ -91,6 +91,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   // Bug Fix #2: Do NOT auto-fallback to first session — causes realtime leak on wrong patient channel
   const activeChat = selectedChatSession ?? null;
   const sessionData = activeChat?.sessionData ?? activeChat?.session_data ?? {};
+  const activeChatPhoneDigits = useMemo(() => (activeChat?.patientPhone || (activeChat as any)?.patient_phone || '').replace(/\D/g, '').slice(-10), [activeChat?.patientPhone, (activeChat as any)?.patient_phone]);
+  const activeChatPatient = useMemo(() => activeChat ? patients.find(p => p.id === activeChat.patientId || (activeChatPhoneDigits && (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === activeChatPhoneDigits)) : null, [patients, activeChat, activeChatPhoneDigits]);
 
   useEffect(() => {
     if (rightTab === 'chat' && chatScrollRef.current) {
@@ -235,8 +237,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   // Bug Fix #1: Null-safe patientPhone — s.patientPhone can be undefined from DB camelCase mismatch
   const filteredSessions = whatsAppSessions.filter(s => {
     const phone = s.patientPhone || s.patient_phone || s.phone || '';
+    const cleanSessPhone = phone.replace(/\D/g, '').slice(-10);
     const matchPhone = phone.includes(chatSearch);
-    const pat = patients.find(p => p.id === s.patientId || p.phone === phone);
+    const pat = patients.find(p => p.id === s.patientId || (cleanSessPhone && (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanSessPhone));
     const matchName = pat ? (pat.name || '').toLowerCase().includes(chatSearch.toLowerCase()) : false;
     return matchPhone || matchName;
   });
@@ -405,7 +408,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   </div>
                 ) : (
                   filteredSessions.map(s => {
-                    const pat = patients.find(p => p.id === s.patientId || p.phone === s.patientPhone);
+                    const sessPhoneDigits = (s.patientPhone || s.patient_phone || s.phone || '').replace(/\D/g, '').slice(-10);
+                    const pat = patients.find(p => p.id === s.patientId || (sessPhoneDigits && (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === sessPhoneDigits));
                     const name = pat ? pat.name : 'Unknown Patient';
                     const sSessData = s.sessionData || s.session_data || {};
                     const lastMsg = sSessData.chatHistory?.[sSessData.chatHistory.length - 1]?.text ?? 'Session initialized';
@@ -539,16 +543,16 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       <ArrowLeft className="w-3.5 h-3.5" /> Back
                     </button>
                     <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone)?.name ?? 'Linked Patient'}
+                      {activeChatPatient?.name ?? 'Linked Patient'}
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     </h3>
                   </div>
 
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] text-slate-600 font-mono font-semibold">{activeChat.patientPhone}</span>
-                    {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone) && (
+                    {activeChatPatient && (
                       <span className="text-[9px] font-bold font-mono px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
-                        {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone)?.age} Yrs • {patients.find(p => p.id === activeChat.patientId || p.phone === activeChat.patientPhone)?.gender}
+                        {activeChatPatient.age} Yrs • {activeChatPatient.gender}
                       </span>
                     )}
                   </div>

@@ -1163,7 +1163,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                               : 'bg-amber-550/10 text-amber-700 border-amber-200/60 animate-pulse'
                           }`}>
                             {p.vitals.dilationStatus === 'dilated' ? '👁️ Dilated' : '⏳ Dilating'}
-                            {p.vitals.dilationStatus === 'instilled' && p.vitals.dilationStartTime && (
+                            {p.vitals.dilationStatus === 'instilled' && p.vitals.dilationStartTime && !isNaN(new Date(p.vitals.dilationStartTime).getTime()) && (
                               <span className="font-mono">
                                 ({Math.max(0, Math.ceil((new Date(p.vitals.dilationStartTime).getTime() + 20 * 60 * 1000 - Date.now()) / (60 * 1000)))}m)
                               </span>
@@ -2784,7 +2784,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                           : 'bg-amber-550/10 text-amber-800 border-amber-200'
                       }`}>
                         {selectedPatient.vitals.dilationStatus === 'dilated' ? '👁️ Fully Dilated' : '⏳ Dilation in Progress'}
-                        {selectedPatient.vitals.dilationStatus === 'instilled' && selectedPatient.vitals.dilationStartTime && (
+                        {selectedPatient.vitals.dilationStatus === 'instilled' && selectedPatient.vitals.dilationStartTime && !isNaN(new Date(selectedPatient.vitals.dilationStartTime).getTime()) && (
                           <span className="ml-1 text-[9px] font-mono lowercase">
                             ({Math.max(0, Math.ceil((new Date(selectedPatient.vitals.dilationStartTime).getTime() + 20 * 60 * 1000 - Date.now()) / (60 * 1000)))}m left)
                           </span>

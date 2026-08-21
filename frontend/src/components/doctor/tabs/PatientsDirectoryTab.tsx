@@ -96,7 +96,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
       
       if (infoA && infoB) {
         if (infoA.date !== infoB.date) {
-          return infoA.date.localeCompare(infoB.date);
+          return String(infoA.date || '').localeCompare(String(infoB.date || ''));
         }
         const parseTime = (timeStr?: string) => {
           if (!timeStr || !timeStr.includes(' ')) return timeStr || ''; // fallback for non-AM/PM strings
@@ -109,7 +109,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
           if (modifier === 'PM') hours = String(parseInt(hours, 10) + 12);
           return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
         };
-        return parseTime(infoA.time).localeCompare(parseTime(infoB.time));
+        return String(parseTime(infoA.time) || '').localeCompare(String(parseTime(infoB.time) || ''));
       }
       return 0;
     });

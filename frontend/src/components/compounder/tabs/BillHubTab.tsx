@@ -575,8 +575,8 @@ export const BillHubTab: React.FC = () => {
         if (!name) name = 'Walkin Patient';
         if (!phone) phone = '99999' + Math.floor(10000 + Math.random() * 90000);
 
-        // Try to find matching patient by phone
-        let patientObj = PatientService.getPatients().find(p => p.phone === phone);
+        const cleanTargetPhone = (phone || '').replace(/\D/g, '').slice(-10);
+        let patientObj = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanTargetPhone);
         if (!patientObj) {
           patientObj = PatientService.registerPatient({
             name,

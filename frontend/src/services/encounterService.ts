@@ -346,6 +346,6 @@ export class EncounterService {
       }
     }
 
-    return historyList.sort((a, b) => a.date.localeCompare(b.date));
+    return historyList.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
   }
 }
