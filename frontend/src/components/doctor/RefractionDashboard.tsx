@@ -36,6 +36,7 @@ export const RefractionDashboard: React.FC = () => {
 
   // Registry state
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Workspace Patient
@@ -44,6 +45,7 @@ export const RefractionDashboard: React.FC = () => {
   // Load and subscribe to API changes
   const syncData = useCallback(() => {
     setPatients(api.getPatients());
+    setAppointments(api.getAppointments());
   }, []);
 
   // Subscribe to live 360-degree Realtime updates
@@ -91,12 +93,19 @@ export const RefractionDashboard: React.FC = () => {
   const [dilationDrops, setDilationDrops] = useState('Tropicamide 1%');
 
   // Filter queue for Refractionist (Scoped to Today)
-  const isPatientForToday = (p: Patient) => {
+  const isPatientForToday = useCallback((p: Patient) => {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+    if (patAppts.length > 0) {
+      return patAppts.some(a => {
+        const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || (a as any).appointment_date || (a as any).appointmentDate || a.createdAt?.split('T')[0];
+        return apptDate === todayStr;
+      });
+    }
     const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
     return regDate.startsWith(todayStr);
-  };
+  }, [appointments]);
 
   const filteredPatients = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -118,7 +127,7 @@ export const RefractionDashboard: React.FC = () => {
       (p.tokenNumber != null && String(p.tokenNumber).toLowerCase().includes(query)) ||
       (p.phone || '').includes(query)
     );
-  }, [patients, searchQuery]);
+  }, [patients, searchQuery, isPatientForToday]);
 
   // Queue Metrics
   const metrics = useMemo(() => {
@@ -127,7 +136,7 @@ export const RefractionDashboard: React.FC = () => {
     const inProgress = todayPatients.filter(p => p.queueStatus === 'refraction_in_progress').length;
     const completed = todayPatients.filter(p => p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation').length;
     return { awaiting, inProgress, completed };
-  }, [patients]);
+  }, [patients, isPatientForToday]);
 
   const handleStartRefraction = (patient: Patient) => {
     setRefractionPatient(patient);
