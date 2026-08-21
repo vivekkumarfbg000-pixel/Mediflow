@@ -67,8 +67,16 @@ export const SystemHealthCockpit: React.FC = () => {
   const [copiedAlertIdx, setCopiedAlertIdx] = useState<number | null>(null);
   const [activeAiRepairModalAlert, setActiveAiRepairModalAlert] = useState<any | null>(null);
 
+  const safeStringifyAlert = (obj: any) => {
+    try {
+      return JSON.stringify(obj, null, 2);
+    } catch (_e) {
+      return String(obj?.message || obj?.error || 'Unserializable incident payload');
+    }
+  };
+
   const handleCopyAlertErrorLog = (alert: any, idx: number) => {
-    const rawTraceback = alert.errorStack || alert.stack || alert.details || alert.rawLog || alert.trace || JSON.stringify(alert, null, 2);
+    const rawTraceback = alert.errorStack || alert.stack || alert.details || alert.rawLog || alert.trace || safeStringifyAlert(alert);
     const formattedLog = `### 🚨 MEDIFLOW AUTO-HEALER ESCALATION REPORT
 - **Subsystem**: ${alert.subsystem || alert.type || 'SYSTEM'}
 - **Summary**: ${alert.errorSummary || alert.message || 'Operational anomaly'}
@@ -895,7 +903,7 @@ ${rawTraceback}
                   </button>
                 </div>
                 <pre className="p-3 bg-slate-950 text-rose-300 font-mono text-[10.5px] rounded-2xl border border-slate-800 overflow-x-auto max-h-44 whitespace-pre-wrap leading-relaxed select-all font-sans">
-                  {activeAiRepairModalAlert.errorStack || activeAiRepairModalAlert.stack || activeAiRepairModalAlert.details || activeAiRepairModalAlert.rawLog || activeAiRepairModalAlert.trace || JSON.stringify(activeAiRepairModalAlert, null, 2)}
+                  {activeAiRepairModalAlert.errorStack || activeAiRepairModalAlert.stack || activeAiRepairModalAlert.details || activeAiRepairModalAlert.rawLog || activeAiRepairModalAlert.trace || safeStringifyAlert(activeAiRepairModalAlert)}
                 </pre>
               </div>
 
