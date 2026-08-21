@@ -683,7 +683,7 @@ export const CompounderDashboard: React.FC = () => {
     if (billingPatient) {
       const txs = api.getCounterTransactions();
       const todayStr = new Date().toISOString().split('T')[0];
-      const existingTx = txs.find(t => t.patientId === billingPatient.id && t.createdAt.startsWith(todayStr));
+      const existingTx = txs.find(t => t.patientId === billingPatient.id && (t.createdAt || '').startsWith(todayStr));
       
       if (existingTx) {
         setApptCounterBooked(existingTx.appointmentBookedAtCounter);

@@ -346,9 +346,9 @@ export class PharmacyService {
 
     // Also check if any unique items are in the pharmacy inventory that are not in master list
     inventory.forEach(item => {
-      const isAlreadyAdded = results.some(r => r.name.toLowerCase() === item.name.toLowerCase());
+      const isAlreadyAdded = results.some(r => (r.name || '').toLowerCase() === (item.name || '').toLowerCase());
       if (!isAlreadyAdded) {
-        const matchName = item.name.toLowerCase().includes(q) || (item.genericName && item.genericName.toLowerCase().includes(q)) || (item.category && item.category.toLowerCase().includes(q));
+        const matchName = (item.name || '').toLowerCase().includes(q) || (item.genericName && item.genericName.toLowerCase().includes(q)) || (item.category && item.category.toLowerCase().includes(q));
         if (matchName) {
           results.push({
             name: item.name,
@@ -506,7 +506,7 @@ export class PharmacyService {
   static restockPharmacyInventoryItem(itemId: string, quantity: number) {
     const items = this.getPharmacyInventory();
     const updated = items.map(item => {
-      if (item.id === itemId || item.name.toLowerCase() === itemId.toLowerCase()) {
+      if (item.id === itemId || (item.name || '').toLowerCase() === (itemId || '').toLowerCase()) {
         const newStock = Math.max(0, item.stock + quantity);
 
         supabase.from('pharmacy_inventory')
@@ -933,7 +933,7 @@ export class PharmacyService {
     
     const tx = txs.find(t => 
       t.patientId === patientId && 
-      t.createdAt.startsWith(todayStr) && 
+      (t.createdAt || '').startsWith(todayStr) && 
       t.appointmentBookedAtCounter && 
       t.labBookedAtCounter
     );
@@ -943,15 +943,15 @@ export class PharmacyService {
 
   static generateMedicineInvoiceMessage(bill: MedicineBill): string {
     const itemsList = bill.items.map(item => 
-      `• ${item.name} (${item.dosage}) [Batch: ${item.batchNumber}] x ${item.quantity} = ₹${item.lineTotal.toFixed(2)}`
+      `• ${item.name} (${item.dosage}) [Batch: ${item.batchNumber}] x ${item.quantity} = ₹${(item.lineTotal || 0).toFixed(2)}`
     ).join('\n');
 
     const loyaltyText = bill.loyaltyDiscountPercent > 0 
-      ? `\n🎉 Counter Loyalty Discount (10%): -₹${bill.loyaltyDiscountAmount.toFixed(2)}` 
+      ? `\n🎉 Counter Loyalty Discount (10%): -₹${(bill.loyaltyDiscountAmount || 0).toFixed(2)}` 
       : '';
       
     const itemDiscountText = bill.itemDiscountAmount > 0
-      ? `\n🏷 Additional Item Discount: -₹${bill.itemDiscountAmount.toFixed(2)}`
+      ? `\n🏷 Additional Item Discount: -₹${(bill.itemDiscountAmount || 0).toFixed(2)}`
       : '';
 
     const deliveryText = bill.deliveryType === 'shiprocket'
@@ -1244,9 +1244,9 @@ Thank you for choosing VitalSync! 🟢`;
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:11px">${item.dosage}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-family:monospace;font-size:11px">${item.batchNumber}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center">${item.quantity}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;color:#64748b">₹${item.mrp.toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;color:#64748b">₹${(item.mrp || 0).toFixed(2)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right">${item.discountPercent > 0 ? item.discountPercent + '%' : '—'}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">₹${item.lineTotal.toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">₹${(item.lineTotal || 0).toFixed(2)}</td>
       </tr>`
     ).join('');
 

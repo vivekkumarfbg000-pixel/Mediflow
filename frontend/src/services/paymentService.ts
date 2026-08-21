@@ -318,7 +318,7 @@ export class PaymentService {
       amount: amountInPaise,
       currency: 'INR',
       name: 'VitalSync Care Network',
-      description: `Clinical Appointment Invoice #${params.invoiceId.substring(0, 8).toUpperCase()}`,
+      description: `Clinical Appointment Invoice #${(params.invoiceId || 'N/A').substring(0, 8).toUpperCase()}`,
       ...(params.orderId && params.orderId.startsWith('order_') && params.orderId.length >= 14 && !params.orderId.includes('inv') && !params.orderId.includes('fallback') ? { order_id: params.orderId } : {}),
       prefill: {
         name: params.name || 'VitalSync Patient',

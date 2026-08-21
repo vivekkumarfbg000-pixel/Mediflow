@@ -216,9 +216,9 @@ export class LabBillingService {
       `<tr>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#475569">${item.testName}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#475569;font-family:monospace">${item.loincCode}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;color:#0f172a">₹${item.price.toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;color:#0f172a">₹${(item.price || 0).toFixed(2)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;color:#64748b">${item.discountPercent > 0 ? item.discountPercent + '%' : '—'}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">₹${item.lineTotal.toFixed(2)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">₹${(item.lineTotal || 0).toFixed(2)}</td>
       </tr>`
     ).join('');
 
@@ -301,7 +301,7 @@ export class LabBillingService {
 
   static generateLabInvoiceMessage(bill: LabTestBill): string {
     const itemsList = bill.items.map(item =>
-      `• ${item.testName} (${item.loincCode}) — ₹${item.lineTotal.toFixed(2)}`
+      `• ${item.testName} (${item.loincCode}) — ₹${(item.lineTotal || 0).toFixed(2)}`
     ).join('\n');
 
     const discountText = (bill.discountAmount || 0) > 0

@@ -450,19 +450,19 @@ export class WhatsAppService {
                 draftBill.deliveryType = 'pickup';
                 draftBill.deliveryCharge = 0;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount;
-                draftBill.upiQrPayload = `https://razorpay.me/@vitalsync3758?amount=${draftBill.totalAmount.toFixed(2)}`;
+                draftBill.upiQrPayload = `https://razorpay.me/@vitalsync3758?amount=${(draftBill.totalAmount || 0).toFixed(2)}`;
                 
                 sessionData.medicineOrderStage = 'INITIAL';
                 nextState = 'MEDICINE_AWAITING_PAYMENT';
                 
                 PharmacyService.saveMedicineBill(draftBill);
 
-                replyMessage = `🚶 *Counter Pickup Confirmed!* \n\n*Invoice Summary:*\n- Subtotal: ₹${draftBill.subtotal.toFixed(2)}\n- GST: ₹${draftBill.gstAmount.toFixed(2)}\n- Delivery Charge: ₹0.00\n---------------------------------------\n*Total Amount Payable: ₹${draftBill.totalAmount.toFixed(2)}*\n\nSettle karne ke liye is link par click karein:\n${draftBill.upiQrPayload}\n\nPayment karne ke baad please **PAY** reply kijiye!`;
+                replyMessage = `🚶 *Counter Pickup Confirmed!* \n\n*Invoice Summary:*\n- Subtotal: ₹${(draftBill.subtotal || 0).toFixed(2)}\n- GST: ₹${(draftBill.gstAmount || 0).toFixed(2)}\n- Delivery Charge: ₹0.00\n---------------------------------------\n*Total Amount Payable: ₹${(draftBill.totalAmount || 0).toFixed(2)}*\n\nSettle karne ke liye is link par click karein:\n${draftBill.upiQrPayload}\n\nPayment karne ke baad please **PAY** reply kijiye!`;
               } else if (cleaned === '2') {
                 draftBill.deliveryType = 'shiprocket';
                 draftBill.deliveryCharge = 45;
                 draftBill.totalAmount = draftBill.subtotal + draftBill.gstAmount + 45;
-                draftBill.upiQrPayload = `https://razorpay.me/@vitalsync3758?amount=${draftBill.totalAmount.toFixed(2)}`;
+                draftBill.upiQrPayload = `https://razorpay.me/@vitalsync3758?amount=${(draftBill.totalAmount || 0).toFixed(2)}`;
                 
                 sessionData.medicineOrderStage = 'AWAITING_ADDRESS';
                 
@@ -560,7 +560,7 @@ export class WhatsAppService {
                 sessionData.draftMedicineBill = draftBill;
                 sessionData.medicineOrderStage = 'CHOOSING_DELIVERY';
 
-                replyMessage = `💊 *Live ${this.getDynamicClinicName()} Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${matchedItem.price.toFixed(2)}\n• Subtotal: ₹${itemTotal.toFixed(2)} (+₹${gstAmt.toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
+                replyMessage = `💊 *Live ${this.getDynamicClinicName()} Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${(matchedItem.price || 0).toFixed(2)}\n• Subtotal: ₹${(itemTotal || 0).toFixed(2)} (+₹${(gstAmt || 0).toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
               } else {
                 replyMessage = `Aapka medicine query *"${text}"* match nahi hua. ⚠️ Hamare live catalog mein Paracetamol, Metformin, Amoxicillin, Atorvastatin aur Pantoprazole available hain. \n\nKaunsi medicine chahiye? Please correct brand/generic name type kijiye (e.g. "Metformin 30 tabs"):`;
               }
@@ -873,7 +873,7 @@ export class WhatsAppService {
             sessionData.medicineOrderStage = 'CHOOSING_DELIVERY';
             nextState = 'MEDICINE_ORDERING';
 
-            replyMessage = `💊 *Live ${this.getDynamicClinicName()} Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${matchedItem.price.toFixed(2)}\n• Subtotal: ₹${itemTotal.toFixed(2)} (+₹${gstAmt.toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
+            replyMessage = `💊 *Live ${this.getDynamicClinicName()} Inventory Matched!* \n• Dawa: *${matchedItem.name}* (Batch: ${matchedItem.batchNumber})\n• Qty: *${qty} ${matchedItem.unit}*\n• Price per Unit: ₹${(matchedItem.price || 0).toFixed(2)}\n• Subtotal: ₹${(itemTotal || 0).toFixed(2)} (+₹${(gstAmt || 0).toFixed(2)} GST)\n\n*Logistics Option Select Karein:*\n\n*1* - Counter Pickup (₹0.00 standard pickup)\n*2* - Shiprocket Home Delivery (₹45.00 Cheapest logistics option)`;
           } else {
             nextState = 'MEDICINE_ORDERING';
             sessionData.medicineOrderStage = 'INITIAL';
