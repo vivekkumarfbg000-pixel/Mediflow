@@ -1082,8 +1082,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 })
                 .sort((a, b) => {
                   // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top
-                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
-                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
+                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).toUpperCase().includes(' E') || String(a.tokenNumber).toUpperCase().includes('E-') || String(a.tokenNumber).startsWith('#EM-'))));
+                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).toUpperCase().includes(' E') || String(b.tokenNumber).toUpperCase().includes('E-') || String(b.tokenNumber).startsWith('#EM-'))));
                   if (isSosA && !isSosB) return -1;
                   if (!isSosA && isSosB) return 1;
 
@@ -1107,7 +1107,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const isSelected = selectedPatient?.id === p.id;
                 const patientAppts = appointments.filter(a => a.patientId === p.id);
                 const virtualAppt = patientAppts.find(a => a.isVirtual);
-                const isEmergencySos = Boolean((p as any).isEmergency || (p as any).is_emergency || String((p as any).source || '').toLowerCase().includes('sos') || String((p as any).source || '').toLowerCase().includes('emergency') || (p.tokenNumber && (String(p.tokenNumber).includes('E') || String(p.tokenNumber).toUpperCase().includes('SOS') || String(p.tokenNumber).startsWith('#EM-'))));
+                const isEmergencySos = Boolean((p as any).isEmergency || (p as any).is_emergency || String((p as any).source || '').toLowerCase().includes('sos') || String((p as any).source || '').toLowerCase().includes('emergency') || (p.tokenNumber && (String(p.tokenNumber).toUpperCase().includes('SOS') || String(p.tokenNumber).toUpperCase().includes(' E') || String(p.tokenNumber).toUpperCase().includes('E-') || String(p.tokenNumber).startsWith('#EM-'))));
 
                 return (
                   <button
