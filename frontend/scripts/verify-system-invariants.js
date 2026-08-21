@@ -124,6 +124,17 @@ function scanFiles(dir) {
             reason: 'Raw {bill.items.length} crashes if items array is null/undefined in realtime CDC payloads. Use {(bill.items || []).length}.'
           });
         }
+
+        // Invariant 7: Webhook Secret Validation Guard (Rule 109)
+        if (relPath.includes('webhook') && line.includes('Deno.env.get') && line.includes('SECRET') && line.includes('|| "mediflow-bank-secret"')) {
+          violations.push({
+            rule: 'INVARIANT_7_WEBHOOK_SECRET_GUARD',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Webhooks must never fall back to default secrets in production. Use strict env or development checks.'
+          });
+        }
       });
     }
   }
