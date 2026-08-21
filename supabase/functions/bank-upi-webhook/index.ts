@@ -16,12 +16,17 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // 1. Security Check: Validate Secret Header to prevent spam
+    // 1. Security Check: Validate Secret Header to prevent unauthorized webhook spam
     const requestSecret = req.headers.get("x-webhook-secret");
-    const systemSecret = Deno.env.get("BANK_SMS_SECRET") || "mediflow-bank-secret";
+    const systemSecret = Deno.env.get("BANK_SMS_SECRET");
+    const isDevelopment = Deno.env.get("ENVIRONMENT") === "development";
     
-    if (requestSecret !== systemSecret) {
-      console.warn("[Bank SMS Webhook] Unauthorized request blocked: Secret key mismatch.");
+    const isValidSecret = systemSecret 
+      ? requestSecret === systemSecret 
+      : (isDevelopment && requestSecret === "mediflow-bank-secret");
+
+    if (!isValidSecret) {
+      console.warn("[Bank SMS Webhook] Unauthorized request blocked: Invalid or missing secret key.");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
