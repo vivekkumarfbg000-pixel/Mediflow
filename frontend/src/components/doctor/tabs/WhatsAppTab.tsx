@@ -583,12 +583,12 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     <div key={msg.id || msg.timestamp || `msg-${idx}-${(msg.text || '').slice(0, 10)}`} className="flex flex-col w-full max-w-[88%] space-y-0.5 relative">
                       <div className={`p-3 text-xs leading-relaxed font-sans shadow-2xs ${bubbleStyle}`}>
                         <p className="whitespace-pre-line">{msg.text}</p>
-                        {msg.text?.includes('/pay') && (
+                        {(msg.text || '').includes('/pay') && (
                           <div className="mt-2 pt-2 border-t border-slate-100 dark:border-white/10">
                             <button
                               type="button"
                               onClick={() => {
-                                const payUrlMatch = msg.text.match(/(https?:\/\/[^\s]+)/);
+                                const payUrlMatch = (msg.text || '').match(/(https?:\/\/[^\s]+)/);
                                 if (payUrlMatch) window.open(payUrlMatch[0], '_blank', 'noopener,noreferrer');
                               }}
                               className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 transition-all"

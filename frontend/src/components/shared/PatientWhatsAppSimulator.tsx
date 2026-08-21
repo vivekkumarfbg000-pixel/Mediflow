@@ -312,19 +312,20 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
 
             {chatHistory.map((msg, i) => {
               const isBot = msg.sender === 'bot';
-              const hasVoiceNote = msg.text.includes('https://vitalsync.in/api/voice-slips/');
+              const safeText = String(msg.text || '');
+              const hasVoiceNote = safeText.includes('https://vitalsync.in/api/voice-slips/');
               
-              let displayTargetText = msg.text;
+              let displayTargetText = safeText;
               let voiceUrl = '';
               if (hasVoiceNote) {
-                const parts = msg.text.split('https://vitalsync.in/api/voice-slips/');
+                const parts = safeText.split('https://vitalsync.in/api/voice-slips/');
                 displayTargetText = parts[0].trim();
                 voiceUrl = 'https://vitalsync.in/api/voice-slips/' + (parts[1] || '').split('\n')[0].trim();
               }
 
               return (
                 <div 
-                  key={`msg-${i}-${msg.sender}-${msg.text.substring(0, 15)}`} 
+                  key={`msg-${i}-${msg.sender || 'bot'}-${safeText.substring(0, 15)}`} 
                   className={`max-w-[85%] p-2 rounded-xl text-[11px] shadow-sm leading-relaxed ${
                     isBot 
                       ? 'bg-white text-slate-800 self-start rounded-tl-none border-l-2 border-emerald-500' 
@@ -333,12 +334,12 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                 >
                   {displayTargetText && <p className="whitespace-pre-line font-medium leading-normal">{displayTargetText}</p>}
                   
-                  {msg.text.includes('/pay') && (
+                  {safeText.includes('/pay') && (
                     <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/10">
                       <button
                         type="button"
                         onClick={() => {
-                          const payUrlMatch = msg.text.match(/(https?:\/\/[^\s]+)/);
+                          const payUrlMatch = safeText.match(/(https?:\/\/[^\s]+)/);
                           const targetUrl = payUrlMatch ? payUrlMatch[0] : `/pay/${pendingInvoice?.id || 'inv-default'}`;
                           window.open(targetUrl, '_blank', 'noopener,noreferrer');
                         }}

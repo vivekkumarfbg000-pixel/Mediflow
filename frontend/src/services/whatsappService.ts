@@ -240,7 +240,10 @@ export class WhatsAppService {
         // Unregistered patient!
         const welcomeText = `⚠️ *Profile Not Found!* \n\nNamaste! Aapka contact number humare clinic database mein registered nahi hai. \n\nWhatsApp par appointment book karne ke liye, please pehle is link par click karke manually register kijiye: \n🔗 https://mediflow.in/register?phone=${phone} \n\nRegistration complete hone ke baad hume dobara message kijiye!`;
         
-        const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+        const sessionIndex = sessions.findIndex(s => {
+          const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+          return sDigits && incomingLast10 && sDigits === incomingLast10;
+        });
         const now = new Date().toISOString();
         const patientMsg = { sender: 'patient', text, time: now, timestamp: now };
         const botMsg = { sender: 'bot', text: welcomeText, time: now, timestamp: now };
@@ -279,7 +282,10 @@ export class WhatsAppService {
         return;
       }
 
-      const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
+      const sessionIndex = sessions.findIndex(s => {
+        const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+        return sDigits && incomingLast10 && sDigits === incomingLast10;
+      });
       
       if (sessionIndex === -1) {
         this.initiateWhatsAppSession(phone);
@@ -1259,7 +1265,11 @@ export class WhatsAppService {
   static updateWhatsAppState(phone: string, state: WhatsAppSession['currentState'], data: Record<string, any> = {}): void {
     try {
       const sessions = this.getWhatsAppSessions();
-      const idx = sessions.findIndex(s => s.patientPhone === phone);
+      const targetDigits = (phone || '').replace(/\D/g, '').slice(-10);
+      const idx = sessions.findIndex(s => {
+        const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+        return sDigits && targetDigits && sDigits === targetDigits;
+      });
       if (idx !== -1) {
         sessions[idx].currentState = state;
         sessions[idx].lastInteraction = new Date().toISOString();
