@@ -1107,7 +1107,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const isSelected = selectedPatient?.id === p.id;
                 const patientAppts = appointments.filter(a => a.patientId === p.id);
                 const virtualAppt = patientAppts.find(a => a.isVirtual);
-                const isEmergencySos = Boolean(p.tokenNumber && (String(p.tokenNumber).includes('E') || String(p.tokenNumber).includes('SOS')));
+                const isEmergencySos = Boolean((p as any).isEmergency || (p as any).is_emergency || String((p as any).source || '').toLowerCase().includes('sos') || String((p as any).source || '').toLowerCase().includes('emergency') || (p.tokenNumber && (String(p.tokenNumber).includes('E') || String(p.tokenNumber).toUpperCase().includes('SOS') || String(p.tokenNumber).startsWith('#EM-'))));
 
                 return (
                   <button

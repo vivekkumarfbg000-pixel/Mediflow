@@ -98,8 +98,8 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
         if (infoA.date !== infoB.date) {
           return infoA.date.localeCompare(infoB.date);
         }
-        const parseTime = (timeStr: string) => {
-          if (!timeStr.includes(' ')) return timeStr; // fallback for non-AM/PM strings
+        const parseTime = (timeStr?: string) => {
+          if (!timeStr || !timeStr.includes(' ')) return timeStr || ''; // fallback for non-AM/PM strings
           const [time, modifier] = timeStr.split(' ');
           const parts = time.split(':');
           let hours = parts[0];

@@ -122,10 +122,12 @@ export const RefractionDashboard: React.FC = () => {
     );
 
     if (!query) return list;
+    const cleanDigits = query.replace(/\D/g, '');
     return list.filter(p => 
       (p.name || '').toLowerCase().includes(query) || 
       (p.tokenNumber != null && String(p.tokenNumber).toLowerCase().includes(query)) ||
-      (p.phone || '').includes(query)
+      (p.phone || '').includes(query) ||
+      (cleanDigits.length >= 3 && (p.phone || '').replace(/\D/g, '').includes(cleanDigits))
     );
   }, [patients, searchQuery, isPatientForToday]);
 
