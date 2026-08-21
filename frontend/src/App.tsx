@@ -13,15 +13,28 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
     try {
       const component = await factory();
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('vitalsync_chunk_reloaded_guard');
+        try {
+          sessionStorage.removeItem('vitalsync_chunk_reloaded_guard');
+        } catch {
+          /* ignore storage security restrictions */
+        }
       }
       return component;
     } catch (error: any) {
       console.warn('[Auto-Healer] Dynamic chunk import failed:', error);
       if (typeof window !== 'undefined') {
-        const hasReloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard');
+        let hasReloaded = false;
+        try {
+          hasReloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard') === 'true';
+        } catch {
+          /* ignore storage security restrictions */
+        }
         if (!hasReloaded) {
-          sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+          try {
+            sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+          } catch {
+            /* ignore storage security restrictions */
+          }
           console.log('[Auto-Healer] Executing 1-time cache refresh for new deployment...');
           const cleanUrl = window.location.origin + window.location.pathname;
           window.location.replace(cleanUrl);

@@ -33,10 +33,21 @@ export class ErrorBoundary extends Component<Props, State> {
                              error.message?.includes('Loading chunk');
 
     if (isChunkLoadError) {
-      const hasReloaded = typeof window !== 'undefined' && sessionStorage.getItem('vitalsync_chunk_reloaded_guard');
-      if (!hasReloaded) {
+      let hasReloaded = false;
+      try {
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+          hasReloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard') === 'true';
+        }
+      } catch {
+        /* ignore storage security restrictions */
+      }
+      if (!hasReloaded) {
+        try {
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+          }
+        } catch {
+          /* ignore storage security restrictions */
         }
         console.warn('[ErrorBoundary] Stale JS build chunk detected. Executing 1-time cache refresh...');
         const cleanUrl = window.location.origin + window.location.pathname;

@@ -49,9 +49,18 @@ const safeLazy = (importFn: () => Promise<any>) =>
     importFn().catch((err) => {
       console.warn('[VitalSync] Dynamic chunk load failed (fresh build deployment detected). Executing auto-recovery reload...', err);
       if (typeof window !== 'undefined') {
-        const reloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard');
+        let reloaded = false;
+        try {
+          reloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard') === 'true';
+        } catch {
+          /* ignore storage security restrictions */
+        }
         if (!reloaded) {
-          sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+          try {
+            sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
+          } catch {
+            /* ignore storage security restrictions */
+          }
           window.location.reload();
         }
       }
