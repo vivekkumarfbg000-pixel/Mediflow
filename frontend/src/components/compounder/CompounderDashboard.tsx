@@ -2010,6 +2010,28 @@ export const CompounderDashboard: React.FC = () => {
                   })()}
                 </span>
               </button>
+              <button
+                onClick={() => setOpdSubTab('past_history')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  opdSubTab === 'past_history'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
+                }`}
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                Past & All History 🕒
+                <span className="ml-1 bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                  {(() => {
+                    const now = new Date();
+                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    return appointments.filter(a => {
+                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                      return Boolean(apptDate && apptDate < todayStr);
+                    }).length;
+                  })()}
+                </span>
+              </button>
             </div>
 
             {opdSubTab === 'upcoming_advance' ? (
@@ -2388,65 +2410,26 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
                   <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                     <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
-                    {(opdSubTab as string) === 'today_queue' 
-                      ? "Today's Appointments Queue (दैनिक नियुक्तियां)" 
-                      : (opdSubTab as string) === 'upcoming_advance' 
-                      ? "Upcoming Advance Bookings (अग्रिम नियुक्तियां - WhatsApp & Portal)" 
-                      : "Past Appointments History (पूर्व नियुक्तियां)"}
+                    {(opdSubTab as string) === 'past_history' 
+                      ? "Past Appointments History (पूर्व नियुक्तियां)" 
+                      : "Today's Appointments Queue (दैनिक नियुक्तियां)"}
                   </h2>
-                  <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setOpdSubTab('today_queue')}
-                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                        (opdSubTab as string) === 'today_queue'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${(opdSubTab as string) === 'today_queue' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
-                      Today's Live Queue
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOpdSubTab('upcoming_advance')}
-                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                        (opdSubTab as string) === 'upcoming_advance'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <Calendar className="h-3 w-3" />
-                      Upcoming Advance
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 px-3 py-1.5 rounded-xl">
                       {(() => {
                         const now = new Date();
                         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                         const count = appointments.filter(a => {
                           if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                           const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
-                          return Boolean(apptDate && apptDate > todayStr);
+                          if ((opdSubTab as string) === 'past_history') {
+                            return Boolean(apptDate && apptDate < todayStr);
+                          }
+                          return apptDate === todayStr;
                         }).length;
-                        return count > 0 ? (
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black ${
-                            (opdSubTab as string) === 'upcoming_advance' ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                          }`}>
-                            {count}
-                          </span>
-                        ) : null;
+                        return `${count} ${opdSubTab === 'past_history' ? 'Past Records' : 'Active Tokens Today'}`;
                       })()}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOpdSubTab('past_history')}
-                      className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                        (opdSubTab as string) === 'past_history'
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <Clock className="h-3 w-3" />
-                      Past & All History
-                    </button>
+                    </span>
                   </div>
                 </div>
 

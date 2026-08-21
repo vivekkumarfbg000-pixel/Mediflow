@@ -135,6 +135,20 @@ serve(async (req) => {
           throw new Error(`process_invoice_settlement RPC Failed: ${rpcError.message}`);
         }
 
+        // Update appointment status to scheduled & payment_status to cleared
+        if (invRow?.appointment_id) {
+          await supabase
+            .from("appointments")
+            .update({ status: "ready_for_consult", payment_status: "cleared" })
+            .eq("id", invRow.appointment_id);
+        } else if (patientId) {
+          await supabase
+            .from("appointments")
+            .update({ status: "ready_for_consult", payment_status: "cleared" })
+            .eq("patient_id", patientId)
+            .eq("status", "pending_payment");
+        }
+
         // 2. Resolve patient phone to update WhatsApp session if it was initiated via bot
         let patientPhone = "";
         if (patientId) {

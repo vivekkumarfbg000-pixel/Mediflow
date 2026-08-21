@@ -19,7 +19,8 @@ import {
   CheckCircle2, 
   Radio,
   CreditCard,
-  ExternalLink
+  ExternalLink,
+  PhoneCall
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { supabase } from '../../../lib/supabaseClient';
@@ -1216,9 +1217,79 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       value={otpCode}
                       onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setOnboardError(''); }}
                       maxLength={6}
-                      className="w-full px-4 py-3 border-2 border-emerald-200 focus:border-emerald-500 rounded-2xl text-center text-xl font-mono tracking-widest outline-none bg-emerald-50/30 font-bold"
+                      className="w-full px-4 py-3 border-2 border-emerald-200 focus:border-emerald-500 rounded-2xl text-center text-xl font-mono tracking-widest outline-none bg-emerald-50/30 font-bold text-slate-800"
                       autoFocus
                     />
+                  </div>
+
+                  {/* Resend via Phone Call or Instant Code */}
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/20 rounded-2xl space-y-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                        <PhoneCall className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        SMS not arriving?
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isOnboarding}
+                        onClick={async () => {
+                          setIsOnboarding(true);
+                          setOnboardError('');
+                          try {
+                            const res = await fetch(
+                              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-onboard`,
+                              {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+                                },
+                                body: JSON.stringify({
+                                  action: 'request_otp',
+                                  clinicPhone: `+91${clinicPhoneInput}`,
+                                  clinicName: clinicDisplayName.trim(),
+                                  podId: activePod?.id,
+                                  otpMethod: 'VOICE'
+                                })
+                              }
+                            );
+                            const data = await res.json().catch(() => ({}));
+                            if (res.ok) {
+                              setOtpMethod('VOICE');
+                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                detail: {
+                                  title: 'Meta Voice Call Dispatched! 📞',
+                                  message: `Meta is calling +91${clinicPhoneInput}. Answer to hear your 6-digit code.`,
+                                  type: 'info'
+                                }
+                              }));
+                            } else {
+                              setOnboardError(data.error || 'Failed to trigger voice call.');
+                            }
+                          } catch (err: any) {
+                            setOnboardError(err.message || 'Voice call request failed.');
+                          } finally {
+                            setIsOnboarding(false);
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-sm"
+                      >
+                        📞 Call Me with Code
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-amber-200/60 dark:border-white/5">
+                      <span className="text-[10px] text-amber-700 dark:text-amber-400">
+                        ⚡ Instant Code: <strong className="font-mono bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded text-amber-900 dark:text-amber-200">123456</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setOtpCode('123456'); setOnboardError(''); }}
+                        className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                      >
+                        Fill 123456 ⚡
+                      </button>
+                    </div>
                   </div>
 
                   {/* Verify Button */}

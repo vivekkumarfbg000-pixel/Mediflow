@@ -153,11 +153,19 @@ serve(async (req) => {
             .update({ status: "scheduled", payment_status: "cleared" })
             .eq("id", apptId);
         } else if (clean10) {
-          await supabase
-            .from("appointments")
-            .update({ status: "scheduled", payment_status: "cleared" })
-            .eq("status", "pending_payment")
-            .like("patient_phone", `%${clean10}%`);
+          const { data: pRec } = await supabase
+            .from("patient_registry")
+            .select("id")
+            .ilike("phone", `%${clean10}%`)
+            .maybeSingle();
+
+          if (pRec?.id) {
+            await supabase
+              .from("appointments")
+              .update({ status: "scheduled", payment_status: "cleared" })
+              .eq("patient_id", pRec.id)
+              .eq("status", "pending_payment");
+          }
         }
 
         // 4. Update WhatsApp session & dispatch confirmation receipt directly to WhatsApp

@@ -975,8 +975,8 @@ function generateBookingDateOptions(isSos: boolean = false): { dates: string[], 
   const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
   const istHour = istTime.getUTCHours();
   
-  // Normal Today booking cutoff is 12:00 PM IST (12:00). Emergency SOS Today cutoff is 06:00 PM IST (18:00)
-  const isTodayAvailable = isSos ? (istHour < 18) : (istHour < 12);
+  // Normal Today booking cutoff is 05:00 PM IST (17:00). Emergency SOS Today cutoff is 07:00 PM IST (19:00)
+  const isTodayAvailable = isSos ? (istHour < 19) : (istHour < 17);
   const startOffset = isTodayAvailable ? 0 : 1;
 
   const dates: string[] = [];
@@ -1660,8 +1660,8 @@ async function triggerBotReplyPipeline(ctx: {
         let cutoffNotice = "";
         if (!isTodayAvailable) {
           cutoffNotice = isSosBooking 
-            ? "\n\n*(Note: Emergency SOS bookings for Today closed at 06:00 PM IST)*"
-            : "\n\n*(Note: Normal checkup bookings for Today closed at 12:00 PM IST — Showing dates starting Tomorrow)*";
+            ? "\n\n*(Note: Emergency SOS bookings for Today closed at 07:00 PM IST)*"
+            : "\n\n*(Note: Same-day checkup bookings for Today closed at 05:00 PM IST — Showing dates starting Tomorrow)*";
         }
 
         nextState = "AWAITING_DATE_SELECTION";
@@ -1874,19 +1874,15 @@ async function triggerBotReplyPipeline(ctx: {
               await supabase.from("appointments").insert({
                 id: newApptId,
                 patient_id: bookingPatId,
-                patient_name: targetPatName,
                 doctor_id: doctorId,
                 status: "ready_for_consult",
                 appointment_time: apptTimestamp,
-                appointment_date: selectedDate,
-                source: "whatsapp",
                 is_virtual: true,
                 virtual_date: selectedDate,
                 virtual_time: slotText,
                 virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${newApptId}`,
-                token_number: tokenNumber,
-                pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
-                entity_id: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
+                pod_id: safePodId,
+                entity_id: null
               });
             }
           } catch (err) {
@@ -1994,7 +1990,21 @@ async function triggerBotReplyPipeline(ctx: {
 
           let bookingPatId = sessionData.bookingPatientId || patient?.id || session.patient_id;
           const safePodId = toValidUuid(session.pod_id || connection?.pod_id);
-          const safeEntityId = toValidUuid(session.entity_id || connection?.entity_id, safePodId);
+          
+          let safeEntityId: string | null = null;
+          const candidateEntityId = session.entity_id || connection?.entity_id;
+          if (candidateEntityId && candidateEntityId !== safePodId) {
+            try {
+              const { data: ent } = await supabase.from("entities").select("id").eq("id", candidateEntityId).maybeSingle();
+              if (ent?.id) safeEntityId = ent.id;
+            } catch (_e) {}
+          }
+          if (!safeEntityId) {
+            try {
+              const { data: defaultEnt } = await supabase.from("entities").select("id").eq("pod_id", safePodId).limit(1).maybeSingle();
+              if (defaultEnt?.id) safeEntityId = defaultEnt.id;
+            } catch (_e) {}
+          }
 
           // Auto-provision patient in patient_registry if not yet registered
           if (!bookingPatId) {
@@ -2005,7 +2015,7 @@ async function triggerBotReplyPipeline(ctx: {
                 name: targetPatName,
                 phone: cleanPhone10,
                 pod_id: safePodId,
-                registered_at_entity: null,
+                registered_at_entity: safeEntityId,
                 token_number: String(tokenNumber),
                 queue_status: "awaiting_consultation"
               });
@@ -2283,7 +2293,7 @@ async function triggerBotReplyPipeline(ctx: {
           const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
           await supabase
             .from("appointments")
-            .update({ status: finalStatus })
+            .update({ status: finalStatus, payment_status: "cleared" })
             .eq("id", apptId);
         }
 
@@ -2680,7 +2690,12 @@ async function triggerBotReplyPipeline(ctx: {
             } catch (err) { console.warn("[Meta Webhook] Error fetching appointment count for SOS token:", err); }
             const sosTokenNumber = `T-${sosTokenSeq.toString().padStart(2, '0')} E`;
 
-            // Insert appointment with pending_payment status and SOS token
+            await supabase
+              .from("patient_registry")
+              .update({ token_number: sosTokenNumber })
+              .eq("id", sosPatId);
+
+            // Insert appointment with pending_payment status matching Postgres schema
             await supabase.from("appointments").insert({
               id: sosApptId,
               patient_id: sosPatId,
@@ -2690,8 +2705,8 @@ async function triggerBotReplyPipeline(ctx: {
               is_virtual: false,
               virtual_date: todayDate,
               virtual_time: "EMERGENCY (Priority #1)",
-              token_number: sosTokenNumber,
-              pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
+              pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
+              entity_id: null
             });
 
             // Insert invoice with dynamic SOS fee
@@ -3332,15 +3347,20 @@ CLINICAL GUIDELINES:
         }
       };
     } else if (nextState === "AWAITING_DATE_SELECTION" || (state === "AWAITING_DATE_SELECTION" && replyText.includes("date select"))) {
+      const isTodayAvail = sessionData.isTodayAvailable ?? (generateBookingDateOptions(sessionData.isSos === true).isTodayAvailable);
       payloadBody.type = "interactive";
       payloadBody.interactive = {
         type: "button",
         body: { text: replyText },
         action: {
-          buttons: [
-            { type: "reply", reply: { id: "btn_date_1", title: "1️⃣ Tomorrow" } },
-            { type: "reply", reply: { id: "btn_date_2", title: "2️⃣ Day After" } },
-            { type: "reply", reply: { id: "btn_date_3", title: "3️⃣ In 3 Days" } }
+          buttons: isTodayAvail ? [
+            { type: "reply", reply: { id: "btn_date_1", title: "1️⃣ Today 🏥" } },
+            { type: "reply", reply: { id: "btn_date_2", title: "2️⃣ Tomorrow 📅" } },
+            { type: "reply", reply: { id: "btn_date_3", title: "3️⃣ Day After 🗓️" } }
+          ] : [
+            { type: "reply", reply: { id: "btn_date_1", title: "1️⃣ Tomorrow 📅" } },
+            { type: "reply", reply: { id: "btn_date_2", title: "2️⃣ Day After 🗓️" } },
+            { type: "reply", reply: { id: "btn_date_3", title: "3️⃣ In 3 Days 🗓️" } }
           ]
         }
       };
