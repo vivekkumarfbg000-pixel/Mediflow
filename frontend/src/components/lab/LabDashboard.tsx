@@ -708,7 +708,7 @@ export const LabDashboard: React.FC = () => {
                               )}
                               {isUnpaid ? (
                                 <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse font-mono">
-                                  UNPAID: ₹{inv.labFee} ⚠️
+                                  UNPAID: ₹{(inv?.labFee || 0).toFixed(2)} ⚠️
                                 </span>
                               ) : (
                                 <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">
@@ -742,7 +742,7 @@ export const LabDashboard: React.FC = () => {
                             View Scanned Requisition / Rx
                           </button>
                         )}
-                        {isUnpaid ? (
+                        {isUnpaid && inv && (
                           <div className="space-y-2">
                             <span className="block text-[8px] font-bold text-slate-400 uppercase tracking-wider font-mono text-center">Clear Lab Bill to Collect</span>
                             <div className="flex gap-2">
@@ -751,7 +751,7 @@ export const LabDashboard: React.FC = () => {
                                   api.clearInvoice(inv.id, 'cash');
                                   window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                     detail: {
-                                      message: `Lab Fee ₹${inv.labFee} cleared via CASH! Split settled in financial ledger.`,
+                                      message: `Lab Fee ₹${(inv.labFee || 0).toFixed(2)} cleared via CASH! Split settled in financial ledger.`,
                                       type: 'success',
                                       title: 'Lab Fee Cleared'
                                     }
@@ -786,7 +786,7 @@ export const LabDashboard: React.FC = () => {
                                   api.clearInvoice(inv.id, 'paytm');
                                   window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                     detail: {
-                                      message: `Lab Fee ₹${inv.labFee} cleared via Paytm PG! Split settled in financial ledger.`,
+                                      message: `Lab Fee ₹${(inv.labFee || 0).toFixed(2)} cleared via Paytm PG! Split settled in financial ledger.`,
                                       type: 'success',
                                       title: 'Lab Fee Cleared'
                                     }
