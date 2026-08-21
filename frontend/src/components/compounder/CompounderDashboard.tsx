@@ -2481,8 +2481,8 @@ export const CompounderDashboard: React.FC = () => {
 
                       confirmedAppts.sort((a, b) => {
                         // Priority #1: Emergency SOS
-                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').startsWith('#EM-'));
-                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').startsWith('#EM-'));
+                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').toUpperCase().includes(' E') || String(a.tokenNumber || '').toUpperCase().includes('E-') || String(a.tokenNumber || '').startsWith('#EM-'));
+                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').toUpperCase().includes(' E') || String(b.tokenNumber || '').toUpperCase().includes('E-') || String(b.tokenNumber || '').startsWith('#EM-'));
                         if (isSOSA && !isSOSB) return -1;
                         if (!isSOSA && isSOSB) return 1;
 
@@ -3819,8 +3819,12 @@ export const CompounderDashboard: React.FC = () => {
               {/* SUMMARY TYPE */}
               {activeWorkflowDetail.type === 'summary' && (() => {
                 const patientObj = patients.find(p => p.id === activeWorkflowDetail.patientId);
+                const pDigits = (patientObj?.phone || '').replace(/\D/g, '').slice(-10);
                 const sessionList = api.getWhatsAppSessions();
-                const session = sessionList.find(s => s.patientPhone === (patientObj?.phone || ''));
+                const session = sessionList.find(s => {
+                  const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+                  return sDigits && pDigits && sDigits === pDigits;
+                });
 
                 if (!session || !session.sessionData?.chatHistory || session.sessionData.chatHistory.length === 0) {
                   return (

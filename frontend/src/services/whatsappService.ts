@@ -445,7 +445,7 @@ export class WhatsAppService {
 
             if (stage === 'CHOOSING_DELIVERY') {
               const draftBill = sessionData.draftMedicineBill as MedicineBill;
-              const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
+              const clinicUpi = PaymentService.getSafeClinicUpiVpa();
               if (cleaned === '1') {
                 draftBill.deliveryType = 'pickup';
                 draftBill.deliveryCharge = 0;
@@ -1033,7 +1033,7 @@ export class WhatsAppService {
               };
               BillingService.saveInvoice(newInvoice);
 
-              const clinicUpi = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || 'vitalsync@axl';
+              const clinicUpi = PaymentService.getSafeClinicUpiVpa();
               const uInvoices = BillingService.getUnifiedInvoices();
               uInvoices.unshift({
                 id: invoiceId,
@@ -1389,7 +1389,7 @@ export class WhatsAppService {
 
     const completedInvoices = BillingService.getUnifiedInvoices()
       .filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
-    const totalSpent = completedInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const totalSpent = completedInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
     if (totalSpent < 1000) {
       console.warn(`[Mediflow DevSecOps] Proactive Refill Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
@@ -1426,7 +1426,7 @@ export class WhatsAppService {
 
     const completedInvoices = BillingService.getUnifiedInvoices()
       .filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
-    const totalSpent = completedInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const totalSpent = completedInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
     if (totalSpent < 1000) {
       console.warn(`[Mediflow DevSecOps] Proactive Followup Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
@@ -1464,7 +1464,7 @@ export class WhatsAppService {
 
     const completedInvoices = BillingService.getUnifiedInvoices()
       .filter(i => i.patientId === patient.id && i.paymentStatus === 'cleared');
-    const totalSpent = completedInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+    const totalSpent = completedInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
     if (totalSpent < 1000) {
       console.warn(`[Mediflow DevSecOps] Proactive Lab Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);

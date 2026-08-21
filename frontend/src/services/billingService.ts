@@ -533,8 +533,12 @@ export class BillingService {
       const patient = PatientService.getPatients().find(p => p.id === patientId);
       if (patient) {
         // Direct push WhatsApp message bot history logic
+        const pDigits = (patient.phone || '').replace(/\D/g, '').slice(-10);
         const sessions = load<any[]>('whatsapp_sessions', []);
-        const existing = sessions.find(s => s.patientPhone === patient.phone);
+        const existing = sessions.find(s => {
+          const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+          return sDigits && pDigits && sDigits === pDigits;
+        });
         if (existing) {
           const text = `🟢 *Welcome to VitalSync Connected Clinic!* \n\nYour Consultation booking is pending. Please pay the consultation fee of *₹${consultFee}* to proceed.\n\n_Payment Gateway Link: upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${consultFee}.00_`;
           const currentHistory = existing.sessionData.chatHistory || [];
@@ -980,8 +984,12 @@ export class BillingService {
           }
           const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
           if (patient) {
+            const pDigits = (patient.phone || '').replace(/\D/g, '').slice(-10);
             const sessions = load<any[]>('whatsapp_sessions', []);
-            const existing = sessions.find(s => s.patientPhone === patient.phone);
+            const existing = sessions.find(s => {
+              const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+              return sDigits && pDigits && sDigits === pDigits;
+            });
             if (existing) {
               const text = `✅ *Pathology Lab Fees Settled!* \n\nLab requests have been dispatched to Lab Tech Lalit Prasad. Please proceed to the lab collection counter.`;
               const currentHistory = existing.sessionData.chatHistory || [];
@@ -1019,8 +1027,12 @@ export class BillingService {
 
           const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
           if (patient) {
+            const pDigits = (patient.phone || '').replace(/\D/g, '').slice(-10);
             const sessions = load<any[]>('whatsapp_sessions', []);
-            const existing = sessions.find(s => s.patientPhone === patient.phone);
+            const existing = sessions.find(s => {
+              const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+              return sDigits && pDigits && sDigits === pDigits;
+            });
             if (existing) {
               const text = `✅ *Pharmacy Invoice Paid!* \n\nYour digital invoice has been sent to your WhatsApp. Please show this receipt at the medicine counter to collect your medicines.`;
               const currentHistory = existing.sessionData.chatHistory || [];
@@ -1080,8 +1092,12 @@ export class BillingService {
           .single();
         if (patient?.phone) {
           // Trigger mock whatsapp message send payload
+          const pDigits = (patient.phone || '').replace(/\D/g, '').slice(-10);
           const sessions = load<any[]>('whatsapp_sessions', []);
-          const existing = sessions.find(s => s.patientPhone === patient.phone);
+          const existing = sessions.find(s => {
+            const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+            return sDigits && pDigits && sDigits === pDigits;
+          });
           if (existing) {
             const currentHistory = existing.sessionData.chatHistory || [];
             currentHistory.push({ sender: 'bot', text: `Invoice MF-INV-${invoiceId.substring(0,4)} is marked PAID.`, time: new Date().toISOString() });

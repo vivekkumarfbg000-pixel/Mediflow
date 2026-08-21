@@ -727,7 +727,7 @@ export const LabDashboard: React.FC = () => {
                           <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
                             <div className="flex justify-between text-[8px] text-slate-500 font-mono font-bold tracking-widest uppercase">
                               <span>REQUISITION</span>
-                              <span>ID: {req.id.slice(0, 8).toUpperCase()}</span>
+                              <span>ID: {(req.id || '').slice(0, 8).toUpperCase()}</span>
                             </div>
                             <div className="simulated-barcode h-8 w-full" />
                             <p className="text-[9px] text-center text-slate-600 font-mono tracking-wider font-bold">*{req.barcode}*</p>
@@ -2141,11 +2141,11 @@ export const LabDashboard: React.FC = () => {
                       {pendingBills.map(bill => (
                         <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
                           <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                            {bill.status.toUpperCase()}
+                            {(bill.status || '').toUpperCase()}
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {bill.items.length} tests</p>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} tests</p>
                           </div>
                           <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
                           <div className="flex gap-2">

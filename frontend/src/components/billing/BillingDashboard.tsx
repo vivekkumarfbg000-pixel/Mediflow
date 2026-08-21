@@ -902,7 +902,7 @@ export const BillingDashboard: React.FC = () => {
               <p className="text-[10px] text-black font-semibold mt-1">B2B Commission Ledger & Audit Statement</p>
             </div>
             <div className="text-right text-[10px] font-mono">
-              <div>Invoice Reference: #{selectedInvoice.id.toUpperCase()}</div>
+              <div>Invoice Reference: #{(selectedInvoice.id || '').toUpperCase()}</div>
               <div>Audit Date: {new Date().toLocaleString()}</div>
             </div>
           </div>

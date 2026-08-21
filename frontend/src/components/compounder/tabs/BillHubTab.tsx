@@ -168,7 +168,7 @@ export const BillHubTab: React.FC = () => {
 
   // Voice Billing NLP Parser
   const parseVoiceCommand = (text: string) => {
-    const textLower = text.toLowerCase();
+    const textLower = (text || '').toLowerCase();
     
     // Help parse spoken numbers in English
     const numberWords: Record<string, number> = {

@@ -36,6 +36,12 @@ const RANDOM_CLINIC_CODE_PATTERNS = [
 // ── Check 3: Forbidden Raw Index Keys in React Lists (Rule 19) ───────────────
 const RAW_INDEX_KEY_PATTERN = /key=\{(idx|index|i)\}/;
 
+// ── Check 4: Forbidden Unguarded Raw LocalStorage UPI VPA Access ──────────────
+const RAW_UPI_STORAGE_PATTERN = /localStorage\.getItem\(['"]clinic_upi_vpa['"]\)/;
+
+// ── Check 5: Forbidden Unguarded bill.items.length in JSX ────────────────────
+const RAW_BILL_ITEMS_LENGTH_PATTERN = /\{bill\.items\.length\b/;
+
 function scanFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
@@ -89,6 +95,30 @@ function scanFiles(dir) {
             line: lineNum,
             content: line.trim(),
             reason: 'Raw index keys (key={idx} / key={index}) break React DOM reconciliation during Supabase CDC live sync. Use composite keys (key={`prefix-${idx}-${item.id || item.name}`}).'
+          });
+        }
+
+        // Invariant 4: Zero Raw LocalStorage UPI VPA Access outside PaymentService (Rule 47)
+        if (!relPath.includes('paymentService.ts') && !relPath.includes('test') && !relPath.includes('scripts')) {
+          if (RAW_UPI_STORAGE_PATTERN.test(line)) {
+            violations.push({
+              rule: 'INVARIANT_4_SAFE_UPI_VPA_READER',
+              file: relPath,
+              line: lineNum,
+              content: line.trim(),
+              reason: 'Direct raw localStorage.getItem("clinic_upi_vpa") calls can throw SecurityErrors in iframe/strict sandboxes. Use PaymentService.getSafeClinicUpiVpa().'
+            });
+          }
+        }
+
+        // Invariant 5: Zero Unguarded bill.items.length in JSX (Rule 18/83)
+        if (entry.name.endsWith('.tsx') && RAW_BILL_ITEMS_LENGTH_PATTERN.test(line)) {
+          violations.push({
+            rule: 'INVARIANT_5_DEFENSIVE_BILL_ARRAY_LENGTH',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Raw {bill.items.length} crashes if items array is null/undefined in realtime CDC payloads. Use {(bill.items || []).length}.'
           });
         }
       });

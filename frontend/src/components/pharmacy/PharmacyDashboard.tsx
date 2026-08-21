@@ -2388,11 +2388,11 @@ const unsubscribeApi = api.subscribe(syncLocal);
                       {pendingBills.map(bill => (
                         <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
                           <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                            {bill.status.toUpperCase()}
+                            {(bill.status || '').toUpperCase()}
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {bill.items.length} items</p>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} items</p>
                           </div>
                           <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
                           <div className="flex gap-2">

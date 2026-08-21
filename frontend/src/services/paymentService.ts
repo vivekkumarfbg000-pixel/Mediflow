@@ -50,6 +50,20 @@ export class PaymentService {
   }
 
   /**
+   * Safe reader for clinic UPI VPA with storage exception protection
+   */
+  static getSafeClinicUpiVpa(fallbackVpa: string = DEFAULT_PILOT_VPA): string {
+    try {
+      if (typeof window !== 'undefined') {
+        return localStorage.getItem('clinic_upi_vpa') || fallbackVpa;
+      }
+    } catch (_e) {
+      /* ignore storage security restriction */
+    }
+    return fallbackVpa;
+  }
+
+  /**
    * Generates a standard RFC-compliant Direct Dynamic UPI Deep-Link (0% Gateway Fee)
    * Format: upi://pay?pa=<VPA>&pn=<PAYEE>&am=<AMOUNT>&tn=<INVOICE>&cu=INR
    */
@@ -60,7 +74,7 @@ export class PaymentService {
     payeeName: string = DEFAULT_PAYEE_NAME
   ): DirectUpiPayload {
     const cleanAmount = (Math.round(amount * 100) / 100).toFixed(2);
-    const targetVpa = (typeof window !== 'undefined' && localStorage.getItem('clinic_upi_vpa')) || vpa || DEFAULT_PILOT_VPA;
+    const targetVpa = PaymentService.getSafeClinicUpiVpa(vpa || DEFAULT_PILOT_VPA);
     const sanitizedPayee = encodeURIComponent(payeeName);
     const sanitizedInvoice = encodeURIComponent(invoiceId.substring(0, 30));
 
@@ -108,7 +122,7 @@ export class PaymentService {
               orderId: data.orderId,
               paymentSessionId: data.paymentUrl,
               upiPayload: {
-                vpa: (localStorage.getItem('clinic_upi_vpa') || 'vitalsync@axl'),
+                vpa: PaymentService.getSafeClinicUpiVpa(),
                 payeeName: 'VitalSync Care',
                 amount: params.amount,
                 invoiceId: params.invoiceId,
@@ -148,7 +162,7 @@ export class PaymentService {
               orderId: data.merchantTransactionId,
               paymentSessionId: data.paymentUrl,
               upiPayload: {
-                vpa: (localStorage.getItem('clinic_upi_vpa') || 'vitalsync@axl'),
+                vpa: PaymentService.getSafeClinicUpiVpa(),
                 payeeName: 'VitalSync Care',
                 amount: params.amount,
                 invoiceId: params.invoiceId,
