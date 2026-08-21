@@ -454,10 +454,10 @@ export class PaymentService {
         return false;
       }
 
-      const totalAmount = Number(invoice.total_amount) || Number(invoice.totalAmount) || 0;
-      const doctorFee = Number(invoice.doctor_fee) || Number(invoice.doctorFee) || 500;
-      const platformFee = Number(invoice.platform_fee) || Number(invoice.platformFee) || 15;
-      const netPlatformProfit = Math.max(0, platformFee - gatewayFee);
+      const totalAmount = parseFloat((Number(invoice.total_amount || invoice.totalAmount || 0)).toFixed(2));
+      const doctorFee = parseFloat((Number(invoice.doctor_fee || invoice.doctorFee || 500)).toFixed(2));
+      const platformFee = parseFloat((Number(invoice.platform_fee || invoice.platformFee || 0)).toFixed(2));
+      const netPlatformProfit = Math.max(0, parseFloat((platformFee - (gatewayFee || 0)).toFixed(2)));
 
       // 2. Mark invoice as cleared in public.unified_invoices
       await supabase

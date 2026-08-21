@@ -88,6 +88,19 @@ serve(async (req) => {
     if (isSuccess && ORDERID) {
       console.log(`[Paytm Webhook] TXN_SUCCESS verified for OrderID: ${ORDERID}, TxnID: ${TXNID}, Amount: ₹${TXNAMOUNT}`);
 
+      // IDEMPOTENCY: Check if this payment event was already processed
+      const idempotencyKey = `paytm_${TXNID}_${ORDERID}`;
+      const { data: existingKey } = await supabase
+        .from("webhook_idempotency_keys")
+        .select("id")
+        .eq("key", idempotencyKey)
+        .maybeSingle();
+
+      if (existingKey) {
+        console.log(`[Paytm Webhook] ⏭️ Duplicate skipped: ${idempotencyKey}`);
+        return new Response(JSON.stringify({ success: true, skipped: true }), { status: 200, headers: corsHeaders });
+      }
+
       // 1. Resolve unified invoice
       let invRows = null;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -135,12 +148,16 @@ serve(async (req) => {
           throw new Error(`process_invoice_settlement RPC Failed: ${rpcError.message}`);
         }
 
+        // Record idempotency key
+        await supabase.from("webhook_idempotency_keys").insert({ key: idempotencyKey }).catch(() => {});
+
         // Update appointment status to scheduled & payment_status to cleared
-        if (invRow?.appointment_id) {
+        const apptIdToUpdate = invRows?.appointment_id || invRows?.encounter_id;
+        if (apptIdToUpdate) {
           await supabase
             .from("appointments")
             .update({ status: "ready_for_consult", payment_status: "cleared" })
-            .eq("id", invRow.appointment_id);
+            .eq("id", apptIdToUpdate);
         } else if (patientId) {
           await supabase
             .from("appointments")

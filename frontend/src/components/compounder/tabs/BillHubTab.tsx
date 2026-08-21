@@ -875,6 +875,7 @@ export const BillHubTab: React.FC = () => {
     try {
       // 1. Always create & save a UnifiedInvoice for the full consolidated bill (Consult + Pharmacy + Lab + OT)
       const unifiedInvoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
+      const isPureCounterConsult = billingLedger.pharmacySub === 0 && billingLedger.labSub === 0 && billingLedger.otTotal === 0;
       const newUnifiedInvoice: UnifiedInvoice = {
         id: unifiedInvoiceId,
         encounterId: 'counter-checkout',
@@ -884,7 +885,7 @@ export const BillHubTab: React.FC = () => {
         doctorFee: billingLedger.consultTotal,
         labFee: billingLedger.labSub,
         pharmacyFee: billingLedger.pharmacySub,
-        platformFee: parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
+        platformFee: isPureCounterConsult ? 0 : parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
         totalAmount: billingLedger.finalTotal,
         upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=VitalSync-${unifiedInvoiceId}`,
         paymentStatus: 'cleared',

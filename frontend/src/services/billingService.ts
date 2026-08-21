@@ -103,8 +103,14 @@ export class BillingService {
       const invoiceAmount = inv.totalAmount || 500;
 
       // STEP 1: First split / deduct 3% platform fee into VitalSync
-      const platformAmt = parseFloat((invoiceAmount * 0.03).toFixed(2));
-      const netRemainingForPool = Math.max(0, parseFloat((invoiceAmount - platformAmt).toFixed(2)));
+      // Pillar 6: Counter Doctor Consultation Fee Immunity Protocol
+      const isPureCounterConsult = (inv.pharmacyFee === 0 || !inv.pharmacyFee) &&
+        (inv.labFee === 0 || !inv.labFee) &&
+        String((inv as any).source || '').toLowerCase() !== 'whatsapp' &&
+        String((inv as any).channel || '').toLowerCase() !== 'whatsapp';
+
+      const platformAmt = isPureCounterConsult ? 0 : parseFloat((invoiceAmount * 0.03).toFixed(2));
+      const netRemainingForPool = isPureCounterConsult ? 0 : Math.max(0, parseFloat((invoiceAmount - platformAmt).toFixed(2)));
 
       // Core Invoice Settlement & Financial Ledger Splits (Local IndexedDB)
       this.recordInvoicePayment(invoiceId, paymentMethod);
