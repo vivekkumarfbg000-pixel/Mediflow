@@ -42,6 +42,9 @@ const RAW_UPI_STORAGE_PATTERN = /localStorage\.getItem\(['"]clinic_upi_vpa['"]\)
 // ── Check 5: Forbidden Unguarded bill.items.length in JSX ────────────────────
 const RAW_BILL_ITEMS_LENGTH_PATTERN = /\{bill\.items\.length\b/;
 
+// ── Check 6: Forbidden Raw Unrevoked createObjectURL in Inline Handlers (Rule 10/106)
+const UNREVOKED_BLOB_PATTERN = /URL\.createObjectURL\([^)]+\)(?![\s\S]*?(?:revokeObjectURL|URL\.revokeObjectURL))/;
+
 function scanFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
