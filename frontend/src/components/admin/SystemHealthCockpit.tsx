@@ -75,7 +75,7 @@ export const SystemHealthCockpit: React.FC = () => {
     }
   };
 
-  const handleCopyAlertErrorLog = (alert: any, idx: number) => {
+  const handleCopyAlertErrorLog = async (alert: any, idx: number) => {
     const rawTraceback = alert.errorStack || alert.stack || alert.details || alert.rawLog || alert.trace || safeStringifyAlert(alert);
     const formattedLog = `### 🚨 MEDIFLOW AUTO-HEALER ESCALATION REPORT
 - **Subsystem**: ${alert.subsystem || alert.type || 'SYSTEM'}
@@ -89,7 +89,13 @@ export const SystemHealthCockpit: React.FC = () => {
 ${rawTraceback}
 \`\`\``;
 
-    navigator.clipboard.writeText(formattedLog);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(formattedLog);
+      }
+    } catch {
+      /* ignore clipboard permission errors */
+    }
     setCopiedAlertIdx(idx);
     setTimeout(() => setCopiedAlertIdx(null), 2500);
 

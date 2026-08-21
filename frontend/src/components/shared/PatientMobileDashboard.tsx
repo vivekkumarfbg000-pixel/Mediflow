@@ -762,8 +762,14 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                     <div className="flex items-center justify-between bg-zinc-950 px-3 py-2 rounded-xl border border-white/5">
                       <span className="text-xs font-mono font-bold text-cyan-400 tracking-wide select-all">vitalsync@axl</span>
                       <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('vitalsync@axl');
+                        onClick={async () => {
+                          try {
+                            if (navigator?.clipboard?.writeText) {
+                              await navigator.clipboard.writeText('vitalsync@axl');
+                            }
+                          } catch {
+                            /* ignore permission errors */
+                          }
                           window.dispatchEvent(new CustomEvent('mediflow-toast', {
                             detail: {
                               title: 'VPA Copied! 📋',

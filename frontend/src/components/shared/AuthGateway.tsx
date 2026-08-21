@@ -1664,9 +1664,15 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (!registeredClinicCode) return;
-    navigator.clipboard.writeText(registeredClinicCode);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(registeredClinicCode);
+      }
+    } catch {
+      /* ignore clipboard permission errors */
+    }
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
   };
