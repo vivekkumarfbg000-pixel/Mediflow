@@ -58,9 +58,11 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
     let list = patients;
     
     if (query) {
+      const cleanDigitsQuery = query.replace(/\D/g, '');
       list = (patients || []).filter(p => 
         (p?.name || '').toLowerCase().includes(query) ||
         (p?.phone || '').includes(query) ||
+        (cleanDigitsQuery.length >= 3 && (p?.phone || '').replace(/\D/g, '').includes(cleanDigitsQuery)) ||
         (p?.patientCode || '').toLowerCase().includes(query) ||
         (p?.tokenNumber != null ? String(p.tokenNumber) : '').toLowerCase().includes(query) ||
         (p?.id || '').toLowerCase().includes(query) ||
