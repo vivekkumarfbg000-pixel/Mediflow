@@ -1383,7 +1383,8 @@ export class WhatsAppService {
   }
 
   static triggerProactiveRefillNudge(phone: string): void {
-    const patient = PatientService.getPatients().find(p => p.phone === phone);
+    const cleanPhoneDigits = (phone || '').replace(/\D/g, '').slice(-10);
+    const patient = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
     if (!patient) return;
 
     const completedInvoices = BillingService.getUnifiedInvoices()
@@ -1405,7 +1406,7 @@ export class WhatsAppService {
     const message = `Hello ${patient.name}! 😊 We noticed your generic medication dosage is running low (only 5 days left!). 💊\n\nTo ensure uninterrupted treatment, we have pre-allocated a fresh, quality-checked pack for you at our ${this.getDynamicClinicName()} pharmacy counter. \n\n*Reply 'YES' to confirm and immediately dispatch your medicine refill package to your home!*`;
     
     const sessions = this.getWhatsAppSessions();
-    const existing = sessions.find(s => s.patientPhone === phone);
+    const existing = sessions.find(s => (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
     if (existing) {
       existing.sessionData = {
         ...existing.sessionData,
@@ -1419,7 +1420,8 @@ export class WhatsAppService {
   }
 
   static triggerProactiveFollowUpNudge(phone: string): void {
-    const patient = PatientService.getPatients().find(p => p.phone === phone);
+    const cleanPhoneDigits = (phone || '').replace(/\D/g, '').slice(-10);
+    const patient = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
     if (!patient) return;
 
     const completedInvoices = BillingService.getUnifiedInvoices()
@@ -1442,7 +1444,7 @@ export class WhatsAppService {
     const message = `Hello ${patient.name}! 😊 Hope you are recovering well. \n\n${docName} recommended a follow-up consultation in 3 days to evaluate your progress. \n\n*Reply 'BOOK' or '1' to lock a convenient Virtual Video Consultation slot immediately!*`;
     
     const sessions = this.getWhatsAppSessions();
-    const existing = sessions.find(s => s.patientPhone === phone);
+    const existing = sessions.find(s => (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
     if (existing) {
       existing.sessionData = {
         ...existing.sessionData,
@@ -1456,7 +1458,8 @@ export class WhatsAppService {
   }
 
   static triggerProactiveLabCollectionNudge(phone: string): void {
-    const patient = PatientService.getPatients().find(p => p.phone === phone);
+    const cleanPhoneDigits = (phone || '').replace(/\D/g, '').slice(-10);
+    const patient = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
     if (!patient) return;
 
     const completedInvoices = BillingService.getUnifiedInvoices()
@@ -1479,7 +1482,7 @@ export class WhatsAppService {
     const message = `Hi ${patient.name}! 🔬 Our records show you have a pending sugar level test (HbA1c test) ordered by ${docName}. Reagents are currently locked for your slot. \n\n*Would you like our lab team to collect your blood sample from your home tomorrow morning at 8:00 AM? Reply 'HOME' to schedule.*`;
     
     const sessions = this.getWhatsAppSessions();
-    const existing = sessions.find(s => s.patientPhone === phone);
+    const existing = sessions.find(s => (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
     if (existing) {
       existing.sessionData = {
         ...existing.sessionData,
@@ -1494,9 +1497,10 @@ export class WhatsAppService {
 
   static async referPatientToSpecialist(phone: string, targetDoctorId: string): Promise<void> {
     try {
+      const cleanPhoneDigits = (phone || '').replace(/\D/g, '').slice(-10);
       const sessions = this.getWhatsAppSessions();
-      const sessionIndex = sessions.findIndex(s => s.patientPhone === phone);
-      const patient = PatientService.getPatients().find(p => p.phone === phone);
+      const sessionIndex = sessions.findIndex(s => (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
+      const patient = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
       if (sessionIndex === -1 || !patient) {
         console.warn(`[Mediflow Referrals] Session or Patient not found for phone ${phone}`);
         return;
