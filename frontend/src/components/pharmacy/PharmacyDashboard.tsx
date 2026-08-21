@@ -2443,9 +2443,9 @@ const unsubscribeApi = api.subscribe(syncLocal);
                           <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
                             ✓ PAID
                           </div>
-                          <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">#{(bill.id || 'N/A').substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {bill.items.length} items</p>
-                          <p className="text-[10px] text-slate-400">{new Date(bill.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                          <h4 className="font-bold text-slate-800 text-xs">{bill.patientName || 'Patient'}</h4>
+                          <p className="text-[10px] text-slate-500 font-mono">#{(bill.id || 'N/A').substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {(bill.items || []).length} items</p>
+                          <p className="text-[10px] text-slate-400">{new Date(bill.createdAt || Date.now()).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
                           <div className="flex gap-2 pt-1">
                             <button
                               onClick={() => {

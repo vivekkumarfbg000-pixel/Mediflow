@@ -2196,14 +2196,14 @@ export const LabDashboard: React.FC = () => {
                             PAID
                           </div>
                           <div>
-                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {bill.items.length} tests</p>
+                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName || 'Patient'}</h4>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} tests</p>
                           </div>
                           <div className="text-xs font-black text-emerald-600">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                const url = URL.createObjectURL(new Blob([`Lab Invoice #${bill.id}\nPatient: ${bill.patientName}\nTotal: ₹${(bill.totalAmount || 0).toFixed(2)}`], { type: 'text/plain' }));
+                                const url = URL.createObjectURL(new Blob([`Lab Invoice #${bill.id || 'N/A'}\nPatient: ${bill.patientName || 'Patient'}\nTotal: ₹${(bill.totalAmount || 0).toFixed(2)}`], { type: 'text/plain' }));
                                 window.open(url, '_blank');
                                 setTimeout(() => URL.revokeObjectURL(url), 1500);
                               }}
