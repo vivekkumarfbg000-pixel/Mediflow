@@ -329,7 +329,7 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
 
                 return (
                   <div
-                    key={idx}
+                    key={`sim-step-${idx}-${step.title || idx}`}
                     className={`p-3.5 rounded-2xl border transition-all duration-200 ${
                       isStepRunning
                         ? 'bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-500 shadow-sm'
@@ -396,7 +396,7 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
                 </div>
               ) : (
                 simulationLogs.map((log, idx) => (
-                  <div key={idx} className="leading-relaxed">
+                  <div key={`sim-log-${idx}-${log.slice(0, 15)}`} className="leading-relaxed">
                     {log}
                   </div>
                 ))

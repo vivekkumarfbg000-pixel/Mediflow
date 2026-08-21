@@ -152,7 +152,7 @@ export const BiomarkerChart: React.FC<BiomarkerChartProps> = ({ patientId }) => 
 
             {/* Interactive Circles with Hover States */}
             {history.map((h, idx) => (
-              <g key={idx} className="cursor-pointer">
+              <g key={`biomarker-pt-${idx}-${h.date || idx}`} className="cursor-pointer">
                 {/* HbA1c points */}
                 <circle 
                   cx={xCoords[idx]} 

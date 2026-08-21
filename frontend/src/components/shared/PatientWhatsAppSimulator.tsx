@@ -42,7 +42,7 @@ const VoiceNotePlayer: React.FC<{
             const isActive = progress >= barProgress;
             return (
               <div
-                key={idx}
+                key={`audio-wave-${idx}-${h}`}
                 className="w-[2.5px] rounded-t transition-colors duration-150"
                 style={{
                   height: `${h}px`,

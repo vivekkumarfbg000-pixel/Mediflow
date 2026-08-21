@@ -1160,7 +1160,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="z-10 flex justify-center gap-1.5 pt-2">
                 {[0, 1, 2, 3, 4, 5].map((idx) => (
                   <button
-                    key={idx}
+                    key={`tour-dot-${idx}`}
                     onClick={() => setTourSlide(idx)}
                     className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${tourSlide === idx ? 'w-6 bg-cyan-400' : 'w-1.5 bg-slate-700 hover:bg-slate-500'}`}
                   />

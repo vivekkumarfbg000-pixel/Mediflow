@@ -183,7 +183,7 @@ export const FounderAICopilotModal: React.FC<FounderAICopilotModalProps> = ({
             { label: '💊 Pharmacy Stock', query: 'Check pharmacy inventory and low stock batches' }
           ].map((item, idx) => (
             <button
-              key={idx}
+              key={`quick-prompt-${idx}-${item.label}`}
               type="button"
               onClick={() => handleSendMessage(item.query)}
               className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold whitespace-nowrap cursor-pointer transition-all shrink-0"

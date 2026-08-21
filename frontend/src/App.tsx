@@ -346,7 +346,7 @@ function AppContent({
           <div className="hidden md:flex bg-slate-50/80 backdrop-blur-md border-b border-slate-200/40 px-6 py-3 items-center justify-between shrink-0 select-none">
             <nav className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
               {getBreadcrumbs().map((item, idx, arr) => (
-                <span key={idx} className="flex items-center gap-1.5">
+                <span key={`crumb-${idx}-${item.label}`} className="flex items-center gap-1.5">
                   {idx > 0 && <span className="text-slate-300">/</span>}
                   <span className={idx === arr.length - 1 ? 'text-indigo-600 font-extrabold' : 'text-slate-650 hover:text-slate-900 transition-colors'}>
                     {item.label}

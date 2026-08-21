@@ -2123,10 +2123,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   </div>
                   <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
                     {getLoginAttempts().slice(0, 3).map((attempt, index) => (
-                      <div key={index} className="flex justify-between items-center bg-clinical-900/20 border border-clinical-800/20 p-2 rounded-lg text-[9px]">
+                      <div key={`login-attempt-${index}-${attempt.timestamp || index}`} className="flex justify-between items-center bg-clinical-900/20 border border-clinical-800/20 p-2 rounded-lg text-[9px]">
                         <div className="flex flex-col text-left">
                           <span className="text-clinical-200 font-bold font-mono truncate max-w-[150px]">{attempt.email}</span>
-                          <span className="text-clinical-500 text-[8px]">{new Date(attempt.timestamp).toLocaleTimeString()}</span>
+                          <span className="text-clinical-500 text-[8px]">{attempt.timestamp && !isNaN(new Date(attempt.timestamp).getTime()) ? new Date(attempt.timestamp).toLocaleTimeString() : 'Recent'}</span>
                         </div>
                         <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[7px] border ${
                           attempt.success 

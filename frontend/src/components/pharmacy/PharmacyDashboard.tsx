@@ -2177,7 +2177,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-slate-50/50 text-white font-mono">
                       {csvPreview.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-white-highest/20">
+                        <tr key={`csv-preview-${idx}-${row.batchNumber || row.name}`} className="hover:bg-white-highest/20">
                           <td className="p-2 font-sans font-bold">{row.name}</td>
                           <td className="p-2">{row.batchNumber}</td>
                           <td className="p-2">{row.expiryDate}</td>

@@ -97,7 +97,7 @@ export const MobileChart: React.FC<MobileChartProps> = ({
           {/* Intercept Data Points */}
           {svgPoints.map((pt, idx) => (
             <circle
-              key={idx}
+              key={`spark-pt-${idx}-${pt.x}-${pt.y}`}
               cx={pt.x}
               cy={pt.y}
               r={idx === svgPoints.length - 1 ? 4 : 2}
