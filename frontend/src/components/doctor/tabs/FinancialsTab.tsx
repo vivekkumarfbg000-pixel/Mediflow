@@ -395,7 +395,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           { label: 'Medicine Referral Income', val: `₹${pharmacyComm.toLocaleString()}`, split: `${docMedSplit}% SOP Doctor Referral Share`, icon: <Pill className="w-5 h-5" />, color: 'text-teal-600 dark:text-teal-400' },
           { label: 'Lab Test Referral Income', val: `₹${labComm.toLocaleString()}`, split: `${docLabSplit}% SOP Doctor Referral Share`, icon: <FlaskConical className="w-5 h-5" />, color: 'text-amber-600 dark:text-amber-400' },
         ].map((item, i) => (
-          <PointerGlowCard key={i} containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
+          <PointerGlowCard key={`fin-card-${i}-${item.label}`} containerClassName="shadow-sm rounded-2xl" className="p-6 bg-white dark:bg-slate-950/60 border border-slate-200/85 dark:border-white/5 text-left">
             <div className="flex justify-between items-center">
               <span className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase tracking-widest font-bold">{item.label}</span>
               <span className={`shrink-0 ${item.color}`}>{item.icon}</span>

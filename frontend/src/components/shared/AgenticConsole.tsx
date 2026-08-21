@@ -508,7 +508,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
             <div className="flex flex-col gap-1 max-h-36 overflow-y-auto pr-1 select-none">
               {agentLogs.map((log, i) => (
                 <div 
-                  key={i} 
+                  key={`agent-log-${i}-${String(log).substring(0, 15)}`} 
                   className={log.startsWith('> [HALT]') ? 'text-rose-400 font-semibold' : log.startsWith('> Success!') ? 'text-emerald-400 font-semibold' : 'text-slate-600'}
                 >
                   {log}

@@ -72,7 +72,7 @@ export function DashboardSkeleton() {
 
       {/* Metric cards row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map(i => <MetricCardSkeleton key={i} />)}
+        {[0, 1, 2, 3].map(i => <MetricCardSkeleton key={`metric-skel-${i}`} />)}
       </div>
 
       {/* Table skeleton */}
@@ -80,10 +80,10 @@ export function DashboardSkeleton() {
         {/* Table header */}
         <div className="flex items-center gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200/60">
           {[80, 48, 32, 24].map((w, i) => (
-            <SkeletonBlock key={i} className={`h-3 w-${w === 80 ? '40' : w === 48 ? '24' : w === 32 ? '16' : '12'}`} />
+            <SkeletonBlock key={`hdr-skel-${i}-${w}`} className={`h-3 w-${w === 80 ? '40' : w === 48 ? '24' : w === 32 ? '16' : '12'}`} />
           ))}
         </div>
-        {[0, 1, 2, 3, 4, 5].map(i => <TableRowSkeleton key={i} />)}
+        {[0, 1, 2, 3, 4, 5].map(i => <TableRowSkeleton key={`tbl-row-skel-${i}`} />)}
       </div>
 
       <span className="sr-only">Loading dashboard content, please wait...</span>
@@ -97,7 +97,7 @@ export function DoctorDashboardSkeleton() {
     <div className="p-4 md:p-6 space-y-6 animate-pulse" role="status" aria-label="Loading doctor dashboard...">
       <DashboardHeaderSkeleton />
       <div className="grid grid-cols-3 gap-4">
-        {[0, 1, 2].map(i => <MetricCardSkeleton key={i} />)}
+        {[0, 1, 2].map(i => <MetricCardSkeleton key={`doc-metric-skel-${i}`} />)}
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -105,7 +105,7 @@ export function DoctorDashboardSkeleton() {
         <div className="bg-white border border-slate-200/60 rounded-2xl p-5 space-y-3">
           <SkeletonBlock className="h-5 w-36" />
           {[0, 1, 2].map(i => (
-            <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+            <div key={`enc-row-skel-${i}`} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
               <SkeletonBlock className="h-10 w-10 rounded-full flex-shrink-0" />
               <div className="flex-1 space-y-2">
                 <SkeletonBlock className="h-4 w-28" />
@@ -134,16 +134,16 @@ export function LabDashboardSkeleton() {
     <div className="p-4 md:p-6 space-y-6 animate-pulse" role="status" aria-label="Loading lab dashboard...">
       <DashboardHeaderSkeleton />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map(i => <MetricCardSkeleton key={i} />)}
+        {[0, 1, 2, 3].map(i => <MetricCardSkeleton key={`lab-metric-skel-${i}`} />)}
       </div>
       {/* Tabs skeleton */}
       <div className="flex gap-2">
         {[0, 1, 2].map(i => (
-          <SkeletonBlock key={i} className={`h-10 ${i === 0 ? 'w-36' : 'w-28'} rounded-xl`} />
+          <SkeletonBlock key={`lab-tab-skel-${i}`} className={`h-10 ${i === 0 ? 'w-36' : 'w-28'} rounded-xl`} />
         ))}
       </div>
       <div className="bg-white border border-slate-200/60 rounded-2xl overflow-hidden">
-        {[0, 1, 2, 3, 4].map(i => <TableRowSkeleton key={i} />)}
+        {[0, 1, 2, 3, 4].map(i => <TableRowSkeleton key={`lab-row-skel-${i}`} />)}
       </div>
       <span className="sr-only">Loading lab dashboard, please wait...</span>
     </div>
@@ -156,12 +156,12 @@ export function PharmacyDashboardSkeleton() {
     <div className="p-4 md:p-6 space-y-6 animate-pulse" role="status" aria-label="Loading pharmacy dashboard...">
       <DashboardHeaderSkeleton />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map(i => <MetricCardSkeleton key={i} />)}
+        {[0, 1, 2, 3].map(i => <MetricCardSkeleton key={`pharm-metric-skel-${i}`} />)}
       </div>
       {/* Inventory grid skeleton */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[0, 1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="bg-white border border-slate-200/60 rounded-2xl p-4 space-y-3">
+          <div key={`pharm-inv-skel-${i}`} className="bg-white border border-slate-200/60 rounded-2xl p-4 space-y-3">
             <div className="flex justify-between">
               <SkeletonBlock className="h-4 w-32" />
               <SkeletonBlock className="h-6 w-16 rounded-full" />
@@ -198,7 +198,7 @@ export function FullPageLoader({ message = 'Loading VitalSync...' }: { message?:
           <div className="flex gap-1">
             {[0, 1, 2].map(i => (
               <div
-                key={i}
+                key={`loader-dot-${i}`}
                 className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce"
                 style={{ animationDelay: `${i * 0.15}s` }}
               />

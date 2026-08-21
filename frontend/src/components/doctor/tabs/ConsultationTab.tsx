@@ -1801,7 +1801,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   ) : (
                     <div className="grid grid-cols-1 gap-2.5">
                       {riskAlerts.map((alert, i) => (
-                        <div key={i} className={`p-3 rounded-xl border flex gap-3 text-xs leading-relaxed ${
+                        <div key={`risk-alert-${i}-${alert.type}-${String(alert.title || '').substring(0, 15)}`} className={`p-3 rounded-xl border flex gap-3 text-xs leading-relaxed ${
                           alert.type === 'critical'
                             ? 'bg-rose-50 border-rose-200 text-rose-800'
                             : alert.type === 'warning'

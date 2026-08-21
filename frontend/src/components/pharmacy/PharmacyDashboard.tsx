@@ -1400,8 +1400,9 @@ const unsubscribeApi = api.subscribe(syncLocal);
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {lowStockItems.map(item => {
-                  const percentOfSafety = Math.round((item.stock / item.threshold) * 100);
-                  const deficit = item.threshold * 2 - item.stock;
+                  const threshold = Number(item.threshold) || 1;
+                  const percentOfSafety = Math.round(((Number(item.stock) || 0) / threshold) * 100);
+                  const deficit = Math.max(threshold * 2 - (Number(item.stock) || 0), 0);
                   
                   // Tiers color
                   let tierColor = 'border-amber-500/30 bg-amber-500/5 text-amber-400';
@@ -2156,7 +2157,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
             {csvErrors.length > 0 && (
               <div className="p-3 bg-rose-500/15 border border-rose-500/20 text-rose-300 text-[10px] rounded-lg space-y-1 font-mono max-h-24 overflow-y-auto">
                 <div className="font-bold uppercase flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Parsing warnings:</div>
-                {csvErrors.map((err, i) => <div key={i}>{err}</div>)}
+                {csvErrors.map((err, i) => <div key={`csv-err-${i}-${String(err).substring(0, 15)}`}>{err}</div>)}
               </div>
             )}
 

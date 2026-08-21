@@ -1948,7 +1948,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 ) : (
                   <div className="space-y-2">
                     {complications.map((c, i) => (
-                      <div key={i} className="p-3 bg-rose-550/10 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2.5 text-xs text-rose-800">
+                      <div key={`complication-${i}-${String(c).substring(0, 15)}`} className="p-3 bg-rose-550/10 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2.5 text-xs text-rose-800">
                         <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                         <span className="font-bold">{c}</span>
                       </div>

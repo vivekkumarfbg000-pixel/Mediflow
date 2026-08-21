@@ -159,7 +159,7 @@ export function SplitGuardBanner({
             Payment Blocked — Split Routing Errors
           </div>
           {validation.invalidNodes.map((node, i) => (
-            <div key={i} className="flex items-start gap-1.5 text-[10px] text-rose-600 dark:text-rose-400 font-mono">
+            <div key={`split-err-${i}-${String(node.reason).substring(0, 15)}`} className="flex items-start gap-1.5 text-[10px] text-rose-600 dark:text-rose-400 font-mono">
               <XCircle className="w-3 h-3 text-rose-500 mt-0.5 shrink-0" />
               {node.reason}
             </div>

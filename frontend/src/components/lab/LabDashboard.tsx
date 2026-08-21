@@ -1203,7 +1203,7 @@ export const LabDashboard: React.FC = () => {
                             return JSON.stringify(JSON.parse(jsonPayload), null, 2)
                               .split('\n')
                               .map((line, i) => (
-                                <div key={i} className="min-h-[1.25rem] px-5 hover:bg-indigo-100 flex">
+                                <div key={`json-line-${i}`} className="min-h-[1.25rem] px-5 hover:bg-indigo-100 flex">
                                   <span className="w-6 shrink-0 text-indigo-300 select-none text-[8px] text-right pr-2 border-r border-indigo-200 mr-3">{i + 1}</span>
                                   <span className="flex-1 whitespace-pre">{line}</span>
                                 </div>
@@ -2342,7 +2342,7 @@ export const LabDashboard: React.FC = () => {
                 <div className="bg-slate-800 p-2 rounded flex justify-center">
                   <svg viewBox="0 0 100 30" className="w-full h-10" preserveAspectRatio="none">
                     {[5,9,12,17,21,27,30,34,39,42,48,52,57,60,64,70,73,78,82,88,91].map((x, i) => (
-                      <rect key={i} x={x} y="2" width={i % 4 === 0 ? 3 : i % 3 === 0 ? 4 : i % 2 === 0 ? 2 : 1} height="26" fill="#ffffff" />
+                      <rect key={`barcode-bar-${i}-${x}`} x={x} y="2" width={i % 4 === 0 ? 3 : i % 3 === 0 ? 4 : i % 2 === 0 ? 2 : 1} height="26" fill="#ffffff" />
                     ))}
                   </svg>
                 </div>

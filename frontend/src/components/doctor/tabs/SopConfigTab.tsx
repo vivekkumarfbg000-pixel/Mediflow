@@ -389,7 +389,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 AI Extraction Console
               </p>
               {extractionLogs.map((log, i) => (
-                <p key={i} className={`text-xs ${i === extractionLogs.length - 1 ? 'text-emerald-600 font-bold' : 'text-slate-600'}`}>{log}</p>
+                <p key={`ext-log-${i}-${String(log).substring(0, 15)}`} className={`text-xs ${i === extractionLogs.length - 1 ? 'text-emerald-600 font-bold' : 'text-slate-600'}`}>{log}</p>
               ))}
               {isExtractingSop && (
                 <div className="flex items-center gap-2 mt-2">
@@ -514,7 +514,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   </div>
                   <ul className="space-y-1.5">
                     {extractedConfig.guidelines.map((g: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-amber-800">
+                      <li key={`guide-extracted-${i}-${String(g).substring(0, 15)}`} className="flex items-start gap-2 text-xs text-amber-800">
                         <ChevronRight className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
                         {g}
                       </li>
@@ -616,7 +616,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   </h4>
                   <ul className="space-y-2">
                     {(activeSop.extractedConfig?.guidelines || []).map((g: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-amber-800">
+                      <li key={`guide-active-${i}-${String(g).substring(0, 15)}`} className="flex items-start gap-2 text-xs text-amber-800">
                         <span className="w-5 h-5 rounded-full bg-amber-200 flex items-center justify-center text-amber-700 font-bold flex-shrink-0 text-[10px]">{i + 1}</span>
                         {g}
                       </li>

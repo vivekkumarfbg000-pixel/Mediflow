@@ -34,7 +34,7 @@ const RANDOM_CLINIC_CODE_PATTERNS = [
 ];
 
 // ── Check 3: Forbidden Raw Index Keys in React Lists (Rule 19) ───────────────
-const RAW_INDEX_KEY_PATTERN = /key=\{(idx|index)\}/;
+const RAW_INDEX_KEY_PATTERN = /key=\{(idx|index|i)\}/;
 
 function scanFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });

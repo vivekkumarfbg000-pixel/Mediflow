@@ -649,13 +649,15 @@ export const BillingDashboard: React.FC = () => {
                     </h4>
 
                     <div className="space-y-4">
-                      {[
-                        { label: 'Doctor Consulting share', val: selectedInvoice.doctorFee, color: 'from-purple-500 to-indigo-600', pct: Math.round((Number(selectedInvoice.doctorFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
-                        { label: 'Pathology Lab testing share', val: selectedInvoice.labFee, color: 'from-blue-500 to-cyan-600', pct: Math.round((Number(selectedInvoice.labFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
-                        { label: 'Pharmacy Medicine checkout share', val: selectedInvoice.pharmacyFee, color: 'from-emerald-500 to-teal-600', pct: Math.round((Number(selectedInvoice.pharmacyFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 },
-                        { label: 'VitalSync SaaS Platform Fee', val: selectedInvoice.platformFee, color: 'from-rose-500 to-red-600', pct: Math.round((Number(selectedInvoice.platformFee) / Number(selectedInvoice.totalAmount)) * 100) || 0 }
-                      ].map((item, i) => (
-                        <div key={i} className="space-y-1">
+                      {(() => {
+                        const totalAmt = Number(selectedInvoice.totalAmount) || 1;
+                        return [
+                          { label: 'Doctor Consulting share', val: selectedInvoice.doctorFee, color: 'from-purple-500 to-indigo-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.doctorFee) || 0) / totalAmt) * 100), 0), 100) },
+                          { label: 'Pathology Lab testing share', val: selectedInvoice.labFee, color: 'from-blue-500 to-cyan-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.labFee) || 0) / totalAmt) * 100), 0), 100) },
+                          { label: 'Pharmacy Medicine checkout share', val: selectedInvoice.pharmacyFee, color: 'from-emerald-500 to-teal-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.pharmacyFee) || 0) / totalAmt) * 100), 0), 100) },
+                          { label: 'VitalSync SaaS Platform Fee', val: selectedInvoice.platformFee, color: 'from-rose-500 to-red-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.platformFee) || 0) / totalAmt) * 100), 0), 100) }
+                        ].map((item, i) => (
+                          <div key={`rev-split-${item.label}-${i}`} className="space-y-1">
                           <div className="flex justify-between text-[10px] font-bold text-slate-600">
                             <span>{item.label}</span>
                             <span className="font-mono text-slate-800">₹{item.val}.00 ({item.pct}%)</span>
@@ -668,7 +670,8 @@ export const BillingDashboard: React.FC = () => {
                             />
                           </div>
                         </div>
-                      ))}
+                      ));
+                    })()}
                     </div>
                   </div>
 
