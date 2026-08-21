@@ -424,8 +424,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     <span className="text-slate-600 text-sm">₹</span>
                     <input
                       type="number"
-                      value={extractedConfig.doctor_fee}
-                      onChange={e => setExtractedConfig({...extractedConfig, doctor_fee: parseFloat(e.target.value)})}
+                      value={extractedConfig.doctor_fee || 0}
+                      onChange={e => setExtractedConfig({...extractedConfig, doctor_fee: parseFloat(e.target.value) || 0})}
                       className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-sm font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
                     />
                   </div>
@@ -447,8 +447,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                         <span className={`text-xs font-semibold w-16 ${s.color}`}>{s.label}</span>
                         <input
                           type="number"
-                          value={extractedConfig.splits[s.key]}
-                          onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, [s.key]: parseFloat(e.target.value)}})}
+                          value={extractedConfig.splits[s.key] ?? 0}
+                          onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, [s.key]: parseFloat(e.target.value) || 0}})}
                           className="flex-1 bg-white border border-violet-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
                         />
                         <span className="text-xs text-slate-600">%</span>
@@ -496,7 +496,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                         <input
                           type="number"
                           value={extractedConfig.test_prices[loinc] ?? 350}
-                          onChange={e => setExtractedConfig({...extractedConfig, test_prices: {...extractedConfig.test_prices, [loinc]: parseFloat(e.target.value)}})}
+                          onChange={e => setExtractedConfig({...extractedConfig, test_prices: {...extractedConfig.test_prices, [loinc]: parseFloat(e.target.value) || 0}})}
                           className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
                         />
                       </div>
