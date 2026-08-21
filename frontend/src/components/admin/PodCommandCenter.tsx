@@ -139,14 +139,14 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     total: labReqs.length,
     pending: labReqs.filter(r => r.status === 'pending').length,
     processing: labReqs.filter(r => r.status === 'collected' || r.status === 'processed').length,
-    completedToday: labReqs.filter(r => r.status === 'completed' && r.createdAt.startsWith(todayStr)).length,
+    completedToday: labReqs.filter(r => r.status === 'completed' && (r.createdAt || '').startsWith(todayStr)).length,
     lowReagents: reagents.filter(r => r.stockVolume < 200).length,
     criticalReagents: reagents.filter(r => r.stockVolume < 100).length,
   }), [labReqs, reagents, todayStr]);
 
   const pharmacyMetrics = useMemo(() => ({
     pendingHolds: inventoryHolds.filter(h => h.holdStatus === 'held').length,
-    dispensedToday: inventoryHolds.filter(h => h.holdStatus === 'dispensed' && h.createdAt.startsWith(todayStr)).length,
+    dispensedToday: inventoryHolds.filter(h => h.holdStatus === 'dispensed' && (h.createdAt || '').startsWith(todayStr)).length,
     lowStockItems: pharmacyInventory.filter((i: any) => i.stock <= i.threshold).length,
     criticalStockItems: pharmacyInventory.filter((i: any) => i.stock === 0).length,
   }), [inventoryHolds, pharmacyInventory, todayStr]);
@@ -229,8 +229,10 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       .filter(p => {
         // If user is searching by text, allow searching all patients
         if (searchQuery) {
+          const cleanQuery = searchQuery.replace(/\D/g, '');
           return (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                  (p.phone || '').includes(searchQuery) ||
+                 (cleanQuery.length >= 3 && (p.phone || '').replace(/\D/g, '').includes(cleanQuery)) ||
                  (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchQuery.toLowerCase()));
         }
 
@@ -252,8 +254,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         }
       })
       .sort((a, b) => {
-        const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
-        const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
+        const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
+        const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
         if (isSosA && !isSosB) return -1;
         if (!isSosA && isSosB) return 1;
 
