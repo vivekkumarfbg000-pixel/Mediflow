@@ -194,18 +194,20 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
       const holds = PharmacyService.getInventoryHolds();
       const newHold = {
         id: `hold-sim-${Date.now()}`,
+        pharmacyId: 'pharma-apex-01',
         patientId: simPatientId,
-        items: [
-          { drugId: 'med-01', drugName: 'Metformin 500mg', quantity: 60, batchNumber: 'BATCH-2026-X1' },
-          { drugId: 'med-02', drugName: 'Glimepiride 1mg', quantity: 30, batchNumber: 'BATCH-2026-Y2' }
-        ],
-        status: 'reserved' as const,
+        medicineName: 'Metformin 500mg',
+        dosage: '500mg',
+        quantity: 60,
+        holdStatus: 'held' as const,
+        expiryDate: '2027-06-30',
+        batchNumber: 'BATCH-2026-X1',
         createdAt: new Date().toISOString()
       };
       holds.push(newHold as any);
-      localStorage.setItem('inventory_holds', JSON.stringify(holds));
+      PharmacyService.saveInventoryHolds(holds);
 
-      updateStep(3, 'completed', '60x Metformin & 30x Glimepiride reserved with FEFO batch assignment');
+      updateStep(3, 'completed', '60x Metformin 500mg reserved with FEFO batch assignment');
       logMessage('✅ Step 4 complete: FEFO Inventory hold created.');
       setCurrentStepIndex(4);
 
