@@ -678,6 +678,20 @@ export const CompounderDashboard: React.FC = () => {
     setScannedSummary(null);
   }, [activePatient?.id]);
 
+  // Clean up body scroll lock when modal viewers open/close
+  useEffect(() => {
+    if (viewingDocUrl || activeWorkflowDetail) {
+      document.body.style.overflow = 'hidden';
+    } else if (!vitalsPatient) {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      if (!vitalsPatient) {
+        document.body.style.overflow = '';
+      }
+    };
+  }, [viewingDocUrl, activeWorkflowDetail, vitalsPatient]);
+
   // Sync loyalty checkboxes when billing patient changes
   useEffect(() => {
     if (billingPatient) {
