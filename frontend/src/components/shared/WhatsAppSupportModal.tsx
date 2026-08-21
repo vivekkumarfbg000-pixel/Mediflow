@@ -135,7 +135,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
             <div ref={chatScrollRef} className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-slate-50/50">
               {chatHistory.map((msg, idx) => (
                 <div
-                  key={`support-msg-${idx}-${msg.sender}-${msg.text.slice(0, 15)}`}
+                  key={`support-msg-${idx}-${msg.sender}-${(msg.text || '').slice(0, 15)}`}
                   className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   <div
@@ -145,7 +145,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
                         : 'bg-white border border-slate-200/80 text-slate-800 rounded-bl-none shadow-sm'
                     }`}
                   >
-                    {msg.text}
+                    {msg.text || ''}
                   </div>
                   {msg.category === 'auto_healed' && (
                     <span className="mt-1 text-[9px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
