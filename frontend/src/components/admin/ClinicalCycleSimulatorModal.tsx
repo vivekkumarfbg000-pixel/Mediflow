@@ -205,7 +205,7 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
         createdAt: new Date().toISOString()
       };
       holds.push(newHold as any);
-      PharmacyService.saveInventoryHolds(holds);
+      try { localStorage.setItem('inventory_holds', JSON.stringify(holds)); } catch (_e) { /* storage full */ }
 
       updateStep(3, 'completed', '60x Metformin 500mg reserved with FEFO batch assignment');
       logMessage('✅ Step 4 complete: FEFO Inventory hold created.');
