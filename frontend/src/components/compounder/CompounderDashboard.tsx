@@ -2138,21 +2138,42 @@ export const CompounderDashboard: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                        {appointments.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="p-6 text-center text-slate-400">No upcoming advance bookings found.</td>
-                          </tr>
-                        ) : (
-                          appointments.map(appt => {
+                        {(() => {
+                          const now = new Date();
+                          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                          const futureAppts = appointments
+                            .filter(appt => {
+                              if (appt.status === 'pending_payment' || appt.status === 'cancelled') return false;
+                              const apptDate = appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0];
+                              return Boolean(apptDate && apptDate > todayStr);
+                            })
+                            .sort((a, b) => {
+                              const dateA = a.virtual_date || (a as any).virtualDate || (a as any).appointment_date || (a as any).appointmentDate || (a.createdAt || (a as any).createdAt || '').split('T')[0] || '';
+                              const dateB = b.virtual_date || (b as any).virtualDate || (b as any).appointment_date || (b as any).appointmentDate || (b.createdAt || (b as any).createdAt || '').split('T')[0] || '';
+                              return dateA.localeCompare(dateB);
+                            });
+
+                          if (futureAppts.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="p-6 text-center text-slate-400">
+                                  No upcoming advance bookings found for future dates. (All active registrations are for today).
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return futureAppts.map(appt => {
                             const pat = patients.find(p => p.id === appt.patientId);
+                            const apptDate = appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A';
                             return (
                               <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
-                                <td className="p-3 font-bold text-slate-900 dark:text-white">{pat?.name || 'Registered Patient'}</td>
-                                <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{pat?.phone || 'N/A'}</td>
+                                <td className="p-3 font-bold text-slate-900 dark:text-white">{pat?.name || (appt as any).patientName || 'Registered Patient'}</td>
+                                <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{pat?.phone || (appt as any).patientPhone || 'N/A'}</td>
                                 <td className="p-3 font-semibold text-indigo-600 dark:text-indigo-400">
-                                  {appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
+                                  {apptDate}
                                 </td>
-                                <td className="p-3 text-slate-600 dark:text-slate-300">{appt.virtual_time || '10:00 AM - 12:00 PM'}</td>
+                                <td className="p-3 text-slate-600 dark:text-slate-300">{appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'}</td>
                                 <td className="p-3">
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${appt.is_virtual ? 'bg-cyan-100 text-cyan-800' : 'bg-indigo-100 text-indigo-800'}`}>
                                     {appt.is_virtual ? 'Virtual 💻' : 'Physical 🏥'}
@@ -2161,8 +2182,8 @@ export const CompounderDashboard: React.FC = () => {
                                 <td className="p-3 font-mono text-emerald-600 font-bold">Cleared ✅</td>
                               </tr>
                             );
-                          })
-                        )}
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>

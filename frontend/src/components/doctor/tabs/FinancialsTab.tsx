@@ -251,7 +251,9 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     if (inv?.paymentMethod === 'cash' || (appt as any)?.payment_method === 'cash') {
       return 'Cash Counter 💵';
     }
-    if ((inv as any)?.source === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual) {
+    if (String((inv as any)?.source || '').toLowerCase().includes('whatsapp') ||
+        String(appt?.source || '').toLowerCase().includes('whatsapp') ||
+        (appt as any)?.is_virtual) {
       return 'WhatsApp UPI 💬';
     }
     return 'UPI / QR Code 📱';

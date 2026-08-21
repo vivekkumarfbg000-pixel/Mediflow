@@ -1299,7 +1299,15 @@ export class BillingService {
     paidInvoices.forEach(inv => {
       const amt = inv.amount || 0;
       const appt = allAppointments.find(a => a.id === inv.appointmentId);
-      const isWhatsAppBooking = (inv as any).source === 'whatsapp' || (inv as any).channel === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual === true;
+      const isWhatsAppBooking = String((inv as any).source || '').toLowerCase().includes('whatsapp') ||
+        String((inv as any).channel || '').toLowerCase().includes('whatsapp') ||
+        String(appt?.source || '').toLowerCase().includes('whatsapp') ||
+        (appt as any)?.is_virtual === true ||
+        inv.paymentMethod === 'whatsapp' ||
+        inv.paymentMethod === 'upi' ||
+        inv.paymentMethod === 'razorpay' ||
+        inv.paymentMethod === 'phonepe' ||
+        inv.paymentMethod === 'paytm';
 
       if (inv.type === 'consult') {
         doctorConsultsEarned += amt; // ALWAYS added to Total Doctor Net Earnings!
@@ -1327,7 +1335,14 @@ export class BillingService {
     uInvoices.forEach(uInv => {
       if (uInv.paymentStatus === 'cleared') {
         const appt = allAppointments.find(a => a.id === uInv.encounterId);
-        const isWhatsAppBooking = (uInv as any).source === 'whatsapp' || appt?.source === 'whatsapp' || (appt as any)?.is_virtual === true;
+        const isWhatsAppBooking = String((uInv as any).source || '').toLowerCase().includes('whatsapp') ||
+          String(appt?.source || '').toLowerCase().includes('whatsapp') ||
+          (appt as any)?.is_virtual === true ||
+          (uInv as any).paymentMethod === 'whatsapp' ||
+          (uInv as any).paymentMethod === 'upi' ||
+          (uInv as any).paymentMethod === 'razorpay' ||
+          (uInv as any).paymentMethod === 'phonepe' ||
+          (uInv as any).paymentMethod === 'paytm';
 
         if (uInv.doctorFee > 0 && paidInvoices.every(i => i.appointmentId !== uInv.encounterId)) {
           doctorConsultsEarned += uInv.doctorFee;
