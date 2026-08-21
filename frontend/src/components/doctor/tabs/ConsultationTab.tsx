@@ -2196,7 +2196,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                                 <a
                                   href={c.link}
                                   target="_blank"
-                                  rel="noreferrer"
+                                  rel="noopener noreferrer"
                                   className="text-[9px] text-indigo-600 hover:text-indigo-850 font-bold flex items-center gap-0.5 no-underline"
                                 >
                                   Full Paper <ExternalLink className="w-2.5 h-2.5 shrink-0 inline-block" />

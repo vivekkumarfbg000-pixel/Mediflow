@@ -589,7 +589,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                               type="button"
                               onClick={() => {
                                 const payUrlMatch = msg.text.match(/(https?:\/\/[^\s]+)/);
-                                if (payUrlMatch) window.open(payUrlMatch[0], '_blank');
+                                if (payUrlMatch) window.open(payUrlMatch[0], '_blank', 'noopener,noreferrer');
                               }}
                               className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 transition-all"
                             >

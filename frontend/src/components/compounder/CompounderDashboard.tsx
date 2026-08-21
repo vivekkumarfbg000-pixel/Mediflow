@@ -2097,7 +2097,7 @@ export const CompounderDashboard: React.FC = () => {
                               <a
                                 href={meetUrl}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-sm"
                               >
                                 Join Video Room

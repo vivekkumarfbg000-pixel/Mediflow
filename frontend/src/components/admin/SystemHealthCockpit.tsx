@@ -457,7 +457,7 @@ ${rawTraceback}
                           type="button"
                           onClick={() => {
                             if (alert.prUrl || alert.githubUrl) {
-                              window.open(alert.prUrl || alert.githubUrl, '_blank');
+                              window.open(alert.prUrl || alert.githubUrl, '_blank', 'noopener,noreferrer');
                             } else {
                               setActiveAiRepairModalAlert(alert);
                             }

@@ -340,7 +340,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
                         onClick={() => {
                           const payUrlMatch = msg.text.match(/(https?:\/\/[^\s]+)/);
                           const targetUrl = payUrlMatch ? payUrlMatch[0] : `/pay/${pendingInvoice?.id || 'inv-default'}`;
-                          window.open(targetUrl, '_blank');
+                          window.open(targetUrl, '_blank', 'noopener,noreferrer');
                         }}
                         className="w-full py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95 transition-all"
                       >

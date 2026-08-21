@@ -3511,7 +3511,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               <a
                 href={termsModalTab === 'privacy' ? '/privacy' : '/terms'}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="w-full sm:w-auto py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <span>Open Full Legal Center</span>
