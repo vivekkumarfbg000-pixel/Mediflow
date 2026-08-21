@@ -939,7 +939,7 @@ export const LabDashboard: React.FC = () => {
                             {!isOphthalmology && (
                               <td className="p-3.5 text-right">
                                 {(req.reagentDeductions || []).map((ded, idx) => (
-                                  <div key={idx} className="text-right text-[10px] text-rose-400 flex items-center justify-end gap-1.5 font-bold font-mono">
+                                  <div key={`reagent-ded-${idx}-${ded.reagentName}-${ded.volumeDeducted}`} className="text-right text-[10px] text-rose-400 flex items-center justify-end gap-1.5 font-bold font-mono">
                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
                                     -{ded.volumeDeducted}{ded.unit} {(ded.reagentName || '').replace(' Reagent', '')}
                                   </div>
@@ -1002,7 +1002,7 @@ export const LabDashboard: React.FC = () => {
                                 <span className="text-slate-500 block text-[9px] uppercase font-bold tracking-wider">Reagents Used</span>
                                 <div className="space-y-0.5 mt-1">
                                   {(req.reagentDeductions || []).map((ded, idx) => (
-                                    <div key={idx} className="text-[9px] text-rose-500 flex items-center gap-1 font-bold font-mono">
+                                    <div key={`mob-reagent-ded-${idx}-${ded.reagentName}-${ded.volumeDeducted}`} className="text-[9px] text-rose-500 flex items-center gap-1 font-bold font-mono">
                                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                                       -{ded.volumeDeducted}{ded.unit} {(ded.reagentName || '').replace(' Reagent', '')}
                                     </div>

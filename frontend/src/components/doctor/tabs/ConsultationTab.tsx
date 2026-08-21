@@ -1211,7 +1211,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 }
                 return history.slice().reverse().map((report, idx) => (
                   <button
-                    key={idx}
+                    key={`hist-report-${idx}-${report.date || (report as any).id || idx}`}
                     onClick={() => setAnalyzingReport(report)}
                     className="w-full text-left p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between"
                   >
@@ -1637,7 +1637,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       ? 'from-amber-50 to-amber-100/50 border-amber-200 dark:from-amber-950/60 dark:to-amber-900/40 dark:border-amber-800/40'
                       : 'from-emerald-50 to-emerald-100/50 border-emerald-200 dark:from-emerald-950/60 dark:to-emerald-900/40 dark:border-emerald-800/40';
                     return (
-                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-2`}>
+                    <div key={`biomarker-card-${idx}-${item.name}`} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-2`}>
                       <div className="flex justify-between items-start">
                         <span className="text-[10px] text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider">{item.name}</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">Normal: {item.normal}</span>

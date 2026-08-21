@@ -800,7 +800,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                       </span>
                                       <div className="space-y-1">
                                         {prescription.extractedMedicines.map((m, idx) => (
-                                          <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between">
+                                          <div key={`presc-med-${idx}-${m.name}-${m.dosage}`} className="text-[10px] text-slate-600 font-mono flex items-center justify-between">
                                             <span>💊 {m.name} ({m.dosage})</span>
                                             <span className="text-[9px] bg-slate-200 px-1 rounded">{m.frequency}</span>
                                           </div>
@@ -954,7 +954,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                             const lensType = (m.name || '').replace('Spectacles (', '').replace(')', '') || 'Standard';
                                             
                                             return (
-                                              <div key={idx} className="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-slate-800 w-full">
+                                              <div key={`rx-spec-${idx}-${lensType}`} className="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-3 mt-1.5 animate-fade-in text-slate-800 w-full">
                                                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                                                   <div className="flex items-center gap-1.5">
                                                     <Eye className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
@@ -1103,7 +1103,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
                                           }
                                           
                                           return (
-                                            <div key={idx} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                                            <div key={`presc-item-${idx}-${m.name}-${m.dosage}`} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1 last:border-0 last:pb-0">
                                               <span>💊 {m.name} ({m.dosage})</span>
                                               <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
                                             </div>
@@ -1887,7 +1887,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
 
             <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-lg h-32 overflow-y-auto font-mono text-[9px] text-slate-600 space-y-1">
               {scanLogs.map((log, idx) => (
-                <div key={idx} className={log.includes('MATCH') ? 'text-emerald-400 font-bold' : log.includes('Laser sweep') ? 'text-teal-600' : ''}>
+                <div key={`scan-log-${idx}-${log.slice(0, 15)}`} className={log.includes('MATCH') ? 'text-emerald-400 font-bold' : log.includes('Laser sweep') ? 'text-teal-600' : ''}>
                   {log}
                 </div>
               ))}

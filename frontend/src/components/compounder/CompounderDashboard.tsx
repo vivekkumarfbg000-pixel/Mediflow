@@ -2383,14 +2383,7 @@ export const CompounderDashboard: React.FC = () => {
 
                                   syncData();
                                   fetchLiveAppointments();
-
                                   window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  document.body.style.overflow = 'hidden';
-                                  setTempVal(isOphthalmology ? '6/6' : '98.6');
-                                  setBpVal(isOphthalmology ? '6/6' : '120/80');
-                                  setPulseVal(isOphthalmology ? '16' : '72');
-                                  setWeightVal(isOphthalmology ? '' : '65');
-                                  setSugarVal('');
                                   setVitalsPatient(bookedPatient);
 
                                   window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -2720,14 +2713,7 @@ export const CompounderDashboard: React.FC = () => {
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: { message: 'Cash collected! 🌟 VitalSync Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
-                                    // BUG-01+11: scroll to top, lock scroll, reset form before opening vitals
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                                    document.body.style.overflow = 'hidden';
-                                    setTempVal(isOphthalmology ? '6/6' : '98.6');
-                                    setBpVal(isOphthalmology ? '6/6' : '120/80');
-                                    setPulseVal(isOphthalmology ? '16' : '72');
-                                    setWeightVal(isOphthalmology ? '' : '65');
-                                    setSugarVal('');
                                     setVitalsPatient(patient);
                                   }}
                                   className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold uppercase tracking-wider text-[8px] transition-all cursor-pointer border-0"
@@ -2741,14 +2727,7 @@ export const CompounderDashboard: React.FC = () => {
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: { message: 'UPI verified! 🌟 Mediflow Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
-                                    // BUG-01+11: scroll to top, lock scroll, reset form before opening vitals
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                                    document.body.style.overflow = 'hidden';
-                                    setTempVal(isOphthalmology ? '6/6' : '98.6');
-                                    setBpVal(isOphthalmology ? '6/6' : '120/80');
-                                    setPulseVal(isOphthalmology ? '16' : '72');
-                                    setWeightVal(isOphthalmology ? '' : '65');
-                                    setSugarVal('');
                                     setVitalsPatient(patient);
                                   }}
                                   className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold uppercase tracking-wider text-[8px] transition-all cursor-pointer border-0"
@@ -2759,14 +2738,7 @@ export const CompounderDashboard: React.FC = () => {
                             ) : isAwaitingVitals ? (
                               <button
                                 onClick={() => {
-                                  // BUG-01: scroll to top + lock body scroll before opening vitals modal
                                   window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  document.body.style.overflow = 'hidden';
-                                  setTempVal(isOphthalmology ? '6/6' : '98.6');
-                                  setBpVal(isOphthalmology ? '6/6' : '120/80');
-                                  setPulseVal(isOphthalmology ? '16' : '72');
-                                  setWeightVal(isOphthalmology ? '' : '65');
-                                  setSugarVal('');
                                   setVitalsPatient(patient);
                                 }}
                                 className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white border border-rose-600 font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer"
@@ -2842,7 +2814,7 @@ export const CompounderDashboard: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => { document.body.style.overflow = ''; setVitalsPatient(null); }}
+                        onClick={() => setVitalsPatient(null)}
                         className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer border-0"
                       >
                         <X className="w-4 h-4" />
@@ -2987,7 +2959,7 @@ export const CompounderDashboard: React.FC = () => {
                       <div className="pt-2 flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => { document.body.style.overflow = ''; setVitalsPatient(null); }}
+                          onClick={() => setVitalsPatient(null)}
                           className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all border-0 cursor-pointer"
                         >
                           Cancel
