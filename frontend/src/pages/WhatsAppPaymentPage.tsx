@@ -396,7 +396,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
 
             <div>
               <h2 className="text-2xl font-extrabold text-white tracking-tight">Payment Verified!</h2>
-              <p className="text-xs text-emerald-400 font-semibold mt-1">₹{amountRupees.toFixed(2)} Paid Successfully</p>
+              <p className="text-xs text-emerald-400 font-semibold mt-1">₹{(amountRupees || 0).toFixed(2)} Paid Successfully</p>
             </div>
 
             <div className="w-full bg-slate-950/60 border border-emerald-500/20 rounded-2xl p-4 text-left space-y-2">
@@ -443,15 +443,15 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
               <div className="border-t border-white/5 pt-3 flex flex-col gap-1.5 text-xs">
                 <div className="flex justify-between text-slate-400">
                   <span>Doctor Consultation Fee:</span>
-                  <span>₹{doctorFee.toFixed(2)}</span>
+                  <span>₹{(doctorFee || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Online Platform Fee (3%):</span>
-                  <span>₹{platformFee.toFixed(2)}</span>
+                  <span>₹{(platformFee || 0).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-white/10 pt-2 flex justify-between font-bold text-sm text-white">
                   <span>Total Amount Payable:</span>
-                  <span className="text-teal-400 font-mono text-base">₹{amountRupees.toFixed(2)}</span>
+                  <span className="text-teal-400 font-mono text-base">₹{(amountRupees || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -489,7 +489,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
               ) : (
                 <>
                   <CreditCard className="h-5 w-5" />
-                  <span>Pay ₹{amountRupees.toFixed(2)} via Razorpay (UPI / Cards)</span>
+                  <span>Pay ₹{(amountRupees || 0).toFixed(2)} via Razorpay (UPI / Cards)</span>
                 </>
               )}
             </button>

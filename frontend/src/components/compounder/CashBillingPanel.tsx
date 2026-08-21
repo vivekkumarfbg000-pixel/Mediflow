@@ -245,7 +245,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
               className="col-span-2 input-field py-1.5 text-xs text-right"
             />
             <div className="col-span-2 text-right text-xs font-bold text-slate-700 dark:text-slate-200 font-mono">
-              ₹{item.line_total.toFixed(2)}
+              ₹{(item.line_total || 0).toFixed(2)}
             </div>
             <button
               onClick={() => removeItem(idx)}
@@ -281,17 +281,17 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 space-y-1.5 text-xs">
           <div className="flex justify-between text-slate-600 dark:text-slate-300">
             <span>Subtotal ({items.length} item{items.length !== 1 ? 's' : ''})</span>
-            <span className="font-mono">₹{grossAmount.toFixed(2)}</span>
+            <span className="font-mono">₹{(grossAmount || 0).toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-indigo-600 dark:text-indigo-400">
             <span className="flex items-center gap-1">
               <Percent className="w-3 h-3" />
               Platform fee (3%)
             </span>
-            <span className="font-mono font-bold">₹{commissionAmount.toFixed(2)}</span>
+            <span className="font-mono font-bold">₹{(commissionAmount || 0).toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[10px] border-t border-slate-200 dark:border-slate-700 pt-1.5">
-            <span>Deducted from commission pool — patient pays ₹{grossAmount.toFixed(2)} in cash</span>
+            <span>Deducted from commission pool — patient pays ₹{(grossAmount || 0).toFixed(2)} in cash</span>
           </div>
         </div>
       )}
@@ -335,7 +335,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
         ) : (
           <>
             <Receipt className="w-4 h-4" />
-            Record ₹{grossAmount.toFixed(2)} Cash Sale
+            Record ₹{(grossAmount || 0).toFixed(2)} Cash Sale
           </>
         )}
       </button>

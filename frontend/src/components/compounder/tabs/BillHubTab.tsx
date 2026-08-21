@@ -659,9 +659,9 @@ export const BillHubTab: React.FC = () => {
           const qty = selectedMedicines[(m.name || '').toLowerCase()].qty;
           return `<tr>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${m.name}<br/><span style="font-size:10px;color:#94a3b8">Batch: ${m.batch}</span></td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${m.price.toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${(m.price || 0).toFixed(2)}</td>
             <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">${qty}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${(m.price * qty).toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">₹${((m.price || 0) * (qty || 1)).toFixed(2)}</td>
           </tr>`;
         }).join('');
 
@@ -1492,7 +1492,7 @@ export const BillHubTab: React.FC = () => {
                       <div className="h-px bg-slate-200 dark:bg-slate-800 my-2" />
                       <div className="flex justify-between text-slate-800 dark:text-white font-bold">
                         <span>Net Payable:</span>
-                        <span className="text-indigo-600 dark:text-indigo-400 font-black">₹{billingLedger.finalTotal}</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 font-black">₹{(billingLedger.finalTotal || 0).toFixed(2)}</span>
                       </div>
 
                       {partialCashAmount > 0 && (

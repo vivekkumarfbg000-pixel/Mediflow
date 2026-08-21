@@ -2663,8 +2663,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   {/* Mobile App Cards View for Cost Guard (Mobile Screens) */}
                   <div className="block md:hidden space-y-3">
                     {podsList.map(pod => {
-                      const budget = pod.daily_cost_budget ?? 500.00;
-                      const pct = Math.min((pod.daily_spend / budget) * 100, 100);
+                      const budget = (pod.daily_cost_budget && pod.daily_cost_budget > 0) ? pod.daily_cost_budget : 500.00;
+                      const pct = Math.min(Math.max(((Number(pod.daily_spend) || 0) / budget) * 100, 0), 100);
                       const inputVal = budgetInputs[pod.id] || '';
                       
                       return (
@@ -2686,7 +2686,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                               <h5 className="font-extrabold text-xs text-slate-850 mt-1">{pod.name}</h5>
                             </div>
                             <span className="font-mono text-xs font-black text-emerald-600">
-                              ₹{Number(pod.daily_spend).toFixed(2)}
+                              ₹{(Number(pod.daily_spend) || 0).toFixed(2)}
                             </span>
                           </div>
 
@@ -2750,8 +2750,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                       </thead>
                       <tbody>
                         {podsList.map(pod => {
-                          const budget = pod.daily_cost_budget ?? 500.00;
-                          const pct = Math.min((pod.daily_spend / budget) * 100, 100);
+                          const budget = (pod.daily_cost_budget && pod.daily_cost_budget > 0) ? pod.daily_cost_budget : 500.00;
+                          const pct = Math.min(Math.max(((Number(pod.daily_spend) || 0) / budget) * 100, 0), 100);
                           const inputVal = budgetInputs[pod.id] || '';
                           
                           return (
@@ -2761,7 +2761,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                                 <div className="text-[9px] font-mono text-indigo-600 mt-0.5 font-bold">{pod.clinic_code}</div>
                               </td>
                               <td className="p-2.5 font-bold text-slate-750">
-                                ₹{Number(pod.daily_spend).toFixed(2)}
+                                ₹{(Number(pod.daily_spend) || 0).toFixed(2)}
                               </td>
                               <td className="p-2.5">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
