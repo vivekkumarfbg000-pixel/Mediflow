@@ -928,8 +928,12 @@ export class BillingService {
           
           const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
           if (patient) {
+            const cleanPatientPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
             const sessions = load<any[]>('whatsapp_sessions', []);
-            const existing = sessions.find(s => s.patientPhone === patient.phone);
+            const existing = sessions.find(s => {
+              const sDigits = (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10);
+              return sDigits && cleanPatientPhone && sDigits === cleanPatientPhone;
+            });
             if (existing) {
               const podRaw = typeof window !== 'undefined' ? localStorage.getItem('mediflow_active_pod') : null;
               const podParsed = podRaw ? (() => { try { return JSON.parse(podRaw); } catch { return null; } })() : null;
@@ -939,10 +943,17 @@ export class BillingService {
               currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
               existing.sessionData = { ...(existing.sessionData || {}), chatHistory: currentHistory };
               save('whatsapp_sessions', sessions);
-              supabase.from('whatsapp_sessions').update({
-                session_data: existing.sessionData,
-                last_interaction: new Date().toISOString()
-              }).eq('patient_phone', patient.phone);
+              if (existing.id) {
+                supabase.from('whatsapp_sessions').update({
+                  session_data: existing.sessionData,
+                  last_interaction: new Date().toISOString()
+                }).eq('id', existing.id);
+              } else {
+                supabase.from('whatsapp_sessions').update({
+                  session_data: existing.sessionData,
+                  last_interaction: new Date().toISOString()
+                }).eq('patient_phone', existing.patientPhone || existing.patient_phone || patient.phone);
+              }
             }
           }
         } else if (saasInv.type === 'lab') {
