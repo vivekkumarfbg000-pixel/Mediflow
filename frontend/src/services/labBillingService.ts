@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
+import { WhatsAppService } from './whatsappService';
 import { getPodContext } from './podContext';
 import type { LabTestBill, LabTestBillItem, FinancialLedgerEntry } from '../types';
 
@@ -330,31 +331,7 @@ export class LabBillingService {
 
   static sendLabInvoiceToPatient(bill: LabTestBill): void {
     const invoiceText = this.generateLabInvoiceMessage(bill);
-
-    // Push to local WhatsApp session
-    const sessions = load<any[]>('whatsapp_sessions', []);
-    const session = sessions.find(s => s.patientPhone === bill.patientPhone);
-    if (session) {
-      const currentHistory = session.sessionData?.chatHistory || [];
-      currentHistory.push({
-        sender: 'bot',
-        text: invoiceText,
-        time: new Date().toISOString()
-      });
-      session.sessionData = { ...session.sessionData, chatHistory: currentHistory };
-      save('whatsapp_sessions', sessions);
-
-      // Sync to Supabase
-      if (navigator.onLine) {
-        supabase.from('whatsapp_sessions').update({
-          session_data: session.sessionData,
-          last_interaction: new Date().toISOString()
-        }).eq('patient_phone', bill.patientPhone).then(({ error }) => {
-          if (error) console.error('[LabBillingService] Error syncing WhatsApp session:', error);
-        });
-      }
-    }
-
+    WhatsAppService.pushWhatsAppMessageFromBot(bill.patientPhone, invoiceText);
     writeAuditLog('lab_invoice_sent_whatsapp', { billId: bill.id, patientPhone: bill.patientPhone }, bill.patientId);
     notify();
   }

@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { TelemetryService } from './telemetry';
 import { PatientService } from './patientService';
+import { WhatsAppService } from './whatsappService';
 import { getPodContext } from './podContext';
 import type { 
   PharmacyInventoryItem, 
@@ -1332,29 +1333,7 @@ Thank you for choosing VitalSync! 🟢`;
 
   static sendPharmacyInvoiceToPatient(bill: MedicineBill): void {
     const invoiceText = this.generateMedicineInvoiceMessage(bill);
-
-    const sessions = load<any[]>('whatsapp_sessions', []);
-    const session = sessions.find(s => s.patientPhone === bill.patientPhone);
-    if (session) {
-      const currentHistory = session.sessionData?.chatHistory || [];
-      currentHistory.push({
-        sender: 'bot',
-        text: invoiceText,
-        time: new Date().toISOString()
-      });
-      session.sessionData = { ...session.sessionData, chatHistory: currentHistory };
-      save('whatsapp_sessions', sessions);
-
-      if (navigator.onLine) {
-        supabase.from('whatsapp_sessions').update({
-          session_data: session.sessionData,
-          last_interaction: new Date().toISOString()
-        }).eq('patient_phone', bill.patientPhone).then(({ error }) => {
-          if (error) console.error('[PharmacyService] Error syncing WhatsApp session:', error);
-        });
-      }
-    }
-
+    WhatsAppService.pushWhatsAppMessageFromBot(bill.patientPhone, invoiceText);
     writeAuditLog('pharmacy_invoice_sent_whatsapp', { billId: bill.id, patientPhone: bill.patientPhone }, bill.patientId);
     notify();
   }
