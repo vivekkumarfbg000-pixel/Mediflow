@@ -2099,7 +2099,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                               </div>
                               <button
                                 onClick={() => {
-                                  const alreadyAdded = medications.some(m => m.medicineName.toLowerCase() === comp.medicine_name.toLowerCase());
+                                  const alreadyAdded = medications.some(m => (m.medicineName || '').toLowerCase() === (comp.medicine_name || '').toLowerCase());
                                   if (alreadyAdded) {
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: {
@@ -2325,7 +2325,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             {(() => {
               if (!selectedPatient) return null;
               const hasNSAID = medications.some(m => {
-                const name = m.medicineName.toLowerCase();
+                const name = (m.medicineName || '').toLowerCase();
                 return name.includes('ibuprofen') || 
                        name.includes('diclofenac') || 
                        name.includes('naproxen') || 
@@ -2371,7 +2371,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       type="button"
                       onClick={() => {
                         const updatedMeds = medications.map(m => {
-                          const name = m.medicineName.toLowerCase();
+                          const name = (m.medicineName || '').toLowerCase();
                           if (name.includes('ibuprofen') || name.includes('diclofenac') || name.includes('naproxen') || name.includes('ketorolac') || name.includes('mefenamic') || name.includes('indomethacin') || name.includes('meloxicam') || name.includes('celecoxib') || name.includes('nsaid')) {
                             return {
                               ...m,

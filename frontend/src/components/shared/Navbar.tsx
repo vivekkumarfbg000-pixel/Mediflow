@@ -622,7 +622,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <h1 className="font-bold text-[9px] uppercase tracking-wider text-slate-700 dark:text-slate-350 truncate flex items-center gap-1.5 leading-none">
                 {activeProfile?.display_name 
-                  ? (activeProfile.role === 'doctor' && !activeProfile.display_name.toLowerCase().startsWith('dr.')
+                  ? (activeProfile.role === 'doctor' && !(activeProfile.display_name || '').toLowerCase().startsWith('dr.')
                       ? `Dr. ${activeProfile.display_name}`
                       : activeProfile.display_name)
                   : 'VitalSync'}

@@ -949,7 +949,7 @@ export class BillingService {
           const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
           if (rx && rx.extractedTests) {
             rx.extractedTests.forEach(testName => {
-              const loinc = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase() === testName.toLowerCase())?.loincCode || 'unknown';
+              const loinc = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase() === (testName || '').toLowerCase())?.loincCode || 'unknown';
               const reqId = crypto.randomUUID();
               const requisitions = load<any[]>('lab_requisitions', []);
               requisitions.push({
@@ -1110,7 +1110,7 @@ export class BillingService {
     
     if (rx.extractedTests) {
       rx.extractedTests.forEach(testName => {
-        const loinc = MASTER_TEST_CATALOG.find(t => t.name.toLowerCase() === testName.toLowerCase())?.loincCode || 'unknown';
+        const loinc = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase() === (testName || '').toLowerCase())?.loincCode || 'unknown';
         const price = testPrices[loinc] ?? testPrices[testName] ?? 300; // default to 300 if not specified
         labTotal += Number(price);
       });

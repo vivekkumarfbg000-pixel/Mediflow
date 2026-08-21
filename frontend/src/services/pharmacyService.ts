@@ -325,7 +325,9 @@ export class PharmacyService {
     // Map inventory items for matching
     const inventoryMap = new Map();
     inventory.forEach(item => {
-      inventoryMap.set(item.name.toLowerCase(), item.stock);
+      if (item?.name) {
+        inventoryMap.set((item.name || '').toLowerCase(), item.stock || 0);
+      }
     });
 
     // Check matches from master list
