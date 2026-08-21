@@ -2064,7 +2064,7 @@ export const CompounderDashboard: React.FC = () => {
                       {appointments.filter(a => a.is_virtual || a.isVirtual).map(appt => {
                         const pat = patients.find(p => p.id === appt.patientId);
                         const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
-                        const isFreeLoyalty = appt.amount === 0 || appt.fee_status === 'waived_loyalty' || appt.source?.includes('loyalty');
+                        const isFreeLoyalty = appt.amount === 0 || appt.fee_status === 'waived_loyalty' || String(appt.source || '').toLowerCase().includes('loyalty');
                         return (
                           <div key={appt.id} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-3 relative overflow-hidden">
                             <div className="flex items-center justify-between">
@@ -2488,8 +2488,8 @@ export const CompounderDashboard: React.FC = () => {
 
                       confirmedAppts.sort((a, b) => {
                         // Priority #1: Emergency SOS
-                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || a.source?.includes('sos') || a.source?.includes('emergency') || String(a.tokenNumber || '').includes('SOS') || String(a.tokenNumber || '').startsWith('#EM-'));
-                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || b.source?.includes('sos') || b.source?.includes('emergency') || String(b.tokenNumber || '').includes('SOS') || String(b.tokenNumber || '').startsWith('#EM-'));
+                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').startsWith('#EM-'));
+                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').startsWith('#EM-'));
                         if (isSOSA && !isSOSB) return -1;
                         if (!isSOSA && isSOSB) return 1;
 
@@ -2552,7 +2552,7 @@ export const CompounderDashboard: React.FC = () => {
 
                       const isAwaitingVitals = patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus;
                       const isAwaitingConsult = patient.queueStatus === 'awaiting_consultation';
-                      const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || appt.source?.includes('sos') || appt.source?.includes('emergency') || String(appt.tokenNumber || '').includes('SOS') || String(appt.tokenNumber || '').startsWith('#EM-'));
+                      const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || String(appt.source || '').toLowerCase().includes('sos') || String(appt.source || '').toLowerCase().includes('emergency') || String(appt.tokenNumber || '').toUpperCase().includes('SOS') || String(appt.tokenNumber || '').startsWith('#EM-'));
 
                       return (
                         <div 
@@ -2576,11 +2576,11 @@ export const CompounderDashboard: React.FC = () => {
                                 <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-lg border ${
                                   appt.isVirtual
                                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
-                                    : (appt as any).source?.includes('whatsapp')
+                                    : String((appt as any).source || '').toLowerCase().includes('whatsapp')
                                     ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25'
                                     : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
                                 }`}>
-                                  {appt.isVirtual ? '📹 VIRTUAL CALL' : (appt as any).source?.includes('whatsapp') ? '🏥 PHYSICAL VISIT (WA)' : '🏢 COUNTER'}
+                                  {appt.isVirtual ? '📹 VIRTUAL CALL' : String((appt as any).source || '').toLowerCase().includes('whatsapp') ? '🏥 PHYSICAL VISIT (WA)' : '🏢 COUNTER'}
                                 </span>
                               )}
                               <h4 className="font-bold text-slate-805 text-xs">{patient.name}</h4>

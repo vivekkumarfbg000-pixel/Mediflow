@@ -1082,8 +1082,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 })
                 .sort((a, b) => {
                   // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top
-                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || (a as any).source?.includes('sos') || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
-                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || (b as any).source?.includes('sos') || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
+                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).includes('E') || String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).startsWith('#EM-'))));
+                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).includes('E') || String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).startsWith('#EM-'))));
                   if (isSosA && !isSosB) return -1;
                   if (!isSosA && isSosB) return 1;
 
