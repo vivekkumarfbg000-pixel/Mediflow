@@ -594,7 +594,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Preview Import Queue</h4>
                   <div className="max-h-[140px] overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-100 bg-slate-50/30">
                     {parsedList.map((p, idx) => (
-                      <div key={idx} className="p-2.5 flex justify-between items-center text-[10px] font-sans">
+                      <div key={`import-preview-${idx}-${p.phone || p.name}`} className="p-2.5 flex justify-between items-center text-[10px] font-sans">
                         <div>
                           <span className="font-bold text-slate-700">{p.name}</span> ({p.gender}, {p.age} yrs)
                         </div>

@@ -564,7 +564,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
 
               {/* Data Points */}
               {chartData.map((d, index) => (
-                <g key={index}>
+                <g key={`pt-group-${index}-${d.label}`}>
                   {d.clinic > 0 && <circle cx={xCoords[index]} cy={getY(d.clinic)} r="0.8" fill="#0f62fe" />}
                   {d.pharmacy > 0 && <circle cx={xCoords[index]} cy={getY(d.pharmacy)} r="0.8" fill="#007d70" />}
                   {d.lab > 0 && <circle cx={xCoords[index]} cy={getY(d.lab)} r="0.8" fill="#d97706" />}
@@ -574,7 +574,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
               {/* Dynamic Labels */}
               {chartData.map((d, index) => (
                 <text
-                  key={index}
+                  key={`label-${index}-${d.label}`}
                   x={xCoords[index]}
                   y="38"
                   className="text-[3.5px] fill-slate-400 font-mono font-bold"

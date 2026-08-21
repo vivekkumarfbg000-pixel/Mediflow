@@ -164,7 +164,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
                 ) : (
                   <div className="space-y-2">
                     {complications.map((item, index) => (
-                      <div key={index} className="p-3 bg-rose-50 border border-rose-200/60 rounded-xl flex items-center gap-2.5 text-xs text-rose-800">
+                      <div key={`complication-${index}-${item.slice(0, 15)}`} className="p-3 bg-rose-50 border border-rose-200/60 rounded-xl flex items-center gap-2.5 text-xs text-rose-800">
                         <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                         <span className="font-bold">{item}</span>
                       </div>
@@ -219,7 +219,7 @@ export const OphthalmologyPatientAnalysisPanel: React.FC<OphthalmologyPatientAna
           ) : (
             entries.slice().reverse().map((report, index) => (
               <button
-                key={index}
+                key={`report-entry-${index}-${report.date || index}`}
                 onClick={() => onAnalyzeReport(report)}
                 className="w-full text-left p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between"
               >

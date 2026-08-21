@@ -220,7 +220,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
         </div>
 
         {items.map((item, idx) => (
-          <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+          <div key={`cash-bill-item-${idx}-${item.name || 'row'}`} className="grid grid-cols-12 gap-2 items-center">
             <input
               type="text"
               placeholder={entityType === 'pharmacy' ? 'Medicine name' : 'Test name'}

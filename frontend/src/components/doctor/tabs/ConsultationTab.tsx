@@ -1737,7 +1737,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       ? 'from-amber-50 to-amber-100/50 border-amber-200 dark:from-amber-950/70 dark:to-amber-900/50 dark:border-amber-800/50'
                       : 'from-emerald-50 to-emerald-100/50 border-emerald-200 dark:from-emerald-950/70 dark:to-emerald-900/50 dark:border-emerald-800/50';
                     return (
-                    <div key={idx} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-2.5`}>
+                    <div key={`biomarker-comp-card-${idx}-${item.name}`} className={`p-3.5 rounded-2xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-2.5`}>
                       <div className="flex justify-between items-start">
                         <span className="text-[10px] text-slate-700 dark:text-slate-200 font-bold uppercase tracking-wider">{item.name}</span>
                         <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">Normal: {item.normal}</span>
@@ -2083,7 +2083,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         </h5>
                         <div className="grid grid-cols-1 gap-3">
                           {comparativeTrend.suggestedCompositions.map((comp: any, idx: number) => (
-                            <div key={idx} className="p-3.5 bg-white/95 border border-slate-200/80 rounded-xl flex flex-col md:flex-row justify-between gap-3 shadow-xs hover:shadow-md transition-shadow">
+                            <div key={`sugg-comp-${idx}-${comp.medicine_name || idx}`} className="p-3.5 bg-white/95 border border-slate-200/80 rounded-xl flex flex-col md:flex-row justify-between gap-3 shadow-xs hover:shadow-md transition-shadow">
                               <div className="space-y-1.5 flex-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <strong className="text-xs font-bold text-slate-800">{comp.medicine_name}</strong>
@@ -2152,7 +2152,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {comparativeTrend.citations.map((c: any, idx: number) => (
                             <div
-                              key={idx}
+                              key={`citation-${idx}-${(c.title || '').slice(0, 15)}`}
                               className="p-3.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-all flex flex-col justify-between text-left shadow-xs"
                             >
                               <div className="space-y-1">
@@ -2285,7 +2285,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 </div>
                 <div className="space-y-2">
                   {cdssAnomalies.map((anomaly, idx) => (
-                    <div key={idx} className="text-xs font-semibold leading-relaxed flex items-start gap-1.5">
+                    <div key={`cdss-anomaly-${idx}-${String(anomaly).slice(0, 15)}`} className="text-xs font-semibold leading-relaxed flex items-start gap-1.5">
                       <span className="text-rose-500 font-bold">•</span>
                       <div>
                         {anomaly}
@@ -2408,7 +2408,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
                 {medications.map((med, idx) => (
                   <div 
-                    key={idx} 
+                    key={`cur-med-${idx}-${med.medicineName}`} 
                     className="p-4 bg-white border border-slate-200/80 rounded-2xl flex justify-between items-start hover:border-indigo-300 hover:shadow-xs transition-all relative overflow-hidden group"
                   >
                     <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
@@ -2521,7 +2521,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-[220px] overflow-y-auto">
                       {suggestions.map((item, idx) => (
                         <div
-                          key={idx}
+                          key={`med-sugg-${idx}-${item.name}`}
                           onClick={() => {
                             setIsSelectingFromDropdown(true);
                             setMedName(item.name);
@@ -3229,7 +3229,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-[130] max-h-[160px] overflow-y-auto">
                           {suggestions.map((item, idx) => (
                             <div
-                              key={idx}
+                              key={`modal-med-sugg-${idx}-${item.name}`}
                               onClick={() => {
                                 setIsSelectingFromDropdown(true);
                                 setMedName(item.name);
@@ -3343,7 +3343,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       <div className="space-y-2 lg:max-h-[200px] max-h-none lg:overflow-y-auto pr-1">
                         {medications.map((med, idx) => (
                           <div 
-                            key={idx} 
+                            key={`presc-preview-med-${idx}-${med.medicineName}`} 
                             className="p-3 bg-white border border-slate-200 rounded-xl flex justify-between items-center hover:border-indigo-300 hover:shadow-xs transition-all relative overflow-hidden"
                           >
                             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />

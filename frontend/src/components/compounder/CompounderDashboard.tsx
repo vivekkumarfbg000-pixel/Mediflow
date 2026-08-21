@@ -1818,7 +1818,7 @@ export const CompounderDashboard: React.FC = () => {
                     {reportScanLogs.length > 0 && (
                       <div className="bg-slate-900 border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-indigo-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
                         {reportScanLogs.map((log, index) => (
-                          <div key={index} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : ''}>
+                          <div key={`report-scan-log-${index}-${log.slice(0, 15)}`} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : ''}>
                             {log}
                           </div>
                         ))}
@@ -3382,7 +3382,7 @@ export const CompounderDashboard: React.FC = () => {
                       { name: 'Dr. Priya Sen', role: 'Consultant Anesthesiologist', status: 'Pre-op Blocks (Ward B)', time: '09:30 AM - 01:30 PM', specialty: 'Regional & Topical Anesthesia' },
                       { name: 'Dr. Amit Roy', role: 'General & Laparoscopic Surgeon', status: 'On Call (Minor OT)', time: '12:00 PM - 04:00 PM', specialty: 'Excision & Wound Debridement' }
                     ].map((s, idx) => (
-                      <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-slate-50 flex items-start gap-3 hover:bg-slate-100/65 transition-all">
+                      <div key={`surgeon-stat-${idx}-${s.name}`} className="p-3 border border-slate-200 rounded-xl bg-slate-50 flex items-start gap-3 hover:bg-slate-100/65 transition-all">
                         <UserCheck className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                         <div className="flex-1 space-y-0.5">
                           <div className="flex justify-between items-center flex-wrap gap-1">
@@ -3416,7 +3416,7 @@ export const CompounderDashboard: React.FC = () => {
                       { time: '12:00 PM', label: 'Patient shifted to Recovery Ward', desc: 'IOL lens successfully placed. Shifted to Ward B for monitoring.' },
                       { time: '12:45 PM', label: 'Discharge clearance & counseling', desc: 'Post-op dosage directions pushed to patient WhatsApp.' }
                     ].map((t, idx) => (
-                      <div key={idx} className="relative group">
+                      <div key={`ot-timeline-${idx}-${t.time}`} className="relative group">
                         <span className="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white shadow-xs group-hover:scale-125 transition-transform" />
                         <div className="space-y-0.5">
                           <span className="font-mono font-bold text-[9px] text-indigo-600 block">{t.time}</span>
@@ -3511,7 +3511,7 @@ export const CompounderDashboard: React.FC = () => {
                   const isBot = msg.sender === 'bot';
                   return (
                     <div 
-                      key={idx} 
+                      key={`sim-chat-${idx}-${msg.sender}-${(msg.text || '').slice(0, 15)}`} 
                       className={`flex ${isBot ? 'justify-start' : 'justify-end'} animate-fade-in`}
                     >
                       <div 
@@ -3706,7 +3706,7 @@ export const CompounderDashboard: React.FC = () => {
                               {latestEncounter.medications.map((med, idx) => {
                                 const bilingual = getBilingualInstruction(med.medicineName, med.dosage);
                                 return (
-                                  <tr key={idx} className="border-b border-slate-200 dark:border-slate-800/80 last:border-0">
+                                  <tr key={`wf-med-${idx}-${med.medicineName}`} className="border-b border-slate-200 dark:border-slate-800/80 last:border-0">
                                     <td className="p-2.5">
                                       <div className="font-bold text-slate-800 dark:text-slate-200">{med.medicineName}</div>
                                       <div className="text-[9.5px] text-slate-500 dark:text-slate-400 italic mt-0.5">{bilingual.english} / {bilingual.hindi}</div>
@@ -3793,7 +3793,7 @@ export const CompounderDashboard: React.FC = () => {
                             </thead>
                             <tbody>
                               {reqs.map((req, idx) => (
-                                <tr key={idx} className="border-b border-slate-200 dark:border-slate-800/80 last:border-0">
+                                <tr key={`wf-req-${idx}-${req.barcode || req.testName}`} className="border-b border-slate-200 dark:border-slate-800/80 last:border-0">
                                   <td className="p-2.5 font-semibold text-slate-800 dark:text-slate-200">{req.testName}</td>
                                   <td className="p-2.5 font-mono text-slate-500 dark:text-slate-400">{req.barcode}</td>
                                   <td className="p-2.5">
