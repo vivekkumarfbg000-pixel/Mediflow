@@ -264,17 +264,17 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
 
     return activeLedgers
       .filter(entry => {
-        const pName = getPatientName(entry).toLowerCase();
-        const pMode = getPaymentModeLabel(entry).toLowerCase();
-        const query = financialSearch.toLowerCase();
+        const pName = String(getPatientName(entry) || '').toLowerCase();
+        const pMode = String(getPaymentModeLabel(entry) || '').toLowerCase();
+        const query = (financialSearch || '').trim().toLowerCase();
         return (
           pName.includes(query) ||
           pMode.includes(query) ||
-          (entry.invoiceId || '').toLowerCase().includes(query) ||
-          (entry.transactionType || '').toLowerCase().includes(query)
+          String(entry.invoiceId || '').toLowerCase().includes(query) ||
+          String(entry.transactionType || '').toLowerCase().includes(query)
         );
       })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }, [financialLedgers, financialSearch, syncVersion, getPatientName, getPaymentModeLabel]);
 
   const exportFinancialLedgersPDF = useCallback(() => {
