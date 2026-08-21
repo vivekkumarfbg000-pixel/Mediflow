@@ -295,7 +295,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     <div className="absolute inset-0 bg-gradient-to-b from-white/15 to-transparent pointer-events-none z-10" />
                     {categories.map((cat, idx) => {
                       const amt = financials.filter(l => l.transactionType === cat.type).reduce((s, l) => s + l.netPayout, 0);
-                      const pct = (amt / allTotal) * 100;
+                      const pct = allTotal > 0 ? (amt / allTotal) * 100 : 0;
                       if (pct < 0.5) return null;
                       return (
                         <div
@@ -313,7 +313,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 <div className="px-5 pb-5 pt-3 space-y-2">
                   {categories.map((cat, idx) => {
                     const amt = financials.filter(l => l.transactionType === cat.type).reduce((s, l) => s + l.netPayout, 0);
-                    const pct = ((amt / allTotal) * 100).toFixed(1);
+                    const pct = allTotal > 0 ? ((amt / allTotal) * 100).toFixed(1) : '0.0';
                     return (
                       <div key={idx} className="flex items-center justify-between bg-white/70 dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 hover:scale-[1.015] hover:shadow-xs transition-all duration-300">
                         <span className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">
