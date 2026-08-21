@@ -953,9 +953,9 @@ export const BillHubTab: React.FC = () => {
       }
 
       // 2. Dispatch Digital Invoice & Medication Advice directly to WhatsApp
-      const medListText = billingLedger.medicinesList
-        .filter(m => selectedMedicines[m.name.toLowerCase()]?.selected)
-        .map(m => `- *${m.name}*: 1-0-1 (twice daily) for 10 days (Take after meals).`)
+      const medListText = (billingLedger.medicinesList || [])
+        .filter(m => selectedMedicines[(m?.name || '').toLowerCase()]?.selected)
+        .map(m => `- *${m.name || 'Medicine'}*: 1-0-1 (twice daily) for 10 days (Take after meals).`)
         .join('\n');
       
       const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://mediflow.in/invoices/${unifiedInvoiceId}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;

@@ -155,8 +155,12 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
       setInvoices(allInvoices);
       
       // Auto-initialize session if none exists for the selected phone number
-      const activeSession = waSessions.find(s => s.patientPhone === selectedPhone);
-      if (!activeSession && allPatients.some(p => p.phone === selectedPhone)) {
+      const cleanSelected = (selectedPhone || '').replace(/\D/g, '').slice(-10);
+      const activeSession = waSessions.find(s => {
+        const sDigits = (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10);
+        return sDigits && cleanSelected && sDigits === cleanSelected;
+      });
+      if (!activeSession && allPatients.some(p => (p.phone || '').replace(/\D/g, '').slice(-10) === cleanSelected)) {
         api.initiateWhatsAppSession(selectedPhone);
       }
     };
@@ -190,8 +194,12 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
     }
   }, [sessions, selectedPhone, isOpen, isAtBottom]);
 
-  const activePatient = patients.find(p => p.phone === selectedPhone) || patients[0];
-  const activeSession = sessions.find(s => s.patientPhone === selectedPhone);
+  const cleanSelectedDigits = (selectedPhone || '').replace(/\D/g, '').slice(-10);
+  const activePatient = patients.find(p => (p.phone || '').replace(/\D/g, '').slice(-10) === cleanSelectedDigits) || patients[0];
+  const activeSession = sessions.find(s => {
+    const sDigits = (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10);
+    return sDigits && cleanSelectedDigits && sDigits === cleanSelectedDigits;
+  });
   const chatHistory: ChatMessage[] = activeSession?.sessionData?.chatHistory || [];
   const activeState = activeSession?.currentState || 'AWAITING_WELCOME';
 
