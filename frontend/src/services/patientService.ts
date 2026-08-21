@@ -406,7 +406,7 @@ export class PatientService {
     });
 
     const activeTokens = patients
-      .map(p => p.tokenNumber)
+      .map(p => String(p.tokenNumber || ''))
       .filter((t): t is string => !!t && (t.startsWith('T-') || t.startsWith('TK-') || t.startsWith('#TK-') || t.startsWith('#T-')));
 
     const tokenNums = [
