@@ -33,6 +33,9 @@ const RANDOM_CLINIC_CODE_PATTERNS = [
   /clinic_code\s*[:=]\s*.*Math\.random/i
 ];
 
+// ── Check 3: Forbidden Raw Index Keys in React Lists (Rule 19) ───────────────
+const RAW_INDEX_KEY_PATTERN = /key=\{(idx|index)\}/;
+
 function scanFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
@@ -76,6 +79,17 @@ function scanFiles(dir) {
               break;
             }
           }
+        }
+
+        // Invariant 3: Zero Raw Index Keys in JSX (Rule 19)
+        if (entry.name.endsWith('.tsx') && RAW_INDEX_KEY_PATTERN.test(line)) {
+          violations.push({
+            rule: 'INVARIANT_3_ZERO_RAW_INDEX_KEYS',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Raw index keys (key={idx} / key={index}) break React DOM reconciliation during Supabase CDC live sync. Use composite keys (key={`prefix-${idx}-${item.id || item.name}`}).'
+          });
         }
       });
     }
