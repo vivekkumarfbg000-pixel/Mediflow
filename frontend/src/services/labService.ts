@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { getPodContext } from './podContext';
+import { getIstDateDisplay } from '../utils/dateUtils';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
 
 export const MASTER_TEST_CATALOG: DiagnosticTest[] = [
@@ -719,7 +720,7 @@ export class LabService {
     const patient = PatientService.getPatients().find(p => p.id === report.patientId);
     if (patient) {
       const revisitMsg = revisitAt
-        ? `📅 Compounder ne aapko doctor se milkar *final advice* lene ke liye time allocate kiya hai: *${new Date(revisitAt).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} at ${revisitTime}*.`
+        ? `📅 Compounder ne aapko doctor se milkar *final advice* lene ke liye time allocate kiya hai: *${new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(revisitAt))} at ${revisitTime}*.`
         : '';
       const noteMsg = revisitNote ? `\n📌 *Note from compounder:* "${revisitNote}"` : '';
       const message = `✅ *Lab Report arrived at Doctor!* 🧪\n\nDear *${patient.name}*, aapka *${report.biomarkerJson?.testName || 'lab test'}* report doctor ke paas pahunch gaya hai. 🏥${revisitMsg ? '\n\n' + revisitMsg : ''}${noteMsg}\n\nKripya time par clinic aakar doctor se final advice lein. Dhyan rakhein! 🟢`;
@@ -742,7 +743,7 @@ export class LabService {
       detail: {
         title: 'Lab Report Approved ✅',
         message: revisitAt
-          ? `Report approved. Revisit scheduled for ${new Date(revisitAt).toLocaleDateString('en-IN')}. WhatsApp sent!`
+          ? `Report approved. Revisit scheduled for ${getIstDateDisplay(new Date(revisitAt))}. WhatsApp sent!`
           : 'Report approved. WhatsApp notification sent to patient.',
         type: 'success'
       }
