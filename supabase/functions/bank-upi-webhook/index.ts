@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getIstDateString, getIstDateDisplay } from "../_shared/istDate.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,7 +134,7 @@ serve(async (req) => {
       const apptId = sessionData.pendingApptId;
       const tokenNumber = sessionData.tokenNumber || 1;
       const approxTime = sessionData.approxTime || "10:00 AM";
-      const selectedDisplay = sessionData.selectedDateDisplay || new Date().toISOString().split("T")[0];
+      const selectedDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate ? sessionData.selectedDate : getIstDateString());
       const doctorName = sessionData.doctorName || "Doctor";
       const clinicName = sessionData.clinicName || "Clinic";
 

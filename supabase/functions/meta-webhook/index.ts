@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getIstDateString, getIstDateDisplay } from "../_shared/istDate.ts";
 
 // System-wide environment variables loaded from Supabase Vault/Secrets
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -1749,7 +1750,7 @@ async function triggerBotReplyPipeline(ctx: {
             }
           }
         } catch (rErr) { console.warn("[Meta Webhook] Referral discount check error:", rErr); }
-        const selectedDate = sessionData.selectedDate || new Date().toISOString().split("T")[0];
+        const selectedDate = sessionData.selectedDate || getIstDateString();
         const selectedDisplay = sessionData.selectedDateDisplay || selectedDate;
         
         // Resolve Doctor's ID dynamically
@@ -2104,7 +2105,7 @@ async function triggerBotReplyPipeline(ctx: {
       const apptId = sessionData.pendingApptId;
       const tokenNumber = sessionData.tokenNumber || 1;
       const approxTime = sessionData.approxTime || "10:00 AM";
-      const selectedDisplay = sessionData.selectedDateDisplay || new Date().toISOString().split("T")[0];
+      const selectedDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate ? sessionData.selectedDate : getIstDateString());
       const doctorName = sessionData.doctorName || resolvedDoctorName;
       const clinicName = sessionData.clinicName || resolvedClinicName;
       const feeAmount = sessionData.feeAmount || resolvedConsultationFee;
@@ -2594,7 +2595,7 @@ async function triggerBotReplyPipeline(ctx: {
 
         const sosApptId = crypto.randomUUID();
         const sosInvoiceId = crypto.randomUUID();
-        const todayDate = new Date().toISOString().split("T")[0];
+        const todayDate = getIstDateString();
 
         // Fetch dynamic emergency SOS fee from active clinic SOP (Rule 4: Emergency SOS Priority #1 Routing)
         let doctorSosFee = 600.00; // Default fallback: Base ₹500 + 20% Priority Charge

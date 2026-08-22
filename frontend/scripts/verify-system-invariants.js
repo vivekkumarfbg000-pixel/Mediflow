@@ -135,6 +135,17 @@ function scanFiles(dir) {
             reason: 'Webhooks must never fall back to default secrets in production. Use strict env or development checks.'
           });
         }
+
+        // Invariant 8: IST Timezone Normalization Enforcement (Directive 95)
+        if ((relPath.includes('whatsappService') || relPath.includes('billingService')) && line.includes('toISOString().split(')) {
+          violations.push({
+            rule: 'INVARIANT_8_IST_TIMEZONE_ENFORCEMENT',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Raw .toISOString().split() causes UTC date shift bugs across midnight (00:00-05:30 AM IST). Use getIstDateString().'
+          });
+        }
       });
     }
   }

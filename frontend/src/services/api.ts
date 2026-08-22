@@ -13,6 +13,7 @@ import { AIService, type AIResult } from './aiService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
 import { getPodContext, resolvePodContext } from './podContext';
+import { getIstDateString } from '../utils/dateUtils';
 
 import type { 
   Patient, 
@@ -1928,7 +1929,7 @@ class MediflowApiService {
       const EVENING_END_HOUR = 20;
 
       const now = new Date();
-      const todayDateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const todayDateStr = getIstDateString(now); // YYYY-MM-DD in IST
 
       // Load existing scheduled slots for today
       const existing: EveningSlot[] = this.load<EveningSlot[]>('evening_slots', []).filter(s => {
@@ -2029,7 +2030,7 @@ class MediflowApiService {
    * Returns today's evening slot for a patient, or null if none exists.
    */
   getAppointmentByPatient(patientId: string): EveningSlot | null {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getIstDateString();
     const allSlots = this.load<EveningSlot[]>('evening_slots', []);
     return allSlots.find(s => s.patientId === patientId && s.startISO.startsWith(todayStr)) ?? null;
   }
