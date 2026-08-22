@@ -430,11 +430,17 @@ export class PatientService {
   static generateSmartPatientId(name: string, existingPatients: Patient[]): string {
     const cleanName = (name || '').trim();
     const firstLetter = cleanName.length > 0 ? cleanName.substring(0, 1).toUpperCase() : 'P';
-    const countSameLetter = existingPatients.filter(p => {
-      const pName = (p.name || '').trim();
-      return pName.length > 0 && pName.substring(0, 1).toUpperCase() === firstLetter;
-    }).length;
-    return `${firstLetter}${countSameLetter + 1}`;
+    let maxNum = 0;
+    existingPatients.forEach(p => {
+      if (p.patientCode && typeof p.patientCode === 'string') {
+        const match = p.patientCode.match(/^([A-Z]+)(\d+)$/);
+        if (match && match[1] === firstLetter) {
+          const num = parseInt(match[2], 10);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      }
+    });
+    return `${firstLetter}${maxNum + 1}`;
   }
 
   static registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
@@ -535,7 +541,7 @@ export class PatientService {
       try {
         const payload = JSON.parse(r.quantitativeResult || '{}');
         const bio = payload.biomarkers || {};
-        const dateStr = (r.createdAt || new Date().toISOString()).split('T')[0];
+        const dateStr = getIstDateString(r.createdAt ? new Date(r.createdAt) : new Date());
 
         let entry = dateMap.get(dateStr);
         if (!entry) {
