@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
 import type { Pod, Entity } from '../types';
 
 interface ClinicContextType {
@@ -21,24 +22,19 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
   const [activePod, setActivePod] = useState<Pod | null>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const cachedPod = localStorage.getItem('vitalsync_cached_active_pod');
-        if (cachedPod) {
-          const parsed = JSON.parse(cachedPod);
-          if (parsed && parsed.clinicCode) return parsed;
-        }
-        const activePodLocal = localStorage.getItem('vitalsync_active_pod');
-        if (activePodLocal) {
-          const parsed = JSON.parse(activePodLocal);
-          if (parsed && (parsed.clinic_code || parsed.clinicCode)) {
-            return {
-              id: parsed.id || 'demo-pod',
-              name: parsed.name || 'Care Pod Clinic',
-              location: parsed.location,
-              clinicCode: parsed.clinic_code || parsed.clinicCode,
-              isActive: parsed.is_active ?? true,
-              createdAt: parsed.created_at || new Date().toISOString()
-            };
-          }
+        const cachedPod = safeGetStorageJSON<any>('vitalsync_cached_active_pod', null);
+        if (cachedPod && cachedPod.clinicCode) return cachedPod;
+
+        const activePodLocal = safeGetStorageJSON<any>('vitalsync_active_pod', null);
+        if (activePodLocal && (activePodLocal.clinic_code || activePodLocal.clinicCode)) {
+          return {
+            id: activePodLocal.id || 'demo-pod',
+            name: activePodLocal.name || 'Care Pod Clinic',
+            location: activePodLocal.location,
+            clinicCode: activePodLocal.clinic_code || activePodLocal.clinicCode,
+            isActive: activePodLocal.is_active ?? true,
+            createdAt: activePodLocal.created_at || new Date().toISOString()
+          };
         }
       } catch (_e) { /* ignore */ }
     }
@@ -76,8 +72,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       };
       setActivePod(demoPod);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(demoPod));
-        localStorage.setItem('vitalsync_active_pod', JSON.stringify({ ...demoPod, clinic_code: 'VS-V01R' }));
+        safeSetStorageJSON('vitalsync_cached_active_pod', demoPod);
+        safeSetStorageJSON('vitalsync_active_pod', { ...demoPod, clinic_code: 'VS-V01R' });
         (window as any).__mediflow_active_pod_id = demoPod.id;
       }
       return;
@@ -157,14 +153,14 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
 
             // Persist verified pod to storage to eliminate any future cold-start flicker
             if (typeof window !== 'undefined') {
-              localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(mappedPod));
-              localStorage.setItem('vitalsync_active_pod', JSON.stringify({
+              safeSetStorageJSON('vitalsync_cached_active_pod', mappedPod);
+              safeSetStorageJSON('vitalsync_active_pod', {
                 ...mappedPod,
                 clinic_code: podData.clinic_code,
                 health_score: 100,
                 is_verified_for_billing: true,
                 platform_fee_percent: 2.5
-              }));
+              });
               (window as any).__mediflow_active_pod_id = podData.id;
             }
           }
