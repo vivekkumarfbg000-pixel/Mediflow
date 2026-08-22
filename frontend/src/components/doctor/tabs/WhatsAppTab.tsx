@@ -27,6 +27,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import type { Patient } from '../../../types';
 import { ClinicPlacardGenerator } from '../../admin/ClinicPlacardGenerator';
 import { WhatsAppService } from '../../../services/whatsappService';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../../../utils/storage';
 
 interface WhatsAppTabProps {
   whatsAppSessions: any[];
@@ -113,10 +114,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
   useEffect(() => {
     try {
-      const logs = localStorage.getItem('whatsapp_broadcast_logs');
-      if (logs) {
-        setBroadcastLogs(JSON.parse(logs));
-      }
+      const logs = safeGetStorageJSON<any[]>('whatsapp_broadcast_logs', []);
+      setBroadcastLogs(logs);
     } catch (_e) {
       console.warn('Failed to parse whatsapp_broadcast_logs:', _e);
       setBroadcastLogs([]);
@@ -811,7 +810,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                       const updatedLogs = [newLog, ...broadcastLogs];
                       setBroadcastLogs(updatedLogs);
-                      localStorage.setItem('whatsapp_broadcast_logs', JSON.stringify(updatedLogs));
+                      safeSetStorageJSON('whatsapp_broadcast_logs', updatedLogs);
                       
                       // Clear broadcast message AFTER successfully dispatched
                       setBroadcastMsg('');
