@@ -471,7 +471,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     `).join('');
 
     let refractionSection = '';
-    if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
+    if (isOphthalmology && (refractionRx?.od?.sph || refractionRx?.os?.sph)) {
       refractionSection = `
         <div class="section">
           <div class="section-title">Spectacle / Lens Refraction Rx</div>
@@ -488,25 +488,25 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             <tbody>
               <tr>
                 <td><strong>Right Eye (OD)</strong></td>
-                <td>${refractionRx.od.sph || 'Plano'}</td>
-                <td>${refractionRx.od.cyl || '—'}</td>
-                <td>${refractionRx.od.axis ? refractionRx.od.axis + '°' : '—'}</td>
-                <td>${refractionRx.od.add || '—'}</td>
+                <td>${refractionRx?.od?.sph || 'Plano'}</td>
+                <td>${refractionRx?.od?.cyl || '—'}</td>
+                <td>${refractionRx?.od?.axis ? refractionRx.od.axis + '°' : '—'}</td>
+                <td>${refractionRx?.od?.add || '—'}</td>
               </tr>
               <tr>
                 <td><strong>Left Eye (OS)</strong></td>
-                <td>${refractionRx.os.sph || 'Plano'}</td>
-                <td>${refractionRx.os.cyl || '—'}</td>
-                <td>${refractionRx.os.axis ? refractionRx.os.axis + '°' : '—'}</td>
-                <td>${refractionRx.os.add || '—'}</td>
+                <td>${refractionRx?.os?.sph || 'Plano'}</td>
+                <td>${refractionRx?.os?.cyl || '—'}</td>
+                <td>${refractionRx?.os?.axis ? refractionRx.os.axis + '°' : '—'}</td>
+                <td>${refractionRx?.os?.add || '—'}</td>
               </tr>
             </tbody>
           </table>
           <p style="margin-top: 10px; font-size: 11px;">
-            <strong>Lens Type:</strong> ${refractionRx.lensType || 'Single Vision'} &nbsp;&nbsp;&nbsp;&nbsp;
-            <strong>PD:</strong> ${refractionRx.pd || '—'} mm
+            <strong>Lens Type:</strong> ${refractionRx?.lensType || 'Single Vision'} &nbsp;&nbsp;&nbsp;&nbsp;
+            <strong>PD:</strong> ${refractionRx?.pd || '—'} mm
           </p>
-          ${refractionRx.notes ? `<p style="font-size: 11px;"><strong>Notes:</strong> ${refractionRx.notes}</p>` : ''}
+          ${refractionRx?.notes ? `<p style="font-size: 11px;"><strong>Notes:</strong> ${refractionRx.notes}</p>` : ''}
         </div>
       `;
     }
