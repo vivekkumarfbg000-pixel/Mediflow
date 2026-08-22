@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { api } from '../../../services/api';
 import { getIstDateString } from '../../../utils/dateUtils';
+import { getPodContext } from '../../../services/podContext';
 import type { ClinicSop } from '../../../types';
 import { 
   Shield, 
@@ -146,7 +147,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
   const handleActivateSop = () => {
     const activeProfile = (api as any).getActiveProfile?.() || (api as any).getDoctorProfile?.();
     const activePod = (api as any).getActivePod?.() || (typeof window !== 'undefined' && (window as any).__mediflow_active_pod);
-    const currentEntityId = activePod?.id || activeProfile?.clinicId || activeProfile?.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002';
+    const currentEntityId = getPodContext().entityId || activePod?.id || activeProfile?.clinicId || activeProfile?.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002';
 
     const newSop: ClinicSop = {
       id: `sop-${Date.now()}`,
@@ -244,7 +245,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
             const cleared   = allInvoices.filter(i => (i.paymentStatus as string) === 'cleared' || (i.paymentStatus as string) === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
             const pending   = allInvoices.filter(i => (i.paymentStatus as string) === 'pending' || (i.paymentStatus as string) === 'unpaid').reduce((s, i) => s + (i.totalAmount || 0), 0);
             const todayCount = allInvoices.filter(i => i.createdAt?.startsWith(todayStr)).length;
-            const allTotal  = financials.reduce((s, l) => s + l.netPayout, 0) || 1;
+            const allTotal  = financials.reduce((s, l) => s + (l.netPayout || 0), 0) || 1;
 
             const categories = [
               { type: 'appointment_fee',      label: 'Clinic Consult Payout',       dot: 'bg-indigo-500',  bar: 'bg-gradient-to-r from-indigo-500 to-indigo-600' },
