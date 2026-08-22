@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { StateHealingEngine } from './autoHealerAgent';
 import { api } from './api';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
 
 export interface SupportEscalationTicket {
   id: string;
@@ -193,10 +194,9 @@ export class WhatsAppSupportBotService {
     };
 
     try {
-      const rawTickets = localStorage.getItem('vitalsync_support_tickets');
-      const existing = rawTickets ? JSON.parse(rawTickets) : [];
+      const existing = safeGetStorageJSON<SupportEscalationTicket[]>('vitalsync_support_tickets', []);
       existing.unshift(newTicket);
-      localStorage.setItem('vitalsync_support_tickets', JSON.stringify(existing));
+      safeSetStorageJSON('vitalsync_support_tickets', existing);
       window.dispatchEvent(new CustomEvent('mediflow-support-ticket-updated'));
     } catch (_e) {
       /* ignore storage fallback */
@@ -212,8 +212,9 @@ export class WhatsAppSupportBotService {
   // ── Fetch Tickets for SaaS Admin Cockpit ────────────────────────────────────
   static getEscalationTickets(): SupportEscalationTicket[] {
     try {
-      const raw = localStorage.getItem('vitalsync_support_tickets') || localStorage.getItem('mediflow_support_tickets');
-      if (raw) return JSON.parse(raw);
+      const existing = safeGetStorageJSON<SupportEscalationTicket[] | null>('vitalsync_support_tickets', null) ||
+                       safeGetStorageJSON<SupportEscalationTicket[] | null>('mediflow_support_tickets', null);
+      if (existing && existing.length > 0) return existing;
 
       // Seed 2 realistic demo escalation tickets on first load
       const demoTickets: SupportEscalationTicket[] = [
@@ -240,7 +241,7 @@ export class WhatsAppSupportBotService {
           ai_proposed_fix: 'Configure VIP White-Labeling Branding settings in Admin Cockpit.'
         }
       ];
-      localStorage.setItem('vitalsync_support_tickets', JSON.stringify(demoTickets));
+      safeSetStorageJSON('vitalsync_support_tickets', demoTickets);
       return demoTickets;
     } catch (_e) {
       return [];
@@ -250,10 +251,10 @@ export class WhatsAppSupportBotService {
   // ── Resolve Ticket from SaaS Admin Cockpit ─────────────────────────────────
   static async resolveTicket(ticketId: string, resolutionMsg?: string) {
     try {
-      const existing: SupportEscalationTicket[] = JSON.parse(localStorage.getItem('vitalsync_support_tickets') || '[]');
+      const existing = safeGetStorageJSON<SupportEscalationTicket[]>('vitalsync_support_tickets', []);
       const ticket = existing.find(t => t.id === ticketId);
       const updated = existing.map(t => t.id === ticketId ? { ...t, status: 'resolved' as const } : t);
-      localStorage.setItem('vitalsync_support_tickets', JSON.stringify(updated));
+      safeSetStorageJSON('vitalsync_support_tickets', updated);
       window.dispatchEvent(new CustomEvent('mediflow-support-ticket-updated'));
 
       if (ticket && resolutionMsg) {
