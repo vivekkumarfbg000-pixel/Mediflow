@@ -230,7 +230,7 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
         <div className="flex items-center gap-2">
           <Smartphone className="h-5 w-5 text-emerald-400 animate-pulse" />
           <div>
-            <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">B2B Patient Communication Gateway</h2>
+            <h2 className="text-xs font-bold font-mono tracking-wider uppercase text-emerald-400">{activePod?.name || activeProfile?.clinicName || 'B2B'} Patient Gateway</h2>
             <p className="text-[10px] text-slate-400 mt-0.5">Dual-Screen Gateway Console</p>
           </div>
         </div>
@@ -275,9 +275,9 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
               <div>
                 <div className="text-xs font-bold flex items-center gap-1">
                   {(() => {
-                    let botDispName = "Mediflow Bot";
-                    const activePodId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || '';
-                    if (activePodId) {
+                    let botDispName = activePod?.name ? `${activePod.name} Assistant` : "Mediflow Bot";
+                    const activePodId = activePod?.id || (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || '';
+                    if (activePodId && typeof window !== 'undefined') {
                       const customName = localStorage.getItem(`waba_bot_name_${activePodId}`);
                       if (customName) botDispName = customName;
                     }
