@@ -16,6 +16,7 @@ import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice } from
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
+import { getIstDateString } from '../../utils/dateUtils';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Mediflow Pathology Lab Dashboard  V2.0
@@ -211,7 +212,7 @@ export const LabDashboard: React.FC = () => {
   );
 
   /* ─── Analytics data ─────────────────────────────────────────── */
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getIstDateString();
   const todayCompleted = useMemo(
     () => completedList.filter(r => (r.createdAt || '').startsWith(todayStr)),
     [completedList, todayStr]

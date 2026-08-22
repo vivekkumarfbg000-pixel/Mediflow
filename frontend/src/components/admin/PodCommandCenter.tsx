@@ -10,6 +10,7 @@ import { LabService } from '../../services/labService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
 import { PointerGlowCard } from '../ui/PointerGlowCard';
+import { getIstDateString } from '../../utils/dateUtils';
 import { SkeletonMetric, SkeletonCard, SkeletonRow } from '../ui/SkeletonLoader';
 import { ZeroQueueState } from '../shared/EmptyState';
 import { 
@@ -121,7 +122,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }, []);
 
   /* ─── Computed Metrics ───────────────────────────────────────── */
-  const todayStr = currentTime.toISOString().split('T')[0];
+  const todayStr = getIstDateString(currentTime);
 
   const isPatientForToday = (p: Patient) => {
     const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');

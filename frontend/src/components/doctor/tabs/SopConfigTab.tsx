@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { api } from '../../../services/api';
+import { getIstDateString } from '../../../utils/dateUtils';
 import type { ClinicSop } from '../../../types';
 import { 
   Shield, 
@@ -238,7 +239,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
             });
 
             const allInvoices = Array.from(invMap.values());
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = getIstDateString();
             const grossRev  = allInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
             const cleared   = allInvoices.filter(i => (i.paymentStatus as string) === 'cleared' || (i.paymentStatus as string) === 'paid').reduce((s, i) => s + (i.totalAmount || 0), 0);
             const pending   = allInvoices.filter(i => (i.paymentStatus as string) === 'pending' || (i.paymentStatus as string) === 'unpaid').reduce((s, i) => s + (i.totalAmount || 0), 0);

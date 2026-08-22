@@ -14,6 +14,7 @@ import { LabService } from '../../services/labService';
 import { load } from '../../services/apiHelper';
 import { getPodContext } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
+import { getIstDateString } from '../../utils/dateUtils';
 import type {
   PharmacyInventoryItem,
   MedicineBill,
@@ -696,7 +697,7 @@ export const CompounderDashboard: React.FC = () => {
   useEffect(() => {
     if (billingPatient) {
       const txs = api.getCounterTransactions();
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getIstDateString();
       const existingTx = txs.find(t => t.patientId === billingPatient.id && (t.createdAt || '').startsWith(todayStr));
       
       if (existingTx) {

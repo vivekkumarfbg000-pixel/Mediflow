@@ -4,6 +4,7 @@ import { TelemetryService } from './telemetry';
 import { PatientService } from './patientService';
 import { WhatsAppService } from './whatsappService';
 import { getPodContext } from './podContext';
+import { getIstDateString } from '../utils/dateUtils';
 import type { 
   PharmacyInventoryItem, 
   InventoryHold, 
@@ -931,7 +932,7 @@ export class PharmacyService {
 
   static checkLoyaltyDiscount(patientId: string): boolean {
     const txs = this.getCounterTransactions();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getIstDateString();
     
     const tx = txs.find(t => 
       t.patientId === patientId && 
@@ -1119,7 +1120,7 @@ Thank you for choosing VitalSync! 🟢`;
     const matched: PharmacyInventoryItem[] = [];
 
     names.forEach(name => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getIstDateString();
       const match = inventory.find(item => {
         const iName = (item.name || '').toLowerCase();
         const iGeneric = (item.genericName || '').toLowerCase();

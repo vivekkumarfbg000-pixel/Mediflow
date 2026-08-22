@@ -1,6 +1,7 @@
 import React from 'react';
 import { api } from '../../../services/api';
 import { BillingService } from '../../../services/billingService';
+import { getIstDateString } from '../../../utils/dateUtils';
 import type { Patient } from '../../../types';
 import { 
   Users, 
@@ -329,7 +330,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                             patientId: selectedDirectoryPatient.id,
                             doctorId: 'doc-vivek',
                             isVirtual: true,
-                            virtualDate: new Date().toISOString().split('T')[0],
+                            virtualDate: getIstDateString(),
                             virtualTime: '10:30 AM',
                             virtualTimeAllocated: false,
                             status: 'pending',
@@ -425,7 +426,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     <button
                       type="button"
                       onClick={() => {
-                        const finalDate = virtualDateInput || virtualAppt.virtualDate || (virtualAppt as any).virtual_date || (virtualAppt.createdAt || (virtualAppt as any).createdAt || '').split('T')[0] || new Date().toISOString().split('T')[0];
+                        const finalDate = virtualDateInput || virtualAppt.virtualDate || (virtualAppt as any).virtual_date || (virtualAppt.createdAt || (virtualAppt as any).createdAt || '').split('T')[0] || getIstDateString();
                         const finalTime = virtualTimeInput || virtualAppt.virtualTime || '10:30 AM';
                         
                         // Update appointment
