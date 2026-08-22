@@ -1798,13 +1798,19 @@ async function triggerBotReplyPipeline(ctx: {
         const formattedTokenStr = isSosBookingSession ? `T-${tokenSeq.toString().padStart(2, '0')} E` : `T-${tokenSeq.toString().padStart(2, '0')}`;
         const tokenNumber = formattedTokenStr;
 
-        // Calculate approximate time slot: Doctor starts at 10:00 AM, 10 mins per patient
-        const startHour = 10;
+        // Calculate approximate time slot based on selected slot window
+        let startHour = 10;
+        if (slotText.includes("02:00 PM") || slotText.includes("2pm") || slotText.includes("Afternoon")) {
+          startHour = 14;
+        } else if (slotText.includes("06:00 PM") || slotText.includes("6pm") || slotText.includes("Evening")) {
+          startHour = 18;
+        }
+
         const offsetMin = (tokenSeq - 1) * 10;
         const apptHour = startHour + Math.floor(offsetMin / 60);
         const apptMin = offsetMin % 60;
         const ampm = apptHour >= 12 ? "PM" : "AM";
-        const displayHour = apptHour > 12 ? apptHour - 12 : apptHour;
+        const displayHour = apptHour > 12 ? apptHour - 12 : (apptHour === 0 ? 12 : apptHour);
         const displayMin = apptMin < 10 ? "0" + apptMin : apptMin;
         const approxTime = `${displayHour}:${displayMin} ${ampm}`;
 
@@ -1813,11 +1819,12 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.doctorName = resolvedDoctorName;
         sessionData.clinicName = resolvedClinicName;
         sessionData.feeAmount = feeAmount;
+
+        // Accurate Indian Standard Time (IST, UTC+5:30) ISO timestamp
         let apptTimestamp = `${selectedDate}T10:00:00.000Z`;
         try {
-          const d = new Date(selectedDate);
-          d.setHours(apptHour, apptMin, 0, 0);
-          apptTimestamp = d.toISOString();
+          const isoTimeStr = `${selectedDate}T${String(apptHour).padStart(2, '0')}:${String(apptMin).padStart(2, '0')}:00+05:30`;
+          apptTimestamp = new Date(isoTimeStr).toISOString();
         } catch (err) {
           console.warn("[Meta Webhook] Error creating apptTimestamp:", err);
         }
