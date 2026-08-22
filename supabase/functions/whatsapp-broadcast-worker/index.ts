@@ -29,35 +29,43 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Missing campaign_id or pod_id" }), { status: 400, headers: corsHeaders });
     }
 
-    // 1. Fetch WABA connection for this pod
-    const { data: wabaConn, error: wabaErr } = await supabase
-      .from("waba_connections")
-      .select("phone_number_id, encrypted_system_user_token")
-      .eq("pod_id", pod_id)
-      .eq("waba_status", "active")
-      .maybeSingle();
+    // 1. Fetch WABA connection for this pod or fallback to platform master Meta credentials
+    let systemToken = "";
+    let phoneId = "";
 
-    if (wabaErr || !wabaConn) {
-      return new Response(JSON.stringify({ error: "No active WABA connection found for this clinic." }), { status: 400, headers: corsHeaders });
+    try {
+      const { data: wabaConn } = await supabase
+        .from("waba_connections")
+        .select("phone_number_id, encrypted_system_user_token")
+        .eq("pod_id", pod_id)
+        .eq("waba_status", "active")
+        .maybeSingle();
+
+      const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY");
+      if (wabaConn && wabaSecretKey) {
+        const { data: rpcData } = await supabase.rpc("decrypt_tenant_waba_connection", {
+          p_phone_number_id: wabaConn.phone_number_id,
+          p_secret_key: wabaSecretKey
+        });
+
+        if (rpcData && rpcData.length > 0 && rpcData[0].decrypted_token) {
+          systemToken = rpcData[0].decrypted_token;
+          phoneId = wabaConn.phone_number_id;
+        }
+      }
+    } catch (wErr) {
+      console.warn("[whatsapp-broadcast-worker] Tenant WABA resolution note:", wErr);
     }
 
-    // Decrypt the WABA token securely via RPC
-    const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY");
-    if (!wabaSecretKey) {
-      return new Response(JSON.stringify({ error: "WABA_DECRYPTION_KEY missing from Vault." }), { status: 500, headers: corsHeaders });
+    // Fallback to Vault Master Meta WhatsApp Token & Phone ID
+    if (!systemToken) {
+      systemToken = (Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "").trim();
+      phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("PHONE_NUMBER_ID") || "104961819356614").trim();
     }
 
-    const { data: rpcData, error: rpcErr } = await supabase.rpc("decrypt_tenant_waba_connection", {
-      p_phone_number_id: wabaConn.phone_number_id,
-      p_secret_key: wabaSecretKey
-    });
-
-    if (rpcErr || !rpcData || rpcData.length === 0) {
-      return new Response(JSON.stringify({ error: "RPC Decryption failed" }), { status: 500, headers: corsHeaders });
+    if (!systemToken) {
+      return new Response(JSON.stringify({ error: "No active Meta WhatsApp token available (neither tenant WABA nor master META_WHATSAPP_TOKEN)." }), { status: 400, headers: corsHeaders });
     }
-
-    const systemToken = rpcData[0].decrypted_token;
-    const phoneId = wabaConn.phone_number_id;
 
     // 2. Fetch and lock a batch of pending jobs atomically using SKIP LOCKED RPC
     const { data: pendingJobs, error: qErr } = await supabase.rpc("pop_pending_broadcast_batch", {
