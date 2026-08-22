@@ -80,6 +80,14 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
 
       recognitionRef.current = rec;
     }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (_e) { /* ignore */ }
+      }
+    };
   }, []);
 
   const toggleListening = () => {
@@ -147,12 +155,18 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
     }
 
     // Identify active patient context
-    const currentPat = activePatient || api.getPatients()[0];
+    const currentPat = activePatient || api.getPatients()[0] || {
+      id: 'temp-pat',
+      name: 'Patient',
+      phone: '9800100201',
+      allergies: [],
+      chronicConditions: []
+    };
     
     setAgentLogs(prev => [
       ...prev,
       `> Intent parser identified: Clinical Scribe workflow.`,
-      `> Target patient resolved: ${currentPat.name} (Phone: ${currentPat.phone})`,
+      `> Target patient resolved: ${currentPat.name || 'Patient'} (Phone: ${currentPat.phone || 'N/A'})`,
       `> Extracted Drug: ${targetDrug} (${targetDosage}) | Duration: ${targetDuration}`,
       `> Extracted Diagnostic: ${testName} (LOINC: ${testLoinc})`
     ]);
@@ -165,7 +179,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
     await new Promise(resolve => setTimeout(resolve, 1000));
     const safetyCheck = ClinicalSafetyAgent.validatePrescription(currentPat.id, targetDrug, targetDosage);
     
-    setAgentLogs(prev => [...prev, `> Safety validation check initiated...`, `> Checking documented allergies: [${currentPat.allergies.join(', ') || 'None'}]`]);
+    setAgentLogs(prev => [...prev, `> Safety validation check initiated...`, `> Checking documented allergies: [${(currentPat.allergies || []).join(', ') || 'None'}]`]);
 
     if (!safetyCheck.success) {
       steps[1] = { name: 'SAFETY (CDSS)', status: 'error-halted', message: safetyCheck.message, detail: safetyCheck.detail };
