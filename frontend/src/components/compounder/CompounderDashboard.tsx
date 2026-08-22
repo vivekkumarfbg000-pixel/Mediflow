@@ -394,6 +394,7 @@ export const CompounderDashboard: React.FC = () => {
         }));
       },
       onPatientChange: () => {
+        setDataRevision(prev => prev + 1);
         setPatients(api.getPatients());
         fetchLiveAppointments();
       },
