@@ -46,7 +46,8 @@ export class PwaSyncManager {
   // 2. Queue Operational Action Offline
   static queueOfflineAction(actionType: string, payload: Record<string, any>) {
     try {
-      const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+      const rawQueue = localStorage.getItem('offline_sync_queue');
+      const queue = rawQueue ? JSON.parse(rawQueue) : [];
       const newAction = {
         id: `offline-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         actionType,
@@ -68,7 +69,8 @@ export class PwaSyncManager {
   // 3. Get Queue Count
   static getQueueCount(): number {
     try {
-      const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+      const rawQueue = localStorage.getItem('offline_sync_queue');
+      const queue = rawQueue ? JSON.parse(rawQueue) : [];
       return queue.length;
     } catch {
       return 0;

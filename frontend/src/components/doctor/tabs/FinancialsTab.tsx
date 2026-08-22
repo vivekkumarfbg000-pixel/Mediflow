@@ -373,7 +373,8 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         <div class="footer">
           VitalSync 360° Real-Time Financial Statement • Generated electronically for ${(() => {
             try {
-              const p = JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}');
+              const rawProf = localStorage.getItem('vitalsync_cached_profile');
+              const p = rawProf ? JSON.parse(rawProf) : {};
               return p.display_name || 'Chief Clinical Consultant';
             } catch (_e) { return 'Chief Clinical Consultant'; }
           })()} • Verified via Supabase Postgres CDC

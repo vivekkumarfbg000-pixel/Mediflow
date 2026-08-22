@@ -193,7 +193,8 @@ export class WhatsAppSupportBotService {
     };
 
     try {
-      const existing = JSON.parse(localStorage.getItem('vitalsync_support_tickets') || '[]');
+      const rawTickets = localStorage.getItem('vitalsync_support_tickets');
+      const existing = rawTickets ? JSON.parse(rawTickets) : [];
       existing.unshift(newTicket);
       localStorage.setItem('vitalsync_support_tickets', JSON.stringify(existing));
       window.dispatchEvent(new CustomEvent('mediflow-support-ticket-updated'));

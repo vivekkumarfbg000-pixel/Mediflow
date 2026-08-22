@@ -212,7 +212,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   useEffect(() => {
     const handlePwaSync = () => {
       try {
-        const queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+        const rawQueue = localStorage.getItem('offline_sync_queue');
+        const queue = rawQueue ? JSON.parse(rawQueue) : [];
         setOfflineCount(queue.length);
       } catch {
         setOfflineCount(0);

@@ -138,7 +138,8 @@ class WALIndexedDB {
 
   private getMemOutbox(): any[] {
     try {
-      const raw = JSON.parse(localStorage.getItem('wal_mem_outbox') || '[]');
+      const rawStr = localStorage.getItem('wal_mem_outbox');
+      const raw = rawStr ? JSON.parse(rawStr) : [];
       if (!Array.isArray(raw)) return [];
       
       // Strict structural validation to prevent WAL injection (XSS to CSRF escalation)

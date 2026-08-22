@@ -265,7 +265,8 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
 
             // Also update local storage cache immediately
             try {
-              const localAppts = JSON.parse(localStorage.getItem('saas_appointments') || '[]');
+              const rawStr = localStorage.getItem('saas_appointments');
+              const localAppts = rawStr ? JSON.parse(rawStr) : [];
               const updatedAppts = localAppts.map((a: any) => a.id === appt.id ? { ...a, status: 'cancelled' } : a);
               localStorage.setItem('saas_appointments', JSON.stringify(updatedAppts));
               window.dispatchEvent(new CustomEvent('mediflow-appointments-updated'));

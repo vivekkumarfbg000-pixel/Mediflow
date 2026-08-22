@@ -146,6 +146,28 @@ function scanFiles(dir) {
             reason: 'Raw .toISOString().split() causes UTC date shift bugs across midnight (00:00-05:30 AM IST). Use getIstDateString().'
           });
         }
+
+        // Invariant 9: Strict Defensive toFixed Guards on Currency Displays (Directive 18)
+        if (entry.name.endsWith('.tsx') && /\{[a-zA-Z0-9_]+\.totalAmount\.toFixed\([0-9]+\)\}/.test(line)) {
+          violations.push({
+            rule: 'INVARIANT_9_DEFENSIVE_TOFIXED_GUARDS',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Raw {item.totalAmount.toFixed(2)} crashes if totalAmount is null or undefined. Use {((item.totalAmount || 0)).toFixed(2)}.'
+          });
+        }
+
+        // Invariant 10: Safe LocalStorage JSON Parsing Guard (Directive 2)
+        if (!relPath.includes('test') && !relPath.includes('scripts') && !relPath.includes('storage.ts') && /const\s+[a-zA-Z0-9_]+\s*=\s*JSON\.parse\(localStorage\.getItem\(/.test(line)) {
+          violations.push({
+            rule: 'INVARIANT_10_SAFE_LOCALSTORAGE_JSON_PARSING',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Raw inline JSON.parse(localStorage.getItem(...)) throws fatal SyntaxError crashes on corrupted storage. Wrap in try-catch or use safe parser.'
+          });
+        }
       });
     }
   }
