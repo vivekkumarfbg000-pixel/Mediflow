@@ -945,9 +945,9 @@ export class BillingService {
               return sDigits && cleanPatientPhone && sDigits === cleanPatientPhone;
             });
             if (existing) {
-              const podRaw = typeof window !== 'undefined' ? localStorage.getItem('mediflow_active_pod') : null;
+              const podRaw = typeof window !== 'undefined' ? (localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('mediflow_active_pod')) : null;
               const podParsed = podRaw ? (() => { try { return JSON.parse(podRaw); } catch { return null; } })() : null;
-              const doctorLabel = podParsed?.doctorName || 'Doctor';
+              const doctorLabel = podParsed?.doctorName || podParsed?.name || 'Doctor';
               const text = `✅ *Consultation Fee Received!* \n\nPatient has been added to ${doctorLabel}'s active queue. Please enter the consultation chamber when called.`;
               const currentHistory = existing.sessionData?.chatHistory || [];
               currentHistory.push({ sender: 'bot', text, time: new Date().toISOString() });
@@ -970,7 +970,7 @@ export class BillingService {
           const rx = this.getPrescriptions().find(r => r.appointmentId === appt.id);
           if (rx && rx.extractedTests) {
             rx.extractedTests.forEach(testName => {
-              const loinc = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase() === (testName || '').toLowerCase())?.loincCode || 'unknown';
+              const loinc = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase() === (testName || '').toLowerCase())?.loincCode || '4544-3';
               const reqId = crypto.randomUUID();
               const requisitions = load<any[]>('lab_requisitions', []);
               requisitions.push({
