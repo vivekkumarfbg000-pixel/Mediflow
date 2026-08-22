@@ -3,6 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { getPodContext } from './podContext';
 import { getIstDateDisplay } from '../utils/dateUtils';
+import { safeGetStorageJSON } from '../utils/storage';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
 
 export const MASTER_TEST_CATALOG: DiagnosticTest[] = [
@@ -102,19 +103,16 @@ export class LabService {
     let isDemoAccount = false;
     if (typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem('vitalsync_cached_profile');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed) {
-            const email = String(parsed.email || '').toLowerCase();
-            const id = String(parsed.id || '').toLowerCase();
-            isDemoAccount = Boolean(
-              parsed.isDemo === true ||
-              email === 'demo@mediflow.com' ||
-              email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
-            );
-          }
+        const parsed = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+        if (parsed) {
+          const email = String(parsed.email || '').toLowerCase();
+          const id = String(parsed.id || '').toLowerCase();
+          isDemoAccount = Boolean(
+            parsed.isDemo === true ||
+            email === 'demo@mediflow.com' ||
+            email === 'doctor@mediflow.com' ||
+            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+          );
         }
       } catch (_e) { /* ignore */ }
     }
@@ -380,19 +378,16 @@ export class LabService {
     let isDemoAccount = false;
     if (typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem('vitalsync_cached_profile');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed) {
-            const email = String(parsed.email || '').toLowerCase();
-            const id = String(parsed.id || '').toLowerCase();
-            isDemoAccount = Boolean(
-              parsed.isDemo === true ||
-              email === 'demo@mediflow.com' ||
-              email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
-            );
-          }
+        const parsed = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+        if (parsed) {
+          const email = String(parsed.email || '').toLowerCase();
+          const id = String(parsed.id || '').toLowerCase();
+          isDemoAccount = Boolean(
+            parsed.isDemo === true ||
+            email === 'demo@mediflow.com' ||
+            email === 'doctor@mediflow.com' ||
+            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+          );
         }
       } catch (_e) { /* ignore */ }
     }
