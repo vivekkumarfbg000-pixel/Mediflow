@@ -38,7 +38,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
     setIsProcessing(true);
 
     try {
-      const activePhone = userPhone || localStorage.getItem('vitalsync_user_phone') || '';
+      const activePhone = userPhone || (typeof window !== 'undefined' ? (localStorage.getItem('vitalsync_user_phone') || '') : '');
       const result = await WhatsAppSupportBotService.processSupportQuery(text, {
         name: userName,
         clinicName: clinicName,

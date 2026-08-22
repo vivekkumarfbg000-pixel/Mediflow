@@ -28,7 +28,11 @@ export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
 
   const handleSendTest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim() || isSending) return;
+    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setSuccessMsg('⚠️ Please enter a valid 10-digit mobile number.');
+      return;
+    }
 
     setIsSending(true);
     setSuccessMsg(null);
@@ -43,10 +47,10 @@ export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
         bodyText = `🔄 *LIVE TEST 2-TOUCHPOINT CARE LOOP*\n\nNamaste! Your lab reports for ${clinicName} are ready.\n\nPlease select your Evening Review Option:\n1. 🏥 *Physical Review at Clinic*\n2. 💻 *Virtual Video Review*`;
       }
 
-      await api.pushWhatsAppMessageFromBot(phone, bodyText);
+      await api.pushWhatsAppMessageFromBot(cleanPhone, bodyText);
       await new Promise(r => setTimeout(r, 400));
 
-      setSuccessMsg(`✅ Test WhatsApp message dispatched to ${phone}! Check your phone.`);
+      setSuccessMsg(`✅ Test WhatsApp message dispatched to +91 ${cleanPhone}! Check your phone.`);
     } catch (_e) {
       setSuccessMsg('⚠️ Failed to dispatch test WhatsApp message.');
     } finally {
