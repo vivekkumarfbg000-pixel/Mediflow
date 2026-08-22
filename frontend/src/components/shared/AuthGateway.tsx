@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../../utils/storage';
 
 interface LoginAttempt {
   email: string;
@@ -144,8 +145,7 @@ const DEMO_ACCOUNTS = [
 
 const getLoginAttempts = (): LoginAttempt[] => {
   try {
-    const raw = localStorage.getItem('mediflow_login_attempts');
-    return raw ? JSON.parse(raw) : [];
+    return safeGetStorageJSON<LoginAttempt[]>('mediflow_login_attempts', []);
   } catch (_err) {
     return [];
   }
@@ -155,7 +155,7 @@ const saveLoginAttempt = (attempt: LoginAttempt) => {
   try {
     const attempts = getLoginAttempts();
     attempts.unshift(attempt);
-    localStorage.setItem('mediflow_login_attempts', JSON.stringify(attempts.slice(0, 20)));
+    safeSetStorageJSON('mediflow_login_attempts', attempts.slice(0, 20));
   } catch (err) {
     console.error('Failed to save login attempt log:', err);
   }
