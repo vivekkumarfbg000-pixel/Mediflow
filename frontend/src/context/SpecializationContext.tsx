@@ -75,6 +75,7 @@ export const SpecializationProvider: React.FC<SpecializationProviderProps> = ({ 
       : null;
 
     const spec: string = demoOverride
+      || activeProfile?.specialization
       || activeProfile?.user_metadata?.specialization
       || activeProfile?.raw_user_meta_data?.specialization
       || 'General Medicine';
