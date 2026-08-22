@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
+import { getIstDateDisplay } from '../../../utils/dateUtils';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
 import { 
   CheckCircle2, 
@@ -582,7 +583,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <strong>${activePod?.doctorName || activePod?.doctor_name || clinicProfile?.display_name || 'Dr. Practitioner'}</strong><br/>
               ${(activePod as any)?.specialization || 'Clinical Care Specialist'}<br/>
               ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'VS-V01R'})<br/>
-              Date: ${new Date().toLocaleDateString('en-IN')}
+              Date: ${getIstDateDisplay()}
             </div>
           </div>
 
@@ -739,7 +740,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <p><strong>Age / Gender:</strong> ${selectedPatient?.age} Yrs / ${selectedPatient?.gender}</p>
               </div>
               <div>
-                <p><strong>Reference Date:</strong> ${new Date().toLocaleDateString('en-IN')}</p>
+                <p><strong>Reference Date:</strong> ${getIstDateDisplay()}</p>
                 <p><strong>Clinic Entity:</strong> VitalSync Clinical Hub</p>
                 <p><strong>Chronic Conditions:</strong> ${(selectedPatient?.chronicConditions || []).join(', ') || 'None'}</p>
               </div>
@@ -3170,7 +3171,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   <div className="flex justify-between border-t border-slate-100 pt-1 mt-1">
                     <span className="text-[9px] font-bold text-slate-500">Date:</span>
                     <span className="text-[9px] text-slate-500 font-mono">
-                      {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {getIstDateDisplay()}
                     </span>
                   </div>
                 </div>

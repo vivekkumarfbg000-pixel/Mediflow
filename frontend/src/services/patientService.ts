@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { getPodContext } from './podContext';
+import { getIstDateString } from '../utils/dateUtils';
 import type { Patient, PatientVitals } from '../types';
 
 export interface PhysicalConsent {
@@ -398,7 +399,7 @@ export class PatientService {
   static generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
     const patients = this.getPatients();
     const appointments = load<any[]>('saas_appointments', []);
-    const dateStr = targetDate || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const dateStr = targetDate || getIstDateString();
 
     const apptsForDate = appointments.filter(a => {
       const apptDate = a.virtualDate || a.createdAt || '';
