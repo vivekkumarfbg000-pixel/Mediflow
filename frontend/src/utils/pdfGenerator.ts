@@ -102,14 +102,14 @@ export async function generateSpectaclePdfCard(data: {
 
   // Patient Meta Details
   const drawMetaText = (label: string, value: string, x: number, y: number) => {
-    page.drawText(label, { x, y, size: 9, font: fontBold, color: rgb(0.3, 0.3, 0.3) });
-    page.drawText(value, { x: x + 70, y, size: 9, font: font, color: rgb(0.1, 0.1, 0.1) });
+    page.drawText(label || '', { x, y, size: 9, font: fontBold, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(value || '—', { x: x + 70, y, size: 9, font: font, color: rgb(0.1, 0.1, 0.1) });
   };
 
-  drawMetaText('Patient Name:', data.patientName, 30, height - 90);
-  drawMetaText('Invoice ID:', data.invoiceId, 30, height - 105);
-  drawMetaText('Lens Type:', data.refractionRx.lensType, 260, height - 90);
-  drawMetaText('Exam Date:', data.date, 260, height - 105);
+  drawMetaText('Patient Name:', data.patientName || 'Patient', 30, height - 90);
+  drawMetaText('Invoice ID:', data.invoiceId || 'N/A', 30, height - 105);
+  drawMetaText('Lens Type:', data.refractionRx?.lensType || 'Standard Single Vision', 260, height - 90);
+  drawMetaText('Exam Date:', data.date || getIstDateDisplay(), 260, height - 105);
 
   // Draw Grid Table for Refraction Matrix
   const tableTop = height - 120;
@@ -160,10 +160,16 @@ export async function generateSpectaclePdfCard(data: {
   });
 
   // Row 1: Right Eye (OD)
-  const odVals = ['OD (Right)', data.refractionRx.od.sph || 'Plano', data.refractionRx.od.cyl || '0.00', data.refractionRx.od.axis || '—', data.refractionRx.od.add || '—'];
+  const odVals = [
+    'OD (Right)',
+    data.refractionRx?.od?.sph || 'Plano',
+    data.refractionRx?.od?.cyl || '0.00',
+    data.refractionRx?.od?.axis || '—',
+    data.refractionRx?.od?.add || '—'
+  ];
   odVals.forEach((val, i) => {
     const offsetMap = [10, 90, 180, 270, 360];
-    page.drawText(val, {
+    page.drawText(String(val || '—'), {
       x: startX + offsetMap[i],
       y: tableTop - rowHeight - 16,
       size: 9,
@@ -173,10 +179,16 @@ export async function generateSpectaclePdfCard(data: {
   });
 
   // Row 2: Left Eye (OS)
-  const osVals = ['OS (Left)', data.refractionRx.os.sph || 'Plano', data.refractionRx.os.cyl || '0.00', data.refractionRx.os.axis || '—', data.refractionRx.os.add || '—'];
+  const osVals = [
+    'OS (Left)',
+    data.refractionRx?.os?.sph || 'Plano',
+    data.refractionRx?.os?.cyl || '0.00',
+    data.refractionRx?.os?.axis || '—',
+    data.refractionRx?.os?.add || '—'
+  ];
   osVals.forEach((val, i) => {
     const offsetMap = [10, 90, 180, 270, 360];
-    page.drawText(val, {
+    page.drawText(String(val || '—'), {
       x: startX + offsetMap[i],
       y: tableTop - (2 * rowHeight) - 16,
       size: 9,
@@ -187,7 +199,7 @@ export async function generateSpectaclePdfCard(data: {
 
   // PD details and notes
   let bottomY = tableTop - (3 * rowHeight) - 20;
-  if (data.refractionRx.pd) {
+  if (data.refractionRx?.pd) {
     page.drawText(`Pupil Distance (PD): ${data.refractionRx.pd} mm`, {
       x: 30,
       y: bottomY,
@@ -198,7 +210,7 @@ export async function generateSpectaclePdfCard(data: {
     bottomY -= 15;
   }
 
-  if (data.refractionRx.notes) {
+  if (data.refractionRx?.notes) {
     page.drawText(`Clinical Notes: ${data.refractionRx.notes}`, {
       x: 30,
       y: bottomY,

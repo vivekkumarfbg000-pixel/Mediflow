@@ -966,7 +966,7 @@ export class PharmacyService {
     return `🏥 *VITALSYNC PHARMACY INVOICE*
 ----------------------------------------
 Patient Name: *${bill.patientName || 'Patient'}*
-Invoice Ref: #${(bill.id || 'N/A').substring(4, 10).toUpperCase()}
+Invoice Ref: #${(bill.id || 'MED-001').replace(/^bill-|^inv-/, '').substring(0, 6).toUpperCase() || 'REF-01'}
 Date: ${getIstDateDisplay(new Date(bill.createdAt || Date.now()))}${gstinText}
 
 *Medicines Ordered:*
