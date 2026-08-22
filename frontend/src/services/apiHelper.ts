@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { resolvePodContext } from './podContext';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
 
 if (typeof window !== 'undefined') {
   (window as any).supabase = supabase;
@@ -107,13 +108,13 @@ export function runStorageJanitor(): void {
     console.warn('[VitalSync SecOps] 🧹 Storage quota limit approaching. Executing Autonomous LRU Pruner...');
     
     // Prune support tickets older than 7 days
-    const ticketsRaw = localStorage.getItem('vitalsync_support_tickets') || localStorage.getItem('mediflow_support_tickets');
-    if (ticketsRaw) {
+    const tickets = safeGetStorageJSON<any[] | null>('vitalsync_support_tickets', null) ||
+                    safeGetStorageJSON<any[] | null>('mediflow_support_tickets', null);
+    if (tickets && tickets.length > 0) {
       try {
-        const tickets = JSON.parse(ticketsRaw);
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const freshTickets = tickets.filter((t: any) => new Date(t.created_at).getTime() > sevenDaysAgo);
-        localStorage.setItem('vitalsync_support_tickets', JSON.stringify(freshTickets));
+        safeSetStorageJSON('vitalsync_support_tickets', freshTickets);
       } catch (_e) {
         /* ignore parse error */
       }
