@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
 import { getPodContext, resolvePodContext } from './podContext';
 import { PatientService } from './patientService';
+import { getIstDateString } from '../utils/dateUtils';
 import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
 
 export class EncounterService {
@@ -27,16 +28,14 @@ export class EncounterService {
 
     // Auto-complete active same-day / advance appointment status
     const appts = load<any[]>('saas_appointments', []);
-    const now = new Date();
-    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const todayStr = now.toDateString();
+    const todayISO = getIstDateString();
 
     const appt = appts.find(a => {
       const isMatchingPatient = a.patientId === newEncounter.patientId || (a as any).patient_id === newEncounter.patientId;
       if (!isMatchingPatient) return false;
       if (a.status === 'completed') return false;
       const aDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
-      return aDate === todayISO || new Date(a.createdAt).toDateString() === todayStr;
+      return aDate === todayISO;
     });
     if (appt) {
       appt.status = 'completed';
@@ -47,7 +46,7 @@ export class EncounterService {
     }
 
     // 1. Create local and Supabase lab requisitions for ordered diagnostic tests
-    if (newEncounter.diagnosticTests.length > 0) {
+    if ((newEncounter.diagnosticTests || []).length > 0) {
       const existingReqs = load<any[]>('lab_requisitions', []);
       const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
       const dbReqsToInsert: any[] = [];
@@ -90,7 +89,7 @@ export class EncounterService {
     }
 
     // 2. Create local inventory holds and update stocks for medications
-    if (newEncounter.medications.length > 0) {
+    if ((newEncounter.medications || []).length > 0) {
       const inventory = load<any[]>('pharmacy_inventory', []);
       const holds = load<any[]>('inventory_holds', []);
       
@@ -133,8 +132,8 @@ export class EncounterService {
                                invoices.some((i: any) => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
 
     const docFee = alreadyPaidConsult ? 0 : 400;
-    const labFee = newEncounter.diagnosticTests.length * 350;
-    const pharmFee = newEncounter.medications.length * 150;
+    const labFee = (newEncounter.diagnosticTests || []).length * 350;
+    const pharmFee = (newEncounter.medications || []).length * 150;
     const platFee = Math.max(10, (docFee + labFee + pharmFee) * 0.03);
     const total = docFee + labFee + pharmFee + platFee;
 
