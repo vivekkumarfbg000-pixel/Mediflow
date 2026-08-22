@@ -164,11 +164,9 @@ export class RealtimeSyncService {
               }
             } else if (payload.eventType === 'DELETE') {
               currentData = currentData.filter((item: any) => item.id !== record.id);
-              save(storageKey, currentData);
-              continue;
             }
-            save(storageKey, currentData);
           }
+          save(storageKey, currentData);
         }
 
         // Single event dispatch per table
