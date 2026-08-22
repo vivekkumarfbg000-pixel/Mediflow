@@ -257,7 +257,7 @@ export const BillingDashboard: React.FC = () => {
                             })()}
                           </span>
                           <span className="font-bold text-slate-800 text-xs flex items-center font-mono">
-                            INR {inv.totalAmount}.00
+                            INR {((inv.totalAmount || 0)).toFixed(2)}
                           </span>
                         </div>
                         <p className="text-[9px] text-slate-500 mt-2 font-mono tracking-wider uppercase bg-slate-100 px-1.5 py-0.5 rounded w-max">
@@ -309,7 +309,7 @@ export const BillingDashboard: React.FC = () => {
                             })()}
                           </span>
                           <span className="font-bold text-emerald-600 text-xs flex items-center font-mono">
-                            INR {inv.totalAmount}.00
+                            INR {((inv.totalAmount || 0)).toFixed(2)}
                           </span>
                         </div>
                         <p className="text-[9px] text-emerald-600 font-bold uppercase mt-2 tracking-wider flex items-center gap-1">
