@@ -14,6 +14,7 @@ import {
 } from '../../types/ophthalmic';
 import type { Patient, PatientVitals } from '../../types';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
+import { getIstDateString } from '../../utils/dateUtils';
 import { 
   Activity, 
   Smartphone, 
@@ -94,8 +95,7 @@ export const RefractionDashboard: React.FC = () => {
 
   // Filter queue for Refractionist (Scoped to Today)
   const isPatientForToday = useCallback((p: Patient) => {
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = getIstDateString();
     const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
     if (patAppts.length > 0) {
       return patAppts.some(a => {
