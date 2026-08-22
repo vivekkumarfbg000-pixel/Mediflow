@@ -430,25 +430,30 @@ Dhyan rakhein aur time par medicine lein!`;
       const res = await this.labTrend({ current_data, historical_data });
       let comparativeNote = '';
       if (baseReport && compReport) {
-        const hba1cDiff = compReport.HbA1c - baseReport.HbA1c;
-        const creatinineDiff = compReport.creatinine - baseReport.creatinine;
+        const compHba1c = Number(compReport.HbA1c) || 0;
+        const baseHba1c = Number(baseReport.HbA1c) || 0;
+        const hba1cDiff = compHba1c - baseHba1c;
+
+        const compCreatinine = Number(compReport.creatinine) || 0;
+        const baseCreatinine = Number(baseReport.creatinine) || 0;
+        const creatinineDiff = compCreatinine - baseCreatinine;
         
         let hba1cStatus = '';
         if (hba1cDiff < 0) {
-          hba1cStatus = `HbA1c shows improvement, decreasing from ${baseReport.HbA1c}% to ${compReport.HbA1c}% (↓ ${Math.abs(hba1cDiff).toFixed(1)}% drop).`;
+          hba1cStatus = `HbA1c shows improvement, decreasing from ${baseHba1c}% to ${compHba1c}% (↓ ${Math.abs(hba1cDiff).toFixed(1)}% drop).`;
         } else if (hba1cDiff > 0) {
-          hba1cStatus = `HbA1c has elevated from ${baseReport.HbA1c}% to ${compReport.HbA1c}% (↑ ${hba1cDiff.toFixed(1)}% increase).`;
+          hba1cStatus = `HbA1c has elevated from ${baseHba1c}% to ${compHba1c}% (↑ ${hba1cDiff.toFixed(1)}% increase).`;
         } else {
-          hba1cStatus = `HbA1c is stable at ${compReport.HbA1c}%.`;
+          hba1cStatus = `HbA1c is stable at ${compHba1c}%.`;
         }
         
         let creatinineStatus = '';
         if (creatinineDiff > 0) {
-          creatinineStatus = `Serum Creatinine has increased from ${baseReport.creatinine} to ${compReport.creatinine} mg/dL (indicating potential renal clearance decline).`;
+          creatinineStatus = `Serum Creatinine has increased from ${baseCreatinine} to ${compCreatinine} mg/dL (indicating potential renal clearance decline).`;
         } else if (creatinineDiff < 0) {
-          creatinineStatus = `Serum Creatinine has improved from ${baseReport.creatinine} to ${compReport.creatinine} mg/dL.`;
+          creatinineStatus = `Serum Creatinine has improved from ${baseCreatinine} to ${compCreatinine} mg/dL.`;
         } else {
-          creatinineStatus = `Serum Creatinine is stable at ${compReport.creatinine} mg/dL.`;
+          creatinineStatus = `Serum Creatinine is stable at ${compCreatinine} mg/dL.`;
         }
 
         comparativeNote = `📈 Trajectory: ${res.trajectory || (hba1cDiff > 0.1 || creatinineDiff > 0.05 ? 'worsening' : hba1cDiff < -0.1 ? 'improving' : 'stable')}!\n- ${hba1cStatus}\n- ${creatinineStatus}\n\n`;
@@ -483,39 +488,44 @@ Dhyan rakhein aur time par medicine lein!`;
       let analysisText = 'Biomarker levels are within stable diagnostic range.';
 
       if (compReport) {
-        const hba1cDiff = baseReport ? compReport.HbA1c - baseReport.HbA1c : 0;
-        const creatinineDiff = baseReport ? compReport.creatinine - baseReport.creatinine : 0;
+        const compHba1c = Number(compReport.HbA1c) || 0;
+        const baseHba1c = Number(baseReport?.HbA1c) || 0;
+        const hba1cDiff = baseReport ? compHba1c - baseHba1c : 0;
+
+        const compCreatinine = Number(compReport.creatinine) || 0;
+        const baseCreatinine = Number(baseReport?.creatinine) || 0;
+        const creatinineDiff = baseReport ? compCreatinine - baseCreatinine : 0;
 
         let hba1cStatus = '';
         if (baseReport) {
           if (hba1cDiff < 0) {
-            hba1cStatus = `HbA1c shows improvement, decreasing from ${baseReport.HbA1c}% to ${compReport.HbA1c}% (↓ ${Math.abs(hba1cDiff).toFixed(1)}% drop).`;
+            hba1cStatus = `HbA1c shows improvement, decreasing from ${baseHba1c}% to ${compHba1c}% (↓ ${Math.abs(hba1cDiff).toFixed(1)}% drop).`;
             trajectory = 'improving';
           } else if (hba1cDiff > 0) {
-            hba1cStatus = `HbA1c has elevated from ${baseReport.HbA1c}% to ${compReport.HbA1c}% (↑ ${hba1cDiff.toFixed(1)}% increase).`;
+            hba1cStatus = `HbA1c has elevated from ${baseHba1c}% to ${compHba1c}% (↑ ${hba1cDiff.toFixed(1)}% increase).`;
             trajectory = 'worsening';
             riskFlags.push('WARNING: HbA1c trajectory is rising — glycemic control is deteriorating');
           } else {
-            hba1cStatus = `HbA1c is stable at ${compReport.HbA1c}%.`;
+            hba1cStatus = `HbA1c is stable at ${compHba1c}%.`;
           }
         } else {
-          hba1cStatus = `HbA1c is ${compReport.HbA1c}%.`;
+          hba1cStatus = `HbA1c is ${compHba1c}%.`;
         }
 
         let creatinineStatus = '';
         if (baseReport) {
           if (creatinineDiff > 0) {
-            creatinineStatus = `Serum Creatinine has increased from ${baseReport.creatinine} to ${compReport.creatinine} mg/dL.`;
+            creatinineStatus = `Serum Creatinine has increased from ${baseCreatinine} to ${compCreatinine} mg/dL.`;
             if (trajectory !== 'worsening') trajectory = 'worsening';
             riskFlags.push('WARNING: Serum Creatinine is rising — monitor renal filtration capacity');
           } else if (creatinineDiff < 0) {
-            creatinineStatus = `Serum Creatinine has improved from ${baseReport.creatinine} to ${compReport.creatinine} mg/dL.`;
+            creatinineStatus = `Serum Creatinine has improved from ${baseCreatinine} to ${compCreatinine} mg/dL.`;
             if (trajectory === 'stable') trajectory = 'improving';
           } else {
-            creatinineStatus = `Serum Creatinine is stable at ${compReport.creatinine} mg/dL.`;
+            creatinineStatus = `Serum Creatinine is stable at ${compCreatinine} mg/dL.`;
           }
         } else {
-          creatinineStatus = `Serum Creatinine is ${compReport.creatinine} mg/dL.`;
+          creatinineStatus = `Serum Creatinine is ${compCreatinine} mg/dL.`;
         }
 
         comparativeNote = baseReport 
