@@ -116,7 +116,9 @@ export const LabDashboard: React.FC = () => {
       onLabRequisitionChange: () => sync(),
       onPatientChange: () => sync(),
       onUnifiedInvoiceChange: () => sync(),
-      onPathologyReportChange: () => sync()
+      onPathologyReportChange: () => sync(),
+      onFinancialLedgerChange: () => sync(),
+      onAppointmentChange: () => sync()
     });
 
     return () => {
