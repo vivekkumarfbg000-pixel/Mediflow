@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { RefractionRx } from '../types/ophthalmic';
+import { getIstDateDisplay } from './dateUtils';
 
 /**
  * Generates a simple PDF invoice with provided data.
@@ -32,7 +33,7 @@ export async function generatePdfInvoice(data: {
   drawText(`Invoice #: ${data.invoiceId || 'N/A'}`, height - 50);
   drawText(`Patient: ${data.patientName || 'Patient'}`, height - 80);
   drawText(`Amount: ₹${(data.amount || 0).toFixed(2)}`, height - 110);
-  drawText(`Date: ${data.date || new Date().toLocaleDateString()}`, height - 140);
+  drawText(`Date: ${data.date || getIstDateDisplay()}`, height - 140);
 
   // Footer
   page.drawText('Thank you for choosing VitalSync!', {

@@ -4,7 +4,7 @@ import { TelemetryService } from './telemetry';
 import { PatientService } from './patientService';
 import { WhatsAppService } from './whatsappService';
 import { getPodContext } from './podContext';
-import { getIstDateString } from '../utils/dateUtils';
+import { getIstDateString, getIstDateDisplay } from '../utils/dateUtils';
 import type { 
   PharmacyInventoryItem, 
   InventoryHold, 
@@ -967,7 +967,7 @@ export class PharmacyService {
 ----------------------------------------
 Patient Name: *${bill.patientName || 'Patient'}*
 Invoice Ref: #${(bill.id || 'N/A').substring(4, 10).toUpperCase()}
-Date: ${new Date(bill.createdAt || Date.now()).toLocaleDateString()}${gstinText}
+Date: ${getIstDateDisplay(new Date(bill.createdAt || Date.now()))}${gstinText}
 
 *Medicines Ordered:*
 ${itemsList}

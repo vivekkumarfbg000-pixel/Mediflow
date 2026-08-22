@@ -9,6 +9,7 @@ import { ClinicalCycleSimulatorModal } from './ClinicalCycleSimulatorModal';
 import { FounderAICopilotModal } from './FounderAICopilotModal';
 import { AIFleetCommanderTab } from './AIFleetCommanderTab';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
+import { getIstDateDisplay } from '../../utils/dateUtils';
 import { 
   ShieldAlert, 
   Lock, 
@@ -849,7 +850,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     const invoiceCode = `INV-COMM-${Math.floor(1000 + Math.random() * 9000)}`;
     const phone = pod.phone || '+919876543210';
     const doctorName = pod.doctor_name || 'Doctor';
-    const invoiceMsg = `🧾 *VITALSYNC PLATFORM COMMISSION INVOICE* 💳\n\nInvoice ID: *${invoiceCode}*\nDate: ${new Date().toLocaleDateString()}\nTo: Dr. ${doctorName} (${pod.name})\n\n• *Pending Cash Split Balance*: ₹${pendingBalance.toFixed(2)}\n• *Revenue Commission Share Rate*: ${pod.platform_fee_percent || 2.5}%\n\nPlease settle via Cashfree QR or bank transfer. Contact Platform Administration (+91 99999 99999) for receipt confirmation.`;
+    const invoiceMsg = `🧾 *VITALSYNC PLATFORM COMMISSION INVOICE* 💳\n\nInvoice ID: *${invoiceCode}*\nDate: ${getIstDateDisplay()}\nTo: Dr. ${doctorName} (${pod.name})\n\n• *Pending Cash Split Balance*: ₹${pendingBalance.toFixed(2)}\n• *Revenue Commission Share Rate*: ${pod.platform_fee_percent || 2.5}%\n\nPlease settle via Cashfree QR or bank transfer. Contact Platform Administration (+91 99999 99999) for receipt confirmation.`;
 
     try {
       api.pushWhatsAppMessageFromBot(phone, invoiceMsg);
@@ -926,7 +927,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   const handleGenerateRcaReport = () => {
     try {
       const rcaMarkdown = `# Root Cause Analysis (RCA) — VitalSync Autonomous Sentry
-Date: ${new Date().toLocaleDateString()}
+Date: ${getIstDateDisplay()}
 Incident ID: INC-${Math.floor(100000 + Math.random() * 900000)}
 Severity: SEV-3 (Auto-Mitigated)
 
