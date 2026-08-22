@@ -2,6 +2,7 @@ import React from 'react';
 import { api } from '../../../services/api';
 import { BillingService } from '../../../services/billingService';
 import { getIstDateString } from '../../../utils/dateUtils';
+import { safeGetStorageJSON } from '../../../utils/storage';
 import type { Patient } from '../../../types';
 import { 
   Users, 
@@ -426,7 +427,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     <button
                       type="button"
                       onClick={() => {
-                        const finalDate = virtualDateInput || virtualAppt.virtualDate || (virtualAppt as any).virtual_date || (virtualAppt.createdAt || (virtualAppt as any).createdAt || '').split('T')[0] || getIstDateString();
+                        const finalDate = virtualDateInput || virtualAppt.virtualDate || (virtualAppt as any).virtual_date || getIstDateString();
                         const finalTime = virtualTimeInput || virtualAppt.virtualTime || '10:30 AM';
                         
                         // Update appointment
@@ -439,14 +440,8 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                         api.saveAppointment(updatedAppt);
                         
                         // Notify patient on WhatsApp
-                        const cachedProfStr = localStorage.getItem('vitalsync_cached_profile');
-                        let docNameDisp = 'Your Doctor';
-                        if (cachedProfStr) {
-                          try {
-                            const p = JSON.parse(cachedProfStr);
-                            if (p.display_name) docNameDisp = p.display_name;
-                          } catch (_e) { /* ignore */ }
-                        }
+                        const cachedProf = safeGetStorageJSON<any>('vitalsync_cached_profile', {});
+                        const docNameDisp = cachedProf?.display_name || 'Your Doctor';
                         const notificationText = `📅 *Virtual Consultation Confirmed!* \n\n${docNameDisp} has allocated your virtual consultation timing: \n🗓️ *Date:* ${finalDate} \n⏰ *Time:* ${finalTime} \n\nPlease join the meeting using this link when scheduled: \n🔗 ${JITSI_ROOM_URL}`;
                         api.pushWhatsAppMessageFromBot(selectedDirectoryPatient.phone, notificationText);
 
