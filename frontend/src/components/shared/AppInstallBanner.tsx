@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Download, X, Share, PlusSquare, Smartphone, CheckCircle2, Monitor } from 'lucide-react';
 import { BrandMark } from './BrandMark';
 
@@ -18,9 +19,17 @@ export const AppInstallBanner: React.FC = () => {
 
   useEffect(() => {
     // 1. Initial State Check from Window (in case event fired before React hydration)
-    if (typeof window !== 'undefined' && (window as any).deferredPwaPrompt) {
-      setDeferredPrompt((window as any).deferredPwaPrompt);
-      setIsReady(true);
+    if (typeof window !== 'undefined') {
+      try {
+        if (sessionStorage.getItem('vitalsync_app_install_snoozed') === 'true') {
+          setIsVisible(false);
+        }
+      } catch (_e) { /* ignore */ }
+
+      if ((window as any).deferredPwaPrompt) {
+        setDeferredPrompt((window as any).deferredPwaPrompt);
+        setIsReady(true);
+      }
     }
 
     // 2. Register Service Worker to meet PWA criteria
@@ -156,7 +165,7 @@ export const AppInstallBanner: React.FC = () => {
       </div>
 
       {/* ── IOS SPECIFIC SHARE INSTRUCTIONS MODAL ────────────────────────── */}
-      {showIosModal && (
+      {showIosModal && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
           <div className="bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative text-white space-y-4">
             <button onClick={() => setShowIosModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
@@ -198,7 +207,8 @@ export const AppInstallBanner: React.FC = () => {
               Got it
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
