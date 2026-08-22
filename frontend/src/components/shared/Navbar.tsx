@@ -34,6 +34,7 @@ import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
 import { BrandMark } from './BrandMark';
 import { SyncStatusPill } from './SyncStatusPill';
+import { safeGetStorageJSON } from '../../utils/storage';
 
 export type UserRole = 'compounder' | 'doctor' | 'lab' | 'pharmacy' | 'billing' | 'patient' | 'saas_admin' | 'refraction';
 
@@ -212,8 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   useEffect(() => {
     const handlePwaSync = () => {
       try {
-        const rawQueue = localStorage.getItem('offline_sync_queue');
-        const queue = rawQueue ? JSON.parse(rawQueue) : [];
+        const queue = safeGetStorageJSON<any[]>('offline_sync_queue', []);
         setOfflineCount(queue.length);
       } catch {
         setOfflineCount(0);
