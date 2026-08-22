@@ -5,6 +5,7 @@ import { SettlementWidget } from '../../shared/SettlementWidget';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
 import { BillingService } from '../../../services/billingService';
 import { RealtimeSyncService } from '../../../services/realtimeSyncService';
+import { supabase } from '../../../lib/supabaseClient';
 
 interface FinancialsTabProps {
   financialLedgers: FinancialLedgerEntry[];
@@ -200,9 +201,18 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   const [isPoolLow, setIsPoolLow] = useState(false);
 
   useEffect(() => {
-    if (!supabaseClient || !activePod?.id) return;
-    supabaseClient
-      .rpc('get_pool_status', { p_pod_id: activePod.id })
+    const client = supabaseClient || supabase;
+    const currentPodId = activePod?.id || (typeof window !== 'undefined' ? (() => {
+      try {
+        const raw = localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('mediflow_active_pod');
+        return raw ? JSON.parse(raw)?.id : null;
+      } catch { return null; }
+    })() : null);
+
+    if (!client || !currentPodId) return;
+
+    client
+      .rpc('get_pool_status', { p_pod_id: currentPodId })
       .then(({ data, error }: any) => {
         if (error) throw error;
         if (data) {
@@ -217,7 +227,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         setPendingCash(0);
         setIsPoolLow(true);
       });
-  }, [activePod?.id, supabaseClient]);
+  }, [activePod?.id, supabaseClient, syncVersion]);
 
   const activeSop = BillingService.getActiveSop();
   const docLabSplit = activeSop?.extractedConfig?.splits?.doctor ?? 40;
