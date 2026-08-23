@@ -937,10 +937,10 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             </div>
 
             <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-              Activate Your Virtual Hospital in Under 5 Minutes
+              Launch Your Connected Practice in 3 Simple Steps
             </h2>
             <p className="text-sm text-slate-600 mt-2 max-w-3xl">
-              Zero hardware installation. Zero IT consultants needed. Launch your connected clinic network today.
+              Zero upfront SaaS subscription fees. Zero complex hardware setup. Seamless practice integration designed for doctors.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
@@ -948,9 +948,9 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white mx-auto flex items-center justify-center font-black text-lg shadow-md">
                   1
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Scan WhatsApp QR</h3>
+                <h3 className="text-sm font-bold text-slate-900">Practice Setup &amp; Bank Link</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Scan your clinic WhatsApp QR code to connect your official WhatsApp Business API channel in 2 minutes.
+                  Register your practice profile and link your direct settlement bank account (100% Doctor consultation fee immunity with 0% platform deductions).
                 </p>
               </div>
 
@@ -958,9 +958,9 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white mx-auto flex items-center justify-center font-black text-lg shadow-md">
                   2
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Link Chemist &amp; Lab</h3>
+                <h3 className="text-sm font-bold text-slate-900">Connect Chemist &amp; Lab</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Invite your trusted neighborhood chemist and diagnostic lab using their phone numbers.
+                  Link your trusted neighborhood pharmacy and pathology center with custom clinic-controlled split parameters (e.g. 25% Pharmacy / 35% Pathology).
                 </p>
               </div>
 
@@ -968,9 +968,9 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white mx-auto flex items-center justify-center font-black text-lg shadow-md">
                   3
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">Set SOP Parameters</h3>
+                <h3 className="text-sm font-bold text-slate-900">Front-Desk OPD &amp; EMR Go-Live</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Confirm your clinic split percentages and start issuing digital OPD tokens immediately.
+                  Your Compounder issues digital OPD tokens and records vitals, while you consult via EMR with automated WhatsApp follow-ups and dose reminders.
                 </p>
               </div>
             </div>
