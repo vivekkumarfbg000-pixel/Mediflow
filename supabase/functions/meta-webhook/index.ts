@@ -2218,7 +2218,7 @@ async function triggerBotReplyPipeline(ctx: {
       const invoiceId = sessionData.pendingInvoiceId;
       const apptId = sessionData.pendingApptId;
       let tokenNumber = sessionData.tokenNumber || 1;
-      let approxTime = sessionData.approxTime || "10:00 AM";
+      let approxTime = sessionData.approxTime;
       let doctorName = sessionData.doctorName || resolvedDoctorName;
       let clinicName = sessionData.clinicName || resolvedClinicName;
       let feeAmount = sessionData.feeAmount || resolvedConsultationFee;
@@ -2251,8 +2251,19 @@ async function triggerBotReplyPipeline(ctx: {
             if (dbAppt.token_number) {
               tokenNumber = dbAppt.token_number;
             }
+            if (dbAppt.virtual_time) {
+              approxTime = dbAppt.virtual_time.split("-")[0].trim();
+            } else if (dbAppt.appointment_time) {
+              try {
+                const dt = new Date(dbAppt.appointment_time);
+                approxTime = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(dt);
+              } catch {}
+            }
           }
         } catch (_e) {}
+      }
+      if (!approxTime) {
+        approxTime = sessionData.selectedSlot ? sessionData.selectedSlot.split("-")[0].trim() : "10:00 AM";
       }
       const freshPayGen = generateBookingDateOptions(sessionData.isSos === true);
       const defaultPayDateDisplay = freshPayGen.isTodayAvailable ? getIstDateString() : getIstOffsetDateString(1);

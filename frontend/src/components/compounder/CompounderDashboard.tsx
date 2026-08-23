@@ -319,11 +319,16 @@ export const CompounderDashboard: React.FC = () => {
   const fetchLiveAppointments = useCallback(async () => {
     try {
       const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
-      const { data, error } = await supabase
+      let apptQuery = supabase
         .from('appointments')
         .select('*, patient_registry(id, name, phone, age, gender)')
-        .eq('pod_id', podId)
         .order('created_at', { ascending: false });
+
+      if (podId && podId !== 'default-pod') {
+        apptQuery = apptQuery.or(`pod_id.eq.${podId},pod_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317001`);
+      }
+
+      const { data, error } = await apptQuery;
 
       if (data) {
         const mapped = data.map((a: any) => {
@@ -331,8 +336,10 @@ export const CompounderDashboard: React.FC = () => {
           return {
             id: a.id,
             patientId: a.patient_id,
+            patient_id: a.patient_id,
             doctorId: a.doctor_id,
-            status: a.status || 'pending_payment',
+            doctor_id: a.doctor_id,
+            status: a.status || 'scheduled',
             isVirtual: a.is_virtual === true,
             is_virtual: a.is_virtual === true,
             virtualDate: a.virtual_date,
@@ -345,12 +352,19 @@ export const CompounderDashboard: React.FC = () => {
             token_number: String(a.token_number || 1),
             source: a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical',
             patientName: patInfo.name || 'WhatsApp Patient',
+            patient_name: patInfo.name || 'WhatsApp Patient',
             patientPhone: patInfo.phone || 'N/A',
+            patient_phone: patInfo.phone || 'N/A',
             patientAge: patInfo.age || 30,
-            patientGender: patInfo.gender || 'Male'
+            patientGender: patInfo.gender || 'Male',
+            createdAt: a.created_at,
+            created_at: a.created_at,
+            appointmentTime: a.appointment_time,
+            appointment_time: a.appointment_time
           };
         });
         setAppointments(mapped as any);
+        BillingService.saveAppointments(mapped as any);
       }
     } catch (err) {
       console.warn('[CompounderDashboard] Error fetching live appointments:', err);
