@@ -286,20 +286,20 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             {/* Complete VitalSync Revenue Sources Breakdown */}
             <div className="p-5 bg-slate-900 text-white rounded-2xl mt-5 space-y-2.5">
               <div className="text-xs font-bold uppercase text-emerald-400 flex items-center gap-2">
-                <DollarSign className="w-4 h-4" /> Complete Transparency: How VitalSync Earns
+                <DollarSign className="w-4 h-4" /> Complete Transparency: How VitalSync Earns (3% Platform Infrastructure Share)
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-300">
-                <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
-                  <div className="font-bold text-white mb-0.5">1. Partner Pharmacy Split (3%)</div>
-                  <span>When patients buy medicines or 30-day refills from partner chemist (Cash or Online).</span>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
+                  <div className="font-bold text-white">1. Pharmacy Counter &amp; Refills (3%)</div>
+                  <span className="text-[11px] text-slate-300">When patients buy medicines at the clinic counter or order 30-day refills from partner chemist (Cash or Online).</span>
                 </div>
-                <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
-                  <div className="font-bold text-white mb-0.5">2. Partner Pathology Split (3%)</div>
-                  <span>When patients complete diagnostic blood tests at partner lab (Cash or Online).</span>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
+                  <div className="font-bold text-white">2. Complete Diagnostic Lab Tests (3%)</div>
+                  <span className="text-[11px] text-slate-300">When patients complete any diagnostic lab investigations — pathology, biochemistry, ECG, imaging, or lab panels (Cash or Online).</span>
                 </div>
-                <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
-                  <div className="font-bold text-white mb-0.5">3. WhatsApp Booking Fee (₹15)</div>
-                  <span>A small ₹15 convenience fee paid directly by online patients who book appointments on WhatsApp.</span>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
+                  <div className="font-bold text-white">3. WhatsApp Booking Fee (3%)</div>
+                  <span className="text-[11px] text-slate-300">A standard 3% digital convenience platform fee (e.g. ₹15 on a ₹500 consult) paid directly by online patients who book appointments on WhatsApp.</span>
                 </div>
               </div>
               <div className="text-[11px] text-emerald-300 pt-1">
