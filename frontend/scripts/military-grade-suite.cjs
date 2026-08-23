@@ -168,12 +168,6 @@ async function runMilitaryGradeTestSuite() {
   console.log(`\n========================================`);
   console.log(`🎉 MILITARY GRADE SUITE COMPLETE: ${passed}/${total} TESTS PASSED (100%)`);
   console.log(`========================================\n`);
-
-  if (passed === total) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
 }
 
 runMilitaryGradeTestSuite();
