@@ -1032,8 +1032,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return match ? parseInt(match[0], 10) : Infinity;
               };
 
-              const now = new Date();
-              const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+              const todayStr = getIstDateString();
               const invoices = BillingService.getInvoices();
               const paidInvoicePatientIds = invoices
                 .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
