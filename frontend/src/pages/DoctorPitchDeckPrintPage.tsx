@@ -22,7 +22,6 @@ import {
   QrCode,
   FileText,
   UserCheck,
-  Headphones,
   Sliders,
   PhoneCall,
   Mail,
@@ -37,7 +36,10 @@ import {
   Check,
   Eye,
   Crosshair,
-  Lock
+  Lock,
+  Users,
+  Target,
+  BadgePercent
 } from 'lucide-react';
 
 export const DoctorPitchDeckPrintPage: React.FC = () => {
@@ -51,7 +53,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
       <div className="fixed top-4 right-4 z-50 print:hidden flex items-center gap-3 bg-slate-900/95 backdrop-blur-md text-white p-3 px-5 rounded-2xl shadow-2xl border border-white/20">
         <div className="text-xs font-semibold flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span>Unified 14-Slide Master Doctor Presentation</span>
+          <span>Doctor Partnership Master Presentation</span>
         </div>
         <button
           onClick={handlePrint}
@@ -63,7 +65,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
 
       <div className="max-w-5xl mx-auto space-y-12 print:space-y-0">
 
-        {/* ── SLIDE 1: COVER & GRAND VISION ───────────────────────────── */}
+        {/* ── SLIDE 1: COVER & EXECUTIVE PROPOSITION ──────────────────── */}
         <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-100/60 to-teal-100/40 rounded-full blur-3xl -mr-20 -mt-20 print:hidden" />
           
@@ -79,19 +81,19 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
               </div>
               <span className="px-3.5 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Doctor Partnership Master Deck • Slide 1 / 14
+                Doctor Partnership Master Deck • Slide 1 / 12
               </span>
             </div>
 
             <div className="space-y-4 my-8">
               <span className="inline-block px-3.5 py-1.5 rounded-lg bg-teal-100 text-teal-900 text-xs font-bold uppercase tracking-wide">
-                Exclusively For Visionary Physicians, Surgeons &amp; Clinic Directors
+                Exclusively For Independent Physicians, Surgeons &amp; Clinic Directors
               </span>
               <h2 className="text-3xl md:text-5xl font-black text-slate-900 leading-tight">
-                Transform Your Clinic Into A <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">Smart Virtual Hospital</span> On WhatsApp
+                Transform Your Clinic Into A <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">Hospital-Grade Outpatient Network</span> On WhatsApp
               </h2>
               <p className="text-lg md:text-xl text-slate-600 max-w-3xl font-medium leading-relaxed">
-                Connect your OPD consultation room, trusted local chemist, and diagnostic lab into an automated, hospital-grade outpatient ecosystem. Deliver elite patient care, boost chronic adherence, and unlock <strong className="text-slate-900">₹75,000 to ₹2,00,000+ monthly recurring practice revenue</strong> with <strong className="text-emerald-700">₹0 software cost</strong>.
+                Unite your OPD clinic with your trusted local chemist and diagnostic lab into an automated, hospital-grade outpatient ecosystem. Deliver superior patient recovery, retain 100% patient loyalty, and unlock <strong className="text-slate-900">+₹1,00,000 to +₹2,00,000+ monthly recurring practice revenue</strong> with <strong className="text-emerald-700">₹0 software cost and zero change to your daily routine</strong>.
               </p>
             </div>
           </div>
@@ -108,30 +110,30 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <div className="text-[11px] text-slate-500 mt-0.5">0% Platform Deductions</div>
             </div>
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-              <div className="text-xs font-bold uppercase text-slate-500">Settlement Engine</div>
-              <div className="text-xl font-black text-slate-900 mt-1">CASH &amp; DIGITAL</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Automated Pool Settlement</div>
+              <div className="text-xs font-bold uppercase text-slate-500">Doctor Workload</div>
+              <div className="text-xl font-black text-slate-900 mt-1">ZERO EXTRA WORK</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Compounder handles queue</div>
             </div>
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
               <div className="text-xs font-bold uppercase text-slate-500">Legal Shield</div>
               <div className="text-xl font-black text-teal-600 mt-1">NMC COMPLIANT</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Tripartite Care Framework</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Formal B2B Framework</div>
             </div>
           </div>
         </section>
 
-        {/* ── SLIDE 2: THE 4 CHRONIC LEAKS IN TRADITIONAL PRACTICE ──────── */}
+        {/* ── SLIDE 2: THE 4 REAL LEAKS IN PRIVATE PRACTICE ───────────── */}
         <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider">
-                <AlertTriangle className="w-4 h-4" /> The Ground Reality Today
+                <AlertTriangle className="w-4 h-4" /> The Unspoken Reality Today
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 2 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 2 / 12</span>
             </div>
             
-            <h2 className="text-3xl font-black text-slate-900">Where 60% of Your Clinic Revenue &amp; Care is Leaking</h2>
-            <p className="text-sm text-slate-600 mt-1">Independent doctors provide 80% of clinical care in Tier 2 &amp; 3 cities, but lose out completely on the downstream care economy.</p>
+            <h2 className="text-3xl font-black text-slate-900">The ₹500 Consultation Trap &amp; Patient Leakage</h2>
+            <p className="text-sm text-slate-600 mt-1">You build the patient trust and write the prescription, but external shops capture 90% of the value.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
               <div className="p-5 bg-rose-50/60 rounded-2xl border border-rose-200 space-y-2">
@@ -139,25 +141,25 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   <Coins className="w-5 h-5 text-rose-600" /> 1. The One-Time ₹500 Consultation Trap
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed">
-                  You diagnose the patient and earn a one-time ₹500 fee. But the patient spends ₹2,500 every single month on medicines and tests for 10+ years at external, disconnected shops where you have zero oversight or reward.
+                  You diagnose the patient and earn a one-time ₹500 fee. But the patient spends ₹2,500 to ₹4,000 every single month on medicines and tests for 10+ years at external, disconnected shops where you have zero oversight or reward.
                 </p>
               </div>
 
               <div className="p-5 bg-rose-50/60 rounded-2xl border border-rose-200 space-y-2">
                 <div className="flex items-center gap-2 text-rose-800 font-bold text-base">
-                  <Pill className="w-5 h-5 text-rose-600" /> 2. Generic Pharmacy Substitution
+                  <Pill className="w-5 h-5 text-rose-600" /> 2. Retail Chemistry Brand Switching
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed">
-                  Random retail chemists often switch your prescribed branded medicine with high-margin generic alternatives without your consent, altering therapeutic efficacy and harming patient recovery.
+                  Random retail medical stores often switch your prescribed branded medicine with high-margin generic alternatives without your knowledge, compromising clinical efficacy and patient health.
                 </p>
               </div>
 
               <div className="p-5 bg-rose-50/60 rounded-2xl border border-rose-200 space-y-2">
                 <div className="flex items-center gap-2 text-rose-800 font-bold text-base">
-                  <HeartPulse className="w-5 h-5 text-rose-600" /> 3. 60% Chronic Care Dropout
+                  <HeartPulse className="w-5 h-5 text-rose-600" /> 3. 60% Chronic Patient Dropout
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed">
-                  Diabetic and hypertensive patients forget to refill medications on Day 25 and skip their 90-day repeat HbA1c/Lipid profile checks, leading to preventable strokes, renal failure, and complications.
+                  Diabetic, hypertensive, and thyroid patients forget to refill medications on Day 25 and skip their 90-day repeat lab checks, resulting in uncontrolled sugar, high BP, and preventable complications.
                 </p>
               </div>
 
@@ -166,14 +168,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   <Clock className="w-5 h-5 text-rose-600" /> 4. Chaotic Evening Report Follow-Ups
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed">
-                  Patients call your personal mobile number and crowd your OPD clinic at 7:00 PM just to show test report printouts, creating fatigue, noise, and OPD overcrowding.
+                  Patients call your personal mobile number and crowd your OPD clinic at 7:00 PM just to show physical test report printouts, creating fatigue, noise, and OPD overcrowding.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-between mt-4">
-            <span className="text-xs font-semibold">VitalSync unifies these fragmented touchpoints into one seamless, automated loop.</span>
+            <span className="text-xs font-semibold">VitalSync stops this leakage by locking in your clinic, chemist, and lab into one coordinated network.</span>
             <span className="text-xs font-bold text-emerald-400">Next: The Virtual Triad →</span>
           </div>
         </section>
@@ -185,11 +187,11 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
                 <Sparkles className="w-4 h-4" /> The VitalSync Architecture
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 3 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 3 / 12</span>
             </div>
 
-            <h2 className="text-3xl font-black text-slate-900">The Category-Defining Virtual Hospital Triad</h2>
-            <p className="text-sm text-slate-600 mt-1">You remain 100% independent while commanding a hospital-grade outpatient ecosystem.</p>
+            <h2 className="text-3xl font-black text-slate-900">Your Private Virtual Hospital Triad on WhatsApp</h2>
+            <p className="text-sm text-slate-600 mt-1">You remain 100% in control while commanding a hospital-grade outpatient ecosystem.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
               {/* Doctor */}
@@ -199,7 +201,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
                 <h3 className="text-base font-black text-slate-900">1. Doctor (You)</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  The Clinical Head. Diagnoses patients, uses AI Scribe Voice Prescriptions, and sets dynamic SOP revenue splits.
+                  The Clinical Authority. Diagnoses patients, prescribes freely, and sets custom clinic SOP revenue splits.
                 </p>
                 <div className="text-[10px] font-bold text-indigo-700 bg-indigo-100/70 py-1 px-2 rounded-lg">
                   100% Free • ₹0 Subscription
@@ -213,7 +215,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
                 <h3 className="text-base font-black text-slate-900">2. Partner Chemist</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Local pharmacy linked to your OPD. Receives 1-Click Refills, delivers doorstep medicines, and provides 10% patient discounts.
+                  Your trusted local pharmacy. Fulfills original branded prescriptions, handles 30-day refills, and gives 10% patient discounts.
                 </p>
                 <div className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 py-1 px-2 rounded-lg">
                   20%–30% Transparent Split
@@ -227,7 +229,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
                 <h3 className="text-base font-black text-slate-900">3. Partner Lab</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Diagnostic lab with LOINC worklist integration. Dispatches home blood sample collection and pushes verified instant PDF reports.
+                  Your trusted diagnostic centre. Collects samples, conducts pathology/radiology tests, and pushes verified PDF reports to WhatsApp.
                 </p>
                 <div className="text-[10px] font-bold text-purple-700 bg-purple-100/70 py-1 px-2 rounded-lg">
                   30%–40% Transparent Split
@@ -239,30 +241,30 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 mt-4">
             <MessageSquare className="w-6 h-6 text-emerald-600 shrink-0" />
             <div className="text-xs text-emerald-950">
-              <strong>Zero Patient Apps Required:</strong> Patients interact naturally on WhatsApp. No app downloads, no logins, no technical resistance.
+              <strong>Zero App Downloads for Patients:</strong> Patients interact naturally on WhatsApp. No app downloads, no passwords, zero technical friction.
             </div>
           </div>
         </section>
 
-        {/* ── SLIDE 4: 100% FREE ADOPTION & REVENUE ENGINE ────────────── */}
+        {/* ── SLIDE 4: 100% FREE ADOPTION & FEE IMMUNITY ──────────────── */}
         <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div className="flex items-center gap-2 text-indigo-600 text-xs font-bold uppercase tracking-wider">
-                <ShieldCheck className="w-4 h-4" /> Doctor Freedom &amp; Financial Mechanics
+                <ShieldCheck className="w-4 h-4" /> Doctor Freedom &amp; Financial Security
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 4 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 4 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">100% Free Adoption &amp; Fee Immunity (Rule 58 / 103)</h2>
-            <p className="text-sm text-slate-600 mt-1">Our sacred promise to physicians: Zero cost to adopt, and your consultation revenue is 100% immune.</p>
+            <p className="text-sm text-slate-600 mt-1">Our sacred promise to doctors: Zero cost to adopt, and your consultation revenue is 100% immune.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
                 <div className="text-rose-600 text-xl font-black">₹0 / month</div>
                 <h3 className="text-sm font-bold text-slate-900">Zero SaaS Fees</h3>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  No monthly software subscriptions, no AMC, no setup fees, and no per-doctor license costs ever.
+                  No monthly software subscriptions, no AMC, no setup fees, and no hidden license costs ever.
                 </p>
               </div>
 
@@ -270,15 +272,15 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 <div className="text-emerald-700 text-xl font-black">100% To Doctor</div>
                 <h3 className="text-sm font-bold text-slate-900">Consultation Fee Immunity</h3>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  100% of your OPD consultation fee goes directly into your pocket/bank. VitalSync never takes a cut from your consultation.
+                  100% of your OPD consultation fee goes directly to you. VitalSync takes 0% cut from your professional consultation.
                 </p>
               </div>
 
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
                 <div className="text-indigo-600 text-xl font-black">Cash &amp; Digital</div>
-                <h3 className="text-sm font-bold text-slate-900">Frictionless Reconciliation</h3>
+                <h3 className="text-sm font-bold text-slate-900">Automated Settlement Pool</h3>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Works seamlessly whether patients pay via UPI QR or physical Cash at the compounder desk.
+                  When patients pay physical cash at the counter, your cash drawer is untouched; the platform share reconciles from the pre-funded pool.
                 </p>
               </div>
             </div>
@@ -295,15 +297,15 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
                 <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
                   <div className="font-bold text-white">2. Complete Diagnostic Lab Tests (3%)</div>
-                  <span className="text-[11px] text-slate-300">When patients complete any diagnostic lab investigations — pathology, biochemistry, ECG, imaging, or lab panels (Cash or Online).</span>
+                  <span className="text-[11px] text-slate-300">When patients complete any diagnostic investigations — pathology, biochemistry, ECG, imaging, or lab panels (Cash or Online).</span>
                 </div>
                 <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
                   <div className="font-bold text-white">3. WhatsApp Booking Fee (3%)</div>
-                  <span className="text-[11px] text-slate-300">A standard 3% digital convenience platform fee (e.g. ₹15 on a ₹500 consult) paid directly by online patients who book appointments on WhatsApp.</span>
+                  <span className="text-[11px] text-slate-300">A standard 3% digital convenience platform fee (e.g. ₹15 on a ₹500 consult) paid directly by online patients who book on WhatsApp.</span>
                 </div>
               </div>
               <div className="text-[11px] text-emerald-300 pt-1">
-                ✔ <strong>Automated Cash Settlement Pool:</strong> When cash is collected at the counter by the compounder, the platform commission is automatically deducted from the clinic's pre-funded Commission Pool balance without disturbing cash flows.
+                ✔ <strong>Automated Cash Settlement Pool:</strong> Physical cash stays in your drawer. The platform share is automatically deducted from the pre-funded Commission Pool balance (maintaining a ₹1,000 Safety Buffer).
               </div>
             </div>
           </div>
@@ -319,18 +321,18 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div className="flex items-center gap-2 text-teal-600 text-xs font-bold uppercase tracking-wider">
-                <Sliders className="w-4 h-4" /> Full Operational Control
+                <Sliders className="w-4 h-4" /> Full Operational Autonomy
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 5 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 5 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">Doctor-Controlled Dynamic SOP Splits</h2>
-            <p className="text-sm text-slate-600 mt-1">You decide the terms of your virtual hospital. Upload your SOP document or configure splits in 1 tap.</p>
+            <p className="text-sm text-slate-600 mt-1">You decide the terms of your virtual hospital. Configure splits with 1 tap in your SOP tab.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
               <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-emerald-600" /> Dynamic SOP Configurator
+                  <FileText className="w-5 h-5 text-emerald-600" /> Dynamic SOP Configuration
                 </h3>
                 <div className="space-y-2.5 text-xs">
                   <div className="flex justify-between items-center p-2.5 bg-white rounded-xl border border-slate-200">
@@ -338,7 +340,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     <span className="font-bold font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">20% – 30%</span>
                   </div>
                   <div className="flex justify-between items-center p-2.5 bg-white rounded-xl border border-slate-200">
-                    <span className="font-semibold">🔬 Pathology Test Split</span>
+                    <span className="font-semibold">🔬 Pathology Diagnostic Split</span>
                     <span className="font-bold font-mono text-purple-600 bg-purple-50 px-2 py-0.5 rounded">30% – 40%</span>
                   </div>
                   <div className="flex justify-between items-center p-2.5 bg-white rounded-xl border border-slate-200">
@@ -357,11 +359,11 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   <ShieldCheck className="w-5 h-5 text-teal-600" /> ₹1,000 Automated Safety Buffer &amp; Pool
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  All settlements are executed atomically at the Postgres database boundary. The clinic maintains an automated ₹1,000 Commission Safety Pool to handle cash settlements and instant payouts.
+                  All settlements are executed atomically at the database boundary into your verified bank account with zero manual paperwork.
                 </p>
                 <div className="p-3.5 bg-white rounded-xl border border-teal-200/80 text-xs text-teal-900 font-medium space-y-1">
                   <div>✔ Direct automated payouts to Doctor Bank / UPI.</div>
-                  <div>✔ Automated deduction on counter cash collections.</div>
+                  <div>✔ Seamless reconciliation on counter cash collections.</div>
                   <div>✔ 100% transparent audit ledger in Doctor Financials tab.</div>
                 </div>
               </div>
@@ -369,7 +371,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           </div>
 
           <div className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-between text-xs">
-            <span>You have 100% autonomy to change your SOP percentages whenever you want.</span>
+            <span>You have complete freedom to adjust your SOP percentages at any time.</span>
             <span className="text-emerald-400 font-bold">Next: The 2-Touchpoint Care Loop →</span>
           </div>
         </section>
@@ -381,7 +383,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
                 <Zap className="w-4 h-4" /> Outpatient Care Engine
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 6 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 6 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">The 2-Touchpoint WhatsApp Care Loop</h2>
@@ -397,7 +399,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Morning In-Person Consult (Clinic OPD)</h3>
                     <p className="text-xs text-slate-600 mt-0.5">
-                      Compounder captures vitals and assigns token. Doctor examines patient, uses AI Scribe to generate digital prescription, and orders required blood tests.
+                      Compounder registers walk-ins, records vitals (BP, Sugar), and issues OPD Token (#TK-001). Doctor examines patient and writes prescription without typing burden.
                     </p>
                   </div>
                 </div>
@@ -415,7 +417,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Evening Lab Report Review on WhatsApp</h3>
                     <p className="text-xs text-slate-600 mt-0.5">
-                      When partner lab approves blood test results, WhatsApp automatically delivers the PDF report with two 1-Tap native buttons:
+                      When partner lab finishes tests, WhatsApp automatically delivers the PDF report to the patient with two 1-Tap native buttons:
                     </p>
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className="px-2.5 py-0.5 bg-white border border-emerald-300 rounded-lg text-emerald-800 text-[10px] font-bold shadow-xs">
@@ -457,11 +459,11 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <div className="flex items-center gap-2 text-indigo-600 text-xs font-bold uppercase tracking-wider">
                 <Award className="w-4 h-4" /> Patient Loyalty Engine
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 7 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 7 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">4 Benefits That Make Patients 100% Loyal To You</h2>
-            <p className="text-sm text-slate-600 mt-1">Why patients will choose your virtual hospital over unorganized standalone clinics.</p>
+            <p className="text-sm text-slate-600 mt-1">Why patients will choose your virtual hospital over standalone clinics.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
               <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
@@ -470,7 +472,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">1 Free Virtual Follow-Up Consult</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Valid for 15–20 days after clinic visit. Patients can clarify medicine doses or symptom relief over WhatsApp video without travelling or paying twice.
+                  Valid for 15–20 days after clinic visit. Patients can clarify medicine doses or symptoms over WhatsApp video without travelling or paying twice.
                 </p>
               </div>
 
@@ -490,7 +492,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">Daily WhatsApp Reminders &amp; AI Health Chart</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  The automated WhatsApp bot sends morning and evening dose alerts (1-0-1) and tracks vital trends into longitudinal graphical health summaries.
+                  Automated WhatsApp messages send morning and evening dose alerts (1-0-1) and track vital trends into longitudinal health summaries.
                 </p>
               </div>
 
@@ -500,14 +502,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">Instant PDF Lab Reports on WhatsApp</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Zero waiting in lab queues. High-resolution NABL-standard PDF reports are delivered to the patient's phone the minute the pathologist signs off.
+                  Zero waiting in lab queues. High-resolution verified PDF reports are delivered to the patient's phone the minute the lab releases the results.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-between text-xs">
-            <span>Patients stay within your ecosystem forever instead of wandering to external pharmacies.</span>
+            <span>Patients stay attached to your clinic for life instead of wandering to external medical stores.</span>
             <span className="text-emerald-400 font-bold">Next: Chronic Disease Care Goldmine →</span>
           </div>
         </section>
@@ -519,7 +521,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
                 <HeartPulse className="w-4 h-4" /> High Recurring Practice Value
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 8 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 8 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">The Chronic Patient Goldmine &amp; Refill Engine</h2>
@@ -527,7 +529,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
               <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
-                <h3 className="text-sm font-bold text-slate-900">8 Supported Chronic Protocols</h3>
+                <h3 className="text-sm font-bold text-slate-900">8 Supported Chronic Care Protocols</h3>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="p-2 bg-white rounded-lg border border-slate-200 font-medium">🩸 Type-2 Diabetes</div>
                   <div className="p-2 bg-white rounded-lg border border-slate-200 font-medium">🫀 Essential HTN</div>
@@ -541,7 +543,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               </div>
 
               <div className="p-5 bg-emerald-50/70 rounded-2xl border border-emerald-200 space-y-2.5">
-                <h3 className="text-sm font-bold text-slate-900">Automated Cron Automation</h3>
+                <h3 className="text-sm font-bold text-slate-900">Automated Patient Adherence Engine</h3>
                 <ul className="text-xs text-slate-700 space-y-2">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -549,11 +551,11 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Day-75 Diagnostic Loop:</strong> Auto-schedules repeat HbA1c, Lipid, and TSH blood tests.</span>
+                    <span><strong>Day-75 Diagnostic Loop:</strong> Auto-schedules repeat HbA1c, Lipid, and TSH blood tests with home sample collection.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Refill Defaulter Safety Net:</strong> Highlights high-risk patients who missed medicines by &gt;7 days with 1-Tap WhatsApp Nudges.</span>
+                    <span><strong>Refill Defaulter Safety Net:</strong> Highlights patients who missed medicines by &gt;7 days with 1-Tap WhatsApp alerts to staff.</span>
                   </li>
                 </ul>
               </div>
@@ -561,128 +563,19 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           </div>
 
           <div className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-between text-xs">
-            <span>Clinical adherence improves by 42%, while practice revenue scales reliably.</span>
-            <span className="text-emerald-400 font-bold">Next: AI Clinical Voice Scribe &amp; EMR →</span>
-          </div>
-        </section>
-
-        {/* ── SLIDE 9: AI CLINICAL VOICE SCRIBE & MULTI-SPECIALTY EMR ─── */}
-        <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-              <div className="flex items-center gap-2 text-indigo-600 text-xs font-bold uppercase tracking-wider">
-                <Headphones className="w-4 h-4" /> Sub-2 Second Voice Scribing
-              </div>
-              <span className="text-xs font-bold text-slate-400">Slide 9 / 14</span>
-            </div>
-
-            <h2 className="text-3xl font-black text-slate-900">AI Clinical Voice Scribe &amp; Multi-Specialty EMR</h2>
-            <p className="text-sm text-slate-600 mt-1">Speak naturally in English or Hinglish. Zero typing required during busy OPD hours.</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-              <div className="p-5 bg-indigo-50/70 rounded-2xl border border-indigo-200 space-y-3">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Headphones className="w-5 h-5 text-indigo-600" /> Groq Llama-3 70B + Gemini AI Engine
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Doctor taps the microphone and speaks: <em>"Patient complains of chest pain since 2 days, BP 140/90, prescribe Telmisartan 40mg 1-0-0 and ECG."</em>
-                </p>
-                <div className="p-3 bg-white rounded-xl border border-indigo-200 text-xs font-mono text-indigo-950 space-y-1">
-                  <div>✔ Auto-extracts Complaints, Vitals, Diagnosis.</div>
-                  <div>✔ Generates structured 1-0-1 dosage cards.</div>
-                  <div>✔ Auto-populates pharmacy delivery &amp; lab worklist.</div>
-                </div>
-              </div>
-
-              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-teal-600" /> Multi-Specialty Adaptive Workspaces
-                </h3>
-                <div className="space-y-2 text-xs">
-                  <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <strong>👁️ Ophthalmology:</strong> Auto-calculates RE/LE Sph/Cyl/Axis, IOP, Fundus, Biometry.
-                  </div>
-                  <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <strong>🫀 Cardiology &amp; General Medicine:</strong> Chronic protocol adherence and ECG trackers.
-                  </div>
-                  <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <strong>👶 Pediatrics &amp; Dermatology:</strong> Growth milestone charts and image lesion analysis.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-between text-xs">
-            <span>Prescription generation time drops from 4 minutes to under 20 seconds.</span>
-            <span className="text-emerald-400 font-bold">Next: Compounder OPD Desk →</span>
-          </div>
-        </section>
-
-        {/* ── SLIDE 10: COMPOUNDER OPD DESK & EMERGENCY SOS ROUTING ───── */}
-        <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-              <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider">
-                <ShieldAlert className="w-4 h-4" /> Streamlined OPD Operations
-              </div>
-              <span className="text-xs font-bold text-slate-400">Slide 10 / 14</span>
-            </div>
-
-            <h2 className="text-3xl font-black text-slate-900">Compounder OPD Desk &amp; Emergency SOS Priority</h2>
-            <p className="text-sm text-slate-600 mt-1">Empower your assistant to manage patient queues, vitals, and payments without disturbing you.</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-              <div className="p-4.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
-                  #TK
-                </div>
-                <h3 className="text-sm font-bold text-slate-900">Digital Token System</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Issues printed thermal tokens (#TK-001) or WhatsApp SMS tokens for walk-in OPD queues.
-                </p>
-              </div>
-
-              <div className="p-4.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xs">
-                  <Activity className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900">Pre-Consult Vitals Entry</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Records BP, Sugar, Pulse, Temp, SpO2, and BMI with automatic red-flag alert warnings.
-                </p>
-              </div>
-
-              <div className="p-4.5 bg-rose-50/80 rounded-2xl border border-rose-200 space-y-2">
-                <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-xs">
-                  🚨
-                </div>
-                <h3 className="text-sm font-bold text-slate-900">Priority #1 SOS Routing</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Emergency SOS cases jump straight to Position #1 at the top of Doctor EMR with a pulsing red banner.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 mt-5">
-              <strong>15-Minute Eye Dilation Countdown:</strong> Compounder triggers one-click dilation timer; Doctor EMR alerts the physician the exact second pupils are ready for fundus examination.
-            </div>
-          </div>
-
-          <div className="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-between text-xs">
-            <span>Clean, peaceful OPD queue management with zero shouting or chaos.</span>
+            <span>Treatment adherence rises by 42%, while practice revenue scales reliably.</span>
             <span className="text-emerald-400 font-bold">Next: Legal Shield &amp; Ethics →</span>
           </div>
         </section>
 
-        {/* ── SLIDE 11: LEGAL SHIELD & NMC COMPLIANCE ─────────────────── */}
+        {/* ── SLIDE 9: LEGAL SHIELD & NMC COMPLIANCE ─────────────────── */}
         <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div className="flex items-center gap-2 text-teal-600 text-xs font-bold uppercase tracking-wider">
-                <Scale className="w-4 h-4" /> Medical Ethics &amp; Protection
+                <Scale className="w-4 h-4" /> Medical Ethics &amp; Legal Protection
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 11 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 9 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">100% Legal Shield &amp; NMC Ethics Compliance</h2>
@@ -722,14 +615,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           </div>
         </section>
 
-        {/* ── SLIDE 12: PRACTICE REVENUE SIMULATOR ───────────────────── */}
+        {/* ── SLIDE 10: PRACTICE REVENUE SIMULATOR ───────────────────── */}
         <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
                 <TrendingUp className="w-4 h-4" /> Practice Income Expansion
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 12 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 10 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">Practice Revenue Simulator (Real Clinic Numbers)</h2>
@@ -793,27 +686,27 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           </div>
         </section>
 
-        {/* ── SLIDE 13: DOCTOR FAQS & OBJECTIONS DEMOLISHER ─────────── */}
+        {/* ── SLIDE 11: DOCTOR FAQS & OBJECTIONS DEMOLISHER ─────────── */}
         <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div className="flex items-center gap-2 text-indigo-600 text-xs font-bold uppercase tracking-wider">
                 <HelpCircle className="w-4 h-4" /> Frequently Asked Questions
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 13 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 11 / 12</span>
             </div>
 
-            <h2 className="text-3xl font-black text-slate-900">Doctor FAQs &amp; Addressing All Concerns</h2>
+            <h2 className="text-3xl font-black text-slate-900">Doctor FAQs &amp; Common Concerns Answered</h2>
             <p className="text-sm text-slate-600 mt-1">Everything you need to know about partnering with VitalSync.</p>
 
             <div className="space-y-3.5 mt-6">
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
                 <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  Q: "Do I or my patients need to install any new apps?"
+                  Q: "Do I have to change my clinical consultation style or type on a laptop?"
                 </div>
                 <p className="text-[11px] text-slate-600 pl-6 leading-relaxed">
-                  <strong>No.</strong> Patients receive everything naturally on WhatsApp. Doctors and compounders access a fast, clean web dashboard on any laptop, tablet, or mobile phone.
+                  <strong>No.</strong> Your compounder/assistant handles the token queue and records vitals. You examine patients naturally and write prescriptions as you always have.
                 </p>
               </div>
 
@@ -843,7 +736,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   Q: "Is patient medical data secure and private?"
                 </div>
                 <p className="text-[11px] text-slate-600 pl-6 leading-relaxed">
-                  <strong>100% Enterprise Security.</strong> End-to-end encryption with PostgreSQL Row-Level Security (RLS). Only you and your authorized staff can see clinical records.
+                  <strong>100% Enterprise Security.</strong> End-to-end encryption with PostgreSQL Row-Level Security (RLS). Only you and your authorized clinic staff can access patient records.
                 </p>
               </div>
             </div>
@@ -855,14 +748,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           </div>
         </section>
 
-        {/* ── SLIDE 14: NEXT STEPS & 5-MINUTE ONBOARDING ─────────────── */}
+        {/* ── SLIDE 12: NEXT STEPS & 5-MINUTE ONBOARDING ─────────────── */}
         <section className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-8 print:h-[270mm] print:page-break-after-always flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
               <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
                 <Building2 className="w-4 h-4" /> Fast Activation
               </div>
-              <span className="text-xs font-bold text-slate-400">Slide 14 / 14</span>
+              <span className="text-xs font-bold text-slate-400">Slide 12 / 12</span>
             </div>
 
             <h2 className="text-3xl font-black text-slate-900">Activate Your Virtual Hospital in 5 Minutes</h2>
@@ -930,7 +823,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
 
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-950 mt-4">
             <span className="font-bold">VitalSync Smart Virtual Hospital Network</span>
-            <span>Empowering Tier 2 &amp; Tier 3 Healthcare Providers Across India</span>
+            <span>Empowering Independent Doctors Across Tier 2 &amp; Tier 3 Cities</span>
           </div>
         </section>
 
