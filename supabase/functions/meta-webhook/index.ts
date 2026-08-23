@@ -2250,9 +2250,9 @@ async function triggerBotReplyPipeline(ctx: {
             }
             if (dbAppt.token_number) {
               tokenNumber = dbAppt.token_number;
-            }
           }
         } catch (_e) {}
+      }
       const freshPayGen = generateBookingDateOptions(sessionData.isSos === true);
       const defaultPayDateDisplay = freshPayGen.isTodayAvailable ? getIstDateString() : getIstOffsetDateString(1);
       const selectedDisplay = resolvedApptDate || defaultPayDateDisplay;
