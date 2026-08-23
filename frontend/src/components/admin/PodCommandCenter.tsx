@@ -1046,66 +1046,9 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
               </div>
             </div>
           </div>
-
-          {/* Patient Inquiries Feed */}
-          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
-            <div className="h-1 w-full bg-emerald-500" />
-            <div className="p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-emerald-500 shrink-0" />
-                  Patient Inquiries Feed
-                </h2>
-                {sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length > 0 && (
-                  <button
-                    onClick={triggerFailedMessageRetry}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-rose-600 dark:text-rose-455 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
-                    title="Flush and retry all failed messages"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-                    Retry Failed ({sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length})
-                  </button>
-                )}
-              </div>
-
-              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
-                {patientInquiries.length === 0 ? (
-                  <div className="text-center py-6 text-slate-450 dark:text-zinc-500 text-xs italic">
-                    No incoming clinical queries.
-                  </div>
-                ) : (
-                  patientInquiries.map(m => (
-                    <div key={m.id} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-900 dark:text-white">{m.patientName}</span>
-                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider border ${
-                          m.status === 'AWAITING_PAYMENT' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-450' :
-                          m.status === 'COMPLETED' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400' :
-                          'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-600 dark:text-zinc-400'
-                        }`}>{m.status.replace(/_/g, ' ')}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-600 dark:text-zinc-350 leading-relaxed italic line-clamp-2 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg">
-                        "{m.text}"
-                      </p>
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => {
-                            window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'whatsapp' }));
-                          }}
-                          className="px-2.5 py-1 bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-950/30 dark:to-indigo-900/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded text-[9px] font-bold uppercase hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
-                        >
-                          Reply
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* ── COLUMN 3: CHRONIC CARE & RECURRING REFILL COCKPIT ─── */}
+        {/* ── COLUMN 3: CHRONIC CARE & PATIENT INQUIRIES ─────────── */}
         <div className="space-y-5">
 
           {/* Chronic Disease Care & Refill Cockpit Widget */}
@@ -1210,6 +1153,63 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
               <HeartPulse className="w-3.5 h-3.5" /> View Full Chronic Care Suite
             </button>
           </PointerGlowCard>
+
+          {/* Patient Inquiries Feed */}
+          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
+            <div className="h-1 w-full bg-indigo-500" />
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-indigo-500 shrink-0" />
+                  Patient Inquiries Feed
+                </h2>
+                {sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length > 0 && (
+                  <button
+                    onClick={triggerFailedMessageRetry}
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-rose-600 dark:text-rose-455 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                    title="Flush and retry all failed messages"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                    Retry Failed ({sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length})
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
+                {patientInquiries.length === 0 ? (
+                  <div className="text-center py-6 text-slate-450 dark:text-zinc-500 text-xs italic">
+                    No incoming clinical queries.
+                  </div>
+                ) : (
+                  patientInquiries.map(m => (
+                    <div key={m.id} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-slate-900 dark:text-white">{m.patientName}</span>
+                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider border ${
+                          m.status === 'AWAITING_PAYMENT' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-450' :
+                          m.status === 'COMPLETED' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400' :
+                          'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-600 dark:text-zinc-400'
+                        }`}>{m.status.replace(/_/g, ' ')}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 dark:text-zinc-350 leading-relaxed italic line-clamp-2 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg">
+                        "{m.text}"
+                      </p>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'whatsapp' }));
+                          }}
+                          className="px-2.5 py-1 bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-950/30 dark:to-indigo-900/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded text-[9px] font-bold uppercase hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+                        >
+                          Reply
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
