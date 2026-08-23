@@ -858,6 +858,13 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       for (const phone of targetPhones) {
                         try {
                           api.pushWhatsAppMessageFromBot(phone, messageContent);
+                          supabase.functions.invoke('meta-webhook', {
+                            body: {
+                              action: 'send_broadcast_message',
+                              patientPhone: phone,
+                              messageText: messageContent
+                            }
+                          }).catch(_e => console.warn('Direct meta-webhook broadcast relay note:', _e));
                           queuedCount++;
                         } catch (_dispatchErr) {
                           console.warn(`[WhatsAppTab Broadcast] Session dispatch failed for ${phone}:`, _dispatchErr);
