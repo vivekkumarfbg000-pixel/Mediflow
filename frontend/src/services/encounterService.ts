@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
 import { getPodContext, resolvePodContext } from './podContext';
 import { PatientService } from './patientService';
-import { getIstDateString } from '../utils/dateUtils';
+import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
 
 export class EncounterService {
@@ -34,8 +34,7 @@ export class EncounterService {
       const isMatchingPatient = a.patientId === newEncounter.patientId || (a as any).patient_id === newEncounter.patientId;
       if (!isMatchingPatient) return false;
       if (a.status === 'completed') return false;
-      const aDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
-      return aDate === todayISO;
+      return getEffectiveAppointmentDate(a) === todayISO;
     });
     if (appt) {
       appt.status = 'completed';

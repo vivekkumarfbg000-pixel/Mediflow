@@ -28,6 +28,7 @@ import {
   Network
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
+import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { OphthalmicRefractionGrid } from './OphthalmicRefractionGrid';
 import { EMPTY_REFRACTION_RX, serializeRefractionRx, formatSpectacleCard, getAcuityRank, OPHTHALMIC_EYE_CARE_COPY, type RefractionRx, EMPTY_BIOMETRY, serializeBiometry, type BiometryData } from '../../types/ophthalmic';
@@ -528,7 +529,7 @@ export const DoctorDashboard: React.FC = () => {
         if (apptsRes.data && apptsRes.data.length > 0) {
           const dbAppts: Appointment[] = apptsRes.data.map((a: any) => {
             const resolvedName = (a.patient_name && a.patient_name !== 'Patient') ? a.patient_name : (patNameMap.get(a.patient_id) || 'WhatsApp Patient');
-            const apptDate = a.appointment_date || a.appointmentDate || a.virtual_date || a.virtualDate || (a.created_at ? a.created_at.split('T')[0] : (a.createdAt ? a.createdAt.split('T')[0] : 'N/A'));
+            const apptDate = getEffectiveAppointmentDate(a);
             return {
               id: a.id,
               patientId: a.patient_id,
@@ -1341,15 +1342,16 @@ Keep the tone professional, clinical, objective, and precise.`;
     }));
 
     // Find the next patient in today's active queue
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = getIstDateString();
     const allAppts = api.getAppointments();
 
     const isPatientForToday = (p: Patient) => {
       const patAppt = allAppts.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
-      const apptDate = patAppt?.appointmentTime?.split('T')[0] || patAppt?.virtualDate || (patAppt as any)?.virtual_date || patAppt?.createdAt?.split('T')[0];
-      const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
-      return apptDate ? apptDate === todayStr : regDate.startsWith(todayStr);
+      if (patAppt) {
+        return getEffectiveAppointmentDate(patAppt) === todayStr;
+      }
+      const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
+      return regDate.startsWith(todayStr);
     };
 
     const activeQueue = api.getPatients()
@@ -1446,14 +1448,13 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </div>
 
                     {(() => {
-                      const now = new Date();
-                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      const todayStr = getIstDateString();
 
                       const virtualAppts = appointments.filter((a: Appointment) => {
                         if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                         const isVirt = Boolean(a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') : false));
                         if (!isVirt) return false;
-                        const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                        const apptDate = getEffectiveAppointmentDate(a);
                         return !apptDate || apptDate >= todayStr;
                       });
 

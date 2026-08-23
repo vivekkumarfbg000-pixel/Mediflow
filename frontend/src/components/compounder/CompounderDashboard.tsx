@@ -14,7 +14,7 @@ import { LabService } from '../../services/labService';
 import { load } from '../../services/apiHelper';
 import { getPodContext } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
-import { getIstDateString } from '../../utils/dateUtils';
+import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../utils/dateUtils';
 import type {
   PharmacyInventoryItem,
   MedicineBill,
@@ -1994,12 +1994,10 @@ export const CompounderDashboard: React.FC = () => {
                 Today's Active OPD Queue 🏥
                 <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
                   {(() => {
-                    const now = new Date();
-                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    const todayStr = getIstDateString();
                     return appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
-                      return apptDate === todayStr;
+                      return getEffectiveAppointmentDate(a) === todayStr;
                     }).length;
                   })()}
                 </span>
@@ -2016,11 +2014,10 @@ export const CompounderDashboard: React.FC = () => {
                 Upcoming Advance Bookings 📅
                 <span className="ml-1 bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
                   {(() => {
-                    const now = new Date();
-                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    const todayStr = getIstDateString();
                     return appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                      const apptDate = getEffectiveAppointmentDate(a);
                       return Boolean(apptDate && apptDate > todayStr);
                     }).length;
                   })()}
@@ -2038,11 +2035,10 @@ export const CompounderDashboard: React.FC = () => {
                 Past & All History 🕒
                 <span className="ml-1 bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
                   {(() => {
-                    const now = new Date();
-                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    const todayStr = getIstDateString();
                     return appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                      const apptDate = getEffectiveAppointmentDate(a);
                       return Boolean(apptDate && apptDate < todayStr);
                     }).length;
                   })()}
@@ -2156,16 +2152,16 @@ export const CompounderDashboard: React.FC = () => {
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {(() => {
                           const now = new Date();
-                          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                          const todayStr = getIstDateString();
                           const futureAppts = appointments
                             .filter(appt => {
                               if (appt.status === 'pending_payment' || appt.status === 'cancelled') return false;
-                              const apptDate = appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0];
+                              const apptDate = getEffectiveAppointmentDate(appt);
                               return Boolean(apptDate && apptDate > todayStr);
                             })
                             .sort((a, b) => {
-                              const dateA = a.virtual_date || (a as any).virtualDate || (a as any).appointment_date || (a as any).appointmentDate || (a.createdAt || (a as any).createdAt || '').split('T')[0] || '';
-                              const dateB = b.virtual_date || (b as any).virtualDate || (b as any).appointment_date || (b as any).appointmentDate || (b.createdAt || (b as any).createdAt || '').split('T')[0] || '';
+                              const dateA = getEffectiveAppointmentDate(a);
+                              const dateB = getEffectiveAppointmentDate(b);
                               return dateA.localeCompare(dateB);
                             });
 
@@ -2181,7 +2177,7 @@ export const CompounderDashboard: React.FC = () => {
 
                           return futureAppts.map(appt => {
                             const pat = patients.find(p => p.id === appt.patientId);
-                            const apptDate = appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A';
+                            const apptDate = getEffectiveAppointmentDate(appt);
                             return (
                               <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
                                 <td className="p-3 font-bold text-slate-900 dark:text-white">{pat?.name || (appt as any).patientName || 'Registered Patient'}</td>
@@ -2456,10 +2452,10 @@ export const CompounderDashboard: React.FC = () => {
                     <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 px-3 py-1.5 rounded-xl">
                       {(() => {
                         const now = new Date();
-                        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                        const todayStr = getIstDateString();
                         const count = appointments.filter(a => {
                           if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                          const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                          const apptDate = getEffectiveAppointmentDate(a);
                           if ((opdSubTab as string) === 'past_history') {
                             return Boolean(apptDate && apptDate < todayStr);
                           }
@@ -2473,12 +2469,11 @@ export const CompounderDashboard: React.FC = () => {
 
                 <div className="space-y-4">
                   {(() => {
-                    const now = new Date();
-                    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    const todayStr = getIstDateString();
 
                     let confirmedAppts = appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || a.createdAt?.split('T')[0];
+                      const apptDate = getEffectiveAppointmentDate(a);
                       if (!apptDate) return (opdSubTab as string) === 'today_queue';
 
                       if ((opdSubTab as string) === 'today_queue') {
@@ -2621,12 +2616,8 @@ export const CompounderDashboard: React.FC = () => {
                               </span>
 
                               {opdSubTab !== 'today_queue' && (() => {
-                                const aDate = appt.appointmentTime?.split('T')[0] || appt.virtualDate || (appt as any).virtual_date || appt.createdAt?.split('T')[0] || '';
-                                const isTomorrow = (() => {
-                                  const d = new Date();
-                                  d.setDate(d.getDate() + 1);
-                                  return aDate === `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                                })();
+                                const aDate = getEffectiveAppointmentDate(appt);
+                                const isTomorrow = aDate === getIstOffsetDateString(1);
 
                                 return (
                                   <span className={`flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${

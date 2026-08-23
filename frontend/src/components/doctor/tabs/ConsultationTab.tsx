@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
-import { getIstDateDisplay } from '../../../utils/dateUtils';
+import { getIstDateString, getIstDateDisplay, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
 import { 
   CheckCircle2, 
@@ -945,8 +945,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           {/* 4 Queue Filter Tabs (Awaiting Consultation, In Chamber, Today Registered, Completed Care Loop) */}
           {(() => {
-            const now = new Date();
-            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const todayStr = getIstDateString();
             const invoices = BillingService.getInvoices();
             const paidInvoicePatientIds = invoices
               .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
@@ -960,9 +959,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
             const isPatientForToday = (p: Patient) => {
               const patAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
-              const apptDate = patAppt?.appointmentTime?.split('T')[0] || patAppt?.virtualDate || (patAppt as any)?.virtual_date || patAppt?.createdAt?.split('T')[0];
-              const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
-              return apptDate ? apptDate === todayStr : regDate.startsWith(todayStr);
+              if (patAppt) {
+                return getEffectiveAppointmentDate(patAppt) === todayStr;
+              }
+              const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
+              return regDate.startsWith(todayStr);
             };
 
             const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus) && isPatientForToday(p));
@@ -1047,12 +1048,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const isPatientForToday = (p: Patient) => {
                 const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
                 if (patAppts.length > 0) {
-                  return patAppts.some(a => {
-                    const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || (a as any).appointment_date || (a as any).appointmentDate || a.createdAt?.split('T')[0];
-                    return apptDate === todayStr;
-                  });
+                  return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
                 }
-                const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
+                const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 return regDate.startsWith(todayStr);
               };
 

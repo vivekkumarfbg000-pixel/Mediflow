@@ -14,7 +14,7 @@ import {
 } from '../../types/ophthalmic';
 import type { Patient, PatientVitals } from '../../types';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
-import { getIstDateString } from '../../utils/dateUtils';
+import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
 import { 
   Activity, 
   Smartphone, 
@@ -98,12 +98,9 @@ export const RefractionDashboard: React.FC = () => {
     const todayStr = getIstDateString();
     const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
     if (patAppts.length > 0) {
-      return patAppts.some(a => {
-        const apptDate = a.appointmentTime?.split('T')[0] || a.virtualDate || (a as any).virtual_date || (a as any).appointment_date || (a as any).appointmentDate || a.createdAt?.split('T')[0];
-        return apptDate === todayStr;
-      });
+      return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
     }
-    const regDate = p.registeredAt?.split('T')[0] || p.createdAt?.split('T')[0] || (p as any).registered_at?.split('T')[0] || '';
+    const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
     return regDate.startsWith(todayStr);
   }, [appointments]);
 
