@@ -183,6 +183,21 @@ serve(async (req) => {
       await sleep(currentDelayMs);
     }
 
+    // Update campaign metrics in whatsapp_broadcast_campaigns
+    try {
+      await supabase
+        .from("whatsapp_broadcast_campaigns")
+        .update({
+          delivered_count: deliveredCount,
+          failed_count: failedCount,
+          status: failedCount > 0 && deliveredCount === 0 ? 'failed' : `Delivered ⚡ (${deliveredCount} recipients)`,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", campaign_id);
+    } catch (_cErr) {
+      console.warn("[whatsapp-broadcast-worker] Campaign update note:", _cErr);
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       processed: pendingJobs.length,

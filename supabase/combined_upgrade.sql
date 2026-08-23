@@ -2228,8 +2228,52 @@ GRANT EXECUTE ON FUNCTION public.process_chronic_refill_assertion(UUID, TEXT) TO
 GRANT EXECUTE ON FUNCTION public.process_chronic_refill_assertion(UUID, TEXT) TO anon;
 
 -- =============================================================================
+-- SECTION 45: Persistent WhatsApp Broadcast Campaigns & Nullable Queue Fix
+-- =============================================================================
+DO $$ 
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+          AND table_name = 'whatsapp_broadcast_queue' 
+          AND column_name = 'patient_id'
+          AND is_nullable = 'NO'
+    ) THEN
+        ALTER TABLE public.whatsapp_broadcast_queue ALTER COLUMN patient_id DROP NOT NULL;
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.whatsapp_broadcast_campaigns (
+    id TEXT PRIMARY KEY,
+    pod_id UUID NOT NULL,
+    target_cohort TEXT NOT NULL DEFAULT 'all',
+    message_text TEXT NOT NULL,
+    recipient_count INT NOT NULL DEFAULT 0,
+    delivered_count INT NOT NULL DEFAULT 0,
+    failed_count INT NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'completed',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_broadcast_campaigns_pod ON public.whatsapp_broadcast_campaigns(pod_id, created_at DESC);
+ALTER TABLE public.whatsapp_broadcast_campaigns ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Enable read access for authenticated users on broadcast campaigns" ON public.whatsapp_broadcast_campaigns;
+CREATE POLICY "Enable read access for authenticated users on broadcast campaigns"
+ON public.whatsapp_broadcast_campaigns FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "Enable insert access for authenticated users on broadcast campaigns" ON public.whatsapp_broadcast_campaigns;
+CREATE POLICY "Enable insert access for authenticated users on broadcast campaigns"
+ON public.whatsapp_broadcast_campaigns FOR INSERT
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Enable update access for authenticated users on broadcast campaigns" ON public.whatsapp_broadcast_campaigns;
+CREATE POLICY "Enable update access for authenticated users on broadcast campaigns"
+ON public.whatsapp_broadcast_campaigns FOR UPDATE
+USING (true);
+
+-- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
-
-
-

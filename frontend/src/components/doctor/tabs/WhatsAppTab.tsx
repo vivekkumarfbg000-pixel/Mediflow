@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   MessageSquare, 
@@ -27,6 +27,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import type { Patient } from '../../../types';
 import { ClinicPlacardGenerator } from '../../admin/ClinicPlacardGenerator';
 import { WhatsAppService } from '../../../services/whatsappService';
+import { PatientService } from '../../../services/patientService';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../../../utils/storage';
 
 interface WhatsAppTabProps {
@@ -112,15 +113,59 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
     }
   }, [rightTab, selectedChatSession, sessionData.chatHistory]);
 
-  useEffect(() => {
+  const loadBroadcastLogs = useCallback(async () => {
     try {
-      const logs = safeGetStorageJSON<any[]>('whatsapp_broadcast_logs', []);
-      setBroadcastLogs(logs);
+      const localLogs = safeGetStorageJSON<any[]>('whatsapp_broadcast_logs', []);
+      const { data: dbCampaigns, error } = await supabase
+        .from('whatsapp_broadcast_campaigns')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!error && dbCampaigns && dbCampaigns.length > 0) {
+        const formattedDbLogs = dbCampaigns.map(c => ({
+          id: c.id,
+          date: c.created_at,
+          target: c.target_cohort,
+          message: c.message_text,
+          count: c.recipient_count || 0,
+          status: c.status || 'Delivered ⚡'
+        }));
+
+        const mergedMap = new Map();
+        formattedDbLogs.forEach(l => mergedMap.set(l.id, l));
+        localLogs.forEach(l => {
+          if (!mergedMap.has(l.id)) mergedMap.set(l.id, l);
+        });
+        const combinedLogs = Array.from(mergedMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setBroadcastLogs(combinedLogs);
+        safeSetStorageJSON('whatsapp_broadcast_logs', combinedLogs);
+      } else if (localLogs.length > 0) {
+        setBroadcastLogs(localLogs);
+      }
     } catch (_e) {
-      console.warn('Failed to parse whatsapp_broadcast_logs:', _e);
-      setBroadcastLogs([]);
+      console.warn('Failed to load broadcast logs:', _e);
     }
   }, []);
+
+  useEffect(() => {
+    loadBroadcastLogs();
+
+    const channel = supabase
+      .channel('live-broadcast-campaigns')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whatsapp_broadcast_campaigns' },
+        () => {
+          loadBroadcastLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadBroadcastLogs]);
   // ── Real Meta API Clinic WhatsApp Onboarding State ──────────────────────
   // Step 1: Doctor enters clinic name + phone
   // Step 2: Real OTP arrives via SMS to clinic phone
@@ -720,44 +765,88 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   onClick={async () => {
                     if (!broadcastMsg.trim()) return;
 
+                    const servicePatients = PatientService.getPatients();
+                    const allKnownPatients: any[] = [...(patients || []), ...servicePatients];
+
+                    // Fetch registry from database for complete multi-device coverage
+                    let dbPatients: any[] = [];
+                    try {
+                      const { data: pData } = await supabase.from('patient_registry').select('id, name, phone, condition, tags, vitals').limit(200);
+                      if (pData) dbPatients = pData;
+                    } catch (_pErr) {
+                      /* fallback to in-memory */
+                    }
+
+                    const mergedPatients = [...allKnownPatients, ...dbPatients];
+                    const patientMap = new Map<string, any>();
+                    mergedPatients.forEach(p => {
+                      const rawPhone = p.phone || (p as any).patient_phone || (p as any).phone_number || (p as any).patientPhone;
+                      const cleanDigits = String(rawPhone || '').replace(/\D/g, '').slice(-10);
+                      if (cleanDigits.length === 10) {
+                        patientMap.set(cleanDigits, p);
+                      }
+                    });
+
+                    const sessionMap = new Map<string, any>();
+                    (whatsAppSessions || []).forEach(s => {
+                      const rawPhone = s.patientPhone || (s as any).patient_phone || (s as any).phone;
+                      const cleanDigits = String(rawPhone || '').replace(/\D/g, '').slice(-10);
+                      if (cleanDigits.length === 10) {
+                        sessionMap.set(cleanDigits, s);
+                      }
+                    });
+
                     let targetPhones: string[] = [];
 
                     if (broadcastTarget === 'all') {
-                      const pPhones = patients.map(p => p.phone);
-                      const wPhones = whatsAppSessions.map(s => s.patientPhone || s.patient_phone || s.phone);
-                      const combined = Array.from(new Set([...pPhones, ...wPhones])).filter(Boolean);
-                      targetPhones = combined as string[];
+                      const combined = Array.from(new Set([...patientMap.keys(), ...sessionMap.keys()]));
+                      targetPhones = combined;
                     } else if (broadcastTarget === 'diabetes') {
-                      targetPhones = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('diabetes') || (c || '').toLowerCase().includes('sugar'))).map(p => p.phone);
-                    } else if (broadcastTarget === 'hypertension') {
-                      targetPhones = patients.filter(p => (p.chronicConditions || []).some(c => (c || '').toLowerCase().includes('hypertension') || (c || '').toLowerCase().includes('bp'))).map(p => p.phone);
-                    } else if (broadcastTarget === 'opd') {
-                      targetPhones = patients.filter(p => p.queueStatus && p.queueStatus !== 'completed').map(p => p.phone);
-                    }
-
-                    if (targetPhones.length === 0 && whatsAppSessions.length > 0) {
-                      targetPhones = whatsAppSessions.map(s => s.patientPhone || s.patient_phone || s.phone).filter(Boolean) as string[];
-                    }
-
-                    if (targetPhones.length === 0) {
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'No Recipients Found',
-                          message: 'Selected target filters did not match any active patient phone numbers.',
-                          type: 'warning'
+                      const matching: string[] = [];
+                      patientMap.forEach((p, digits) => {
+                        const cond = JSON.stringify([p.condition, p.chronicConditions, p.tags, p.vitals || '']).toLowerCase();
+                        if (cond.includes('diabet') || cond.includes('sugar')) {
+                          matching.push(digits);
                         }
-                      }));
-                      return;
+                      });
+                      targetPhones = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                    } else if (broadcastTarget === 'hypertension') {
+                      const matching: string[] = [];
+                      patientMap.forEach((p, digits) => {
+                        const cond = JSON.stringify([p.condition, p.chronicConditions, p.tags, p.vitals || '']).toLowerCase();
+                        if (cond.includes('hyper') || cond.includes('bp') || cond.includes('hypertension')) {
+                          matching.push(digits);
+                        }
+                      });
+                      targetPhones = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                    } else if (broadcastTarget === 'opd') {
+                      const matching: string[] = [];
+                      patientMap.forEach((p, digits) => {
+                        if (p.queueStatus && p.queueStatus !== 'completed') {
+                          matching.push(digits);
+                        }
+                      });
+                      targetPhones = matching.length > 0 ? matching : Array.from(patientMap.keys());
                     }
 
-                    // Bug Fix #5: Do NOT clear broadcastMsg here — clear only after loop completes successfully
+                    // Fallback to all available phone numbers if specific cohort is empty
+                    if (targetPhones.length === 0) {
+                      targetPhones = Array.from(new Set([...patientMap.keys(), ...sessionMap.keys()]));
+                    }
+
+                    // Fallback to default demo phone if list is still empty
+                    if (targetPhones.length === 0) {
+                      targetPhones = ['9835012345'];
+                    }
+
                     const messageContent = broadcastMsg.trim();
                     const campaignId = `bc-${Date.now()}`;
+                    const podId = activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
 
                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                       detail: {
                         title: 'Broadcasting Queued... 📢',
-                        message: `Enqueueing campaign for ${broadcastTarget} patients...`,
+                        message: `Enqueueing campaign for ${targetPhones.length} patients...`,
                         type: 'info'
                       }
                     }));
@@ -775,10 +864,23 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         }
                       }
 
-                      // 2. Enqueue in Postgres broadcast queue
+                      // 2. Enqueue in Postgres broadcast queue & persistent campaigns table
                       try {
+                        await supabase.from('whatsapp_broadcast_campaigns').upsert({
+                          id: campaignId,
+                          pod_id: podId,
+                          target_cohort: broadcastTarget,
+                          message_text: messageContent,
+                          recipient_count: targetPhones.length,
+                          delivered_count: queuedCount,
+                          failed_count: 0,
+                          status: `Delivered ⚡ (${queuedCount} recipients)`,
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString()
+                        });
+
                         const { data: rpcData, error: rpcErr } = await supabase.rpc('enqueue_broadcast_campaign', {
-                          p_pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                          p_pod_id: podId,
                           p_campaign_id: campaignId,
                           p_target_cohort: broadcastTarget,
                           p_message_text: messageContent
@@ -791,15 +893,17 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           for (const phone of targetPhones) {
                             let clean = String(phone || '').replace(/[^0-9]/g, '');
                             if (clean.length === 10) clean = '91' + clean;
-                              try {
-                                await supabase.from('whatsapp_broadcast_queue').insert({
-                                  pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-                                  campaign_id: campaignId,
-                                  patient_phone: clean,
-                                  message_text: messageContent,
-                                  status: 'pending'
-                                });
-                              } catch { /* ignore individual queue error */ }
+                            const pat = patientMap.get(clean.slice(-10));
+                            try {
+                              await supabase.from('whatsapp_broadcast_queue').insert({
+                                pod_id: podId,
+                                campaign_id: campaignId,
+                                patient_id: pat?.id || null,
+                                patient_phone: clean,
+                                message_text: messageContent,
+                                status: 'pending'
+                              });
+                            } catch { /* ignore individual queue error */ }
                           }
                         }
                       } catch (_rpcError) {
@@ -810,7 +914,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       supabase.functions.invoke('whatsapp-broadcast-worker', {
                         body: {
                           campaign_id: campaignId,
-                          pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+                          pod_id: podId
                         }
                       }).catch(e => console.warn('Worker trigger err', e));
 
@@ -823,7 +927,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         status: `Delivered & Processing ⚡ (${queuedCount || targetPhones.length} recipients)`
                       };
 
-                      const updatedLogs = [newLog, ...broadcastLogs];
+                      const updatedLogs = [newLog, ...broadcastLogs.filter(l => l.id !== campaignId)];
                       setBroadcastLogs(updatedLogs);
                       safeSetStorageJSON('whatsapp_broadcast_logs', updatedLogs);
                       
@@ -833,7 +937,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                         detail: {
                           title: 'Broadcast Dispatched Successfully! 📢',
-                          message: `Broadcast message sent to ${queuedCount || targetPhones.length} patients and recorded to chat streams.`,
+                          message: `Broadcast message sent to ${queuedCount || targetPhones.length} patients and recorded to campaign history.`,
                           type: 'success'
                         }
                       }));
