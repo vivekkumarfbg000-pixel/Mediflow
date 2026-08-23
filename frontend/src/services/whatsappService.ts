@@ -166,6 +166,22 @@ export class WhatsAppService {
             }
 
             const { supabase: sb } = await import('../lib/supabaseClient');
+
+            if (!activePhoneId || !activeToken) {
+              try {
+                const { data: dbConn } = await sb
+                  .from('waba_connections')
+                  .select('phone_number_id, encrypted_system_user_token, access_token')
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                if (dbConn) {
+                  activePhoneId = activePhoneId || dbConn.phone_number_id || '';
+                  activeToken = activeToken || dbConn.encrypted_system_user_token || (dbConn as any).access_token || '';
+                }
+              } catch (_dbE) {}
+            }
+
             const invokeRes = await sb.functions.invoke('meta-webhook', {
               body: {
                 action: 'send_manual_message',
