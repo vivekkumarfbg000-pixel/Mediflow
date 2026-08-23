@@ -19,7 +19,7 @@ import {
   UserCheck,
   Send
 } from 'lucide-react';
-import { ChronicCareService, CHRONIC_PROTOCOLS, ChronicCohortRecord } from '../../../services/chronicCareService';
+import { ChronicCareService, CHRONIC_PROTOCOLS, type ChronicCohortRecord } from '../../../services/chronicCareService';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
 
 interface ChronicCareTabProps {

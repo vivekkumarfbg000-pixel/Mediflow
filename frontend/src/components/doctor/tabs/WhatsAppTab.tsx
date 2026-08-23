@@ -791,15 +791,15 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           for (const phone of targetPhones) {
                             let clean = String(phone || '').replace(/[^0-9]/g, '');
                             if (clean.length === 10) clean = '91' + clean;
-                            if (clean.length >= 10) {
-                              await supabase.from('whatsapp_broadcast_queue').insert({
-                                pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-                                campaign_id: campaignId,
-                                patient_phone: clean,
-                                message_text: messageContent,
-                                status: 'pending'
-                              }).catch(() => {});
-                            }
+                              try {
+                                await supabase.from('whatsapp_broadcast_queue').insert({
+                                  pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                                  campaign_id: campaignId,
+                                  patient_phone: clean,
+                                  message_text: messageContent,
+                                  status: 'pending'
+                                });
+                              } catch { /* ignore individual queue error */ }
                           }
                         }
                       } catch (_rpcError) {

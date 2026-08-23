@@ -31,7 +31,8 @@ import {
   MessageSquare,
   RefreshCw,
   AlertTriangle,
-  Coins
+  Coins,
+  Sparkles
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1210,6 +1211,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             </button>
           </PointerGlowCard>
         </div>
+      </div>
 
       {/* ── BOTTOM ALERT BANNER ──────────────────────────────────── */}
       {criticalPatients.length > 0 && (
