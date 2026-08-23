@@ -2250,6 +2250,7 @@ async function triggerBotReplyPipeline(ctx: {
             }
             if (dbAppt.token_number) {
               tokenNumber = dbAppt.token_number;
+            }
           }
         } catch (_e) {}
       }
