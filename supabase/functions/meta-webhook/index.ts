@@ -1042,12 +1042,22 @@ async function triggerBotReplyPipeline(ctx: {
   let cleaned = incomingText.trim().toLowerCase();
 
   let replyText = "";
-  const sessionData = session.session_data ?? {};
+  let sessionData = session?.session_data ?? {};
+  if (typeof sessionData === "string") {
+    try {
+      sessionData = JSON.parse(sessionData);
+    } catch (_e) {
+      sessionData = {};
+    }
+  }
+  if (!sessionData || typeof sessionData !== "object") {
+    sessionData = {};
+  }
   if (state === "BOOKING_VIRTUAL" && sessionData.subState) {
     state = sessionData.subState;
   }
   let nextState = state;
-  const chatHistory = sessionData.chatHistory ?? [];
+  const chatHistory = Array.isArray(sessionData.chatHistory) ? sessionData.chatHistory : [];
 
   // Parallelize patient profile lookup & consent verification for fast response
   let patient: any = null;
@@ -1707,11 +1717,11 @@ async function triggerBotReplyPipeline(ctx: {
       break;
 
     case "AWAITING_DATE_SELECTION":
-      let dateOptions = sessionData.dateOptions ?? [];
-      let dateDisplayOptions = sessionData.dateDisplayOptions ?? [];
-      
       const freshDateGen = generateBookingDateOptions(sessionData.isSos === true);
-      if (!dateOptions || dateOptions.length === 0) {
+      let dateOptions = sessionData.dateOptions;
+      let dateDisplayOptions = sessionData.dateDisplayOptions;
+      
+      if (!Array.isArray(dateOptions) || dateOptions.length === 0) {
         dateOptions = freshDateGen.dates;
         dateDisplayOptions = freshDateGen.displayDates;
         sessionData.dateOptions = freshDateGen.dates;
@@ -1744,11 +1754,38 @@ async function triggerBotReplyPipeline(ctx: {
         }
       }
 
-      // 2. Keyword Match (e.g. "today", "aaj", "tomorrow", "kal", "day after", "parso")
+      // 2. Direct day-of-month matching (e.g. user typed "24", "24th", "25", "26", "24 aug", "24-08-2026")
+      if (!selectedDateStr) {
+        for (let i = 0; i < dateOptions.length; i++) {
+          const d = dateOptions[i];
+          const parts = d.split('-');
+          const dayNum = parts[2]; // e.g. "24"
+          const dayNumInt = parseInt(dayNum, 10);
+          if (
+            cleaned === dayNum || 
+            cleaned === `${dayNumInt}` || 
+            cleaned.includes(`${dayNum}th`) || 
+            cleaned.includes(`${dayNumInt}th`) || 
+            cleaned.includes(`${dayNum} `) || 
+            cleaned.includes(d)
+          ) {
+            selectedDateStr = d;
+            selectedDisplayStr = dateDisplayOptions[i];
+            break;
+          }
+        }
+      }
+
+      // 3. Keyword Match (e.g. "today", "aaj", "tomorrow", "kal", "day after", "parso")
       if (!selectedDateStr) {
         if (cleaned.includes("today") || cleaned.includes("aaj")) {
-          selectedDateStr = getIstDateString();
-          selectedDisplayStr = `Today (${getIstDateDisplay()})`;
+          if (freshDateGen.isTodayAvailable) {
+            selectedDateStr = getIstDateString();
+            selectedDisplayStr = `Today (${getIstDateDisplay()})`;
+          } else {
+            selectedDateStr = getIstOffsetDateString(1);
+            selectedDisplayStr = `Tomorrow (${getIstOffsetDateDisplay(1)})`;
+          }
         } else if (cleaned.includes("tomorrow") || cleaned.includes("kal")) {
           selectedDateStr = getIstOffsetDateString(1);
           selectedDisplayStr = `Tomorrow (${getIstOffsetDateDisplay(1)})`;
@@ -1759,7 +1796,7 @@ async function triggerBotReplyPipeline(ctx: {
           selectedDateStr = getIstOffsetDateString(3);
           selectedDisplayStr = getIstOffsetDateDisplay(3);
         } else {
-          // 3. Numbered Option Selection (1, 2, 3, 4)
+          // 4. Numbered Option Selection (1, 2, 3, 4)
           const parsedNum = parseInt(cleaned.replace(/\D/g, ""));
           if (!isNaN(parsedNum) && parsedNum >= 1 && parsedNum <= dateOptions.length) {
             selectedDateStr = dateOptions[parsedNum - 1];
@@ -1813,8 +1850,13 @@ async function triggerBotReplyPipeline(ctx: {
             }
           }
         } catch (rErr) { console.warn("[Meta Webhook] Referral discount check error:", rErr); }
-        const selectedDate = sessionData.selectedDate || getIstDateString();
-        const selectedDisplay = sessionData.selectedDateDisplay || selectedDate;
+        
+        const freshGen = generateBookingDateOptions(sessionData.isSos === true);
+        const defaultDate = freshGen.isTodayAvailable ? getIstDateString() : getIstOffsetDateString(1);
+        const defaultDisplay = freshGen.isTodayAvailable ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`;
+
+        const selectedDate = sessionData.selectedDate || defaultDate;
+        const selectedDisplay = sessionData.selectedDateDisplay || defaultDisplay;
         
         // Resolve Doctor's ID dynamically
         let doctorId = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002"; // Fallback ID
@@ -2211,8 +2253,9 @@ async function triggerBotReplyPipeline(ctx: {
             }
           }
         } catch (_e) {}
-      }
-      const selectedDisplay = resolvedApptDate || getIstDateString();
+      const freshPayGen = generateBookingDateOptions(sessionData.isSos === true);
+      const defaultPayDateDisplay = freshPayGen.isTodayAvailable ? getIstDateString() : getIstOffsetDateString(1);
+      const selectedDisplay = resolvedApptDate || defaultPayDateDisplay;
 
       // 1. Screenshot OCR Processing
       if (isScreenshotProcessing && messageRaw?.image?.id) {
