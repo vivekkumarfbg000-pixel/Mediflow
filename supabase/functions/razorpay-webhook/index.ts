@@ -192,20 +192,37 @@ serve(async (req) => {
             doctorName = sessData.doctorName || doctorName;
             clinicName = sessData.clinicName || clinicName;
 
-            if (resolvedApptId) {
+            const apptLookupId = resolvedApptId || sessData.pendingApptId;
+            if (apptLookupId || sess.patient_id) {
               try {
-                const { data: dbAppt } = await supabase.from("appointments").select("virtual_date, appointment_time, token_number").eq("id", resolvedApptId).maybeSingle();
-                if (dbAppt?.virtual_date) {
-                  selectedDisplay = dbAppt.virtual_date;
-                } else if (dbAppt?.appointment_time) {
-                  try {
-                    selectedDisplay = getIstDateString(new Date(dbAppt.appointment_time));
-                  } catch {
-                    selectedDisplay = String(dbAppt.appointment_time).split('T')[0];
-                  }
+                let apptQ = supabase.from("appointments").select("virtual_date, virtual_time, appointment_time, token_number");
+                if (apptLookupId) {
+                  apptQ = apptQ.eq("id", apptLookupId);
+                } else if (sess.patient_id) {
+                  apptQ = apptQ.eq("patient_id", sess.patient_id).order("created_at", { ascending: false }).limit(1);
                 }
-                if (dbAppt?.token_number) {
-                  tokenNumber = dbAppt.token_number;
+                const { data: dbAppt } = await apptQ.maybeSingle();
+                if (dbAppt) {
+                  if (dbAppt.virtual_date) {
+                    selectedDisplay = dbAppt.virtual_date;
+                  } else if (dbAppt.appointment_time) {
+                    try {
+                      selectedDisplay = getIstDateString(new Date(dbAppt.appointment_time));
+                    } catch {
+                      selectedDisplay = String(dbAppt.appointment_time).split('T')[0];
+                    }
+                  }
+                  if (dbAppt.token_number) {
+                    tokenNumber = dbAppt.token_number;
+                  }
+                  if (dbAppt.virtual_time) {
+                    approxTime = dbAppt.virtual_time.split("-")[0].trim();
+                  } else if (dbAppt.appointment_time) {
+                    try {
+                      const dt = new Date(dbAppt.appointment_time);
+                      approxTime = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(dt);
+                    } catch {}
+                  }
                 }
               } catch (_e) {}
             }

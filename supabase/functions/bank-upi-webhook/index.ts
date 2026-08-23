@@ -133,22 +133,41 @@ serve(async (req) => {
       const invoiceId = sessionData.pendingInvoiceId;
       const apptId = sessionData.pendingApptId;
       let tokenNumber = sessionData.tokenNumber || 1;
-      const approxTime = sessionData.approxTime || "10:00 AM";
+      let approxTime = sessionData.approxTime;
       let resolvedApptDate = sessionData.selectedDateDisplay || sessionData.selectedDate;
-      if (apptId) {
+      if (apptId || waitingSess.patient_id) {
         try {
-          const { data: dbAppt } = await supabase.from("appointments").select("virtual_date, appointment_time, token_number").eq("id", apptId).maybeSingle();
-          if (dbAppt?.virtual_date) {
-            resolvedApptDate = dbAppt.virtual_date;
-          } else if (dbAppt?.appointment_time) {
-            try {
-              resolvedApptDate = getIstDateString(new Date(dbAppt.appointment_time));
-            } catch {
-              resolvedApptDate = String(dbAppt.appointment_time).split('T')[0];
+          let apptQ = supabase.from("appointments").select("virtual_date, virtual_time, appointment_time, token_number");
+          if (apptId) {
+            apptQ = apptQ.eq("id", apptId);
+          } else if (waitingSess.patient_id) {
+            apptQ = apptQ.eq("patient_id", waitingSess.patient_id).order("created_at", { ascending: false }).limit(1);
+          }
+          const { data: dbAppt } = await apptQ.maybeSingle();
+          if (dbAppt) {
+            if (dbAppt.virtual_date) {
+              resolvedApptDate = dbAppt.virtual_date;
+            } else if (dbAppt.appointment_time) {
+              try {
+                resolvedApptDate = getIstDateString(new Date(dbAppt.appointment_time));
+              } catch {
+                resolvedApptDate = String(dbAppt.appointment_time).split('T')[0];
+              }
+            }
+            if (dbAppt.token_number) tokenNumber = dbAppt.token_number;
+            if (dbAppt.virtual_time) {
+              approxTime = dbAppt.virtual_time.split("-")[0].trim();
+            } else if (dbAppt.appointment_time) {
+              try {
+                const dt = new Date(dbAppt.appointment_time);
+                approxTime = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(dt);
+              } catch {}
             }
           }
-          if (dbAppt?.token_number) tokenNumber = dbAppt.token_number;
         } catch (_e) {}
+      }
+      if (!approxTime) {
+        approxTime = sessionData.selectedSlot ? sessionData.selectedSlot.split("-")[0].trim() : "10:00 AM";
       }
       const selectedDisplay = resolvedApptDate || getIstDateString();
       const doctorName = sessionData.doctorName || "Doctor";

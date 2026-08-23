@@ -196,45 +196,59 @@ serve(async (req) => {
           let clinicName = "Connected Clinic";
 
           if (sess) {
-            const sessData = sess.session_data || {};
-            
-            // Anti-Hijacking Guard: Only transition session if it strictly matches this invoice
-            if (sessData.pendingInvoiceId === targetInvoiceId) {
-              tokenNumber = sessData.tokenNumber || tokenNumber;
-              approxTime = sessData.approxTime || approxTime;
-              selectedDisplay = sessData.selectedDateDisplay || sessData.selectedDate || selectedDisplay;
-              doctorName = sessData.doctorName || doctorName;
-              clinicName = sessData.clinicName || clinicName;
+              const sessData = sess.session_data || {};
+              
+              // Anti-Hijacking Guard: Only transition session if it strictly matches this invoice
+              if (sessData.pendingInvoiceId === targetInvoiceId || !sessData.pendingInvoiceId) {
+                tokenNumber = sessData.tokenNumber || tokenNumber;
+                approxTime = sessData.approxTime || approxTime;
+                selectedDisplay = sessData.selectedDateDisplay || sessData.selectedDate || selectedDisplay;
+                doctorName = sessData.doctorName || doctorName;
+                clinicName = sessData.clinicName || clinicName;
 
-              if (targetInvoiceId) {
-                try {
-                  const { data: dbInv } = await supabase.from("unified_invoices").select("encounter_id").eq("id", targetInvoiceId).maybeSingle();
-                  if (dbInv?.encounter_id) {
-                    const { data: dbAppt } = await supabase.from("appointments").select("virtual_date, appointment_time, token_number").eq("encounter_id", dbInv.encounter_id).maybeSingle();
-                    if (dbAppt?.virtual_date) {
-                      selectedDisplay = dbAppt.virtual_date;
-                    } else if (dbAppt?.appointment_time) {
-                      try {
-                        selectedDisplay = getIstDateString(new Date(dbAppt.appointment_time));
-                      } catch {
-                        selectedDisplay = String(dbAppt.appointment_time).split('T')[0];
+                const apptLookupId = sessData.pendingApptId;
+                if (apptLookupId || sess.patient_id || targetInvoiceId) {
+                  try {
+                    let apptQ = supabase.from("appointments").select("virtual_date, virtual_time, appointment_time, token_number");
+                    if (apptLookupId) {
+                      apptQ = apptQ.eq("id", apptLookupId);
+                    } else if (sess.patient_id) {
+                      apptQ = apptQ.eq("patient_id", sess.patient_id).order("created_at", { ascending: false }).limit(1);
+                    }
+                    const { data: dbAppt } = await apptQ.maybeSingle();
+                    if (dbAppt) {
+                      if (dbAppt.virtual_date) {
+                        selectedDisplay = dbAppt.virtual_date;
+                      } else if (dbAppt.appointment_time) {
+                        try {
+                          selectedDisplay = getIstDateString(new Date(dbAppt.appointment_time));
+                        } catch {
+                          selectedDisplay = String(dbAppt.appointment_time).split('T')[0];
+                        }
+                      }
+                      if (dbAppt.token_number) tokenNumber = dbAppt.token_number;
+                      if (dbAppt.virtual_time) {
+                        approxTime = dbAppt.virtual_time.split("-")[0].trim();
+                      } else if (dbAppt.appointment_time) {
+                        try {
+                          const dt = new Date(dbAppt.appointment_time);
+                          approxTime = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true }).format(dt);
+                        } catch {}
                       }
                     }
-                    if (dbAppt?.token_number) tokenNumber = dbAppt.token_number;
-                  }
-                } catch (_e) {}
-              }
+                  } catch (_e) {}
+                }
 
-              const updates = { isVerifiedPaid: true, pendingInvoiceId: targetInvoiceId };
-              await supabase.rpc('atomic_update_whatsapp_session', {
-                p_patient_phone: sess.patient_phone,
-                p_patient_id: sess.patient_id || null,
-                p_pod_id: sess.pod_id || null,
-                p_entity_id: sess.pod_id || null,
-                p_current_state: "COMPLETED",
-                p_message: null,
-                p_session_data_updates: updates
-              });
+                const updates = { isVerifiedPaid: true, pendingInvoiceId: targetInvoiceId };
+                await supabase.rpc('atomic_update_whatsapp_session', {
+                  p_patient_phone: sess.patient_phone,
+                  p_patient_id: sess.patient_id || null,
+                  p_pod_id: sess.pod_id || null,
+                  p_entity_id: sess.pod_id || null,
+                  p_current_state: "COMPLETED",
+                  p_message: null,
+                  p_session_data_updates: updates
+                });
 
               // Direct Outbound Meta Graph API Dispatch (<200ms)
               const metaToken = Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "";
