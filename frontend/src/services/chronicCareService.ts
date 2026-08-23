@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { getPodContext } from './podContext';
+import { getIstDateString, getIstOffsetDateString } from '../utils/dateUtils';
 
 export interface ChronicConditionProtocol {
   code: string;
@@ -246,8 +247,8 @@ export class ChronicCareService {
           medications: record.medications || [],
           days_supply: record.daysSupply || 30,
           dispensed_at: new Date().toISOString(),
-          next_refill_date: record.nextRefillDate || new Date(Date.now() + 25 * 86400000).toISOString().split('T')[0],
-          next_retest_date: record.nextRetestDate || new Date(Date.now() + 75 * 86400000).toISOString().split('T')[0],
+          next_refill_date: record.nextRefillDate || getIstOffsetDateString(25),
+          next_retest_date: record.nextRetestDate || getIstOffsetDateString(75),
           retest_test_code: record.retestTestCode || '4544-3',
           retest_test_name: record.retestTestName || 'HbA1c & Fasting Glucose Panel',
           adherence_score: record.adherenceScore || 100.0,
@@ -266,12 +267,7 @@ export class ChronicCareService {
    * Fallback mock cohorts for seamless UI preview
    */
   public static getFallbackMockCohorts(): ChronicCohortRecord[] {
-    const today = new Date();
-    const addDays = (d: number) => {
-      const target = new Date(today);
-      target.setDate(target.getDate() + d);
-      return target.toISOString().split('T')[0];
-    };
+    const addDays = (d: number) => getIstOffsetDateString(d);
 
     return [
       {

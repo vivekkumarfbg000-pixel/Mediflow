@@ -132,9 +132,17 @@ serve(async (req) => {
       const sessionData = waitingSess.session_data || {};
       const invoiceId = sessionData.pendingInvoiceId;
       const apptId = sessionData.pendingApptId;
-      const tokenNumber = sessionData.tokenNumber || 1;
+      let tokenNumber = sessionData.tokenNumber || 1;
       const approxTime = sessionData.approxTime || "10:00 AM";
-      const selectedDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate ? sessionData.selectedDate : getIstDateString());
+      let resolvedApptDate = sessionData.selectedDateDisplay || sessionData.selectedDate;
+      if (apptId) {
+        try {
+          const { data: dbAppt } = await supabase.from("appointments").select("virtual_date, appointment_time, token_number").eq("id", apptId).maybeSingle();
+          if (dbAppt?.virtual_date) resolvedApptDate = dbAppt.virtual_date;
+          if (dbAppt?.token_number) tokenNumber = dbAppt.token_number;
+        } catch (_e) {}
+      }
+      const selectedDisplay = resolvedApptDate || getIstDateString();
       const doctorName = sessionData.doctorName || "Doctor";
       const clinicName = sessionData.clinicName || "Clinic";
 

@@ -7,7 +7,7 @@ import { LabService } from './labService';
 import { BillingService } from './billingService';
 import { PaymentService } from './paymentService';
 import { getPodContext } from './podContext';
-import { getIstDateString } from '../utils/dateUtils';
+import { getIstDateString, getIstOffsetDateString } from '../utils/dateUtils';
 import type { 
   WhatsAppSession, 
   ChatMessage, 
@@ -902,7 +902,7 @@ export class WhatsAppService {
             const appt = appts.find(a => a.id === apptId);
             if (appt) {
               appt.virtualTime = selectedSlotText;
-              appt.virtualDate = getIstDateString(new Date(Date.now() + 24 * 3600 * 1000));
+              appt.virtualDate = sessionData.reschedulingDate || getIstOffsetDateString(1);
               BillingService.saveAppointment(appt);
               Promise.resolve(supabase.from('appointments').update({
                 status: 'ready_for_consult'
@@ -1015,7 +1015,7 @@ export class WhatsAppService {
                 created_at: new Date().toISOString(),
                 isVirtual: true,
                 is_virtual: true,
-                virtualDate: getIstDateString(new Date(Date.now() + 24 * 3600 * 1000)),
+                virtualDate: sessionData.selectedDate || getIstOffsetDateString(1),
                 virtualTime: selectedSlotText,
                 virtualMeetingUrl: `https://meet.jit.si/vitalsync-consult-${apptId}`,
                 virtualTimeAllocated: false
