@@ -197,6 +197,12 @@ serve(async (req) => {
                 const { data: dbAppt } = await supabase.from("appointments").select("virtual_date, appointment_time, token_number").eq("id", resolvedApptId).maybeSingle();
                 if (dbAppt?.virtual_date) {
                   selectedDisplay = dbAppt.virtual_date;
+                } else if (dbAppt?.appointment_time) {
+                  try {
+                    selectedDisplay = getIstDateString(new Date(dbAppt.appointment_time));
+                  } catch {
+                    selectedDisplay = String(dbAppt.appointment_time).split('T')[0];
+                  }
                 }
                 if (dbAppt?.token_number) {
                   tokenNumber = dbAppt.token_number;

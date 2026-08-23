@@ -130,7 +130,7 @@ serve(async (req) => {
               currentDelayMs = Math.min(currentDelayMs * 2, 5000); // Max backoff 5 seconds
               await sleep(currentDelayMs);
             } else {
-              // 400 Bad Request, etc. Do not retry client errors.
+              // 400 Bad Request, 24-hr window limit, etc.
               break; 
             }
           }
@@ -138,6 +138,40 @@ serve(async (req) => {
           errorDetails = e.message;
           await sleep(currentDelayMs);
           currentDelayMs = Math.min(currentDelayMs * 2, 5000);
+        }
+      }
+
+      // Automatic 24-Hour Window Bypass: Fallback to Meta Approved Template if Error 131047 occurs
+      if (!success && (errorDetails.includes("131047") || errorDetails.includes("Re-engagement message") || errorDetails.includes("131026"))) {
+        console.log(`[whatsapp-broadcast-worker] 24-Hour Customer Window Expired (Meta Error 131047) for ${cleanPhone}. Retrying via pre-approved Meta Template...`);
+        try {
+          const defaultTpl = Deno.env.get("META_DEFAULT_TEMPLATE") || "hello_world";
+          const templateRes = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${systemToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              to: cleanPhone,
+              type: "template",
+              template: {
+                name: defaultTpl,
+                language: { code: "en_US" }
+              }
+            })
+          });
+
+          if (templateRes.ok) {
+            success = true;
+            console.log(`[whatsapp-broadcast-worker] Template Fallback Delivered successfully to ${cleanPhone}`);
+          } else {
+            const tplErrData = await templateRes.json().catch(() => ({}));
+            errorDetails = `Template Fallback Failed: ${JSON.stringify(tplErrData)}`;
+          }
+        } catch (_tplErr: any) {
+          errorDetails = `Template Error: ${_tplErr?.message}`;
         }
       }
 

@@ -2182,8 +2182,16 @@ async function triggerBotReplyPipeline(ctx: {
           }
           const { data: dbAppt } = await apptQuery.maybeSingle();
           if (dbAppt) {
-            if (!resolvedApptDate && dbAppt.virtual_date) {
-              resolvedApptDate = dbAppt.virtual_date;
+            if (!resolvedApptDate) {
+              if (dbAppt.virtual_date) {
+                resolvedApptDate = dbAppt.virtual_date;
+              } else if (dbAppt.appointment_time) {
+                try {
+                  resolvedApptDate = getIstDateString(new Date(dbAppt.appointment_time));
+                } catch {
+                  resolvedApptDate = String(dbAppt.appointment_time).split('T')[0];
+                }
+              }
             }
             if (dbAppt.token_number) {
               tokenNumber = dbAppt.token_number;
