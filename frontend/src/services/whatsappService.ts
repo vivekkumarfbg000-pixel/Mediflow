@@ -182,14 +182,19 @@ export class WhatsAppService {
               } catch (_dbE) {}
             }
 
+            let validSystemToken: string | undefined = undefined;
+            if (activeToken && String(activeToken).startsWith('EAA')) {
+              validSystemToken = activeToken;
+            }
+
             const invokeRes = await sb.functions.invoke('meta-webhook', {
               body: {
                 action: 'send_manual_message',
                 patientPhone: cleanToPhone,
                 messageText: msgBody,
-                phoneId: activePhoneId || undefined,
-                phoneNumberId: activePhoneId || undefined,
-                systemToken: activeToken || undefined
+                phoneId: (activePhoneId && activePhoneId !== '105829471928374') ? activePhoneId : undefined,
+                phoneNumberId: (activePhoneId && activePhoneId !== '105829471928374') ? activePhoneId : undefined,
+                systemToken: validSystemToken
               }
             });
             console.log("DIAGNOSTIC: Edge function invocation result:", invokeRes);

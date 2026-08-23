@@ -335,11 +335,13 @@ if (!isManualRelay) {
       if (payload?.action === "send_manual_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
-        let phoneId = (payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
-        let systemToken = (payload.systemToken || payload.token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
 
-        // If phoneId is a dummy mock ID or missing, attempt to fetch real production credentials from DB
-        if (phoneId === "105829471928374" || phoneId.startsWith("demo-") || !phoneId || !systemToken) {
+        // 1. Primary: VitalSync Master Company Token from Supabase Secrets
+        let systemToken = (Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+        let phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
+
+        // 2. Secondary: If secrets not yet loaded into Deno, query database
+        if (!systemToken || !phoneId) {
           try {
             const { data: dbConn } = await supabase
               .from("waba_connections")
@@ -349,29 +351,27 @@ if (!isManualRelay) {
               .maybeSingle();
 
             if (dbConn) {
-              if (dbConn.phone_number_id && dbConn.phone_number_id !== "105829471928374") {
-                phoneId = dbConn.phone_number_id;
-              } else if (!phoneId || phoneId === "105829471928374") {
-                phoneId = dbConn.phone_number_id || phoneId;
-              }
-              if (dbConn.access_token && dbConn.access_token.startsWith("EAA")) {
-                systemToken = dbConn.access_token;
-              } else if (dbConn.encrypted_system_user_token) {
-                const decrypted = await decryptWabaToken(phoneId);
-                if (decrypted && decrypted.startsWith("EAA")) {
-                  systemToken = decrypted;
+              if (!phoneId) phoneId = dbConn.phone_number_id || "";
+              if (!systemToken) {
+                if (dbConn.access_token && dbConn.access_token.startsWith("EAA")) {
+                  systemToken = dbConn.access_token;
+                } else if (dbConn.encrypted_system_user_token) {
+                  const decrypted = await decryptWabaToken(phoneId || dbConn.phone_number_id);
+                  if (decrypted && decrypted.startsWith("EAA")) {
+                    systemToken = decrypted;
+                  }
                 }
               }
             }
           } catch (_e) {}
         }
 
-        // Final fallback to environment secrets
-        if (!phoneId || phoneId === "105829471928374") {
-          phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
+        // 3. Optional valid payload override
+        if (payload.systemToken && String(payload.systemToken).startsWith("EAA")) {
+          systemToken = payload.systemToken;
         }
-        if (!systemToken) {
-          systemToken = (Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+        if (payload.phoneId && payload.phoneId !== "105829471928374") {
+          phoneId = payload.phoneId;
         }
 
         if (!systemToken || !phoneId) {
@@ -535,29 +535,42 @@ if (!isManualRelay) {
       if (payload?.action === "send_broadcast_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
-        let phoneId = (payload.phoneId || payload.phoneNumberId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
-        let systemToken = (payload.systemToken || payload.token || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
 
+        // 1. Primary: VitalSync Master Company Token from Supabase Secrets
+        let systemToken = (Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+        let phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
+
+        // 2. Secondary: If secrets not yet loaded into Deno, query database
         if (!systemToken || !phoneId) {
           try {
             const { data: dbConn } = await supabase
               .from("waba_connections")
-              .select("phone_number_id, encrypted_system_user_token")
+              .select("phone_number_id, access_token, encrypted_system_user_token")
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
             if (dbConn) {
-              if (!phoneId && dbConn.phone_number_id) phoneId = dbConn.phone_number_id;
-              if (!systemToken && dbConn.encrypted_system_user_token) {
-                const decrypted = await decryptWabaToken(phoneId || dbConn.phone_number_id);
-                if (decrypted) {
-                  systemToken = decrypted;
-                } else {
-                  systemToken = dbConn.encrypted_system_user_token;
+              if (!phoneId) phoneId = dbConn.phone_number_id || "";
+              if (!systemToken) {
+                if (dbConn.access_token && dbConn.access_token.startsWith("EAA")) {
+                  systemToken = dbConn.access_token;
+                } else if (dbConn.encrypted_system_user_token) {
+                  const decrypted = await decryptWabaToken(phoneId || dbConn.phone_number_id);
+                  if (decrypted && decrypted.startsWith("EAA")) {
+                    systemToken = decrypted;
+                  }
                 }
               }
             }
           } catch (_e) {}
+        }
+
+        // 3. Optional valid payload override
+        if (payload.systemToken && String(payload.systemToken).startsWith("EAA")) {
+          systemToken = payload.systemToken;
+        }
+        if (payload.phoneId && payload.phoneId !== "105829471928374") {
+          phoneId = payload.phoneId;
         }
 
         if (!systemToken || !phoneId || !patientPhone || !messageText) {

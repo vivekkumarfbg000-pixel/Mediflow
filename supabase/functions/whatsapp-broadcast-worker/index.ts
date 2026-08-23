@@ -29,47 +29,46 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Missing campaign_id or pod_id" }), { status: 400, headers: corsHeaders });
     }
 
-    // 1. Fetch WABA connection for this pod or fallback to platform master Meta credentials
-    let systemToken = "";
-    let phoneId = "";
+    // 1. Primary: VitalSync Master Company Token from Supabase Secrets
+    let systemToken = (Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+    let phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || Deno.env.get("PHONE_NUMBER_ID") || "").trim();
 
-    try {
-      const { data: wabaConn } = await supabase
-        .from("waba_connections")
-        .select("phone_number_id, access_token, encrypted_system_user_token")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // 2. Secondary: If secrets not in Deno, check DB connection
+    if (!systemToken || !phoneId) {
+      try {
+        const { data: wabaConn } = await supabase
+          .from("waba_connections")
+          .select("phone_number_id, access_token, encrypted_system_user_token")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (wabaConn) {
-        phoneId = wabaConn.phone_number_id || phoneId;
-        if (wabaConn.access_token && wabaConn.access_token.startsWith("EAA")) {
-          systemToken = wabaConn.access_token;
-        } else if (wabaConn.encrypted_system_user_token) {
-          const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY") || "vitalsync_master_vault_key_2026";
-          try {
-            const { data: rpcData } = await supabase.rpc("decrypt_tenant_waba_connection", {
-              p_phone_number_id: wabaConn.phone_number_id,
-              p_secret_key: wabaSecretKey
-            });
-            if (rpcData && rpcData.length > 0 && rpcData[0].decrypted_token && rpcData[0].decrypted_token.startsWith("EAA")) {
-              systemToken = rpcData[0].decrypted_token;
+        if (wabaConn) {
+          if (!phoneId) phoneId = wabaConn.phone_number_id || "";
+          if (!systemToken) {
+            if (wabaConn.access_token && wabaConn.access_token.startsWith("EAA")) {
+              systemToken = wabaConn.access_token;
+            } else if (wabaConn.encrypted_system_user_token) {
+              const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY") || "vitalsync_master_vault_key_2026";
+              try {
+                const { data: rpcData } = await supabase.rpc("decrypt_tenant_waba_connection", {
+                  p_phone_number_id: wabaConn.phone_number_id,
+                  p_secret_key: wabaSecretKey
+                });
+                if (rpcData && rpcData.length > 0 && rpcData[0].decrypted_token && rpcData[0].decrypted_token.startsWith("EAA")) {
+                  systemToken = rpcData[0].decrypted_token;
+                }
+              } catch (_rpcE) {}
             }
-          } catch (_rpcE) {}
+          }
         }
+      } catch (wErr) {
+        console.warn("[whatsapp-broadcast-worker] Tenant WABA resolution note:", wErr);
       }
-    } catch (wErr) {
-      console.warn("[whatsapp-broadcast-worker] Tenant WABA resolution note:", wErr);
-    }
-
-    // Fallback to Vault Master Meta WhatsApp Token & Phone ID
-    if (!systemToken) {
-      systemToken = (Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "").trim();
-      phoneId = phoneId || (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("PHONE_NUMBER_ID") || "104961819356614").trim();
     }
 
     if (!systemToken) {
-      return new Response(JSON.stringify({ error: "No active Meta WhatsApp token available (neither tenant WABA nor master META_WHATSAPP_TOKEN)." }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "No active Meta WhatsApp token available (neither tenant WABA nor master OWNER_SYSTEM_TOKEN)." }), { status: 400, headers: corsHeaders });
     }
 
     // 2. Fetch and lock a batch of pending jobs atomically using SKIP LOCKED RPC
