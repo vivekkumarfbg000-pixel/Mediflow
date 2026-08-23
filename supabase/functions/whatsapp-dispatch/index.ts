@@ -148,32 +148,31 @@ serve(async (req) => {
     
     const plainTextMessage = `Namaste ${patientDisplayName}! Aapka payment of ₹${amountVal} successful raha for Invoice #${invoiceNum}. VitalSync healthcare app checkup slots configure ho rahe hain. We look forward to serving you! 🟢`;
 
-    let decryptedToken = "";
-    let phoneId = "";
+    // 1. Primary: Master platform secrets
+    let decryptedToken = (Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+    let phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "1168872099651441").trim();
 
-    if (wabaConn) {
-      try {
-        const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY");
-        if (wabaSecretKey) {
+    // 2. Secondary: If secrets not in Deno, check DB connection
+    if (!decryptedToken && wabaConn) {
+      if (wabaConn.access_token && wabaConn.access_token.startsWith("EAA")) {
+        decryptedToken = wabaConn.access_token;
+        phoneId = wabaConn.phone_number_id || phoneId;
+      } else {
+        try {
+          const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY") || "vitalsync_master_vault_key_2026";
           const { data: rpcData, error: rpcErr } = await supabase.rpc("decrypt_tenant_waba_connection", {
             p_phone_number_id: wabaConn.phone_number_id,
             p_secret_key: wabaSecretKey
           });
 
-          if (!rpcErr && rpcData && rpcData.length > 0 && rpcData[0].decrypted_token) {
+          if (!rpcErr && rpcData && rpcData.length > 0 && rpcData[0].decrypted_token && rpcData[0].decrypted_token.startsWith("EAA")) {
             decryptedToken = rpcData[0].decrypted_token;
-            phoneId = wabaConn.phone_number_id;
+            phoneId = wabaConn.phone_number_id || phoneId;
           }
+        } catch (err: any) {
+          console.warn("[whatsapp-dispatch] Tenant WABA token decryption notice:", err);
         }
-      } catch (err: any) {
-        console.warn("[whatsapp-dispatch] Tenant WABA token decryption notice:", err);
       }
-    }
-
-    // Fallback to Vault Master Meta WhatsApp credentials
-    if (!decryptedToken) {
-      decryptedToken = (Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "").trim();
-      phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("PHONE_NUMBER_ID") || "104961819356614").trim();
     }
 
     if (decryptedToken && phoneId) {

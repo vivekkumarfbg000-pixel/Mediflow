@@ -222,8 +222,8 @@ serve(async (req) => {
                 });
 
                 // Direct Outbound Meta Graph API Dispatch (<200ms)
-                const metaToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
-                const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || "549557451578330";
+                const metaToken = Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "";
+                const phoneId = Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "1168872099651441";
                 const outboundPhone = sess?.patient_phone || patientPhone;
 
                 if (metaToken && outboundPhone) {
