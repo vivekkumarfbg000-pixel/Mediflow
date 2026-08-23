@@ -395,6 +395,7 @@ export const CompounderDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchLiveAppointments();
+    const interval = setInterval(fetchLiveAppointments, 4000);
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
         console.log('[CompounderDashboard] Realtime Appointment update:', payload);

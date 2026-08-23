@@ -505,12 +505,15 @@ export const DoctorDashboard: React.FC = () => {
 
       // Fetch live remote DB records scoped to active tenant pod ID in a single Promise.all batch
       const currentPodId = activePod?.id || activeDoctorProfile?.pod_id || activeDoctorProfile?.podId || getPodContext().podId;
-      const targetPodId = currentPodId || 'unassigned-pod';
+      const targetPodId = currentPodId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
 
-      const apptsQuery = supabase.from('appointments').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
-      const ledgersQuery = supabase.from('financial_ledgers').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
-      const patientsQuery = supabase.from('patient_registry').select('*').eq('pod_id', targetPodId).order('created_at', { ascending: false });
-      const sessionsQuery = supabase.from('whatsapp_sessions').select('*').eq('pod_id', targetPodId).order('last_interaction', { ascending: false });
+      let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
+      if (targetPodId && targetPodId !== 'default-pod') {
+        apptsQuery = apptsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317001`);
+      }
+      const ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
+      const patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false });
+      const sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
 
       Promise.all([
         apptsQuery,

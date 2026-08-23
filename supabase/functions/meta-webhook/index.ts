@@ -1818,11 +1818,43 @@ async function triggerBotReplyPipeline(ctx: {
 
     case "AWAITING_SLOT_SELECTION":
       let slotText = "";
-      if (cleaned === "1" || cleaned.includes("morning") || replyId === "btn_slot_1" || replyId === "1") {
+      const lowerSlot = (cleaned || messageText || "").toLowerCase().trim();
+      if (
+        lowerSlot === "1" ||
+        lowerSlot.includes("morning") ||
+        lowerSlot.includes("10am") ||
+        lowerSlot.includes("10:00") ||
+        lowerSlot.includes("10 am") ||
+        lowerSlot.includes("subah") ||
+        replyId === "btn_slot_1" ||
+        replyId === "1"
+      ) {
         slotText = "10:00 AM - 12:00 PM";
-      } else if (cleaned === "2" || cleaned.includes("afternoon") || replyId === "btn_slot_2" || replyId === "2") {
+      } else if (
+        lowerSlot === "2" ||
+        lowerSlot.includes("afternoon") ||
+        lowerSlot.includes("2pm") ||
+        lowerSlot.includes("2 pm") ||
+        lowerSlot.includes("02:00") ||
+        lowerSlot.includes("2:00") ||
+        lowerSlot.includes("2") ||
+        lowerSlot.includes("dopahar") ||
+        replyId === "btn_slot_2" ||
+        replyId === "2"
+      ) {
         slotText = "02:00 PM - 04:00 PM";
-      } else if (cleaned === "3" || cleaned.includes("evening") || replyId === "btn_slot_3" || replyId === "3") {
+      } else if (
+        lowerSlot === "3" ||
+        lowerSlot.includes("evening") ||
+        lowerSlot.includes("6pm") ||
+        lowerSlot.includes("6 pm") ||
+        lowerSlot.includes("06:00") ||
+        lowerSlot.includes("6:00") ||
+        lowerSlot.includes("6") ||
+        lowerSlot.includes("shaam") ||
+        replyId === "btn_slot_3" ||
+        replyId === "3"
+      ) {
         slotText = "06:00 PM - 08:00 PM";
       }
 
