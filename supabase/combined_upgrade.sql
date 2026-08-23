@@ -2275,5 +2275,10 @@ ON public.whatsapp_broadcast_campaigns FOR UPDATE
 USING (true);
 
 -- =============================================================================
+-- SECTION 46: WABA Direct Access Token Support
+-- =============================================================================
+ALTER TABLE public.waba_connections ADD COLUMN IF NOT EXISTS access_token TEXT;
+
+-- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================

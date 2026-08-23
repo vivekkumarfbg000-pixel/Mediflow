@@ -343,7 +343,7 @@ if (!isManualRelay) {
           try {
             const { data: dbConn } = await supabase
               .from("waba_connections")
-              .select("phone_number_id, encrypted_system_user_token")
+              .select("phone_number_id, access_token, encrypted_system_user_token")
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
@@ -354,12 +354,12 @@ if (!isManualRelay) {
               } else if (!phoneId || phoneId === "105829471928374") {
                 phoneId = dbConn.phone_number_id || phoneId;
               }
-              if (dbConn.encrypted_system_user_token) {
+              if (dbConn.access_token && dbConn.access_token.startsWith("EAA")) {
+                systemToken = dbConn.access_token;
+              } else if (dbConn.encrypted_system_user_token) {
                 const decrypted = await decryptWabaToken(phoneId);
-                if (decrypted) {
+                if (decrypted && decrypted.startsWith("EAA")) {
                   systemToken = decrypted;
-                } else {
-                  systemToken = dbConn.encrypted_system_user_token;
                 }
               }
             }
