@@ -153,9 +153,9 @@ export const CompounderDashboard: React.FC = () => {
   } | null>(null);
 
   // Registry state
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patients, setPatients] = useState<Patient[]>(() => api.getPatients());
+  const [sessions, setSessions] = useState<WhatsAppSession[]>(() => api.getWhatsAppSessions());
+  const [appointments, setAppointments] = useState<Appointment[]>(() => api.getAppointments());
   const [dataRevision, setDataRevision] = useState(0);
 
 
