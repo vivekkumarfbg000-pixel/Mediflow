@@ -87,6 +87,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         detail: { title: 'Simulated Alarm Active 🚨', message: 'HbA1c vital threshold warning pushed to Bihar Region.', type: 'warning' }
       }));
       onClose();
+    } },
+    { id: 'doctor_pitch_deck', category: 'Navigation', label: 'Doctor Pitch Deck (Print / PDF Presentation) 📄', shortcut: '/deck', action: () => {
+      window.open('/pitch', '_blank');
+      onClose();
     } }
   ], [setActiveTab, onClose]);
 

@@ -59,6 +59,7 @@ import { AuthGateway } from './components/shared/AuthGateway';
 import { BrandMark } from './components/shared/BrandMark';
 import { WhatsAppPaymentPage } from './pages/WhatsAppPaymentPage';
 import { LegalPoliciesPage } from './pages/LegalPoliciesPage';
+import { DoctorPitchDeckPrintPage } from './pages/DoctorPitchDeckPrintPage';
 import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
@@ -490,7 +491,7 @@ const setCrossDomainCookie = (active: boolean) => {
 };
 
 export default function App() {
-  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal'>(() => {
+  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal' | 'pitch'>(() => {
     if (typeof window !== 'undefined') {
       const pathName = window.location.pathname.toLowerCase();
       const searchParams = new URLSearchParams(window.location.search);
@@ -505,6 +506,15 @@ export default function App() {
         pathName.startsWith('/contact')
       ) {
         return 'legal';
+      }
+      if (
+        pathName.startsWith('/pitch') || 
+        pathName.startsWith('/deck') ||
+        pathName.startsWith('/presentation') ||
+        searchParams.get('page') === 'pitch' ||
+        searchParams.get('page') === 'deck'
+      ) {
+        return 'pitch';
       }
     }
     return null;
@@ -1344,6 +1354,13 @@ export default function App() {
     return (
       <ToastProvider>
         <LegalPoliciesPage />
+      </ToastProvider>
+    );
+  }
+  if (publicPage === 'pitch') {
+    return (
+      <ToastProvider>
+        <DoctorPitchDeckPrintPage />
       </ToastProvider>
     );
   }
