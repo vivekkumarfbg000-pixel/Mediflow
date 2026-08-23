@@ -743,7 +743,7 @@ export const BillingDashboard: React.FC = () => {
                   <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-2xl w-48 h-48 flex flex-col items-center justify-center relative overflow-hidden group">
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
-                        `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${selectedInvoice.totalAmount}&cu=INR`
+                        `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(selectedInvoice.totalAmount || 0).toFixed(2)}&cu=INR`
                       )}`}
                       alt="Scan to Pay UPI"
                       className="w-40 h-40 object-contain select-none"

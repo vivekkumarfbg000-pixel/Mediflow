@@ -147,7 +147,7 @@ export class EncounterService {
       pharmacyFee: pharmFee,
       platformFee: platFee,
       totalAmount: total,
-      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${total}&cu=INR&tn=VitalSync-${encounterId}`,
+      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(total || 0).toFixed(2)}&cu=INR&tn=VitalSync-${encounterId}`,
       paymentStatus: (docFee === 0 && labFee === 0 && pharmFee === 0) ? 'cleared' : 'pending',
       createdAt: new Date().toISOString()
     };

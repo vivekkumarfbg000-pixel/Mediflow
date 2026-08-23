@@ -887,7 +887,7 @@ export const BillHubTab: React.FC = () => {
         pharmacyFee: billingLedger.pharmacySub,
         platformFee: isPureCounterConsult ? 0 : parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
         totalAmount: billingLedger.finalTotal,
-        upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=VitalSync-${unifiedInvoiceId}`,
+        upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(billingLedger.finalTotal || 0).toFixed(2)}&cu=INR&tn=VitalSync-${unifiedInvoiceId}`,
         paymentStatus: 'cleared',
         paymentMethod: paymentMethod,
         createdAt: new Date().toISOString()
@@ -982,7 +982,7 @@ export const BillHubTab: React.FC = () => {
 
   const dynamicUpiPayload = useMemo(() => {
     if (!billingLedger) return '';
-    return `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${billingLedger.finalTotal}&cu=INR&tn=BillHub-${(selectedPatient?.id || 'pat-0000').substring(0, 8)}`;
+    return `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(billingLedger.finalTotal || 0).toFixed(2)}&cu=INR&tn=BillHub-${(selectedPatient?.id || 'pat-0000').substring(0, 8)}`;
   }, [billingLedger, selectedPatient]);
 
   return (
