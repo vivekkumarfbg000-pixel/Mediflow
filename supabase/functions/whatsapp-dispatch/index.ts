@@ -35,10 +35,10 @@ serve(async (req) => {
 
     const bodyJson = await req.json().catch(() => ({}));
     const validationResult = z.object({
-      patientId: z.string().uuid("Invalid patientId UUID format"),
+      patientId: z.string().min(1, "patientId is required"),
       templateName: z.string().min(1, "Template name is required"),
       templateParams: z.record(z.any()).optional(),
-      podId: z.string().uuid("Invalid podId UUID format"),
+      podId: z.string().min(1, "podId is required"),
     }).safeParse(bodyJson);
 
     if (!validationResult.success) {

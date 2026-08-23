@@ -3,7 +3,7 @@
 -- to prevent silent cross-tenant data leakage in multi-tenant environments.
 
 CREATE OR REPLACE FUNCTION public.process_invoice_settlement(
-    p_invoice_id UUID,
+    p_invoice_id TEXT,
     p_payment_method TEXT,
     p_amount_paid NUMERIC DEFAULT NULL,
     p_gateway_reference_id TEXT DEFAULT NULL
@@ -24,7 +24,8 @@ BEGIN
     -- 1. Lock the invoice to prevent concurrent webhook/counter race conditions
     SELECT * INTO v_invoice 
     FROM unified_invoices 
-    WHERE id = p_invoice_id 
+    WHERE id::text = p_invoice_id::text OR id::text LIKE p_invoice_id || '%'
+    LIMIT 1
     FOR UPDATE;
 
     IF NOT FOUND THEN

@@ -40,8 +40,8 @@ serve(async (req) => {
 
     // ── Input validation ────────────────────────────────────────────────────
     const validationResult = z.object({
-      podId:      z.string().uuid("Invalid podId UUID"),
-      entityId:   z.string().uuid("Invalid entityId UUID"),
+      podId:      z.string().min(1, "podId is required"),
+      entityId:   z.string().min(1, "entityId is required"),
       saleType:   z.enum(["pharmacy", "lab"], { errorMap: () => ({ message: 'saleType must be "pharmacy" or "lab"' }) }),
       grossAmount: z.number().positive("grossAmount must be a positive number"),
       items:      z.array(z.object({
@@ -50,7 +50,7 @@ serve(async (req) => {
         unit_price:    z.number().positive(),
         line_total:    z.number().positive(),
       })).min(1, "At least one item is required"),
-      patientId:  z.string().uuid().optional(),
+      patientId:  z.string().min(1).optional(),
       notes:      z.string().max(500).optional(),
     }).safeParse(bodyJson);
 

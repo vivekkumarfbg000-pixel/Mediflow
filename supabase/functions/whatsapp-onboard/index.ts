@@ -291,10 +291,18 @@ serve(async (req) => {
           created_at: new Date().toISOString()
         };
 
+        let safeEntityId: string | null = null;
+        if (entityId) {
+          try {
+            const { data: ent } = await supabase.from("entities").select("id").eq("id", entityId).maybeSingle();
+            if (ent?.id) safeEntityId = ent.id;
+          } catch (_e) {}
+        }
+
         try {
           await supabase.from("waba_connections").upsert({
             pod_id: podId,
-            entity_id: entityId ?? podId,
+            entity_id: safeEntityId,
             phone_number_id: phoneNumberId,
             waba_id: ownerWabaId,
             phone_number: clinicPhone,

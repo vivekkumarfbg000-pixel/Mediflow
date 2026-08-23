@@ -2375,11 +2375,19 @@ export const CompounderDashboard: React.FC = () => {
                                   (async () => {
                                     try {
                                       const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
-                                      const podCtx = (() => { try { const r = localStorage.getItem('mediflow_active_pod'); return r ? JSON.parse(r) : null; } catch { return null; } })();
+                                      const podCtx = (() => {
+                                        try {
+                                          const r = localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('vitalsync_cached_active_pod') || localStorage.getItem('mediflow_active_pod');
+                                          return r ? JSON.parse(r) : null;
+                                        } catch {
+                                          return null;
+                                        }
+                                      })();
+                                      const resolvedDocId = getPodContext().doctorId || podCtx?.id || podCtx?.doctorId || null;
                                       await supabase.from('appointments').insert({
                                         id: newInvoice?.appointmentId || crypto.randomUUID(),
                                         patient_id: selectedApptPatient.id.length === 36 ? selectedApptPatient.id : null,
-                                        doctor_id: podCtx?.id || podCtx?.doctorId || null,
+                                        doctor_id: resolvedDocId,
                                         status: 'confirmed',
                                         created_at: new Date().toISOString(),
                                         token_number: assignedToken,

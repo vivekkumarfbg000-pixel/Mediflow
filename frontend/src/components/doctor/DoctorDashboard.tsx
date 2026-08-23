@@ -73,10 +73,11 @@ const FinancialsTab = safeLazy(() => import('./tabs/FinancialsTab').then(m => ({
 const PatientsDirectoryTab = safeLazy(() => import('./tabs/PatientsDirectoryTab').then(m => ({ default: m.PatientsDirectoryTab })));
 const WhatsAppTab = safeLazy(() => import('./tabs/WhatsAppTab').then(m => ({ default: m.WhatsAppTab })));
 const SopConfigTab = safeLazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
+const ChronicCareTab = safeLazy(() => import('./tabs/ChronicCareTab').then(m => ({ default: m.ChronicCareTab })));
 
 export const DoctorDashboard: React.FC = () => {
   const { activePod, activeEntity, activeProfile } = useClinic();
-  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule'>('pod_view');
+  const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule' | 'chronic'>('pod_view');
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
@@ -1694,6 +1695,18 @@ Keep the tone professional, clinical, objective, and precise.`;
                   setSopActiveSubTab={setSopActiveSubTab}
                 />
               );
+            case 'chronic':
+              return (
+                <ChronicCareTab
+                  onSelectPatient={(patientId: string) => {
+                    const pat = patients.find(p => p.id === patientId);
+                    if (pat) {
+                      setSelectedPatient(pat);
+                      setActiveTab('consultation');
+                    }
+                  }}
+                />
+              );
 
             default:
               return (
@@ -2173,6 +2186,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           {[
             { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard },
             { id: 'consultation',      label: 'Consultation Queue',     icon: ClipboardList },
+            { id: 'chronic',           label: 'Chronic Care & Refills 🩸', icon: HeartPulse },
             { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video },
             { id: 'financials',        label: 'Financial Reports',      icon: CreditCard },
             { id: 'patients',          label: 'Patient Directory',      icon: Users },

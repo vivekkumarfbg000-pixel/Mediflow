@@ -199,21 +199,28 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
 
               <section className="space-y-3">
                 <h4 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span> 2. Nature of Services Provided
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span> 2. Nature of Services & Virtual Hospital Network
                 </h4>
                 <p>
-                  VitalSync provides SaaS software infrastructure for medical clinics, doctor consultations, e-prescription generation, pathology lab requisitions, and digital OPD token routing. VitalSync acts as a digital facilitator linking patients with licensed medical practitioners and partner clinics. VitalSync does not practice medicine or directly provide clinical diagnosis.
+                  VitalSync provides technology infrastructure and managed digital care coordination for independent medical clinics, licensed medical practitioners, registered pharmacies, and certified pathology laboratories (&quot;Virtual Hospital Care Network&quot;). VitalSync acts as a digital facilitator and intermediary under the Information Technology Act 2000. VitalSync does not directly practice medicine, dispense pharmaceutical drugs, or perform laboratory analysis.
+                </p>
+                <p>
+                  All clinical diagnoses, digital prescriptions, and medical decisions are the independent professional responsibility of the treating Registered Medical Practitioner (RMP). Pharmacy fulfillment is executed strictly by licensed retail pharmacies under the Drugs and Cosmetics Act 1940. Diagnostic testing is conducted by accredited pathology laboratories.
                 </p>
               </section>
 
               <section className="space-y-3">
                 <h4 className="text-base font-bold text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span> 3. Payment Terms & Convenience Fee
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span> 3. Regulatory Compliance & Ethical Settlement Framework
                 </h4>
+                <p>
+                  VitalSync operates in strict compliance with the National Medical Commission (Professional Conduct, Etiquette and Ethics) Regulations, the Clinical Establishments Act, and the Telemedicine Practice Guidelines (2020):
+                </p>
                 <ul className="list-disc pl-5 space-y-2 text-slate-300">
-                  <li>Consultation fees and booking charges are specified prior to payment.</li>
-                  <li>Online appointment bookings incur a standard 3% Online Convenience Platform Fee (e.g. ₹15.00 on a ₹500.00 checkup slot) for digital gateway processing and WhatsApp instant token generation.</li>
-                  <li>Payments are processed securely via verified Indian payment gateways including Razorpay, Paytm, and Direct Zero-Fee Dynamic UPI (`vitalsync@axl`).</li>
+                  <li><strong>Doctor Consultation Fee Immunity:</strong> 100% of the patient consultation fee is remitted directly to the treating doctor without platform revenue deductions.</li>
+                  <li><strong>Transparent Care Coordination Services:</strong> All ecosystem settlements for pharmacy fulfillment, diagnostic sample processing, and tele-monitoring follow standard commercial B2B Service Level Agreements (SLAs) for technical processing, drug dispensing, and electronic health record (EHR) data management.</li>
+                  <li><strong>No Illegal Commissions:</strong> Platform fee allocations represent legitimate digital infrastructure facilitation, WhatsApp automation, longitudinal health monitoring, and administrative coordination services.</li>
+                  <li><strong>Standard Payment Gateways:</strong> Payments are processed transparently via verified Indian banking gateways (Paytm PG, PhonePe, Cashfree, Direct Bank UPI) with digital invoice generation and GST compliance.</li>
                 </ul>
               </section>
 
@@ -224,6 +231,34 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                 <p>
                   Users must be at least 18 years of age to book paid consultations or register medical profiles independently. Minors must be registered under a parent or legal guardian&apos;s account. Users are responsible for providing accurate contact numbers to receive official WhatsApp OPD tokens and digital invoices.
                 </p>
+              </section>
+
+              <section className="space-y-3">
+                <h4 className="text-base font-bold text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span> 4. Partner Roles & Tripartite Operational Obligations
+                </h4>
+                <div className="space-y-3 text-slate-300">
+                  <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
+                    <h5 className="font-bold text-cyan-300 text-xs uppercase tracking-wider">A. Doctor / Clinic Partner Obligations</h5>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Doctor partners maintain 100% independent clinical autonomy over medical examinations, diagnoses, and digital prescriptions. Doctors agree to issue electronic prescriptions strictly in compliance with Telemedicine Practice Guidelines (2020) and Drugs &amp; Cosmetics Rules. 100% of the patient consultation fee belongs to the doctor without platform commission deductions.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
+                    <h5 className="font-bold text-emerald-300 text-xs uppercase tracking-wider">B. Pharmacy Partner Obligations</h5>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Pharmacy partners must possess valid retail drug licenses under the Drugs &amp; Cosmetics Act 1940. Pharmacies agree to fulfill only genuine, batch-verified (FEFO) medicines against valid prescriptions, maintain standard storage temperatures, and process home delivery orders with proper tax invoices.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
+                    <h5 className="font-bold text-teal-300 text-xs uppercase tracking-wider">C. Pathology Lab Partner Obligations</h5>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Pathology partners must maintain certified diagnostic testing infrastructure, calibrate laboratory equipment regularly, verify barcode samples (`BAR-XXXX`), and upload authenticated electronic PDF reports with LOINC test coding directly to the platform for instant WhatsApp patient delivery.
+                    </p>
+                  </div>
+                </div>
               </section>
 
               <section className="space-y-3">

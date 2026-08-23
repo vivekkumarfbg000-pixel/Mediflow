@@ -1651,7 +1651,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                               ? 'text-rose-600 dark:text-rose-400'
                               : 'text-emerald-600 dark:text-emerald-400'
                           }`}>
-                            {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff).toFixed(0)}
+                            {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff || 0).toFixed(0)}
                           </span>
                         )}
                       </div>
@@ -1751,7 +1751,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                               ? 'text-rose-700 dark:text-rose-400'
                               : 'text-emerald-700 dark:text-emerald-400'
                           }`}>
-                            {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff).toFixed(item.name.includes('Creatinine') ? 2 : 1)}
+                            {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff || 0).toFixed(item.name.includes('Creatinine') ? 2 : 1)}
                           </span>
                         )}
                       </div>
@@ -1764,7 +1764,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                               const zoneWidth = ((zone.end - zone.start) / (item.max! - item.min!)) * 100;
                               return (
                                 <div
-                                  key={zIdx}
+                                  key={`zone-${zIdx}-${zone.color}`}
                                   className={`${zone.color}`}
                                   style={{ width: `${zoneWidth}%` }}
                                 />

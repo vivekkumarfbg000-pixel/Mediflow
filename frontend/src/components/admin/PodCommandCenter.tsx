@@ -112,7 +112,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       onClinicSopChange: () => sync(),
       onSaaSInvoiceChange: () => sync(),
       onSaaSPrescriptionChange: () => sync(),
-      onInventoryHoldChange: () => sync()
+      onInventoryHoldChange: () => sync(),
+      onChronicCohortChange: () => sync()
     });
 
     return () => {
@@ -1024,7 +1025,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                       </div>
                       <div className="text-[9px] text-slate-600 dark:text-zinc-350 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg space-y-1">
                         {group.medicines.map((m, mIdx) => (
-                          <div key={mIdx} className="flex justify-between items-center">
+                          <div key={`med-hold-${mIdx}-${m.id || m.name}`} className="flex justify-between items-center">
                             <span className="truncate max-w-[165px] font-medium">{m.name}</span>
                             <span className="text-[8px] text-slate-500 dark:text-zinc-400 font-mono font-semibold shrink-0">Qty: {m.qty}</span>
                           </div>
@@ -1103,94 +1104,111 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           </div>
         </div>
 
-        {/* ── COLUMN 3: FINANCE ───────────────────────────────────── */}
+        {/* ── COLUMN 3: CHRONIC CARE & RECURRING REFILL COCKPIT ─── */}
         <div className="space-y-5">
 
-          {/* Revenue Split Ledger */}
+          {/* Chronic Disease Care & Refill Cockpit Widget */}
           <PointerGlowCard
             containerClassName="shadow-xs overflow-hidden"
             className="bg-white/90 dark:bg-slate-950/60 p-5 relative text-left"
           >
-            <div className="h-1 w-full bg-amber-500 absolute top-0 left-0" />
-            <div className="flex justify-between items-center mb-5">
+            <div className="h-1 w-full bg-emerald-500 absolute top-0 left-0" />
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <Coins className="w-4 h-4 text-amber-500 shrink-0" />
-                Revenue Split Ledger
+                <HeartPulse className="w-4 h-4 text-emerald-500 shrink-0" />
+                Chronic Care &amp; Refills
               </h2>
-              <span className="text-[10px] font-mono font-semibold text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 px-2 py-0.5 rounded-full">Bihar Zone</span>
+              <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Auto-Refills Active
+              </span>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-3 gap-3 mb-5">
-                <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/75 dark:border-white/5 rounded-xl text-center shadow-xs">
-                  <div className="text-[9px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-widest">Gross</div>
-                  <div className="text-sm font-bold font-mono mt-1 text-slate-900 dark:text-white">₹{financialMetrics.grossRev.toLocaleString('en-IN')}</div>
+            {/* KPI Cards: Chronic Pool, Adherence, Due Refills */}
+            <div className="grid grid-cols-3 gap-2.5 mb-4">
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/75 dark:border-white/5 rounded-xl text-center shadow-xs">
+                <div className="text-[8.5px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Chronic Pool</div>
+                <div className="text-sm font-bold font-mono mt-0.5 text-slate-900 dark:text-white">142</div>
+              </div>
+              <div className="p-2.5 bg-teal-50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-800/30 rounded-xl text-center shadow-xs">
+                <div className="text-[8.5px] text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider">Adherence</div>
+                <div className="text-sm font-bold font-mono mt-0.5 text-teal-700 dark:text-teal-400">88.4%</div>
+              </div>
+              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-center shadow-xs">
+                <div className="text-[8.5px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-wider">Due Refills</div>
+                <div className="text-sm font-bold font-mono mt-0.5 text-amber-700 dark:text-amber-450">18</div>
+              </div>
+            </div>
+
+            {/* Disease Cohort Badges */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 mb-3">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex justify-between">
+                <span>Active Disease Cohorts</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-mono">100% Retest Triggers</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 text-[10px]">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 font-medium">🩸 Diabetes (58)</span>
+                <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 font-medium">🫀 HTN (44)</span>
+                <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300 font-medium">🦋 Thyroid (22)</span>
+                <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-300 font-medium">🧪 CKD / Cardio (18)</span>
+              </div>
+            </div>
+
+            {/* Refill Defaulter Urgent Alerts */}
+            <div className="p-3 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 rounded-xl space-y-2 mb-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Refill Defaulters (Missed &gt;7d)
+                </span>
+                <span className="text-[9px] font-mono font-bold text-rose-600">3 High Risk</span>
+              </div>
+              <div className="text-[10px] text-slate-700 dark:text-slate-200 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="truncate max-w-[140px]">Sunita Devi (HTN - Telmisartan)</span>
+                  <button
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Defaulter Nudge Sent 📱',
+                          message: '1-Tap WhatsApp Refill Nudge sent to Sunita Devi.',
+                          type: 'success'
+                        }
+                      }));
+                    }}
+                    className="px-2 py-0.5 text-[8.5px] font-bold uppercase bg-rose-600 hover:bg-rose-700 text-white rounded cursor-pointer border-0"
+                  >
+                    1-Tap Nudge
+                  </button>
                 </div>
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/30 rounded-xl text-center shadow-xs">
-                  <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-widest">Cleared</div>
-                  <div className="text-sm font-bold font-mono mt-1 text-emerald-700 dark:text-emerald-400">₹{financialMetrics.cleared.toLocaleString('en-IN')}</div>
-                </div>
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-center shadow-xs">
-                  <div className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-widest">Pending</div>
-                  <div className="text-sm font-bold font-mono mt-1 text-amber-700 dark:text-amber-450">₹{financialMetrics.pending.toLocaleString('en-IN')}</div>
+                <div className="flex justify-between items-center">
+                  <span className="truncate max-w-[140px]">Baidyanath P. (Arthritis - Shelcal)</span>
+                  <button
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Defaulter Nudge Sent 📱',
+                          message: '1-Tap WhatsApp Refill Nudge sent to Baidyanath Prasad.',
+                          type: 'success'
+                        }
+                      }));
+                    }}
+                    className="px-2 py-0.5 text-[8.5px] font-bold uppercase bg-rose-600 hover:bg-rose-700 text-white rounded cursor-pointer border-0"
+                  >
+                    1-Tap Nudge
+                  </button>
                 </div>
               </div>
+            </div>
 
-              {/* Revenue bar + breakdown */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-3 shadow-xs relative overflow-hidden">
-                <div className="text-[10px] text-slate-650 dark:text-zinc-300 font-bold uppercase tracking-wider">Revenue Transaction Shares</div>
-
-                {/* Stacked bar with gradients and custom reflection */}
-                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden flex gap-px relative shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
-                  {/* Glossy overlay sheen */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/15 to-transparent pointer-events-none z-10" />
-                  {(() => {
-                    const poolStats = BillingService.calculateCommissionPoolBalance();
-                    const shares = [
-                      { type: 'appointment_fee', label: 'Consult', color: 'bg-gradient-to-r from-indigo-500 to-indigo-600', val: poolStats.doctorConsultsEarned },
-                      { type: 'lab_commission', label: 'Lab', color: 'bg-gradient-to-r from-teal-400 to-teal-500', val: poolStats.doctorLabReferralsEarned },
-                      { type: 'medicine_commission', label: 'Pharmacy', color: 'bg-gradient-to-r from-violet-500 to-violet-600', val: poolStats.doctorMedicineReferralsEarned },
-                      { type: 'platform_fee', label: 'Platform', color: 'bg-gradient-to-r from-slate-400 to-slate-500', val: poolStats.totalCashCommissionOwed }
-                    ];
-                    const allTotal = shares.reduce((s, item) => s + item.val, 0) || 1;
-                    return shares.map((item, index) => {
-                      const pct = (item.val / allTotal) * 100;
-                      if (pct === 0) return null;
-                      return (
-                        <div
-                          key={`share-bar-${index}-${item.label}`}
-                          className={`${item.color} h-full transition-all duration-700`}
-                          style={{ width: `${pct}%` }}
-                          title={`${item.label}: ₹${item.val} (${Math.round(pct)}%)`}
-                        />
-                      );
-                    });
-                  })()}
-                </div>
-
-                {/* Breakdown rows */}
-                <div className="space-y-2 pt-1">
-                  {(() => {
-                    const poolStats = BillingService.calculateCommissionPoolBalance();
-                    return [
-                      { type: 'appointment_fee', label: 'Clinic Consult Payout', dot: 'bg-indigo-500', amt: poolStats.doctorConsultsEarned },
-                      { type: 'lab_commission', label: 'Lab Share Settlement', dot: 'bg-teal-500', amt: poolStats.doctorLabReferralsEarned },
-                      { type: 'medicine_commission', label: 'Pharmacy Share Settlement', dot: 'bg-violet-500', amt: poolStats.doctorMedicineReferralsEarned },
-                      { type: 'platform_fee', label: 'Platform Commission Split', dot: 'bg-slate-400', amt: poolStats.totalCashCommissionOwed }
-                    ].map((item, index) => (
-                      <div key={`breakdown-row-${index}-${item.type}`} className="flex items-center justify-between bg-white dark:bg-slate-950/40 border border-slate-200/50 dark:border-white/5 px-3 py-2 rounded-xl hover:bg-white dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
-                        <span className="flex items-center gap-2 text-[11px] font-medium text-slate-700 dark:text-zinc-300">
-                          <span className={`w-2 h-2 rounded-full ${item.dot} shrink-0`} />
-                          {item.label}
-                        </span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white text-[11px]">₹{Math.round(item.amt).toLocaleString('en-IN')}</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              </div>
-            </PointerGlowCard>
-          </div>
+            {/* Direct CTA to full Chronic Care Cockpit */}
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'chronic' }));
+              }}
+              className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0"
+            >
+              <HeartPulse className="w-3.5 h-3.5" /> View Full Chronic Care Suite
+            </button>
+          </PointerGlowCard>
         </div>
 
       {/* ── BOTTOM ALERT BANNER ──────────────────────────────────── */}

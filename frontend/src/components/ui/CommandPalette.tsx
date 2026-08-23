@@ -59,6 +59,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     // Tabs Navigation
     { id: 'tab_pod_view',      category: 'Navigation', label: 'Go to Clinic Dashboard',   shortcut: '/tab clinic',    action: () => { setActiveTab('pod_view'); onClose(); } },
     { id: 'tab_consultation',  category: 'Navigation', label: 'Go to Consultation Queue', shortcut: '/tab consult',   action: () => { setActiveTab('consultation'); onClose(); } },
+    { id: 'tab_chronic',       category: 'Navigation', label: 'Go to Chronic Care & Refills 🩸', shortcut: '/tab chronic', action: () => { setActiveTab('chronic'); onClose(); } },
+    { id: 'tab_virtual_schedule', category: 'Navigation', label: 'Go to Virtual Schedule 💻', shortcut: '/tab virtual', action: () => { setActiveTab('virtual_schedule'); onClose(); } },
     { id: 'tab_financials',    category: 'Navigation', label: 'Go to Financial Reports',  shortcut: '/tab financials',action: () => { setActiveTab('financials'); onClose(); } },
     { id: 'tab_patients',      category: 'Navigation', label: 'Go to Patient Directory',  shortcut: '/tab directory', action: () => { setActiveTab('patients'); onClose(); } },
     { id: 'tab_whatsapp',      category: 'Navigation', label: 'Go to WhatsApp Inbox',     shortcut: '/tab whatsapp',  action: () => { setActiveTab('whatsapp'); onClose(); } },

@@ -2000,6 +2000,234 @@ GRANT  EXECUTE ON FUNCTION public.pod_operational_snapshot() TO authenticated;
 GRANT  EXECUTE ON FUNCTION public.pod_operational_snapshot() TO service_role;
 
 -- =============================================================================
+-- SECTION: Idempotent process_invoice_settlement (Polymorphic String & UUID ID Support)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.process_invoice_settlement(
+    p_invoice_id TEXT,
+    p_payment_method TEXT,
+    p_amount_paid NUMERIC DEFAULT NULL,
+    p_gateway_reference_id TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_invoice RECORD;
+    v_doctor_fee NUMERIC := 0;
+    v_platform_fee NUMERIC := 0;
+    v_gateway_fee NUMERIC := 0;
+    v_net_profit NUMERIC := 0;
+    v_amount NUMERIC := 0;
+    v_pod_id UUID;
+BEGIN
+    -- 1. Lock the invoice to prevent concurrent webhook/counter race conditions
+    SELECT * INTO v_invoice 
+    FROM unified_invoices 
+    WHERE id::text = p_invoice_id::text OR id::text LIKE p_invoice_id || '%'
+    LIMIT 1
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invoice not found');
+    END IF;
+
+    IF v_invoice.payment_status = 'cleared' THEN
+        RETURN jsonb_build_object('success', true, 'skipped', true, 'message', 'Invoice already cleared');
+    END IF;
+
+    v_amount := COALESCE(p_amount_paid, v_invoice.total_amount);
+    v_doctor_fee := COALESCE(v_invoice.doctor_fee, 500);
+    v_platform_fee := COALESCE(v_invoice.platform_fee, 15);
+    v_pod_id := v_invoice.pod_id;
+
+    IF p_payment_method IN ('razorpay', 'phonepe', 'paytm') THEN
+        v_gateway_fee := ROUND(v_amount * 0.02, 2); -- Typical 2% digital gateway fee
+    ELSE
+        v_gateway_fee := 0; -- Cash / UPI Counter is 0% MDR
+    END IF;
+
+    -- Counter Doctor Consultation Fee Immunity Protocol (Rule 58)
+    IF COALESCE(v_invoice.pharmacy_fee, 0) = 0 
+       AND COALESCE(v_invoice.lab_fee, 0) = 0 
+       AND p_payment_method IN ('cash', 'upi') 
+       AND COALESCE(v_invoice.source, '') != 'whatsapp' THEN
+        v_platform_fee := 0;
+        v_doctor_fee := v_amount;
+    END IF;
+    
+    v_net_profit := GREATEST(0, v_platform_fee - v_gateway_fee);
+
+    -- 2. Mark Invoice as Cleared
+    UPDATE unified_invoices
+    SET payment_status = 'cleared',
+        payment_method = p_payment_method,
+        updated_at = NOW()
+    WHERE id = v_invoice.id;
+
+    -- 3. Record Financial Ledger Entry (Doctor Fee)
+    INSERT INTO financial_ledgers (
+        invoice_id, source_entity_id, destination_entity_id,
+        transaction_type, gross_amount, commission_rate, net_payout,
+        payment_status, reference_id, created_at, pod_id
+    )
+    VALUES (
+        v_invoice.id, v_pod_id, v_pod_id,
+        'doctor_consultation_fee', v_doctor_fee, 0.00, v_doctor_fee,
+        'completed', COALESCE(p_gateway_reference_id, 'counter-' || p_payment_method || '-' || SUBSTRING(v_invoice.id::TEXT, 1, 8)),
+        NOW(), v_pod_id
+    );
+
+    -- 4. Record Financial Ledger Entry (Platform Fee) if applicable
+    IF v_platform_fee > 0 THEN
+        INSERT INTO financial_ledgers (
+            invoice_id, source_entity_id, destination_entity_id,
+            transaction_type, gross_amount, commission_rate, net_payout,
+            payment_status, reference_id, created_at, pod_id
+        )
+        VALUES (
+            v_invoice.id, v_pod_id, 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid,
+            'platform_fee', v_platform_fee, 0.00, v_net_profit,
+            'completed', COALESCE(p_gateway_reference_id, 'platform-' || p_payment_method || '-' || SUBSTRING(v_invoice.id::TEXT, 1, 8)),
+            NOW(), v_pod_id
+        );
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'invoice_id', v_invoice.id,
+        'amount_paid', v_amount,
+        'payment_method', p_payment_method,
+        'doctor_fee', v_doctor_fee,
+        'platform_fee', v_platform_fee,
+        'gateway_fee', v_gateway_fee,
+        'net_profit', v_net_profit
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) TO anon;
+
+-- ==============================================================================
+-- CHRONIC CARE ENGINE & RECURRING REFILL COHORT TABLES
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS chronic_care_cohorts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id TEXT NOT NULL,
+    patient_name TEXT NOT NULL,
+    patient_phone TEXT,
+    doctor_id TEXT NOT NULL,
+    pod_id TEXT NOT NULL,
+    condition_code TEXT NOT NULL, -- 'DIABETES', 'HYPERTENSION', 'THYROID', 'CARDIAC', 'RESPIRATORY', 'CKD', 'ARTHRITIS', 'EPILEPSY'
+    condition_name TEXT NOT NULL,
+    medications JSONB NOT NULL DEFAULT '[]'::jsonb,
+    days_supply INT NOT NULL DEFAULT 30,
+    dispensed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    next_refill_date DATE NOT NULL,
+    next_retest_date DATE,
+    retest_test_code TEXT,
+    retest_test_name TEXT,
+    adherence_score NUMERIC(5,2) DEFAULT 100.00,
+    status TEXT NOT NULL DEFAULT 'active',
+    monthly_medicine_spend NUMERIC(10,2) DEFAULT 0.00,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chronic_cohorts_patient ON chronic_care_cohorts(patient_id);
+CREATE INDEX IF NOT EXISTS idx_chronic_cohorts_pod ON chronic_care_cohorts(pod_id);
+CREATE INDEX IF NOT EXISTS idx_chronic_cohorts_condition ON chronic_care_cohorts(condition_code);
+CREATE INDEX IF NOT EXISTS idx_chronic_cohorts_next_refill ON chronic_care_cohorts(next_refill_date);
+CREATE INDEX IF NOT EXISTS idx_chronic_cohorts_status ON chronic_care_cohorts(status);
+
+CREATE TABLE IF NOT EXISTS chronic_adherence_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cohort_id UUID REFERENCES chronic_care_cohorts(id) ON DELETE CASCADE,
+    patient_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    details JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_adherence_logs_cohort ON chronic_adherence_logs(cohort_id);
+
+ALTER TABLE chronic_care_cohorts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chronic_adherence_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'chronic_care_cohorts' AND policyname = 'allow_authenticated_all_chronic_cohorts'
+    ) THEN
+        CREATE POLICY allow_authenticated_all_chronic_cohorts ON chronic_care_cohorts 
+        FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'chronic_adherence_logs' AND policyname = 'allow_authenticated_all_chronic_logs'
+    ) THEN
+        CREATE POLICY allow_authenticated_all_chronic_logs ON chronic_adherence_logs 
+        FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION process_chronic_refill_assertion(
+    p_cohort_id UUID,
+    p_action TEXT DEFAULT 'confirm_refill'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_cohort chronic_care_cohorts%ROWTYPE;
+    v_new_refill_date DATE;
+    v_new_dispensed_at TIMESTAMPTZ := now();
+BEGIN
+    SELECT * INTO v_cohort FROM chronic_care_cohorts WHERE id = p_cohort_id;
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Cohort not found');
+    END IF;
+
+    IF p_action = 'confirm_refill' THEN
+        v_new_refill_date := CURRENT_DATE + (v_cohort.days_supply || ' days')::INTERVAL;
+        
+        UPDATE chronic_care_cohorts
+        SET dispensed_at = v_new_dispensed_at,
+            next_refill_date = v_new_refill_date,
+            status = 'active',
+            adherence_score = LEAST(100.00, COALESCE(adherence_score, 90.00) + 5.00),
+            updated_at = now()
+        WHERE id = p_cohort_id;
+
+        INSERT INTO chronic_adherence_logs (cohort_id, patient_id, event_type, details)
+        VALUES (p_cohort_id, v_cohort.patient_id, 'REFILL_CONFIRMED', jsonb_build_object(
+            'previous_refill_date', v_cohort.next_refill_date,
+            'new_refill_date', v_new_refill_date,
+            'days_supply', v_cohort.days_supply
+        ));
+
+        RETURN jsonb_build_object(
+            'success', true,
+            'patient_id', v_cohort.patient_id,
+            'next_refill_date', v_new_refill_date,
+            'status', 'active'
+        );
+    END IF;
+
+    RETURN jsonb_build_object('success', true, 'message', 'Action logged');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.process_chronic_refill_assertion(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.process_chronic_refill_assertion(UUID, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.process_chronic_refill_assertion(UUID, TEXT) TO anon;
+
+-- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
 

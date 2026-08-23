@@ -445,23 +445,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         {/* Left Column: Information, Branding & CTAs */}
         <div className="lg:col-span-6 flex flex-col space-y-8 mt-4 text-left">
           
-          <div className="inline-flex items-center gap-2.5 self-start py-1 px-3.5 rounded-full border border-cyan-200 bg-cyan-50/60 backdrop-blur-md">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-600 animate-pulse" />
-            <span className="text-[10px] text-cyan-700 font-mono font-extrabold uppercase tracking-widest">
-              Integrated Clinical Network
+          <div className="inline-flex items-center gap-2.5 self-start py-1.5 px-4 rounded-full border border-cyan-300 bg-cyan-50/90 shadow-sm backdrop-blur-md">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] text-cyan-850 font-mono font-extrabold uppercase tracking-widest">
+              🏥 Tier 2 &amp; Tier 3 India's #1 Virtual Hospital Network
             </span>
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-4xl lg:text-5xl font-black text-slate-900 leading-[1.1] tracking-tight">
-              High-Reliability<br />
-              <span className="bg-gradient-to-r from-cyan-600 to-emerald-600 bg-clip-text text-transparent italic font-extrabold font-serif">
-                Clinical Loop Synchronization
+            <h1 className="text-4xl lg:text-5xl font-black text-slate-900 leading-[1.15] tracking-tight">
+              Turn Your Independent Clinic Into A<br />
+              <span className="bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 bg-clip-text text-transparent font-black">
+                Smart Virtual Hospital
               </span>
             </h1>
 
             <p className="text-sm lg:text-base text-slate-650 leading-relaxed max-w-lg font-medium">
-              A unified backend infrastructure coordinating real-time clinical data pipelines between doctors, pharmacies, and pathology labs. Automatically resolves multi-tenant split-billing distributions at the database transaction boundary, eliminating administrative latency.
+              Empowering independent doctors in Tier 2 &amp; 3 cities to connect with trusted local pharmacies and pathology labs down the street. Deliver 1-tap WhatsApp tokens, electronic prescriptions, automated Day-25 medicine refills, and instant lab reports with <strong>₹0 setup cost</strong>.
             </p>
           </div>
 
@@ -469,15 +469,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           <div className="flex flex-wrap gap-4 pt-2">
             <button
               onClick={handleGetStartedClick}
-              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 cursor-pointer flex items-center gap-2"
+              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center gap-2"
             >
-              Initialize Workspace <ArrowRight className="h-4 w-4" />
+              Start Free Clinic Setup <ArrowRight className="h-4 w-4" />
             </button>
             <button
               onClick={scrollToGate}
-              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-violet-500/20 cursor-pointer flex items-center gap-2"
+              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-700 hover:to-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg shadow-cyan-500/20 cursor-pointer flex items-center gap-2"
             >
-              Access Console <ArrowRight className="h-4 w-4" />
+              Doctor &amp; Staff Login <ArrowRight className="h-4 w-4" />
             </button>
             <button
               onClick={() => {
@@ -486,29 +486,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               }}
               className="px-6 py-3.5 rounded-xl bg-white hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] text-slate-800 border border-slate-200/80 font-extrabold text-xs uppercase tracking-wider transition-all shadow-sm cursor-pointer flex items-center gap-2"
             >
-              <Presentation className="h-4 w-4 text-indigo-500" /> Interactive Tour
+              <Presentation className="h-4 w-4 text-emerald-600" /> Virtual Hospital Tour
             </button>
           </div>
 
           {/* Core Safeguard Callouts */}
           <div className="space-y-4 max-w-lg">
             <div className="flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-350 shadow-sm transition-all duration-300">
-              <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-xl shrink-0">
-                <Lock className="h-4.5 w-4.5" />
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl shrink-0">
+                <Award className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Row-Level Database Isolation</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Each tenant's clinical and financial records are completely partitioned at the Postgres database layer using strict Row-Level Security (RLS) policies. This guarantees logical isolation and prevents cross-tenant data leakage under all execution contexts.</p>
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Doctor Consultation Fee Immunity (Rule 58)</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">100% of patient consultation fees go directly to the Doctor's bank account with 0% platform deductions. VitalSync is 100% free for doctors to adopt with zero software subscription fees.</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-350 shadow-sm transition-all duration-300">
               <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 rounded-xl shrink-0">
-                <GitBranch className="h-4.5 w-4.5" />
+                <MessageSquare className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Unified Role-Aware Architecture</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Rather than operating fragmented, high-maintenance standalone micro-apps, VitalSync serves customized, high-performance interfaces for Doctors, Compounders, Lab Techs, and Pharmacists from a single, optimized monorepo. This approach minimizes bundle sizes, enforces type safety across roles, and guarantees sub-second UI transitions.</p>
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Zero App Download — 100% Native WhatsApp</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Patients never download complex apps. Everything runs on 1-Tap native WhatsApp buttons for tokens, digital prescriptions, lab PDF downloads, and 1-click medicine refill orders.</p>
               </div>
             </div>
           </div>
@@ -556,30 +556,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             >
               <div className="text-center space-y-2 px-4">
                 <Sparkles className="h-8 w-8 text-cyan-500 mx-auto animate-pulse" />
-                <p className="uppercase tracking-widest font-black text-white">VitalSync Care Ecosystem</p>
+                <p className="uppercase tracking-widest font-black text-white">VitalSync Virtual Hospital Network</p>
               </div>
             </div>
             
             <div className="absolute bottom-6 left-6 right-6 z-20 text-white text-left">
-              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-cyan-400 bg-cyan-950/70 border border-cyan-500/30 px-3 py-1 rounded-full backdrop-blur-sm shadow-md animate-pulse">
-                <Sparkles className="h-3 w-3" /> Unified Care Loop
+              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/70 border border-emerald-500/30 px-3 py-1 rounded-full backdrop-blur-sm shadow-md animate-pulse">
+                <Sparkles className="h-3 w-3" /> Hyper-Local Triad
               </span>
-              <h3 className="text-base font-bold mt-2 tracking-wide uppercase">Clinic, Pharmacy, and Lab Ecosystem</h3>
+              <h3 className="text-base font-bold mt-2 tracking-wide uppercase">The Decentralized Virtual Hospital</h3>
               <p className="text-xs text-slate-200 mt-1 leading-relaxed font-sans font-medium">
-                Experience seamless split-billing and direct clinical data synchronizations in one consolidated workspace.
+                Independent Doctor + Local Pharmacy + Local Pathology Lab united into an automated hospital-grade network on WhatsApp.
               </p>
             </div>
           </div>
 
           {/* Live Data Flow Activity box */}
           <div className="max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-md relative overflow-hidden group hover:border-slate-350 transition-all duration-500 w-full text-left">
-            <div className="absolute top-0 right-0 p-3 text-[9px] font-mono font-bold text-cyan-600 bg-cyan-50 border-b border-l border-slate-200 rounded-bl-xl uppercase tracking-wider">
-              Network Pulse Active
+            <div className="absolute top-0 right-0 p-3 text-[9px] font-mono font-bold text-emerald-600 bg-emerald-50 border-b border-l border-slate-200 rounded-bl-xl uppercase tracking-wider">
+              Virtual Hospital Live
             </div>
             
             <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-5 flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-              Real-time synchronization loop
+              Decentralized WhatsApp Care Loop
             </h4>
 
             <div className="flex items-center justify-between gap-4 relative">
@@ -587,8 +587,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-cyan-600 shadow-sm transition-transform group-hover:scale-105 duration-300">
                   <Activity className="h-5 w-5" />
                 </div>
-                <span className="text-[10px] font-bold text-slate-700">Doctor</span>
-                <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded-full">ACTIVE</span>
+                <span className="text-[10px] font-bold text-slate-700">Doctor Clinic</span>
+                <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded-full">BRAIN</span>
               </div>
 
               {/* Connecting line 1 */}
@@ -597,24 +597,198 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
 
               <div className="flex flex-col items-center text-center space-y-2 z-10">
-                <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-indigo-650 shadow-sm transition-transform group-hover:scale-105 duration-300">
-                  <Building2 className="h-5 w-5" />
+                <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-teal-650 shadow-sm transition-transform group-hover:scale-105 duration-300">
+                  <Building2 className="h-5 w-5 text-teal-600" />
                 </div>
-                <span className="text-[10px] font-bold text-slate-700">Pharmacy</span>
-                <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded-full">SYNCED</span>
+                <span className="text-[10px] font-bold text-slate-700">Partner Chemist</span>
+                <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded-full">REFILLS</span>
               </div>
 
               {/* Connecting line 2 */}
               <div className="flex-1 h-[1px] border-t border-dashed border-slate-200 relative">
-                <div className="absolute top-0 left-0 w-1.5 h-1.5 rounded-full bg-indigo-500 -translate-y-1/2 animate-pulse-flow-delay" />
+                <div className="absolute top-0 left-0 w-1.5 h-1.5 rounded-full bg-emerald-500 -translate-y-1/2 animate-pulse-flow-delay" />
               </div>
 
               <div className="flex flex-col items-center text-center space-y-2 z-10">
                 <div className="h-11 w-11 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-indigo-650 shadow-sm transition-transform group-hover:scale-105 duration-300">
-                  <Layers className="h-5 w-5" />
+                  <Layers className="h-5 w-5 text-indigo-600" />
                 </div>
-                <span className="text-[10px] font-bold text-slate-700">Pathology</span>
-                <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded-full">READY</span>
+                <span className="text-[10px] font-bold text-slate-700">Partner Lab</span>
+                <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-250 px-1.5 py-0.5 rounded-full">DIAGNOSTICS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4 Premium Patient Member Benefits Section */}
+      <section className="py-16 relative z-10 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white border-y border-emerald-700/40">
+        <div className="max-w-6xl mx-auto px-6 text-center space-y-8">
+          <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold uppercase tracking-widest">
+            <Sparkles className="h-3.5 w-3.5" /> 4 Premium Member Perks for Clinic Patients
+          </div>
+          <h2 className="text-2xl md:text-4xl font-black tracking-tight">
+            Why Patients Stay 100% Loyal to Your Virtual Hospital
+          </h2>
+          <p className="text-slate-300 text-xs md:text-sm max-w-2xl mx-auto leading-relaxed">
+            Every time a patient fulfills medicines or lab tests through your clinic's connected network, they automatically unlock 4 hospital-grade member privileges.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left pt-4">
+            <div className="p-6 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2.5">
+              <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl w-fit font-black text-sm">
+                🆓 FREE
+              </div>
+              <h3 className="font-bold text-sm text-white">1 Free Virtual Follow-up</h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                Patients unlock 1 free telemedicine video/audio consult within 15–20 days of treatment for fast recovery checks.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2.5">
+              <div className="p-2.5 bg-teal-500/20 text-teal-300 rounded-xl w-fit font-black text-sm">
+                🏷️ 10% OFF
+              </div>
+              <h3 className="font-bold text-sm text-white">10% Off Chronic Refills</h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                Permanent 10% discount on monthly chronic prescriptions with free 1-click home delivery via partner chemist.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2.5">
+              <div className="p-2.5 bg-cyan-500/20 text-cyan-300 rounded-xl w-fit font-black text-sm">
+                📱 WHATSAPP
+              </div>
+              <h3 className="font-bold text-sm text-white">Daily WhatsApp Dose Reminders</h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                Automated morning and evening WhatsApp nudges plus an AI Longitudinal Health Summary tracking vitals over time.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-2.5">
+              <div className="p-2.5 bg-indigo-500/20 text-indigo-300 rounded-xl w-fit font-black text-sm">
+                📄 INSTANT PDF
+              </div>
+              <h3 className="font-bold text-sm text-white">Instant WhatsApp Lab Reports</h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                Blood test results and pathology PDF reports sent directly to patient handsets the moment the lab approves them.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive Virtual Hospital Revenue Calculator Section */}
+      <section className="py-20 relative z-10 bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="mb-12 text-center space-y-3">
+            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+              Practice Revenue Simulator
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Virtual Hospital Revenue Calculator</h2>
+            <p className="text-slate-500 text-sm font-semibold max-w-2xl mx-auto">
+              See how much additional recurring income your clinic unlocks from connected medicine refills and diagnostic testing.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Left Column: Sliders */}
+            <div className="lg:col-span-7 bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-6 text-left shadow-sm">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold text-slate-700">
+                  <span>Daily OPD Patients:</span>
+                  <span className="text-emerald-700 font-mono font-black text-sm">{calcPatients} Patients / Day</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="80"
+                  step="5"
+                  value={calcPatients}
+                  onChange={(e) => setCalcPatients(Number(e.target.value))}
+                  className="w-full accent-emerald-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold text-slate-700">
+                  <span>Doctor Consultation Fee:</span>
+                  <span className="text-emerald-700 font-mono font-black text-sm">₹{calcFee} / Visit</span>
+                </div>
+                <input
+                  type="range"
+                  min="200"
+                  max="1500"
+                  step="50"
+                  value={calcFee}
+                  onChange={(e) => setCalcFee(Number(e.target.value))}
+                  className="w-full accent-emerald-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold text-slate-700">
+                  <span>Average Medicine Prescription Spend:</span>
+                  <span className="text-teal-700 font-mono font-black text-sm">₹{calcMedSale} / Patient</span>
+                </div>
+                <input
+                  type="range"
+                  min="300"
+                  max="2000"
+                  step="50"
+                  value={calcMedSale}
+                  onChange={(e) => setCalcMedSale(Number(e.target.value))}
+                  className="w-full accent-teal-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold text-slate-700">
+                  <span>Average Diagnostic / Lab Test Spend:</span>
+                  <span className="text-indigo-700 font-mono font-black text-sm">₹{calcLabFee} / Patient</span>
+                </div>
+                <input
+                  type="range"
+                  min="200"
+                  max="2500"
+                  step="50"
+                  value={calcLabFee}
+                  onChange={(e) => setCalcLabFee(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Right Column: Earnings Summary Card */}
+            <div className="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950 p-8 rounded-3xl text-white space-y-6 shadow-2xl border border-emerald-700/30 text-left">
+              <div className="border-b border-slate-800 pb-4">
+                <span className="text-[10px] font-mono font-extrabold uppercase text-emerald-400 tracking-widest block">
+                  Estimated Monthly Practice Output
+                </span>
+                <p className="text-3xl font-black text-white mt-1">
+                  ₹{((calcPatients * 26 * calcFee) + (calcPatients * 26 * 0.6 * calcMedSale * 0.25) + (calcPatients * 26 * 0.4 * calcLabFee * 0.35)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  <span className="text-xs text-slate-400 font-normal"> / month</span>
+                </p>
+              </div>
+
+              <div className="space-y-3 text-xs font-mono">
+                <div className="flex justify-between text-slate-300">
+                  <span>1. Direct OPD Consults (100%):</span>
+                  <span className="font-bold text-white">₹{(calcPatients * 26 * calcFee).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-teal-300">
+                  <span>2. Connected Pharmacy SOP (25%):</span>
+                  <span className="font-bold">₹{(calcPatients * 26 * 0.6 * calcMedSale * 0.25).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                </div>
+                <div className="flex justify-between text-indigo-300">
+                  <span>3. Connected Lab SOP (35%):</span>
+                  <span className="font-bold">₹{(calcPatients * 26 * 0.4 * calcLabFee * 0.35).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-[11px] text-emerald-200 leading-relaxed font-sans font-medium">
+                💡 <strong>The Virtual Hospital Advantage:</strong> Your clinic captures an additional <strong>₹{((calcPatients * 26 * 0.6 * calcMedSale * 0.25) + (calcPatients * 26 * 0.4 * calcLabFee * 0.35)).toLocaleString('en-IN', { maximumFractionDigits: 0 })} / month</strong> in recurring care coordination value from medicines &amp; labs that were previously walking out the door.
               </div>
             </div>
           </div>
@@ -625,18 +799,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       <section id="features" className="py-20 relative z-10 border-t border-slate-100 bg-slate-50/30">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">System Core Capabilities</h2>
-            <p className="text-slate-500 text-sm font-semibold mt-2">Four role-specific interfaces operating on a single database.</p>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Virtual Hospital Core Modules</h2>
+            <p className="text-slate-500 text-sm font-semibold mt-2">Connecting all clinical stakeholders on a single high-speed database.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-indigo-400/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Activity className="h-5 w-5 text-indigo-650" />
+            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-emerald-400/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] hover:-translate-y-1.5 duration-350 transition-all group text-left">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
+                <Activity className="h-5 w-5 text-emerald-650" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Doctor Console</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Doctor EMR Suite</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Engineered for clinical velocity. Features optimized patient queues, ultra-fast prescription editors, friction-free lab requisitions, and a native sandboxed communication channel for immediate patient engagement.
+                Complete clinical workspace: 1-Click Patient History, CDSS AI Scribe, live pharmacy inventory typeahead, Ophthalmic Refraction Grid, and SOP Config Tab.
               </p>
             </div>
 
@@ -646,27 +820,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pathology Lab Hub</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Optimized for pipeline automation. Handles incoming diagnostic requests, structured digital report ingestion interfaces, and zero-latency report injection directly into the patient's centralized medical chart.
+                Direct LOINC test requisitions, barcode sample tracking (`BAR-XXXX`), and automated instant PDF report dispatch to patient WhatsApp.
               </p>
             </div>
 
-            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-indigo-400/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left lg:mt-3">
+            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-teal-400/40 hover:shadow-[0_0_30px_rgba(20,184,166,0.08)] hover:-translate-y-1.5 duration-350 transition-all group text-left lg:mt-3">
+              <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
+                <Building2 className="h-5 w-5 text-teal-650" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pharmacy POS &amp; Refills</h3>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                FEFO batch inventory management (`BATCH-2026-X1`), 1-Click home delivery, and automated 3-stage chronic refill reminders (Day 7, Month 1, Month 3).
+              </p>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-indigo-400/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left mt-1 lg:mt-8">
               <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Users className="h-5 w-5 text-indigo-650" />
+                <Clock className="h-5 w-5 text-indigo-650" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pharmacy POS Node</h3>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Compounder OPD Desk</h3>
               <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Built for transaction accuracy. Enforces real-time prescription streaming, automated inventory state updates, and precise automated split-payment distribution logic at the transaction boundary.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-cyan-400/40 hover:shadow-[0_0_30px_rgba(6,182,212,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left mt-1 lg:mt-8">
-              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Terminal className="h-5 w-5 text-cyan-650" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Autonomous Telemetry Engine</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Ensures high availability. A highly resilient background daemon tracking system state drifts, executing smart retries on interrupted network requests, and proactively enforcing UI state integrity 24/7.
+                OPD token generation (#TK-001), patient vitals logging (BP, SpO2, Sugar, BMI), 15-min eye dilation countdown timer, and Emergency SOS #1 priority routing.
               </p>
             </div>
           </div>

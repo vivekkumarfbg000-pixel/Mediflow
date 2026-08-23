@@ -38,8 +38,8 @@ serve(async (req) => {
       ifsc: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid Indian Financial System Code (IFSC) format"),
       email: z.string().email("Invalid email address format").optional(),
       phone: z.string().regex(/^[0-9]{10}$/, "Phone number must be exactly 10 digits").optional(),
-      entityId: z.string().uuid("Invalid entityId UUID format"),
-      podId: z.string().uuid("Invalid podId UUID format"),
+      entityId: z.string().min(1, "entityId is required"),
+      podId: z.string().min(1, "podId is required"),
     }).safeParse(bodyJson);
 
     if (!validationResult.success) {

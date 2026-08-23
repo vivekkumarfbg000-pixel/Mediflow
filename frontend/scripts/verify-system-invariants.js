@@ -168,9 +168,53 @@ function scanFiles(dir) {
             reason: 'Raw inline JSON.parse(localStorage.getItem(...)) throws fatal SyntaxError crashes on corrupted storage. Wrap in try-catch or use safe parser.'
           });
         }
+
+        // Invariant 11: Push WhatsApp Message Outbound Relay Guard
+        if (relPath.includes('whatsappService.ts') && line.includes('static pushWhatsAppMessageFromBot') && !content.includes('this.sendWhatsAppMessagePayload')) {
+          violations.push({
+            rule: 'INVARIANT_11_PUSH_WHATSAPP_OUTBOUND_RELAY',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'pushWhatsAppMessageFromBot must trigger sendWhatsAppMessagePayload to ensure real-time Meta Graph API message transmission.'
+          });
+        }
       });
     }
   }
+}
+
+// ── Check Edge Functions for Strict UUID Validation (Rule 33) ───────────────
+const EDGE_FUNCTIONS_DIR = path.resolve(__dirname, '../../supabase/functions');
+if (fs.existsSync(EDGE_FUNCTIONS_DIR)) {
+  function scanEdgeFunctions(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        scanEdgeFunctions(fullPath);
+      } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+        const relPath = path.relative(path.resolve(__dirname, '../..'), fullPath);
+        const content = fs.readFileSync(fullPath, 'utf8');
+        const lines = content.split('\n');
+
+        lines.forEach((line, idx) => {
+          const lineNum = idx + 1;
+          // Invariant 12: No overly restrictive .uuid() on patientId, podId, entityId, invoiceId
+          if (/(?:patientId|podId|entityId|invoiceId)\s*:\s*z\.string\(\)\.uuid\(/.test(line)) {
+            violations.push({
+              rule: 'INVARIANT_12_EDGE_FUNCTION_FLEXIBLE_ID_VALIDATION',
+              file: relPath,
+              line: lineNum,
+              content: line.trim(),
+              reason: 'Overly restrictive z.string().uuid() rejects custom IDs and user-isolated pod strings. Use z.string().min(1) per Rule 33.'
+            });
+          }
+        });
+      }
+    }
+  }
+  scanEdgeFunctions(EDGE_FUNCTIONS_DIR);
 }
 
 scanFiles(SRC_DIR);

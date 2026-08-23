@@ -15,6 +15,7 @@ export interface RealtimeSubscriptionHandlers {
   onSaaSPrescriptionChange?: (payload: any) => void;
   onPoolSettlementChange?: (payload: any) => void;
   onClinicSopChange?: (payload: any) => void;
+  onChronicCohortChange?: (payload: any) => void;
   onStatusChange?: (status: 'connected' | 'reconnecting' | 'disconnected') => void;
 }
 
@@ -333,6 +334,15 @@ export class RealtimeSyncService {
           console.log('[RealtimeSync] Clinic SOP change detected:', payload);
           this.autoIngestPayload('clinic_sops', payload);
           this.subscribers.forEach(s => s.onClinicSopChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chronic_care_cohorts' },
+        (payload) => {
+          console.log('[RealtimeSync] Chronic Care Cohort change detected:', payload);
+          this.autoIngestPayload('chronic_care_cohorts', payload);
+          this.subscribers.forEach(s => s.onChronicCohortChange?.(payload));
         }
       )
       .subscribe((status, err) => {

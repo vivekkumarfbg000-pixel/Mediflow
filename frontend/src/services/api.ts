@@ -100,6 +100,10 @@ export interface DBInvoice {
   total_amount: string | number;
   upi_qr_payload: string | null;
   payment_status: string;
+  payment_method?: string;
+  pod_id?: string;
+  source?: string;
+  channel?: string;
   created_at: string;
   patient: { name: string; phone: string } | null;
 }
@@ -748,7 +752,7 @@ class MediflowApiService {
         // 10. unified_invoices
         Promise.resolve(supabase.from('unified_invoices').select(`
           id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
-          platform_fee, total_amount, upi_qr_payload, payment_status, created_at,
+          platform_fee, total_amount, upi_qr_payload, payment_status, payment_method, pod_id, source, created_at,
           patient:patient_registry(name, phone)
         `).eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
         // 11. seasonal_demand_forecasts
@@ -947,8 +951,10 @@ class MediflowApiService {
             paymentStatus: (i.payment_status === 'unpaid' || i.payment_status === 'refunded' || i.payment_status === 'pending')
               ? 'pending'
               : ((i.payment_status === 'paid' || i.payment_status === 'cleared') ? 'cleared' : i.payment_status as any),
+            paymentMethod: i.payment_method || 'upi',
+            source: i.source,
             createdAt: i.created_at
-          }));
+          } as any));
           let isDemoAccount = false;
           if (typeof window !== 'undefined') {
             try {

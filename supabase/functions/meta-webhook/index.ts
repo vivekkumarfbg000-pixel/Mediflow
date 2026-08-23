@@ -1560,6 +1560,26 @@ async function triggerBotReplyPipeline(ctx: {
             for (const item of parsedItems) {
               await supabase.from("medicine_bill_items").insert(item);
             }
+
+            // Sync Chronic Care Cohort & Adherence Cycle (Rule 1 & Rule 57)
+            try {
+              const { data: activeCohort } = await supabase
+                .from("chronic_care_cohorts")
+                .select("id")
+                .eq("patient_id", refillPatId)
+                .limit(1)
+                .maybeSingle();
+
+              if (activeCohort) {
+                await supabase.rpc("process_chronic_refill_assertion", {
+                  p_cohort_id: activeCohort.id,
+                  p_action: "confirm_refill"
+                });
+              }
+            } catch (cErr) {
+              console.warn("[Meta Webhook] Chronic cohort assertion error:", cErr);
+            }
+
             nextState = "COMPLETED";
             replyText = `Dawa refill order confirm ho gaya! 📦\n\n*Selected Medicines*:\n${selectedMeds.map((m: any) => `• ${m.medicine_name} (${m.dosage})`).join("\n")}\n*Subtotal*: ₹${subtotal}.00${refillDiscountMsg}\n*Final Amount*: ₹${finalAmount}.00\n\nCompounder ko order mil gaya hai. Confirmation call/message jald aayega. Dhanyawad! 🟢`;
           } else {

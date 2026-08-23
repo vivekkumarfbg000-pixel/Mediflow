@@ -111,6 +111,32 @@ Even when the user provides brief, informal, conversational, or underspecified p
 - **Counter Doctor Consultation Fee Immunity Protocol**: Pure Doctor Consultation fees booked at the counter by the Compounder (`pharmacyFee === 0 && labFee === 0 && source !== 'whatsapp'`) MUST go 100% to the Doctor with 0% platform fee and 0 pool deduction. Counter doctor consultation fees MUST NEVER refill the commission pool.
 - **WhatsApp Online Booking Convenience Fee Protocol**: Online appointment bookings initiated via WhatsApp Chatbot generate invoices for **₹515.00** (`₹500 Doctor Consultation Fee + ₹15 3% Convenience Platform Fee`), paid directly by the online patient and credited to the platform.
 
+### 7. VitalSync Virtual Hospital Business Model & Category-Defining Triad SOP
+- **Company Identity**: **VitalSync** (Brand: *VitalSync Smart Virtual Hospital Network*).
+- **Core Mission & Positioning**: Empowering independent doctors, local chemists, and pathology labs in Tier 2 & Tier 3 cities (e.g. Purnea, Bihar) to unite into an automated, hospital-grade outpatient network on WhatsApp.
+- **Doctor-Controlled Dynamic SOP Splits (`SopConfigTab.tsx` / `clinic_sops`)**:
+  - The Doctor / Clinic Entity sets or uploads their custom SOP document.
+  - The AI SOP Extractor dynamically configures:
+    * `pharmacy_split` (e.g., 20%–30% customizable by clinic)
+    * `pathology_split` (e.g., 30%–40% customizable by clinic)
+    * `emergency_sos_fee` (e.g., ₹618.00)
+    * `refill_discount` (e.g., 10% OFF for chronic patients)
+- **100% Free Adoption for Doctors**: Zero SaaS subscription fees, zero setup costs.
+- **Doctor Consultation Fee Immunity (Rule 58 / Rule 103)**: 100% of patient consultation fees go directly to the Doctor's bank account with 0% platform deductions.
+- **4 Premium Patient Benefits**:
+  - 🆓 1 Free Virtual Follow-up Consult (15–20 days)
+  - 🏷️ 10% Discount on Chronic Medicine Refills
+  - 📱 Daily WhatsApp Dose Reminders + AI Longitudinal Health Summary
+  - 📄 Instant PDF Lab Reports on WhatsApp
+
+### 8. Multi-Chronic Disease Care & Recurring Refill Goldmine Engine
+- **Master Chronic Protocol Matrix (`chronicCareService.ts`)**: Supports full-spectrum chronic conditions: Type-2 Diabetes, Essential Hypertension, Hypothyroidism, CAD/Dyslipidemia, Asthma/COPD, Osteoarthritis/RA, CKD Stage 1–3, and Epilepsy.
+- **Automated Days-Supply Calculation**: Auto-computes days supply from prescription dosage structures (`1-0-1` = 2/day; 30 tabs = 15-day supply trigger).
+- **Automated Day-25 1-Tap WhatsApp Refill Engine**: Autonomous morning cron worker dispatches interactive WhatsApp messages on Day 25 with 1-Tap native buttons (`[ 📦 Confirm 1-Click Refill (10% OFF) ]` and `[ 👨‍⚕️ Speak to Doctor ]`), auto-provisioning pharmacy POS fulfillment orders upon confirmation.
+- **Automated 90-Day Diagnostic Re-Test Loops**: Proactively schedules Day-75/Day-85 WhatsApp Home Blood Sample Collection for repeat biomarker panels (HbA1c, Lipid Profile, TSH, Serum Creatinine).
+- **Doctor EMR Chronic Care Cockpit (`ChronicCareTab.tsx` & `PodCommandCenter.tsx`)**: Displays live cohort adherence rates, practice recurring revenue forecasts, and Refill Defaulter Safety Net alerts with 1-Tap WhatsApp Nudges.
+- **Realtime CDC Invariant**: `RealtimeSyncService.ts` subscribes to `postgres_changes` on `chronic_care_cohorts` with 250ms debounced auto-ingestion for instant live sync across all 5 consoles.
+
 ---
 
 ## 🛡️ The 100 Big Tech Anti-Regression & Operational Reliability Directives
@@ -235,4 +261,9 @@ Even when the user provides brief, informal, conversational, or underspecified p
 108. **Modal Viewport Scroll Lock & Memory Safety Protocol**: Any modal dialog or drawer utilizing `React.createPortal` or `fixed inset-0` MUST bind a dedicated `useEffect` managing `document.body.style.overflow = 'hidden'` on open and unconditionally restoring `document.body.style.overflow = ''` upon close or unmount.
 109. **Webhook Secret Header Enforcement Protocol**: Incoming webhook handlers (`bank-upi-webhook`, `phonepe-webhook`, `meta-webhook`) MUST validate authentication headers (`x-webhook-secret`, `x-verify`, `x-razorpay-signature`) with strict equality against vault environment secrets and MUST NEVER fall back to insecure default strings in production environments.
 110. **JSX Conditional Closure & Balanced Syntax Protocol**: All conditional rendering expressions, multi-branch ternaries, and portal overlays in TSX/JSX components MUST maintain explicit balanced closing tags (`{cond ? ( ... ) : ( ... )}`) to eliminate compiler parse breaks during production builds.
+111. **Multi-Chronic Condition Protocol & Days-Supply Calculation Contract**: All prescription parsing and chronic disease management routines MUST automatically compute `days_supply` from dosage structures (`1-0-1` = 2 pills/day, 30 tablets = 15-day supply trigger), mapping chronic categories (*Diabetes, Hypertension, Thyroid, CAD, Asthma/COPD, Arthritis, CKD, Epilepsy*) to mandatory NABL/LOINC testing cycles (90-day HbA1c, 90-day Lipid, 60-day TSH, 45-day eGFR).
+112. **Automated Day-25 WhatsApp 1-Tap Refill & Day-75 Retest Dispatch Protocol**: Refill reminder engines MUST proactively dispatch 1-Tap native WhatsApp buttons (`[ 📦 Confirm 1-Click Refill (10% OFF) ]` and `[ 🔬 Book Free Home Collection ]`) on Day 25 of 30-day supplies and Day 75 of 90-day diagnostic cycles.
+113. **Realtime CDC Synchronization for Chronic Care Cohorts (`chronic_care_cohorts`)**: `RealtimeSyncService.ts` MUST subscribe to `postgres_changes` on `chronic_care_cohorts` with 250ms debounced auto-ingestion, ensuring that refill orders placed on WhatsApp immediately update Doctor EMR adherence gauges and due refill counters live across all 5 consoles.
+114. **Refill Defaulter Safety Net & 1-Tap SOS Outreach Protocol**: When a chronic patient exceeds `next_refill_date` by >7 days, the system MUST flag them with a prominent `Refill Defaulter` badge across Doctor and Compounder dashboards and provide a 1-Tap WhatsApp Nudge / Call button to prevent life-threatening medication gaps.
+115. **Doctor EMR Pod Command Center Screen Optimization Protocol**: Pod Command Center displays MUST eliminate duplicate financial widgets and dedicate high-value dashboard screen space to the **Chronic Disease Care & Refill Cockpit Widget**, integrating cohort adherence rates, active condition badges, and one-click navigation to `ChronicCareTab`.
 

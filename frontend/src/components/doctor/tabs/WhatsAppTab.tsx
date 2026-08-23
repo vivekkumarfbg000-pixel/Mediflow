@@ -786,9 +786,24 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                         if (!rpcErr && rpcData?.success && rpcData.queued_count) {
                           queuedCount = Math.max(queuedCount, rpcData.queued_count);
+                        } else {
+                          // Fallback direct enqueue to ensure every filtered recipient is queued
+                          for (const phone of targetPhones) {
+                            let clean = String(phone || '').replace(/[^0-9]/g, '');
+                            if (clean.length === 10) clean = '91' + clean;
+                            if (clean.length >= 10) {
+                              await supabase.from('whatsapp_broadcast_queue').insert({
+                                pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+                                campaign_id: campaignId,
+                                patient_phone: clean,
+                                message_text: messageContent,
+                                status: 'pending'
+                              }).catch(() => {});
+                            }
+                          }
                         }
                       } catch (_rpcError) {
-                        console.warn('[WhatsAppTab Broadcast] RPC call failed, using client-side cohort count fallback:', _rpcError);
+                        console.warn('[WhatsAppTab Broadcast] RPC call failed, using direct queue fallback:', _rpcError);
                       }
 
                       // 3. Trigger the background worker asynchronously (fire and forget)

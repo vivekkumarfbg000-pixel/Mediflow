@@ -1339,6 +1339,12 @@ export class WhatsAppService {
 
   static pushWhatsAppMessageFromBot(phone: string, text: string): void {
     if (!phone || !text) return;
+
+    // 1. Dispatch outbound Meta WhatsApp message via edge function relay
+    this.sendWhatsAppMessagePayload(phone, 'mediflow_conversational_reply', { replyText: text }).catch(err => {
+      console.warn('[whatsappService] Outbound Meta Graph API relay notice:', err);
+    });
+
     const sessions = this.getWhatsAppSessions();
     const targetDigits = phone.replace(/\D/g, '').slice(-10);
     const existing = sessions.find(s => {
