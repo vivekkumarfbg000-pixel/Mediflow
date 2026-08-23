@@ -33,3 +33,31 @@ export function getIstNow(): Date {
   const now = new Date();
   return new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
 }
+
+/**
+ * Returns current hour (0-23) in Indian Standard Time (IST, UTC+5:30).
+ */
+export function getIstHour(date: Date = new Date()): number {
+  const hourStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    hour12: false
+  }).format(date);
+  return parseInt(hourStr, 10);
+}
+
+/**
+ * Returns YYYY-MM-DD date string for today + offsetDays in Indian Standard Time.
+ */
+export function getIstOffsetDateString(offsetDays: number, baseDate: Date = new Date()): string {
+  const target = new Date(baseDate.getTime() + (offsetDays * 24 * 60 * 60 * 1000));
+  return getIstDateString(target);
+}
+
+/**
+ * Returns human-readable date display for today + offsetDays in Indian Standard Time.
+ */
+export function getIstOffsetDateDisplay(offsetDays: number, baseDate: Date = new Date()): string {
+  const target = new Date(baseDate.getTime() + (offsetDays * 24 * 60 * 60 * 1000));
+  return getIstDateDisplay(target);
+}

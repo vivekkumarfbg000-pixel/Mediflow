@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/index.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { getIstDateString, getIstDateDisplay } from "../_shared/istDate.ts";
+import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getIstOffsetDateDisplay, getIstHour } from "../_shared/istDate.ts";
 
 // System-wide environment variables loaded from Supabase Vault/Secrets
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -973,8 +973,7 @@ if (!isManualRelay) {
 // IST (UTC + 5:30) Booking Date Options Generator (Rule 94)
 function generateBookingDateOptions(isSos: boolean = false): { dates: string[], displayDates: string[], isTodayAvailable: boolean } {
   const now = new Date();
-  const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-  const istHour = istTime.getUTCHours();
+  const istHour = getIstHour(now);
   
   // Normal Today booking cutoff is 05:00 PM IST (17:00). Emergency SOS Today cutoff is 07:00 PM IST (19:00)
   const isTodayAvailable = isSos ? (istHour < 19) : (istHour < 17);
@@ -982,26 +981,18 @@ function generateBookingDateOptions(isSos: boolean = false): { dates: string[], 
 
   const dates: string[] = [];
   const displayDates: string[] = [];
-  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   for (let i = 0; i < 4; i++) {
     const dayOffset = startOffset + i;
-    const targetDate = new Date(istTime.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
-    const yyyy = targetDate.getUTCFullYear();
-    const mm = String(targetDate.getUTCMonth() + 1).padStart(2, "0");
-    const dd = String(targetDate.getUTCDate()).padStart(2, "0");
-    dates.push(`${yyyy}-${mm}-${dd}`);
+    const dateStr = getIstOffsetDateString(dayOffset, now);
+    const dateLabel = getIstOffsetDateDisplay(dayOffset, now);
+    dates.push(dateStr);
 
-    const dayName = weekday[targetDate.getUTCDay()];
-    const monthName = months[targetDate.getUTCMonth()];
-    const dateNum = targetDate.getUTCDate();
-
-    let label = `${dayName}, ${dateNum} ${monthName}`;
+    let label = dateLabel;
     if (dayOffset === 0) {
-      label = `Today (${dayName}, ${dateNum} ${monthName})`;
+      label = `Today (${dateLabel})`;
     } else if (dayOffset === 1) {
-      label = `Tomorrow (${dayName}, ${dateNum} ${monthName})`;
+      label = `Tomorrow (${dateLabel})`;
     }
     displayDates.push(label);
   }
@@ -1696,41 +1687,70 @@ async function triggerBotReplyPipeline(ctx: {
       let dateOptions = sessionData.dateOptions ?? [];
       let dateDisplayOptions = sessionData.dateDisplayOptions ?? [];
       
+      const freshDateGen = generateBookingDateOptions(sessionData.isSos === true);
       if (!dateOptions || dateOptions.length === 0) {
-        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(sessionData.isSos === true);
-        dateOptions = dates;
-        dateDisplayOptions = displayDates;
-        sessionData.dateOptions = dates;
-        sessionData.dateDisplayOptions = displayDates;
-        sessionData.isTodayAvailable = isTodayAvailable;
+        dateOptions = freshDateGen.dates;
+        dateDisplayOptions = freshDateGen.displayDates;
+        sessionData.dateOptions = freshDateGen.dates;
+        sessionData.dateDisplayOptions = freshDateGen.displayDates;
+        sessionData.isTodayAvailable = freshDateGen.isTodayAvailable;
       }
 
-      let dateIdx = -1;
-      if (replyId === "btn_date_1") dateIdx = 0;
-      else if (replyId === "btn_date_2") dateIdx = 1;
-      else if (replyId === "btn_date_3") dateIdx = 2;
-      else if (replyId === "btn_date_4") dateIdx = 3;
-      else {
-        const parsedNum = parseInt(cleaned.replace(/\D/g, ""));
-        if (!isNaN(parsedNum) && parsedNum >= 1 && parsedNum <= dateOptions.length) {
-          dateIdx = parsedNum - 1;
-        } else if (cleaned.includes("today") || cleaned.includes("aaj")) {
-          dateIdx = sessionData.isTodayAvailable ? 0 : 0;
+      let selectedDateStr = "";
+      let selectedDisplayStr = "";
+
+      // 1. Direct explicit ISO date embedded in button ID (e.g. btn_date_2026-08-24)
+      if (replyId && replyId.startsWith("btn_date_")) {
+        const potentialDate = replyId.replace("btn_date_", "").trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(potentialDate)) {
+          selectedDateStr = potentialDate;
+          const matchIdx = dateOptions.indexOf(potentialDate);
+          selectedDisplayStr = matchIdx !== -1 ? dateDisplayOptions[matchIdx] : getIstDateDisplay(new Date(potentialDate + "T12:00:00+05:30"));
+        } else if (replyId === "btn_date_1" && dateOptions[0]) {
+          selectedDateStr = dateOptions[0];
+          selectedDisplayStr = dateDisplayOptions[0];
+        } else if (replyId === "btn_date_2" && dateOptions[1]) {
+          selectedDateStr = dateOptions[1];
+          selectedDisplayStr = dateDisplayOptions[1];
+        } else if (replyId === "btn_date_3" && dateOptions[2]) {
+          selectedDateStr = dateOptions[2];
+          selectedDisplayStr = dateDisplayOptions[2];
+        } else if (replyId === "btn_date_4" && dateOptions[3]) {
+          selectedDateStr = dateOptions[3];
+          selectedDisplayStr = dateDisplayOptions[3];
+        }
+      }
+
+      // 2. Keyword Match (e.g. "today", "aaj", "tomorrow", "kal", "day after", "parso")
+      if (!selectedDateStr) {
+        if (cleaned.includes("today") || cleaned.includes("aaj")) {
+          selectedDateStr = getIstDateString();
+          selectedDisplayStr = `Today (${getIstDateDisplay()})`;
         } else if (cleaned.includes("tomorrow") || cleaned.includes("kal")) {
-          dateIdx = sessionData.isTodayAvailable ? 1 : 0;
+          selectedDateStr = getIstOffsetDateString(1);
+          selectedDisplayStr = `Tomorrow (${getIstOffsetDateDisplay(1)})`;
         } else if (cleaned.includes("day after") || cleaned.includes("parso")) {
-          dateIdx = sessionData.isTodayAvailable ? 2 : 1;
-        } else if (cleaned.includes("day 4") || cleaned.includes("4th")) {
-          dateIdx = sessionData.isTodayAvailable ? 3 : 2;
+          selectedDateStr = getIstOffsetDateString(2);
+          selectedDisplayStr = getIstOffsetDateDisplay(2);
+        } else if (cleaned.includes("day 4") || cleaned.includes("in 3 days") || cleaned.includes("4th")) {
+          selectedDateStr = getIstOffsetDateString(3);
+          selectedDisplayStr = getIstOffsetDateDisplay(3);
+        } else {
+          // 3. Numbered Option Selection (1, 2, 3, 4)
+          const parsedNum = parseInt(cleaned.replace(/\D/g, ""));
+          if (!isNaN(parsedNum) && parsedNum >= 1 && parsedNum <= dateOptions.length) {
+            selectedDateStr = dateOptions[parsedNum - 1];
+            selectedDisplayStr = dateDisplayOptions[parsedNum - 1];
+          }
         }
       }
       
-      if (dateIdx >= 0 && dateIdx < dateOptions.length) {
-        sessionData.selectedDate = dateOptions[dateIdx];
-        sessionData.selectedDateDisplay = dateDisplayOptions[dateIdx];
+      if (selectedDateStr) {
+        sessionData.selectedDate = selectedDateStr;
+        sessionData.selectedDateDisplay = selectedDisplayStr;
         
         nextState = "AWAITING_SLOT_SELECTION";
-        replyText = `Great! Aapne checkup ke liye *${dateDisplayOptions[dateIdx]}* select kiya hai. Ab aap checkup timing slot select kijiye:\n\n1️⃣ 10:00 AM - 12:00 PM (Morning)\n2️⃣ 02:00 PM - 04:00 PM (Afternoon)\n3️⃣ 06:00 PM - 08:00 PM (Evening)\n\nPlease option number (1, 2, ya 3) reply kijiye! ⏱️`;
+        replyText = `Great! Aapne checkup ke liye *${selectedDisplayStr}* select kiya hai. Ab aap checkup timing slot select kijiye:\n\n1️⃣ 10:00 AM - 12:00 PM (Morning)\n2️⃣ 02:00 PM - 04:00 PM (Afternoon)\n3️⃣ 06:00 PM - 08:00 PM (Evening)\n\nPlease option number (1, 2, ya 3) reply kijiye! ⏱️`;
       } else {
         replyText = `Doctor ke checkup ke liye please niche diye gaye dates mein se select kijiye:\n\n1️⃣ ${dateDisplayOptions[0]}\n2️⃣ ${dateDisplayOptions[1]}\n3️⃣ ${dateDisplayOptions[2]}\n4️⃣ ${dateDisplayOptions[3]}\n\nPlease option number (1, 2, 3, ya 4) likh kar reply karein! 📅`;
       }
@@ -1839,6 +1859,8 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.doctorName = resolvedDoctorName;
         sessionData.clinicName = resolvedClinicName;
         sessionData.feeAmount = feeAmount;
+        sessionData.selectedDate = selectedDate;
+        sessionData.selectedDateDisplay = selectedDisplay;
 
         // Accurate Indian Standard Time (IST, UTC+5:30) ISO timestamp
         let apptTimestamp = `${selectedDate}T10:00:00.000Z`;
@@ -2130,14 +2152,36 @@ async function triggerBotReplyPipeline(ctx: {
       const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
       const invoiceId = sessionData.pendingInvoiceId;
       const apptId = sessionData.pendingApptId;
-      const tokenNumber = sessionData.tokenNumber || 1;
-      const approxTime = sessionData.approxTime || "10:00 AM";
-      const selectedDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate ? sessionData.selectedDate : getIstDateString());
-      const doctorName = sessionData.doctorName || resolvedDoctorName;
-      const clinicName = sessionData.clinicName || resolvedClinicName;
-      const feeAmount = sessionData.feeAmount || resolvedConsultationFee;
+      let tokenNumber = sessionData.tokenNumber || 1;
+      let approxTime = sessionData.approxTime || "10:00 AM";
+      let doctorName = sessionData.doctorName || resolvedDoctorName;
+      let clinicName = sessionData.clinicName || resolvedClinicName;
+      let feeAmount = sessionData.feeAmount || resolvedConsultationFee;
       const isVirtualSlot = sessionData.consultationType === "virtual";
       const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
+
+      // Resilient database appointment lookup if sessionData was cleared or lost
+      let resolvedApptDate = sessionData.selectedDateDisplay || sessionData.selectedDate;
+      if (apptId || invoiceId || bookingPatId) {
+        try {
+          let apptQuery = supabase.from("appointments").select("virtual_date, virtual_time, appointment_time, token_number, doctor_id, entity_id");
+          if (apptId) {
+            apptQuery = apptQuery.eq("id", apptId);
+          } else if (bookingPatId) {
+            apptQuery = apptQuery.eq("patient_id", bookingPatId).order("created_at", { ascending: false }).limit(1);
+          }
+          const { data: dbAppt } = await apptQuery.maybeSingle();
+          if (dbAppt) {
+            if (!resolvedApptDate && dbAppt.virtual_date) {
+              resolvedApptDate = dbAppt.virtual_date;
+            }
+            if (dbAppt.token_number) {
+              tokenNumber = dbAppt.token_number;
+            }
+          }
+        } catch (_e) {}
+      }
+      const selectedDisplay = resolvedApptDate || getIstDateString();
 
       // 1. Screenshot OCR Processing
       if (isScreenshotProcessing && messageRaw?.image?.id) {
@@ -3375,21 +3419,30 @@ CLINICAL GUIDELINES:
         }
       };
     } else if (nextState === "AWAITING_DATE_SELECTION" || (state === "AWAITING_DATE_SELECTION" && replyText.includes("date select"))) {
-      const isTodayAvail = sessionData.isTodayAvailable ?? (generateBookingDateOptions(sessionData.isSos === true).isTodayAvailable);
+      const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(sessionData.isSos === true);
+      const btnList = dates.slice(0, 3).map((dStr, idx) => {
+        let title = displayDates[idx] || dStr;
+        if (title.startsWith("Today")) title = "Today 🏥";
+        else if (title.startsWith("Tomorrow")) title = "Tomorrow 📅";
+        else if (idx === 1 && !isTodayAvailable) title = "Day After 🗓️";
+        else if (idx === 2) title = isTodayAvailable ? "Day After 🗓️" : "In 3 Days 🗓️";
+        
+        const cleanTitle = `${idx + 1}️⃣ ${title}`.substring(0, 20);
+        return {
+          type: "reply",
+          reply: {
+            id: `btn_date_${dStr}`,
+            title: cleanTitle
+          }
+        };
+      });
+
       payloadBody.type = "interactive";
       payloadBody.interactive = {
         type: "button",
         body: { text: replyText },
         action: {
-          buttons: isTodayAvail ? [
-            { type: "reply", reply: { id: "btn_date_1", title: "1️⃣ Today 🏥" } },
-            { type: "reply", reply: { id: "btn_date_2", title: "2️⃣ Tomorrow 📅" } },
-            { type: "reply", reply: { id: "btn_date_3", title: "3️⃣ Day After 🗓️" } }
-          ] : [
-            { type: "reply", reply: { id: "btn_date_1", title: "1️⃣ Tomorrow 📅" } },
-            { type: "reply", reply: { id: "btn_date_2", title: "2️⃣ Day After 🗓️" } },
-            { type: "reply", reply: { id: "btn_date_3", title: "3️⃣ In 3 Days 🗓️" } }
-          ]
+          buttons: btnList
         }
       };
     } else if (nextState === "AWAITING_SLOT_SELECTION" || (state === "AWAITING_SLOT_SELECTION" && replyText.includes("slot"))) {

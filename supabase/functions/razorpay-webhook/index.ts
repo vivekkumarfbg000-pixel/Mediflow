@@ -184,13 +184,25 @@ serve(async (req) => {
           let doctorName = "Doctor";
           let clinicName = "Connected Clinic";
 
-          if (sess) {
+            if (sess) {
             const sessData = sess.session_data || {};
             tokenNumber = sessData.tokenNumber || tokenNumber;
             approxTime = sessData.approxTime || approxTime;
-            selectedDisplay = sessData.selectedDateDisplay || selectedDisplay;
+            selectedDisplay = sessData.selectedDateDisplay || sessData.selectedDate || selectedDisplay;
             doctorName = sessData.doctorName || doctorName;
             clinicName = sessData.clinicName || clinicName;
+
+            if (resolvedApptId) {
+              try {
+                const { data: dbAppt } = await supabase.from("appointments").select("virtual_date, appointment_time, token_number").eq("id", resolvedApptId).maybeSingle();
+                if (dbAppt?.virtual_date) {
+                  selectedDisplay = dbAppt.virtual_date;
+                }
+                if (dbAppt?.token_number) {
+                  tokenNumber = dbAppt.token_number;
+                }
+              } catch (_e) {}
+            }
 
             const updates = { ...sessData, isVerifiedPaid: true, pendingInvoiceId: resolvedInvoiceId };
             await supabase.rpc('atomic_update_whatsapp_session', {
