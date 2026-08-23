@@ -179,24 +179,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const [onboardError, setOnboardError] = useState('');
   const [otpMethod, setOtpMethod] = useState<'SMS' | 'VOICE'>('SMS');
 
-  const [directCredsModalOpen, setDirectCredsModalOpen] = useState(false);
-  const [directPhoneId, setDirectPhoneId] = useState('');
-  const [directWabaId, setDirectWabaId] = useState('');
-  const [directToken, setDirectToken] = useState('');
-  const [directClinicPhone, setDirectClinicPhone] = useState('');
-  const [directClinicName, setDirectClinicName] = useState('');
-  const [isSavingDirect, setIsSavingDirect] = useState(false);
-
-  useEffect(() => {
-    if (activeWabaConnection) {
-      setDirectPhoneId(activeWabaConnection.phone_number_id || '');
-      setDirectWabaId(activeWabaConnection.waba_id || '');
-      setDirectToken(activeWabaConnection.access_token || activeWabaConnection.token || '');
-      setDirectClinicPhone(activeWabaConnection.phone_number || '');
-      setDirectClinicName(activeWabaConnection.clinic_display_name || '');
-    }
-  }, [activeWabaConnection]);
-
 
   // Dedicated direct Supabase Realtime channel for continuous multi-message sync
   const targetPhone = activeChat?.patientPhone || activeChat?.patient_phone || activeChat?.phone || '';
@@ -328,52 +310,37 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 <div className="text-[10px] text-slate-600 font-mono mt-1 space-y-0.5">
                   <div>WABA Phone Number: <strong className="text-slate-700 font-sans">{activeWabaConnection.phone_number}</strong></div>
                   <div>Phone ID: <strong className="text-slate-600">{activeWabaConnection.phone_number_id}</strong> • Account ID: <strong className="text-slate-600">{activeWabaConnection.waba_id}</strong></div>
-                  {activeWabaConnection.access_token ? (
-                    <div className="text-[9px] text-emerald-600 font-bold">✅ System User Token Active (Direct Cloud Dispatch)</div>
-                  ) : (
-                    <div className="text-[9px] text-amber-600 font-bold">⚠️ No System User Token Saved (Click Configure to paste Token)</div>
-                  )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
-              <button
-                type="button"
-                onClick={() => setDirectCredsModalOpen(true)}
-                className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-              >
-                <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                Configure Token ⚙️
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to disconnect this live WhatsApp business channel? AI automations will revert to simulator mode.")) {
-                    localStorage.setItem('vitalsync_waba_connection', 'disconnected');
-                    setActiveWabaConnection(null);
-                    try {
-                      await supabase
-                        .from('waba_connections')
-                        .delete()
-                        .eq('id', activeWabaConnection.id);
-                    } catch (_e) {
-                      /* ignore db fallback */
-                    }
-
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Channel Disconnected! 🔴',
-                        message: 'Meta Cloud API channel detached successfully.',
-                        type: 'info'
-                      }
-                    }));
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm("Are you sure you want to disconnect this live WhatsApp business channel? AI automations will revert to simulator mode.")) {
+                  localStorage.setItem('vitalsync_waba_connection', 'disconnected');
+                  setActiveWabaConnection(null);
+                  try {
+                    await supabase
+                      .from('waba_connections')
+                      .delete()
+                      .eq('id', activeWabaConnection.id);
+                  } catch (_e) {
+                    /* ignore db fallback */
                   }
-                }}
-                className="px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer"
-              >
-                Disconnect Channel
-              </button>
-            </div>
+
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Channel Disconnected! 🔴',
+                      message: 'Meta Cloud API channel detached successfully.',
+                      type: 'info'
+                    }
+                  }));
+                }
+              }}
+              className="px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer self-start md:self-auto"
+            >
+              Disconnect Channel
+            </button>
           </div>
         ) : (
           <div className="glass-panel p-5 bg-white border-slate-200/60 shadow-xs rounded-3xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative overflow-hidden">
@@ -381,29 +348,19 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
             <div className="flex gap-3.5 items-start">
               <MessageSquare className="w-8 h-8 text-primary mt-0.5 shrink-0" />
               <div className="space-y-1">
-                <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Activate Clinic WhatsApp Chatbot</h3>
+                <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-wider font-sans">Activate Clinic WhatsApp Chatbot in 10 Seconds</h3>
                 <p className="text-[11px] text-slate-500 leading-relaxed max-w-2xl font-sans">
-                  Connect your clinic's WhatsApp number in 3 simple steps via OTP or enter your Meta Developer Cloud API System User Token directly.
+                  Connect your clinic's WhatsApp number in 3 simple steps. Enter your clinic name &amp; number, verify via OTP — we handle all Meta credentials and billing automatically. Patients will see your clinic name when they receive messages.
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap shrink-0">
-              <button
-                type="button"
-                onClick={() => setDirectCredsModalOpen(true)}
-                className="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Zap className="w-4 h-4 text-emerald-600 font-bold" />
-                Enter Meta Token ⚙️
-              </button>
-              <button
-                onClick={() => setWabaFormOpen(true)}
-                className="px-4 py-2.5 bg-primary hover:bg-primary-505 text-white border border-primary/25 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-primary-force"
-              >
-                <Zap className="w-4 h-4 text-white font-bold" />
-                Connect via OTP
-              </button>
-            </div>
+            <button
+              onClick={() => setWabaFormOpen(true)}
+              className="px-4 py-2.5 bg-primary hover:bg-primary-505 text-white border border-primary/25 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer text-white-force bg-primary-force shrink-0"
+            >
+              <Zap className="w-4 h-4 text-white font-bold" />
+              Connect Business Number
+            </button>
           </div>
         )}
 
@@ -1664,203 +1621,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
         document.body
       )}
 
-      {/* ── Direct Meta Cloud API Developer Credentials Modal ──────────── */}
-      {directCredsModalOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/60 backdrop-blur-sm p-4 overflow-y-auto max-h-screen animate-fade-in text-slate-800">
-          <div className="glass-panel max-w-lg w-full border-slate-200 shadow-2xl relative overflow-hidden bg-white rounded-3xl my-auto">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500" />
-
-            <div className="p-6 pb-4 flex justify-between items-start">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-emerald-500 font-bold" />
-                  Meta Cloud API System User Credentials
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Enter your Meta Developer System User Token to route all outbound WhatsApp broadcasts &amp; confirmations directly to patient phones.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDirectCredsModalOpen(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors border-0 bg-transparent flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!directToken.trim() || !directPhoneId.trim()) {
-                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                    detail: {
-                      title: 'Missing Required Fields',
-                      message: 'Please enter both Phone Number ID and Meta Access Token.',
-                      type: 'warning'
-                    }
-                  }));
-                  return;
-                }
-
-                setIsSavingDirect(true);
-                try {
-                  const rawDigits = directClinicPhone.replace(/\D/g, '');
-                  const normPhone = rawDigits.length === 10 ? `+91${rawDigits}` : (rawDigits ? `+${rawDigits}` : '+918986426029');
-
-                  const conn: any = {
-                    id: activeWabaConnection?.id || `waba-conn-${Date.now()}`,
-                    phone_number: normPhone,
-                    phone_number_id: directPhoneId.trim(),
-                    waba_id: directWabaId.trim() || '1368300571939214',
-                    access_token: directToken.trim(),
-                    token: directToken.trim(),
-                    clinic_display_name: directClinicName.trim() || 'Apex Eye & Dental Care Clinic',
-                    waba_status: 'active',
-                    is_active: true,
-                    created_at: new Date().toISOString()
-                  };
-
-                  setActiveWabaConnection(conn);
-                  localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
-
-                  try {
-                    await supabase.from('waba_connections').upsert({
-                      pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-                      entity_id: activePod?.entity_id || activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-                      phone_number: normPhone,
-                      phone_number_id: directPhoneId.trim(),
-                      waba_id: directWabaId.trim() || '1368300571939214',
-                      access_token: directToken.trim(),
-                      clinic_display_name: directClinicName.trim() || 'Apex Eye & Dental Care Clinic',
-                      waba_status: 'active',
-                      is_active: true,
-                      verified_at: new Date().toISOString()
-                    }, { onConflict: 'pod_id' });
-                  } catch (_dbE) {
-                    console.warn('[WhatsAppTab] DB upsert fallback:', _dbE);
-                  }
-
-                  setDirectCredsModalOpen(false);
-                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                    detail: {
-                      title: 'Meta WhatsApp Channel Configured! 🟢',
-                      message: `Token & Phone ID (${directPhoneId.trim()}) saved to database. Outbound broadcast active!`,
-                      type: 'success'
-                    }
-                  }));
-                } catch (err: any) {
-                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                    detail: {
-                      title: 'Save Failed',
-                      message: err.message || 'Could not save credentials.',
-                      type: 'error'
-                    }
-                  }));
-                } finally {
-                  setIsSavingDirect(false);
-                }
-              }}
-              className="p-6 pt-2 space-y-4 text-left"
-            >
-              <div className="space-y-1">
-                <label className="block text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
-                  Meta Phone Number ID <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 1168872099651441"
-                  value={directPhoneId}
-                  onChange={(e) => setDirectPhoneId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 rounded-xl text-xs font-mono bg-slate-50/50 outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
-                  Meta System User Access Token (Starts with EAA...) <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="EAA..."
-                  value={directToken}
-                  onChange={(e) => setDirectToken(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 rounded-xl text-xs font-mono bg-slate-50/50 outline-none resize-none"
-                />
-                <p className="text-[10px] text-slate-400">
-                  Permanent System User token or temporary access token from Meta for Developers.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
-                    WABA Account ID
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 1368300571939214"
-                    value={directWabaId}
-                    onChange={(e) => setDirectWabaId(e.target.value)}
-                    className="w-full px-3.5 py-2 border border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-mono bg-slate-50/50 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
-                    Clinic WhatsApp Number
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="+918986426029"
-                    value={directClinicPhone}
-                    onChange={(e) => setDirectClinicPhone(e.target.value)}
-                    className="w-full px-3.5 py-2 border border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-mono bg-slate-50/50 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
-                  Clinic Display Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="Apex Eye & Dental Care Clinic"
-                  value={directClinicName}
-                  onChange={(e) => setDirectClinicName(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-slate-200 focus:border-emerald-500 rounded-xl text-xs bg-slate-50/50 outline-none"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setDirectCredsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingDirect}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-                >
-                  {isSavingDirect ? (
-                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...</>
-                  ) : (
-                    <><CheckCircle2 className="w-3.5 h-3.5" /> Save &amp; Activate Meta WhatsApp ⚡</>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
-
     </div>
   );
 });
+
 
