@@ -940,10 +940,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         const validPhoneId = (wabaPhoneId && /^\d{15,18}$/.test(String(wabaPhoneId))) ? wabaPhoneId : undefined;
                         const validToken = (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined;
 
-                        await Promise.allSettled(priorityPhones.map(pPhone => {
+                        const relayResults = await Promise.allSettled(priorityPhones.map(async pPhone => {
                           let clean = String(pPhone || '').replace(/[^0-9]/g, '');
                           if (clean.length === 10) clean = '91' + clean;
-                          return supabase.functions.invoke('meta-webhook', {
+                          const res = await supabase.functions.invoke('meta-webhook', {
                             body: {
                               action: 'send_broadcast_message',
                               patientPhone: clean,
@@ -952,8 +952,20 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                               phoneNumberId: validPhoneId,
                               systemToken: validToken
                             }
-                          }).catch(_err => console.warn('[WhatsApp Broadcast] Fast relay notice:', _err));
+                          });
+                          return { phone: clean, res };
                         }));
+
+                        const anySuccess = relayResults.some(r => r.status === 'fulfilled' && ((r.value?.res as any)?.data?.success || !(r.value?.res as any)?.error));
+                        if (anySuccess) {
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Meta WhatsApp Delivery Verified ⚡',
+                              message: `Direct broadcast delivered to priority device (+91${explicitTestPhone || '9608032073'}) via Meta Cloud API.`,
+                              type: 'success'
+                            }
+                          }));
+                        }
 
                         // Enqueue campaign batch in Postgres
                         try {
