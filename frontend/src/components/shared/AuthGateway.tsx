@@ -1847,7 +1847,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   type="text"
                   value={clinicName}
                   onChange={(e) => setClinicName(e.target.value)}
-                  placeholder="e.g. Apex Health Clinic"
+                  placeholder="e.g. City Health Clinic"
                   className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                   required
                 />

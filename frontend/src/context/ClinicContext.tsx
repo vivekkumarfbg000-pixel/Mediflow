@@ -63,7 +63,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     const isDemo = Boolean(activeProfile.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || activeProfile.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
     if (isDemo) {
       const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
-      const customName = activeProfile?.clinicName || activeProfile?.clinic_name || localActivePod?.name || (activeProfile?.display_name ? `${activeProfile.display_name}'s Care Clinic` : 'VitalSync Smart Care Clinic');
+      const cleanStoredPodName = localActivePod?.name && !localActivePod.name.toLowerCase().includes('apex') ? localActivePod.name : null;
+      const customName = activeProfile?.clinicName || activeProfile?.clinic_name || cleanStoredPodName || (activeProfile?.display_name ? `${activeProfile.display_name.startsWith('Dr.') ? activeProfile.display_name : `Dr. ${activeProfile.display_name}`}'s Care Clinic` : 'VitalSync Smart Care Clinic');
       const demoPod: Pod = {
         id: localActivePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
         name: customName,

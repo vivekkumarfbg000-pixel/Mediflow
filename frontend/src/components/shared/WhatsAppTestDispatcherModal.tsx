@@ -15,8 +15,8 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
   isOpen,
   onClose,
-  clinicName = 'Apex Medical Center',
-  doctorName = 'Dr. Rajesh Verma'
+  clinicName = 'VitalSync Care Clinic',
+  doctorName = 'Dr. Practitioner'
 }) => {
   useBodyScrollLock(isOpen);
   const [phone, setPhone] = useState('');

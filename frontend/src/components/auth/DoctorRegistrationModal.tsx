@@ -156,7 +156,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
                 required
                 value={formData.clinicName}
                 onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
-                placeholder="e.g. Apex Eye & Vision Care"
+                placeholder="e.g. Mediflow Eye & Vision Care"
                 className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>

@@ -220,7 +220,7 @@ export class WhatsAppSupportBotService {
       const demoTickets: SupportEscalationTicket[] = [
         {
           id: 'TKT-1042',
-          clinic_name: 'Apex Super Specialty Care',
+          clinic_name: 'Metro Multispeciality Care',
           doctor_name: 'Lead Clinician',
           sender_role: 'doctor',
           query_text: 'Need Payment Gateway API credential approval and domain CORS whitelisting.',
