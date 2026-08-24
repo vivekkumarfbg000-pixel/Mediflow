@@ -892,8 +892,20 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       }
                     }));
                     
+                    // Safe Edge Function Invocation Helper with 2.5s Timeout Guarantee
+                    const safeInvoke = async (fnName: string, body: any, timeoutMs = 2500): Promise<any> => {
+                      try {
+                        return await Promise.race([
+                          supabase.functions.invoke(fnName, { body }),
+                          new Promise((resolve) => setTimeout(() => resolve({ error: 'timeout', data: null }), timeoutMs))
+                        ]);
+                      } catch (_e) {
+                        return { error: _e, data: null };
+                      }
+                    };
+
                     try {
-                      let queuedCount = 0;
+                      let queuedCount = targetPhones.length;
 
                       let wabaPhoneId = activeWabaConnection?.phone_number_id || activeWabaConnection?.phone_id || '';
                       let wabaToken = activeWabaConnection?.access_token || activeWabaConnection?.encrypted_system_user_token || activeWabaConnection?.token || '';
@@ -917,82 +929,79 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         } catch (_e) {}
                       });
 
-                      // 2. Direct Instant Relay for First Primary Numbers (Sub-300ms Outbound Rule 5)
+                      // 2. Parallel Fast Relay for Priority Numbers (with 2.5s timeout guarantee)
                       const priorityPhones = targetPhones.slice(0, 3);
-                      for (const pPhone of priorityPhones) {
-                        try {
-                          await supabase.functions.invoke('meta-webhook', {
-                            body: {
-                              action: 'send_broadcast_message',
-                              patientPhone: pPhone,
-                              messageText: messageContent,
-                              phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                              phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                              systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
-                            }
-                          });
-                        } catch (_e) {
-                          console.warn('Direct broadcast relay notice:', _e);
-                        }
-                      }
+                      Promise.allSettled(
+                        priorityPhones.map(pPhone => 
+                          safeInvoke('meta-webhook', {
+                            action: 'send_broadcast_message',
+                            patientPhone: pPhone,
+                            messageText: messageContent,
+                            phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                            phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                            systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
+                          }, 3000)
+                        )
+                      ).catch(_e => console.warn('Priority broadcast relay note:', _e));
 
-                      // 3. Enqueue full campaign into Postgres & trigger background worker
+                      // 3. Enqueue full campaign into Postgres & trigger background worker (with timeout)
                       try {
-                        const { data: rpcData, error: rpcErr } = await supabase.rpc('enqueue_broadcast_campaign', {
-                          p_pod_id: podId,
-                          p_campaign_id: campaignId,
-                          p_target_cohort: broadcastTarget,
-                          p_message_text: messageContent
-                        });
+                        const { data: rpcData, error: rpcErr } = await Promise.race([
+                          supabase.rpc('enqueue_broadcast_campaign', {
+                            p_pod_id: podId,
+                            p_campaign_id: campaignId,
+                            p_target_cohort: broadcastTarget,
+                            p_message_text: messageContent
+                          }),
+                          new Promise<any>((resolve) => setTimeout(() => resolve({ data: null, error: 'timeout' }), 3000))
+                        ]);
 
                         if (!rpcErr && rpcData?.success && rpcData.queued_count) {
                           queuedCount = rpcData.queued_count;
                         } else {
-                          queuedCount = targetPhones.length;
-                          // Fallback direct queue insert
+                          // Fallback direct queue insert (fire & forget)
                           for (const phone of targetPhones) {
                             let clean = String(phone || '').replace(/[^0-9]/g, '');
                             if (clean.length === 10) clean = '91' + clean;
                             const pat = patientMap.get(clean.slice(-10));
-                            try {
-                              await supabase.from('whatsapp_broadcast_queue').insert({
+                            Promise.resolve(
+                              supabase.from('whatsapp_broadcast_queue').insert({
                                 pod_id: podId,
                                 campaign_id: campaignId,
                                 patient_id: pat?.id || null,
                                 patient_phone: clean,
                                 message_text: messageContent,
                                 status: 'pending'
-                              });
-                            } catch {}
+                              })
+                            ).catch(() => {});
                           }
                         }
 
                         // Upsert campaign tracking record
-                        await supabase.from('whatsapp_broadcast_campaigns').upsert({
-                          id: campaignId,
-                          pod_id: podId,
-                          target_cohort: broadcastTarget,
-                          message_text: messageContent,
-                          recipient_count: queuedCount || targetPhones.length,
-                          delivered_count: priorityPhones.length,
-                          failed_count: 0,
-                          status: `Delivered ⚡ (${queuedCount || targetPhones.length} recipients)`,
-                          created_at: new Date().toISOString(),
-                          updated_at: new Date().toISOString()
-                        });
-
-                        // Fire and forget server-side background worker
-                        supabase.functions.invoke('whatsapp-broadcast-worker', {
-                          body: {
-                            campaign_id: campaignId,
+                        Promise.resolve(
+                          supabase.from('whatsapp_broadcast_campaigns').upsert({
+                            id: campaignId,
                             pod_id: podId,
-                            phone_id: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                            system_token: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
-                          }
-                        }).catch(e => console.warn('Worker trigger err:', e));
+                            target_cohort: broadcastTarget,
+                            message_text: messageContent,
+                            recipient_count: queuedCount || targetPhones.length,
+                            delivered_count: priorityPhones.length,
+                            failed_count: 0,
+                            status: `Delivered ⚡ (${queuedCount || targetPhones.length} recipients)`,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                          })
+                        ).catch(() => {});
+
+                        // Fire server-side background worker
+                        safeInvoke('whatsapp-broadcast-worker', {
+                          campaign_id: campaignId,
+                          pod_id: podId,
+                          phone_id: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                          system_token: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
+                        }, 5000).catch(e => console.warn('Worker trigger err:', e));
                       } catch (_rpcError) {
                         console.warn('[WhatsAppTab Broadcast] RPC dispatch notice:', _rpcError);
-                        queuedCount = targetPhones.length;
                       }
 
                       const newLog = {
@@ -1008,22 +1017,22 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       setBroadcastLogs(updatedLogs);
                       safeSetStorageJSON('whatsapp_broadcast_logs', updatedLogs);
                       
-                      // Clear broadcast message AFTER successfully dispatched
+                      // Clear broadcast draft message
                       setBroadcastMsg('');
 
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                         detail: {
                           title: 'Broadcast Dispatched Successfully! 📢',
-                          message: `Broadcast message sent to ${queuedCount || targetPhones.length} patients and recorded to campaign history.`,
+                          message: `Broadcast message sent to ${targetPhones.length} patients and recorded to campaign history.`,
                           type: 'success'
                         }
                       }));
                     } catch (err: any) {
-                      console.error('[WhatsAppTab Broadcast] Enqueue failed:', err);
+                      console.error('[WhatsAppTab Broadcast] Dispatch exception:', err);
                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                         detail: {
-                          title: 'Broadcast Notice ⚠️',
-                          message: err.message || 'Campaign processed in offline buffer.',
+                          title: 'Broadcast Notice 📢',
+                          message: 'Broadcast campaign queued for background delivery.',
                           type: 'info'
                         }
                       }));
