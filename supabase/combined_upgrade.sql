@@ -2280,5 +2280,226 @@ USING (true);
 ALTER TABLE public.waba_connections ADD COLUMN IF NOT EXISTS access_token TEXT;
 
 -- =============================================================================
+-- SECTION 47: Broadcast Campaign Enqueue RPC
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.enqueue_broadcast_campaign(
+    p_pod_id UUID,
+    p_campaign_id TEXT,
+    p_target_cohort TEXT, -- 'all', 'diabetes', 'hypertension', 'opd', 'chronic'
+    p_message_text TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_pod_id UUID := COALESCE(p_pod_id, 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid);
+    v_inserted_count INT := 0;
+BEGIN
+    IF p_target_cohort = 'all' THEN
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT v_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE (pod_id = v_pod_id OR pod_id IS NULL)
+          AND phone IS NOT NULL AND length(phone) >= 10;
+          
+    ELSIF p_target_cohort = 'diabetes' THEN
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT v_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE (pod_id = v_pod_id OR pod_id IS NULL)
+          AND phone IS NOT NULL AND length(phone) >= 10
+          AND (
+            COALESCE(condition, '') ILIKE '%diabet%' 
+            OR COALESCE(tags::text, '') ILIKE '%diabet%'
+            OR COALESCE(medical_history::text, '') ILIKE '%diabet%'
+            OR COALESCE(vitals::text, '') ILIKE '%sugar%'
+          );
+          
+    ELSIF p_target_cohort = 'hypertension' THEN
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT v_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE (pod_id = v_pod_id OR pod_id IS NULL)
+          AND phone IS NOT NULL AND length(phone) >= 10
+          AND (
+            COALESCE(condition, '') ILIKE '%hyper%' 
+            OR COALESCE(tags::text, '') ILIKE '%bp%' 
+            OR COALESCE(tags::text, '') ILIKE '%hyper%'
+            OR COALESCE(medical_history::text, '') ILIKE '%bp%'
+            OR COALESCE(vitals::text, '') ILIKE '%bp%'
+          );
+          
+    ELSE
+        INSERT INTO whatsapp_broadcast_queue (pod_id, campaign_id, patient_id, patient_phone, message_text)
+        SELECT v_pod_id, p_campaign_id, id, phone, p_message_text
+        FROM patient_registry
+        WHERE (pod_id = v_pod_id OR pod_id IS NULL)
+          AND phone IS NOT NULL AND length(phone) >= 10;
+    END IF;
+
+    GET DIAGNOSTICS v_inserted_count = ROW_COUNT;
+
+    -- Upsert persistent campaign history
+    INSERT INTO whatsapp_broadcast_campaigns (id, pod_id, target_cohort, message_text, recipient_count, status)
+    VALUES (p_campaign_id, v_pod_id, p_target_cohort, p_message_text, v_inserted_count, 'Delivered & Processing ⚡')
+    ON CONFLICT (id) DO UPDATE SET
+        recipient_count = EXCLUDED.recipient_count,
+        updated_at = NOW();
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'campaign_id', p_campaign_id,
+        'queued_count', v_inserted_count
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+        'success', false,
+        'error', SQLERRM
+    );
+END;
+$$;
+
+-- =============================================================================
+-- SECTION 48: Pop Pending Broadcast Batch RPC (SKIP LOCKED)
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.pop_pending_broadcast_batch(
+    p_campaign_id TEXT,
+    p_pod_id UUID,
+    p_limit INTEGER
+)
+RETURNS SETOF public.whatsapp_broadcast_queue
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH locked_rows AS (
+        SELECT id
+        FROM public.whatsapp_broadcast_queue
+        WHERE campaign_id = p_campaign_id
+          AND pod_id = p_pod_id
+          AND status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT p_limit
+        FOR UPDATE SKIP LOCKED
+    )
+    UPDATE public.whatsapp_broadcast_queue q
+    SET status = 'processing',
+        updated_at = NOW()
+    FROM locked_rows
+    WHERE q.id = locked_rows.id
+    RETURNING q.*;
+END;
+$$;
+
+-- =============================================================================
+-- SECTION: WhatsApp Session State Resilience & Atomic Updating
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.atomic_update_whatsapp_session(
+    p_patient_phone TEXT,
+    p_patient_id UUID DEFAULT NULL,
+    p_pod_id UUID DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid,
+    p_entity_id UUID DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid,
+    p_current_state TEXT DEFAULT NULL,
+    p_message JSONB DEFAULT NULL,
+    p_session_data_updates JSONB DEFAULT NULL,
+    p_waba_error TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_updated RECORD;
+    v_default_session_data JSONB;
+    v_chat_history JSONB;
+    v_effective_pod_id UUID;
+    v_effective_entity_id UUID;
+BEGIN
+    v_effective_pod_id := COALESCE(p_pod_id, 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid);
+    v_effective_entity_id := COALESCE(p_entity_id, v_effective_pod_id);
+
+    -- Determine default chat history array (handle array vs single object)
+    IF p_message IS NOT NULL THEN
+      IF jsonb_typeof(p_message) = 'array' THEN
+        v_chat_history := p_message;
+      ELSE
+        v_chat_history := jsonb_build_array(p_message);
+      END IF;
+    ELSE
+      v_chat_history := '[]'::jsonb;
+    END IF;
+
+    -- Build default session data JSONB
+    v_default_session_data := jsonb_build_object(
+      'chatHistory', v_chat_history,
+      'podId', v_effective_pod_id,
+      'entityId', v_effective_entity_id,
+      'wabaErrorMessage', p_waba_error
+    );
+
+    -- Apply initial overrides if provided
+    IF p_session_data_updates IS NOT NULL THEN
+      v_default_session_data := v_default_session_data || p_session_data_updates;
+    END IF;
+
+    -- Insert or update atomically under unique constraint on patient_phone
+    INSERT INTO public.whatsapp_sessions (
+        patient_phone, 
+        patient_id, 
+        current_state, 
+        last_interaction, 
+        session_data,
+        pod_id
+    )
+    VALUES (
+        p_patient_phone, 
+        p_patient_id, 
+        COALESCE(p_current_state, 'IDLE'), 
+        NOW(), 
+        v_default_session_data,
+        v_effective_pod_id
+    )
+    ON CONFLICT (patient_phone) DO UPDATE 
+    SET 
+        patient_id = COALESCE(p_patient_id, whatsapp_sessions.patient_id),
+        current_state = COALESCE(p_current_state, whatsapp_sessions.current_state),
+        last_interaction = NOW(),
+        session_data = (
+            CASE 
+              WHEN p_message IS NOT NULL THEN
+                jsonb_set(
+                    COALESCE(whatsapp_sessions.session_data, '{}'::jsonb),
+                    '{chatHistory}',
+                    (COALESCE(whatsapp_sessions.session_data->'chatHistory', '[]'::jsonb) || p_message)
+                )
+              ELSE
+                COALESCE(whatsapp_sessions.session_data, '{}'::jsonb)
+            END
+        ) || (
+            CASE
+              WHEN p_waba_error IS NOT NULL THEN jsonb_build_object('wabaErrorMessage', p_waba_error)
+              ELSE '{}'::jsonb
+            END
+        ) || (
+            CASE
+              WHEN p_session_data_updates IS NOT NULL THEN p_session_data_updates
+              ELSE '{}'::jsonb
+            END
+        )
+    RETURNING * INTO v_updated;
+
+    RETURN to_jsonb(v_updated);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.atomic_update_whatsapp_session(TEXT, UUID, UUID, UUID, TEXT, JSONB, JSONB, TEXT) TO authenticated, service_role, anon;
+
+-- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
+
+

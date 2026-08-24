@@ -1019,6 +1019,16 @@ export class WhatsAppService {
                 console.error('[WhatsApp Booking] Doctor lookup failed:', lookupErr);
               }
 
+              const chosenDate = sessionData.selectedDate || getIstOffsetDateString(1);
+              let startHour = 10;
+              if (selectedSlotText.includes('2:00') || selectedSlotText.includes('Afternoon')) startHour = 14;
+              else if (selectedSlotText.includes('5:00') || selectedSlotText.includes('6:00') || selectedSlotText.includes('Evening')) startHour = 17;
+              
+              let apptTimestamp = `${chosenDate}T10:00:00.000Z`;
+              try {
+                apptTimestamp = new Date(`${chosenDate}T${String(startHour).padStart(2, '0')}:00:00+05:30`).toISOString();
+              } catch (_e) {}
+
               const newAppt: any = {
                 id: apptId,
                 patientId: activePat.id,
@@ -1032,13 +1042,19 @@ export class WhatsAppService {
                 status: 'pending_payment',
                 source: 'whatsapp',
                 channel: 'whatsapp',
+                date: chosenDate,
+                appointmentTime: apptTimestamp,
+                appointment_time: apptTimestamp,
                 createdAt: new Date().toISOString(),
                 created_at: new Date().toISOString(),
                 isVirtual: true,
                 is_virtual: true,
-                virtualDate: sessionData.selectedDate || getIstOffsetDateString(1),
+                virtualDate: chosenDate,
+                virtual_date: chosenDate,
                 virtualTime: selectedSlotText,
+                virtual_time: selectedSlotText,
                 virtualMeetingUrl: `https://meet.jit.si/vitalsync-consult-${apptId}`,
+                virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${apptId}`,
                 virtualTimeAllocated: false
               };
               BillingService.saveAppointment(newAppt);
@@ -1090,6 +1106,10 @@ export class WhatsAppService {
                   status: 'pending_payment',
                   source: 'whatsapp',
                   is_virtual: true,
+                  virtual_date: chosenDate,
+                  virtual_time: selectedSlotText,
+                  appointment_time: apptTimestamp,
+                  virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${apptId}`,
                   created_at: new Date().toISOString(),
                   pod_id: podId
                 });
@@ -1108,8 +1128,9 @@ export class WhatsAppService {
             const cleanPhone10 = (activePat.phone || '').replace(/\D/g, '').slice(-10);
             const targetInvoiceId = sessionData.pendingInvoiceId || `inv-wa-${apptId.substring(0, 8)}`;
             const razorpayPayLink = `${baseUrl}/pay/${targetInvoiceId}?phone=${cleanPhone10}`;
+            const chosenDateDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate === getIstDateString() ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`);
             nextState = 'AWAITING_VIRTUAL_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (Tomorrow) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / Paytm / BHIM / Any UPI):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (${chosenDateDisplay}) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / Paytm / BHIM / Any UPI):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }

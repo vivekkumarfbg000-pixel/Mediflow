@@ -1704,8 +1704,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter'): Invoice {
-    const inv = BillingService.createGate1Consult(patientId, source);
+  createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter', scheduledDate?: string, scheduledTime?: string): Invoice {
+    const inv = BillingService.createGate1Consult(patientId, source, scheduledDate, scheduledTime);
     this.notify();
     return inv;
   }

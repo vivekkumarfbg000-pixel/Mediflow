@@ -460,7 +460,7 @@ export class BillingService {
     notify();
   }
 
-  static createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter'): Invoice {
+  static createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter', scheduledDate?: string, scheduledTime?: string): Invoice {
     const apptId = crypto.randomUUID();
     const ctx = getPodContext();
  
@@ -490,6 +490,8 @@ export class BillingService {
     this.saveInvoice(newInvoice);
     
     // SYNCHRONOUSLY save initial appointment so recordInvoicePayment never race-conditions with undefined appt
+    const effectiveDate = scheduledDate || getIstDateString();
+    const effectiveTime = scheduledTime || '10:00 AM - 12:00 PM';
     const newAppt: Appointment = {
       id: apptId,
       podId: ctx.podId,
@@ -497,7 +499,14 @@ export class BillingService {
       doctorId: ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
       status: 'pending_payment',
       createdAt: new Date().toISOString(),
-      source
+      source,
+      date: effectiveDate,
+      virtualDate: effectiveDate,
+      virtual_date: effectiveDate,
+      virtualTime: effectiveTime,
+      virtual_time: effectiveTime,
+      appointmentTime: `${effectiveDate}T10:00:00.000Z`,
+      appointment_time: `${effectiveDate}T10:00:00.000Z`
     } as any;
     this.saveAppointment(newAppt);
 

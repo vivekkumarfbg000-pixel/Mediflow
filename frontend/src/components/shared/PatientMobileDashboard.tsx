@@ -1038,14 +1038,16 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                             queueStatus: 'awaiting_vitals'
                           } as any);
 
-                          // 2. Create the consult invoice (source: whatsapp / patient)
-                          api.createGate1Consult(newPat.id);
+                          // 2. Create the consult invoice (source: whatsapp / patient) with scheduled date
+                          api.createGate1Consult(newPat.id, 'whatsapp', bookDate || undefined, bookTime || undefined);
 
                           // 3. Reset form
                           setBookName('');
                           setBookPhone('');
                           setBookAge('');
                           setBookGender('Male');
+                          setBookDate('');
+                          setBookTime('');
 
                           // 4. Update local state
                           setPatients(api.getPatients());
@@ -1131,6 +1133,31 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                             <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-[9px] text-zinc-400 font-bold uppercase tracking-wider font-mono font-bold">Consultation Date</label>
+                          <input
+                            type="date"
+                            value={bookDate}
+                            onChange={e => setBookDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] text-zinc-400 font-bold uppercase tracking-wider font-mono font-bold">Time Slot</label>
+                          <select
+                            value={bookTime}
+                            onChange={e => setBookTime(e.target.value)}
+                            className="w-full bg-zinc-950 border border-slate-200/60 focus:border-cyan-500/30 rounded-xl py-2 px-3 text-xs text-white outline-none"
+                          >
+                            <option value="10:00 AM - 12:00 PM">Morning (10 AM - 12 PM)</option>
+                            <option value="02:00 PM - 04:00 PM">Afternoon (2 PM - 4 PM)</option>
+                            <option value="06:00 PM - 08:00 PM">Evening (6 PM - 8 PM)</option>
                           </select>
                         </div>
                       </div>

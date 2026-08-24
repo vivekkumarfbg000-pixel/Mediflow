@@ -23,7 +23,8 @@ serve(async (req) => {
   }
 
   try {
-    const { campaign_id, pod_id } = await req.json().catch(() => ({}));
+    const reqBody = await req.json().catch(() => ({}));
+    const { campaign_id, pod_id, phone_id: reqPhoneId, system_token: reqSystemToken } = reqBody;
     
     if (!campaign_id || !pod_id) {
       return new Response(JSON.stringify({ error: "Missing campaign_id or pod_id" }), { status: 400, headers: corsHeaders });
@@ -33,7 +34,15 @@ serve(async (req) => {
     let systemToken = (Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
     let phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || Deno.env.get("PHONE_NUMBER_ID") || "").trim();
 
-    // 2. Secondary: If secrets not in Deno, check DB connection
+    // 2. Secondary: Payload overrides if passed directly
+    if (reqSystemToken && String(reqSystemToken).startsWith("EAA")) {
+      systemToken = reqSystemToken;
+    }
+    if (reqPhoneId && reqPhoneId !== "105829471928374") {
+      phoneId = reqPhoneId;
+    }
+
+    // 3. Tertiary: If secrets not in Deno, check DB connection
     if (!systemToken || !phoneId) {
       try {
         const { data: wabaConn } = await supabase

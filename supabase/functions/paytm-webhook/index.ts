@@ -218,10 +218,12 @@ serve(async (req) => {
                     const { data: dbAppt } = await apptQ.maybeSingle();
                     if (dbAppt) {
                       if (dbAppt.virtual_date) {
-                        selectedDisplay = dbAppt.virtual_date;
+                        selectedDisplay = /^\d{4}-\d{2}-\d{2}$/.test(dbAppt.virtual_date)
+                          ? getIstDateDisplay(new Date(dbAppt.virtual_date + "T12:00:00+05:30"))
+                          : dbAppt.virtual_date;
                       } else if (dbAppt.appointment_time) {
                         try {
-                          selectedDisplay = getIstDateString(new Date(dbAppt.appointment_time));
+                          selectedDisplay = getIstDateDisplay(new Date(dbAppt.appointment_time));
                         } catch {
                           selectedDisplay = String(dbAppt.appointment_time).split('T')[0];
                         }

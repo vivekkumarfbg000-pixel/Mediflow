@@ -958,7 +958,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             ]);
 
             const isPatientForToday = (p: Patient) => {
-              const patAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+              const patAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
               if (patAppt) {
                 return getEffectiveAppointmentDate(patAppt) === todayStr;
               }
@@ -1045,7 +1045,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               ]);
 
               const isPatientForToday = (p: Patient) => {
-                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
                 if (patAppts.length > 0) {
                   return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
                 }

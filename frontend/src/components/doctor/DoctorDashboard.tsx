@@ -1349,7 +1349,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     const allAppts = api.getAppointments();
 
     const isPatientForToday = (p: Patient) => {
-      const patAppt = allAppts.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+      const patAppt = allAppts.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
       if (patAppt) {
         return getEffectiveAppointmentDate(patAppt) === todayStr;
       }

@@ -87,6 +87,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'diabetes' | 'hypertension' | 'opd'>('all');
   const [broadcastLogs, setBroadcastLogs] = useState<any[]>([]);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -763,7 +764,18 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!broadcastMsg.trim()) return;
+                    if (!broadcastMsg.trim()) {
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Message Draft Required 📝',
+                          message: 'Please select a preset template above or type your campaign message draft.',
+                          type: 'info'
+                        }
+                      }));
+                      return;
+                    }
+
+                    setIsBroadcasting(true);
 
                     const servicePatients = PatientService.getPatients();
                     const allKnownPatients: any[] = [...(patients || []), ...servicePatients];
@@ -854,6 +866,21 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     try {
                       let queuedCount = 0;
 
+                      let wabaPhoneId = activeWabaConnection?.phone_number_id || activeWabaConnection?.phone_id || '';
+                      let wabaToken = activeWabaConnection?.access_token || activeWabaConnection?.encrypted_system_user_token || activeWabaConnection?.token || '';
+                      if (!wabaPhoneId || !wabaToken) {
+                        try {
+                          const saved = localStorage.getItem('vitalsync_waba_connection');
+                          if (saved && saved !== 'disconnected') {
+                            const parsed = JSON.parse(saved);
+                            if (parsed?.phone_number_id) wabaPhoneId = wabaPhoneId || parsed.phone_number_id;
+                            if (parsed?.encrypted_system_user_token || parsed?.token || parsed?.access_token) {
+                              wabaToken = wabaToken || parsed.encrypted_system_user_token || parsed.token || parsed.access_token;
+                            }
+                          }
+                        } catch (_sE) {}
+                      }
+
                       // 1. Live Session Dispatch to All Recipient Phones
                       for (const phone of targetPhones) {
                         try {
@@ -862,7 +889,10 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             body: {
                               action: 'send_broadcast_message',
                               patientPhone: phone,
-                              messageText: messageContent
+                              messageText: messageContent,
+                              phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                              phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                              systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
                             }
                           }).catch(_e => console.warn('Direct meta-webhook broadcast relay note:', _e));
                           queuedCount++;
@@ -921,7 +951,9 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       supabase.functions.invoke('whatsapp-broadcast-worker', {
                         body: {
                           campaign_id: campaignId,
-                          pod_id: podId
+                          pod_id: podId,
+                          phone_id: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                          system_token: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
                         }
                       }).catch(e => console.warn('Worker trigger err', e));
 
@@ -957,13 +989,24 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           type: 'info'
                         }
                       }));
+                    } finally {
+                      setIsBroadcasting(false);
                     }
                   }}
-                  disabled={!broadcastMsg.trim()}
-                  className="px-5 py-2.5 bg-primary hover:bg-primary-505 disabled:bg-slate-200 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer text-white-force bg-primary-force border-0"
+                  disabled={isBroadcasting}
+                  className="px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer text-white-force bg-primary-force border-0 shadow-sm"
                 >
-                  <Megaphone className="w-4 h-4 text-white font-bold" />
-                  Send Broadcast Campaign
+                  {isBroadcasting ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                      <span>Broadcasting Campaign...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Megaphone className="w-4 h-4 text-white font-bold" />
+                      <span>Send Broadcast Campaign</span>
+                    </>
+                  )}
                 </button>
               </div>
 

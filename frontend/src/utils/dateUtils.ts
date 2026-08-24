@@ -64,23 +64,53 @@ export function getIstOffsetDateDisplay(offsetDays: number, baseDate: Date = new
 
 /**
  * Safely resolves the appointment date (YYYY-MM-DD) in Indian Standard Time (IST).
- * Prioritizes virtual_date / virtualDate / appointment_date / appointmentDate, 
- * then converts ISO appointment_time / appointmentTime / created_at to IST to prevent UTC shift.
+ * Prioritizes direct date fields (date, virtual_date, virtualDate, appointment_date, appointmentDate),
+ * then converts ISO appointment_time / appointmentTime to IST.
+ * Only falls back to created_at if no appointment date is specified.
  */
 export function getEffectiveAppointmentDate(appt: any): string {
   if (!appt) return getIstDateString();
-  const directDate = appt.virtual_date || appt.virtualDate || appt.appointment_date || appt.appointmentDate;
-  if (directDate && typeof directDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(directDate.trim())) {
-    return directDate.trim();
+  
+  const directDate = appt.date || appt.virtual_date || appt.virtualDate || appt.appointment_date || appt.appointmentDate;
+  if (directDate) {
+    if (typeof directDate === 'string') {
+      const trimmed = directDate.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+      if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+        return trimmed.substring(0, 10);
+      }
+      try {
+        const parsed = new Date(trimmed);
+        if (!isNaN(parsed.getTime())) {
+          return getIstDateString(parsed);
+        }
+      } catch (_e) {}
+    } else if (directDate instanceof Date && !isNaN(directDate.getTime())) {
+      return getIstDateString(directDate);
+    }
   }
-  const rawTimeStr = appt.appointment_time || appt.appointmentTime || appt.created_at || appt.createdAt;
-  if (rawTimeStr) {
+
+  const apptTime = appt.appointment_time || appt.appointmentTime;
+  if (apptTime) {
     try {
-      const parsed = new Date(rawTimeStr);
+      const parsed = new Date(apptTime);
       if (!isNaN(parsed.getTime())) {
         return getIstDateString(parsed);
       }
     } catch (_e) {}
   }
+
+  const creationTime = appt.created_at || appt.createdAt;
+  if (creationTime) {
+    try {
+      const parsed = new Date(creationTime);
+      if (!isNaN(parsed.getTime())) {
+        return getIstDateString(parsed);
+      }
+    } catch (_e) {}
+  }
+
   return getIstDateString();
 }

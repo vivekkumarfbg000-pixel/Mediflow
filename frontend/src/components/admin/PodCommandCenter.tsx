@@ -127,7 +127,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   const todayStr = getIstDateString(currentTime);
 
   const isPatientForToday = (p: Patient) => {
-    const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'pending_payment' && a.status !== 'cancelled');
+    const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
     if (patAppts.length > 0) {
       return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
     }

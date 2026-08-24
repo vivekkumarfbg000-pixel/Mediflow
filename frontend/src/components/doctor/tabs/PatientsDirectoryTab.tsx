@@ -433,8 +433,11 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                         // Update appointment
                         const updatedAppt = {
                           ...virtualAppt,
+                          date: finalDate,
                           virtualDate: finalDate,
+                          virtual_date: finalDate,
                           virtualTime: finalTime,
+                          virtual_time: finalTime,
                           virtualTimeAllocated: true
                         };
                         api.saveAppointment(updatedAppt);
