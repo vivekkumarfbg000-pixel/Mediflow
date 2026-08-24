@@ -342,8 +342,11 @@ export const CompounderDashboard: React.FC = () => {
             status: a.status || 'scheduled',
             isVirtual: a.is_virtual === true,
             is_virtual: a.is_virtual === true,
+            date: a.virtual_date || a.date || a.appointment_date || (a.appointment_time ? String(a.appointment_time).split('T')[0] : ''),
             virtualDate: a.virtual_date,
             virtual_date: a.virtual_date,
+            appointmentDate: a.virtual_date || a.date || a.appointment_date || (a.appointment_time ? String(a.appointment_time).split('T')[0] : ''),
+            appointment_date: a.virtual_date || a.date || a.appointment_date || (a.appointment_time ? String(a.appointment_time).split('T')[0] : ''),
             virtualTime: a.virtual_time,
             virtual_time: a.virtual_time,
             virtualMeetingUrl: a.virtual_meeting_url,
@@ -2540,15 +2543,15 @@ export const CompounderDashboard: React.FC = () => {
                     } else if ((opdSubTab as string) === 'upcoming_advance') {
                       // Closest upcoming appointment first
                       confirmedAppts.sort((a, b) => {
-                        const dateA = a.appointmentTime || a.virtualDate || (a as any).virtual_date || a.createdAt || '';
-                        const dateB = b.appointmentTime || b.virtualDate || (b as any).virtual_date || b.createdAt || '';
+                        const dateA = getEffectiveAppointmentDate(a);
+                        const dateB = getEffectiveAppointmentDate(b);
                         return dateA.localeCompare(dateB);
                       });
                     } else if ((opdSubTab as string) === 'past_history') {
                       // Most recent past appointment first
                       confirmedAppts.sort((a, b) => {
-                        const dateA = a.appointmentTime || a.virtualDate || (a as any).virtual_date || a.createdAt || '';
-                        const dateB = b.appointmentTime || b.virtualDate || (b as any).virtual_date || b.createdAt || '';
+                        const dateA = getEffectiveAppointmentDate(a);
+                        const dateB = getEffectiveAppointmentDate(b);
                         return dateB.localeCompare(dateA);
                       });
                     }

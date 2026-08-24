@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
-import { getIstDateString, getIstDateDisplay, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
+import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
 import { 
   CheckCircle2, 
@@ -193,7 +193,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   }, [selectedPatient, hinglishSummary, comparativeTrend, aiInsight]);
 
   const [virtualDateInput, setVirtualDateInput] = useState('');
-  const [queueFilter, setQueueFilter] = useState<'awaiting' | 'in_consult' | 'today_registered' | 'completed'>('awaiting');
+  const [queueFilter, setQueueFilter] = useState<'awaiting' | 'in_consult' | 'today_registered' | 'completed' | 'upcoming'>('awaiting');
   const [virtualTimeInput, setVirtualTimeInput] = useState('');
   const [expandedCitationPmid, setExpandedCitationPmid] = useState<string | null>(null);
   const [flashPrescriptionPanel, setFlashPrescriptionPanel] = useState(false);
@@ -973,6 +973,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               return regDate.startsWith(todayStr);
             });
             const completedList = patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled');
+            const upcomingList = patients.filter(p => {
+              const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+              return patAppts.some(a => {
+                const d = getEffectiveAppointmentDate(a);
+                return Boolean(d && d > todayStr);
+              });
+            });
 
             return (
               <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none border-b border-slate-100 font-mono text-[9px] font-bold">
@@ -1011,6 +1018,17 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setQueueFilter('upcoming')}
+                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                    queueFilter === 'upcoming'
+                      ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                  }`}
+                >
+                  📅 Upcoming ({upcomingList.length})
+                </button>
+                <button
+                  type="button"
                   onClick={() => setQueueFilter('completed')}
                   className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
                     queueFilter === 'completed'
@@ -1018,7 +1036,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
                   }`}
                 >
-                  Care Loop Done ({completedList.length})
+                  Done ({completedList.length})
                 </button>
               </div>
             );
@@ -1055,6 +1073,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
               const queuePatients = patients
                 .filter(p => {
+                  if (queueFilter === 'upcoming') {
+                    const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                    return patAppts.some(a => {
+                      const d = getEffectiveAppointmentDate(a);
+                      return Boolean(d && d > todayStr);
+                    });
+                  }
                   if (queueFilter === 'awaiting') {
                     if (!paidPatientIds.has(p.id)) return false;
                     if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
@@ -1179,6 +1204,22 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                             📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
                           </span>
                         )}
+                        {(() => {
+                          const futureAppt = patientAppts.find(a => {
+                            const d = getEffectiveAppointmentDate(a);
+                            return Boolean(d && d > todayStr);
+                          });
+                          if (futureAppt) {
+                            const d = getEffectiveAppointmentDate(futureAppt);
+                            const isTomorrow = d === getIstOffsetDateString(1);
+                            return (
+                              <span className="flex items-center gap-0.5 text-[8px] font-bold bg-purple-50 border border-purple-200 text-purple-700 px-1.5 py-0.5 rounded-md font-sans">
+                                📅 {isTomorrow ? 'Tomorrow' : d} ({futureAppt.virtualTime || (futureAppt as any).virtual_time || 'Advance'})
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                   </button>
