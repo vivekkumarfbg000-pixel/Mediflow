@@ -774,12 +774,20 @@ export const DoctorDashboard: React.FC = () => {
       console.log('[DoctorDashboard] mediflow-financial-update received, refreshing ledgers...');
       setFinancialLedgers(api.getFinancialLedgers());
     };
+    const handleTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTab(customEvent.detail as any);
+      }
+    };
     window.addEventListener('mediflow-financial-update', handleFinancialUpdate);
+    window.addEventListener('mediflow-change-tab', handleTabChange);
 
     return () => {
       apiUnsub();
       unsubscribeRealtime();
       window.removeEventListener('mediflow-financial-update', handleFinancialUpdate);
+      window.removeEventListener('mediflow-change-tab', handleTabChange);
     };
   }, [activePod?.id]);
 
@@ -1413,6 +1421,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               return (
                 <PodCommandCenter 
                   hideHeader={true}
+                  onOpenChronicCare={() => setActiveTab('chronic')}
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');
                     setHinglishSummary('');
@@ -1721,6 +1730,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               return (
                 <PodCommandCenter 
                   hideHeader={true}
+                  onOpenChronicCare={() => setActiveTab('chronic')}
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');
                     setHinglishSummary('');
@@ -2195,7 +2205,6 @@ Keep the tone professional, clinical, objective, and precise.`;
           {[
             { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard },
             { id: 'consultation',      label: 'Consultation Queue',     icon: ClipboardList },
-            { id: 'chronic',           label: 'Chronic Care & Refills 🩸', icon: HeartPulse },
             { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video },
             { id: 'financials',        label: 'Financial Reports',      icon: CreditCard },
             { id: 'patients',          label: 'Patient Directory',      icon: Users },

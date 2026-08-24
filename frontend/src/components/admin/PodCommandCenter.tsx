@@ -43,10 +43,11 @@ import {
 
 interface PodCommandCenterProps {
   onStartConsultation?: (patient: Patient) => void;
+  onOpenChronicCare?: () => void;
   hideHeader?: boolean;
 }
 
-export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsultation, hideHeader }) => {
+export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsultation, onOpenChronicCare, hideHeader }) => {
   /* ─── State Management ─────────────────────────────────────────── */
   const [patients, setPatients] = useState<Patient[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -1055,13 +1056,25 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
           >
             <div className="h-1 w-full bg-emerald-500 absolute top-0 left-0" />
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <h2 
+                onClick={() => {
+                  if (onOpenChronicCare) onOpenChronicCare();
+                  else window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'chronic' }));
+                }}
+                className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              >
                 <HeartPulse className="w-4 h-4 text-emerald-500 shrink-0" />
                 Chronic Care &amp; Refills
               </h2>
-              <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <button
+                onClick={() => {
+                  if (onOpenChronicCare) onOpenChronicCare();
+                  else window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'chronic' }));
+                }}
+                className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded-full flex items-center gap-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all cursor-pointer"
+              >
                 <Sparkles className="w-3 h-3" /> Auto-Refills Active
-              </span>
+              </button>
             </div>
 
             {/* KPI Cards: Chronic Pool, Adherence, Due Refills */}
