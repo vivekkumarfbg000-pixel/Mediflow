@@ -5,6 +5,7 @@ import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient } from '../types';
 import { getPodContext } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
+import { getIstDateString } from '../utils/dateUtils';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
