@@ -2300,7 +2300,7 @@ async function triggerBotReplyPipeline(ctx: {
               id: newApptId,
               patient_id: bookingPatId,
               doctor_id: doctorId,
-              status: "scheduled",
+              status: "pending_payment",
               appointment_time: apptTimestamp,
               is_virtual: isVirtualSlot,
               virtual_date: selectedDate,
@@ -2602,11 +2602,34 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (apptId) {
-          const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
+          const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "ready_for_consult");
           await supabase
             .from("appointments")
             .update({ status: finalStatus, payment_status: "cleared" })
             .eq("id", apptId);
+        }
+
+        // Insert real-time financial ledger entry for doctor consultation
+        if (invoiceId) {
+          try {
+            await supabase.from("financial_ledgers").insert({
+              invoice_id: invoiceId,
+              source_entity_id: safeEntityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
+              destination_entity_id: safeEntityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
+              transaction_type: "appointment_fee",
+              gross_amount: Number(feeAmount) || 500,
+              commission_rate: 0,
+              net_payout: Number(feeAmount) || 500,
+              payment_status: "cleared",
+              settled_at: new Date().toISOString(),
+              platform_fee_deducted: 15,
+              gateway_disbursed_net: Number(feeAmount) || 500,
+              payment_method: "upi",
+              pod_id: safePodId
+            });
+          } catch (_fErr) {
+            console.error("[Meta Webhook] Financial ledger insert error:", _fErr);
+          }
         }
 
         if (bookingPatId) {

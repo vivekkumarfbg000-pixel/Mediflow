@@ -2084,14 +2084,14 @@ export const CompounderDashboard: React.FC = () => {
                     </span>
                   </div>
 
-                  {appointments.filter(a => a.is_virtual || a.isVirtual).length === 0 ? (
+                  {appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled' && (a.is_virtual || a.isVirtual)).length === 0 ? (
                     <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
                       <Video className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50 shrink-0" />
                       <p className="text-xs font-medium text-slate-500 dark:text-slate-400">No virtual video appointments scheduled for today.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {appointments.filter(a => a.is_virtual || a.isVirtual).map(appt => {
+                      {appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled' && (a.is_virtual || a.isVirtual)).map(appt => {
                         const pat = patients.find(p => p.id === appt.patientId);
                         const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
                         const isFreeLoyalty = appt.amount === 0 || appt.fee_status === 'waived_loyalty' || String(appt.source || '').toLowerCase().includes('loyalty');

@@ -535,6 +535,35 @@ export class BillingService {
         console.warn('[BillingService] Failed to dynamically look up doctor for consult:', err);
       }
 
+      // Sync initial appointment and unified invoice into Supabase
+      try {
+        await supabase.from('appointments').upsert({
+          id: apptId,
+          patient_id: patientId,
+          doctor_id: resolvedDoctorId,
+          status: 'pending_payment',
+          appointment_time: `${effectiveDate}T10:00:00.000Z`,
+          is_virtual: source === 'whatsapp',
+          virtual_date: effectiveDate,
+          virtual_time: effectiveTime,
+          pod_id: ctx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+        });
+
+        await supabase.from('unified_invoices').upsert({
+          id: newInvoice.id,
+          patient_id: patientId,
+          doctor_fee: consultFee,
+          lab_fee: 0,
+          pharmacy_fee: 0,
+          platform_fee: source === 'whatsapp' ? 15 : 0,
+          total_amount: source === 'whatsapp' ? consultFee + 15 : consultFee,
+          payment_status: 'pending',
+          pod_id: ctx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+        });
+      } catch (_dbSyncErr) {
+        console.warn('[BillingService] Initial consult Supabase upsert note:', _dbSyncErr);
+      }
+
       const patient = PatientService.getPatients().find(p => p.id === patientId);
       if (patient) {
         // Direct push WhatsApp message bot history logic
@@ -934,6 +963,63 @@ export class BillingService {
           this.saveAppointment(appt);
           
           PatientService.updatePatientQueueStatus(appt.patientId, 'awaiting_consultation');
+
+          // Sync appointment and invoice clearance to Supabase
+          supabase.from('appointments').update({ status: 'ready_for_consult', payment_status: 'cleared' }).eq('id', appt.id).then(({ error }) => {
+            if (error) console.error('[BillingService] Error updating appointment status in Supabase:', error);
+          });
+          supabase.from('unified_invoices').update({ payment_status: 'cleared', payment_method: paymentMethod }).eq('id', invoiceId).then(({ error }) => {
+            if (error) console.error('[BillingService] Error updating invoice in Supabase:', error);
+          });
+
+          // Create and persist financial ledger entry for Doctor Consultation Fee
+          const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+          const consultLedger: FinancialLedgerEntry = {
+            id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
+            invoiceId: saasInv.id,
+            appointmentId: appt.id,
+            patientId: appt.patientId,
+            doctorId: appt.doctorId,
+            sourceEntityId: getPodContext().entityId || 'clinic-admin-entity',
+            destinationEntityId: getPodContext().entityId || 'clinic-admin-entity',
+            transactionType: 'appointment_fee',
+            grossAmount: amount || 500,
+            commissionRate: 0,
+            netPayout: amount || 500,
+            paymentStatus: 'cleared',
+            settledAt: new Date().toISOString(),
+            createdAt: new Date().toISOString()
+          } as any;
+
+          if (!ledgerEntries.some(l => l.invoiceId === saasInv.id && l.transactionType === 'appointment_fee')) {
+            ledgerEntries.unshift(consultLedger);
+            save('financial_ledgers', ledgerEntries);
+          }
+
+          const dbDocLedger = {
+            invoice_id: saasInv.id,
+            appointment_id: appt.id,
+            patient_id: appt.patientId,
+            doctor_id: appt.doctorId,
+            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+            destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+            transaction_type: 'appointment_fee',
+            gross_amount: amount || 500,
+            commission_rate: 0,
+            net_payout: amount || 500,
+            payment_status: 'cleared',
+            settled_at: new Date().toISOString(),
+            platform_fee_deducted: 0,
+            gateway_disbursed_net: paymentMethod === 'cash' ? 0.00 : (amount || 500),
+            payment_method: paymentMethod,
+            pod_id: getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+          };
+          supabase.from('financial_ledgers').insert([dbDocLedger]).then(({ error }) => {
+            if (error) console.error('[BillingService] Error inserting consult ledger in Supabase:', error);
+          });
+
+          window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+          window.dispatchEvent(new CustomEvent('mediflow-state-change'));
           
           const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
           if (patient) {

@@ -1063,12 +1063,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               ]);
 
               const isPatientForToday = (p: Patient) => {
-                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
+                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                 if (patAppts.length > 0) {
                   return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
                 }
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-                return regDate.startsWith(todayStr);
+                return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
               };
 
               const queuePatients = patients
@@ -1101,7 +1101,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       (p as any).queueStatus === 'settled'
                     );
                   }
-                  return isPatientForToday(p) || p.id === selectedPatient?.id;
+                  return (isPatientForToday(p) && paidPatientIds.has(p.id)) || p.id === selectedPatient?.id;
                 })
                 .sort((a, b) => {
                   // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top
