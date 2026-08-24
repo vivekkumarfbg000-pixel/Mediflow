@@ -2322,7 +2322,8 @@ async function triggerBotReplyPipeline(ctx: {
               virtual_time: slotText,
               virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
               pod_id: safePodId,
-              entity_id: safeEntityId
+              entity_id: safeEntityId,
+              token_number: String(tokenNumber)
             });
             if (apptErr) console.error("[Meta Webhook] Database Appointment Insert Error:", apptErr);
           } catch (err) {
@@ -2620,7 +2621,7 @@ async function triggerBotReplyPipeline(ctx: {
           const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "ready_for_consult");
           await supabase
             .from("appointments")
-            .update({ status: finalStatus, payment_status: "cleared" })
+            .update({ status: finalStatus, payment_status: "cleared", token_number: String(tokenNumber) })
             .eq("id", apptId);
         }
 

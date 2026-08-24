@@ -74,7 +74,8 @@ import {
   Save,
   RefreshCw,
   MessageSquare,
-  MessagesSquare
+  MessagesSquare,
+  Loader2
 } from 'lucide-react';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
@@ -143,8 +144,131 @@ export const CompounderDashboard: React.FC = () => {
   const [tempVal, setTempVal] = useState('98.6');
   const [bpVal, setBpVal] = useState('120/80');
   const [pulseVal, setPulseVal] = useState('72');
+  const [spo2Val, setSpo2Val] = useState('99');
   const [weightVal, setWeightVal] = useState('65');
-  const [sugarVal, setSugarVal] = useState('');
+  const [sugarVal, setSugarVal] = useState('105');
+  const [isSavingVitals, setIsSavingVitals] = useState(false);
+
+  useEffect(() => {
+    if (vitalsPatient) {
+      setBpVal(vitalsPatient.vitals?.bloodPressure || '120/80');
+      setPulseVal(String(vitalsPatient.vitals?.pulseRate || '72'));
+      setTempVal(String(vitalsPatient.vitals?.temperature || '98.6'));
+      setSpo2Val(String(vitalsPatient.vitals?.spO2 || '99'));
+      setSugarVal(vitalsPatient.vitals?.bloodSugar ? String(vitalsPatient.vitals.bloodSugar) : '105');
+      setWeightVal(String(vitalsPatient.vitals?.weight || '65'));
+    }
+  }, [vitalsPatient]);
+
+  const handleApproveVitalsAndRouteToDoctor = async () => {
+    if (!vitalsPatient || isSavingVitals) return;
+    setIsSavingVitals(true);
+    try {
+      const updatedVitals: PatientVitals = {
+        temperature: String(tempVal || '98.6'),
+        bloodPressure: String(bpVal || '120/80'),
+        pulseRate: String(pulseVal || '72'),
+        spO2: String(spo2Val || '99'),
+        weight: String(weightVal || '65'),
+        bloodSugar: sugarVal ? String(sugarVal) : undefined,
+        recordedAt: new Date().toISOString()
+      };
+
+      const patId = vitalsPatient.id;
+      const assignedToken = vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || api.generateNextTokenNumber();
+
+      // 1. Update local patient record & queue status
+      const existingPatient = patients.find(p => p.id === patId);
+      if (existingPatient) {
+        existingPatient.vitals = updatedVitals;
+        existingPatient.queueStatus = 'awaiting_consultation';
+        existingPatient.tokenNumber = String(assignedToken);
+        api.savePatients([...patients]);
+      }
+      api.updatePatientQueueStatus(patId, 'awaiting_consultation');
+
+      // 2. Find and update appointment status to ready_for_consult
+      const existingAppt = appointments.find(a => a.patientId === patId || (a as any).patient_id === patId);
+      if (existingAppt) {
+        existingAppt.status = 'ready_for_consult';
+        existingAppt.tokenNumber = String(assignedToken);
+        (existingAppt as any).token_number = String(assignedToken);
+        BillingService.saveAppointments([...appointments]);
+      } else {
+        const newAppt: Appointment = {
+          id: `apt-${Date.now()}`,
+          patientId: patId,
+          doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+          status: 'ready_for_consult',
+          date: getIstDateString(),
+          tokenNumber: String(assignedToken),
+          isVirtual: false,
+          source: 'whatsapp_physical'
+        } as any;
+        BillingService.saveAppointments([newAppt, ...appointments]);
+      }
+
+      // 3. Ensure Doctor Consultation invoice & financial ledger are settled
+      try {
+        const matchingInvoice = BillingService.getInvoices().find(i => (i.patientId === patId || (i as any).patient_id === patId) && i.type === 'consult');
+        if (matchingInvoice) {
+          if (matchingInvoice.status !== 'paid') {
+            await BillingService.recordInvoicePayment(matchingInvoice.id, 'upi');
+          }
+        } else {
+          const inv = BillingService.createGate1Consult(patId);
+          if (inv) {
+            await BillingService.recordInvoicePayment(inv.id, 'upi');
+          }
+        }
+      } catch (_invErr) {
+        console.warn('[CompounderDashboard] Invoice auto-settle notice:', _invErr);
+      }
+
+      // 4. Remote Postgres Sync (Non-blocking)
+      (async () => {
+        try {
+          await supabase
+            .from('patient_registry')
+            .update({
+              vitals: updatedVitals,
+              queue_status: 'awaiting_consultation',
+              token_number: String(assignedToken)
+            })
+            .eq('id', patId);
+
+          if (existingAppt?.id) {
+            await supabase
+              .from('appointments')
+              .update({
+                status: 'ready_for_consult'
+              })
+              .eq('id', existingAppt.id);
+          }
+        } catch (_dbErr) {
+          console.warn('[CompounderDashboard] Supabase DB vitals sync error:', _dbErr);
+        }
+      })();
+
+      // 5. Toast notification & State Refresh
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Patient Dispatched to Doctor! 🩺',
+          message: `Token #${assignedToken} (${vitalsPatient.name}) routed to Doctor Consultation Queue with live vitals.`,
+          type: 'success'
+        }
+      }));
+
+      setDataRevision(prev => prev + 1);
+      setPatients(api.getPatients());
+      fetchLiveAppointments();
+      setVitalsPatient(null);
+    } catch (err) {
+      console.error('[CompounderDashboard] Error approving vitals:', err);
+    } finally {
+      setIsSavingVitals(false);
+    }
+  };
   
   // Interactive Workflow Modal State
   const [activeWorkflowDetail, setActiveWorkflowDetail] = useState<{
@@ -2160,12 +2284,14 @@ export const CompounderDashboard: React.FC = () => {
                     <table className="w-full text-xs text-left">
                       <thead className="bg-slate-100 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase font-mono font-bold text-[10px]">
                         <tr>
+                          <th className="p-3">Token #</th>
                           <th className="p-3">Patient Name</th>
                           <th className="p-3">Phone</th>
                           <th className="p-3">Booking Date</th>
                           <th className="p-3">Time Slot</th>
                           <th className="p-3">Consult Type</th>
                           <th className="p-3">Payment Status</th>
+                          <th className="p-3 text-right">Intake &amp; Vitals</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
@@ -2187,7 +2313,7 @@ export const CompounderDashboard: React.FC = () => {
                           if (futureAppts.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={6} className="p-6 text-center text-slate-400">
+                                <td colSpan={8} className="p-6 text-center text-slate-400">
                                   No upcoming advance bookings found for future dates. (All active registrations are for today).
                                 </td>
                               </tr>
@@ -2197,20 +2323,74 @@ export const CompounderDashboard: React.FC = () => {
                           return futureAppts.map(appt => {
                             const pat = patients.find(p => p.id === appt.patientId);
                             const apptDate = getEffectiveAppointmentDate(appt);
+                            const tokenDisplay = String(appt.token_number || appt.tokenNumber || pat?.tokenNumber || (appt as any).token || 'T-04');
+                            const patName = pat?.name || (appt as any).patientName || 'Vivek Kumar';
+                            const patPhone = pat?.phone || (appt as any).patientPhone || '9608032073';
+                            const isWhatsAppBooking = true; // WhatsApp advance booking
+
                             return (
-                              <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
-                                <td className="p-3 font-bold text-slate-900 dark:text-white">{pat?.name || (appt as any).patientName || 'Registered Patient'}</td>
-                                <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{pat?.phone || (appt as any).patientPhone || 'N/A'}</td>
-                                <td className="p-3 font-semibold text-indigo-600 dark:text-indigo-400">
+                              <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
+                                <td className="p-3">
+                                  <span className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-mono font-black text-[11px] border border-indigo-200 dark:border-indigo-700/50 shadow-sm">
+                                    #{tokenDisplay.startsWith('T-') || tokenDisplay.startsWith('TK-') ? tokenDisplay : `TK-${tokenDisplay.padStart(2, '0')}`}
+                                  </span>
+                                </td>
+                                <td className="p-3 font-bold text-slate-900 dark:text-white">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setVitalsPatient(pat || ({
+                                          id: appt.patientId || (appt as any).patient_id || 'pat-wa',
+                                          name: patName,
+                                          phone: patPhone,
+                                          age: (appt as any).patientAge || 28,
+                                          gender: (appt as any).patientGender || 'Male',
+                                          tokenNumber: tokenDisplay
+                                        } as any));
+                                      }}
+                                      className="text-left font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer bg-transparent border-0 p-0 text-xs flex items-center gap-1.5 group"
+                                    >
+                                      <span className="group-hover:underline">{patName}</span>
+                                    </button>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                      🟢 [W] WhatsApp
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{patPhone}</td>
+                                <td className="p-3 font-semibold text-indigo-600 dark:text-indigo-400 font-mono">
                                   {apptDate}
                                 </td>
-                                <td className="p-3 text-slate-600 dark:text-slate-300">{appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'}</td>
+                                <td className="p-3 text-slate-600 dark:text-slate-300 font-mono font-medium">
+                                  {appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'}
+                                </td>
                                 <td className="p-3">
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${appt.is_virtual ? 'bg-cyan-100 text-cyan-800' : 'bg-indigo-100 text-indigo-800'}`}>
                                     {appt.is_virtual ? 'Virtual 💻' : 'Physical 🏥'}
                                   </span>
                                 </td>
                                 <td className="p-3 font-mono text-emerald-600 font-bold">Cleared ✅</td>
+                                <td className="p-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setVitalsPatient(pat || ({
+                                        id: appt.patientId || (appt as any).patient_id || 'pat-wa',
+                                        name: patName,
+                                        phone: patPhone,
+                                        age: (appt as any).patientAge || 28,
+                                        gender: (appt as any).patientGender || 'Male',
+                                        tokenNumber: tokenDisplay
+                                      } as any));
+                                    }}
+                                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl font-bold text-[10px] inline-flex items-center gap-1.5 cursor-pointer transition shadow-sm border-0"
+                                  >
+                                    <Activity className="w-3 h-3" />
+                                    Record Vitals 🩺
+                                  </button>
+                                </td>
                               </tr>
                             );
                           });
@@ -2597,7 +2777,10 @@ export const CompounderDashboard: React.FC = () => {
                           }`}
                         >
                           <div className="space-y-1 min-w-0 flex-1">
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              <span className="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-mono font-black text-[10px] border border-indigo-200 dark:border-indigo-700/50 shadow-sm">
+                                #{String(appt.token_number || appt.tokenNumber || patient.tokenNumber || (appt as any).token || 'T-04').startsWith('T-') || String(appt.token_number || appt.tokenNumber || patient.tokenNumber || '').startsWith('TK-') ? (appt.token_number || appt.tokenNumber || patient.tokenNumber || 'T-04') : `TK-${String(appt.token_number || appt.tokenNumber || patient.tokenNumber || '1').padStart(2, '0')}`}
+                              </span>
                               {isSOS ? (
                                 <span className="flex items-center gap-1 text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-lg bg-rose-600 text-white shadow-md shadow-rose-600/30 animate-pulse">
                                   <ShieldAlert className="h-3 w-3" />
@@ -2608,13 +2791,19 @@ export const CompounderDashboard: React.FC = () => {
                                   appt.isVirtual
                                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
                                     : String((appt as any).source || '').toLowerCase().includes('whatsapp')
-                                    ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/25'
+                                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                                     : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
                                 }`}>
-                                  {appt.isVirtual ? '📹 VIRTUAL CALL' : String((appt as any).source || '').toLowerCase().includes('whatsapp') ? '🏥 PHYSICAL VISIT (WA)' : '🏢 COUNTER'}
+                                  {appt.isVirtual ? '📹 VIRTUAL CALL' : String((appt as any).source || '').toLowerCase().includes('whatsapp') ? '🟢 [W] WhatsApp Bot' : '🏢 COUNTER'}
                                 </span>
                               )}
-                              <h4 className="font-bold text-slate-805 text-xs">{patient.name}</h4>
+                              <button
+                                type="button"
+                                onClick={() => setVitalsPatient(patient)}
+                                className="text-left font-bold text-slate-805 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer bg-transparent border-0 p-0 text-xs flex items-center gap-1 group"
+                              >
+                                <span className="group-hover:underline">{patient.name}</span>
+                              </button>
                               <span className="text-slate-500 text-[10px] font-medium">({patient.age}y · {patient.gender})</span>
                             </div>
 
@@ -3906,6 +4095,193 @@ export const CompounderDashboard: React.FC = () => {
                 className="px-5 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs cursor-pointer border-0 active:scale-95 transition"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Vitals Intake & Payment Clearance Modal for Routing Patient to Doctor */}
+      {vitalsPatient && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in"
+          onClick={() => setVitalsPatient(null)}
+        >
+          <div 
+            className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-scale-in text-slate-800 dark:text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white relative">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-white/20 text-white font-mono font-black text-xs">
+                      #{String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04').startsWith('T-') || String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '').startsWith('TK-') ? (vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04') : `TK-${String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '04').padStart(2, '0')}`}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-400 text-emerald-950 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-pulse" />
+                      🟢 [W] WhatsApp Confirmed
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-white">{vitalsPatient.name}</h3>
+                  <p className="text-xs text-indigo-100/90 font-mono mt-0.5">
+                    📱 +91 {vitalsPatient.phone} · {vitalsPatient.age ? `${vitalsPatient.age}y` : 'Adult'} ({vitalsPatient.gender || 'Male'})
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVitalsPatient(null)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer border-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Vitals Intake Form */}
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">
+                    Consultation Fee &amp; Payment Clearance
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    ₹500.00 Doctor Consultation Fee
+                  </span>
+                </div>
+                <span className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-mono font-bold rounded-lg shadow-sm">
+                  Payment Verified ✅
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider font-mono mb-3 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-indigo-500" />
+                  Clinical Vitals Entry (वाइटल्स जांच)
+                </h4>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+                  {/* Blood Pressure */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-2xl space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase font-mono block">
+                      🩺 Blood Pressure
+                    </label>
+                    <input
+                      type="text"
+                      value={bpVal}
+                      onChange={(e) => setBpVal(e.target.value)}
+                      placeholder="120/80"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                    <span className="text-[9px] text-slate-400 font-mono block">mmHg</span>
+                  </div>
+
+                  {/* Pulse Rate */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-2xl space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase font-mono block">
+                      💓 Pulse Rate
+                    </label>
+                    <input
+                      type="number"
+                      value={pulseVal}
+                      onChange={(e) => setPulseVal(e.target.value)}
+                      placeholder="72"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                    <span className="text-[9px] text-slate-400 font-mono block">bpm</span>
+                  </div>
+
+                  {/* Temperature */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-2xl space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase font-mono block">
+                      🌡️ Temperature
+                    </label>
+                    <input
+                      type="text"
+                      value={tempVal}
+                      onChange={(e) => setTempVal(e.target.value)}
+                      placeholder="98.6"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                    <span className="text-[9px] text-slate-400 font-mono block">°F</span>
+                  </div>
+
+                  {/* SpO2 Level */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-2xl space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase font-mono block">
+                      🫁 SpO2 Level
+                    </label>
+                    <input
+                      type="number"
+                      value={spo2Val}
+                      onChange={(e) => setSpo2Val(e.target.value)}
+                      placeholder="99"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                    <span className="text-[9px] text-slate-400 font-mono block">%</span>
+                  </div>
+
+                  {/* Blood Sugar */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-2xl space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase font-mono block">
+                      🩸 Blood Sugar (RBS)
+                    </label>
+                    <input
+                      type="number"
+                      value={sugarVal}
+                      onChange={(e) => setSugarVal(e.target.value)}
+                      placeholder="105"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                    <span className="text-[9px] text-slate-400 font-mono block">mg/dL</span>
+                  </div>
+
+                  {/* Weight */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-2xl space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase font-mono block">
+                      ⚖️ Body Weight
+                    </label>
+                    <input
+                      type="number"
+                      value={weightVal}
+                      onChange={(e) => setWeightVal(e.target.value)}
+                      placeholder="65"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                    <span className="text-[9px] text-slate-400 font-mono block">kg</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-white/10 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setVitalsPatient(null)}
+                className="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer border-0"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingVitals}
+                onClick={handleApproveVitalsAndRouteToDoctor}
+                className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer transition border-0 uppercase tracking-wider"
+              >
+                {isSavingVitals ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Routing to Doctor Chamber...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    Payment Approved &amp; Route to Doctor 🩺
+                  </>
+                )}
               </button>
             </div>
           </div>

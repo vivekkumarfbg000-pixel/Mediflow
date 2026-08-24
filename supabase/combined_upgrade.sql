@@ -2499,7 +2499,13 @@ $$;
 GRANT EXECUTE ON FUNCTION public.atomic_update_whatsapp_session(TEXT, UUID, UUID, UUID, TEXT, JSONB, JSONB, TEXT) TO authenticated, service_role, anon;
 
 -- =============================================================================
+-- STEP 38: Appointments Token Number Synchronization (20260824000003)
+-- =============================================================================
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS token_number TEXT;
+
+-- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
+
 
 

@@ -542,6 +542,8 @@ export const DoctorDashboard: React.FC = () => {
               doctorId: a.doctor_id,
               doctor_id: a.doctor_id,
               status: a.status || 'scheduled',
+              tokenNumber: String(a.token_number || (a as any).tokenNumber || 'T-04'),
+              token_number: String(a.token_number || (a as any).tokenNumber || 'T-04'),
               date: apptDate,
               createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
               is_virtual: Boolean(a.is_virtual),

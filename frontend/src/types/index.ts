@@ -6,6 +6,7 @@ export interface PatientVitals {
   pulseRate: string;         // bpm
   weight: string;            // kg
   bloodSugar?: string;       // mg/dL (glucometer)
+  spO2?: string;             // % oxygen saturation
   recordedAt: string;
   dilationStatus?: 'not_started' | 'instilled' | 'dilated';
   dilationStartTime?: string; // ISO string
