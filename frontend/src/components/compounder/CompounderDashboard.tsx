@@ -524,6 +524,9 @@ export const CompounderDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchLiveAppointments();
+    const handleFocus = () => fetchLiveAppointments();
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleFocus);
     const interval = setInterval(fetchLiveAppointments, 4000);
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
