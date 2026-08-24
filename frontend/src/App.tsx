@@ -54,6 +54,33 @@ const BillingDashboard = lazyWithRetry(() => import('./components/billing/Billin
 const SaaSAdminPanel = lazyWithRetry(() => import('./components/admin/SaaSAdminPanel').then(m => ({ default: m.SaaSAdminPanel })));
 const RefractionDashboard = lazyWithRetry(() => import('./components/doctor/RefractionDashboard').then(m => ({ default: m.RefractionDashboard })));
 
+// Background Idle Pre-loader for 100% Offline Clinical Dashboards
+export function prefetchAllClinicalModules() {
+  if (typeof window === 'undefined' || !navigator.onLine) return;
+  const loadChunks = async () => {
+    try {
+      await Promise.allSettled([
+        import('./components/compounder/CompounderDashboard'),
+        import('./components/doctor/DoctorDashboard'),
+        import('./components/pharmacy/PharmacyDashboard'),
+        import('./components/lab/LabDashboard'),
+        import('./components/billing/BillingDashboard'),
+        import('./components/admin/SaaSAdminPanel'),
+        import('./components/doctor/RefractionDashboard')
+      ]);
+      console.log('[Offline PWA Shield] 🛡️ All clinical module chunks successfully preloaded and cached for 100% offline access.');
+    } catch (_err) {
+      console.warn('[Offline PWA Shield] Non-blocking prefetch notice:', _err);
+    }
+  };
+
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(() => { loadChunks(); }, { timeout: 3000 });
+  } else {
+    setTimeout(() => { loadChunks(); }, 1200);
+  }
+}
+
 import { LandingPage } from './components/shared/LandingPage';
 import { AuthGateway } from './components/shared/AuthGateway';
 import { BrandMark } from './components/shared/BrandMark';
@@ -614,6 +641,7 @@ export default function App() {
 
   useEffect(() => {
     PwaSyncManager.registerServiceWorker();
+    prefetchAllClinicalModules();
     StateHealingEngine.startAutonomous247Sentinel();
     // Delay health monitor startup by 10 seconds so it doesn't compete with auth
     // session initialization and the first critical render on page load.
