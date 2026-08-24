@@ -1979,16 +1979,26 @@ async function triggerBotReplyPipeline(ctx: {
         let resolvedDisplay = sessionData.selectedDateDisplay;
 
         if (!resolvedDate) {
+          const dateOpts = sessionData.dateOptions || freshGen.dates;
+          const dateDispOpts = sessionData.dateDisplayOptions || freshGen.displayDates;
           const chatHist = sessionData.chatHistory || session.chat_history || [];
           for (let i = chatHist.length - 1; i >= 0; i--) {
-            const hText = (chatHist[i]?.text || "").toLowerCase();
-            if (hText.includes("tomorrow") || hText.includes("kal") || hText.includes("btn_date_2") || hText.includes("2️⃣")) {
-              resolvedDate = getIstOffsetDateString(1);
-              resolvedDisplay = `Tomorrow (${getIstOffsetDateDisplay(1)})`;
+            const hText = (chatHist[i]?.text || "").toLowerCase().trim();
+            if (hText.includes("tomorrow") || hText.includes("kal") || hText.includes("btn_date_2") || hText.includes("2️⃣") || hText === "2") {
+              resolvedDate = dateOpts[1] || getIstOffsetDateString(1);
+              resolvedDisplay = dateDispOpts[1] || `Tomorrow (${getIstOffsetDateDisplay(1)})`;
               break;
-            } else if (hText.includes("day after") || hText.includes("parso") || hText.includes("btn_date_3") || hText.includes("3️⃣")) {
-              resolvedDate = getIstOffsetDateString(2);
-              resolvedDisplay = getIstOffsetDateDisplay(2);
+            } else if (hText.includes("day after") || hText.includes("parso") || hText.includes("btn_date_3") || hText.includes("3️⃣") || hText === "3") {
+              resolvedDate = dateOpts[2] || getIstOffsetDateString(2);
+              resolvedDisplay = dateDispOpts[2] || getIstOffsetDateDisplay(2);
+              break;
+            } else if (hText.includes("day 4") || hText.includes("btn_date_4") || hText.includes("4️⃣") || hText === "4") {
+              resolvedDate = dateOpts[3] || getIstOffsetDateString(3);
+              resolvedDisplay = dateDispOpts[3] || getIstOffsetDateDisplay(3);
+              break;
+            } else if (hText.includes("today") || hText.includes("aaj") || hText.includes("btn_date_1") || hText.includes("1️⃣") || hText === "1") {
+              resolvedDate = dateOpts[0] || getIstDateString();
+              resolvedDisplay = dateDispOpts[0] || `Today (${getIstDateDisplay()})`;
               break;
             }
           }
