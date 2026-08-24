@@ -2324,10 +2324,11 @@ export const CompounderDashboard: React.FC = () => {
                             );
                           }
 
-                          return futureAppts.map(appt => {
+                          return futureAppts.map((appt, idx) => {
                             const pat = patients.find(p => p.id === appt.patientId);
                             const apptDate = getEffectiveAppointmentDate(appt);
-                            const tokenDisplay = String(appt.token_number || appt.tokenNumber || pat?.tokenNumber || (appt as any).token || 'T-04');
+                            const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
+                            const tokenDisplay = String(rawToken || `T-${String(idx + 1).padStart(2, '0')}`);
                             const patName = pat?.name || (appt as any).patientName || 'Vivek Kumar';
                             const patPhone = pat?.phone || (appt as any).patientPhone || '9608032073';
                             const isWhatsAppBooking = true; // WhatsApp advance booking
@@ -2749,7 +2750,7 @@ export const CompounderDashboard: React.FC = () => {
                         />
                       );
                     }
-                    return confirmedAppts.map((appt) => {
+                    return confirmedAppts.map((appt, idx) => {
                       const patient: any = patients.find(p => p.id === appt.patientId) || {
                         id: appt.patientId,
                         name: (appt as any).patientName || 'WhatsApp Patient',
@@ -2768,6 +2769,8 @@ export const CompounderDashboard: React.FC = () => {
                       const isAwaitingVitals = patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus;
                       const isAwaitingConsult = patient.queueStatus === 'awaiting_consultation';
                       const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || String(appt.source || '').toLowerCase().includes('sos') || String(appt.source || '').toLowerCase().includes('emergency') || String(appt.tokenNumber || '').toUpperCase().includes('SOS') || String(appt.tokenNumber || '').startsWith('#EM-'));
+                      const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
+                      const tokenDisplay = String(rawToken || `TK-${String(idx + 1).padStart(2, '0')}`);
 
                       return (
                         <div 
@@ -2783,7 +2786,7 @@ export const CompounderDashboard: React.FC = () => {
                           <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2.5">
                               <span className="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-mono font-black text-[10px] border border-indigo-200 dark:border-indigo-700/50 shadow-sm">
-                                #{String(appt.token_number || appt.tokenNumber || patient.tokenNumber || (appt as any).token || 'T-04').startsWith('T-') || String(appt.token_number || appt.tokenNumber || patient.tokenNumber || '').startsWith('TK-') ? (appt.token_number || appt.tokenNumber || patient.tokenNumber || 'T-04') : `TK-${String(appt.token_number || appt.tokenNumber || patient.tokenNumber || '1').padStart(2, '0')}`}
+                                #{tokenDisplay.startsWith('T-') || tokenDisplay.startsWith('TK-') ? tokenDisplay : `TK-${tokenDisplay.padStart(2, '0')}`}
                               </span>
                               {isSOS ? (
                                 <span className="flex items-center gap-1 text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-lg bg-rose-600 text-white shadow-md shadow-rose-600/30 animate-pulse">

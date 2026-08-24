@@ -2050,17 +2050,30 @@ async function triggerBotReplyPipeline(ctx: {
             const seqMatch = (tokenStr as string).match(/T-(\d+)/);
             tokenSeq = seqMatch ? parseInt(seqMatch[1], 10) : 1;
           } else {
-            // Fallback: count locally if RPC not yet deployed
-            console.warn("[Meta Webhook] Token RPC unavailable, falling back to count:", tokenErr);
-            const { count: apptCount } = await supabase
+            // Military-Grade Fallback: query all appointments for date and find max token sequence
+            console.warn("[Meta Webhook] Token RPC unavailable, calculating via max sequence:", tokenErr);
+            const { data: dateAppts } = await supabase
               .from("appointments")
-              .select("id", { count: "exact", head: true })
-              .eq("virtual_date", selectedDate)
-              .eq("pod_id", currentPodId);
-            tokenSeq = (apptCount ?? 0) + 1;
+              .select("token_number, virtual_date, appointment_time")
+              .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%`);
+            
+            let maxSeq = 0;
+            if (dateAppts && dateAppts.length > 0) {
+              dateAppts.forEach((a: any) => {
+                const match = String(a.token_number || '').match(/\d+/);
+                if (match) {
+                  const num = parseInt(match[0], 10);
+                  if (num > maxSeq) maxSeq = num;
+                }
+              });
+              tokenSeq = Math.max(dateAppts.length + 1, maxSeq + 1);
+            } else {
+              tokenSeq = 1;
+            }
           }
         } catch (err) {
           console.warn("[Meta Webhook] Error generating token number:", err);
+          tokenSeq = 1;
         }
 
         const isSosBookingSession = sessionData.isSos === true || sessionData.consultationType === "sos";

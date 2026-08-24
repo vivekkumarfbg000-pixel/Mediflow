@@ -2504,6 +2504,35 @@ GRANT EXECUTE ON FUNCTION public.atomic_update_whatsapp_session(TEXT, UUID, UUID
 ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS token_number TEXT;
 
 -- =============================================================================
+-- STEP 39: Atomic OPD Token Number Generation (20260824000004)
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+    p_virtual_date TEXT,
+    p_pod_id UUID
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_count INTEGER;
+    v_token_number TEXT;
+BEGIN
+    SELECT COUNT(*)
+    INTO v_count
+    FROM public.appointments
+    WHERE (virtual_date = p_virtual_date OR appointment_time::text LIKE (p_virtual_date || '%'))
+      AND pod_id = p_pod_id;
+
+    v_token_number := 'T-' || LPAD((COALESCE(v_count, 0) + 1)::TEXT, 2, '0');
+
+    RETURN v_token_number;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO authenticated, service_role, anon;
+
+-- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
 
