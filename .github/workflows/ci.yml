@@ -288,3 +288,34 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
           working-directory: ./
+
+  # ─── Job 8: Deploy Supabase Edge Functions ────────────────────────────────────
+  deploy-supabase-functions:
+    name: ⚡ Deploy — Supabase Edge Functions
+    runs-on: ubuntu-latest
+    needs: [frontend-build, security-audit]
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Edge Functions to Remote Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "Deploying Edge Functions to Supabase project kguupaybvbngyzyofjun..."
+            supabase functions deploy meta-webhook --project-ref kguupaybvbngyzyofjun --no-verify-jwt
+            supabase functions deploy whatsapp-broadcast-worker --project-ref kguupaybvbngyzyofjun --no-verify-jwt
+            supabase functions deploy whatsapp-dispatch --project-ref kguupaybvbngyzyofjun --no-verify-jwt
+            echo "✅ Supabase Edge Functions deployed successfully."
+          else
+            echo "::notice::SUPABASE_ACCESS_TOKEN not configured in GitHub Secrets. Edge functions can be deployed manually via Supabase CLI."
+          fi
+
