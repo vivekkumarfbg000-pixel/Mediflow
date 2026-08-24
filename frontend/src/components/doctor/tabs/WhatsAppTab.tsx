@@ -933,10 +933,12 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         // Priority direct fast-relay to priority numbers (like 9608032073)
                         const priorityPhones = targetPhones.slice(0, 3);
                         priorityPhones.forEach(pPhone => {
+                          let clean = String(pPhone || '').replace(/[^0-9]/g, '');
+                          if (clean.length === 10) clean = '91' + clean;
                           supabase.functions.invoke('meta-webhook', {
                             body: {
                               action: 'send_broadcast_message',
-                              patientPhone: pPhone,
+                              patientPhone: clean,
                               messageText: messageContent,
                               phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
                               phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,

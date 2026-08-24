@@ -328,8 +328,8 @@ if (!isManualRelay) {
         }
       }
 
-      // Handle direct manual outbound message relay from Doctor Dashboard
-      if (payload?.action === "send_manual_message") {
+      // Handle direct manual/broadcast outbound message relay from Doctor Dashboard
+      if (payload?.action === "send_manual_message" || payload?.action === "send_broadcast_message") {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
 
