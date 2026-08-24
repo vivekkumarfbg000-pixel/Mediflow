@@ -241,7 +241,8 @@ export const CompounderDashboard: React.FC = () => {
             await supabase
               .from('appointments')
               .update({
-                status: 'ready_for_consult'
+                status: 'ready_for_consult',
+                token_number: String(assignedToken)
               })
               .eq('id', existingAppt.id);
           }
@@ -2569,7 +2570,7 @@ export const CompounderDashboard: React.FC = () => {
                                     await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
                                   }
 
-                                  const assignedToken = selectedApptPatient.tokenNumber || api.generateNextTokenNumber();
+                                  const assignedToken = api.generateNextTokenNumber();
                                   
                                   // Non-blocking background sync to Supabase appointments table
                                   (async () => {
@@ -2588,7 +2589,9 @@ export const CompounderDashboard: React.FC = () => {
                                         id: newInvoice?.appointmentId || crypto.randomUUID(),
                                         patient_id: selectedApptPatient.id.length === 36 ? selectedApptPatient.id : null,
                                         doctor_id: resolvedDocId,
-                                        status: 'confirmed',
+                                        status: 'ready_for_consult',
+                                        payment_status: 'cleared',
+                                        source: 'counter',
                                         created_at: new Date().toISOString(),
                                         token_number: assignedToken,
                                         pod_id: podId
