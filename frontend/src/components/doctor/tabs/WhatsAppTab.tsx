@@ -931,21 +931,29 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         }
 
                         // Priority direct fast-relay to priority numbers (like 9608032073)
-                        const priorityPhones = targetPhones.slice(0, 3);
-                        priorityPhones.forEach(pPhone => {
+                        const explicitTestPhone = customTestPhone ? customTestPhone.replace(/\D/g, '').slice(-10) : '';
+                        const priorityPhones = Array.from(new Set([
+                          ...(explicitTestPhone.length === 10 ? [explicitTestPhone] : []),
+                          ...targetPhones.slice(0, 5)
+                        ]));
+
+                        const validPhoneId = (wabaPhoneId && /^\d{15,18}$/.test(String(wabaPhoneId))) ? wabaPhoneId : undefined;
+                        const validToken = (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined;
+
+                        await Promise.allSettled(priorityPhones.map(pPhone => {
                           let clean = String(pPhone || '').replace(/[^0-9]/g, '');
                           if (clean.length === 10) clean = '91' + clean;
-                          supabase.functions.invoke('meta-webhook', {
+                          return supabase.functions.invoke('meta-webhook', {
                             body: {
                               action: 'send_broadcast_message',
                               patientPhone: clean,
                               messageText: messageContent,
-                              phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                              phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                              systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
+                              phoneId: validPhoneId,
+                              phoneNumberId: validPhoneId,
+                              systemToken: validToken
                             }
                           }).catch(_err => console.warn('[WhatsApp Broadcast] Fast relay notice:', _err));
-                        });
+                        }));
 
                         // Enqueue campaign batch in Postgres
                         try {

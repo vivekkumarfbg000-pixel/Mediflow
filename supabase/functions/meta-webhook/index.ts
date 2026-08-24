@@ -363,12 +363,12 @@ if (!isManualRelay) {
           } catch (_e) {}
         }
 
-        // 3. Optional valid payload override
+        // 3. Optional valid payload override (strictly valid 15-18 digit Meta phone number ID)
         if (payload.systemToken && String(payload.systemToken).startsWith("EAA")) {
           systemToken = payload.systemToken;
         }
-        if (payload.phoneId && payload.phoneId !== "105829471928374") {
-          phoneId = payload.phoneId;
+        if (payload.phoneId && /^\d{15,18}$/.test(String(payload.phoneId))) {
+          phoneId = String(payload.phoneId);
         }
 
         if (!systemToken || !phoneId) {
