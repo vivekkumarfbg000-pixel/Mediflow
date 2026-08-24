@@ -84,6 +84,7 @@ export class RealtimeSyncService {
     if (record.revisit_note !== undefined) normalized.revisitNote = record.revisit_note;
     if (record.is_emergency !== undefined) normalized.isEmergency = record.is_emergency === true;
     if (record.medicine_name !== undefined) normalized.medicineName = record.medicine_name;
+    if (record.source !== undefined) normalized.source = record.source;
 
     return normalized;
   }
