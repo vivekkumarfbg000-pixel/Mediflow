@@ -1150,7 +1150,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
 </style></head>
 <body><div class="page">
   <div class="header">
-    <div><div class="clinic">VitalSync Pharmacy</div><div class="sub">${activeEntity?.name || 'VitalSync Clinic Pharmacy'}</div>${activeEntity?.gstin ? `<div class="sub" style="margin-top:2px">GSTIN: ${activeEntity.gstin}</div>` : ''}</div>
+    <div><div class="clinic">${activePod?.name ? `${activePod.name} Pharmacy` : (activeEntity?.name || 'Clinic Pharmacy')}</div><div class="sub">${activeEntity?.name || activePod?.name || 'Clinic Pharmacy Counter'}</div>${activeEntity?.gstin ? `<div class="sub" style="margin-top:2px">GSTIN: ${activeEntity.gstin}</div>` : ''}</div>
     <div style="text-align:right">
       <div class="badge">PAID ✅</div>
       <div class="sub" style="margin-top:4px">Date: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>

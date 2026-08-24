@@ -86,10 +86,29 @@ export class WhatsAppService {
   static getDynamicClinicName(): string {
     if (typeof window !== 'undefined') {
       try {
+        const cachedPod = localStorage.getItem('vitalsync_cached_active_pod');
+        if (cachedPod) {
+          const parsed = JSON.parse(cachedPod);
+          if (parsed?.name) return parsed.name;
+        }
+
+        const activePod = localStorage.getItem('vitalsync_active_pod');
+        if (activePod) {
+          const parsed = JSON.parse(activePod);
+          if (parsed?.name) return parsed.name;
+        }
+
         const cached = localStorage.getItem('vitalsync_cached_profile');
         if (cached) {
           const parsed = JSON.parse(cached);
           if (parsed?.clinicName || parsed?.clinic_name) return parsed.clinicName || parsed.clinic_name;
+        }
+
+        const docProfile = localStorage.getItem('mediflow_active_doctor_profile') || localStorage.getItem('vitalsync_doctor_profile');
+        if (docProfile) {
+          const parsed = JSON.parse(docProfile);
+          if (parsed?.clinicName || parsed?.clinic_name) return parsed.clinicName || parsed.clinic_name;
+          if (parsed?.name || parsed?.display_name) return `${parsed.name || parsed.display_name}'s Care Clinic`;
         }
       } catch (_e) { /* ignore */ }
     }

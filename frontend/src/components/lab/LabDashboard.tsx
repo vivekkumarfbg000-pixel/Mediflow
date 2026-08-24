@@ -1499,7 +1499,7 @@ export const LabDashboard: React.FC = () => {
 </style></head>
 <body><div class="page">
   <div class="header">
-    <div><div class="clinic">VitalSync Diagnostics</div><div class="sub">Walk-in Laboratory Bill Receipt</div></div>
+    <div><div class="clinic">${activePod?.name ? `${activePod.name} Diagnostics` : (activeEntity?.name || 'Clinical Diagnostics Lab')}</div><div class="sub">Walk-in Laboratory Bill Receipt</div></div>
     <div style="text-align:right">
       <div class="badge">PAID ✅</div>
       <div class="sub" style="margin-top:4px">Date: ${new Date(inv.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
@@ -2323,7 +2323,7 @@ export const LabDashboard: React.FC = () => {
             </div>
             <div id="specimen-label-print-area" className="p-4 bg-white text-black rounded-lg border-2 border-dashed border-black/30 font-sans shadow-inner space-y-4">
               <div className="flex justify-between items-center border-b border-black/20 pb-2">
-                <div className="text-[10px] font-extrabold uppercase tracking-wider">Mediflow Clinical Labs</div>
+                <div className="text-[10px] font-extrabold uppercase tracking-wider">{activePod?.name ? `${activePod.name} Labs` : (activeEntity?.name || 'Clinical Diagnostics Lab')}</div>
                 <div className="text-[8px] bg-slate-800 text-slate-800 px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wide">Specimen Card</div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">

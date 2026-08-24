@@ -576,13 +576,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           
           <div class="header">
             <div class="logo-area">
-              <h1>VitalSync</h1>
-              <p>Connected Care Clinic Network</p>
+              <h1>${activePod?.name || clinicProfile?.clinicName || 'VitalSync'}</h1>
+              <p>${(activePod as any)?.location || 'Connected Care Clinic Network'}</p>
             </div>
             <div class="doc-info">
               <strong>${activePod?.doctorName || activePod?.doctor_name || clinicProfile?.display_name || 'Dr. Practitioner'}</strong><br/>
               ${(activePod as any)?.specialization || 'Clinical Care Specialist'}<br/>
-              ${activePod?.name || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'VS-V01R'})<br/>
+              ${activePod?.name || clinicProfile?.clinicName || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'VS-V01R'})<br/>
               Date: ${getIstDateDisplay()}
             </div>
           </div>
@@ -741,7 +741,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </div>
               <div>
                 <p><strong>Reference Date:</strong> ${getIstDateDisplay()}</p>
-                <p><strong>Clinic Entity:</strong> VitalSync Clinical Hub</p>
+                <p><strong>Clinic Entity:</strong> ${activePod?.name || clinicProfile?.clinicName || 'VitalSync Clinical Hub'}</p>
                 <p><strong>Chronic Conditions:</strong> ${(selectedPatient?.chronicConditions || []).join(', ') || 'None'}</p>
               </div>
             </div>

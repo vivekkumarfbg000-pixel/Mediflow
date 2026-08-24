@@ -109,7 +109,8 @@ const getBilingualInstruction = (medicineName: string, dosage?: string) => {
 
 export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
-  const { podEntities, activePod } = useClinic();
+  const { podEntities, activePod, activeProfile } = useClinic();
+  const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
   const [activeTab, setActiveTab] = useState<'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('tokens');
   const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
   const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'upcoming_advance' | 'past_history'>('today_queue');
@@ -3916,7 +3917,7 @@ export const CompounderDashboard: React.FC = () => {
       <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Mediflow Realtime Engine · Apex Care Clinic Node</span>
+          <span>Mediflow Realtime Engine · {clinicTitle} Node</span>
         </div>
         <div className="flex items-center gap-4">
           <span>Sub-300ms Outbound WhatsApp</span>
@@ -3930,7 +3931,7 @@ export const CompounderDashboard: React.FC = () => {
 
 
       {/* Floating 24/7 Mediflow AI Support Widget */}
-      <WhatsAppSupportModal userRole="compounder" userName="Compounder Desk" clinicName="Apex Care Clinic" />
+      <WhatsAppSupportModal userRole="compounder" userName="Compounder Desk" clinicName={clinicTitle} />
     </div>
   );
 };

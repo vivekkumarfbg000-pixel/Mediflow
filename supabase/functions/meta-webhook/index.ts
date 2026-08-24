@@ -1171,17 +1171,18 @@ async function triggerBotReplyPipeline(ctx: {
 
   // Dynamically resolve active Doctor Profile (display_name, consultation_fee) and Clinic Name for this session/pod
   let resolvedDoctorName = "Doctor";
-  let resolvedClinicName = "Connected Clinic";
+  let resolvedClinicName = sessionData?.clinicName || "Connected Clinic";
   let resolvedConsultationFee = 500;
 
   try {
+    const currentPodId = toValidUuid(connection?.pod_id || session.pod_id);
     let docQuery = supabase
       .from("profiles")
       .select("id, display_name, consultation_fee, pod_id, entity_id")
       .eq("role", "doctor");
 
-    if (session.pod_id && session.pod_id !== "default-pod" && session.pod_id !== DEFAULT_POD_UUID) {
-      docQuery = docQuery.eq("pod_id", session.pod_id);
+    if (currentPodId) {
+      docQuery = docQuery.eq("pod_id", currentPodId);
     }
     const { data: docProfile } = await docQuery.limit(1).maybeSingle();
 
@@ -1194,17 +1195,31 @@ async function triggerBotReplyPipeline(ctx: {
       }
     }
 
-    if (session.pod_id && session.pod_id !== "default-pod" && session.pod_id !== DEFAULT_POD_UUID) {
+    if (currentPodId) {
+      // 1. Check entity table for clinic name
       const { data: podEntity } = await supabase
         .from("entities")
         .select("name")
-        .eq("pod_id", session.pod_id)
+        .eq("pod_id", currentPodId)
         .eq("entity_type", "clinic")
         .limit(1)
         .maybeSingle();
 
       if (podEntity?.name) {
         resolvedClinicName = podEntity.name;
+      } else {
+        // 2. Check pods table
+        const { data: podData } = await supabase
+          .from("pods")
+          .select("name")
+          .eq("id", currentPodId)
+          .maybeSingle();
+
+        if (podData?.name) {
+          resolvedClinicName = podData.name;
+        } else if (docProfile?.display_name) {
+          resolvedClinicName = `${resolvedDoctorName}'s Care Clinic`;
+        }
       }
     }
   } catch (lookupErr) {

@@ -62,18 +62,20 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     const email = String(activeProfile.email || '').toLowerCase();
     const isDemo = Boolean(activeProfile.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || activeProfile.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
     if (isDemo) {
+      const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
+      const customName = activeProfile?.clinicName || activeProfile?.clinic_name || localActivePod?.name || (activeProfile?.display_name ? `${activeProfile.display_name}'s Care Clinic` : 'VitalSync Smart Care Clinic');
       const demoPod: Pod = {
-        id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-        name: 'Apex Eye & Dental Care Clinic',
-        location: 'Kankarbagh Main Rd, Patna, Bihar',
-        clinicCode: 'VS-V01R',
+        id: localActivePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        name: customName,
+        location: localActivePod?.location || 'Central Medical Plaza, Tier-2 Clinic Node',
+        clinicCode: localActivePod?.clinic_code || localActivePod?.clinicCode || 'VS-V01R',
         isActive: true,
         createdAt: '2026-01-01T00:00:00Z'
       };
       setActivePod(demoPod);
       if (typeof window !== 'undefined') {
         safeSetStorageJSON('vitalsync_cached_active_pod', demoPod);
-        safeSetStorageJSON('vitalsync_active_pod', { ...demoPod, clinic_code: 'VS-V01R' });
+        safeSetStorageJSON('vitalsync_active_pod', { ...demoPod, clinic_code: demoPod.clinicCode });
         (window as any).__mediflow_active_pod_id = demoPod.id;
       }
       return;

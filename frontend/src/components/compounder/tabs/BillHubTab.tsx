@@ -17,7 +17,7 @@ import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } f
 
 export const BillHubTab: React.FC = () => {
   const { isOphthalmology } = useSpecialization();
-  const { activePod } = useClinic();
+  const { activePod, activeProfile } = useClinic();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // App States
@@ -763,11 +763,12 @@ export const BillHubTab: React.FC = () => {
         <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Grand Total Paid:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${(billingLedger.finalTotal || 0).toFixed(2)}</td></tr>`;
     }
 
+    const clinicTitle = activePod?.name || activeProfile?.clinicName || 'VitalSync Integrated Care';
     const printHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>VitalSync Receipt</title>
+  <title>${clinicTitle} Receipt</title>
   <style>
     body { font-family: 'Inter', sans-serif; margin: 40px; color: #0f172a; font-size:13px; line-height:1.5; }
     .header-box { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #106675; padding-bottom:12px; margin-bottom:20px; }
@@ -781,7 +782,7 @@ export const BillHubTab: React.FC = () => {
 <body>
   <div class="header-box">
     <div>
-      <h1>🏥 VitalSync Healthcare</h1>
+      <h1>🏥 ${clinicTitle}</h1>
       <div class="subtitle">${sectionTitle}</div>
     </div>
     <div style="text-align:right;font-size:11px;color:#64748b">
@@ -805,7 +806,7 @@ export const BillHubTab: React.FC = () => {
   </table>
 
   <div class="footer">
-    This is a computerized receipt generated securely. Thank you for choosing VitalSync Integrated Care.
+    This is a computerized receipt generated securely. Thank you for choosing ${clinicTitle}.
   </div>
   <script>window.print();</script>
 </body>
@@ -823,12 +824,13 @@ export const BillHubTab: React.FC = () => {
     const razorpayHandle = 'https://razorpay.me/@vitalsync3758';
     const razorpayDisplay = 'razorpay.me/@vitalsync3758';
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0f172a&data=${encodeURIComponent(razorpayHandle)}`;
+    const clinicTitle = activePod?.name || activeProfile?.clinicName || 'VitalSync Healthcare';
 
     const standeeHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>VitalSync Counter Razorpay 0% Fee QR Standee</title>
+  <title>${clinicTitle} Counter Razorpay 0% Fee QR Standee</title>
   <style>
     body { font-family: 'Inter', sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90vh; text-align:center; color:#0f172a; padding:20px; }
     .card { border: 4px solid #106675; padding: 40px; border-radius: 24px; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); background: #ffffff; }
@@ -842,7 +844,7 @@ export const BillHubTab: React.FC = () => {
 </head>
 <body>
   <div class="card">
-    <h1>🏥 VitalSync Healthcare</h1>
+    <h1>🏥 ${clinicTitle}</h1>
     <div class="sub">Razorpay 0% Fee Counter Payment QR</div>
     <div class="qr-box">
       <img src="${qrUrl}" alt="Razorpay Counter Payment QR" width="240" height="240" />

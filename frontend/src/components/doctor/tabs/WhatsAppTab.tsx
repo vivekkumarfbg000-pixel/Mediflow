@@ -753,7 +753,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBroadcastMsg(`Namaste! Your monthly chronic medicine prescription is due for refill. Reply REFILL or tap 1-Click Refill to reserve medicines at clinic counter.`)}
+                    onClick={() => setBroadcastMsg(`Namaste! Your monthly chronic medicine prescription is due for refill at ${activePod?.name || 'our clinic counter'}. Reply REFILL or tap 1-Click Refill to reserve medicines at clinic counter.`)}
                     className="p-2 bg-amber-50/50 dark:bg-amber-950/40 hover:bg-amber-100/50 border border-amber-200/80 dark:border-amber-900/40 rounded-xl text-[9px] font-bold text-amber-800 dark:text-amber-300 text-left transition-all cursor-pointer"
                   >
                     💊 Chronic Refill Notice
