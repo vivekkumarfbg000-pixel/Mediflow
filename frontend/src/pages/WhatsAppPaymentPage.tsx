@@ -261,17 +261,48 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
               .eq('id', invoiceId);
 
             // Sync appointment record to scheduled/confirmed
+            const targetApptId = invoice?.appointment_id;
             const targetPatId = patient?.id || invoice?.patient_id;
-            if (targetPatId) {
+            if (targetApptId) {
               await supabase
                 .from('appointments')
                 .update({ status: 'scheduled', payment_status: 'cleared' })
-                .eq('patient_id', targetPatId);
+                .eq('id', targetApptId);
+            } else if (targetPatId) {
+              await supabase
+                .from('appointments')
+                .update({ status: 'scheduled', payment_status: 'cleared' })
+                .eq('patient_id', targetPatId)
+                .neq('status', 'completed')
+                .neq('status', 'cancelled');
+            }
 
+            if (targetPatId) {
               await supabase
                 .from('patient_registry')
                 .update({ queue_status: 'awaiting_consultation' })
                 .eq('id', targetPatId);
+            }
+
+            // Sync doctor consultation fee to financial ledgers
+            if (invoiceId) {
+              try {
+                await supabase.from('financial_ledgers').insert({
+                  invoice_id: invoiceId,
+                  transaction_type: 'appointment_fee',
+                  gross_amount: Number(invoice?.doctor_fee) || 500,
+                  commission_rate: 0,
+                  net_payout: Number(invoice?.doctor_fee) || 500,
+                  payment_status: 'cleared',
+                  settled_at: new Date().toISOString(),
+                  platform_fee_deducted: Number(invoice?.platform_fee) || 15,
+                  gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
+                  payment_method: 'razorpay',
+                  pod_id: invoice?.pod_id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+                });
+              } catch (_fErr) {
+                console.warn('[WhatsApp Payment] Financial ledger insert error:', _fErr);
+              }
             }
           } catch (err) {
             console.warn('[WhatsApp Payment] Background DB sync note:', err);
@@ -320,17 +351,48 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
           .eq('id', invoiceId);
       }
 
+      const targetApptId = invoice?.appointment_id;
       const targetPatId = patient?.id || invoice?.patient_id;
-      if (targetPatId) {
+      if (targetApptId) {
         await supabase
           .from('appointments')
           .update({ status: 'scheduled', payment_status: 'cleared' })
-          .eq('patient_id', targetPatId);
+          .eq('id', targetApptId);
+      } else if (targetPatId) {
+        await supabase
+          .from('appointments')
+          .update({ status: 'scheduled', payment_status: 'cleared' })
+          .eq('patient_id', targetPatId)
+          .neq('status', 'completed')
+          .neq('status', 'cancelled');
+      }
 
+      if (targetPatId) {
         await supabase
           .from('patient_registry')
           .update({ queue_status: 'awaiting_consultation' })
           .eq('id', targetPatId);
+      }
+
+      // Sync doctor consultation fee to financial ledgers
+      if (invoiceId) {
+        try {
+          await supabase.from('financial_ledgers').insert({
+            invoice_id: invoiceId,
+            transaction_type: 'appointment_fee',
+            gross_amount: Number(invoice?.doctor_fee) || 500,
+            commission_rate: 0,
+            net_payout: Number(invoice?.doctor_fee) || 500,
+            payment_status: 'cleared',
+            settled_at: new Date().toISOString(),
+            platform_fee_deducted: Number(invoice?.platform_fee) || 15,
+            gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
+            payment_method: 'upi',
+            pod_id: invoice?.pod_id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+          });
+        } catch (_fErr) {
+          console.warn('[WhatsApp Payment] Financial ledger insert error:', _fErr);
+        }
       }
       setStatus('cleared');
     } catch (err) {
