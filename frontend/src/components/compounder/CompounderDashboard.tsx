@@ -446,7 +446,7 @@ export const CompounderDashboard: React.FC = () => {
       const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       let apptQuery = supabase
         .from('appointments')
-        .select('*, patient_registry(id, name, phone, age, gender)')
+        .select('*, patient_registry(id, name, phone, age, gender, token_number)')
         .order('created_at', { ascending: false });
 
       if (podId && podId !== 'default-pod') {
@@ -458,6 +458,7 @@ export const CompounderDashboard: React.FC = () => {
       if (data) {
         const mapped = data.map((a: any) => {
           const patInfo = a.patient_registry || {};
+          const resolvedToken = String(a.token_number || patInfo.token_number || (a as any).tokenNumber || (patInfo as any).token || 'T-04');
           return {
             id: a.id,
             patientId: a.patient_id,
@@ -476,8 +477,8 @@ export const CompounderDashboard: React.FC = () => {
             virtual_time: a.virtual_time,
             virtualMeetingUrl: a.virtual_meeting_url,
             virtual_meeting_url: a.virtual_meeting_url,
-            tokenNumber: String(a.token_number || 1),
-            token_number: String(a.token_number || 1),
+            tokenNumber: resolvedToken,
+            token_number: resolvedToken,
             source: a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical',
             patientName: patInfo.name || 'WhatsApp Patient',
             patient_name: patInfo.name || 'WhatsApp Patient',
