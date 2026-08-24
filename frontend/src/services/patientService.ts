@@ -395,25 +395,23 @@ export class PatientService {
   }
 
   static generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
-    const patients = this.getPatients();
     const appointments = load<any[]>('saas_appointments', []);
     const dateStr = targetDate || getIstDateString();
 
     const apptsForDate = appointments.filter(a => {
-      const apptDate = a.virtualDate || a.createdAt || '';
-      return apptDate.startsWith(dateStr);
+      const apptDate = a.virtualDate || a.date || a.appointment_time || a.createdAt || '';
+      return String(apptDate).startsWith(dateStr);
     });
 
-    const activeTokens = patients
-      .map(p => String(p.tokenNumber || ''))
-      .filter((t): t is string => !!t && (t.startsWith('T-') || t.startsWith('TK-') || t.startsWith('#TK-') || t.startsWith('#T-')));
+    const tokenNums = apptsForDate
+      .map(a => {
+        const t = String(a.token_number || a.tokenNumber || '');
+        const match = t.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      })
+      .filter(n => n > 0);
 
-    const tokenNums = [
-      ...activeTokens.map(t => parseInt(t.replace('#TK-', '').replace('TK-', '').replace('#T-', '').replace('T-', '').replace('E', '').replace('#', '').trim(), 10)),
-      apptsForDate.length
-    ].filter(n => !isNaN(n) && n > 0);
-
-    const maxVal = tokenNums.length > 0 ? Math.max(...tokenNums) : 0;
+    const maxVal = tokenNums.length > 0 ? Math.max(...tokenNums, apptsForDate.length) : apptsForDate.length;
     const nextVal = maxVal + 1;
     const baseToken = `T-${nextVal.toString().padStart(2, '0')}`;
     return isSos ? `${baseToken} E` : baseToken;
