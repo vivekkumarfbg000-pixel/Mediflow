@@ -53,7 +53,7 @@ serve(async (req) => {
           .maybeSingle();
 
         if (wabaConn) {
-          if (!phoneId) phoneId = wabaConn.phone_number_id || "";
+          if (!phoneId) phoneId = wabaConn.phone_number_id || "1168872099651441";
           if (!systemToken) {
             if (wabaConn.access_token && wabaConn.access_token.startsWith("EAA")) {
               systemToken = wabaConn.access_token;
@@ -68,6 +68,9 @@ serve(async (req) => {
                   systemToken = rpcData[0].decrypted_token;
                 }
               } catch (_rpcE) {}
+              if (!systemToken && wabaConn.encrypted_system_user_token.startsWith("EAA")) {
+                systemToken = wabaConn.encrypted_system_user_token;
+              }
             }
           }
         }
@@ -75,6 +78,8 @@ serve(async (req) => {
         console.warn("[whatsapp-broadcast-worker] Tenant WABA resolution note:", wErr);
       }
     }
+
+    if (!phoneId) phoneId = "1168872099651441";
 
     if (!systemToken) {
       return new Response(JSON.stringify({ error: "No active Meta WhatsApp token available (neither tenant WABA nor master OWNER_SYSTEM_TOKEN)." }), { status: 400, headers: corsHeaders });
