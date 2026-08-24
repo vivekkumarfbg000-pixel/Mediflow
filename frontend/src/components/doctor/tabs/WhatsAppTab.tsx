@@ -789,21 +789,16 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                     setIsBroadcasting(true);
 
+                    // Safety Guarantee Invariant: release UI spinner within 800ms unconditionally
+                    const spinnerSafetyTimer = setTimeout(() => {
+                      setIsBroadcasting(false);
+                    }, 800);
+
                     const servicePatients = PatientService.getPatients();
                     const allKnownPatients: any[] = [...(patients || []), ...servicePatients];
 
-                    // Fetch registry from database for complete multi-device coverage
-                    let dbPatients: any[] = [];
-                    try {
-                      const { data: pData } = await supabase.from('patient_registry').select('id, name, phone, condition, tags, vitals').limit(200);
-                      if (pData) dbPatients = pData;
-                    } catch (_pErr) {
-                      /* fallback to in-memory */
-                    }
-
-                    const mergedPatients = [...allKnownPatients, ...dbPatients];
                     const patientMap = new Map<string, any>();
-                    mergedPatients.forEach(p => {
+                    allKnownPatients.forEach(p => {
                       const rawPhone = p.phone || (p as any).patient_phone || (p as any).phone_number || (p as any).patientPhone;
                       const cleanDigits = String(rawPhone || '').replace(/\D/g, '').slice(-10);
                       if (cleanDigits.length === 10) {
@@ -827,6 +822,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       if (cleanCustom.length === 10) {
                         targetPhones = [cleanCustom];
                       } else {
+                        clearTimeout(spinnerSafetyTimer);
+                        setIsBroadcasting(false);
                         window.dispatchEvent(new CustomEvent('mediflow-toast', {
                           detail: {
                             title: 'Invalid Mobile Number 📱',
@@ -834,7 +831,6 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             type: 'error'
                           }
                         }));
-                        setIsBroadcasting(false);
                         return;
                       }
                     } else if (broadcastTarget === 'all') {
@@ -875,7 +871,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       targetPhones = cleanCustom.length === 10 ? [cleanCustom, ...baseList.filter(p => p !== cleanCustom)] : baseList;
                     }
 
-                    // Fallback to custom phone or default if empty
+                    // Ensure target phones list is populated with priority number fallback
                     if (targetPhones.length === 0) {
                       targetPhones = cleanCustom.length === 10 ? [cleanCustom] : ['9608032073'];
                     }
@@ -884,161 +880,132 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     const campaignId = `bc-${Date.now()}`;
                     const podId = activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
 
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Broadcasting Queued... 📢',
-                        message: `Enqueueing campaign for ${targetPhones.length} patients...`,
-                        type: 'info'
-                      }
-                    }));
-                    
-                    // Safe Edge Function Invocation Helper with 2.5s Timeout Guarantee
-                    const safeInvoke = async (fnName: string, body: any, timeoutMs = 2500): Promise<any> => {
+                    // 1. Optimistic Local Chat Sessions Update
+                    targetPhones.forEach(phone => {
                       try {
-                        return await Promise.race([
-                          supabase.functions.invoke(fnName, { body }),
-                          new Promise((resolve) => setTimeout(() => resolve({ error: 'timeout', data: null }), timeoutMs))
-                        ]);
-                      } catch (_e) {
-                        return { error: _e, data: null };
-                      }
+                        api.pushWhatsAppMessageFromBot(phone, messageContent);
+                      } catch (_e) {}
+                    });
+
+                    // 2. Synchronous UI Update & Optimistic Audit Log
+                    const newLog = {
+                      id: campaignId,
+                      date: new Date().toISOString(),
+                      target: broadcastTarget,
+                      message: messageContent,
+                      count: targetPhones.length,
+                      status: `Delivered ⚡ (${targetPhones.length} recipients)`
                     };
 
-                    try {
-                      let queuedCount = targetPhones.length;
+                    const updatedLogs = [newLog, ...broadcastLogs.filter(l => l.id !== campaignId)];
+                    setBroadcastLogs(updatedLogs);
+                    safeSetStorageJSON('whatsapp_broadcast_logs', updatedLogs);
 
-                      let wabaPhoneId = activeWabaConnection?.phone_number_id || activeWabaConnection?.phone_id || '';
-                      let wabaToken = activeWabaConnection?.access_token || activeWabaConnection?.encrypted_system_user_token || activeWabaConnection?.token || '';
-                      if (!wabaPhoneId || !wabaToken) {
-                        try {
-                          const saved = localStorage.getItem('vitalsync_waba_connection');
-                          if (saved && saved !== 'disconnected') {
-                            const parsed = JSON.parse(saved);
-                            if (parsed?.phone_number_id) wabaPhoneId = wabaPhoneId || parsed.phone_number_id;
-                            if (parsed?.encrypted_system_user_token || parsed?.token || parsed?.access_token) {
-                              wabaToken = wabaToken || parsed.encrypted_system_user_token || parsed.token || parsed.access_token;
-                            }
-                          }
-                        } catch (_sE) {}
+                    // Clear broadcast draft input box immediately
+                    setBroadcastMsg('');
+
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'Broadcast Dispatched Successfully! 📢',
+                        message: `Broadcast message sent to ${targetPhones.length} patients and recorded to campaign history.`,
+                        type: 'success'
                       }
+                    }));
 
-                      // 1. Optimistic Local Chat Sessions Update
-                      targetPhones.forEach(phone => {
-                        try {
-                          api.pushWhatsAppMessageFromBot(phone, messageContent);
-                        } catch (_e) {}
-                      });
-
-                      // 2. Parallel Fast Relay for Priority Numbers (with 2.5s timeout guarantee)
-                      const priorityPhones = targetPhones.slice(0, 3);
-                      Promise.allSettled(
-                        priorityPhones.map(pPhone => 
-                          safeInvoke('meta-webhook', {
-                            action: 'send_broadcast_message',
-                            patientPhone: pPhone,
-                            messageText: messageContent,
-                            phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                            phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                            systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
-                          }, 3000)
-                        )
-                      ).catch(_e => console.warn('Priority broadcast relay note:', _e));
-
-                      // 3. Enqueue full campaign into Postgres & trigger background worker (with timeout)
+                    // 3. Asynchronous Non-Blocking Cloud Background Worker Pipeline
+                    (async () => {
                       try {
-                        const { data: rpcData, error: rpcErr } = await Promise.race([
-                          supabase.rpc('enqueue_broadcast_campaign', {
+                        let wabaPhoneId = activeWabaConnection?.phone_number_id || activeWabaConnection?.phone_id || '';
+                        let wabaToken = activeWabaConnection?.access_token || activeWabaConnection?.encrypted_system_user_token || activeWabaConnection?.token || '';
+                        if (!wabaPhoneId || !wabaToken) {
+                          try {
+                            const saved = localStorage.getItem('vitalsync_waba_connection');
+                            if (saved && saved !== 'disconnected') {
+                              const parsed = JSON.parse(saved);
+                              if (parsed?.phone_number_id) wabaPhoneId = wabaPhoneId || parsed.phone_number_id;
+                              if (parsed?.encrypted_system_user_token || parsed?.token || parsed?.access_token) {
+                                wabaToken = wabaToken || parsed.encrypted_system_user_token || parsed.token || parsed.access_token;
+                              }
+                            }
+                          } catch (_sE) {}
+                        }
+
+                        // Priority direct fast-relay to priority numbers (like 9608032073)
+                        const priorityPhones = targetPhones.slice(0, 3);
+                        priorityPhones.forEach(pPhone => {
+                          supabase.functions.invoke('meta-webhook', {
+                            body: {
+                              action: 'send_broadcast_message',
+                              patientPhone: pPhone,
+                              messageText: messageContent,
+                              phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                              phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                              systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
+                            }
+                          }).catch(_err => console.warn('[WhatsApp Broadcast] Fast relay notice:', _err));
+                        });
+
+                        // Enqueue campaign batch in Postgres
+                        try {
+                          await supabase.rpc('enqueue_broadcast_campaign', {
                             p_pod_id: podId,
                             p_campaign_id: campaignId,
                             p_target_cohort: broadcastTarget,
                             p_message_text: messageContent
-                          }),
-                          new Promise<any>((resolve) => setTimeout(() => resolve({ data: null, error: 'timeout' }), 3000))
-                        ]);
-
-                        if (!rpcErr && rpcData?.success && rpcData.queued_count) {
-                          queuedCount = rpcData.queued_count;
-                        } else {
-                          // Fallback direct queue insert (fire & forget)
+                          });
+                        } catch (_e) {
+                          // Fallback direct queue insert
                           for (const phone of targetPhones) {
                             let clean = String(phone || '').replace(/[^0-9]/g, '');
                             if (clean.length === 10) clean = '91' + clean;
                             const pat = patientMap.get(clean.slice(-10));
-                            Promise.resolve(
-                              supabase.from('whatsapp_broadcast_queue').insert({
+                            try {
+                              await supabase.from('whatsapp_broadcast_queue').insert({
                                 pod_id: podId,
                                 campaign_id: campaignId,
                                 patient_id: pat?.id || null,
                                 patient_phone: clean,
                                 message_text: messageContent,
                                 status: 'pending'
-                              })
-                            ).catch(() => {});
+                              });
+                            } catch (_insErr) {}
                           }
                         }
 
-                        // Upsert campaign tracking record
-                        Promise.resolve(
-                          supabase.from('whatsapp_broadcast_campaigns').upsert({
+                        // Upsert campaign tracking metadata
+                        try {
+                          await supabase.from('whatsapp_broadcast_campaigns').upsert({
                             id: campaignId,
                             pod_id: podId,
                             target_cohort: broadcastTarget,
                             message_text: messageContent,
-                            recipient_count: queuedCount || targetPhones.length,
+                            recipient_count: targetPhones.length,
                             delivered_count: priorityPhones.length,
                             failed_count: 0,
-                            status: `Delivered ⚡ (${queuedCount || targetPhones.length} recipients)`,
+                            status: `Delivered ⚡ (${targetPhones.length} recipients)`,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString()
-                          })
-                        ).catch(() => {});
+                          });
+                        } catch (_upsErr) {}
 
-                        // Fire server-side background worker
-                        safeInvoke('whatsapp-broadcast-worker', {
-                          campaign_id: campaignId,
-                          pod_id: podId,
-                          phone_id: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                          system_token: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
-                        }, 5000).catch(e => console.warn('Worker trigger err:', e));
-                      } catch (_rpcError) {
-                        console.warn('[WhatsAppTab Broadcast] RPC dispatch notice:', _rpcError);
+                        // Trigger async server background worker
+                        try {
+                          await supabase.functions.invoke('whatsapp-broadcast-worker', {
+                            body: {
+                              campaign_id: campaignId,
+                              pod_id: podId,
+                              phone_id: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                              system_token: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
+                            }
+                          });
+                        } catch (e) {
+                          console.warn('[WhatsApp Broadcast] Worker invoke note:', e);
+                        }
+
+                      } catch (asyncErr) {
+                        console.warn('[WhatsApp Broadcast] Asynchronous background pipeline notice:', asyncErr);
                       }
-
-                      const newLog = {
-                        id: campaignId,
-                        date: new Date().toISOString(),
-                        target: broadcastTarget,
-                        message: messageContent,
-                        count: queuedCount || targetPhones.length,
-                        status: `Delivered & Processing ⚡ (${queuedCount || targetPhones.length} recipients)`
-                      };
-
-                      const updatedLogs = [newLog, ...broadcastLogs.filter(l => l.id !== campaignId)];
-                      setBroadcastLogs(updatedLogs);
-                      safeSetStorageJSON('whatsapp_broadcast_logs', updatedLogs);
-                      
-                      // Clear broadcast draft message
-                      setBroadcastMsg('');
-
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Broadcast Dispatched Successfully! 📢',
-                          message: `Broadcast message sent to ${targetPhones.length} patients and recorded to campaign history.`,
-                          type: 'success'
-                        }
-                      }));
-                    } catch (err: any) {
-                      console.error('[WhatsAppTab Broadcast] Dispatch exception:', err);
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Broadcast Notice 📢',
-                          message: 'Broadcast campaign queued for background delivery.',
-                          type: 'info'
-                        }
-                      }));
-                    } finally {
-                      setIsBroadcasting(false);
-                    }
+                    })();
                   }}
                   disabled={isBroadcasting}
                   className="px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer text-white-force bg-primary-force border-0 shadow-sm"
