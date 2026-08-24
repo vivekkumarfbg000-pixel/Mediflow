@@ -176,7 +176,7 @@ export const AIFleetCommanderTab: React.FC = () => {
           clinicalNotes: 'Patient complains of recurrent fever and productive cough for 3 days. Chest clear on auscultation.',
           medications: [{ medicineName: 'Paracetamol 650mg', dosage: '1 tablet', frequency: 'TDS', duration: '3 days' }],
           patientId: 'pat-test-01',
-          doctorId: 'doc-apex-01'
+          doctorId: 'doc-node-01'
         });
         return {
           agent: 'Compliance Audit Agent',

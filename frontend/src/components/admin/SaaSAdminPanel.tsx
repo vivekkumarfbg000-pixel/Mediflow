@@ -3167,7 +3167,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Apex Heart & Diabetes Care"
+                    placeholder="e.g. Metro Heart & Diabetes Care"
                     value={provisionForm.name}
                     onChange={(e) => setProvisionForm(f => ({ ...f, name: e.target.value }))}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500/50 outline-none text-xs font-semibold bg-slate-50/50"
@@ -3355,7 +3355,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">WhatsApp Custom Header Text</label>
                   <input
                     type="text"
-                    placeholder="e.g. Apex Heart Care Official Clinic Portal"
+                    placeholder="e.g. Metro Heart Care Official Clinic Portal"
                     value={whiteLabelForm.headerText}
                     onChange={(e) => setWhiteLabelForm(f => ({ ...f, headerText: e.target.value }))}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-amber-500/50 outline-none text-xs font-semibold bg-slate-50/50"

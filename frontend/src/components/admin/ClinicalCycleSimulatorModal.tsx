@@ -194,7 +194,7 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
       const holds = PharmacyService.getInventoryHolds();
       const newHold = {
         id: `hold-sim-${Date.now()}`,
-        pharmacyId: 'pharma-apex-01',
+        pharmacyId: 'pharma-node-01',
         patientId: simPatientId,
         medicineName: 'Metformin 500mg',
         dosage: '500mg',
