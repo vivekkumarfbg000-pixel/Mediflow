@@ -85,7 +85,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const [mobileSubTab, setMobileSubTab] = useState<'conversations' | 'broadcast' | 'telemetry'>('conversations');
   const [mobileSelectedPatientChat, setMobileSelectedPatientChat] = useState<boolean>(false);
   const [broadcastMsg, setBroadcastMsg] = useState('');
-  const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'diabetes' | 'hypertension' | 'opd'>('all');
+  const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'diabetes' | 'hypertension' | 'opd' | 'custom'>('all');
+  const [customTestPhone, setCustomTestPhone] = useState('9608032073');
   const [broadcastLogs, setBroadcastLogs] = useState<any[]>([]);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
@@ -703,14 +704,25 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     onChange={(e) => setBroadcastTarget(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-950/80 text-slate-800 dark:text-white"
                   >
-                    <option value="all" className="dark:bg-slate-900 dark:text-white">All Registered Patients</option>
+                    <option value="all" className="dark:bg-slate-900 dark:text-white">All Registered Patients ({patients.length || 41})</option>
                     <option value="diabetes" className="dark:bg-slate-900 dark:text-white">Diabetic Patients (Chronic)</option>
                     <option value="hypertension" className="dark:bg-slate-900 dark:text-white">Hypertensive Patients (Chronic)</option>
                     <option value="opd" className="dark:bg-slate-900 dark:text-white">Currently Active OPD Queue</option>
+                    <option value="custom" className="dark:bg-slate-900 dark:text-white">🎯 Single / Custom Test Phone (Direct Instant Send)</option>
                   </select>
                 </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 rounded-xl flex items-center text-[10px] text-blue-700 dark:text-blue-300 font-sans leading-relaxed">
-                  💡 *Hinglish / Bilingual Templates* are highly recommended to maximize readability and patient engagement.
+                
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    {broadcastTarget === 'custom' ? 'Target Mobile Number (10 Digits)' : 'Test / Priority Mobile Number'}
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="e.g. 9608032073"
+                    value={customTestPhone}
+                    onChange={(e) => setCustomTestPhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/25 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-950/80 text-slate-800 dark:text-white font-mono"
+                  />
                 </div>
               </div>
 
@@ -809,10 +821,29 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     });
 
                     let targetPhones: string[] = [];
+                    const cleanCustom = customTestPhone.replace(/\D/g, '').slice(-10);
 
-                    if (broadcastTarget === 'all') {
+                    if (broadcastTarget === 'custom') {
+                      if (cleanCustom.length === 10) {
+                        targetPhones = [cleanCustom];
+                      } else {
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'Invalid Mobile Number 📱',
+                            message: 'Please enter a valid 10-digit mobile number for custom broadcast.',
+                            type: 'error'
+                          }
+                        }));
+                        setIsBroadcasting(false);
+                        return;
+                      }
+                    } else if (broadcastTarget === 'all') {
                       const combined = Array.from(new Set([...patientMap.keys(), ...sessionMap.keys()]));
-                      targetPhones = combined;
+                      if (cleanCustom.length === 10) {
+                        targetPhones = [cleanCustom, ...combined.filter(p => p !== cleanCustom)];
+                      } else {
+                        targetPhones = combined;
+                      }
                     } else if (broadcastTarget === 'diabetes') {
                       const matching: string[] = [];
                       patientMap.forEach((p, digits) => {
@@ -821,7 +852,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           matching.push(digits);
                         }
                       });
-                      targetPhones = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                      const baseList = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                      targetPhones = cleanCustom.length === 10 ? [cleanCustom, ...baseList.filter(p => p !== cleanCustom)] : baseList;
                     } else if (broadcastTarget === 'hypertension') {
                       const matching: string[] = [];
                       patientMap.forEach((p, digits) => {
@@ -830,7 +862,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           matching.push(digits);
                         }
                       });
-                      targetPhones = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                      const baseList = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                      targetPhones = cleanCustom.length === 10 ? [cleanCustom, ...baseList.filter(p => p !== cleanCustom)] : baseList;
                     } else if (broadcastTarget === 'opd') {
                       const matching: string[] = [];
                       patientMap.forEach((p, digits) => {
@@ -838,17 +871,13 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                           matching.push(digits);
                         }
                       });
-                      targetPhones = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                      const baseList = matching.length > 0 ? matching : Array.from(patientMap.keys());
+                      targetPhones = cleanCustom.length === 10 ? [cleanCustom, ...baseList.filter(p => p !== cleanCustom)] : baseList;
                     }
 
-                    // Fallback to all available phone numbers if specific cohort is empty
+                    // Fallback to custom phone or default if empty
                     if (targetPhones.length === 0) {
-                      targetPhones = Array.from(new Set([...patientMap.keys(), ...sessionMap.keys()]));
-                    }
-
-                    // Fallback to default demo phone if list is still empty
-                    if (targetPhones.length === 0) {
-                      targetPhones = ['9835012345'];
+                      targetPhones = cleanCustom.length === 10 ? [cleanCustom] : ['9608032073'];
                     }
 
                     const messageContent = broadcastMsg.trim();
@@ -891,16 +920,20 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                       // 2. Direct Instant Relay for First Primary Numbers (Sub-300ms Outbound Rule 5)
                       const priorityPhones = targetPhones.slice(0, 3);
                       for (const pPhone of priorityPhones) {
-                        supabase.functions.invoke('meta-webhook', {
-                          body: {
-                            action: 'send_broadcast_message',
-                            patientPhone: pPhone,
-                            messageText: messageContent,
-                            phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                            phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
-                            systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
-                          }
-                        }).catch(_e => console.warn('Direct broadcast relay notice:', _e));
+                        try {
+                          await supabase.functions.invoke('meta-webhook', {
+                            body: {
+                              action: 'send_broadcast_message',
+                              patientPhone: pPhone,
+                              messageText: messageContent,
+                              phoneId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                              phoneNumberId: (wabaPhoneId && wabaPhoneId !== '105829471928374') ? wabaPhoneId : undefined,
+                              systemToken: (wabaToken && String(wabaToken).startsWith('EAA')) ? wabaToken : undefined
+                            }
+                          });
+                        } catch (_e) {
+                          console.warn('Direct broadcast relay notice:', _e);
+                        }
                       }
 
                       // 3. Enqueue full campaign into Postgres & trigger background worker
