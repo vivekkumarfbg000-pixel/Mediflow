@@ -95,6 +95,10 @@ export class PaymentService {
   static async initiatePaymentOrder(params: PaymentOrderParams): Promise<UnifiedOrderResponse> {
     const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'razorpay';
 
+    // 15s timeout for Edge Function cold starts (Rule 90)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
       // Paytm 0-Fee PG Order Flow (Instant 15m Activation)
       if (selectedGateway === 'paytm') {
@@ -111,7 +115,8 @@ export class PaymentService {
               amount: params.amount,
               patientPhone: params.patientPhone,
               patientName: params.patientName
-            })
+            }),
+            signal: controller.signal
           });
 
           if (response.ok) {
@@ -151,7 +156,8 @@ export class PaymentService {
               patientPhone: params.patientPhone,
               patientName: params.patientName,
               returnUrl: params.returnUrl
-            })
+            }),
+            signal: controller.signal
           });
 
           if (response.ok) {
@@ -198,7 +204,8 @@ export class PaymentService {
             invoiceId: params.invoiceId,
             amount: params.amount,
             returnUrl: params.returnUrl
-          })
+          }),
+          signal: controller.signal
         });
 
         if (!response.ok) {
@@ -234,7 +241,8 @@ export class PaymentService {
           body: JSON.stringify({
             invoiceId: params.invoiceId,
             returnUrl: params.returnUrl
-          })
+          }),
+          signal: controller.signal
         });
 
         if (!response.ok) {
@@ -269,6 +277,8 @@ export class PaymentService {
         gateway: 'upi',
         upiPayload
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -347,7 +357,9 @@ export class PaymentService {
         // Clean up Razorpay DOM artifacts (backdrop/iframes) but do NOT touch
         // body.overflow here — the vitals modal onSuccess will set it.
         PaymentService.cleanupRazorpayDOM();
-        // Verify payment signature via backend Edge Function
+        // Verify payment signature via backend Edge Function (15s timeout)
+        const verifyController = new AbortController();
+        const verifyTimeoutId = setTimeout(() => verifyController.abort(), 15000);
         try {
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
           const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -363,7 +375,8 @@ export class PaymentService {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
-            })
+            }),
+            signal: verifyController.signal
           });
 
           // BUG-04 FIX: check HTTP status before treating as success
@@ -379,6 +392,8 @@ export class PaymentService {
         } catch (err: any) {
           console.warn('[PaymentService] Signature verification network error — treating as success fallback:', err);
           params.onSuccess({ paymentId: response.razorpay_payment_id });
+        } finally {
+          clearTimeout(verifyTimeoutId);
         }
       },
       modal: {

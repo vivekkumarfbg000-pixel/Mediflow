@@ -453,6 +453,20 @@ export class LabService {
         results
       });
 
+      // Dispatch automated WhatsApp lab report
+      const pat = PatientService.getPatients().find(p => p.id === reports[idx].patientId);
+      if (pat && pat.phone) {
+        import('./clinicalNotificationService').then(({ ClinicalNotificationService }) => {
+          ClinicalNotificationService.dispatchLabReportWhatsApp({
+            patientPhone: pat.phone,
+            patientName: pat.name,
+            testName: reports[idx].testName,
+            loincCode: reports[idx].loincCode,
+            biomarkers: { resultValue: results }
+          }).catch(err => console.warn('[labService] WhatsApp report dispatch notice:', err));
+        });
+      }
+
       const ledgerEntries = load<any[]>('financial_ledgers', []);
       const testCatalogItem = MASTER_TEST_CATALOG.find(t => t.loincCode === reports[idx].loincCode);
       const activeSop = load<any>('clinic_sops', []).find((s: any) => s.isActive);
@@ -713,15 +727,20 @@ export class LabService {
     }
 
     const patient = PatientService.getPatients().find(p => p.id === report.patientId);
-    if (patient) {
-      const revisitMsg = revisitAt
-        ? `📅 Compounder ne aapko doctor se milkar *final advice* lene ke liye time allocate kiya hai: *${new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(revisitAt))} at ${revisitTime}*.`
-        : '';
-      const noteMsg = revisitNote ? `\n📌 *Note from compounder:* "${revisitNote}"` : '';
-      const message = `✅ *Lab Report arrived at Doctor!* 🧪\n\nDear *${patient.name}*, aapka *${report.biomarkerJson?.testName || 'lab test'}* report doctor ke paas pahunch gaya hai. 🏥${revisitMsg ? '\n\n' + revisitMsg : ''}${noteMsg}\n\nKripya time par clinic aakar doctor se final advice lein. Dhyan rakhein! 🟢`;
+    if (patient && patient.phone) {
+      const { ClinicalNotificationService } = await import('./clinicalNotificationService');
+      const testName = report.biomarkerJson?.testName || 'Diagnostic Lab Test';
+      const loinc = report.biomarkerJson?.testCode || '';
+      const biomarkers = report.biomarkerJson?.biomarkers || report.biomarkerJson || {};
 
-      const { WhatsAppService } = await import('./whatsappService');
-      WhatsAppService.pushWhatsAppMessageFromBot(patient.phone, message);
+      await ClinicalNotificationService.dispatchLabReportWhatsApp({
+        patientPhone: patient.phone,
+        patientName: patient.name,
+        testName,
+        loincCode: loinc,
+        biomarkers,
+        reportPdfUrl: report.reportFileUrl || undefined
+      });
     }
 
     // Allocate patient back to doctor consult queue for final advice

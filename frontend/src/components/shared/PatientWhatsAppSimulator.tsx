@@ -195,7 +195,8 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
   }, [sessions, selectedPhone, isOpen, isAtBottom]);
 
   const cleanSelectedDigits = (selectedPhone || '').replace(/\D/g, '').slice(-10);
-  const activePatient = patients.find(p => (p.phone || '').replace(/\D/g, '').slice(-10) === cleanSelectedDigits) || patients[0];
+  const isRegistered = patients.some(p => (p.phone || '').replace(/\D/g, '').slice(-10) === cleanSelectedDigits);
+  const activePatient = isRegistered ? patients.find(p => (p.phone || '').replace(/\D/g, '').slice(-10) === cleanSelectedDigits) : null;
   const activeSession = sessions.find(s => {
     const sDigits = (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10);
     return sDigits && cleanSelectedDigits && sDigits === cleanSelectedDigits;
@@ -248,11 +249,16 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
         <select
           value={selectedPhone}
           onChange={e => setSelectedPhone(e.target.value)}
-          className="flex-1 input-field py-1 text-xs bg-slate-50 border-slate-200"
+          className="flex-1 input-field py-1 text-xs bg-slate-50 border-slate-200 font-medium"
         >
-          {patients.map(p => (
-            <option key={p.id} value={p.phone}>{p.name} ({p.phone})</option>
-          ))}
+          <optgroup label="Registered Patients (Template Reply)">
+            {patients.map(p => (
+              <option key={p.id} value={p.phone}>{p.name} ({p.phone})</option>
+            ))}
+          </optgroup>
+          <optgroup label="Unregistered Walk-In (Onboard & Token Flow)">
+            <option value="9870001122">+ New Walk-In Patient (9870001122)</option>
+          </optgroup>
         </select>
       </div>
 

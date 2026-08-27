@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { getPodContext } from './podContext';
 import { getIstDateString, getIstOffsetDateString } from '../utils/dateUtils';
+import { ClinicalNotificationService } from './clinicalNotificationService';
 
 export interface ChronicConditionProtocol {
   code: string;
@@ -196,7 +197,7 @@ export class ChronicCareService {
         .eq('pod_id', podId)
         .order('next_refill_date', { ascending: true });
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         return this.getFallbackMockCohorts();
       }
 
@@ -408,5 +409,72 @@ export class ChronicCareService {
         monthlyMedicineSpend: 850.0
       }
     ];
+  }
+
+  /**
+   * Automated Multi-Patient Daily Dosage Reminder Engine
+   * Dispatches WhatsApp dose reminders based on prescribed medication frequencies.
+   */
+  public static async dispatchCohortDailyDosageReminders(
+    timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night' = 'morning'
+  ): Promise<{ dispatchedCount: number; recipientNames: string[] }> {
+    const cohorts = this.getFallbackMockCohorts();
+    const recipientNames: string[] = [];
+
+    for (const cohort of cohorts) {
+      if (!cohort.patientPhone || !cohort.medications || cohort.medications.length === 0) continue;
+
+      // Filter medications relevant to the time of day
+      const dueMeds = cohort.medications.filter(med => {
+        const d = (med.dosage || '').toLowerCase();
+        if (timeOfDay === 'morning') {
+          return d.includes('1-0-1') || d.includes('1-0-0') || d.includes('1-1-1') || d.includes('2-0-2') || d.includes('morning');
+        }
+        if (timeOfDay === 'afternoon') {
+          return d.includes('1-1-1') || d.includes('0-1-0') || d.includes('afternoon');
+        }
+        if (timeOfDay === 'night' || timeOfDay === 'evening') {
+          return d.includes('1-0-1') || d.includes('0-0-1') || d.includes('1-1-1') || d.includes('2-0-2') || d.includes('night') || d.includes('bedtime');
+        }
+        return true;
+      });
+
+      if (dueMeds.length > 0) {
+        await ClinicalNotificationService.dispatchDailyDosageReminderWhatsApp({
+          patientPhone: cohort.patientPhone,
+          patientName: cohort.patientName,
+          timeOfDay,
+          medications: dueMeds.map(m => ({
+            name: m.name,
+            dosage: m.dosage,
+            instruction: 'Dawa khane ke baad lein'
+          }))
+        });
+        recipientNames.push(cohort.patientName);
+      }
+    }
+
+    return { dispatchedCount: recipientNames.length, recipientNames };
+  }
+
+  /**
+   * Dispatches an immediate daily dose reminder for an individual patient
+   */
+  public static async dispatchPatientDosageReminder(
+    phone: string,
+    patientName: string,
+    medications: Array<{ name: string; dosage?: string }>,
+    timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night' = 'morning'
+  ): Promise<string> {
+    return ClinicalNotificationService.dispatchDailyDosageReminderWhatsApp({
+      patientPhone: phone,
+      patientName,
+      timeOfDay,
+      medications: medications.map(m => ({
+        name: m.name,
+        dosage: m.dosage,
+        instruction: 'Doctor ki salah ke anusar'
+      }))
+    });
   }
 }

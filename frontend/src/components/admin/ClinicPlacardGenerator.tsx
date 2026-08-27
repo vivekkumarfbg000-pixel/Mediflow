@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Printer, QrCode, Sparkles, Settings, Smartphone } from 'lucide-react';
+import { generateQRCodeDataURI, generateQRCodeSVG } from '../../utils/qrCode';
 
 interface ClinicPlacardGeneratorProps {
   activeWabaNumber?: string;
@@ -15,6 +16,7 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
   const [welcomeText, setWelcomeText] = useState('Hello VitalSync, I would like to check-in and register for my consultation. Please guide me through my ABHA onboarding.');
   const [themeColor, setThemeColor] = useState<'emerald' | 'blue' | 'indigo' | 'violet'>('emerald');
   const [showSettings, setShowSettings] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const placardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +34,34 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
   // Generate wa.me link
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
   const qrUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(welcomeText)}`;
-  const qrCodeImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0f172a&data=${encodeURIComponent(qrUrl)}`;
+
+  useEffect(() => {
+    setImageError(false);
+  }, [qrUrl]);
+
+  // Direct Vector SVG Markup (Zero network latency, 100% offline, pure DOM vector fallback)
+  const rawSvg = useMemo(() => {
+    try {
+      return generateQRCodeSVG(qrUrl, { size: 300, color: '#0f172a', margin: 2 });
+    } catch (e) {
+      console.warn('[VitalSync QR] Local SVG generation fallback:', e);
+      return '';
+    }
+  }, [qrUrl]);
+
+  // Client-Side Vector SVG Data URI (Zero network latency, 100% offline, crystal-clear 300+ DPI vector)
+  const clientQrDataUri = useMemo(() => {
+    try {
+      return generateQRCodeDataURI(qrUrl, { size: 300, color: '#0f172a', margin: 2 });
+    } catch (e) {
+      console.warn('[VitalSync QR] Local generation fallback:', e);
+      return '';
+    }
+  }, [qrUrl]);
+
+  // Fallback network image (Cloudflare edge accelerated)
+  const fallbackNetworkQr = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(qrUrl)}`;
+  const qrCodeImageSrc = clientQrDataUri || fallbackNetworkQr;
 
   // Handle printing
   const handlePrint = () => {
@@ -255,12 +284,23 @@ export const ClinicPlacardGenerator: React.FC<ClinicPlacardGeneratorProps> = ({
             {/* QR Code Container */}
             <div className={`p-4 bg-white border-2 ${selectedColor.border} rounded-3xl shadow-2xl relative group overflow-hidden ${selectedColor.lightGlow} hover:scale-102 transition-transform duration-300`}>
               <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-teal-400 to-emerald-500 opacity-20" />
-              <img 
-                src={qrCodeImageSrc} 
-                alt="Walk-in WhatsApp QR Code" 
-                className="w-48 h-48 rounded-2xl relative z-10 mx-auto"
-                crossOrigin="anonymous"
-              />
+              {imageError && rawSvg ? (
+                <div 
+                  className="w-48 h-48 rounded-2xl relative z-10 mx-auto flex items-center justify-center overflow-hidden [&>svg]:w-full [&>svg]:h-full"
+                  dangerouslySetInnerHTML={{ __html: rawSvg }}
+                />
+              ) : (
+                <img 
+                  src={qrCodeImageSrc} 
+                  alt="Walk-in WhatsApp QR Code" 
+                  className="w-48 h-48 rounded-2xl relative z-10 mx-auto block object-contain"
+                  onError={() => {
+                    if (rawSvg) {
+                      setImageError(true);
+                    }
+                  }}
+                />
+              )}
               <div className="mt-2 text-[8px] font-mono text-slate-600 select-none">
                 Scan using Camera / WhatsApp
               </div>

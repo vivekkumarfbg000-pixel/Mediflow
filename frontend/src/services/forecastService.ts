@@ -822,6 +822,10 @@ If no prescription image could be loaded or fetched, generate a highly realistic
       const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
+      // 15s timeout for Edge Function cold starts (Rule 90)
+      const fcController = new AbortController();
+      const fcTimeoutId = setTimeout(() => fcController.abort(), 15000);
+
       const response = await fetch(edgeFnUrl, {
         method: 'POST',
         headers: {
@@ -833,7 +837,8 @@ If no prescription image could be loaded or fetched, generate a highly realistic
           model,
           contents: requestBody.contents,
           generationConfig: requestBody.generationConfig
-        })
+        }),
+        signal: fcController.signal
       });
 
       if (!response.ok) {
@@ -842,6 +847,7 @@ If no prescription image could be loaded or fetched, generate a highly realistic
       }
 
       const result = await response.json();
+      clearTimeout(fcTimeoutId);
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) {
         throw new Error('Gemini returned an empty response.');

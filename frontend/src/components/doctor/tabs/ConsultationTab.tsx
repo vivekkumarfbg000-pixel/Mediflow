@@ -864,11 +864,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
   useEffect(() => {
     if (selectedPatient) {
-      const patientAppts = appointments.filter((a: Appointment) => a.patientId === selectedPatient.id);
-      const virtualAppt = patientAppts.find((a: Appointment) => a.isVirtual);
+      const patientAppts = appointments.filter((a: Appointment) => (a.patientId === selectedPatient.id || (a as any).patient_id === selectedPatient.id));
+      const virtualAppt = patientAppts.find((a: Appointment) => Boolean(a.isVirtual || (a as any).is_virtual));
       if (virtualAppt) {
-        setVirtualDateInput(virtualAppt.virtualDate || '');
-        setVirtualTimeInput(virtualAppt.virtualTime || '');
+        setVirtualDateInput(virtualAppt.virtualDate || (virtualAppt as any).virtual_date || '');
+        setVirtualTimeInput(virtualAppt.virtualTime || (virtualAppt as any).virtual_time || '');
       } else {
         setVirtualDateInput('');
         setVirtualTimeInput('');
@@ -958,12 +958,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             ]);
 
             const isPatientForToday = (p: Patient) => {
-              const patAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
-              if (patAppt) {
-                return getEffectiveAppointmentDate(patAppt) === todayStr;
+              const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+              if (patAppts.length > 0) {
+                return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
               }
               const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-              return regDate.startsWith(todayStr);
+              return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
             };
 
             const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus) && isPatientForToday(p));
@@ -1128,8 +1128,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
               return queuePatients.map((p: Patient) => {
                 const isSelected = selectedPatient?.id === p.id;
-                const patientAppts = appointments.filter(a => a.patientId === p.id);
-                const virtualAppt = patientAppts.find(a => a.isVirtual);
+                const patientAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id));
+                const virtualAppt = patientAppts.find(a => Boolean(a.isVirtual || (a as any).is_virtual));
                 const isEmergencySos = Boolean((p as any).isEmergency || (p as any).is_emergency || String((p as any).source || '').toLowerCase().includes('sos') || String((p as any).source || '').toLowerCase().includes('emergency') || (p.tokenNumber && (String(p.tokenNumber).toUpperCase().includes('SOS') || String(p.tokenNumber).toUpperCase().includes(' E') || String(p.tokenNumber).toUpperCase().includes('E-') || String(p.tokenNumber).startsWith('#EM-'))));
 
                 return (

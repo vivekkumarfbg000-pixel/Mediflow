@@ -958,11 +958,14 @@ export class BillingService {
 
       const appt = this.getAppointments().find(a => a.id === saasInv.appointmentId);
       if (appt) {
+        const patId = appt.patientId || (appt as any).patient_id;
         if (saasInv.type === 'consult') {
           appt.status = 'ready_for_consult';
           this.saveAppointment(appt);
           
-          PatientService.updatePatientQueueStatus(appt.patientId, 'awaiting_consultation');
+          if (patId) {
+            PatientService.updatePatientQueueStatus(patId, 'awaiting_consultation');
+          }
 
           // Sync appointment and invoice clearance to Supabase
           supabase.from('appointments').update({ status: 'ready_for_consult', payment_status: 'cleared' }).eq('id', appt.id).then(({ error }) => {
@@ -978,8 +981,8 @@ export class BillingService {
             id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
             invoiceId: saasInv.id,
             appointmentId: appt.id,
-            patientId: appt.patientId,
-            doctorId: appt.doctorId,
+            patientId: patId,
+            doctorId: appt.doctorId || (appt as any).doctor_id,
             sourceEntityId: getPodContext().entityId || 'clinic-admin-entity',
             destinationEntityId: getPodContext().entityId || 'clinic-admin-entity',
             transactionType: 'appointment_fee',
@@ -999,8 +1002,8 @@ export class BillingService {
           const dbDocLedger = {
             invoice_id: saasInv.id,
             appointment_id: appt.id,
-            patient_id: appt.patientId,
-            doctor_id: appt.doctorId,
+            patient_id: patId,
+            doctor_id: appt.doctorId || (appt as any).doctor_id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
             destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
             transaction_type: 'appointment_fee',
@@ -1021,7 +1024,7 @@ export class BillingService {
           window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
           window.dispatchEvent(new CustomEvent('mediflow-state-change'));
           
-          const patient = PatientService.getPatients().find(p => p.id === appt.patientId);
+          const patient = PatientService.getPatients().find(p => p.id === patId);
           if (patient) {
             const cleanPatientPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
             const sessions = load<any[]>('whatsapp_sessions', []);

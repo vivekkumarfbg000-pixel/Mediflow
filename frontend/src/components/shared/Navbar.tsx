@@ -319,6 +319,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-[#1A7B8F]">Vital</span>
                   <span className="text-[#7AC47F]">Sync</span>
                 </h1>
+                <span className="text-[7.5px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 mt-0.5">Virtual Hospital Network</span>
                 <div className="flex items-center gap-2 mt-1">
                   <SyncStatusPill compact={false} />
                 </div>

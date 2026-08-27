@@ -98,6 +98,8 @@ export interface WhatsAppSession {
   patient_phone?: string;
   patientName?: string;
   patient_name?: string;
+  patientId?: string;
+  patient_id?: string;
   currentState:
     | 'AWAITING_WELCOME'
     | 'AWAITING_CONFIRMATION'
@@ -112,7 +114,11 @@ export interface WhatsAppSession {
     | 'AWAITING_CONSENT'
     | 'AWAITING_WELCOME_ACK'
     | 'AWAITING_REFILL_CHOICE'
-    | 'AWAITING_RESCHEDULE_TIME';
+    | 'AWAITING_RESCHEDULE_TIME'
+    | 'AWAITING_REGISTRATION_DETAILS'
+    | 'AWAITING_APPOINTMENT_TYPE'
+    | 'AWAITING_SERVICE_SELECTION'
+    | string;
   lastInteraction: string;
   sessionData: WhatsAppSessionData;
   session_data?: WhatsAppSessionData;
@@ -457,6 +463,13 @@ export interface Appointment {
   fee_status?: string;
   payment_status?: 'pending' | 'cleared' | 'paid' | string;
   amount?: number;
+  date?: string;
+  patientName?: string;
+  patientPhone?: string;
+  patient_id?: string;
+  patient_name?: string;
+  patient_phone?: string;
+  doctor_id?: string;
 }
 
 export interface EveningSlot {

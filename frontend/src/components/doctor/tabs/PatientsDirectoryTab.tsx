@@ -1,6 +1,7 @@
 import React from 'react';
 import { api } from '../../../services/api';
 import { BillingService } from '../../../services/billingService';
+import { useClinic } from '../../../context/ClinicContext';
 import { getIstDateString } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
 import type { Patient } from '../../../types';
@@ -54,6 +55,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   patientRAGSummary,
   setPatientRAGSummary
 }) => {
+  const { activePod } = useClinic();
   const [refreshKey, setRefreshKey] = React.useState(0);
   const filteredPatients = React.useMemo(() => {
     const query = patientSearchQuery.trim().toLowerCase();
@@ -77,8 +79,8 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
     
     const getVirtualApptInfo = (patientId: string) => {
       const activeVirtual = appts.find(a => 
-        a.patientId === patientId && 
-        a.isVirtual && 
+        (a.patientId === patientId || (a as any).patient_id === patientId) && 
+        Boolean(a.isVirtual || (a as any).is_virtual) && 
         a.status !== 'completed' && 
         a.status !== 'cancelled'
       );
@@ -234,7 +236,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 
                 // Check if patient has a scheduled virtual consultation
                 const appts = api.getAppointments();
-                const hasVirtual = appts.some(a => a.patientId === p.id && a.isVirtual && a.status !== 'completed' && a.status !== 'cancelled');
+                const hasVirtual = appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
 
                 return (
                   <button
@@ -303,8 +305,8 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
             {/* ── Premium VitalSync Telemedicine Workspace ──────────────────── */}
             {(() => {
               const appts = api.getAppointments();
-              const patientAppts = appts.filter(a => a.patientId === selectedDirectoryPatient.id);
-              const virtualAppt = patientAppts.find(a => a.isVirtual && a.status !== 'completed' && a.status !== 'cancelled');
+              const patientAppts = appts.filter(a => (a.patientId === selectedDirectoryPatient.id || (a as any).patient_id === selectedDirectoryPatient.id));
+              const virtualAppt = patientAppts.find(a => Boolean(a.isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
               
               if (!virtualAppt) {
                 return (
@@ -355,10 +357,23 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                           BillingService.createLedgerSplitsForInvoiceFields(invId, newAppt.id, 'consult', 500, 'upi');
                           setRefreshKey(prev => prev + 1);
                           
+                          const meetUrl = newAppt.virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${newAppt.id}`;
+                          if (selectedDirectoryPatient.phone) {
+                            api.dispatchVirtualConsultMeetingLinkWhatsApp({
+                              patientPhone: selectedDirectoryPatient.phone,
+                              patientName: selectedDirectoryPatient.name,
+                              doctorName: activePod?.doctor_name,
+                              clinicName: activePod?.name,
+                              appointmentDate: newAppt.date,
+                              appointmentTime: newAppt.time,
+                              meetingUrl: meetUrl
+                            }).catch(err => console.warn('[PatientsDirectoryTab] Virtual meeting link WhatsApp error:', err));
+                          }
+
                           window.dispatchEvent(new CustomEvent('mediflow-toast', {
                             detail: {
                               title: 'Telemedicine Scheduled! 📅',
-                              message: `A free virtual follow-up appointment has been scheduled for ${selectedDirectoryPatient.name}.`,
+                              message: `A free virtual follow-up appointment has been scheduled for ${selectedDirectoryPatient.name} & WhatsApp link sent!`,
                               type: 'success'
                             }
                           }));

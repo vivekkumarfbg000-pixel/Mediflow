@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import type { UnifiedInvoice, FinancialLedgerEntry, Patient } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
+import { generateQRCodeDataURI } from '../../utils/qrCode';
 import { 
   QrCode, 
   Coins, 
@@ -741,13 +742,18 @@ export const BillingDashboard: React.FC = () => {
                   
                   {/* Dynamic Scannable QR Code */}
                   <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-2xl w-48 h-48 flex flex-col items-center justify-center relative overflow-hidden group">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
-                        `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(selectedInvoice.totalAmount || 0).toFixed(2)}&cu=INR`
-                      )}`}
-                      alt="Scan to Pay UPI"
-                      className="w-40 h-40 object-contain select-none"
-                    />
+                    {(() => {
+                      const upiPayload = `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(selectedInvoice.totalAmount || 0).toFixed(2)}&cu=INR`;
+                      const localDataUri = generateQRCodeDataURI(upiPayload, { size: 160, color: '#0f172a' });
+                      const fallbackUrl = `https://quickchart.io/qr?size=160&text=${encodeURIComponent(upiPayload)}`;
+                      return (
+                        <img
+                          src={localDataUri || fallbackUrl}
+                          alt="Scan to Pay UPI"
+                          className="w-40 h-40 object-contain select-none block"
+                        />
+                      );
+                    })()}
                   </div>
 
                   <p className="text-[10px] text-slate-500 font-medium text-center leading-relaxed">

@@ -953,7 +953,7 @@ export class PharmacyService {
       : '';
 
     const deliveryText = bill.deliveryType === 'shiprocket'
-      ? `\n🚚 Shiprocket Delivery: ₹${bill.deliveryCharge?.toFixed(2)} to ${bill.deliveryAddress}`
+      ? `\n🚚 Shiprocket Delivery: ₹${(bill.deliveryCharge || 45).toFixed(2)} to ${bill.deliveryAddress || 'Address'}`
       : '\n🚶 Counter Pickup: ₹0.00';
 
     const gstinText = bill.pharmacyGstin ? `\nPharmacy GSTIN: *${bill.pharmacyGstin}*` : '';

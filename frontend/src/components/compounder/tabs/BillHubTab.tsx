@@ -13,6 +13,8 @@ import { getPodContext } from '../../../services/podContext';
 import { useSpecialization } from '../../../context/SpecializationContext';
 import { useClinic } from '../../../context/ClinicContext';
 import { WhatsAppService } from '../../../services/whatsappService';
+import { generateQRCodeDataURI } from '../../../utils/qrCode';
+import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
 export const BillHubTab: React.FC = () => {
@@ -823,7 +825,7 @@ export const BillHubTab: React.FC = () => {
   const handlePrintFixedTableQRStandee = () => {
     const razorpayHandle = 'https://razorpay.me/@vitalsync3758';
     const razorpayDisplay = 'razorpay.me/@vitalsync3758';
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=0f172a&data=${encodeURIComponent(razorpayHandle)}`;
+    const qrUrl = generateQRCodeDataURI(razorpayHandle, { size: 300, color: '#0f172a' }) || `https://quickchart.io/qr?size=300&text=${encodeURIComponent(razorpayHandle)}`;
     const clinicTitle = activePod?.name || activeProfile?.clinicName || 'VitalSync Healthcare';
 
     const standeeHtml = `<!DOCTYPE html>
@@ -910,7 +912,7 @@ export const BillHubTab: React.FC = () => {
         const appts = BillingService.getAppointments();
         const targetAppt = appts.find(a => a.id === consultInvoice.appointmentId);
         if (targetAppt) {
-          targetAppt.status = 'confirmed';
+          targetAppt.status = 'ready_for_consult';
           targetAppt.payment_status = 'cleared';
           BillingService.saveAppointments(appts);
         }
@@ -939,17 +941,25 @@ export const BillHubTab: React.FC = () => {
         }
       }
 
-      // 1. Premium Club Eligibility Onboarding Check
-      if (billingLedger.isQualifyingFirstPurchase) {
+      // 1. Premium Club Eligibility Onboarding Check (Any clinic purchase activates loyalty)
+      if (!selectedPatient.isPremiumMember || billingLedger.isQualifyingFirstPurchase) {
         PatientService.updatePatientPremiumStatus(selectedPatient.id, true);
-        const docTitle = activePod?.doctor_name || 'our senior doctor';
-        const welcomeMsg = `🌟 *Welcome to VitalSync Premium Care Club!* \n\nNamaste ${selectedPatient.name}, aapne humare clinic se medicines aur pathology diagnostics dono ki billing complete ki hai. Aapke premium member benefits active ho gaye hain:\n\n1. 💻 *Free Virtual Consultations:* Agle 15 days tak aap ${docTitle} ke saath free video follow-up call book kar sakte hain.\n2. 🤖 *WhatsApp Health Assistant:* Humara automated chatbot aapko daily medicine reminder dega aur dosages guide karega.\n3. 📉 *10% Flat Refill Discount:* Aapke next medicine refill order par automatic 10% ki chhoot milegi!\n\nThank you for choosing VitalSync!`;
-        WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, welcomeMsg);
+        const rawDocName = activePod?.doctor_name || 'our doctor';
+        const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
+        const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic';
+
+        ClinicalNotificationService.dispatchFreeFollowupLoyaltyWhatsApp({
+          patientPhone: selectedPatient.phone,
+          patientName: selectedPatient.name,
+          doctorName: docTitle,
+          clinicName: clinicTitle,
+          expiryDays: 15
+        }).catch(err => console.warn('[BillHubTab] Loyalty WhatsApp dispatch notice:', err));
         
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: { 
             title: 'Premium Member Enrolled! 🌟', 
-            message: `${selectedPatient.name} is now a Premium Care Club member. Welcome message sent.`, 
+            message: `${selectedPatient.name} is now a Premium Care Club member. 1 Free Virtual Consult unlocked!`, 
             type: 'success' 
           }
         }));
@@ -1515,9 +1525,9 @@ export const BillHubTab: React.FC = () => {
                     {(paymentMethod === 'upi' || paymentMethod === 'paytm') && billingLedger.finalTotal > 0 && (
                       <div className="flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-slate-800 shadow-xs text-center">
                         <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&color=0f172a&data=${encodeURIComponent(dynamicUpiPayload)}`}
+                          src={generateQRCodeDataURI(dynamicUpiPayload, { size: 160, color: '#0f172a' }) || `https://quickchart.io/qr?size=160&text=${encodeURIComponent(dynamicUpiPayload)}`}
                           alt="Dynamic Counter Payment QR"
-                          className="w-24 h-24 rounded-lg p-1 bg-white border border-slate-200"
+                          className="w-24 h-24 rounded-lg p-1 bg-white border border-slate-200 object-contain"
                         />
                         <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase font-mono tracking-wider">
                           {paymentMethod === 'paytm' ? 'Scan Counter Paytm / UPI QR' : 'Scan Zero-Fee Direct UPI QR'}

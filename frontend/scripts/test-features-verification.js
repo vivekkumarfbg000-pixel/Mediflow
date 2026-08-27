@@ -1,5 +1,5 @@
 // End-to-end verification script for Feature 1 (Appointment Date Invariant) and Feature 2 (WhatsApp Broadcast & Outbound Delivery)
-const { execSync } = require('child_process');
+import { execSync } from 'child_process';
 
 console.log('🧪 Starting Military-Grade Dual-Feature Automated Verification...\n');
 

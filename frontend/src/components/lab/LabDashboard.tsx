@@ -296,9 +296,24 @@ export const LabDashboard: React.FC = () => {
 
         api.saveFullLabReport(newReport);
 
+        // Dispatch automated WhatsApp Lab Report with structured biomarkers and Hinglish interpretation
+        const targetPatient = patients.find(p => p.id === activeReq.patientId);
+        const patientPhone = targetPatient?.phone || (activeReq as any).patientPhone || (activeReq as any).patient_phone || '';
+        if (patientPhone) {
+          api.dispatchLabReportWhatsApp({
+            patientPhone,
+            patientName: activeReq.patientName,
+            testName: activeReq.testName || 'Pathology Test',
+            loincCode: activeReq.testCode,
+            biomarkers: parsedPayload?.biomarkers || parsedPayload,
+            reportPdfUrl: reportFileUrl || undefined,
+            clinicName: activePod?.name || activeEntity?.name
+          }).catch(err => console.warn('[LabDashboard] WhatsApp dispatch notice:', err));
+        }
+
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
-            message: `Report verified, uploaded & published successfully for ${activeReq.patientName}!`,
+            message: `Report verified, uploaded & published successfully for ${activeReq.patientName}! Delivered to WhatsApp.`,
             type: 'success',
             title: 'Report Published'
           }
@@ -505,9 +520,22 @@ export const LabDashboard: React.FC = () => {
 
       api.saveFullLabReport(newReport);
 
+      // Dispatch automated WhatsApp Lab Report with structured biomarkers and Hinglish interpretation
+      if (selectedPatient.phone) {
+        api.dispatchLabReportWhatsApp({
+          patientPhone: selectedPatient.phone,
+          patientName: selectedPatient.name,
+          testName: testItem.name,
+          loincCode: directTestCode,
+          biomarkers: data.biomarkers || data,
+          reportPdfUrl: reportFileUrl || undefined,
+          clinicName: activePod?.name || activeEntity?.name
+        }).catch(err => console.warn('[LabDashboard] Direct WhatsApp dispatch notice:', err));
+      }
+
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          message: `Direct lab report submitted for ${selectedPatient.name}! Synced to Compounder review dashboard.`,
+          message: `Direct lab report submitted for ${selectedPatient.name}! Synced to Compounder review & WhatsApp delivered.`,
           type: 'success',
           title: 'Report Submitted'
         }

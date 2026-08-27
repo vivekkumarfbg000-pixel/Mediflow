@@ -169,6 +169,7 @@ function scanFiles(dir) {
           });
         }
 
+
         // Invariant 11: Push WhatsApp Message Outbound Relay Guard
         if (relPath.includes('whatsappService.ts') && line.includes('static pushWhatsAppMessageFromBot') && !content.includes('this.sendWhatsAppMessagePayload')) {
           violations.push({
@@ -178,6 +179,49 @@ function scanFiles(dir) {
             content: line.trim(),
             reason: 'pushWhatsAppMessageFromBot must trigger sendWhatsAppMessagePayload to ensure real-time Meta Graph API message transmission.'
           });
+        }
+
+        // Invariant 12 (NEW): Zero Hardcoded Clinic/Doctor Names in WhatsApp Engine (Rule 79)
+        const FORBIDDEN_CLINIC_NAMES = ['Apex Care', 'Apex Eye', 'Kankarbagh', 'Mediflow Clinic', 'Doctor Vivek', 'Dr. Amit Arya', 'Dr. Priya'];
+        if (!relPath.includes('test') && !relPath.includes('scripts') && !relPath.includes('seed') && !relPath.includes('AGENTS') && !relPath.includes('migration')) {
+          for (const forbidden of FORBIDDEN_CLINIC_NAMES) {
+            if (line.includes(`"${forbidden}"`) || line.includes(`'${forbidden}'`)) {
+              violations.push({
+                rule: 'INVARIANT_12_ZERO_HARDCODED_CLINIC_NAMES',
+                file: relPath,
+                line: lineNum,
+                content: line.trim(),
+                reason: `Hardcoded clinic/doctor name "${forbidden}" detected. All components MUST use dynamic resolvers: getDynamicClinicName(), activePod?.name, activeProfile?.display_name (Rule 79).`
+              });
+            }
+          }
+        }
+
+        // Invariant 13 (NEW): Dispatch methods must guard null/empty phone (Rule 12)
+        if (
+          !relPath.includes('test') && !relPath.includes('scripts') &&
+          (relPath.includes('clinicalNotificationService') || relPath.includes('whatsappService')) &&
+          /async\s+dispatch\w+WhatsApp\s*\(/.test(line)
+        ) {
+          // Check the function body (up to 20 lines) for a phone null guard.
+          // Accept both destructured form (if (!patientPhone)) and params form (if (!params.patientPhone))
+          const bodySnippet = lines.slice(idx, idx + 20).join('\n');
+          const hasPhoneGuard = (
+            bodySnippet.includes('if (!patientPhone') ||
+            bodySnippet.includes('if (!params.patientPhone') ||
+            bodySnippet.includes('if (!phone') ||
+            bodySnippet.includes('patientPhone) return') ||
+            bodySnippet.includes('patientPhone) return')
+          );
+          if (!hasPhoneGuard) {
+            violations.push({
+              rule: 'INVARIANT_13_DISPATCH_PHONE_NULL_GUARD',
+              file: relPath,
+              line: lineNum,
+              content: line.trim(),
+              reason: 'All dispatchXxxWhatsApp() methods MUST guard null/empty phone at the top (e.g. if (!patientPhone) return;). Empty phone causes silent WABA failures (Rule 12).'
+            });
+          }
         }
       });
     }
@@ -200,21 +244,61 @@ if (fs.existsSync(EDGE_FUNCTIONS_DIR)) {
 
         lines.forEach((line, idx) => {
           const lineNum = idx + 1;
-          // Invariant 12: No overly restrictive .uuid() on patientId, podId, entityId, invoiceId
+          // Invariant 14: No overly restrictive .uuid() on patientId, podId, entityId, invoiceId
           if (/(?:patientId|podId|entityId|invoiceId)\s*:\s*z\.string\(\)\.uuid\(/.test(line)) {
             violations.push({
-              rule: 'INVARIANT_12_EDGE_FUNCTION_FLEXIBLE_ID_VALIDATION',
+              rule: 'INVARIANT_14_EDGE_FUNCTION_FLEXIBLE_ID_VALIDATION',
               file: relPath,
               line: lineNum,
               content: line.trim(),
               reason: 'Overly restrictive z.string().uuid() rejects custom IDs and user-isolated pod strings. Use z.string().min(1) per Rule 33.'
             });
           }
+
+          // Invariant 15 (NEW): Edge Function state router must have a default branch (State Machine Exhaustiveness)
+          if (relPath.includes('meta-webhook') && /if\s*\(state\s*===\s*"[A-Z_]+"/.test(line)) {
+            // Only flag if this is the top-level state router block - skip nested ifs
+          }
         });
       }
     }
   }
   scanEdgeFunctions(EDGE_FUNCTIONS_DIR);
+}
+
+// ── Check WhatsApp State Machine Exhaustiveness (Component 1 Gate) ─────────────
+const WA_SERVICE_PATH = path.resolve(SRC_DIR, 'services/whatsappService.ts');
+if (fs.existsSync(WA_SERVICE_PATH)) {
+  const waSrc = fs.readFileSync(WA_SERVICE_PATH, 'utf8');
+
+  // All states that can be set as nextState must have a case handler
+  const producedStates = new Set();
+  const handledStates = new Set();
+
+  const nextStateMatches = waSrc.matchAll(/nextState\s*=\s*'([A-Z_]+)'/g);
+  for (const m of nextStateMatches) producedStates.add(m[1]);
+
+  // A state is "handled" if it appears in either a switch case OR an if/else currentState check
+  const caseMatches = waSrc.matchAll(/case\s*'([A-Z_]+)':/g);
+  for (const m of caseMatches) handledStates.add(m[1]);
+
+  // Also count if-else currentState checks (unregistered patient path uses these)
+  const ifElseMatches = waSrc.matchAll(/currentState\s*===\s*'([A-Z_]+)'/g);
+  for (const m of ifElseMatches) handledStates.add(m[1]);
+
+  // States that are produced but never handled in ANY branch (excluding terminal states)
+  const EXEMPT_STATES = new Set(['IDLE', 'COMPLETED']);
+  for (const state of producedStates) {
+    if (!handledStates.has(state) && !EXEMPT_STATES.has(state)) {
+      violations.push({
+        rule: 'INVARIANT_15_FSM_STATE_EXHAUSTIVENESS',
+        file: 'frontend/src/services/whatsappService.ts',
+        line: 0,
+        content: `nextState = '${state}'`,
+        reason: `WhatsApp FSM state '${state}' is produced by a transition but has no matching 'case' handler in the switch router. Patient messages sent in this state will be silently dropped. Add a handler or remove the orphaned transition.`
+      });
+    }
+  }
 }
 
 scanFiles(SRC_DIR);

@@ -85,6 +85,15 @@ export class RealtimeSyncService {
     if (record.is_emergency !== undefined) normalized.isEmergency = record.is_emergency === true;
     if (record.medicine_name !== undefined) normalized.medicineName = record.medicine_name;
     if (record.source !== undefined) normalized.source = record.source;
+    if (record.vitals !== undefined) normalized.vitals = record.vitals;
+    if (record.condition !== undefined) normalized.condition = record.condition;
+    if (record.tags !== undefined) normalized.tags = record.tags;
+    if (record.medical_history !== undefined) normalized.medicalHistory = record.medical_history;
+    if (record.eye_dilation_status !== undefined) normalized.eyeDilationStatus = record.eye_dilation_status;
+    if (record.dilation_timestamp !== undefined) normalized.dilationTimestamp = record.dilation_timestamp;
+    if (record.registered_at !== undefined) normalized.registeredAt = record.registered_at;
+    if (record.past_reports_summary !== undefined) normalized.pastReportsSummary = record.past_reports_summary;
+    if (record.referral_code !== undefined) normalized.referralCode = record.referral_code;
 
     return normalized;
   }
@@ -140,7 +149,8 @@ export class RealtimeSyncService {
           'saas_invoices': ['saas_invoices', 'unified_invoices'],
           'saas_prescriptions': ['saas_prescriptions', 'prescriptions'],
           'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
-          'clinic_sops': ['clinic_sops']
+          'clinic_sops': ['clinic_sops'],
+          'chronic_care_cohorts': ['chronic_care_cohorts']
         };
 
         const storageKeys = storageMap[tableName];

@@ -5,6 +5,8 @@ import { api } from './services/api';
 import { StateHealingEngine, ProactiveHealthMonitor, BackendAgent } from './services/autoHealerAgent';
 import { PwaSyncManager } from './pwa';
 import { MessageSquare } from 'lucide-react';
+import { isStrongPassword, getPasswordValidationError } from './utils/passwordPolicy';
+import { PasswordStrengthMeter } from './components/shared/PasswordStrengthMeter';
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
@@ -1706,8 +1708,8 @@ function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps) {
     e.preventDefault();
     if (!newPassword) return;
 
-    if (newPassword.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+    if (!isStrongPassword(newPassword)) {
+      setErrorMsg(getPasswordValidationError(newPassword) || 'Password must meet all 5 security requirements.');
       return;
     }
 
@@ -1792,6 +1794,8 @@ function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps) {
           />
         </div>
       </div>
+
+      <PasswordStrengthMeter password={newPassword} className="mt-1" />
 
       <button
         type="submit"

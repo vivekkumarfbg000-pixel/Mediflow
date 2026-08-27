@@ -10,6 +10,7 @@ import { ForecastService } from './forecastService';
 import { LabBillingService } from './labBillingService';
 import { StaffService } from './staffService';
 import { AIService, type AIResult } from './aiService';
+import { ClinicalNotificationService } from './clinicalNotificationService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
 import { getPodContext, resolvePodContext } from './podContext';
@@ -2145,12 +2146,37 @@ class MediflowApiService {
     PharmacyService.sendPharmacyInvoiceToPatient(bill);
     this.notify();
   }
+
+  // ── Clinical WhatsApp Notification Delegators ─────────────────────────
+
+  async dispatchLabReportWhatsApp(params: any): Promise<string> {
+    return ClinicalNotificationService.dispatchLabReportWhatsApp(params);
+  }
+
+  async dispatchPrescriptionDosageWhatsApp(params: any): Promise<string> {
+    return ClinicalNotificationService.dispatchPrescriptionDosageWhatsApp(params);
+  }
+
+  async dispatchFreeFollowupLoyaltyWhatsApp(params: any): Promise<string> {
+    return ClinicalNotificationService.dispatchFreeFollowupLoyaltyWhatsApp(params);
+  }
+
+  async dispatchAppointmentTimingGreetingWhatsApp(params: any): Promise<string> {
+    return ClinicalNotificationService.dispatchAppointmentTimingGreetingWhatsApp(params);
+  }
+
+  async dispatchVirtualConsultMeetingLinkWhatsApp(params: any): Promise<string> {
+    return ClinicalNotificationService.dispatchVirtualConsultMeetingLinkWhatsApp(params);
+  }
+
+  async dispatchDailyDosageReminderWhatsApp(params: any): Promise<string> {
+    return ClinicalNotificationService.dispatchDailyDosageReminderWhatsApp(params);
+  }
 }
-
-
 
 export const api = new MediflowApiService();
 if (typeof window !== 'undefined') {
   (window as any).api = api;
 }
+export { ClinicalNotificationService };
 export type { MediflowApiService };

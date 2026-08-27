@@ -2540,8 +2540,446 @@ ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS payment_status TEXT DEF
 ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'whatsapp';
 
 -- =============================================================================
--- END OF SCRIPT
+-- STEP 41: Fixed Opencode Schema, Payment Gate & Hardened Auto-Healer RPC (20260825000001)
+-- =============================================================================
+ALTER TABLE public.chronic_care_cohorts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable read for authenticated users" ON public.chronic_care_cohorts;
+DROP POLICY IF EXISTS "allow_authenticated_all_chronic_cohorts" ON public.chronic_care_cohorts;
+CREATE POLICY "allow_authenticated_all_chronic_cohorts" 
+  ON public.chronic_care_cohorts FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+
+ALTER TABLE public.appointments 
+  ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS payment_method TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_appointments_payment_status 
+  ON public.appointments (payment_status, pod_id);
+
+ALTER TABLE public.financial_ledgers 
+  ADD COLUMN IF NOT EXISTS platform_fee_deducted NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS gateway_disbursed_net NUMERIC DEFAULT 0;
+
+ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS is_demo_account BOOLEAN DEFAULT FALSE;
+
+DROP FUNCTION IF EXISTS public.heal_schema_drift(TEXT, TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.heal_schema_drift(
+  p_table_name TEXT, 
+  p_column_name TEXT, 
+  p_column_type TEXT
+) 
+RETURNS JSONB 
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_col_exists BOOLEAN;
+  v_allowed_tables TEXT[] := ARRAY[
+    'patient_registry', 
+    'whatsapp_sessions', 
+    'system_health_telemetry', 
+    'medicine_bills', 
+    'lab_requisitions', 
+    'financial_ledgers',
+    'waba_connections',
+    'profiles',
+    'pods',
+    'appointments',
+    'chronic_care_cohorts',
+    'chronic_adherence_logs',
+    'unified_invoices',
+    'clinic_sops',
+    'encounters',
+    'inventory_batches',
+    'whatsapp_broadcast_campaigns',
+    'whatsapp_broadcast_queue'
+  ];
+BEGIN
+  IF NOT (lower(p_table_name) = ANY(v_allowed_tables)) THEN
+    RETURN jsonb_build_object('success', false, 'error', format('Table "%s" is not in allowed clinical whitelist', p_table_name));
+  END IF;
+
+  IF p_column_name ~ '[^a-zA-Z0-9_]' OR p_table_name ~ '[^a-zA-Z0-9_]' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid SQL identifier characters');
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = p_table_name 
+      AND column_name = p_column_name
+  ) INTO v_col_exists;
+  
+  IF v_col_exists THEN
+    RETURN jsonb_build_object('success', true, 'action', 'already_exists', 'table', p_table_name, 'column', p_column_name);
+  END IF;
+
+  EXECUTE format('ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS %I %s', p_table_name, p_column_name, p_column_type);
+  
+  RETURN jsonb_build_object('success', true, 'action', 'column_added', 'table', p_table_name, 'column', p_column_name);
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.execute_autonomous_db_repair(TEXT, TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.execute_autonomous_db_repair(
+  p_table TEXT, 
+  p_column TEXT, 
+  p_type TEXT
+) 
+RETURNS JSONB 
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  RETURN public.heal_schema_drift(p_table, p_column, p_type);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.heal_schema_drift(TEXT, TEXT, TEXT) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.execute_autonomous_db_repair(TEXT, TEXT, TEXT) TO authenticated, anon, service_role;
+
+-- =============================================================================
+-- STEP 42: Military-Grade Hardening (Inventory Holds, Token RPC, Broadcast Batch)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.inventory_holds (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pod_id UUID NOT NULL,
+    item_id TEXT NOT NULL,
+    batch_number TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    hold_expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '15 minutes'),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'dispensed', 'released')),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.inventory_holds ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow authenticated read/write inventory_holds" ON public.inventory_holds;
+CREATE POLICY "Allow authenticated read/write inventory_holds"
+  ON public.inventory_holds FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon read/write inventory_holds" ON public.inventory_holds;
+CREATE POLICY "Allow anon read/write inventory_holds"
+  ON public.inventory_holds FOR ALL TO anon USING (true) WITH CHECK (true);
+
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, DATE);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.generate_next_token_number;
+
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+    p_pod_id UUID DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+    p_virtual_date TEXT DEFAULT CURRENT_DATE::TEXT
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_next_token_int INTEGER;
+    v_formatted_token TEXT;
+BEGIN
+    SELECT COALESCE(
+        MAX(
+            CASE 
+                WHEN token_number ~ '^#?T-?[0-9]+$' THEN SUBSTRING(token_number FROM '[0-9]+')::INTEGER
+                WHEN token_number ~ '^[0-9]+$' THEN token_number::INTEGER
+                ELSE 0
+            END
+        ), 0
+    ) + 1
+    INTO v_next_token_int
+    FROM public.appointments
+    WHERE (pod_id = p_pod_id OR p_pod_id IS NULL)
+      AND (
+          (appointment_time AT TIME ZONE 'Asia/Kolkata')::DATE = p_virtual_date::DATE
+          OR virtual_date = p_virtual_date
+          OR (created_at AT TIME ZONE 'Asia/Kolkata')::DATE = p_virtual_date::DATE
+      );
+
+    v_formatted_token := 'T-' || LPAD(v_next_token_int::TEXT, 2, '0');
+    RETURN v_formatted_token;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, TEXT) TO anon, authenticated, service_role;
+
+DROP FUNCTION IF EXISTS public.pop_pending_broadcast_batch(TEXT, UUID, INT);
+DROP FUNCTION IF EXISTS public.pop_pending_broadcast_batch(TEXT, UUID, INTEGER);
+DROP FUNCTION IF EXISTS public.pop_pending_broadcast_batch;
+
+CREATE OR REPLACE FUNCTION public.pop_pending_broadcast_batch(
+    p_campaign_id TEXT,
+    p_pod_id UUID,
+    p_limit INT DEFAULT 500
+)
+RETURNS TABLE (
+    id UUID,
+    pod_id UUID,
+    campaign_id TEXT,
+    patient_id UUID,
+    patient_phone TEXT,
+    message_text TEXT,
+    status TEXT,
+    error_details TEXT,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    RETURN QUERY
+    WITH locked_batch AS (
+        SELECT q.id
+        FROM public.whatsapp_broadcast_queue q
+        WHERE q.campaign_id = p_campaign_id
+          AND (q.pod_id = p_pod_id OR p_pod_id IS NULL)
+          AND q.status = 'pending'
+        ORDER BY q.created_at ASC
+        LIMIT p_limit
+        FOR UPDATE SKIP LOCKED
+    )
+    UPDATE public.whatsapp_broadcast_queue u
+    SET status = 'processing',
+        updated_at = now()
+    FROM locked_batch b
+    WHERE u.id = b.id
+    RETURNING u.id, u.pod_id, u.campaign_id, u.patient_id, u.patient_phone, u.message_text, u.status, u.error_details, u.created_at, u.updated_at;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.pop_pending_broadcast_batch(TEXT, UUID, INT) TO anon, authenticated, service_role;
+
+-- =============================================================================
+-- Migration: 20260828000001_walkin_onboarding_and_token_flow.sql
+-- Subsystem: Meta Webhook WhatsApp Onboarding & Atomic Token Generation
+-- Purpose:
+--   1. Ensure high-speed indexes on patient_registry (phone) and appointments (token_number)
+--   2. Ensure patient_registry columns (name, age, gender, phone, queue_status) exist with proper defaults
+--   3. Guarantees sub-300ms live lookup and zero-downtime token allocation for walk-in patients
 -- =============================================================================
 
+ALTER TABLE IF EXISTS public.patient_registry 
+  ADD COLUMN IF NOT EXISTS queue_status TEXT DEFAULT 'awaiting_vitals',
+  ADD COLUMN IF NOT EXISTS referral_code TEXT,
+  ADD COLUMN IF NOT EXISTS referred_by_patient_id UUID REFERENCES public.patient_registry(id) ON DELETE SET NULL;
 
+CREATE INDEX IF NOT EXISTS idx_patient_registry_phone_lookup 
+  ON public.patient_registry (phone);
 
+CREATE INDEX IF NOT EXISTS idx_patient_registry_pod_phone 
+  ON public.patient_registry (pod_id, phone);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_token_date_pod 
+  ON public.appointments (virtual_date, pod_id, token_number);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'patient_registry' AND policyname = 'Allow authenticated and service role insert on patient_registry'
+  ) THEN
+    CREATE POLICY "Allow authenticated and service role insert on patient_registry" 
+      ON public.patient_registry FOR INSERT 
+      TO authenticated, service_role 
+      WITH CHECK (true);
+  END IF;
+END $$;
+
+-- =============================================================================
+-- Migration: 20260828000002_clinical_whatsapp_notifications.sql
+-- Subsystem: Clinical WhatsApp Automated Notification Engine
+-- Purpose:
+--   1. Table for automated daily dosage schedules and reminders
+--   2. Optimizes WABA and session routing for high-throughput clinical messaging
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.dosage_schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID,
+  patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+  patient_phone VARCHAR(20) NOT NULL,
+  medication_name VARCHAR(255) NOT NULL,
+  dosage_frequency VARCHAR(50) NOT NULL,
+  hinglish_instruction TEXT,
+  time_of_day VARCHAR(20) NOT NULL, -- 'morning', 'afternoon', 'evening', 'night'
+  start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  end_date DATE,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  last_sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_dosage_schedules_patient 
+  ON public.dosage_schedules (patient_id, is_active);
+
+CREATE INDEX IF NOT EXISTS idx_dosage_schedules_time_pod 
+  ON public.dosage_schedules (time_of_day, is_active, pod_id);
+
+ALTER TABLE IF EXISTS public.dosage_schedules ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'dosage_schedules' AND policyname = 'Allow authenticated and service role on dosage_schedules'
+  ) THEN
+    CREATE POLICY "Allow authenticated and service role on dosage_schedules" 
+      ON public.dosage_schedules FOR ALL 
+      TO authenticated, service_role 
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
+
+-- =====================================================================================
+-- Migration: 20260828000003_virtual_hospital_whatsapp_parity.sql
+-- Description: Idempotent tables, columns, and indexes for VitalSync Virtual Hospital WhatsApp Parity
+--              Covers B2B referral rewards, free loyalty follow-ups, and queue tracking.
+-- =====================================================================================
+
+-- 1. Ensure columns on patient_registry
+ALTER TABLE IF EXISTS patient_registry
+  ADD COLUMN IF NOT EXISTS referral_code TEXT,
+  ADD COLUMN IF NOT EXISTS referred_by_code TEXT,
+  ADD COLUMN IF NOT EXISTS is_premium_member BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS queue_status TEXT DEFAULT 'awaiting_vitals';
+
+-- 2. Ensure columns on appointments
+ALTER TABLE IF EXISTS appointments
+  ADD COLUMN IF NOT EXISTS virtual_meeting_url TEXT,
+  ADD COLUMN IF NOT EXISTS fee_status TEXT DEFAULT 'standard',
+  ADD COLUMN IF NOT EXISTS token_number TEXT;
+
+-- 3. Create or update patient_referral_rewards table
+CREATE TABLE IF NOT EXISTS patient_referral_rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id UUID REFERENCES patient_registry(id) ON DELETE CASCADE,
+  referred_patient_id UUID REFERENCES patient_registry(id) ON DELETE SET NULL,
+  referral_code TEXT,
+  discount_percent NUMERIC(5,2) NOT NULL DEFAULT 10.00,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'redeemed', 'expired')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  redeemed_at TIMESTAMPTZ,
+  pod_id UUID
+);
+
+-- Ensure columns exist if table was already created in an earlier schema
+ALTER TABLE IF EXISTS patient_referral_rewards
+  ADD COLUMN IF NOT EXISTS referral_code TEXT,
+  ADD COLUMN IF NOT EXISTS pod_id UUID;
+
+-- 4. Enable RLS and create idempotent policies
+ALTER TABLE patient_referral_rewards ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'patient_referral_rewards' AND policyname = 'Allow authenticated and anon access to patient_referral_rewards'
+  ) THEN
+    CREATE POLICY "Allow authenticated and anon access to patient_referral_rewards"
+      ON patient_referral_rewards
+      FOR ALL
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
+
+-- 5. Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_patient_referral_rewards_patient_id ON patient_referral_rewards (patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_referral_rewards_code ON patient_referral_rewards (referral_code);
+CREATE INDEX IF NOT EXISTS idx_patient_referral_rewards_status ON patient_referral_rewards (status);
+CREATE INDEX IF NOT EXISTS idx_patient_registry_referral_code ON patient_registry (referral_code);
+CREATE INDEX IF NOT EXISTS idx_appointments_virtual_meeting ON appointments (virtual_meeting_url) WHERE virtual_meeting_url IS NOT NULL;
+
+-- =====================================================================================
+-- Migration: 20260829000001_cron_automation_and_idempotency_flags.sql
+-- Description: Military-Grade Automation Hardening
+--   1. Adds idempotency flag columns to prevent duplicate WhatsApp sends
+--   2. Schedules pg_cron jobs for Day-25 refill, morning greeting, evening lab
+-- All statements are IDEMPOTENT (safe to re-run on any environment).
+-- =====================================================================================
+
+-- 1. Idempotency flag: appointments morning greeting
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS morning_greeting_dispatched BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_appointments_morning_greeting
+  ON public.appointments(morning_greeting_dispatched, appointment_time)
+  WHERE morning_greeting_dispatched = false;
+
+-- 2. Idempotency flag: lab_reports WhatsApp dispatch
+ALTER TABLE public.lab_reports
+  ADD COLUMN IF NOT EXISTS whatsapp_dispatched BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE public.lab_reports
+  ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_lab_reports_whatsapp_dispatch
+  ON public.lab_reports(whatsapp_dispatched, approved_at)
+  WHERE whatsapp_dispatched = false;
+
+-- 3. Idempotency flag: pathology_reports WhatsApp dispatch
+ALTER TABLE public.pathology_reports
+  ADD COLUMN IF NOT EXISTS whatsapp_dispatched BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS idx_pathology_reports_whatsapp_dispatch
+  ON public.pathology_reports(whatsapp_dispatched)
+  WHERE whatsapp_dispatched = false;
+
+-- 4. Add virtual_meeting_url to appointments if not exists
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS virtual_meeting_url TEXT;
+
+-- 5. Add is_emergency flag to appointments
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS is_emergency BOOLEAN NOT NULL DEFAULT false;
+
+-- 6. Schedule pg_cron jobs (only if pg_cron is enabled)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    -- 6a. Day-25 Chronic Refill: 6:00 AM IST (00:30 UTC)
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'vitalsync-day25-refill-nudge') THEN
+      PERFORM cron.unschedule('vitalsync-day25-refill-nudge');
+    END IF;
+    PERFORM cron.schedule(
+      'vitalsync-day25-refill-nudge', '30 0 * * *',
+      $q$ SELECT net.http_post(url := current_setting('app.supabase_url', true) || '/functions/v1/whatsapp-refill-cron', headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)), body := '{"internal": true}'::jsonb); $q$
+    );
+
+    -- 6b. Morning Greetings & Dosage Reminders: 8:00 AM IST (02:30 UTC)
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'vitalsync-morning-appointment-greeting') THEN
+      PERFORM cron.unschedule('vitalsync-morning-appointment-greeting');
+    END IF;
+    PERFORM cron.schedule(
+      'vitalsync-morning-appointment-greeting', '30 2 * * *',
+      $q$ SELECT net.http_post(url := current_setting('app.supabase_url', true) || '/functions/v1/appointment-reminder-cron?pass=morning', headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)), body := '{"internal": true}'::jsonb); $q$
+    );
+
+    -- 6c. Evening Lab Report 2-Touchpoint Review: 4:00 PM IST (10:30 UTC)
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'vitalsync-evening-lab-report-dispatch') THEN
+      PERFORM cron.unschedule('vitalsync-evening-lab-report-dispatch');
+    END IF;
+    PERFORM cron.schedule(
+      'vitalsync-evening-lab-report-dispatch', '30 10 * * *',
+      $q$ SELECT net.http_post(url := current_setting('app.supabase_url', true) || '/functions/v1/appointment-reminder-cron?pass=evening', headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)), body := '{"internal": true}'::jsonb); $q$
+    );
+
+    RAISE NOTICE '[vitalsync] pg_cron schedules registered OK';
+  ELSE
+    RAISE NOTICE '[vitalsync] pg_cron not enabled -- enable via Supabase Dashboard > Database > Extensions > pg_cron';
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING '[vitalsync] Note on pg_cron: % (columns and indexes created successfully)', SQLERRM;
+END;
+$$;
+
+-- =============================================================================
+-- END OF SCRIPT
+-- =============================================================================

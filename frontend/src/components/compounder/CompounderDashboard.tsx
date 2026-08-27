@@ -541,55 +541,19 @@ export const CompounderDashboard: React.FC = () => {
           }
         }));
       },
-      onPatientChange: () => {
-        setDataRevision(prev => prev + 1);
-        setPatients(api.getPatients());
-        fetchLiveAppointments();
-      },
-      onMedicineBillChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onLabRequisitionChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onFinancialLedgerChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onUnifiedInvoiceChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onWhatsAppSessionChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onPathologyReportChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onPoolSettlementChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onClinicSopChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onSaaSInvoiceChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onSaaSPrescriptionChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      },
-      onInventoryHoldChange: () => {
-        setDataRevision(prev => prev + 1);
-        fetchLiveAppointments();
-      }
+      onPatientChange: () => fetchLiveAppointments(),
+      onMedicineBillChange: () => fetchLiveAppointments(),
+      onLabRequisitionChange: () => fetchLiveAppointments(),
+      onFinancialLedgerChange: () => fetchLiveAppointments(),
+      onUnifiedInvoiceChange: () => fetchLiveAppointments(),
+      onWhatsAppSessionChange: () => fetchLiveAppointments(),
+      onPathologyReportChange: () => fetchLiveAppointments(),
+      onPoolSettlementChange: () => fetchLiveAppointments(),
+      onClinicSopChange: () => fetchLiveAppointments(),
+      onSaaSInvoiceChange: () => fetchLiveAppointments(),
+      onSaaSPrescriptionChange: () => fetchLiveAppointments(),
+      onInventoryHoldChange: () => fetchLiveAppointments(),
+      onChronicCohortChange: () => fetchLiveAppointments()
     });
 
     return () => unsubscribe();
@@ -1009,9 +973,21 @@ export const CompounderDashboard: React.FC = () => {
       recordedAt: new Date().toISOString()
     }, recordedToken);
 
+    if (vitalsPatient.phone) {
+      api.dispatchAppointmentTimingGreetingWhatsApp({
+        patientPhone: vitalsPatient.phone,
+        patientName: vitalsPatient.name,
+        tokenNumber: String(recordedToken),
+        appointmentTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        doctorName: activePod?.doctor_name,
+        clinicName: activePod?.name,
+        mode: 'physical'
+      }).catch(err => console.warn('[CompounderDashboard] Timing greeting error:', err));
+    }
+
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Vitals pre-loaded successfully for patient ${vitalsPatient.name}! Dispatched Token: ${recordedToken} to Doctor's chamber. 🩺`,
+        message: `Vitals pre-loaded successfully for patient ${vitalsPatient.name}! Dispatched Token: ${recordedToken} to Doctor's chamber & WhatsApp confirmed. 🩺`,
         type: 'success',
         title: 'Swasthya Token Dispatched'
       }
@@ -1772,7 +1748,7 @@ export const CompounderDashboard: React.FC = () => {
                                 )}
 
                                 {(() => {
-                                  const virtualAppt = appointments.find(a => a.patientId === p.id && a.isVirtual);
+                                  const virtualAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual));
                                   if (!virtualAppt) return null;
                                   return (
                                     <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-255 text-emerald-700 px-1.5 py-0.2 rounded animate-pulse font-sans">
@@ -2222,7 +2198,7 @@ export const CompounderDashboard: React.FC = () => {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled' && (a.is_virtual || a.isVirtual)).map(appt => {
-                        const pat = patients.find(p => p.id === appt.patientId);
+                        const pat = patients.find(p => p.id === (appt.patientId || (appt as any).patient_id));
                         const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
                         const isFreeLoyalty = appt.amount === 0 || appt.fee_status === 'waived_loyalty' || String(appt.source || '').toLowerCase().includes('loyalty');
                         return (
@@ -2326,7 +2302,7 @@ export const CompounderDashboard: React.FC = () => {
                           }
 
                           return futureAppts.map((appt, idx) => {
-                            const pat = patients.find(p => p.id === appt.patientId);
+                            const pat = patients.find(p => p.id === (appt.patientId || (appt as any).patient_id));
                             const apptDate = getEffectiveAppointmentDate(appt);
                             const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
                             const tokenDisplay = String(rawToken || `T-${String(idx + 1).padStart(2, '0')}`);
@@ -2713,8 +2689,8 @@ export const CompounderDashboard: React.FC = () => {
                         if (!isSOSA && isSOSB) return 1;
 
                         // Priority #2: Demote completed/seen patients from top
-                        const patientA = patients.find(p => p.id === a.patientId);
-                        const patientB = patients.find(p => p.id === b.patientId);
+                        const patientA = patients.find(p => p.id === (a.patientId || (a as any).patient_id));
+                        const patientB = patients.find(p => p.id === (b.patientId || (b as any).patient_id));
 
                         const isDoneA = a.status === 'completed' || (patientA?.queueStatus as string) === 'completed' || (patientA?.queueStatus as string) === 'settled' || (patientA?.queueStatus as string) === 'pharmacy' || (patientA?.queueStatus as string) === 'lab';
                         const isDoneB = b.status === 'completed' || (patientB?.queueStatus as string) === 'completed' || (patientB?.queueStatus as string) === 'settled' || (patientB?.queueStatus as string) === 'pharmacy' || (patientB?.queueStatus as string) === 'lab';
@@ -2754,12 +2730,13 @@ export const CompounderDashboard: React.FC = () => {
                       );
                     }
                     return confirmedAppts.map((appt, idx) => {
-                      const patient: any = patients.find(p => p.id === appt.patientId) || {
-                        id: appt.patientId,
-                        name: (appt as any).patientName || 'WhatsApp Patient',
-                        phone: (appt as any).patientPhone || 'N/A',
-                        age: (appt as any).patientAge || 30,
-                        gender: (appt as any).patientGender || 'Male',
+                      const patId = appt.patientId || (appt as any).patient_id;
+                      const patient: any = patients.find(p => p.id === patId) || {
+                        id: patId,
+                        name: (appt as any).patientName || (appt as any).patient_name || 'WhatsApp Patient',
+                        phone: (appt as any).patientPhone || (appt as any).patient_phone || 'N/A',
+                        age: (appt as any).patientAge || (appt as any).patient_age || 30,
+                        gender: (appt as any).patientGender || (appt as any).patient_gender || 'Male',
                         queueStatus: 'awaiting_vitals',
                         allergies: [],
                         chronicConditions: [],
@@ -2943,6 +2920,14 @@ export const CompounderDashboard: React.FC = () => {
                                   onClick={async () => {
                                     await BillingService.recordInvoicePayment(invoice.id, 'cash');
                                     syncData();
+                                    if (patient.phone) {
+                                      api.dispatchFreeFollowupLoyaltyWhatsApp({
+                                        patientPhone: patient.phone,
+                                        patientName: patient.name,
+                                        doctorName: activePod?.doctor_name,
+                                        clinicName: activePod?.name
+                                      }).catch(err => console.warn('[Compounder] Cash loyalty dispatch error:', err));
+                                    }
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: { message: 'Cash collected! 🌟 VitalSync Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));
@@ -2957,6 +2942,14 @@ export const CompounderDashboard: React.FC = () => {
                                   onClick={async () => {
                                     await BillingService.recordInvoicePayment(invoice.id, 'upi');
                                     syncData();
+                                    if (patient.phone) {
+                                      api.dispatchFreeFollowupLoyaltyWhatsApp({
+                                        patientPhone: patient.phone,
+                                        patientName: patient.name,
+                                        doctorName: activePod?.doctor_name,
+                                        clinicName: activePod?.name
+                                      }).catch(err => console.warn('[Compounder] UPI loyalty dispatch error:', err));
+                                    }
                                     window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                       detail: { message: 'UPI verified! 🌟 Mediflow Premium Member Unlocked (1 Free Virtual Consult + 10% OFF Refills + WhatsApp PDF Reports)!', type: 'success', title: 'Payment Settled ✔️' }
                                     }));

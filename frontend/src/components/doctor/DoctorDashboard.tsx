@@ -603,26 +603,44 @@ export const DoctorDashboard: React.FC = () => {
         }
 
         if (patientsRes.data && patientsRes.data.length > 0) {
-          const dbPatients: Patient[] = patientsRes.data.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            phone: p.phone,
-            age: String(p.age || 30),
-            gender: p.gender || 'Male',
-            referral_code: p.referral_code,
-            tokenNumber: p.token_number || p.tokenNumber || undefined,
-            token_number: p.token_number || p.tokenNumber || undefined,
-            queueStatus: p.queue_status || p.queueStatus || 'awaiting_consultation',
-            queue_status: p.queue_status || p.queueStatus || 'awaiting_consultation',
-            allergies: p.allergies || [],
-            chronicConditions: p.chronic_conditions || [],
-            createdAt: p.created_at || new Date().toISOString()
-          } as any));
-
           const localPatients = api.getPatients();
+          const localPatMap = new Map(localPatients.map(lp => [lp.id, lp]));
+
+          const dbPatients: Patient[] = patientsRes.data.map((p: any) => {
+            const localP = localPatMap.get(p.id);
+            return {
+              id: p.id,
+              name: p.name,
+              phone: p.phone,
+              age: String(p.age || localP?.age || 30),
+              gender: p.gender || localP?.gender || 'Male',
+              referral_code: p.referral_code || (localP as any)?.referral_code,
+              referralCode: p.referral_code || (localP as any)?.referralCode,
+              tokenNumber: p.token_number || p.tokenNumber || localP?.tokenNumber || undefined,
+              token_number: p.token_number || p.tokenNumber || localP?.tokenNumber || undefined,
+              queueStatus: p.queue_status || p.queueStatus || localP?.queueStatus || 'awaiting_consultation',
+              queue_status: p.queue_status || p.queueStatus || localP?.queueStatus || 'awaiting_consultation',
+              allergies: p.allergies || localP?.allergies || [],
+              chronicConditions: p.chronic_conditions || p.chronicConditions || localP?.chronicConditions || [],
+              abhaId: p.abha_id || p.abhaId || localP?.abhaId || undefined,
+              abha_id: p.abha_id || p.abhaId || localP?.abhaId || undefined,
+              vitals: p.vitals || p.patient_vitals || localP?.vitals || undefined,
+              condition: p.condition || (localP as any)?.condition || undefined,
+              tags: p.tags || (localP as any)?.tags || [],
+              medicalHistory: p.medical_history || p.medicalHistory || (localP as any)?.medicalHistory || undefined,
+              eyeDilationStatus: p.eye_dilation_status || p.eyeDilationStatus || (localP as any)?.eyeDilationStatus || undefined,
+              dilationTimestamp: p.dilation_timestamp || p.dilationTimestamp || (localP as any)?.dilationTimestamp || undefined,
+              pastReportsSummary: p.past_reports_summary || p.pastReportsSummary || localP?.pastReportsSummary || undefined,
+              createdAt: p.created_at || localP?.createdAt || new Date().toISOString()
+            } as any;
+          });
+
           const mergedMap = new Map();
           localPatients.forEach(lp => mergedMap.set(lp.id, lp));
-          dbPatients.forEach(dp => mergedMap.set(dp.id, dp));
+          dbPatients.forEach(dp => {
+            const existing = mergedMap.get(dp.id);
+            mergedMap.set(dp.id, existing ? { ...existing, ...dp, vitals: dp.vitals || existing.vitals } : dp);
+          });
           const finalPatients = Array.from(mergedMap.values());
           api.savePatients(finalPatients);
           setPatients(finalPatients);
@@ -1065,6 +1083,10 @@ Keep the tone professional, clinical, objective, and precise.`;
           const token = aiSession?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
           const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
+          // 15s timeout for Edge Function cold starts (Rule 90)
+          const aiController = new AbortController();
+          const aiTimeoutId = setTimeout(() => aiController.abort(), 15000);
+
           const response = await fetch(edgeFnUrl, {
             method: 'POST',
             headers: {
@@ -1077,7 +1099,8 @@ Keep the tone professional, clinical, objective, and precise.`;
               model: 'mistral-large-latest',
               temperature: 0.15,
               maxTokens: 2048
-            })
+            }),
+            signal: aiController.signal
           });
 
           if (!response.ok) {
@@ -1088,6 +1111,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           const resData = await response.json();
           synthesizedInsight = resData.content || '';
           modelUsed = resData.model || 'ai-inference-proxy';
+          clearTimeout(aiTimeoutId);
         } catch (proxyErr) {
           console.warn('[AI RAG] Edge function inference failed, falling back to static guidelines:', proxyErr);
         }
@@ -1259,84 +1283,51 @@ Keep the tone professional, clinical, objective, and precise.`;
 
     // Dynamic WhatsApp auto-dispatch matching core business USP
     try {
-      const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
-      const latestReport = history.length > 0 ? history[history.length - 1] : null;
-      
-      let whatsAppMsg = '';
-      if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
-        whatsAppMsg = formatSpectacleCard(refractionRx, selectedPatient.name);
-        if (hinglishSummary || notes) {
-          whatsAppMsg += `\n\n👉 *Doctor's Advice (Hinglish):*\n_"${hinglishSummary || notes}"_`;
-        }
-        if (medications.length > 0) {
-          whatsAppMsg += `\n\n💊 *Prescribed Medications:*\n`;
-          medications.forEach((m, idx) => {
-            whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
-          });
-        }
-      } else {
-        const rawDocName = activePod?.doctor_name || activeDoctorProfile?.display_name || activeDoctorProfile?.name || 'Doctor';
-        const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
-        whatsAppMsg = `🏥 *Mediflow Connected Care Plan* 🩺\n\n`;
-        whatsAppMsg += `Dear *${selectedPatient.name}*, ${docTitle} has finalized your consultation record.\n\n`;
-        
-        // Add Hinglish clinical directions
-        whatsAppMsg += `👉 *Doctor's Advice (Hinglish):*\n_"${hinglishSummary || notes || "Continue active lifestyle management."}"_\n\n`;
-        
-        if (latestReport) {
-          whatsAppMsg += `🧪 *Consolidated Lab Report (Date: ${latestReport.date}):*\n`;
-          whatsAppMsg += `- *HbA1c*: ${latestReport.HbA1c}%\n`;
-          whatsAppMsg += `- *Serum Creatinine*: ${latestReport.creatinine} mg/dL\n`;
-          whatsAppMsg += `- *Total Hemoglobin*: ${latestReport.hemoglobin} g/dL\n\n`;
-        }
-        
-        if (medications.length > 0) {
-          whatsAppMsg += `💊 *Prescribed Medications (Collect at Counter):*\n`;
-          medications.forEach((m, idx) => {
-            whatsAppMsg += `${idx + 1}. ${m.medicineName} (${m.dosage}) — ${m.frequency}, ${m.duration}\n`;
-          });
-          whatsAppMsg += `\n`;
-        }
-        
-        whatsAppMsg += `Dhyan rakhein aur time par medicine lein! 🟢`;
-      }
-      
-      if (hinglishSummary) {
-        api.pushWhatsAppMessageFromBot(selectedPatient.phone, `🤖 *AI Hinglish Summary:*\n\n${hinglishSummary}`);
-      }
-
-      // ── Same-Day Evening Slot Scheduling ──────────────────────────────────
-      let eveningSlotNote = '';
+      let eveningSlotObj: { startTime: string; endTime: string } | null = null;
       try {
         const existingSlot = api.getAppointmentByPatient(selectedPatient.id);
         const slot = existingSlot ?? await api.createEveningSlot(selectedPatient.id, 'doc-1');
         if (slot) {
-          const rawDocName = activePod?.doctor_name || activeDoctorProfile?.display_name || activeDoctorProfile?.name || 'Doctor';
-          const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
-          eveningSlotNote = `\n\n🕒 *Evening Follow-up Appointment:*\n${docTitle} will see you today from *${slot.startTime}* to *${slot.endTime}*.\nPlease arrive 5 minutes early at the clinic reception.`;
+          eveningSlotObj = { startTime: slot.startTime, endTime: slot.endTime };
           await api.scheduleAppointment(slot);
         }
       } catch (slotErr) {
         console.warn('[EveningSlot] Slot scheduling failed:', slotErr);
       }
 
-      const finalMsg = whatsAppMsg + eveningSlotNote;
-      api.pushWhatsAppMessageFromBot(selectedPatient.phone, finalMsg);
+      const rawDocName = activePod?.doctor_name || activeDoctorProfile?.display_name || activeDoctorProfile?.name || 'Doctor';
+      const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
+      const clinicTitle = activePod?.name || activeDoctorProfile?.clinicName || 'Clinic';
 
-      // Direct Edge Function Invoke for Sub-250ms WhatsApp Delivery to Meta Graph API
-      try {
-        const targetPhone = (selectedPatient.phone || '').replace(/[^0-9]/g, '');
-        const cleanToPhone = targetPhone.length === 10 ? '91' + targetPhone : targetPhone;
-        await supabase.functions.invoke('meta-webhook', {
-          body: {
-            action: 'send_manual_message',
-            patientPhone: cleanToPhone,
-            messageText: finalMsg
-          }
+      const prescriptionMeds = medications.map((m: any) => ({
+        medicineName: m.medicineName,
+        dosage: m.dosage,
+        frequency: m.frequency,
+        duration: m.duration,
+        instructions: m.instructions
+      }));
+
+      // If ophthalmology spectacle refraction is present, add as an item
+      if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
+        prescriptionMeds.push({
+          medicineName: `Spectacles (${refractionRx.lensType})`,
+          dosage: `OD: SPH ${refractionRx.od.sph || 'Plano'} CYL ${refractionRx.od.cyl || '—'} Axis ${refractionRx.od.axis ? refractionRx.od.axis + '°' : '—'} | OS: SPH ${refractionRx.os.sph || 'Plano'} CYL ${refractionRx.os.cyl || '—'} Axis ${refractionRx.os.axis ? refractionRx.os.axis + '°' : '—'}`,
+          frequency: 'Wear constantly',
+          duration: '1 Year',
+          instructions: 'Optician Refraction Complete'
         });
-      } catch (_dispatchErr) {
-        console.warn('[DoctorDashboard Direct WhatsApp] Edge dispatch fallback:', _dispatchErr);
       }
+
+      await api.dispatchPrescriptionDosageWhatsApp({
+        patientPhone: selectedPatient.phone,
+        patientName: selectedPatient.name,
+        doctorName: docTitle,
+        clinicName: clinicTitle,
+        medications: prescriptionMeds,
+        clinicalNotes: notes,
+        hinglishAdvice: hinglishSummary,
+        eveningSlot: eveningSlotObj
+      });
     } catch (e) {
       console.error('[WhatsApp Auto-dispatch failed]:', e);
     }
@@ -1364,9 +1355,9 @@ Keep the tone professional, clinical, objective, and precise.`;
     const allAppts = api.getAppointments();
 
     const isPatientForToday = (p: Patient) => {
-      const patAppt = allAppts.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
-      if (patAppt) {
-        return getEffectiveAppointmentDate(patAppt) === todayStr;
+      const patAppts = allAppts.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+      if (patAppts.length > 0) {
+        return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
       }
       const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
       return regDate.startsWith(todayStr);

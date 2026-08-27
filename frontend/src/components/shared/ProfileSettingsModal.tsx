@@ -21,6 +21,8 @@ import {
   Clock
 } from 'lucide-react';
 import type { Entity } from '../../types';
+import { isStrongPassword, getPasswordValidationError } from '../../utils/passwordPolicy';
+import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 
 export type SettingsTabType = 'profile' | 'clinic' | 'preferences' | 'security' | 'partners';
 
@@ -147,8 +149,12 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+    if (!password) {
+      setErrorMsg('Password is required.');
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      setErrorMsg(getPasswordValidationError(password) || 'Password must meet all 5 security requirements.');
       return;
     }
     if (password !== confirmPassword) {
@@ -636,6 +642,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                     />
                   </div>
                 </div>
+
+                <PasswordStrengthMeter password={password} className="mt-1 mb-2" />
 
                 <button
                   type="submit"

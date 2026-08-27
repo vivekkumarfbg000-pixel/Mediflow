@@ -402,7 +402,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <span className="text-[#1A7B8F]">Vital</span>
                 <span className="text-[#7AC47F]">Sync</span>
               </span>
-              <span className="text-[8.5px] text-slate-500 font-semibold tracking-wide mt-0.5">Integrated Clinical Network</span>
+              <span className="text-[8.5px] text-teal-700 font-bold tracking-wider uppercase mt-0.5">Virtual Hospital Network</span>
             </div>
           </div>
         </div>
@@ -447,21 +447,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           
           <div className="inline-flex items-center gap-2.5 self-start py-1.5 px-4 rounded-full border border-cyan-300 bg-cyan-50/90 shadow-sm backdrop-blur-md">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] text-cyan-850 font-mono font-extrabold uppercase tracking-widest">
-              🏥 Tier 2 &amp; Tier 3 India's #1 Virtual Hospital Network
+            <span className="text-[10px] text-teal-900 font-mono font-extrabold uppercase tracking-widest">
+              🏥 India's #1 Virtual Hospital Network
             </span>
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-4xl lg:text-5xl font-black text-slate-900 leading-[1.15] tracking-tight">
-              Turn Your Independent Clinic Into A<br />
-              <span className="bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 bg-clip-text text-transparent font-black">
-                Smart Virtual Hospital
+            <h1 className="text-4xl lg:text-6xl font-black text-slate-900 leading-[1.12] tracking-tight">
+              Your Clinic.<br />
+              <span className="bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 bg-clip-text text-transparent font-black">
+                Now a Hospital.
               </span>
             </h1>
 
+            <p className="text-base lg:text-lg font-bold text-teal-900 tracking-tight">
+              Clinic Freedom. Hospital Revenue. On WhatsApp.
+            </p>
+
             <p className="text-sm lg:text-base text-slate-650 leading-relaxed max-w-lg font-medium">
-              Empowering independent doctors in Tier 2 &amp; 3 cities to connect with trusted local pharmacies and pathology labs down the street. Deliver 1-tap WhatsApp tokens, electronic prescriptions, automated Day-25 medicine refills, and instant lab reports with <strong>₹0 setup cost</strong>.
+              Turn your OPD into an integrated virtual hospital. Connect your prescriptions directly to trusted local pharmacies &amp; labs, keep 100% of your consultation fee, capture 35% of the patient wallet, and automate Day-25 chronic refills with <strong>₹0 setup cost</strong>.
             </p>
           </div>
 
@@ -1071,7 +1075,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-450">
               <span>© 2026 VitalSync Care Connected Ecosystem</span>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-200 hidden sm:inline" />
-              <span className="text-cyan-700 font-semibold italic hidden sm:inline">Integrated Clinical Network</span>
+              <span className="text-teal-700 font-bold hidden sm:inline">Virtual Hospital Network • Your Clinic. Now a Hospital.</span>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
               <span className="font-mono">v1.0.0-stable</span>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />

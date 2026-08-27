@@ -73,7 +73,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   Doctor Partnership Proposal
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">Smart Virtual Hospital Network • Executive Presentation</p>
+              <p className="text-[11px] text-slate-500 font-medium">Virtual Hospital Network • Executive Presentation</p>
             </div>
           </div>
 
@@ -136,9 +136,12 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <span className="inline-block px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-800 text-xs font-bold uppercase tracking-wider">
                 Exclusively For Independent Physicians, Surgeons &amp; Clinic Directors
               </span>
-              <h1 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-[1.2]">
-                Transform Your Clinic Into A <span className="text-teal-600">Hospital-Grade Outpatient Network</span> On WhatsApp
+              <h1 className="text-4xl md:text-6xl font-black tracking-tight text-slate-900 leading-[1.12]">
+                Your Clinic. <span className="text-teal-600">Now a Hospital.</span>
               </h1>
+              <p className="text-lg md:text-xl font-bold text-teal-850 tracking-tight">
+                Clinic Freedom. Hospital Revenue. On WhatsApp.
+              </p>
               <p className="text-base md:text-lg text-slate-600 leading-relaxed font-normal">
                 Unite your OPD consultation room with your trusted local pharmacy and diagnostic laboratory into an automated, hospital-grade outpatient ecosystem. Deliver continuous chronic care, maintain 100% patient loyalty, and unlock <strong className="text-slate-900 font-semibold">+₹1,00,000 to +₹2,00,000+ monthly recurring practice equity</strong> with <strong className="text-teal-700 font-semibold">zero software subscription fees and zero change to your daily OPD workflow</strong>.
               </p>
@@ -1004,7 +1007,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
           </div>
 
           <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl flex items-center justify-between text-xs text-slate-800 mt-4">
-            <span className="font-bold text-teal-900">VitalSync Smart Virtual Hospital Network</span>
+            <span className="font-bold text-teal-900">VitalSync: Virtual Hospital Network — "Your Clinic. Now a Hospital."</span>
             <span>Empowering Independent Physicians Across Tier 2 &amp; Tier 3 Healthcare Hubs</span>
           </div>
         </section>

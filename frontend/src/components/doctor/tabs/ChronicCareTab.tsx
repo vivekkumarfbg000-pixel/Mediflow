@@ -84,8 +84,8 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
         const q = searchQuery.toLowerCase();
         const matchesName = (c.patientName || '').toLowerCase().includes(q);
         const matchesPhone = (c.patientPhone || '').includes(q);
-        const matchesMed = c.medications.some(m => m.name.toLowerCase().includes(q));
-        const matchesCond = c.conditionName.toLowerCase().includes(q);
+        const matchesMed = c.medications.some(m => (m.name || '').toLowerCase().includes(q));
+        const matchesCond = (c.conditionName || '').toLowerCase().includes(q);
         return matchesName || matchesPhone || matchesMed || matchesCond;
       }
 

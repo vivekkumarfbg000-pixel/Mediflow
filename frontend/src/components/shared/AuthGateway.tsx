@@ -9,6 +9,8 @@ import {
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../../utils/storage';
+import { isStrongPassword, getPasswordValidationError } from '../../utils/passwordPolicy';
+import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 
 interface LoginAttempt {
   email: string;
@@ -1114,8 +1116,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
     if (!password) {
       errors.password = 'Password is required';
-    } else if (password.length < 6) {
-      errors.password = 'Must be at least 6 characters';
+    } else if (!isStrongPassword(password)) {
+      errors.password = getPasswordValidationError(password) || 'Must meet all 5 password requirements';
     }
 
     if (!confirmPassword) {
@@ -2601,19 +2603,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   </div>
                 </div>
 
-                {password && (
-                  <div className="space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                    <div className="flex justify-between text-[9px] font-bold">
-                      <span className="text-slate-500">Password Strength:</span>
-                      <span className={pwdStrength.score === 1 ? 'text-rose-600' : pwdStrength.score === 2 ? 'text-amber-600' : 'text-emerald-600'}>
-                        {pwdStrength.label}
-                      </span>
-                    </div>
-                    <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                      <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
-                    </div>
-                  </div>
-                )}
+                <PasswordStrengthMeter password={password} className="mt-2" />
 
                 {/* Terms & Privacy acceptance */}
                 <div className="space-y-1 mt-2">
@@ -3118,19 +3108,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       </div>
                     </div>
 
-                    {password && (
-                      <div className="space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                        <div className="flex justify-between text-[9px] font-bold">
-                          <span className="text-slate-500">Password Strength:</span>
-                          <span className={pwdStrength.score === 1 ? 'text-rose-600' : pwdStrength.score === 2 ? 'text-amber-600' : 'text-emerald-600'}>
-                            {pwdStrength.label}
-                          </span>
-                        </div>
-                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                          <div className={`h-full transition-all duration-500 ${pwdStrength.color} ${pwdStrength.width}`} />
-                        </div>
-                      </div>
-                    )}
+                    <PasswordStrengthMeter password={password} className="mt-2" />
 
                     {/* Terms & Privacy acceptance */}
                     <div className="space-y-1 mt-2">
