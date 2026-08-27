@@ -48,7 +48,7 @@ async function sendTextMessage(
 ): Promise<boolean> {
   const e164 = `91${toPhone.replace(/\D/g, "").slice(-10)}`;
   try {
-    const res = await fetch(`https://graph.facebook.com/v18.0/${wabaPhoneId}/messages`, {
+    const res = await fetch(`https://graph.facebook.com/v21.0/${wabaPhoneId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${wabaToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -72,7 +72,7 @@ async function sendInteractiveButtons(
 ): Promise<boolean> {
   const e164 = `91${toPhone.replace(/\D/g, "").slice(-10)}`;
   try {
-    const res = await fetch(`https://graph.facebook.com/v18.0/${wabaPhoneId}/messages`, {
+    const res = await fetch(`https://graph.facebook.com/v21.0/${wabaPhoneId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${wabaToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({

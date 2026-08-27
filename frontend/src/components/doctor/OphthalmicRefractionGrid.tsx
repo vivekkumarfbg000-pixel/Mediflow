@@ -15,8 +15,8 @@ for (let i = -20; i <= 20; i += 0.25) {
 }
 
 const CYL_OPTIONS: string[] = [];
-for (let i = -10; i <= 0; i += 0.25) {
-  const val = i.toFixed(2);
+for (let i = -10; i <= 10; i += 0.25) {
+  const val = i > 0 ? `+${i.toFixed(2)}` : i.toFixed(2);
   CYL_OPTIONS.push(val === '-0.00' ? '0.00' : val);
 }
 

@@ -39,7 +39,7 @@ async function sendInteractiveButtonMessage(
   wabaAccessToken: string,
   wabaPhoneNumberId: string
 ): Promise<boolean> {
-  const url = `https://graph.facebook.com/v18.0/${wabaPhoneNumberId}/messages`;
+  const url = `https://graph.facebook.com/v21.0/${wabaPhoneNumberId}/messages`;
   const normalized = toPhone.replace(/\D/g, "").slice(-10);
   const e164 = `91${normalized}`;
 

@@ -95,6 +95,26 @@ export class RealtimeSyncService {
     if (record.past_reports_summary !== undefined) normalized.pastReportsSummary = record.past_reports_summary;
     if (record.referral_code !== undefined) normalized.referralCode = record.referral_code;
 
+    // WhatsApp Sessions CDC Normalization (Rule 1 & Rule 21)
+    if (record.session_data !== undefined) normalized.sessionData = record.session_data;
+    if (record.chat_history !== undefined) normalized.chatHistory = record.chat_history;
+    if (record.current_state !== undefined) normalized.currentState = record.current_state;
+    if (record.last_active !== undefined) normalized.lastActive = record.last_active;
+    if (record.unread_count !== undefined) normalized.unreadCount = record.unread_count;
+    if (record.is_online !== undefined) normalized.isOnline = record.is_online;
+
+    // Chronic Care Cohorts CDC Normalization (Rule 1 & Rule 57)
+    if (record.condition_code !== undefined) normalized.conditionCode = record.condition_code;
+    if (record.condition_name !== undefined) normalized.conditionName = record.condition_name;
+    if (record.days_supply !== undefined) normalized.daysSupply = record.days_supply;
+    if (record.dispensed_at !== undefined) normalized.dispensedAt = record.dispensed_at;
+    if (record.next_refill_date !== undefined) normalized.nextRefillDate = record.next_refill_date;
+    if (record.next_retest_date !== undefined) normalized.nextRetestDate = record.next_retest_date;
+    if (record.retest_test_code !== undefined) normalized.retestTestCode = record.retest_test_code;
+    if (record.retest_test_name !== undefined) normalized.retestTestName = record.retest_test_name;
+    if (record.adherence_score !== undefined) normalized.adherenceScore = typeof record.adherence_score === 'string' ? parseFloat(record.adherence_score) : record.adherence_score;
+    if (record.monthly_medicine_spend !== undefined) normalized.monthlyMedicineSpend = typeof record.monthly_medicine_spend === 'string' ? parseFloat(record.monthly_medicine_spend) : record.monthly_medicine_spend;
+
     return normalized;
   }
 

@@ -147,11 +147,11 @@ serve(async (req) => {
             .eq("id", resolvedInvoiceId);
         }
 
-        // Update appointments table explicitly
+        // Update appointments table explicitly to ready_for_consult
         if (apptId) {
           await supabase
             .from("appointments")
-            .update({ status: "scheduled", payment_status: "cleared" })
+            .update({ status: "ready_for_consult", payment_status: "cleared" })
             .eq("id", apptId);
         } else if (clean10) {
           const { data: pRec } = await supabase
@@ -163,9 +163,14 @@ serve(async (req) => {
           if (pRec?.id) {
             await supabase
               .from("appointments")
-              .update({ status: "scheduled", payment_status: "cleared" })
+              .update({ status: "ready_for_consult", payment_status: "cleared" })
               .eq("patient_id", pRec.id)
               .eq("status", "pending_payment");
+
+            await supabase
+              .from("patient_registry")
+              .update({ queue_status: "awaiting_consultation", updated_at: new Date().toISOString() })
+              .eq("id", pRec.id);
           }
         }
 
@@ -184,7 +189,7 @@ serve(async (req) => {
           let doctorName = "Doctor";
           let clinicName = "Connected Clinic";
 
-            if (sess) {
+          if (sess) {
             const sessData = sess.session_data || {};
             tokenNumber = sessData.tokenNumber || tokenNumber;
             approxTime = sessData.approxTime || approxTime;
@@ -192,7 +197,7 @@ serve(async (req) => {
             doctorName = sessData.doctorName || doctorName;
             clinicName = sessData.clinicName || clinicName;
 
-            const apptLookupId = resolvedApptId || sessData.pendingApptId;
+            const apptLookupId = apptId || invoice?.appointment_id || sessData.pendingApptId;
             if (apptLookupId || sess.patient_id) {
               try {
                 let apptQ = supabase.from("appointments").select("virtual_date, virtual_time, appointment_time, token_number");

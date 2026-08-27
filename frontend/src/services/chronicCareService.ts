@@ -418,7 +418,7 @@ export class ChronicCareService {
   public static async dispatchCohortDailyDosageReminders(
     timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night' = 'morning'
   ): Promise<{ dispatchedCount: number; recipientNames: string[] }> {
-    const cohorts = this.getFallbackMockCohorts();
+    const cohorts = await this.getChronicCohorts();
     const recipientNames: string[] = [];
 
     for (const cohort of cohorts) {

@@ -141,12 +141,25 @@ serve(async (req) => {
 
     const currentTime = new Date().toISOString();
     
-    // Construct user-facing message text based on template parameters
+    // Construct user-facing message text dynamically based on template parameters
     const patientDisplayName = templateParams?.patient_name || patientName || "Patient";
     const amountVal = templateParams?.amount || "0";
     const invoiceNum = templateParams?.invoice_id || "N/A";
     
-    const plainTextMessage = `Namaste ${patientDisplayName}! Aapka payment of ₹${amountVal} successful raha for Invoice #${invoiceNum}. VitalSync healthcare app checkup slots configure ho rahe hain. We look forward to serving you! 🟢`;
+    let plainTextMessage = "";
+    if (templateParams?.custom_message || templateParams?.message || templateParams?.body || templateParams?.text) {
+      plainTextMessage = String(templateParams.custom_message || templateParams.message || templateParams.body || templateParams.text);
+    } else if (templateName === "lab_report_ready") {
+      const testName = templateParams?.test_name || "Diagnostic Test";
+      const pdfUrl = templateParams?.pdf_url ? `\n\n📄 Download PDF: ${templateParams.pdf_url}` : "";
+      plainTextMessage = `🔬 Namaste ${patientDisplayName}! Aapka *${testName}* lab report ready hai aur doctor dwara verify kar diya gaya hai.${pdfUrl}\n\nReview ke liye clinic visit karein ya WhatsApp par consult karein. 🟢`;
+    } else if (templateName === "appointment_reminder" || templateName === "dose_reminder") {
+      const timeStr = templateParams?.time || "10:00 AM";
+      const docName = templateParams?.doctor_name || "Doctor";
+      plainTextMessage = `⏰ Namaste ${patientDisplayName}! Aapka appointment checkup *${docName}* ke sath scheduled hai (${timeStr}). Kripya time par clinic pahuchein. 🩺`;
+    } else {
+      plainTextMessage = `Namaste ${patientDisplayName}! Aapka payment of ₹${amountVal} successful raha for Invoice #${invoiceNum}. VitalSync healthcare app checkup slots configure ho rahe hain. We look forward to serving you! 🟢`;
+    }
 
     // 1. Primary: Master platform secrets
     let decryptedToken = (Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();

@@ -2034,6 +2034,19 @@ BEGIN
     END IF;
 
     IF v_invoice.payment_status = 'cleared' THEN
+        -- If already cleared, ensure appointments are also synced defensively
+        IF v_invoice.appointment_id IS NOT NULL THEN
+            UPDATE appointments
+            SET status = 'ready_for_consult', payment_status = 'cleared', updated_at = NOW()
+            WHERE id = v_invoice.appointment_id AND (status = 'pending_payment' OR payment_status != 'cleared');
+        END IF;
+
+        IF v_invoice.patient_id IS NOT NULL THEN
+            UPDATE appointments
+            SET status = 'ready_for_consult', payment_status = 'cleared', updated_at = NOW()
+            WHERE patient_id = v_invoice.patient_id AND status = 'pending_payment';
+        END IF;
+
         RETURN jsonb_build_object('success', true, 'skipped', true, 'message', 'Invoice already cleared');
     END IF;
 
@@ -2092,6 +2105,38 @@ BEGIN
             'completed', COALESCE(p_gateway_reference_id, 'platform-' || p_payment_method || '-' || SUBSTRING(v_invoice.id::TEXT, 1, 8)),
             NOW(), v_pod_id
         );
+    END IF;
+
+    -- 5. Atomically update linked Appointment to 'ready_for_consult' & payment_status = 'cleared'
+    IF v_invoice.appointment_id IS NOT NULL THEN
+        UPDATE appointments
+        SET status = 'ready_for_consult',
+            payment_status = 'cleared',
+            updated_at = NOW()
+        WHERE id = v_invoice.appointment_id;
+    END IF;
+
+    IF v_invoice.encounter_id IS NOT NULL THEN
+        UPDATE appointments
+        SET status = 'ready_for_consult',
+            payment_status = 'cleared',
+            updated_at = NOW()
+        WHERE id = v_invoice.encounter_id OR encounter_id = v_invoice.encounter_id;
+    END IF;
+
+    -- Also reconcile any pending appointments for this patient
+    IF v_invoice.patient_id IS NOT NULL THEN
+        UPDATE appointments
+        SET status = 'ready_for_consult',
+            payment_status = 'cleared',
+            updated_at = NOW()
+        WHERE patient_id = v_invoice.patient_id AND status = 'pending_payment';
+
+        -- Update patient_registry queue status if currently awaiting vitals / consultation
+        UPDATE patient_registry
+        SET queue_status = 'awaiting_consultation',
+            updated_at = NOW()
+        WHERE id = v_invoice.patient_id AND (queue_status IS NULL OR queue_status IN ('registered', 'awaiting_vitals'));
     END IF;
 
     RETURN jsonb_build_object(

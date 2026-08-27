@@ -1507,10 +1507,16 @@ async function triggerBotReplyPipeline(ctx: {
       } else if (
         cleaned === "4" || cleaned === "sos" || cleaned.includes("emergency") || cleaned.includes("urgent") || replyId === "menu_sos"
       ) {
+        const currentPodIdSos = toValidUuid(session.pod_id || connection?.pod_id);
         let doctorIdSos = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
         try {
-          const { data: docProfile } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();
-          if (docProfile) doctorIdSos = docProfile.id;
+          const { data: docProfile } = await supabase.from("profiles").select("id").eq("pod_id", currentPodIdSos).eq("role", "doctor").limit(1).maybeSingle();
+          if (docProfile) {
+            doctorIdSos = docProfile.id;
+          } else {
+            const { data: fallbackDoc } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();
+            if (fallbackDoc) doctorIdSos = fallbackDoc.id;
+          }
         } catch (_err) {}
 
         const sosApptId = crypto.randomUUID();
@@ -1707,8 +1713,13 @@ async function triggerBotReplyPipeline(ctx: {
 
         let docId = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
         try {
-          const { data: docP } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();
-          if (docP) docId = docP.id;
+          const { data: docP } = await supabase.from("profiles").select("id").eq("pod_id", currentPodId).eq("role", "doctor").limit(1).maybeSingle();
+          if (docP) {
+            docId = docP.id;
+          } else {
+            const { data: fallbackDoc } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();
+            if (fallbackDoc) docId = fallbackDoc.id;
+          }
         } catch (_dErr) {}
 
         try {
@@ -2245,16 +2256,22 @@ async function triggerBotReplyPipeline(ctx: {
         const selectedDate = resolvedDate || defaultDate;
         const selectedDisplay = resolvedDisplay || defaultDisplay;
         
-        // Resolve Doctor's ID dynamically
+        // Resolve Doctor's ID dynamically scoped to active pod
         let doctorId = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002"; // Fallback ID
         try {
           const { data: docProfile } = await supabase
             .from("profiles")
             .select("id")
+            .eq("pod_id", currentPodId)
             .eq("role", "doctor")
             .limit(1)
             .maybeSingle();
-          if (docProfile) doctorId = docProfile.id;
+          if (docProfile) {
+            doctorId = docProfile.id;
+          } else {
+            const { data: fallbackDoc } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();
+            if (fallbackDoc) doctorId = fallbackDoc.id;
+          }
         } catch (err) {
           console.warn("[Meta Webhook] Error fetching doctor profile:", err);
         }
@@ -2411,7 +2428,7 @@ async function triggerBotReplyPipeline(ctx: {
                 virtual_date: selectedDate,
                 virtual_time: slotText,
                 virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${newApptId}`,
-                pod_id: safePodId,
+                pod_id: currentPodId,
                 entity_id: null
               });
             }
@@ -2588,7 +2605,7 @@ async function triggerBotReplyPipeline(ctx: {
               id: newEncounterId,
               patient_id: bookingPatId,
               doctor_id: doctorId,
-              entity_id: "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
+              entity_id: safeEntityId || DEFAULT_ENTITY_UUID,
               pod_id: safePodId,
               status: "active"
             });
