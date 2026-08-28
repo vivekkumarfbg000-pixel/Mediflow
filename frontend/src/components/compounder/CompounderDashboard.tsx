@@ -2146,15 +2146,7 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               <div 
-                onClick={() => {
-                  const p = pendingVitalsList[0] || patients[0];
-                  if (p) {
-                    setVitalsPatient(p);
-                  } else {
-                    setActiveTab('opd_patients');
-                    setOpdSubTab('today_queue');
-                  }
-                }}
+                onClick={() => setShowVitalsBottomSheet(true)}
                 className="glass-panel p-4 rounded-2xl border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm hover:shadow-md transition cursor-pointer group"
               >
                 <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 mb-2">
@@ -2244,14 +2236,7 @@ export const CompounderDashboard: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    const firstAwaiting = pendingVitalsList[0] || patients[0];
-                    if (firstAwaiting) {
-                      setVitalsPatient(firstAwaiting);
-                    } else {
-                      setShowVitalsBottomSheet(true);
-                    }
-                  }}
+                  onClick={() => setShowVitalsBottomSheet(true)}
                   className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-emerald-900/20 border border-emerald-200 dark:border-emerald-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 shadow-md shadow-emerald-500/30">
@@ -2947,11 +2932,7 @@ export const CompounderDashboard: React.FC = () => {
                       </h3>
                       <button
                         type="button"
-                        onClick={() => {
-                          const p = pendingVitalsList[0] || patients[0];
-                          if (p) setVitalsPatient(p);
-                          else setShowQuickAddSheet(true);
-                        }}
+                        onClick={() => setShowVitalsBottomSheet(true)}
                         className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
                       >
                         <Plus className="w-3.5 h-3.5" /> Record Procedure
@@ -5688,30 +5669,79 @@ export const CompounderDashboard: React.FC = () => {
           >
             {/* Modal Header */}
             <div className="p-6 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white relative">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2.5 py-0.5 rounded-lg bg-white/20 text-white font-mono font-black text-xs">
-                      #{String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04').startsWith('T-') || String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '').startsWith('TK-') ? (vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04') : `TK-${String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '04').padStart(2, '0')}`}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-400 text-emerald-950 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-pulse" />
-                      🟢 [W] WhatsApp Confirmed
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-black text-white">{vitalsPatient.name}</h3>
-                  <p className="text-xs text-indigo-100/90 font-mono mt-0.5">
-                    📱 +91 {vitalsPatient.phone} · {vitalsPatient.age ? `${vitalsPatient.age}y` : 'Adult'} ({vitalsPatient.gender || 'Male'})
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setVitalsPatient(null)}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer border-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              {(() => {
+                const activeSrcTag = getPatientSourceTag(vitalsPatient);
+                const activeSrcBadge = activeSrcTag === 'whatsapp' 
+                  ? '🟢 [W] WhatsApp Confirmed'
+                  : activeSrcTag === 'qr_scan'
+                  ? '📲 [QR] Self-Registered'
+                  : '🏥 [C] Counter Registered';
+
+                return (
+                  <>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-white/20 text-white font-mono font-black text-xs">
+                            #{String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04').startsWith('T-') || String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '').startsWith('TK-') ? (vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04') : `TK-${String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '04').padStart(2, '0')}`}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1 ${
+                            activeSrcTag === 'whatsapp'
+                              ? 'bg-emerald-400 text-emerald-950'
+                              : activeSrcTag === 'qr_scan'
+                              ? 'bg-purple-300 text-purple-950'
+                              : 'bg-amber-300 text-amber-950'
+                          }`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                            {activeSrcBadge}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-black text-white">{vitalsPatient.name}</h3>
+                        <p className="text-xs text-indigo-100/90 font-mono mt-0.5">
+                          📱 +91 {vitalsPatient.phone} · {vitalsPatient.age ? `${vitalsPatient.age}y` : 'Adult'} ({vitalsPatient.gender || 'Male'})
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setVitalsPatient(null)}
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer border-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Inline Switch Patient Dropdown */}
+                    <div className="mt-3 pt-3 border-t border-white/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="text-[10px] font-mono font-bold text-white/90 shrink-0">
+                        Switch Patient ({pendingVitalsList.length} in queue):
+                      </span>
+                      <select
+                        className="w-full sm:w-auto flex-1 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl px-2.5 py-1 text-xs font-bold outline-none cursor-pointer backdrop-blur-sm transition"
+                        value={vitalsPatient.id}
+                        onChange={(e) => {
+                          const next = patients.find(p => p.id === e.target.value);
+                          if (next) {
+                            setVitalsPatient(next);
+                          }
+                        }}
+                      >
+                        <option value={vitalsPatient.id} className="text-slate-900 font-bold">
+                          #{vitalsPatient.tokenNumber || 'TK'} · {vitalsPatient.name} (Current)
+                        </option>
+                        {pendingVitalsList.filter(p => p.id !== vitalsPatient.id).map(p => {
+                          const tag = getPatientSourceTag(p);
+                          const tagLabel = tag === 'whatsapp' ? 'WhatsApp 🟢' : tag === 'qr_scan' ? 'QR 📲' : 'Counter 🏥';
+                          return (
+                            <option key={p.id} value={p.id} className="text-slate-900 font-medium">
+                              #{p.tokenNumber || 'TK'} · {p.name} [{tagLabel}] (+91 {p.phone.slice(-4)})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Modal Body: Vitals Intake Form */}
