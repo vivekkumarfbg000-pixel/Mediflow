@@ -18,13 +18,23 @@ import { generateQRCodeDataURI } from '../../../utils/qrCode';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
-export const BillHubTab: React.FC = () => {
+export interface BillHubTabProps {
+  initialMode?: 'ocr_scan' | 'manual_billing';
+}
+
+export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan' }) => {
   const { isOphthalmology } = useSpecialization();
   const { activePod, activeProfile } = useClinic();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Dual Master Header Tabs (Default: 1. OCR Scan & Auto-Save)
-  const [invoiceSectionTab, setInvoiceSectionTab] = useState<'ocr_scan' | 'manual_billing'>('ocr_scan');
+  const [invoiceSectionTab, setInvoiceSectionTab] = useState<'ocr_scan' | 'manual_billing'>(initialMode);
+
+  useEffect(() => {
+    if (initialMode) {
+      setInvoiceSectionTab(initialMode);
+    }
+  }, [initialMode]);
   
   // App States
   const [patients, setPatients] = useState<Patient[]>([]);

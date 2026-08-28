@@ -128,9 +128,12 @@ export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { podEntities, activePod, activeProfile } = useClinic();
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
-  const [activeTab, setActiveTab] = useState<'overview' | 'patients' | 'tokens' | 'labs' | 'pharmacy' | 'ot_billing' | 'invoice_generator'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare'>('overview');
+  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
+  const [clinicalSubTab, setClinicalSubTab] = useState<'labs' | 'pharmacy'>('labs');
+  const [billingSubTab, setBillingSubTab] = useState<'billing' | 'ocr_scan' | 'ot_daycare'>('billing');
+  const [billHubInitialMode, setBillHubInitialMode] = useState<'ocr_scan' | 'manual_billing'>('ocr_scan');
   const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
-  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'upcoming_advance' | 'past_history'>('today_queue');
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
   // Modern Mobile Native Sheets & Modals
@@ -1106,7 +1109,7 @@ export const CompounderDashboard: React.FC = () => {
     api.setActivePatient(registered);
     setBillingPatient(registered);
     setSelectedApptPatient(registered);
-    setActiveTab('tokens');
+    setActiveTab('opd_patients');
     setOpdSubTab('today_queue');
     syncData();
     fetchLiveAppointments();
@@ -1154,7 +1157,7 @@ export const CompounderDashboard: React.FC = () => {
       api.createGate1Consult(vitalsPatient.id, 'counter');
       setBillingPatient(vitalsPatient);
       setSelectedApptPatient(vitalsPatient);
-      setActiveTab('tokens');
+      setActiveTab('opd_patients');
       setOpdSubTab('today_queue');
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
@@ -1659,7 +1662,7 @@ export const CompounderDashboard: React.FC = () => {
     api.setActivePatient(registered);
     setBillingPatient(registered);
     setSelectedApptPatient(registered);
-    setActiveTab('tokens');
+    setActiveTab('opd_patients');
     setOpdSubTab('today_queue');
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -1837,12 +1840,9 @@ export const CompounderDashboard: React.FC = () => {
         <div className="hidden md:flex overflow-x-auto gap-2 no-scrollbar select-none -mb-px p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5 backdrop-blur-md">
           {[
             { id: 'overview', label: 'Overview (कॉकपिट)', icon: <LayoutDashboard className="h-4 w-4 text-indigo-500" /> },
-            { id: 'tokens', label: 'Live Queue (टोकन)', icon: <Calendar className="h-4 w-4 text-rose-500" /> },
-            { id: 'patients', label: 'Patients (मरीज)', icon: <Users className="h-4 w-4 text-indigo-600" /> },
-            { id: 'labs', label: isOphthalmology ? 'Biometry (बायोमेट्री)' : nomenclature.careLoopLabStep, icon: <FlaskConical className="h-4 w-4 text-teal-500" /> },
-            { id: 'pharmacy', label: isOphthalmology ? 'Optical/Rx (चश्मा)' : nomenclature.careLoopPharmacyStep, icon: <QrCode className="h-4 w-4 text-amber-500" /> },
-            { id: 'ot_billing', label: isOphthalmology ? 'Daycare (सर्जरी)' : 'Minor OT (ओटी)', icon: <Scissors className="h-4 w-4 text-rose-600" /> },
-            { id: 'invoice_generator', label: 'Invoices & OCR (बिलिंग)', icon: <Printer className="h-4 w-4 text-slate-500 dark:text-slate-400" /> }
+            { id: 'opd_patients', label: 'OPD & Patients (कतार व मरीज)', icon: <Users className="h-4 w-4 text-indigo-600" /> },
+            { id: 'clinical_hub', label: isOphthalmology ? 'Biometry & Optical (लैब व दवा)' : 'Labs & Pharmacy (लैब व दवा)', icon: <FlaskConical className="h-4 w-4 text-teal-500" /> },
+            { id: 'billing_daycare', label: isOphthalmology ? 'Billing & Daycare (बिल व सर्जरी)' : 'Billing & Minor OT (बिल व ओटी)', icon: <Receipt className="h-4 w-4 text-amber-500" /> }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1870,7 +1870,7 @@ export const CompounderDashboard: React.FC = () => {
             {/* 1. Quick Stats Horizontal Carousel */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               <div 
-                onClick={() => setActiveTab('tokens')}
+                onClick={() => { setActiveTab('opd_patients'); setOpdSubTab('today_queue'); }}
                 className="glass-panel p-4 rounded-2xl border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition cursor-pointer group"
               >
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
@@ -1882,7 +1882,7 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               <div 
-                onClick={() => setActiveTab('tokens')}
+                onClick={() => { setActiveTab('opd_patients'); setOpdSubTab('today_queue'); }}
                 className="glass-panel p-4 rounded-2xl border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm hover:shadow-md transition cursor-pointer group"
               >
                 <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400 mb-2">
@@ -1899,8 +1899,13 @@ export const CompounderDashboard: React.FC = () => {
 
               <div 
                 onClick={() => {
-                  const p = pendingVitalsList[0];
-                  if (p) setVitalsPatient(p);
+                  const p = pendingVitalsList[0] || patients[0];
+                  if (p) {
+                    setVitalsPatient(p);
+                  } else {
+                    setActiveTab('opd_patients');
+                    setOpdSubTab('today_queue');
+                  }
                 }}
                 className="glass-panel p-4 rounded-2xl border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm hover:shadow-md transition cursor-pointer group"
               >
@@ -1913,7 +1918,7 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               <div 
-                onClick={() => setActiveTab('ot_billing')}
+                onClick={() => { setActiveTab('billing_daycare'); setBillingSubTab('ot_daycare'); }}
                 className="glass-panel p-4 rounded-2xl border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 shadow-sm hover:shadow-md transition cursor-pointer group"
               >
                 <div className="flex items-center justify-between text-purple-700 dark:text-purple-400 mb-2">
@@ -1926,21 +1931,36 @@ export const CompounderDashboard: React.FC = () => {
 
               <div 
                 onClick={() => {
-                  const firstP = patients[0];
-                  if (firstP) setShowDilationModal(firstP);
+                  if (isOphthalmology) {
+                    const firstP = patients[0];
+                    if (firstP) setShowDilationModal(firstP);
+                  } else {
+                    setActiveTab('opd_patients');
+                    setOpdSubTab('today_queue');
+                  }
                 }}
-                className="glass-panel p-4 rounded-2xl border-cyan-200 dark:border-cyan-900/40 bg-cyan-50/40 dark:bg-cyan-950/20 shadow-sm hover:shadow-md transition cursor-pointer group"
+                className={`glass-panel p-4 rounded-2xl ${isOphthalmology ? 'border-cyan-200 dark:border-cyan-900/40 bg-cyan-50/40 dark:bg-cyan-950/20' : 'border-teal-200 dark:border-teal-900/40 bg-teal-50/40 dark:bg-teal-950/20'} shadow-sm hover:shadow-md transition cursor-pointer group`}
               >
                 <div className="flex items-center justify-between text-cyan-700 dark:text-cyan-400 mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Eye Dilation</span>
-                  <Eye className="w-4 h-4 text-cyan-500 group-hover:scale-110 transition" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono">
+                    {isOphthalmology ? 'Eye Dilation' : 'Procedures & Triage'}
+                  </span>
+                  {isOphthalmology ? (
+                    <Eye className="w-4 h-4 text-cyan-500 group-hover:scale-110 transition" />
+                  ) : (
+                    <Activity className="w-4 h-4 text-teal-500 group-hover:scale-110 transition" />
+                  )}
                 </div>
-                <div className="text-2xl font-black text-cyan-600 dark:text-cyan-400">{activeDilationPatients.length}</div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-1">15m Countdown</div>
+                <div className="text-2xl font-black text-cyan-600 dark:text-cyan-400">
+                  {isOphthalmology ? activeDilationPatients.length : '4 Ready'}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-1">
+                  {isOphthalmology ? '15m Countdown' : 'Nebulizer & IV'}
+                </div>
               </div>
 
               <div 
-                onClick={() => setActiveTab('pharmacy')}
+                onClick={() => { setActiveTab('clinical_hub'); setClinicalSubTab('pharmacy'); }}
                 className="glass-panel p-4 rounded-2xl border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 shadow-sm hover:shadow-md transition cursor-pointer group"
               >
                 <div className="flex items-center justify-between text-rose-700 dark:text-rose-400 mb-2">
@@ -1976,7 +1996,14 @@ export const CompounderDashboard: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setShowVitalsBottomSheet(true)}
+                  onClick={() => {
+                    const firstAwaiting = pendingVitalsList[0] || patients[0];
+                    if (firstAwaiting) {
+                      setVitalsPatient(firstAwaiting);
+                    } else {
+                      setShowVitalsBottomSheet(true);
+                    }
+                  }}
                   className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-emerald-900/20 border border-emerald-200 dark:border-emerald-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer"
                 >
                   <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 shadow-md shadow-emerald-500/30">
@@ -1991,7 +2018,9 @@ export const CompounderDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveTab('invoice_generator');
+                    setBillHubInitialMode('ocr_scan');
+                    setBillingSubTab('ocr_scan');
+                    setActiveTab('billing_daycare');
                   }}
                   className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100/60 dark:from-purple-950/40 dark:to-purple-900/20 border border-purple-200 dark:border-purple-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer"
                 >
@@ -2007,7 +2036,9 @@ export const CompounderDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveTab('invoice_generator');
+                    setBillHubInitialMode('manual_billing');
+                    setBillingSubTab('billing');
+                    setActiveTab('billing_daycare');
                   }}
                   className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/60 dark:from-amber-950/40 dark:to-amber-900/20 border border-amber-200 dark:border-amber-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer"
                 >
@@ -2069,7 +2100,8 @@ export const CompounderDashboard: React.FC = () => {
                   type="button"
                   onClick={() => {
                     handleCallPatientChamber(sosEmergencyAppointment.patientName || 'Emergency Patient', sosEmergencyAppointment.tokenNumber || 'SOS');
-                    setActiveTab('tokens');
+                    setActiveTab('opd_patients');
+                    setOpdSubTab('today_queue');
                   }}
                   className="px-5 py-2.5 bg-white hover:bg-rose-50 text-rose-700 font-black text-xs rounded-xl shadow-md cursor-pointer transition border-0 uppercase tracking-wider flex items-center gap-2"
                 >
@@ -2079,88 +2111,154 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* 4. Two Column Operations Desk: Eye Dilation Timers & Live Chamber Tracker */}
+            {/* 4. Two Column Operations Desk: Specialization Station & Live Chamber Tracker */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 6 Cols: Eye Dilation Countdown Station */}
+              {/* Left 6 Cols: Eye Dilation (Eye) vs Clinical Procedures Station (GP) */}
               <div className="lg:col-span-6 space-y-4">
-                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm h-full flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
-                        <Eye className="w-4 h-4 text-cyan-600" />
-                        15-Min Eye Dilation Station (आई डाइलैशन)
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const candidate = patients.find(p => p.eyeDilationStatus !== 'in_progress');
-                          if (candidate) setShowDilationModal(candidate);
-                          else setShowQuickAddSheet(true);
-                        }}
-                        className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Start Dilation
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
-                      Tropicamide &amp; Phenylephrine eye drop tracking with automated 15-minute countdown alert for Doctor Retinoscopy.
-                    </p>
-
-                    {activeDilationPatients.length === 0 ? (
-                      <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
-                        <Timer className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400">No Active Eye Dilations Running</div>
-                        <p className="text-[10px] text-slate-400 mt-1">Click '+ Start Dilation' when applying drops to patient.</p>
+                {isOphthalmology ? (
+                  <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm h-full flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
+                          <Eye className="w-4 h-4 text-cyan-600" />
+                          15-Min Eye Dilation Station (आई डाइलैशन)
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const candidate = patients.find(p => p.eyeDilationStatus !== 'in_progress');
+                            if (candidate) setShowDilationModal(candidate);
+                            else setShowQuickAddSheet(true);
+                          }}
+                          className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Start Dilation
+                        </button>
                       </div>
-                    ) : (
-                      <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                        {activeDilationPatients.map((p) => {
-                          const elapsedSec = (currentTime.getTime() - new Date(p.dilationTimestamp!).getTime()) / 1000;
-                          const remSec = Math.max(0, 900 - elapsedSec);
-                          const remMin = Math.floor(remSec / 60);
-                          const remSeconds = Math.floor(remSec % 60);
-                          const isReady = remSec <= 0;
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
+                        Tropicamide &amp; Phenylephrine eye drop tracking with automated 15-minute countdown alert for Doctor Retinoscopy.
+                      </p>
 
-                          return (
-                            <div 
-                              key={p.id} 
-                              className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-                                isReady
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
-                                  : 'bg-cyan-50/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/60'
-                              }`}
-                            >
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
-                                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                    Token #{p.tokenNumber || 'TK-01'}
-                                  </span>
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                  Drops given: Tropicamide + Phenylephrine (BE)
-                                </div>
-                              </div>
+                      {activeDilationPatients.length === 0 ? (
+                        <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
+                          <Timer className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400">No Active Eye Dilations Running</div>
+                          <p className="text-[10px] text-slate-400 mt-1">Click '+ Start Dilation' when applying drops to patient.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                          {activeDilationPatients.map((p) => {
+                            const elapsedSec = (currentTime.getTime() - new Date(p.dilationTimestamp!).getTime()) / 1000;
+                            const remSec = Math.max(0, 900 - elapsedSec);
+                            const remMin = Math.floor(remSec / 60);
+                            const remSeconds = Math.floor(remSec % 60);
+                            const isReady = remSec <= 0;
 
-                              <div className="text-right">
-                                {isReady ? (
-                                  <span className="px-2.5 py-1 bg-emerald-600 text-white font-mono text-[10px] font-bold rounded-lg shadow-sm">
-                                    Ready for Fundus 👁️
-                                  </span>
-                                ) : (
-                                  <div className="flex items-center gap-1 text-xs font-black font-mono text-cyan-700 dark:text-cyan-300">
-                                    <Clock className="w-3.5 h-3.5 animate-spin" />
-                                    <span>{String(remMin).padStart(2, '0')}:{String(remSeconds).padStart(2, '0')}</span>
+                            return (
+                              <div 
+                                key={p.id} 
+                                className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
+                                  isReady
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
+                                    : 'bg-cyan-50/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/60'
+                                }`}
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
+                                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                      Token #{p.tokenNumber || 'TK-01'}
+                                    </span>
                                   </div>
-                                )}
+                                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    Drops given: Tropicamide + Phenylephrine (BE)
+                                  </div>
+                                </div>
+
+                                <div className="text-right">
+                                  {isReady ? (
+                                    <span className="px-2.5 py-1 bg-emerald-600 text-white font-mono text-[10px] font-bold rounded-lg shadow-sm">
+                                      Ready for Fundus 👁️
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-1 text-xs font-black font-mono text-cyan-700 dark:text-cyan-300">
+                                      <Clock className="w-3.5 h-3.5 animate-spin" />
+                                      <span>{String(remMin).padStart(2, '0')}:{String(remSeconds).padStart(2, '0')}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* GENERAL CLINIC / GP / CARDIOLOGY / PEDIATRICS / DERMATOLOGY STATION */
+                  <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm h-full flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-emerald-600" />
+                          Clinical Procedures &amp; Triage Station (चिकित्सीय प्रक्रियाएं)
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const p = pendingVitalsList[0] || patients[0];
+                            if (p) setVitalsPatient(p);
+                            else setShowQuickAddSheet(true);
+                          }}
+                          className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Record Procedure
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
+                        Live monitoring for ongoing minor treatments: Nebulization, IV Infusions, Injections &amp; Wound Dressing.
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/50 rounded-2xl">
+                          <div className="flex items-center justify-between text-teal-700 dark:text-teal-400 mb-1">
+                            <span className="text-[10px] font-bold font-mono uppercase">🫁 Nebulizer</span>
+                            <span className="text-[9px] bg-teal-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">15m</span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Duolin / Budecort</div>
+                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Triage Bed #1 Ready</div>
+                        </div>
+
+                        <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-2xl">
+                          <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 mb-1">
+                            <span className="text-[10px] font-bold font-mono uppercase">💧 IV Infusion</span>
+                            <span className="text-[9px] bg-blue-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Flowing</span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">NS 500ml / RL</div>
+                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Drip Stand Ready</div>
+                        </div>
+
+                        <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl">
+                          <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 mb-1">
+                            <span className="text-[10px] font-bold font-mono uppercase">🩹 Wound Care</span>
+                            <span className="text-[9px] bg-amber-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Clean</span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Sterile Dressing</div>
+                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Tray Sterilized</div>
+                        </div>
+
+                        <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-2xl">
+                          <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-400 mb-1">
+                            <span className="text-[10px] font-bold font-mono uppercase">💉 Injections</span>
+                            <span className="text-[9px] bg-indigo-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">IM/IV</span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Diclo / Pantop / TT</div>
+                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Counter Stocked</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right 6 Cols: Doctor Chamber Live Tracker & Next Patients */}
@@ -2247,140 +2345,99 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* 5. Live OPD Token Progression Rail */}
-            <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-indigo-600" />
-                  Today's OPD Token Progression Rail (मरीज़ का प्रवाह)
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('tokens')}
-                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                >
-                  View Full Queue <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
-                {/* Step 1: Intake / Awaiting Vitals */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 mb-2 font-mono text-[10px] font-bold uppercase">
-                    <span>1. Intake &amp; Vitals</span>
-                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded-md">{pendingVitalsList.length}</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {pendingVitalsList.slice(0, 3).map(p => (
-                      <div 
-                        key={p.id}
-                        onClick={() => setVitalsPatient(p)}
-                        className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs font-bold truncate cursor-pointer hover:border-amber-400 transition"
-                      >
-                        {p.name} <span className="text-[9px] text-slate-400 font-mono">({p.phone.slice(-4)})</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Step 2: Ready for Consult */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 mb-2 font-mono text-[10px] font-bold uppercase">
-                    <span>2. Ready for Doctor</span>
-                    <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-600 rounded-md">
-                      {activeOpdAppointments.filter(a => a.status === 'ready_for_consult').length}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {activeOpdAppointments.filter(a => a.status === 'ready_for_consult').slice(0, 3).map(a => (
-                      <div 
-                        key={a.id}
-                        className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs font-bold truncate"
-                      >
-                        #{a.tokenNumber} {a.patientName}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Step 3: In Chamber */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 mb-2 font-mono text-[10px] font-bold uppercase">
-                    <span>3. In Chamber</span>
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-md">
-                      {inChamberAppointment ? 1 : 0}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {inChamberAppointment ? (
-                      <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-300 dark:border-emerald-800 text-xs font-bold text-emerald-900 dark:text-emerald-200 truncate">
-                        #{inChamberAppointment.tokenNumber} {inChamberAppointment.patientName}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-400 italic py-2 text-center">Chamber Available</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Step 4: Post-Consult / Pharmacy & Lab */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 mb-2 font-mono text-[10px] font-bold uppercase">
-                    <span>4. Pharmacy / Lab Settle</span>
-                    <span className="px-2 py-0.5 bg-purple-500/10 text-purple-600 rounded-md">
-                      {activeOpdAppointments.filter(a => a.status === 'completed').length}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {activeOpdAppointments.filter(a => a.status === 'completed').slice(0, 3).map(a => (
-                      <div 
-                        key={a.id}
-                        onClick={() => setActiveTab('invoice_generator')}
-                        className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs font-bold truncate cursor-pointer hover:border-indigo-400 transition"
-                      >
-                        {a.patientName} <span className="text-[9px] text-emerald-600 font-mono">✅ Settle</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
         {/* ══════════════════════════════════════════════════════════
-            TAB: INVOICE GENERATOR & OCR SCAN
+            TAB: OPD QUEUE & PATIENTS (CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
-        {activeTab === 'invoice_generator' && (
-          <BillHubTab />
-        )}
-        
-        {/* PATIENTS DIRECTORY, ONBOARDER & INTAKE TAB */}
-        {activeTab === 'patients' && (
+        {activeTab === 'opd_patients' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* Sub Switcher */}
-            <div className="flex border-b border-slate-200 dark:border-slate-800 pb-2 gap-4">
+            {/* Consolidated OPD Sub-Tab Header */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-white/10 pb-3">
               <button
-                onClick={() => setPatientsSubTab('directory')}
-                className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
-                  patientsSubTab === 'directory'
-                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                type="button"
+                onClick={() => setOpdSubTab('today_queue')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  opdSubTab === 'today_queue'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
                 }`}
               >
-                EHR Registry Directory
+                <Layers className="w-4 h-4 shrink-0" />
+                Today's Active OPD Queue 🏥
+                <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                  {(() => {
+                    const todayStr = getIstDateString();
+                    return appointments.filter(a => {
+                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      return getEffectiveAppointmentDate(a) === todayStr;
+                    }).length;
+                  })()}
+                </span>
               </button>
               <button
-                onClick={() => setPatientsSubTab('register')}
-                className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
-                  patientsSubTab === 'register'
-                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                type="button"
+                onClick={() => setOpdSubTab('directory')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  opdSubTab === 'directory'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
                 }`}
               >
-                Register New Profile
+                <Users className="w-4 h-4 shrink-0" />
+                EHR Registry &amp; Registration 👥
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpdSubTab('history')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  opdSubTab === 'history'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
+                }`}
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                Upcoming Advance &amp; Past History 🕒
+                <span className="ml-1 bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                  {(() => {
+                    const todayStr = getIstDateString();
+                    return appointments.filter(a => {
+                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      const apptDate = getEffectiveAppointmentDate(a);
+                      return Boolean(apptDate && apptDate !== todayStr);
+                    }).length;
+                  })()}
+                </span>
               </button>
             </div>
+
+            {/* Sub-View 1: EHR Registry & Walk-In Registration */}
+            {opdSubTab === 'directory' && (
+              <div className="space-y-6 animate-fade-in text-left">
+                {/* Sub Switcher */}
+                <div className="flex border-b border-slate-200 dark:border-slate-800 pb-2 gap-4">
+                  <button
+                    onClick={() => setPatientsSubTab('directory')}
+                    className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
+                      patientsSubTab === 'directory'
+                        ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    EHR Registry Directory
+                  </button>
+                  <button
+                    onClick={() => setPatientsSubTab('register')}
+                    className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
+                      patientsSubTab === 'register'
+                        ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    Register New Profile
+                  </button>
+                </div>
 
             {patientsSubTab === 'directory' ? (
               <PatientsDirectoryTab
@@ -2830,76 +2887,8 @@ export const CompounderDashboard: React.FC = () => {
       </div>
     )}
 
-        {/* TAB 2: APPOINTMENTS & TOKENS */}
-        {activeTab === 'tokens' && (
-          <div className="space-y-6 text-left">
-            {/* SUB-TAB TOGGLE */}
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-white/10 pb-3">
-              <button
-                onClick={() => setOpdSubTab('today_queue')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  opdSubTab === 'today_queue'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
-                }`}
-              >
-                <Layers className="w-4 h-4 shrink-0" />
-                Today's Active OPD Queue 🏥
-                <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
-                  {(() => {
-                    const todayStr = getIstDateString();
-                    return appointments.filter(a => {
-                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      return getEffectiveAppointmentDate(a) === todayStr;
-                    }).length;
-                  })()}
-                </span>
-              </button>
-              <button
-                onClick={() => setOpdSubTab('upcoming_advance')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  opdSubTab === 'upcoming_advance'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
-                }`}
-              >
-                <Calendar className="w-4 h-4 shrink-0" />
-                Upcoming Advance Bookings 📅
-                <span className="ml-1 bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
-                  {(() => {
-                    const todayStr = getIstDateString();
-                    return appointments.filter(a => {
-                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = getEffectiveAppointmentDate(a);
-                      return Boolean(apptDate && apptDate > todayStr);
-                    }).length;
-                  })()}
-                </span>
-              </button>
-              <button
-                onClick={() => setOpdSubTab('past_history')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  opdSubTab === 'past_history'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
-                }`}
-              >
-                <Clock className="w-4 h-4 shrink-0" />
-                Past & All History 🕒
-                <span className="ml-1 bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
-                  {(() => {
-                    const todayStr = getIstDateString();
-                    return appointments.filter(a => {
-                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = getEffectiveAppointmentDate(a);
-                      return Boolean(apptDate && apptDate < todayStr);
-                    }).length;
-                  })()}
-                </span>
-              </button>
-            </div>
-
-            {opdSubTab === 'upcoming_advance' ? (
+            {/* Sub-View 2: Upcoming Advance & Past Consultation History */}
+            {opdSubTab === 'history' && (
               <div className="space-y-8 animate-fade-in">
                 {/* Section 1: Virtual Video Consultations Roster */}
                 <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
@@ -3149,7 +3138,10 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {/* Sub-View 3: Today's Active OPD Queue & Consultation Intake */}
+            {opdSubTab === 'today_queue' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
                 {/* Left Column: Create Appointment & Today's Appointments List */}
                 <div className="lg:col-span-8 space-y-6">
@@ -3228,7 +3220,8 @@ export const CompounderDashboard: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setActiveTab('patients');
+                                  setActiveTab('opd_patients');
+                                  setOpdSubTab('directory');
                                   setPatientsSubTab('register');
                                   setNewPatientName(searchApptPatient);
                                 }}
@@ -3426,17 +3419,13 @@ export const CompounderDashboard: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 px-3 py-1.5 rounded-xl">
                       {(() => {
-                        const now = new Date();
                         const todayStr = getIstDateString();
                         const count = appointments.filter(a => {
                           if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                           const apptDate = getEffectiveAppointmentDate(a);
-                          if ((opdSubTab as string) === 'past_history') {
-                            return Boolean(apptDate && apptDate < todayStr);
-                          }
                           return apptDate === todayStr;
                         }).length;
-                        return `${count} ${opdSubTab === 'past_history' ? 'Past Records' : 'Active Tokens Today'}`;
+                        return `${count} Active Tokens Today`;
                       })()}
                     </span>
                   </div>
@@ -4000,9 +3989,43 @@ export const CompounderDashboard: React.FC = () => {
       </div>
     )}
 
-      {/* TAB 3: PATHOLOGY LOG & TIMELINES */}
-        {activeTab === 'labs' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
+        {/* ══════════════════════════════════════════════════════════
+            TAB: CLINICAL HUB (LABS & PHARMACY CONSOLIDATED)
+        ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'clinical_hub' && (
+          <div className="space-y-6 animate-fade-in text-left">
+            {/* Consolidated Clinical Sub-Tab Header */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-3">
+              <button
+                type="button"
+                onClick={() => setClinicalSubTab('labs')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  clinicalSubTab === 'labs'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                }`}
+              >
+                <FlaskConical className="w-4 h-4 shrink-0 text-teal-500" />
+                {isOphthalmology ? 'Biometry & Pathology Labs (बायोमेट्री/लैब)' : 'Pathology & Lab Diagnostics (लैब जांच)'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setClinicalSubTab('pharmacy')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  clinicalSubTab === 'pharmacy'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                }`}
+              >
+                <QrCode className="w-4 h-4 shrink-0 text-amber-500" />
+                {isOphthalmology ? 'Optical Glasses & Pharmacy (चश्मा/दवा काउंटर)' : 'Pharmacy Dispensing & Stock (दवा काउंटर)'}
+              </button>
+            </div>
+
+            {/* Sub-View 1: Pathology & Biometry */}
+            {clinicalSubTab === 'labs' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
             {/* Left Column: Scheduled Pathology Tests Queue */}
             <div className="lg:col-span-7 space-y-6 text-left">
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
@@ -4179,9 +4202,9 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 5: GATE 3 PHARMACY BILLING */}
-        {activeTab === 'pharmacy' && (
-          <div className="space-y-6 text-left">
+          {/* Sub-View 2: Pharmacy Dispensing & Stock */}
+          {clinicalSubTab === 'pharmacy' && (
+            <div className="space-y-6 text-left animate-fade-in">
             {/* Reorder limit alerts banner */}
             {(() => {
               const lowStockItems = activeInventory.filter(item => item.stock <= item.threshold);
@@ -4323,13 +4346,77 @@ export const CompounderDashboard: React.FC = () => {
               })()}
 
             </div>
-
           </div>
         )}
+      </div>
+    )}
 
-        {/* TAB 6: DAYCARE SURGERY & OT PACKAGE BILLING */}
-        {activeTab === ('ot_billing' as any) && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
+        {/* ══════════════════════════════════════════════════════════
+            TAB: BILLING & MINOR OT (CONSOLIDATED)
+        ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'billing_daycare' && (
+          <div className="space-y-6 animate-fade-in text-left">
+            {/* Consolidated Billing Sub-Tab Header */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setBillingSubTab('billing');
+                  setBillHubInitialMode('manual_billing');
+                }}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  billingSubTab === 'billing'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                }`}
+              >
+                <Receipt className="w-4 h-4 shrink-0 text-indigo-500" />
+                Counter Invoices &amp; Billing (बिलिंग)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setBillingSubTab('ocr_scan');
+                  setBillHubInitialMode('ocr_scan');
+                }}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  billingSubTab === 'ocr_scan'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                }`}
+              >
+                <Camera className="w-4 h-4 shrink-0 text-purple-500" />
+                AI Prescription Scan OCR (पर्ची स्कैन)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBillingSubTab('ot_daycare')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  billingSubTab === 'ot_daycare'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                }`}
+              >
+                <Scissors className="w-4 h-4 shrink-0 text-rose-600" />
+                {isOphthalmology ? 'Daycare Surgery Pipeline (डे-केयर सर्जरी)' : 'Minor OT Procedures (माइनर ओटी)'}
+              </button>
+            </div>
+
+            {/* Sub-View 1: Manual Counter Billing */}
+            {billingSubTab === 'billing' && (
+              <BillHubTab initialMode="manual_billing" />
+            )}
+
+            {/* Sub-View 2: AI Prescription Scan OCR */}
+            {billingSubTab === 'ocr_scan' && (
+              <BillHubTab initialMode="ocr_scan" />
+            )}
+
+            {/* Sub-View 3: OT & Daycare Surgery */}
+            {billingSubTab === 'ot_daycare' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
             {/* Left Column: Scheduled Daycare List */}
               <div className="lg:col-span-6 space-y-6">
                 <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-left">
@@ -4480,10 +4567,11 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-</div>
+            </div>
           )}
-
         </div>
+      )}
+      </div>
 
       {/* Sliding WhatsApp Chat Drawer */}
       <div 
@@ -5441,16 +5529,12 @@ export const CompounderDashboard: React.FC = () => {
         document.body
       )}
 
-      {/* ── FLOATING MOBILE BOTTOM NAVIGATION BAR (iOS / Modern Native) ───────── */}
-      <div className="fixed bottom-0 left-0 right-0 z-[990] md:hidden bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800 shadow-2xl p-2 px-3 flex justify-around items-center select-none">
+      <div className="fixed bottom-0 left-0 right-0 z-[990] md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800 shadow-2xl p-2 px-4 flex justify-around items-center select-none">
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-          { id: 'tokens', label: 'Queue', icon: Calendar },
-          { id: 'patients', label: 'Patients', icon: Users },
-          { id: 'labs', label: 'Labs', icon: FlaskConical },
-          { id: 'pharmacy', label: 'Pharmacy', icon: QrCode },
-          { id: 'ot_billing', label: 'OT Daycare', icon: Scissors },
-          { id: 'invoice_generator', label: 'Billing', icon: Printer }
+          { id: 'opd_patients', label: 'OPD Queue', icon: Users },
+          { id: 'clinical_hub', label: isOphthalmology ? 'Biometry/Rx' : 'Clinical', icon: FlaskConical },
+          { id: 'billing_daycare', label: isOphthalmology ? 'Bill & Daycare' : 'Bill & OT', icon: Receipt }
         ].map((item) => {
           const IconComp = item.icon;
           const isActive = activeTab === item.id;
@@ -5459,15 +5543,15 @@ export const CompounderDashboard: React.FC = () => {
               key={item.id}
               type="button"
               onClick={() => setActiveTab(item.id as any)}
-              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition cursor-pointer border-0 bg-transparent ${
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition cursor-pointer border-0 bg-transparent ${
                 isActive
                   ? 'text-indigo-600 dark:text-indigo-400 font-black'
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
               }`}
             >
               <IconComp className={`w-5 h-5 ${isActive ? 'scale-110 text-indigo-600 dark:text-indigo-400' : ''}`} />
-              <span className="text-[9px] font-bold mt-0.5">{item.label}</span>
-              {isActive && <span className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-0.5" />}
+              <span className="text-[10px] font-bold mt-0.5">{item.label}</span>
+              {isActive && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-0.5 animate-pulse" />}
             </button>
           );
         })}
