@@ -140,8 +140,9 @@ export const FounderAICopilotModal: React.FC<FounderAICopilotModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in font-sans">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl max-w-2xl w-full h-[90vh] sm:h-[82vh] flex flex-col shadow-2xl overflow-hidden relative">
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in font-sans">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[90vh] sm:h-[82vh] flex flex-col shadow-2xl overflow-hidden relative">
+        <div className="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-1.5 block sm:hidden shrink-0" />
         
         {/* ── Top Header ────────────────────────────────────────────────────────── */}
         <div className="p-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-cyan-50/80 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-cyan-950/40">

@@ -28,7 +28,12 @@ import {
   Users,
   MessageSquare,
   FlaskConical,
-  UploadCloud
+  UploadCloud,
+  Activity,
+  Bot,
+  Building,
+  Coins,
+  Sliders
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
@@ -1101,11 +1106,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             if (currentRole === 'saas_admin') {
               const adminTabs = [
-                { id: 'saas_health', label: 'Health', icon: Settings },
-                { id: 'onboarding', label: 'Onboard', icon: UserPlus },
-                { id: 'revenue', label: 'Finance', icon: QrCode },
-                { id: 'costs', label: 'Costs', icon: FileText },
-                { id: 'firewall', label: 'Sentry', icon: ShieldCheck }
+                { id: 'saas_health', label: 'Health', icon: Activity },
+                { id: 'ai_fleet', label: 'AI Fleet', icon: Bot },
+                { id: 'onboarding', label: 'Pods', icon: Building },
+                { id: 'revenue', label: 'Finance', icon: Coins },
+                { id: 'costs', label: 'Costs', icon: Sliders },
+                { id: 'firewall', label: 'Sentry', icon: ShieldAlert }
               ];
               return adminTabs.map(t => {
                 const Icon = t.icon;
@@ -1118,7 +1124,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       setActiveAdminTab(t.id);
                       window.dispatchEvent(new CustomEvent('mediflow-admin-tab-changed', { detail: t.id }));
                     }}
-                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none active:scale-95 ${
                       isActive 
                         ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -1127,7 +1133,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
                       <Icon className="h-4 w-4 shrink-0" />
                     </div>
-                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
+                    <span className={`text-[9px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
                     </span>
                   </button>
