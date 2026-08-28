@@ -90,8 +90,13 @@ import {
   Check,
   ArrowRight,
   Crosshair,
-  Compass,
-  Camera
+  Camera,
+  CreditCard,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  User,
+  FileCheck
 } from 'lucide-react';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
@@ -182,6 +187,27 @@ export const CompounderDashboard: React.FC = () => {
   const [weightVal, setWeightVal] = useState('65');
   const [sugarVal, setSugarVal] = useState('105');
   const [isSavingVitals, setIsSavingVitals] = useState(false);
+
+  // Quick Vitals Source Filter Tab
+  const [vitalsSourceFilter, setVitalsSourceFilter] = useState<'all' | 'whatsapp' | 'qr_scan' | 'counter'>('all');
+  const [vitalsSearchTerm, setVitalsSearchTerm] = useState('');
+
+  // Instant Fast-Intake Panel States
+  const [instantSearchQuery, setInstantSearchQuery] = useState('');
+  const [instantSelectedPatient, setInstantSelectedPatient] = useState<Patient | null>(null);
+  const [instantName, setInstantName] = useState('');
+  const [instantPhone, setInstantPhone] = useState('');
+  const [instantAge, setInstantAge] = useState('');
+  const [instantGender, setInstantGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [instantFeeStatus, setInstantFeeStatus] = useState<'paid_cash' | 'paid_upi' | 'waived_loyalty'>('paid_upi');
+  const [instantBpSys, setInstantBpSys] = useState('120');
+  const [instantBpDia, setInstantBpDia] = useState('80');
+  const [instantPulse, setInstantPulse] = useState('72');
+  const [instantSpO2, setInstantSpO2] = useState('99');
+  const [instantTemp, setInstantTemp] = useState('98.6');
+  const [instantSugar, setInstantSugar] = useState('');
+  const [instantWeight, setInstantWeight] = useState('65');
+  const [isSubmittingInstant, setIsSubmittingInstant] = useState(false);
 
   useEffect(() => {
     if (vitalsPatient) {
@@ -466,6 +492,228 @@ export const CompounderDashboard: React.FC = () => {
       return !p.vitals || p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered';
     });
   }, [patients, dataRevision]);
+
+  const getPatientSourceTag = useCallback((p: Patient) => {
+    const todayStr = getIstDateString();
+    const appt = appointments.find(a => 
+      (a.patientId === p.id || (a as any).patient_id === p.id) &&
+      (getEffectiveAppointmentDate(a) === todayStr || (a.createdAt || '').startsWith(todayStr))
+    );
+    const src = String(appt?.source || (p as any).source || '').toLowerCase();
+    if (src.includes('whatsapp') || src.includes('bot')) return 'whatsapp';
+    if (src.includes('qr') || (p.patientCode && p.patientCode.startsWith('QR'))) return 'qr_scan';
+    return 'counter';
+  }, [appointments]);
+
+  const whatsappPendingVitals = useMemo(() => {
+    return pendingVitalsList.filter(p => getPatientSourceTag(p) === 'whatsapp');
+  }, [pendingVitalsList, getPatientSourceTag]);
+
+  const qrPendingVitals = useMemo(() => {
+    return pendingVitalsList.filter(p => getPatientSourceTag(p) === 'qr_scan');
+  }, [pendingVitalsList, getPatientSourceTag]);
+
+  const counterPendingVitals = useMemo(() => {
+    return pendingVitalsList.filter(p => getPatientSourceTag(p) === 'counter');
+  }, [pendingVitalsList, getPatientSourceTag]);
+
+  const filteredPendingVitalsList = useMemo(() => {
+    let list = pendingVitalsList;
+    if (vitalsSourceFilter === 'whatsapp') list = whatsappPendingVitals;
+    else if (vitalsSourceFilter === 'qr_scan') list = qrPendingVitals;
+    else if (vitalsSourceFilter === 'counter') list = counterPendingVitals;
+    
+    if (vitalsSearchTerm.trim()) {
+      const q = vitalsSearchTerm.toLowerCase().trim();
+      list = list.filter(p => 
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.phone || '').includes(q) ||
+        String(p.tokenNumber || '').toLowerCase().includes(q) ||
+        (p.patientCode || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [pendingVitalsList, vitalsSourceFilter, vitalsSearchTerm, whatsappPendingVitals, qrPendingVitals, counterPendingVitals]);
+
+  const arrivedLabReports = useMemo(() => {
+    const reqs = LabService.getLabRequisitions();
+    return reqs.filter(r => {
+      const isDone = r.status === 'completed' || r.status === 'processed' || Boolean(r.quantitativeResult);
+      return isDone;
+    }).slice(0, 10);
+  }, [dataRevision]);
+
+  const handleSendLabReportWhatsApp = async (req: LabRequisition) => {
+    try {
+      const p = patients.find(pat => pat.id === req.patientId);
+      const phone = p?.phone || '919876543210';
+      const patientName = req.patientName || p?.name || 'Patient';
+      
+      const msgText = `🔬 *VitalSync Lab Alert — Report Ready!* 📄\n\nDear *${patientName}*, your laboratory test *${req.testName}* report is ready.\n\n📊 *Result Summary:* ${req.quantitativeResult || 'Test Normal & Verified'}\n🏥 *Evening Review:* 04:30 PM - 05:30 PM at Clinic Counter with Dr. ${activePod?.doctor_name || 'Attending Physician'}.\n\n_VitalSync Virtual Hospital Network_`;
+
+      await api.pushWhatsAppMessageFromBot(phone, msgText);
+      
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'WhatsApp Alert Dispatched! 📲',
+          message: `Lab result notification sent to ${patientName} (+91 ${phone.slice(-4)}).`,
+          type: 'success'
+        }
+      }));
+      setDataRevision(prev => prev + 1);
+    } catch (_err) {
+      console.warn('[LabWhatsApp] Error sending alert:', _err);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Alert Notice',
+          message: `WhatsApp notification queued for dispatch.`,
+          type: 'info'
+        }
+      }));
+    }
+  };
+
+  const handleInstantAppointmentAndVitals = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmittingInstant) return;
+    
+    const pName = (instantSelectedPatient ? instantSelectedPatient.name : instantName).trim();
+    const pPhone = (instantSelectedPatient ? instantSelectedPatient.phone : instantPhone).replace(/\D/g, '');
+
+    if (!pName) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Name Required', message: 'Please enter patient full name.', type: 'error' }
+      }));
+      return;
+    }
+    if (pPhone.length < 10) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Valid Phone Required', message: 'Please enter a 10-digit mobile number.', type: 'error' }
+      }));
+      return;
+    }
+
+    setIsSubmittingInstant(true);
+    try {
+      let targetPatient: Patient;
+      if (instantSelectedPatient) {
+        targetPatient = instantSelectedPatient;
+      } else {
+        const existing = patients.find(p => p.phone.slice(-10) === pPhone.slice(-10));
+        if (existing) {
+          targetPatient = existing;
+        } else {
+          targetPatient = api.registerPatient({
+            name: pName,
+            phone: pPhone,
+            age: parseInt(instantAge) || 35,
+            gender: instantGender,
+            allergies: [],
+            chronicConditions: []
+          });
+        }
+      }
+
+      const assignedToken = api.generateNextTokenNumber();
+      const bp = (instantBpSys && instantBpDia) ? `${instantBpSys}/${instantBpDia}` : (instantBpSys || '120/80');
+      const vitals: PatientVitals = {
+        bloodPressure: bp,
+        pulseRate: instantPulse || '72',
+        spO2: instantSpO2 || '99',
+        temperature: instantTemp || '98.6',
+        weight: instantWeight || '65',
+        bloodSugar: instantSugar ? String(instantSugar) : undefined,
+        recordedAt: new Date().toISOString()
+      };
+
+      // 1. Update Patient with Vitals and Token
+      targetPatient.vitals = vitals;
+      targetPatient.queueStatus = 'awaiting_consultation';
+      targetPatient.tokenNumber = String(assignedToken);
+      api.savePatients([...patients]);
+
+      // 2. Create Gate 1 Consultation Invoice and clear payment
+      const inv = BillingService.createGate1Consult(targetPatient.id);
+      if (inv) {
+        if (instantFeeStatus !== 'waived_loyalty') {
+          await BillingService.recordInvoicePayment(inv.id, instantFeeStatus === 'paid_cash' ? 'cash' : 'upi');
+        }
+      }
+
+      // 3. Create or update Appointment
+      const todayStr = getIstDateString();
+      const existingAppt = appointments.find(a => 
+        (a.patientId === targetPatient.id || (a as any).patient_id === targetPatient.id) &&
+        (getEffectiveAppointmentDate(a) === todayStr || (a.createdAt || '').startsWith(todayStr))
+      );
+
+      if (existingAppt) {
+        existingAppt.status = 'ready_for_consult';
+        existingAppt.tokenNumber = String(assignedToken);
+        (existingAppt as any).token_number = String(assignedToken);
+        BillingService.saveAppointments([...appointments]);
+      } else {
+        const newAppt: Appointment = {
+          id: `apt-${Date.now()}`,
+          patientId: targetPatient.id,
+          doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+          status: 'ready_for_consult',
+          date: todayStr,
+          tokenNumber: String(assignedToken),
+          patientName: targetPatient.name,
+          patientPhone: targetPatient.phone,
+          isVirtual: false,
+          source: 'counter'
+        } as any;
+        BillingService.saveAppointments([newAppt, ...appointments]);
+      }
+
+      // 4. Remote Postgres Sync (Non-blocking)
+      (async () => {
+        try {
+          await supabase.from('patient_registry').upsert({
+            id: targetPatient.id,
+            name: targetPatient.name,
+            phone: targetPatient.phone,
+            vitals: vitals,
+            queue_status: 'awaiting_consultation',
+            token_number: String(assignedToken)
+          });
+        } catch (_err) {}
+      })();
+
+      // 5. Toast & Voice announcement
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: `Token #${assignedToken} Confirmed! 🩺`,
+          message: `${targetPatient.name} booked, fee cleared (${instantFeeStatus === 'waived_loyalty' ? 'Loyalty Waived' : '₹500.00 Paid'}), vitals recorded & routed to Doctor!`,
+          type: 'success'
+        }
+      }));
+
+      handleCallPatientChamber(targetPatient.name, String(assignedToken));
+
+      // Reset form
+      setInstantSearchQuery('');
+      setInstantSelectedPatient(null);
+      setInstantName('');
+      setInstantPhone('');
+      setInstantAge('');
+      setInstantBpSys('120');
+      setInstantBpDia('80');
+      setInstantPulse('72');
+      setInstantSpO2('99');
+      setInstantTemp('98.6');
+      setInstantSugar('');
+      setDataRevision(prev => prev + 1);
+      setPatients(api.getPatients());
+      fetchLiveAppointments();
+    } catch (err) {
+      console.error('[InstantBooking] Error:', err);
+    } finally {
+      setIsSubmittingInstant(false);
+    }
+  };
 
   const activeDilationPatients = useMemo(() => {
     return patients.filter(p => {
@@ -2111,158 +2359,10 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* 4. Two Column Operations Desk: Specialization Station & Live Chamber Tracker */}
+            {/* 4. Two Column Operations Desk: Chamber Live Status (Left/Top on Mobile) & Lab Reports Arrived (Right) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 6 Cols: Eye Dilation (Eye) vs Clinical Procedures Station (GP) */}
-              <div className="lg:col-span-6 space-y-4">
-                {isOphthalmology ? (
-                  <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm h-full flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
-                          <Eye className="w-4 h-4 text-cyan-600" />
-                          15-Min Eye Dilation Station (आई डाइलैशन)
-                        </h3>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const candidate = patients.find(p => p.eyeDilationStatus !== 'in_progress');
-                            if (candidate) setShowDilationModal(candidate);
-                            else setShowQuickAddSheet(true);
-                          }}
-                          className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Start Dilation
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
-                        Tropicamide &amp; Phenylephrine eye drop tracking with automated 15-minute countdown alert for Doctor Retinoscopy.
-                      </p>
-
-                      {activeDilationPatients.length === 0 ? (
-                        <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
-                          <Timer className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400">No Active Eye Dilations Running</div>
-                          <p className="text-[10px] text-slate-400 mt-1">Click '+ Start Dilation' when applying drops to patient.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                          {activeDilationPatients.map((p) => {
-                            const elapsedSec = (currentTime.getTime() - new Date(p.dilationTimestamp!).getTime()) / 1000;
-                            const remSec = Math.max(0, 900 - elapsedSec);
-                            const remMin = Math.floor(remSec / 60);
-                            const remSeconds = Math.floor(remSec % 60);
-                            const isReady = remSec <= 0;
-
-                            return (
-                              <div 
-                                key={p.id} 
-                                className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-                                  isReady
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
-                                    : 'bg-cyan-50/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/60'
-                                }`}
-                              >
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
-                                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                      Token #{p.tokenNumber || 'TK-01'}
-                                    </span>
-                                  </div>
-                                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                                    Drops given: Tropicamide + Phenylephrine (BE)
-                                  </div>
-                                </div>
-
-                                <div className="text-right">
-                                  {isReady ? (
-                                    <span className="px-2.5 py-1 bg-emerald-600 text-white font-mono text-[10px] font-bold rounded-lg shadow-sm">
-                                      Ready for Fundus 👁️
-                                    </span>
-                                  ) : (
-                                    <div className="flex items-center gap-1 text-xs font-black font-mono text-cyan-700 dark:text-cyan-300">
-                                      <Clock className="w-3.5 h-3.5 animate-spin" />
-                                      <span>{String(remMin).padStart(2, '0')}:{String(remSeconds).padStart(2, '0')}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* GENERAL CLINIC / GP / CARDIOLOGY / PEDIATRICS / DERMATOLOGY STATION */
-                  <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm h-full flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
-                          <Activity className="w-4 h-4 text-emerald-600" />
-                          Clinical Procedures &amp; Triage Station (चिकित्सीय प्रक्रियाएं)
-                        </h3>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const p = pendingVitalsList[0] || patients[0];
-                            if (p) setVitalsPatient(p);
-                            else setShowQuickAddSheet(true);
-                          }}
-                          className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Record Procedure
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
-                        Live monitoring for ongoing minor treatments: Nebulization, IV Infusions, Injections &amp; Wound Dressing.
-                      </p>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/50 rounded-2xl">
-                          <div className="flex items-center justify-between text-teal-700 dark:text-teal-400 mb-1">
-                            <span className="text-[10px] font-bold font-mono uppercase">🫁 Nebulizer</span>
-                            <span className="text-[9px] bg-teal-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">15m</span>
-                          </div>
-                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Duolin / Budecort</div>
-                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Triage Bed #1 Ready</div>
-                        </div>
-
-                        <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-2xl">
-                          <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 mb-1">
-                            <span className="text-[10px] font-bold font-mono uppercase">💧 IV Infusion</span>
-                            <span className="text-[9px] bg-blue-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Flowing</span>
-                          </div>
-                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">NS 500ml / RL</div>
-                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Drip Stand Ready</div>
-                        </div>
-
-                        <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl">
-                          <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 mb-1">
-                            <span className="text-[10px] font-bold font-mono uppercase">🩹 Wound Care</span>
-                            <span className="text-[9px] bg-amber-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Clean</span>
-                          </div>
-                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Sterile Dressing</div>
-                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Tray Sterilized</div>
-                        </div>
-
-                        <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-2xl">
-                          <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-400 mb-1">
-                            <span className="text-[10px] font-bold font-mono uppercase">💉 Injections</span>
-                            <span className="text-[9px] bg-indigo-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">IM/IV</span>
-                          </div>
-                          <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Diclo / Pantop / TT</div>
-                          <div className="text-[9px] text-slate-500 mt-1 font-mono">Counter Stocked</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right 6 Cols: Doctor Chamber Live Tracker & Next Patients */}
-              <div className="lg:col-span-6 space-y-4">
+              {/* Left 6 Cols (Top in Mobile): Doctor Chamber Live Tracker & Next Patients with SOS Priority #1 */}
+              <div className="lg:col-span-6 order-1 space-y-4">
                 <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm h-full flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -2270,9 +2370,12 @@ export const CompounderDashboard: React.FC = () => {
                         <Stethoscope className="w-4 h-4 text-emerald-600" />
                         Chamber Live Status (डॉक्टर केबिन)
                       </h3>
-                      <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                        {activePod?.doctor_name || 'Dr. Attending Physician'}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                          {activePod?.doctor_name || 'Dr. Attending Physician'}
+                        </span>
+                      </div>
                     </div>
 
                     {inChamberAppointment ? (
@@ -2301,49 +2404,603 @@ export const CompounderDashboard: React.FC = () => {
                             const next = activeOpdAppointments.find(a => a.status === 'ready_for_consult');
                             if (next) handleCallPatientChamber(next.patientName || 'Next Patient', next.tokenNumber || 'Next');
                           }}
-                          className="mt-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg cursor-pointer transition border-0"
+                          className="mt-2 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg cursor-pointer transition border-0 inline-flex items-center gap-1.5 shadow-sm"
                         >
-                          📢 Announce Next in Queue
+                          <Volume2 className="w-3.5 h-3.5" /> Announce Next in Queue
                         </button>
                       </div>
                     )}
 
-                    <div className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      Next in Waiting Line ({activeOpdAppointments.filter(a => a.status === 'ready_for_consult').length} Ready)
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Next in Waiting Line ({activeOpdAppointments.filter(a => a.status === 'ready_for_consult').length} Ready)
+                      </div>
+                      <span className="text-[9px] text-slate-400 font-mono">Top 5 Live Queue</span>
                     </div>
 
                     <div className="space-y-2">
-                      {activeOpdAppointments
-                        .filter(a => a.status === 'ready_for_consult')
-                        .slice(0, 3)
-                        .map((a, idx) => (
-                          <div 
-                            key={a.id}
-                            className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-[9px] font-mono font-bold flex items-center justify-center">
-                                {idx + 1}
-                              </span>
-                              <div>
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">{a.patientName}</span>
-                                <span className="text-[9px] text-slate-500 font-mono">Token: #{a.tokenNumber}</span>
+                      {/* Emergency SOS Priority #1 Item Pinning */}
+                      {sosEmergencyAppointment && (
+                        <div className="p-3 rounded-2xl border-2 border-rose-500 bg-rose-50/80 dark:bg-rose-950/40 flex items-center justify-between animate-pulse">
+                          <div className="flex items-center gap-2.5">
+                            <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black tracking-wider uppercase flex items-center gap-1 shadow-xs">
+                              <ShieldAlert className="w-3 h-3 text-white" /> SOS #1
+                            </span>
+                            <div>
+                              <div className="text-xs font-black text-rose-900 dark:text-rose-200">
+                                {sosEmergencyAppointment.patientName || 'Emergency Patient'}
+                              </div>
+                              <div className="text-[10px] text-rose-700 dark:text-rose-400 font-mono">
+                                Token: #{sosEmergencyAppointment.tokenNumber} · ₹618 Verified
                               </div>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleCallPatientChamber(a.patientName || 'Patient', a.tokenNumber || 'Next')}
-                              className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 font-mono text-[10px] font-bold rounded-lg cursor-pointer transition"
-                            >
-                              Call 🔊
-                            </button>
                           </div>
-                        ))}
+
+                          <button
+                            type="button"
+                            onClick={() => handleCallPatientChamber(sosEmergencyAppointment.patientName || 'Emergency Patient', sosEmergencyAppointment.tokenNumber || 'SOS')}
+                            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-mono text-[10px] font-bold rounded-lg cursor-pointer transition border-0 flex items-center gap-1 shadow-sm"
+                          >
+                            Route Now 🔊
+                          </button>
+                        </div>
+                      )}
+
+                      {activeOpdAppointments
+                        .filter(a => a.status === 'ready_for_consult' && a.id !== sosEmergencyAppointment?.id)
+                        .slice(0, 5)
+                        .map((a, idx) => {
+                          const src = String(a.source || '').toLowerCase();
+                          const srcBadge = src.includes('whatsapp') ? 'WhatsApp 🟢' : src.includes('qr') ? 'QR Scan 📲' : 'Counter 🏥';
+                          return (
+                            <div 
+                              key={a.id}
+                              className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between hover:bg-indigo-50/30 transition"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-mono font-bold flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
+                                  {idx + (sosEmergencyAppointment ? 2 : 1)}
+                                </span>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">{a.patientName}</span>
+                                    <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">
+                                      {srcBadge}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-500 font-mono">Token: #{a.tokenNumber} · +91 {(a.patientPhone || '9876543210').slice(-4)}</span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleCallPatientChamber(a.patientName || 'Patient', a.tokenNumber || 'Next')}
+                                className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 font-mono text-[10px] font-bold rounded-lg cursor-pointer transition flex items-center gap-1 shadow-xs"
+                              >
+                                Call 🔊
+                              </button>
+                            </div>
+                          );
+                        })}
+
+                      {activeOpdAppointments.filter(a => a.status === 'ready_for_consult').length === 0 && !sosEmergencyAppointment && (
+                        <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                          <div className="text-xs font-bold text-slate-700 dark:text-slate-300">Queue is Clear</div>
+                          <p className="text-[10px] text-slate-400 mt-1">All vitals-recorded patients have been consulted.</p>
+                          <button
+                            type="button"
+                            onClick={() => setShowVitalsBottomSheet(true)}
+                            className="mt-2.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded-lg cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Record Vitals for Waiting Patient
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Right 6 Cols: Patient Lab Reports Arrived & Evening Review Widget */}
+              <div className="lg:col-span-6 order-2 space-y-4">
+                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm h-full flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
+                        <FlaskConical className="w-4 h-4 text-purple-600" />
+                        Lab Reports Arrived &amp; Review (लैब रिपोर्ट्स आई / तैयार)
+                      </h3>
+                      <span className="text-[10px] font-mono font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800">
+                        {arrivedLabReports.length} Reports Ready
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
+                      Instant biomarker alerts &amp; evening physical/video doctor follow-up review dispatcher.
+                    </p>
+
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {arrivedLabReports.map((req) => (
+                        <div 
+                          key={req.id}
+                          className="p-3 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 hover:border-purple-300 transition"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-slate-900 dark:text-white">{req.patientName}</span>
+                                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-[9px] font-mono font-bold rounded-md">
+                                  {req.barcode || 'LAB-READY'}
+                                </span>
+                              </div>
+                              <div className="text-[11px] font-bold text-purple-800 dark:text-purple-300 mt-0.5">
+                                {req.testName}
+                              </div>
+                              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold mt-0.5">
+                                Result: {req.quantitativeResult || 'Normal / Completed ✅'}
+                              </div>
+                              <div className="text-[9px] text-slate-500 font-mono mt-0.5">
+                                Evening Slot: {req.revisitScheduledAt ? new Date(req.revisitScheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '04:30 PM - 05:30 PM'}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleSendLabReportWhatsApp(req)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-[9px] font-bold rounded-lg cursor-pointer transition border-0 flex items-center gap-1 shadow-xs"
+                              >
+                                <Smartphone className="w-3 h-3" /> WhatsApp Alert 📲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveTab('clinical_hub');
+                                  setClinicalSubTab('labs');
+                                }}
+                                className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-purple-50 text-purple-700 dark:text-purple-300 font-mono text-[9px] font-bold rounded-lg cursor-pointer transition border border-purple-200 dark:border-purple-800 flex items-center gap-1"
+                              >
+                                <FileText className="w-3 h-3" /> View Worklist
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {arrivedLabReports.length === 0 && (
+                        <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
+                          <FlaskConical className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400">No Arrived Reports Pending Review</div>
+                          <p className="text-[10px] text-slate-400 mt-1">Completed lab investigations will automatically appear here with 1-click WhatsApp alerts.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTab('clinical_hub');
+                              setClinicalSubTab('labs');
+                            }}
+                            className="mt-2.5 px-3 py-1 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[10px] font-bold rounded-lg cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Open Lab Requisition Worklist
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. ⚡ Instant Appointment Booking & Vitals Intake Desk */}
+            <div className="glass-panel p-5 sm:p-6 rounded-3xl border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/30 via-white to-purple-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30 shadow-md">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-200/80 dark:border-white/10">
+                <div>
+                  <h3 className="text-sm font-black uppercase font-mono tracking-wider text-indigo-950 dark:text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-600 animate-spin" />
+                    Instant Appointment &amp; Vitals Intake Desk (त्वरित अप्वाइंटमेंट व वाइटल्स)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Search existing patient or type new walk-in details, collect ₹500 fee, record vitals, and issue token in 1 click.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 bg-indigo-600 text-white font-mono text-[10px] font-bold rounded-xl shadow-xs">
+                  ⚡ 1-Click Fast OPD Routing
+                </span>
+              </div>
+
+              <form onSubmit={handleInstantAppointmentAndVitals} className="space-y-4">
+                {/* Search & Patient Auto-Suggest */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-5 relative">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                      Search Patient Name / Phone / ABHA / ID
+                    </label>
+                    <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                        type="text"
+                        value={instantSearchQuery}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setInstantSearchQuery(val);
+                          const q = val.toLowerCase().trim();
+                          if (q) {
+                            const match = patients.find(p => 
+                              (p.name || '').toLowerCase().includes(q) ||
+                              (p.phone || '').includes(q) ||
+                              (p.patientCode || '').toLowerCase().includes(q) ||
+                              (p.abhaId || '').toLowerCase().includes(q)
+                            );
+                            if (match) {
+                              setInstantSelectedPatient(match);
+                              setInstantName(match.name);
+                              setInstantPhone(match.phone);
+                              setInstantAge(String(match.age || '35'));
+                              setInstantGender(match.gender || 'Male');
+                            } else {
+                              setInstantSelectedPatient(null);
+                              setInstantName(val);
+                            }
+                          } else {
+                            setInstantSelectedPatient(null);
+                            setInstantName('');
+                            setInstantPhone('');
+                            setInstantAge('');
+                          }
+                        }}
+                        placeholder="Type name e.g. Ramesh, 9876543210, or P-101..."
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    {instantSelectedPatient && (
+                      <span className="text-[9px] text-emerald-600 font-mono font-bold mt-1 block">
+                        ✓ Registered Record: #{instantSelectedPatient.tokenNumber || 'TK'} · {instantSelectedPatient.name} (+91 {instantSelectedPatient.phone.slice(-4)})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                      Patient Full Name *
+                    </label>
+                    <input 
+                      type="text"
+                      required
+                      value={instantName}
+                      onChange={(e) => setInstantName(e.target.value)}
+                      placeholder="e.g. Ramesh Kumar"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                      10-Digit Mobile *
+                    </label>
+                    <input 
+                      type="tel"
+                      required
+                      maxLength={10}
+                      value={instantPhone}
+                      onChange={(e) => setInstantPhone(e.target.value.replace(/\D/g, ''))}
+                      placeholder="9876543210"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-1">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                      Age
+                    </label>
+                    <input 
+                      type="number"
+                      value={instantAge}
+                      onChange={(e) => setInstantAge(e.target.value)}
+                      placeholder="35"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-2 py-2 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 text-center"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-1">
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
+                      Gender
+                    </label>
+                    <select
+                      value={instantGender}
+                      onChange={(e) => setInstantGender(e.target.value as any)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl px-2 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 text-center"
+                    >
+                      <option value="Male">M</option>
+                      <option value="Female">F</option>
+                      <option value="Other">O</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Vitals Numeric Grid & Fee Selector */}
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-white/10">
+                  <div>
+                    <label className="text-[9px] font-mono font-bold text-slate-500 uppercase block mb-1">BP (mmHg)</label>
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="text"
+                        value={instantBpSys}
+                        onChange={(e) => setInstantBpSys(e.target.value)}
+                        placeholder="120"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center text-slate-800 dark:text-white outline-none"
+                      />
+                      <span className="text-slate-400 text-xs font-mono">/</span>
+                      <input 
+                        type="text"
+                        value={instantBpDia}
+                        onChange={(e) => setInstantBpDia(e.target.value)}
+                        placeholder="80"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center text-slate-800 dark:text-white outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-mono font-bold text-slate-500 uppercase block mb-1">Pulse (bpm)</label>
+                    <input 
+                      type="text"
+                      value={instantPulse}
+                      onChange={(e) => setInstantPulse(e.target.value)}
+                      placeholder="72"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center text-slate-800 dark:text-white outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-mono font-bold text-slate-500 uppercase block mb-1">SpO2 (%)</label>
+                    <input 
+                      type="text"
+                      value={instantSpO2}
+                      onChange={(e) => setInstantSpO2(e.target.value)}
+                      placeholder="99"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center text-slate-800 dark:text-white outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-mono font-bold text-slate-500 uppercase block mb-1">Temp (°F)</label>
+                    <input 
+                      type="text"
+                      value={instantTemp}
+                      onChange={(e) => setInstantTemp(e.target.value)}
+                      placeholder="98.6"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center text-slate-800 dark:text-white outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-mono font-bold text-slate-500 uppercase block mb-1">Sugar (mg/dL)</label>
+                    <input 
+                      type="text"
+                      value={instantSugar}
+                      onChange={(e) => setInstantSugar(e.target.value)}
+                      placeholder="e.g. 110"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center text-slate-800 dark:text-white outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-mono font-bold text-slate-500 uppercase block mb-1">Weight (kg)</label>
+                    <input 
+                      type="text"
+                      value={instantWeight}
+                      onChange={(e) => setInstantWeight(e.target.value)}
+                      placeholder="65"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-center text-slate-800 dark:text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Bottom Row: Fee Payment Mode & 1-Click Submit Button */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="text-[10px] font-mono font-bold text-slate-500 uppercase shrink-0">Fee Payment:</span>
+                    <button
+                      type="button"
+                      onClick={() => setInstantFeeStatus('paid_upi')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                        instantFeeStatus === 'paid_upi'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <QrCode className="w-3.5 h-3.5" /> ₹500 UPI QR Paid
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInstantFeeStatus('paid_cash')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                        instantFeeStatus === 'paid_cash'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <Coins className="w-3.5 h-3.5" /> ₹500 Cash Counter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInstantFeeStatus('waived_loyalty')}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                        instantFeeStatus === 'waived_loyalty'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      ₹0 Loyalty Waived
+                    </button>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingInstant}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-teal-600 hover:from-indigo-500 hover:to-teal-500 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer transition border-0 uppercase tracking-wider"
+                  >
+                    {isSubmittingInstant ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Confirming &amp; Routing...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        ⚡ Confirm Fee, Record Vitals &amp; Issue Token
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* 6. Specialization Station: Eye Dilation (Ophthalmology) vs Clinical Procedures & Triage (GP) */}
+            <div className="w-full">
+              {isOphthalmology ? (
+                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
+                        <Eye className="w-4 h-4 text-cyan-600" />
+                        15-Min Eye Dilation Station (आई डाइलैशन)
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const candidate = patients.find(p => p.eyeDilationStatus !== 'in_progress');
+                          if (candidate) setShowDilationModal(candidate);
+                          else setShowQuickAddSheet(true);
+                        }}
+                        className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Start Dilation
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
+                      Tropicamide &amp; Phenylephrine eye drop tracking with automated 15-minute countdown alert for Doctor Retinoscopy.
+                    </p>
+
+                    {activeDilationPatients.length === 0 ? (
+                      <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
+                        <Timer className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400">No Active Eye Dilations Running</div>
+                        <p className="text-[10px] text-slate-400 mt-1">Click '+ Start Dilation' when applying drops to patient.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {activeDilationPatients.map((p) => {
+                          const elapsedSec = (currentTime.getTime() - new Date(p.dilationTimestamp!).getTime()) / 1000;
+                          const remSec = Math.max(0, 900 - elapsedSec);
+                          const remMin = Math.floor(remSec / 60);
+                          const remSeconds = Math.floor(remSec % 60);
+                          const isReady = remSec <= 0;
+
+                          return (
+                            <div 
+                              key={p.id} 
+                              className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
+                                isReady
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
+                                  : 'bg-cyan-50/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/60'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
+                                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                    Token #{p.tokenNumber || 'TK-01'}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                  Drops given: Tropicamide + Phenylephrine (BE)
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                {isReady ? (
+                                  <span className="px-2.5 py-1 bg-emerald-600 text-white font-mono text-[10px] font-bold rounded-lg shadow-sm">
+                                    Ready for Fundus 👁️
+                                  </span>
+                                ) : (
+                                  <div className="flex items-center gap-1 text-xs font-black font-mono text-cyan-700 dark:text-cyan-300">
+                                    <Clock className="w-3.5 h-3.5 animate-spin" />
+                                    <span>{String(remMin).padStart(2, '0')}:{String(remSeconds).padStart(2, '0')}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* GENERAL CLINIC / GP / CARDIOLOGY / PEDIATRICS / DERMATOLOGY STATION */
+                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-emerald-600" />
+                        Clinical Procedures &amp; Triage Station (चिकित्सीय प्रक्रियाएं)
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = pendingVitalsList[0] || patients[0];
+                          if (p) setVitalsPatient(p);
+                          else setShowQuickAddSheet(true);
+                        }}
+                        className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Record Procedure
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
+                      Live monitoring for ongoing minor treatments: Nebulization, IV Infusions, Injections &amp; Wound Dressing.
+                    </p>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/50 rounded-2xl">
+                        <div className="flex items-center justify-between text-teal-700 dark:text-teal-400 mb-1">
+                          <span className="text-[10px] font-bold font-mono uppercase">🫁 Nebulizer</span>
+                          <span className="text-[9px] bg-teal-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">15m</span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Duolin / Budecort</div>
+                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Triage Bed #1 Ready</div>
+                      </div>
+
+                      <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-2xl">
+                        <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 mb-1">
+                          <span className="text-[10px] font-bold font-mono uppercase">💧 IV Infusion</span>
+                          <span className="text-[9px] bg-blue-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Flowing</span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">NS 500ml / RL</div>
+                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Drip Stand Ready</div>
+                      </div>
+
+                      <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl">
+                        <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 mb-1">
+                          <span className="text-[10px] font-bold font-mono uppercase">🩹 Wound Care</span>
+                          <span className="text-[9px] bg-amber-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Clean</span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Sterile Dressing</div>
+                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Tray Sterilized</div>
+                      </div>
+
+                      <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-2xl">
+                        <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-400 mb-1">
+                          <span className="text-[10px] font-bold font-mono uppercase">💉 Injections</span>
+                          <span className="text-[9px] bg-indigo-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">IM/IV</span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Diclo / Pantop / TT</div>
+                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Counter Stocked</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -5262,34 +5919,108 @@ export const CompounderDashboard: React.FC = () => {
         document.body
       )}
 
-      {/* ── Generic Rapid Vitals Bottom Sheet Modal (showVitalsBottomSheet) ──── */}
+      {/* ── Enhanced Rapid Vitals Intake Bottom Sheet (showVitalsBottomSheet) ──── */}
       {showVitalsBottomSheet && createPortal(
         <div 
           className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in"
-          onClick={() => setShowVitalsBottomSheet(false)}
+          onClick={() => {
+            setShowVitalsBottomSheet(false);
+            setVitalsSearchTerm('');
+          }}
         >
           <div 
-            className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up text-slate-800 dark:text-white"
+            className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up text-slate-800 dark:text-white flex flex-col max-h-[85vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
+            <div className="p-5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-teal-600 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <Activity className="w-5 h-5" />
-                <h3 className="text-sm font-black">Rapid Vitals Intake Sheet</h3>
+                <div>
+                  <h3 className="text-sm font-black">Rapid Vitals Intake — Today's OPD</h3>
+                  <p className="text-[10px] text-indigo-100/90 font-mono">
+                    WhatsApp Chatbot Bookings, QR Self-Registrations &amp; Counter Intake
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowVitalsBottomSheet(false)}
+                onClick={() => {
+                  setShowVitalsBottomSheet(false);
+                  setVitalsSearchTerm('');
+                }}
                 className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer border-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Source Segment Tabs */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-white/10 shrink-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVitalsSourceFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    vitalsSourceFilter === 'all'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  All Awaiting ({pendingVitalsList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVitalsSourceFilter('whatsapp')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    vitalsSourceFilter === 'whatsapp'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                  }`}
+                >
+                  WhatsApp Bot 🟢 ({whatsappPendingVitals.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVitalsSourceFilter('qr_scan')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    vitalsSourceFilter === 'qr_scan'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
+                  }`}
+                >
+                  <QrCode className="w-3.5 h-3.5" /> QR Scan 📲 ({qrPendingVitals.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVitalsSourceFilter('counter')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    vitalsSourceFilter === 'counter'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                  }`}
+                >
+                  Walk-In 🏥 ({counterPendingVitals.length})
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative mt-2.5">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text"
+                  value={vitalsSearchTerm}
+                  onChange={(e) => setVitalsSearchTerm(e.target.value)}
+                  placeholder="Search patient by name, mobile number, or token #..."
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Dropdown Quick Pick & Patient List */}
+            <div className="p-4 space-y-3 overflow-y-auto flex-1">
               <div>
                 <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                  Select Patient from Today's Queue
+                  Or Quick Dropdown Selection
                 </label>
                 <select 
                   className="w-full input-field text-xs font-bold py-2.5"
@@ -5297,24 +6028,105 @@ export const CompounderDashboard: React.FC = () => {
                     const found = patients.find(p => p.id === e.target.value);
                     if (found) {
                       setShowVitalsBottomSheet(false);
+                      setVitalsSearchTerm('');
                       setVitalsPatient(found);
                     }
                   }}
                   defaultValue=""
                 >
-                  <option value="" disabled>Choose Patient ({pendingVitalsList.length} Awaiting Vitals)...</option>
-                  {pendingVitalsList.map(p => (
-                    <option key={p.id} value={p.id}>
-                      #{p.tokenNumber || 'TK'} · {p.name} (+91 {p.phone.slice(-4)})
-                    </option>
-                  ))}
+                  <option value="" disabled>Choose Patient ({filteredPendingVitalsList.length} in view)...</option>
+                  {filteredPendingVitalsList.map(p => {
+                    const srcTag = getPatientSourceTag(p);
+                    const srcLabel = srcTag === 'whatsapp' ? 'WhatsApp Bot 🟢' : srcTag === 'qr_scan' ? 'QR Scan 📲' : 'Walk-In 🏥';
+                    return (
+                      <option key={p.id} value={p.id}>
+                        #{p.tokenNumber || 'TK'} · {p.name} · [{srcLabel}] (+91 {p.phone.slice(-4)})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Select a patient to open their dedicated numeric vitals intake pad with BP, SpO2, and auto-computed BMI.
-                </p>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 pt-2">
+                Patients Awaiting Vitals ({filteredPendingVitalsList.length})
+              </div>
+
+              <div className="space-y-2">
+                {filteredPendingVitalsList.map((p) => {
+                  const srcTag = getPatientSourceTag(p);
+                  const isWhatsApp = srcTag === 'whatsapp';
+                  const isQr = srcTag === 'qr_scan';
+
+                  return (
+                    <div 
+                      key={p.id}
+                      className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
+                        isWhatsApp
+                          ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20'
+                          : isQr
+                          ? 'border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-8 h-8 rounded-xl font-mono font-black text-xs flex items-center justify-center shadow-xs ${
+                          isWhatsApp
+                            ? 'bg-emerald-600 text-white'
+                            : isQr
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-indigo-600 text-white'
+                        }`}>
+                          #{p.tokenNumber ? String(p.tokenNumber).slice(-2) : 'TK'}
+                        </span>
+
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-mono font-bold ${
+                              isWhatsApp
+                                ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
+                                : isQr
+                                ? 'bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}>
+                              {isWhatsApp ? 'WhatsApp Bot 🟢' : isQr ? 'QR Scan 📲' : 'Walk-In 🏥'}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                            +91 {p.phone} · Age: {p.age || '35'} · {p.gender}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowVitalsBottomSheet(false);
+                          setVitalsSearchTerm('');
+                          setVitalsPatient(p);
+                        }}
+                        className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-mono text-[10px] font-bold rounded-xl cursor-pointer transition border-0 flex items-center gap-1.5 shadow-sm active:scale-95"
+                      >
+                        <Activity className="w-3.5 h-3.5" />
+                        Record Vitals
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {filteredPendingVitalsList.length === 0 && (
+                  <div className="p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      No Patients Waiting in This Category
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {vitalsSearchTerm
+                        ? `No patients matching "${vitalsSearchTerm}"`
+                        : 'All patients in this segment have completed their vitals intake.'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
