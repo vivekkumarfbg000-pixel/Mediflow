@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { SystemHealthCockpit } from './SystemHealthCockpit';
 import { api } from '../../services/api';
+import { PatientService } from '../../services/patientService';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { WhatsAppSupportBotService, type SupportEscalationTicket } from '../../services/whatsappSupportBotService';
 import { ClinicalCycleSimulatorModal } from './ClinicalCycleSimulatorModal';
