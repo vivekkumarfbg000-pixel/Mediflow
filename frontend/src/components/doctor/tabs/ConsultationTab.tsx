@@ -179,10 +179,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const { activePod, activeProfile: clinicProfile } = useClinic();
   const [appointments, setAppointments] = useState<Appointment[]>(api.getAppointments());
   const [aiHistory, setAiHistory] = useState<any[]>([]);
+  const [dataRevision, setDataRevision] = useState(0);
 
   useEffect(() => {
     const refreshData = () => {
       setAppointments(api.getAppointments());
+      setDataRevision(prev => prev + 1);
       if (selectedPatient) {
         setAiHistory(api.getAIResults(selectedPatient.id));
       } else {
@@ -237,7 +239,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     const reqs = api.getLabRequisitions().filter(r => (r.patientId === selectedPatient.id || (r as any).patient_id === selectedPatient.id) && (r.status === 'completed' || Boolean(r.quantitativeResult)));
     const fullReports = api.getFullLabReports().filter(r => (r.patientId === selectedPatient.id || (r as any).patient_id === selectedPatient.id));
     return [...reqs, ...fullReports];
-  }, [selectedPatient, appointments]);
+  }, [selectedPatient, appointments, dataRevision]);
 
   const handleOpenLabPdfModal = async (reportItem: any) => {
     if (!selectedPatient) return;

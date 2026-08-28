@@ -165,7 +165,8 @@ export class RealtimeSyncService {
           'medicine_bills': ['medicine_bills'],
           'lab_requisitions': ['lab_requisitions'],
           'inventory_holds': ['inventory_holds'],
-          'pathology_reports': ['pathology_reports'],
+          'pathology_reports': ['pathology_reports', 'full_lab_reports'],
+          'lab_reports': ['full_lab_reports', 'pathology_reports'],
           'saas_invoices': ['saas_invoices', 'unified_invoices'],
           'saas_prescriptions': ['saas_prescriptions', 'prescriptions'],
           'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
@@ -328,6 +329,15 @@ export class RealtimeSyncService {
         (payload) => {
           console.log('[RealtimeSync] Pathology Report change detected:', payload);
           this.autoIngestPayload('pathology_reports', payload);
+          this.subscribers.forEach(s => s.onPathologyReportChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lab_reports' },
+        (payload) => {
+          console.log('[RealtimeSync] Lab Report change detected:', payload);
+          this.autoIngestPayload('lab_reports', payload);
           this.subscribers.forEach(s => s.onPathologyReportChange?.(payload));
         }
       )
