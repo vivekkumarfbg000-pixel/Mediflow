@@ -333,9 +333,22 @@ if (!isManualRelay) {
         const patientPhone = payload.patientPhone;
         const messageText = payload.messageText;
 
-        // 1. Primary: VitalSync Master Company Token from Supabase Secrets
-        let systemToken = (Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
-        let phoneId = (Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "").trim();
+        // 1. Primary: VitalSync Master Company Token from Supabase Secrets (resolves all common Vault aliases)
+        let systemToken = (
+          Deno.env.get("OWNER_SYSTEM_TOKEN") || 
+          Deno.env.get("META_WHATSAPP_TOKEN") || 
+          Deno.env.get("META_ACCESS_TOKEN") || 
+          Deno.env.get("WHATSAPP_ACCESS_TOKEN") || 
+          Deno.env.get("WHATSAPP_TOKEN") || 
+          ""
+        ).trim();
+        let phoneId = (
+          Deno.env.get("META_PHONE_NUMBER_ID") || 
+          Deno.env.get("OWNER_PHONE_NUMBER_ID") || 
+          Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || 
+          Deno.env.get("PHONE_NUMBER_ID") || 
+          ""
+        ).trim();
 
         // 2. Secondary: If secrets not yet loaded into Deno, query database
         if (!systemToken || !phoneId) {
@@ -381,8 +394,13 @@ if (!isManualRelay) {
           });
         }
 
-        let cleanPhone = String(patientPhone).replace(/[^0-9]/g, "");
-        if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+        let cleanPhone = String(patientPhone || "").replace(/\D/g, "");
+        if (cleanPhone.startsWith("0") && cleanPhone.length === 11) {
+          cleanPhone = cleanPhone.slice(1);
+        }
+        if (cleanPhone.length === 10) {
+          cleanPhone = "91" + cleanPhone;
+        }
 
         console.log(`[Meta Webhook Outbound Relay] Dispatching text to ${cleanPhone} via phoneId ${phoneId}...`);
 

@@ -19,6 +19,18 @@ import type {
   Appointment
 } from '../types';
 
+export function normalizeWhatsAppPhone(phone: string): string {
+  if (!phone) return '';
+  let clean = String(phone).replace(/\D/g, '');
+  if (clean.startsWith('0') && clean.length === 11) {
+    clean = clean.slice(1);
+  }
+  if (clean.length === 10) {
+    clean = '91' + clean;
+  }
+  return clean;
+}
+
 export class WhatsAppService {
   static getWhatsAppSessions(): WhatsAppSession[] {
     let isDemoAccount = false;
@@ -156,14 +168,11 @@ export class WhatsAppService {
           // Dispatch real HTTP POST payload via Supabase Edge Function Relay (Vault Secrets)
           let dispatchSuccess = false;
           try {
-            let cleanToPhone = (phone || '').replace(/[^0-9]/g, '');
+            const cleanToPhone = normalizeWhatsAppPhone(phone);
             if (!cleanToPhone) {
               console.warn('[VitalSync Outgoing Dispatch] Target phone is empty/undefined. Aborting dispatch.');
               resolve(false);
               return;
-            }
-            if (cleanToPhone.length === 10) {
-              cleanToPhone = '91' + cleanToPhone;
             }
 
             const msgBody = variables?.replyText || 'Hello from VitalSync Smart Clinic';
