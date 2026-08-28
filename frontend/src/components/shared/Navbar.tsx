@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { useSpecialization } from '../../context/SpecializationContext';
 
 import { 
+  Receipt,
   UserPlus, 
   User,
   Stethoscope, 
@@ -81,7 +82,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
-  const [activeCompounderTab, setActiveCompounderTab] = useState<string>('tokens');
+  const [activeCompounderTab, setActiveCompounderTab] = useState<string>('overview');
   const [activePharmacyTab, setActivePharmacyTab] = useState<string>('prescription_queue');
   const [activeLabTab, setActiveLabTab] = useState<string>('queue');
   const [activeAdminTab, setActiveAdminTab] = useState<string>('saas_health');
@@ -138,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   useEffect(() => {
     if (currentRole === 'compounder') {
-      setActiveCompounderTab('tokens');
+      setActiveCompounderTab('overview');
     } else if (currentRole === 'pharmacy') {
       setActivePharmacyTab('prescription_queue');
     } else if (currentRole === 'lab') {
@@ -950,12 +951,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         )}
 
-      {/* Premium Unified Root-Level Mobile Bottom Navigation Dock (Outside <main>) */}
+      {/* Premium Floating Root-Level Mobile Bottom Navigation Dock (Outside <main>) */}
       <div 
-        className="md:hidden fixed bottom-0 left-0 right-0 w-full z-[9999] bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-white/10 shadow-[0_-2px_10px_rgba(0,0,0,0.08)] px-2 after:content-[''] after:absolute after:top-full after:left-0 after:right-0 after:h-16 after:bg-white dark:after:bg-slate-950"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
+        className="md:hidden fixed bottom-2 left-3 right-3 z-[9999] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] rounded-2xl px-2 py-1.5"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 4px) + 4px)' }}
       >
-        <div className="flex items-center justify-between h-14 max-w-md mx-auto">
+        <div className="flex items-center justify-between h-12 max-w-md mx-auto gap-1">
           {(() => {
             if (currentRole === 'doctor') {
               const docTabs = [
@@ -977,14 +978,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                       window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: t.id }));
                       window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: t.id }));
                     }}
-                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none select-none relative rounded-xl ${
                       isActive ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                    {isActive && (
+                      <span className="absolute inset-0 bg-indigo-50/80 dark:bg-indigo-950/60 rounded-xl -z-10 border border-indigo-200/40 dark:border-indigo-800/40" />
+                    )}
+                    <div className={`flex items-center justify-center h-4.5 w-4.5 shrink-0 overflow-hidden transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
                       <Icon className="h-4 w-4 shrink-0" />
                     </div>
-                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
+                    <span className={`text-[9px] tracking-tight leading-tight whitespace-nowrap mt-0.5 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
                     </span>
                   </button>
@@ -994,12 +998,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             if (currentRole === 'compounder') {
               const compTabs = [
-                { id: 'patients', label: 'Patients', icon: User },
-                { id: 'tokens', label: 'Tokens', icon: Stethoscope },
-                { id: 'labs', label: 'Labs', icon: Beaker },
-                { id: 'pharmacy', label: 'Pharmacy', icon: ShoppingBag },
-                { id: 'ot_billing', label: isOphthalmology ? 'Daycare' : 'OT', icon: QrCode },
-                { id: 'invoice_generator', label: 'Invoices', icon: FileText }
+                { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                { id: 'opd_patients', label: 'OPD Queue', icon: Users },
+                { id: 'clinical_hub', label: isOphthalmology ? 'Biometry/Rx' : 'Labs & Rx', icon: FlaskConical },
+                { id: 'billing_daycare', label: isOphthalmology ? 'Bill/Daycare' : 'Bill & OT', icon: Receipt }
               ];
               return compTabs.map(t => {
                 const Icon = t.icon;
@@ -1011,19 +1013,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => {
                       setActiveCompounderTab(t.id);
                       window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: t.id }));
+                      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: t.id }));
                     }}
-                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none select-none relative rounded-xl ${
                       isActive 
                         ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' 
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                    {isActive && (
+                      <span className="absolute inset-0 bg-indigo-50 dark:bg-indigo-950/80 rounded-xl -z-10 border border-indigo-200/50 dark:border-indigo-800/50 shadow-sm" />
+                    )}
+                    <div className={`flex items-center justify-center h-4.5 w-4.5 shrink-0 overflow-hidden transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
                       <Icon className="h-4 w-4 shrink-0" />
                     </div>
-                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
+                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-0.5 ${isActive ? 'font-black text-indigo-600 dark:text-indigo-400' : 'font-semibold'}`}>
                       {t.label}
                     </span>
+                    {isActive && (
+                      <span className="w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400 mt-0.5 animate-pulse" />
+                    )}
                   </button>
                 );
               });
