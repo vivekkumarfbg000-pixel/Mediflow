@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FlaskConical, Receipt, UserPlus, Upload, BarChart3, Landmark, Network, X, Check,
   Lock, Tag, ClipboardEdit, ShieldCheck, FileText, Printer, Send, Search,
   UserCheck, CheckCircle2, RefreshCw, PlusCircle, Info, PieChart,
-  CloudUpload, Microscope, Calendar, Coins, Activity
+  CloudUpload, Microscope, Calendar, Coins, Activity, Sparkles, Eye, Camera,
+  FileCheck, ArrowRight, Clock, Smartphone, CheckCheck, QrCode, AlertTriangle, Trash2
 } from 'lucide-react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { PaymentService } from '../../services/paymentService';
+import { BillingService } from '../../services/billingService';
+import { PatientService } from '../../services/patientService';
+import { ForecastService } from '../../services/forecastService';
+import { WhatsAppService } from '../../services/whatsappService';
 import { useSpecialization } from '../../context/SpecializationContext';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
@@ -87,6 +92,22 @@ export const LabDashboard: React.FC = () => {
   const [directFilePreviewUrl, setDirectFilePreviewUrl] = useState('');
   const [directSearch, setDirectSearch] = useState('');
   const [directBusy, setDirectBusy] = useState(false);
+  const [directQueueFilterTab, setDirectQueueFilterTab] = useState<'prescribed_lab' | 'today_consultations' | 'all'>('prescribed_lab');
+  const [isAiScanningReport, setIsAiScanningReport] = useState(false);
+  const [lastDirectSubmission, setLastDirectSubmission] = useState<{
+    reportId: string;
+    patientName: string;
+    patientPhone: string;
+    testName: string;
+    loincCode: string;
+    pdfBlobUrl?: string;
+    pdfFileUrl?: string;
+    time: string;
+    biomarkers: any;
+  } | null>(null);
+
+  const directFileInputRef = useRef<HTMLInputElement>(null);
+  const directCameraInputRef = useRef<HTMLInputElement>(null);
 
   const activeReq = useMemo(
     () => requisitions.find(r => r.id === activeReqId),
@@ -205,6 +226,115 @@ export const LabDashboard: React.FC = () => {
       ),
     [patients, walkinSearch]
   );
+
+  const todayAppointments = useMemo(() => {
+    const todayStr = getIstDateString();
+    const appts = BillingService.getAppointments();
+    return appts.filter(a => (a.date || '').startsWith(todayStr) || (a.createdAt || (a as any).created_at || '').startsWith(todayStr));
+  }, [requisitions, invoices, patients]);
+
+  const todayQueuePatients = useMemo(() => {
+    const todayStr = getIstDateString();
+    const activeReqs = requisitions.filter(r => (r.createdAt || '').startsWith(todayStr) || r.status !== 'completed');
+    
+    const map = new Map<string, {
+      patient: Patient;
+      requisitions: LabRequisition[];
+      appointment?: any;
+      source: 'whatsapp' | 'qr' | 'walkin' | 'emergency';
+      tokenNumber: string | number;
+      isPrescribedLab: boolean;
+      status: string;
+    }>();
+
+    activeReqs.forEach(r => {
+      const p = patients.find(pt => pt.id === r.patientId);
+      if (!p) return;
+      const appt = todayAppointments.find(a => a.patientId === p.id || a.patient_id === p.id || (a.patientName || '').toLowerCase() === (p.name || '').toLowerCase());
+      if (!map.has(p.id)) {
+        map.set(p.id, {
+          patient: p,
+          requisitions: [r],
+          appointment: appt,
+          source: (appt?.source || (p as any).source || 'walkin') as any,
+          tokenNumber: appt?.tokenNumber || p.tokenNumber || '#TK',
+          isPrescribedLab: true,
+          status: appt?.status || 'Lab Ordered'
+        });
+      } else {
+        const item = map.get(p.id)!;
+        item.requisitions.push(r);
+        item.isPrescribedLab = true;
+      }
+    });
+
+    todayAppointments.forEach(a => {
+      const p = patients.find(pt => pt.id === a.patientId || pt.id === a.patient_id || (pt.name || '').toLowerCase() === (a.patientName || '').toLowerCase());
+      if (p && !map.has(p.id)) {
+        map.set(p.id, {
+          patient: p,
+          requisitions: [],
+          appointment: a,
+          source: (a.source || (p as any).source || 'walkin') as any,
+          tokenNumber: a.tokenNumber || p.tokenNumber || '#TK',
+          isPrescribedLab: false,
+          status: a.status || 'Consulted'
+        });
+      }
+    });
+
+    // If no active appointments/requisitions exist today, fall back to registered patients
+    if (map.size === 0) {
+      patients.slice(0, 8).forEach(p => {
+        map.set(p.id, {
+          patient: p,
+          requisitions: [],
+          source: ((p as any).source || 'walkin') as any,
+          tokenNumber: p.tokenNumber || '#TK-01',
+          isPrescribedLab: false,
+          status: 'Registered'
+        });
+      });
+    }
+
+    return Array.from(map.values());
+  }, [requisitions, patients, todayAppointments]);
+
+  const directFilteredQueuePatients = useMemo(() => {
+    let list = todayQueuePatients;
+    if (directQueueFilterTab === 'prescribed_lab') {
+      const prescribed = todayQueuePatients.filter(item => item.isPrescribedLab || item.requisitions.length > 0);
+      list = prescribed.length > 0 ? prescribed : todayQueuePatients;
+    } else if (directQueueFilterTab === 'today_consultations') {
+      const consulted = todayQueuePatients.filter(item => !!item.appointment);
+      list = consulted.length > 0 ? consulted : todayQueuePatients;
+    } else if (directQueueFilterTab === 'all') {
+      // Full patient directory
+      if (directSearch.trim()) {
+        const q = directSearch.toLowerCase();
+        return patients
+          .filter(p => (p.name || '').toLowerCase().includes(q) || (p.phone || '').includes(q))
+          .map(p => ({
+            patient: p,
+            requisitions: requisitions.filter(r => r.patientId === p.id),
+            source: ((p as any).source || 'walkin') as any,
+            tokenNumber: p.tokenNumber || '#TK',
+            isPrescribedLab: requisitions.some(r => r.patientId === p.id),
+            status: 'Registered'
+          }));
+      }
+    }
+
+    if (!directSearch.trim()) return list;
+
+    const q = directSearch.toLowerCase();
+    return list.filter(item =>
+      (item.patient.name || '').toLowerCase().includes(q) ||
+      (item.patient.phone || '').includes(q) ||
+      String(item.tokenNumber).toLowerCase().includes(q) ||
+      item.requisitions.some(r => (r.testName || '').toLowerCase().includes(q) || r.testCode.includes(q))
+    );
+  }, [todayQueuePatients, directQueueFilterTab, directSearch, patients, requisitions]);
 
   const directFilteredPatients = useMemo(
     () =>
@@ -446,6 +576,58 @@ export const LabDashboard: React.FC = () => {
     }));
   };
 
+  const handleAutoExtractLabReport = async (file: File) => {
+    setIsAiScanningReport(true);
+    try {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'AI Vision Reading Report 🔬', message: 'Extracting quantified LOINC biomarkers...', type: 'info' }
+      }));
+
+      const res = await ForecastService.ocrScan(file);
+      const structured = res.structured_data || {};
+      
+      let matchCount = 0;
+      Object.entries(structured).forEach(([k, v]) => {
+        const keyLower = (k || '').toLowerCase();
+        const valStr = String(v || '');
+        if (keyLower.includes('hba1c') || keyLower.includes('glycated')) {
+          const match = valStr.match(/(\d+\.?\d*)/);
+          if (match) {
+            setDirectTestCode('4544-3');
+            handleHba1cChange(match[1]);
+            matchCount++;
+          }
+        } else if (keyLower.includes('creatinine')) {
+          const match = valStr.match(/(\d+\.?\d*)/);
+          if (match) {
+            setDirectTestCode('2160-0');
+            setCreatinineVal(match[1]);
+            matchCount++;
+          }
+        } else if (keyLower.includes('hemoglobin') || keyLower.includes('hb')) {
+          const match = valStr.match(/(\d+\.?\d*)/);
+          if (match) {
+            setDirectTestCode('3024-7');
+            handleHbChange(match[1]);
+            matchCount++;
+          }
+        }
+      });
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: matchCount > 0 ? 'Biomarkers Auto-Filled! ✨' : 'Report Slip Loaded',
+          message: matchCount > 0 ? `AI auto-filled ${matchCount} values from the analyzer printout.` : 'Report slip attached. Verify biomarker values and submit.',
+          type: 'success'
+        }
+      }));
+    } catch (e) {
+      console.warn('[LabDashboard] AI OCR extraction failed:', e);
+    } finally {
+      setIsAiScanningReport(false);
+    }
+  };
+
   const handleDirectReportUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!directPatientId || !directTestCode) return;
@@ -494,37 +676,42 @@ export const LabDashboard: React.FC = () => {
       }
 
       let reportFileUrl = '';
+      let generatedBlobUrl = '';
+
       if (directFile) {
         reportFileUrl = await api.uploadLabReportToStorage(directFile, reqId);
-      } else {
-        try {
-          const biomarkersObj = data.biomarkers || data;
-          const interpretation = ClinicalNotificationService.generateHinglishLabInterpretation(directTestCode, testItem.name, biomarkersObj);
-          const pdfBytes = await generateLabReportPdf({
-            reportId: reqId,
-            patientName: selectedPatient.name,
-            patientPhone: selectedPatient.phone,
-            age: selectedPatient.age,
-            gender: selectedPatient.gender,
-            testName: testItem.name,
-            loincCode: directTestCode,
-            biomarkers: biomarkersObj,
-            hinglishSummary: interpretation,
-            doctorName: activePod?.doctor_name || 'Dr. Attending Physician',
-            clinicName: activePod?.name || activeEntity?.name || 'VitalSync Care Clinic',
-            date: getIstDateDisplay()
-          });
-          const pdfBlob = new Blob([pdfBytes as any], { type: 'application/pdf' });
-          const genFile = new File([pdfBlob], `Report_${reqId}.pdf`, { type: 'application/pdf' });
+      }
+      
+      try {
+        const biomarkersObj = data.biomarkers || data;
+        const interpretation = ClinicalNotificationService.generateHinglishLabInterpretation(directTestCode, testItem.name, biomarkersObj);
+        const pdfBytes = await generateLabReportPdf({
+          reportId: reqId,
+          patientName: selectedPatient.name,
+          patientPhone: selectedPatient.phone,
+          age: selectedPatient.age,
+          gender: selectedPatient.gender,
+          testName: testItem.name,
+          loincCode: directTestCode,
+          biomarkers: biomarkersObj,
+          hinglishSummary: interpretation,
+          doctorName: activePod?.doctor_name || 'Dr. Attending Physician',
+          clinicName: activePod?.name || activeEntity?.name || 'VitalSync Care Clinic',
+          date: getIstDateDisplay()
+        });
+        const pdfBlob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+        generatedBlobUrl = URL.createObjectURL(pdfBlob);
+        const genFile = new File([pdfBlob], `Report_${reqId}.pdf`, { type: 'application/pdf' });
+        if (!reportFileUrl) {
           reportFileUrl = await api.uploadLabReportToStorage(genFile, reqId);
-        } catch (pdfErr) {
-          console.warn('[LabDashboard] Direct Auto-PDF generation fallback notice:', pdfErr);
         }
+      } catch (pdfErr) {
+        console.warn('[LabDashboard] Direct Auto-PDF generation notice:', pdfErr);
       }
 
       const stringifiedPayload = JSON.stringify(data);
-
       const requisitionDate = new Date().toISOString();
+
       const newReq: LabRequisition = {
         id: reqId,
         encounterId: 'walkin',
@@ -564,9 +751,9 @@ export const LabDashboard: React.FC = () => {
         requisitionId: reqId,
         patientId: directPatientId,
         patientName: selectedPatient.name,
-        reportFileUrl: reportFileUrl || undefined,
+        reportFileUrl: reportFileUrl || generatedBlobUrl || undefined,
         biomarkerJson: data,
-        status: 'pending',
+        status: 'approved',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -581,26 +768,47 @@ export const LabDashboard: React.FC = () => {
           testName: testItem.name,
           loincCode: directTestCode,
           biomarkers: data.biomarkers || data,
-          reportPdfUrl: reportFileUrl || undefined,
+          reportPdfUrl: reportFileUrl || generatedBlobUrl || undefined,
           clinicName: activePod?.name || activeEntity?.name
         }).catch(err => console.warn('[LabDashboard] Direct WhatsApp dispatch notice:', err));
       }
 
+      // Realtime CDC broadcast to Doctor Dashboard & Compounder Desk
+      window.dispatchEvent(new CustomEvent('mediflow-lab-report-ready', {
+        detail: {
+          reportId: reqId,
+          patientId: directPatientId,
+          patientName: selectedPatient.name,
+          testName: testItem.name,
+          loincCode: directTestCode,
+          pdfUrl: reportFileUrl || generatedBlobUrl
+        }
+      }));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+
+      setLastDirectSubmission({
+        reportId: reqId,
+        patientName: selectedPatient.name,
+        patientPhone: selectedPatient.phone,
+        testName: testItem.name,
+        loincCode: directTestCode,
+        pdfBlobUrl: generatedBlobUrl || reportFileUrl,
+        pdfFileUrl: reportFileUrl,
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        biomarkers: data.biomarkers || data
+      });
+
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          message: `Direct lab report submitted for ${selectedPatient.name}! Synced to Compounder review & WhatsApp delivered.`,
+          message: `Direct lab report submitted for ${selectedPatient.name}! Synced to Doctor Consultation & WhatsApp delivered.`,
           type: 'success',
-          title: 'Report Submitted'
+          title: 'Report Published & Synced! 🚀'
         }
       }));
 
-      setDirectPatientId('');
+      // Keep directPatientId selected or reset for next
       setDirectFile(null);
       setDirectFilePreviewUrl('');
-      setDirectSearch('');
-      setGenericVal('');
-      setGenericUnit('');
-      setActiveTab('queue');
     } catch (err: any) {
       console.error(err);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -1653,254 +1861,529 @@ export const LabDashboard: React.FC = () => {
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'upload_report' && (
         <form onSubmit={handleDirectReportUploadSubmit} className="space-y-6">
+          {/* Post-Submission Success Card if recently submitted */}
+          {lastDirectSubmission && (
+            <div className="glass-panel p-5 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                  <CheckCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Report Published &amp; Synced! 🚀</span>
+                    <span className="text-[10px] text-slate-500 font-mono">({lastDirectSubmission.time})</span>
+                  </div>
+                  <div className="text-sm font-bold text-slate-800 dark:text-white">
+                    {lastDirectSubmission.patientName} · {lastDirectSubmission.testName} (LOINC: {lastDirectSubmission.loincCode})
+                  </div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                    <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Official PDF &amp; 2-Touchpoint Care Loop Dispatched to +91 {lastDirectSubmission.patientPhone}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
+                {lastDirectSubmission.pdfBlobUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (lastDirectSubmission.pdfBlobUrl) {
+                        window.open(lastDirectSubmission.pdfBlobUrl, '_blank');
+                      }
+                    }}
+                    className="flex-1 md:flex-initial py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow cursor-pointer border-0"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>📄 Open / Print PDF</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLastDirectSubmission(null);
+                    setDirectPatientId('');
+                    setDirectSearch('');
+                  }}
+                  className="flex-1 md:flex-initial py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border-0"
+                >
+                  <PlusCircle className="w-4 h-4 text-indigo-500" />
+                  <span>Next Patient</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left: Patient, Test & File Selector */}
+            {/* Left: Patient Queue Selector & Diagnostic Test */}
             <div className="lg:col-span-6 space-y-6">
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-60" />
-                <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-1 flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-indigo-600 shrink-0" />
-                  Direct Pathology Report Upload &amp; Scan
-                </h2>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
-                  Upload a scanned paper report or enter analyzer numbers directly. Mediflow will automatically generate the official LOINC PDF, sync to the Doctor Consultation desk, and deliver to patient WhatsApp.
+                
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                    1. Select Patient from Today's Queue (आज के मरीज़)
+                  </h2>
+                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-bold font-mono">
+                    {directFilteredQueuePatients.length} Active
+                  </span>
+                </div>
+                
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                  Select the patient who completed consultation or has ordered lab tests for today. Mediflow will automatically sync the report across Doctor EMR and Compounder Desk.
                 </p>
 
-                <div className="space-y-4">
-                  {/* Patient Search */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                      Search Patient (मरीज़ खोजें)
-                    </label>
-                    <div className="relative">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        type="text"
-                        placeholder="Search by name, phone, or token..."
-                        value={directSearch}
-                        onChange={e => { setDirectSearch(e.target.value); setDirectPatientId(''); }}
-                        className="w-full input-field text-xs py-2.5 pl-9 focus:ring-1 focus:ring-indigo-400"
-                      />
-                    </div>
-                  </div>
+                {/* Queue Filter Tabs */}
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl mb-3 text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setDirectQueueFilterTab('prescribed_lab')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer border-0 ${
+                      directQueueFilterTab === 'prescribed_lab'
+                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    🧪 Prescribed Lab ({todayQueuePatients.filter(p => p.isPrescribedLab || p.requisitions.length > 0).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectQueueFilterTab('today_consultations')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer border-0 ${
+                      directQueueFilterTab === 'today_consultations'
+                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    👨‍⚕️ Consultations ({todayQueuePatients.filter(p => !!p.appointment).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirectQueueFilterTab('all')}
+                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer border-0 ${
+                      directQueueFilterTab === 'all'
+                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    🔍 All ({patients.length})
+                  </button>
+                </div>
 
-                  {/* Patient Suggestions */}
-                  {directSearch.length >= 2 && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                      {directFilteredPatients.length === 0 ? (
-                        <div className="text-center py-3 text-xs text-slate-400">No matching patients found.</div>
-                      ) : directFilteredPatients.map(p => (
-                        <button
-                          type="button"
-                          key={p.id}
-                          onClick={() => { setDirectPatientId(p.id); setDirectSearch(''); }}
-                          className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
-                            directPatientId === p.id
-                              ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 text-slate-800 dark:text-white'
-                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-200'
-                          }`}
-                        >
-                          <div className="font-bold text-xs">{p.name}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">{p.phone} · {p.age}y {p.gender}</div>
-                        </button>
-                      ))}
-                    </div>
+                {/* Patient Search Input */}
+                <div className="relative mb-3">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Filter by name, phone, or token (#TK-001)..."
+                    value={directSearch}
+                    onChange={e => setDirectSearch(e.target.value)}
+                    className="w-full input-field text-xs py-2 pl-9 pr-8 focus:ring-1 focus:ring-indigo-400"
+                  />
+                  {directSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDirectSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent"
+                    >
+                      ✕
+                    </button>
                   )}
+                </div>
 
-                  {/* Selected patient badge */}
-                  {directPatientId && !directSearch && (
-                    <div className="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl">
-                      <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                      <div className="flex-1">
-                        <div className="text-xs font-bold text-slate-800 dark:text-white">
-                          {patients.find(p => p.id === directPatientId)?.name || 'Selected Patient'}
+                {/* Selected Patient Confirmation Banner */}
+                {directPatientId && (
+                  <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-xl flex items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0">
+                        ✓
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                          <span>{patients.find(p => p.id === directPatientId)?.name || 'Selected Patient'}</span>
+                          <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">Selected</span>
                         </div>
-                        <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono">
-                          {patients.find(p => p.id === directPatientId)?.phone}
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          +91 {patients.find(p => p.id === directPatientId)?.phone} · {patients.find(p => p.id === directPatientId)?.age}y ({patients.find(p => p.id === directPatientId)?.gender})
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setDirectPatientId('')}
-                        className="text-slate-500 hover:text-slate-800 dark:hover:text-white text-[10px] cursor-pointer"
-                      >
-                        ✕
-                      </button>
                     </div>
-                  )}
-
-                  {/* Test Selection */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                      Select Diagnostic Test
-                    </label>
-                    <div className="space-y-2">
-                      {testCatalog.map(test => (
-                        <label
-                          key={test.loincCode}
-                          className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
-                            directTestCode === test.loincCode
-                              ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700'
-                              : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name="directTest"
-                              value={test.loincCode}
-                              checked={directTestCode === test.loincCode}
-                              onChange={e => setDirectTestCode(e.target.value)}
-                              className="accent-indigo-600 w-3.5 h-3.5"
-                            />
-                            <div>
-                              <div className="text-xs font-bold text-slate-800 dark:text-white">{test.name}</div>
-                              <div className="text-[9px] text-slate-500 font-mono">
-                                LOINC: {test.loincCode}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{test.price}</div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDirectPatientId('')}
+                      className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer border-0 bg-transparent"
+                    >
+                      Change
+                    </button>
                   </div>
+                )}
 
-                  {/* Attach File */}
-                  <div className="mt-2.5">
-                    <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                      Attach Physical Report / Slip (Optional PDF / Image)
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 rounded-xl p-3 bg-slate-50 dark:bg-slate-800/40 text-center cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 transition-colors">
-                        <Upload className="w-5 h-5 text-indigo-600 shrink-0" />
-                        <span>{directFile ? directFile.name : 'Upload Report File (JPG, PNG, PDF)'}</span>
-                        <input 
-                          type="file" 
-                          accept="image/*,application/pdf" 
-                          className="hidden" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setDirectFile(file);
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                setDirectFilePreviewUrl(reader.result as string);
-                              };
-                              reader.readAsDataURL(file);
+                {/* Scrollable Patient Queue List */}
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1 mb-5">
+                  {directFilteredQueuePatients.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                      No matching patients in this view. Try switching to "All" or searching.
+                    </div>
+                  ) : (
+                    directFilteredQueuePatients.map(item => {
+                      const isSelected = directPatientId === item.patient.id;
+                      const reqTest = item.requisitions[0];
+
+                      return (
+                        <div
+                          key={`queue-${item.patient.id}`}
+                          onClick={() => {
+                            setDirectPatientId(item.patient.id);
+                            if (reqTest && reqTest.testCode) {
+                              setDirectTestCode(reqTest.testCode);
                             }
                           }}
-                        />
-                      </label>
-                    </div>
-                    {directFilePreviewUrl && (
-                      <div className="flex items-center justify-between mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          Report File Loaded
-                        </span>
-                        <button 
-                          type="button" 
-                          onClick={() => { setDirectFile(null); setDirectFilePreviewUrl(''); }} 
-                          className="text-[10px] text-rose-500 hover:text-rose-400 cursor-pointer bg-transparent border-0 font-sans"
+                          className={`p-3 rounded-xl border transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-500 ring-2 ring-indigo-500/20 text-slate-800 dark:text-white shadow-sm'
+                              : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-700 dark:text-slate-200'
+                          }`}
                         >
-                          Remove
-                        </button>
-                      </div>
-                    )}
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-black shrink-0 font-mono">
+                              {String(item.tokenNumber || '#TK').slice(-3)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs flex items-center gap-1.5 truncate">
+                                <span>{item.patient.name}</span>
+                                {item.source === 'whatsapp' && (
+                                  <span className="text-[8px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1 py-0.2 rounded font-bold">🟢 WA</span>
+                                )}
+                                {item.source === 'qr' && (
+                                  <span className="text-[8px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-bold">📲 QR</span>
+                                )}
+                                {item.source === 'emergency' && (
+                                  <span className="text-[8px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1 py-0.2 rounded font-bold">🚨 SOS</span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono truncate">
+                                +91 {item.patient.phone} · {item.patient.age}y {item.patient.gender}
+                              </div>
+                              {reqTest && (
+                                <div className="text-[9px] text-purple-600 dark:text-purple-400 font-bold flex items-center gap-1 mt-0.5 truncate font-mono">
+                                  <FlaskConical className="w-2.5 h-2.5 shrink-0" />
+                                  <span>Prescribed: {reqTest.testName}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}>
+                              {isSelected ? 'Selected ✓' : 'Select'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Test Selection */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">
+                    Select Diagnostic Test (जांच चुनें)
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {testCatalog.map(test => (
+                      <label
+                        key={test.loincCode}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200 ${
+                          directTestCode === test.loincCode
+                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600 shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="radio"
+                            name="directTest"
+                            value={test.loincCode}
+                            checked={directTestCode === test.loincCode}
+                            onChange={e => setDirectTestCode(e.target.value)}
+                            className="accent-indigo-600 w-3.5 h-3.5 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-slate-800 dark:text-white truncate">{test.name}</div>
+                            <div className="text-[9px] text-slate-500 font-mono">
+                              LOINC: {test.loincCode}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono">₹{test.price}</div>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Right: Biomarker Entry Form & Submit Action */}
+            {/* Right: Biomarker Entry Form & File Dropzone & Submit Action */}
             <div className="lg:col-span-6 space-y-6 flex flex-col justify-between">
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex-1">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                <h3 className="font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2 text-sm">
+                
+                <h3 className="font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-sm">
                   <ClipboardEdit className="w-4 h-4 text-teal-600 shrink-0" />
-                  Report Biomarker Details &amp; LOINC Metrics
+                  2. Upload Report File &amp; Review Biomarkers
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Specify the quantified readings. An official clinical PDF will be generated and signed automatically.</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
+                  Attach an analyzer slip/PDF or type biomarker numbers. An official signed LOINC PDF will be created and delivered to WhatsApp instantly.
+                </p>
 
-                <div className="space-y-4">
+                {/* File Dropzone & Camera */}
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <label
+                      className={`flex-1 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
+                        directFile
+                          ? 'border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20'
+                          : 'border-slate-300 dark:border-slate-700 hover:border-indigo-500 bg-slate-50 dark:bg-slate-800/40'
+                      }`}
+                    >
+                      <Upload className="w-5 h-5 text-indigo-600 shrink-0" />
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        {directFile ? directFile.name : 'Click to Upload Report File (PDF / JPG / PNG)'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">Drag &amp; drop physical analyzer slip or generated PDF</span>
+                      <input 
+                        ref={directFileInputRef}
+                        type="file" 
+                        accept="image/*,application/pdf" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setDirectFile(file);
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setDirectFilePreviewUrl(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => directCameraInputRef.current?.click()}
+                      className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all shadow-sm"
+                      title="Snap photo with camera"
+                    >
+                      <Camera className="w-5 h-5 text-indigo-600" />
+                      <span className="text-[9px] font-bold">Camera</span>
+                      <input
+                        ref={directCameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setDirectFile(file);
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setDirectFilePreviewUrl(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Loaded File Actions & AI Vision Auto-Fill */}
+                  {directFile && (
+                    <div className="flex flex-wrap items-center justify-between mt-2.5 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl gap-2">
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5 truncate">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="truncate">{directFile.name} ({(directFile.size / 1024).toFixed(1)} KB)</span>
+                      </span>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={isAiScanningReport}
+                          onClick={() => handleAutoExtractLabReport(directFile)}
+                          className="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-extrabold flex items-center gap-1 cursor-pointer border-0 shadow-sm disabled:opacity-50"
+                        >
+                          {isAiScanningReport ? (
+                            <RefreshCw className="w-3 h-3 animate-spin text-white" />
+                          ) : (
+                            <Sparkles className="w-3 h-3 text-amber-300" />
+                          )}
+                          <span>{isAiScanningReport ? 'Reading...' : '✨ Auto-Read Biomarkers'}</span>
+                        </button>
+
+                        <button 
+                          type="button" 
+                          onClick={() => { setDirectFile(null); setDirectFilePreviewUrl(''); }} 
+                          className="text-[10px] text-rose-500 hover:text-rose-400 cursor-pointer bg-transparent border-0 font-bold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Biomarker Form Inputs */}
+                <div className="space-y-3.5">
                   {directTestCode === '4544-3' ? (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">HbA1c (%)</label>
-                        <input type="number" required step="0.1" min="3" max="20" value={hba1cVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          HbA1c (%)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          step="0.1"
+                          min="3"
+                          max="20"
+                          value={hba1cVal}
                           onChange={e => handleHba1cChange(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">eAG (mg/dL)</label>
-                        <input type="number" required value={eagVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          eAG (mg/dL)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={eagVal}
                           onChange={e => setEagVal(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
-                        <span className="text-[8px] text-slate-500 font-mono mt-1 block">Auto: eAG = 28.7 × HbA1c − 46.7</span>
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
+                        <span className="text-[8px] text-slate-400 font-mono mt-0.5 block">Auto: eAG = 28.7 × HbA1c − 46.7</span>
                       </div>
                     </div>
                   ) : directTestCode === '2160-0' ? (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Serum Creatinine (mg/dL)</label>
-                        <input type="number" required step="0.01" min="0.1" max="15" value={creatinineVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          Serum Creatinine (mg/dL)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          step="0.01"
+                          min="0.1"
+                          max="15"
+                          value={creatinineVal}
                           onChange={e => setCreatinineVal(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">eGFR (mL/min/1.73m²)</label>
-                        <input type="number" required value={egfrVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          eGFR (mL/min/1.73m²)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={egfrVal}
                           onChange={e => setEgfrVal(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">BUN (mg/dL)</label>
-                        <input type="number" required value={bunVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          BUN (mg/dL)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={bunVal}
                           onChange={e => setBunVal(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
                       </div>
                     </div>
                   ) : directTestCode === '3024-7' ? (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Hemoglobin (g/dL)</label>
-                        <input type="number" required step="0.1" min="2" max="25" value={hbVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          Hemoglobin (g/dL)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          step="0.1"
+                          min="2"
+                          max="25"
+                          value={hbVal}
                           onChange={e => handleHbChange(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Hematocrit (%)</label>
-                        <input type="number" required value={hctVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          Hematocrit (%)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={hctVal}
                           onChange={e => setHctVal(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
-                        <span className="text-[8px] text-slate-500 font-mono mt-1 block">Auto: Hct ≈ Hb × 3</span>
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
+                        <span className="text-[8px] text-slate-400 font-mono mt-0.5 block">Auto: Hct ≈ Hb × 3</span>
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Result Value</label>
-                        <input type="text" required placeholder="e.g., 98.4" value={genericVal}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          Result Value
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g., 98.4"
+                          value={genericVal}
                           onChange={e => setGenericVal(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Unit</label>
-                        <input type="text" placeholder="e.g., mg/dL" value={genericUnit}
+                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                          Unit
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g., mg/dL"
+                          value={genericUnit}
                           onChange={e => setGenericUnit(e.target.value)}
-                          className="w-full input-field text-sm focus:ring-1 focus:ring-teal-400" />
+                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                        />
                       </div>
                     </div>
                   )}
 
-                  {/* LOINC Reference Range helper */}
-                  <div className="bg-slate-50 dark:bg-slate-800 p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 mt-4">
-                    <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">LOINC Standard Reference Band</span>
-                    <div className="h-[2px] w-full bg-slate-200 dark:bg-slate-700 relative rounded-full">
-                      <div className="absolute left-[25%] right-[25%] h-full bg-teal-600" />
+                  {/* LOINC Reference Range graphic */}
+                  <div className="bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1.5">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
+                      LOINC Clinical Reference Band
+                    </span>
+                    <div className="h-[3px] w-full bg-slate-200 dark:bg-slate-700 relative rounded-full overflow-hidden">
+                      <div className="absolute left-[25%] right-[25%] h-full bg-teal-500" />
                     </div>
                     <div className="flex justify-between text-[8px] text-slate-500 font-mono">
                       {directTestCode === '4544-3' ? (
@@ -1916,18 +2399,18 @@ export const LabDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-6">
+                <div className="pt-5">
                   <button
                     type="submit"
                     disabled={!directPatientId || !directTestCode || directBusy}
-                    className="w-full py-3.5 px-6 text-sm font-black flex items-center justify-center gap-2 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-500 shadow-xl text-white cursor-pointer border-0 text-white-force"
+                    className="w-full py-3.5 px-6 text-xs sm:text-sm font-black flex items-center justify-center gap-2 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-500 shadow-xl text-white cursor-pointer border-0 text-white-force"
                   >
                     {directBusy ? (
-                      <RefreshCw className="w-5 h-5 animate-spin text-white-force" />
+                      <RefreshCw className="w-4 h-4 animate-spin text-white-force" />
                     ) : (
-                      <CloudUpload className="w-5 h-5 text-white-force" />
+                      <CloudUpload className="w-4 h-4 text-white-force" />
                     )}
-                    <span>{directBusy ? 'Submitting & Dispatching PDF...' : '🚀 Submit Report to Database & WhatsApp (रिपोर्ट सुरक्षित करें व भेजें)'}</span>
+                    <span>{directBusy ? 'Publishing Report & Dispatching PDF...' : '🚀 Submit Report to Database & WhatsApp (रिपोर्ट सुरक्षित करें व भेजें)'}</span>
                   </button>
                 </div>
               </div>
