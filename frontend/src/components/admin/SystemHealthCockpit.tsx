@@ -357,7 +357,7 @@ ${rawTraceback}
               onClick={async () => {
                 setIsHealing(true);
                 try {
-                  const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8000';
+                  const backendUrl = ((import.meta as any).env?.VITE_AI_BACKEND_URL || (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:8000').replace(/\/$/, '');
                   const res = await fetch(`${backendUrl}/api/auto-heal`, { method: 'POST' });
                   const data = await res.json();
                   if (data.success) {

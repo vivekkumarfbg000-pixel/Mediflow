@@ -37,12 +37,13 @@ export const VITALSYNC_SAAS_KNOWLEDGE_BASE: Record<string, { keywords: string[];
 3. Emergency SOS bookings (₹618.00) automatically move to *Priority #1 Position* with red pulsing alerts.`
   },
   payments_cashfree: {
-    keywords: ['3', 'option 3', 'cashfree', 'payment', 'pending_payment', 'refund', 'upi', 'cash'],
-    answer: `💳 *VITALSYNC CASHFREE PAYMENT & SETTLEMENT GUIDE*
+    keywords: ['3', 'option 3', 'payment', 'paytm', 'phonepe', 'cashfree', 'razorpay', 'pending_payment', 'settlement', 'upi', 'cash'],
+    answer: `💳 *VITALSYNC MULTI-GATEWAY PAYMENT & SETTLEMENT GUIDE*
 
-1. Appointments must reach status *'PAYMENT_SUCCESS'* to unlock EMR queue.
-2. Cash split between Clinic (97.5%) and VitalSync Platform (2.5%) happens automatically via Cashfree Easy Split.
-3. For cash payments at counter, Compounder clicks *'Collect Cash & Verify'* to clear lock.`
+1. *Supported Gateways*: Paytm PG (0% MDR), PhonePe (0% MDR), Razorpay, Cashfree, Direct Zero-Fee Dynamic UPI (\`vitalsync@axl\`), & Cash Counter.
+2. *100% Doctor Fee Immunity*: Pure Doctor Consultation fees booked at the counter go 100% directly to the Doctor with 0% platform fee and zero pool deductions.
+3. *Commission Pool Refill*: Digital Pharmacy & Lab fee invoices deduct a 3% Platform Fee and refill the clinic's commission pool up to the ₹1,000 Safety Buffer.
+4. *WhatsApp Online Booking*: Online chatbot appointments charge ₹515.00 (₹500 Doctor Consultation + ₹15 Convenience Fee).`
   },
   pharmacy_delivery: {
     keywords: ['4', 'option 4', 'pharmacy', 'delivery', 'refill', 'reminder', 'counter'],

@@ -17,6 +17,7 @@ import { WhatsAppService } from '../../../services/whatsappService';
 import { generateQRCodeDataURI } from '../../../utils/qrCode';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ForecastService } from '../../../services/forecastService';
+import { getIstDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
 export interface BillHubTabProps {
@@ -40,6 +41,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   // App States
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [patientFilterTab, setPatientFilterTab] = useState<'today_queue' | 'all'>('today_queue');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [billingMode, setBillingMode] = useState<'digital' | 'manual'>('digital');
   
@@ -131,16 +133,44 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   // Catalogs
   const inventory = useMemo(() => PharmacyService.getPharmacyInventory(), []);
   
+  // Today's active appointments & registrations in IST
+  const todayOpdPatientIds = useMemo(() => {
+    const todayStr = getIstDateString();
+    const appts = BillingService.getAppointments().filter(a => {
+      const aDate = getEffectiveAppointmentDate(a);
+      return (aDate === todayStr || (a.createdAt || '').startsWith(todayStr)) && a.status !== 'cancelled';
+    });
+    const ids = new Set<string>();
+    appts.forEach(a => {
+      if (a.patientId) ids.add(a.patientId);
+      if ((a as any).patient_id) ids.add((a as any).patient_id);
+    });
+    patients.forEach(p => {
+      if ((p.registeredAt || (p as any).createdAt || (p as any).created_at || '').startsWith(todayStr)) {
+        ids.add(p.id);
+      }
+    });
+    return ids;
+  }, [patients, refreshKey]);
+
   // Filtered patients list
   const filteredPatients = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return patients;
+    let list = patients;
+
+    if (patientFilterTab === 'today_queue' && !query) {
+      const todayList = patients.filter(p => todayOpdPatientIds.has(p.id));
+      list = todayList.length > 0 ? todayList : patients;
+    }
+
+    if (!query) return list;
+
     return patients.filter(p => 
       (p.name || '').toLowerCase().includes(query) ||
       (p.phone || '').includes(query) ||
       (p.tokenNumber != null && String(p.tokenNumber).toLowerCase().includes(query))
     );
-  }, [patients, searchQuery]);
+  }, [patients, searchQuery, patientFilterTab, todayOpdPatientIds]);
 
   // Catalog item search suggestions
   const catalogSuggestions = useMemo(() => {
@@ -1336,6 +1366,32 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
               <span className="text-[9px] font-mono font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
                 {filteredPatients.length} Patients
               </span>
+            </div>
+
+            {/* Filter Mode Switcher */}
+            <div className="flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setPatientFilterTab('today_queue')}
+                className={`flex-1 py-1 px-2 rounded-lg text-[9.5px] font-bold transition cursor-pointer border-0 ${
+                  patientFilterTab === 'today_queue'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                📅 Today's OPD ({patients.filter(p => todayOpdPatientIds.has(p.id)).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPatientFilterTab('all')}
+                className={`flex-1 py-1 px-2 rounded-lg text-[9.5px] font-bold transition cursor-pointer border-0 ${
+                  patientFilterTab === 'all'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                👥 All ({patients.length})
+              </button>
             </div>
 
             {/* Search */}
