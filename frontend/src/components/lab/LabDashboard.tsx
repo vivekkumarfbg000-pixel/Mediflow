@@ -112,6 +112,7 @@ export const LabDashboard: React.FC = () => {
       setPatients(api.getPatients());
     };
     sync();
+    window.addEventListener('mediflow-state-change', sync);
 
     const unsubscribeApi = api.subscribe(sync);
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
@@ -124,6 +125,7 @@ export const LabDashboard: React.FC = () => {
     });
 
     return () => {
+      window.removeEventListener('mediflow-state-change', sync);
       unsubscribeApi();
       unsubscribeRealtime();
     };

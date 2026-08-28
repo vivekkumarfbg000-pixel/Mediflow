@@ -153,7 +153,13 @@ export const PharmacyDashboard: React.FC = () => {
     };
     syncLocal();
 
-const unsubscribeApi = api.subscribe(syncLocal);
+    const handleStateChange = () => {
+      fetchLiveMedicineBills();
+      syncLocal();
+    };
+    window.addEventListener('mediflow-state-change', handleStateChange);
+
+    const unsubscribeApi = api.subscribe(syncLocal);
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onMedicineBillChange: (payload) => {
         console.log('[PharmacyDashboard] Realtime Medicine Bill update:', payload);
@@ -182,6 +188,7 @@ const unsubscribeApi = api.subscribe(syncLocal);
     });
 
     return () => {
+      window.removeEventListener('mediflow-state-change', handleStateChange);
       unsubscribeApi();
       unsubscribeRealtime();
     };
