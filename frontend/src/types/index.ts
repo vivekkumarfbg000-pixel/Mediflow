@@ -53,6 +53,8 @@ export interface Patient {
   patientCode?: string;
   syncStatus?: 'synced' | 'pending' | 'failed';
   isPremiumMember?: boolean;
+  eyeDilationStatus?: 'not_started' | 'in_progress' | 'ready' | 'completed';
+  dilationTimestamp?: string;
 }
 
 export interface ClinicStaff {
@@ -464,12 +466,16 @@ export interface Appointment {
   payment_status?: 'pending' | 'cleared' | 'paid' | string;
   amount?: number;
   date?: string;
+  time?: string;
   patientName?: string;
   patientPhone?: string;
   patient_id?: string;
   patient_name?: string;
   patient_phone?: string;
   doctor_id?: string;
+  entityId?: string;
+  clinic_id?: string;
+  isEmergency?: boolean;
 }
 
 export interface EveningSlot {
