@@ -434,9 +434,34 @@ export const CompounderDashboard: React.FC = () => {
   
   // Appointment Booking States
   const [searchApptPatient, setSearchApptPatient] = useState('');
+  const [showAllApptPatients, setShowAllApptPatients] = useState(false);
   const [selectedApptPatient, setSelectedApptPatient] = useState<Patient | null>(null);
   const [apptPaymentMode, setApptPaymentMode] = useState<'cash' | 'upi' | 'razorpay' | 'cashfree' | 'paytm'>('cash');
   const [isBookingAppt, setIsBookingAppt] = useState(false);
+
+  // Multi-Field Intelligent Patient Search Matcher
+  const cleanApptQuery = (searchApptPatient || '').trim().toLowerCase();
+  const cleanApptDigits = (searchApptPatient || '').replace(/\D/g, '');
+
+  const filteredApptPatients = useMemo(() => {
+    if (!cleanApptQuery) {
+      return patients;
+    }
+    return patients.filter(p => {
+      const nameMatch = (p.name || '').toLowerCase().includes(cleanApptQuery);
+      const idMatch = (p.id || '').toLowerCase().includes(cleanApptQuery);
+      const codeMatch = (p.patientCode || (p as any).patient_code || '').toLowerCase().includes(cleanApptQuery);
+      const abhaMatch = (p.abhaId || (p as any).abha_id || '').toLowerCase().includes(cleanApptQuery);
+      const tokenMatch = (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(cleanApptQuery)) ||
+                         ((p as any).token_number && String((p as any).token_number).toLowerCase().includes(cleanApptQuery));
+      
+      const rawPhone = (p.phone || (p as any).patient_phone || '').toLowerCase();
+      const phoneDigits = rawPhone.replace(/\D/g, '');
+      const phoneMatch = rawPhone.includes(cleanApptQuery) || (cleanApptDigits.length > 0 && phoneDigits.includes(cleanApptDigits));
+
+      return nameMatch || idMatch || codeMatch || abhaMatch || tokenMatch || phoneMatch;
+    });
+  }, [patients, cleanApptQuery, cleanApptDigits]);
 
   // Vernacular Dosage Assistant States
   const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');
@@ -495,6 +520,47 @@ export const CompounderDashboard: React.FC = () => {
         });
         setAppointments(mapped as any);
         BillingService.saveAppointments(mapped as any);
+      }
+
+      // Also fetch and merge live patients from Supabase patient_registry
+      try {
+        let patQuery = supabase
+          .from('patient_registry')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (podId && podId !== 'default-pod') {
+          patQuery = patQuery.or(`pod_id.eq.${podId},pod_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317001`);
+        }
+        const { data: dbPatients } = await patQuery;
+        if (dbPatients && dbPatients.length > 0) {
+          const localPatients = api.getPatients();
+          const mergedMap = new Map<string, Patient>();
+          
+          localPatients.forEach(p => mergedMap.set(p.id, p));
+          dbPatients.forEach((dbP: any) => {
+            const existing = mergedMap.get(dbP.id);
+            mergedMap.set(dbP.id, {
+              ...(existing || {}),
+              id: dbP.id,
+              name: dbP.name || (existing?.name) || 'Patient',
+              phone: dbP.phone || (existing?.phone) || '',
+              age: dbP.age || (existing?.age) || 30,
+              gender: dbP.gender || (existing?.gender) || 'Male',
+              patientCode: dbP.patient_code || dbP.patientCode || existing?.patientCode,
+              abhaId: dbP.abha_id || dbP.abhaId || existing?.abhaId,
+              vitals: dbP.vitals || existing?.vitals,
+              queueStatus: dbP.queue_status || dbP.queueStatus || existing?.queueStatus || 'registered',
+              tokenNumber: dbP.token_number || dbP.tokenNumber || existing?.tokenNumber
+            } as any);
+          });
+          const mergedList = Array.from(mergedMap.values());
+          setPatients(mergedList);
+          api.savePatients(mergedList);
+        } else {
+          setPatients(api.getPatients());
+        }
+      } catch (_patErr) {
+        setPatients(api.getPatients());
       }
     } catch (err) {
       console.warn('[CompounderDashboard] Error fetching live appointments:', err);
@@ -2428,64 +2494,127 @@ export const CompounderDashboard: React.FC = () => {
                   {/* Appointment Booking & Search Form */}
                   <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                    <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
-                      <CalendarPlus className="w-4 h-4 text-indigo-500 shrink-0" />
-                      Book Consultation Appointment (अपॉइंटमेंट बुकिंग)
-                    </h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                      <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                        <CalendarPlus className="w-4 h-4 text-indigo-500 shrink-0" />
+                        Book Consultation Appointment (अपॉइंटमेंट बुकिंग)
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => setShowAllApptPatients(prev => !prev)}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/70 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-1.5 cursor-pointer w-fit transition-all"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        {showAllApptPatients ? 'Hide Patient List' : `Browse All Patients (${patients.length})`}
+                      </button>
+                    </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                      Search registered patient by Name, Phone or ID to book a consultation slot.
+                      Search registered patient by Name, Phone, Patient ID, or Smart Code (e.g. T2, V1) to book a consultation slot.
                     </p>
 
                     <div className="space-y-4">
                       {/* Search input */}
                       <div>
-                        <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">
-                          Search Patient
-                        </label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1">
+                            Search Patient (Name / Phone / ID / Code)
+                          </label>
+                          <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold">
+                            {filteredApptPatients.length} patient{filteredApptPatients.length === 1 ? '' : 's'} available
+                          </span>
+                        </div>
                         <div className="relative">
                           <input
                             type="text"
-                            placeholder="Search by Name, Phone, or Patient ID..."
+                            placeholder="Search by Name, Phone (e.g. 98765), ID, or Smart Code (e.g. T2, V1)..."
                             value={searchApptPatient}
-                            onChange={(e) => setSearchApptPatient(e.target.value)}
-                            className="w-full input-field text-xs py-2.5 pl-10 pr-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none placeholder:text-slate-400"
+                            onFocus={() => setShowAllApptPatients(true)}
+                            onChange={(e) => {
+                              setSearchApptPatient(e.target.value);
+                              if (!showAllApptPatients) setShowAllApptPatients(true);
+                            }}
+                            className="w-full input-field text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none placeholder:text-slate-400"
                           />
                           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                          {searchApptPatient && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchApptPatient('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs cursor-pointer p-0.5"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      {/* Search Results list */}
-                      {searchApptPatient.trim().length > 0 && (
-                        <div className="border border-slate-100 dark:border-white/10 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-2 max-h-[160px] overflow-y-auto space-y-1.5 shadow-inner">
-                          {patients.filter(p => 
-                            (p.name || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                            (p.phone || '').includes(searchApptPatient) ||
-                            (p.id || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                            (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
-                          ).length === 0 ? (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">No patients found in registry.</p>
-                          ) : (
-                            patients.filter(p => 
-                              (p.name || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                              (p.phone || '').includes(searchApptPatient) ||
-                              (p.id || '').toLowerCase().includes(searchApptPatient.toLowerCase()) ||
-                              (p.tokenNumber && String(p.tokenNumber).toLowerCase().includes(searchApptPatient.toLowerCase()))
-                            ).map(p => (
-                              <div 
-                                key={p.id}
+                      {/* Search Results / Full Patient Directory list */}
+                      {(showAllApptPatients || searchApptPatient.trim().length > 0) && (
+                        <div className="border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 p-2.5 max-h-[220px] overflow-y-auto space-y-1.5 shadow-inner">
+                          <div className="flex justify-between items-center px-1 pb-1 mb-1 border-b border-slate-200/60 dark:border-white/5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              {searchApptPatient ? `Matching "${searchApptPatient}"` : 'All Registered Patients'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {filteredApptPatients.length} found
+                            </span>
+                          </div>
+                          {filteredApptPatients.length === 0 ? (
+                            <div className="py-4 text-center space-y-2">
+                              <p className="text-xs text-slate-500 dark:text-slate-400">No patient found matching "{searchApptPatient}".</p>
+                              <button
+                                type="button"
                                 onClick={() => {
-                                  setSelectedApptPatient(p);
-                                  setSearchApptPatient('');
+                                  setActiveTab('patients');
+                                  setPatientsSubTab('register');
+                                  setNewPatientName(searchApptPatient);
                                 }}
-                                className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg hover:border-indigo-500 hover:bg-indigo-50/20 dark:hover:bg-indigo-500/10 cursor-pointer flex justify-between items-center transition-all"
+                                className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-1 cursor-pointer shadow-xs"
                               >
-                                <div>
-                                  <h5 className="font-bold text-xs text-slate-800 dark:text-white">{p.name}</h5>
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400">ID: {p.id} · +91 {p.phone}</span>
+                                <UserPlus className="w-3.5 h-3.5" />
+                                Register as New Patient
+                              </button>
+                            </div>
+                          ) : (
+                            filteredApptPatients.map(p => {
+                              const code = p.patientCode || (p as any).patient_code || `P-${(p.id || '').substring(0, 4).toUpperCase()}`;
+                              return (
+                                <div 
+                                  key={p.id}
+                                  onClick={() => {
+                                    setSelectedApptPatient(p);
+                                    setSearchApptPatient('');
+                                    setShowAllApptPatients(false);
+                                  }}
+                                  className="p-2.5 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 rounded-xl hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-500/10 cursor-pointer flex justify-between items-center transition-all group"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <span className="shrink-0 text-[10px] font-mono font-black bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-700/50">
+                                      {code}
+                                    </span>
+                                    <div className="min-w-0">
+                                      <h5 className="font-bold text-xs text-slate-800 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                        {p.name}
+                                      </h5>
+                                      <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                        <span>📱 +91 {p.phone || 'N/A'}</span>
+                                        <span>·</span>
+                                        <span>{p.age}y ({p.gender})</span>
+                                        {p.tokenNumber && (
+                                          <>
+                                            <span>·</span>
+                                            <span className="text-emerald-600 font-bold">Tk #{p.tokenNumber}</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] bg-slate-100 dark:bg-slate-700 group-hover:bg-indigo-600 group-hover:text-white text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 ml-2">
+                                    Select 👉
+                                  </span>
                                 </div>
-                                <span className="text-[9px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-mono font-bold">Select</span>
-                              </div>
-                            ))
+                              );
+                            })
                           )}
                         </div>
                       )}
