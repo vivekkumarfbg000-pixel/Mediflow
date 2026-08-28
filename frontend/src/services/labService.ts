@@ -147,6 +147,32 @@ export class LabService {
     notify();
   }
 
+  static createRequisition(params: {
+    patientId: string;
+    patientName: string;
+    doctorId: string;
+    encounterId?: string;
+    tests: Array<{ loincCode: string; name: string; category?: string; normalRange?: string; unit?: string; price?: number }>;
+  }): LabRequisition[] {
+    const existing = this.getLabRequisitions();
+    const currentPodId = getPodContext().podId;
+    const newReqs: LabRequisition[] = params.tests.map(t => ({
+      id: `req-${crypto.randomUUID().substring(0, 8)}`,
+      encounterId: params.encounterId || `enc-${crypto.randomUUID().substring(0, 6)}`,
+      patientId: params.patientId,
+      patientName: params.patientName,
+      testName: t.name,
+      testCode: t.loincCode,
+      barcode: `BAR-${Math.floor(1000 + Math.random() * 9000)}`,
+      status: 'pending',
+      reagentDeductions: [],
+      podId: currentPodId,
+      createdAt: new Date().toISOString()
+    }));
+    this.saveLabRequisitions([...newReqs, ...existing]);
+    return newReqs;
+  }
+
   static async collectLabSample(reqId: string): Promise<void> {
     const requisitions = this.getLabRequisitions();
     const idx = requisitions.findIndex(r => r.id === reqId);

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck
+  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck,
+  Camera, Image, ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { EncounterService } from '../../../services/encounterService';
@@ -22,6 +23,9 @@ export const BillHubTab: React.FC = () => {
   const { activePod, activeProfile } = useClinic();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Dual Master Header Tabs (Default: 1. OCR Scan & Auto-Save)
+  const [invoiceSectionTab, setInvoiceSectionTab] = useState<'ocr_scan' | 'manual_billing'>('ocr_scan');
+  
   // App States
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,7 +34,15 @@ export const BillHubTab: React.FC = () => {
   
   // Manual Upload / OCR States
   const [fileName, setFileName] = useState<string | null>(null);
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [ocrScanStep, setOcrScanStep] = useState<string>('');
+  const [lastScannedResult, setLastScannedResult] = useState<{
+    patient: Patient;
+    medications: any[];
+    diagnosticTests: any[];
+    matchedAppointment?: any;
+  } | null>(null);
   const [manualExtractedData, setManualExtractedData] = useState<{
     raw: string;
     structured: Record<string, string>;
@@ -299,6 +311,30 @@ export const BillHubTab: React.FC = () => {
     recognition.start();
   };
 
+  // Medicine & Test Selection Handlers
+  const handleToggleMedicine = (medName: string, isChecked: boolean) => {
+    const key = medName.toLowerCase();
+    setSelectedMedicines(prev => ({
+      ...prev,
+      [key]: { selected: isChecked, qty: prev[key]?.qty ?? 10 }
+    }));
+  };
+
+  const handleMedicineQtyChange = (medName: string, qty: number) => {
+    const key = medName.toLowerCase();
+    setSelectedMedicines(prev => ({
+      ...prev,
+      [key]: { selected: prev[key]?.selected ?? true, qty: Math.max(1, qty) }
+    }));
+  };
+
+  const handleToggleTest = (loincCode: string, isChecked: boolean) => {
+    setSelectedTests(prev => ({
+      ...prev,
+      [loincCode]: isChecked
+    }));
+  };
+
   // Active items mapping (syncing prices)
   const billingLedger = useMemo(() => {
     if (!selectedPatient) return null;
@@ -475,21 +511,36 @@ export const BillHubTab: React.FC = () => {
     };
   }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, selectedMedicines, selectedTests, discountInput, inventory, isOphthalmology]);
 
-  // Handle OCR file upload
+  // Handle OCR file upload & image preview
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setFileName(file.name);
       setManualExtractedData(null);
+      setLastScannedResult(null);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setSelectedImagePreview(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleScan = async () => {
     const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
+    if (!file) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'No Prescription File Selected', message: 'Please capture or choose a prescription slip image first.', type: 'warning' }
+      }));
+      return;
+    }
     setIsScanning(true);
+    setOcrScanStep('Reading handwritten prescription & Vision OCR...');
     try {
       const result = await api.ocrScan(file);
+      setOcrScanStep('Extracting patient profile (Name, Mobile, Age)...');
+      await new Promise(r => setTimeout(r, 300));
+      
       setManualExtractedData({ raw: result.extracted_text, structured: result.structured_data });
       
       const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
@@ -500,7 +551,7 @@ export const BillHubTab: React.FC = () => {
 
       Object.entries(result.structured_data).forEach(([k, v]) => {
         const itemLower = (k || '').toLowerCase();
-        // Bug Fix A: guard genericName — may be undefined for CSV-imported batches
+        // Guard genericName — may be undefined for CSV-imported batches
         const matchedMed = inventory.find(i => (i.name || '').toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
         const matchedTest = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase().includes(itemLower));
         
@@ -538,103 +589,147 @@ export const BillHubTab: React.FC = () => {
       setSelectedMedicines(initialMeds);
       setSelectedTests(initialTests);
 
-      let activePatientForRx = selectedPatient;
+      // Extract patient details from OCR structured data or text
+      let name = '';
+      let phone = '';
+      let age = 35;
+      let gender: 'Male' | 'Female' | 'Other' = 'Male';
       
-      if (!activePatientForRx) {
-        // Try to extract patient details from OCR structured data or text
-        let name = '';
-        let phone = '';
+      if (result.structured_data) {
+        const keys = Object.keys(result.structured_data);
+        const nameKey = keys.find(k => (k || '').toLowerCase().includes('name') || (k || '').toLowerCase().includes('patient'));
+        if (nameKey) name = result.structured_data[nameKey];
         
-        // 1. Look in structured data
-        if (result.structured_data) {
-          const keys = Object.keys(result.structured_data);
-          const nameKey = keys.find(k => (k || '').toLowerCase().includes('name') || (k || '').toLowerCase().includes('patient'));
-          if (nameKey) name = result.structured_data[nameKey];
-          
-          const phoneKey = keys.find(k => (k || '').toLowerCase().includes('phone') || (k || '').toLowerCase().includes('mobile') || (k || '').toLowerCase().includes('contact'));
-          if (phoneKey) phone = result.structured_data[phoneKey];
-        }
-        
-        // 2. Look in raw text
-        if (!name) {
-          const nameMatch = (result.extracted_text || '').match(/(?:Patient\s*Name|Name)\s*:\s*([^\n\r]+)/i);
-          if (nameMatch) name = nameMatch[1].trim();
-        }
-        if (!phone) {
-          const phoneMatch = (result.extracted_text || '').match(/\b([6789]\d{9})\b/);
-          if (phoneMatch) phone = phoneMatch[1].trim();
-        }
-        
-        // 3. Fallbacks
-        if (!name && (result.extracted_text || '').includes('Aarav Sharma')) {
-          name = 'Aarav Sharma';
-        }
-        if (!phone && name.toLowerCase() === 'aarav sharma') {
-          const existing = PatientService.getPatients().find(p => p.name.toLowerCase() === 'aarav sharma');
-          phone = existing ? existing.phone : '9876543210';
-        }
-        
-        if (!name) name = 'Walkin Patient';
-        if (!phone) phone = '99999' + Math.floor(10000 + Math.random() * 90000);
+        const phoneKey = keys.find(k => (k || '').toLowerCase().includes('phone') || (k || '').toLowerCase().includes('mobile') || (k || '').toLowerCase().includes('contact'));
+        if (phoneKey) phone = result.structured_data[phoneKey];
 
-        const cleanTargetPhone = (phone || '').replace(/\D/g, '').slice(-10);
-        let patientObj = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanTargetPhone);
-        if (!patientObj) {
-          patientObj = PatientService.registerPatient({
-            name,
-            phone,
-            age: 35,
-            gender: 'Male',
-            queueStatus: 'awaiting_vitals',
-            abhaId: '',
-            allergies: [],
-            chronicConditions: [],
-            isPremiumMember: false
-          });
-          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-            detail: {
-              title: 'Patient Auto-Registered! 👤',
-              message: `Created profile for ${name} (+91 ${phone})`,
-              type: 'success'
-            }
-          }));
-        } else {
-          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-            detail: {
-              title: 'Patient Auto-Selected! 🔍',
-              message: `Matched ${patientObj.name} (+91 ${patientObj.phone})`,
-              type: 'success'
-            }
-          }));
-        }
-        
-        setSelectedPatient(patientObj);
-        activePatientForRx = patientObj;
+        const ageKey = keys.find(k => (k || '').toLowerCase().includes('age') || (k || '').toLowerCase().includes('yr'));
+        if (ageKey && parseInt(result.structured_data[ageKey])) age = parseInt(result.structured_data[ageKey]);
       }
+      
+      if (!name) {
+        const nameMatch = (result.extracted_text || '').match(/(?:Patient\s*Name|Name)\s*:\s*([^\n\r]+)/i);
+        if (nameMatch) name = nameMatch[1].trim();
+      }
+      if (!phone) {
+        const phoneMatch = (result.extracted_text || '').match(/\b([6789]\d{9})\b/);
+        if (phoneMatch) phone = phoneMatch[1].trim();
+      }
+      
+      if (!name && (result.extracted_text || '').includes('Aarav Sharma')) {
+        name = 'Aarav Sharma';
+      }
+      if (!phone && name.toLowerCase() === 'aarav sharma') {
+        const existing = PatientService.getPatients().find(p => p.name.toLowerCase() === 'aarav sharma');
+        phone = existing ? existing.phone : '9876543210';
+      }
+      
+      if (!name) name = 'Walkin Patient';
+      if (!phone) phone = '99999' + Math.floor(10000 + Math.random() * 90000);
 
-      // Automatically save scanned paper prescription into the patient history!
-      if (activePatientForRx) {
-        EncounterService.createEncounter({
-          patientId: activePatientForRx.id,
-          patientName: activePatientForRx.name,
-          doctorId: "doc-ocr-scan",
-          clinicalNotes: "AI Scanned Handwritten Prescription",
-          medications: medicationsList,
-          diagnosticTests: diagnosticTestsList
+      setOcrScanStep('Matching with booked appointments & patient registry...');
+      await new Promise(r => setTimeout(r, 200));
+
+      const cleanTargetPhone = (phone || '').replace(/\D/g, '').slice(-10);
+      const allPatients = PatientService.getPatients();
+      let patientObj = allPatients.find(p => 
+        (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanTargetPhone ||
+        (p.name || '').toLowerCase() === name.toLowerCase()
+      );
+
+      // Check if there is an existing appointment today for this patient
+      const allAppts = BillingService.getAppointments();
+      const matchedAppt = allAppts.find(a => 
+        (patientObj && (a.patientId === patientObj.id || (a as any).patient_id === patientObj.id)) ||
+        (a.patientName && a.patientName.toLowerCase() === name.toLowerCase())
+      );
+
+      if (!patientObj) {
+        patientObj = PatientService.registerPatient({
+          name,
+          phone,
+          age,
+          gender,
+          queueStatus: 'awaiting_vitals',
+          abhaId: '',
+          allergies: [],
+          chronicConditions: [],
+          isPremiumMember: false
         });
-
-        // Switch to digital billing mode immediately, sync the new encounter!
-        setBillingMode('digital');
-        setRefreshKey(prev => prev + 1);
-
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: { 
-            title: 'AI Prescription Saved! 📄', 
-            message: `Scanned prescription automatically registered under ${activePatientForRx.name} and synced with Billing checklist.`, 
-            type: 'success' 
+          detail: {
+            title: 'Patient Auto-Registered! 👤',
+            message: `Created profile for ${name} (+91 ${phone})`,
+            type: 'success'
+          }
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Patient Auto-Matched! 🔍',
+            message: `Matched ${patientObj.name} (+91 ${patientObj.phone})`,
+            type: 'success'
           }
         }));
       }
+
+      setOcrScanStep('Saving prescription & dispatching to Lab & Pharmacy...');
+      await new Promise(r => setTimeout(r, 200));
+
+      // 1. Create Encounter record
+      EncounterService.createEncounter({
+        patientId: patientObj.id,
+        patientName: patientObj.name,
+        doctorId: (activePod as any)?.doctor_id || "doc-ocr-scan",
+        clinicalNotes: "AI Scanned Handwritten Prescription",
+        medications: medicationsList,
+        diagnosticTests: diagnosticTestsList
+      });
+
+      // 2. Dispatch Lab Tests to Pathology Requisitions
+      if (diagnosticTestsList.length > 0) {
+        try {
+          LabService.createRequisition({
+            patientId: patientObj.id,
+            patientName: patientObj.name,
+            doctorId: (activePod as any)?.doctor_id || "doc-ocr-scan",
+            tests: diagnosticTestsList.map(t => ({
+              loincCode: t.loincCode,
+              name: t.name,
+              category: t.category,
+              normalRange: t.normalRange,
+              unit: t.unit,
+              price: t.price
+            }))
+          });
+        } catch (_labErr) {
+          console.warn('[BillHubTab] Lab auto-dispatch notice:', _labErr);
+        }
+      }
+
+      // 3. Mark appointment as ready for billing / consult if matched
+      if (matchedAppt) {
+        matchedAppt.status = 'ready_for_consult';
+        BillingService.saveAppointments(allAppts);
+      }
+
+      setSelectedPatient(patientObj);
+      setBillingMode('digital');
+      setLastScannedResult({
+        patient: patientObj,
+        medications: medicationsList,
+        diagnosticTests: diagnosticTestsList,
+        matchedAppointment: matchedAppt
+      });
+      setRefreshKey(prev => prev + 1);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { 
+          title: 'Prescription Auto-Dispatched! 🚀', 
+          message: `Prescription saved under ${patientObj.name}. Lab tests dispatched to Pathology & Medicines to Pharmacy.`, 
+          type: 'success' 
+        }
+      }));
     } catch (err) {
       console.error('OCR Parsing Error:', err);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -642,6 +737,7 @@ export const BillHubTab: React.FC = () => {
       }));
     } finally {
       setIsScanning(false);
+      setOcrScanStep('');
     }
   };
 
@@ -998,652 +1094,816 @@ export const BillHubTab: React.FC = () => {
   }, [billingLedger, selectedPatient]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      {/* 1. Left Patient Panel */}
-      <div className="lg:col-span-1 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-            <Users className="h-4 w-4 text-indigo-500" />
-            Patient Queue Registry
-          </h3>
-        </div>
+    <div className="space-y-6">
+      {/* ── Dual Master Navigation Headers ──────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-white/10 rounded-2xl p-1.5 shadow-sm flex flex-col sm:flex-row gap-1.5">
+        <button
+          type="button"
+          onClick={() => setInvoiceSectionTab('ocr_scan')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            invoiceSectionTab === 'ocr_scan'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Sparkles className="h-4 w-4 text-amber-300" />
+          <span>1. Scan & Auto-Save Paper Prescription (पर्चा एआई स्कैन)</span>
+          <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">AI Vision</span>
+        </button>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by name, phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs outline-none bg-white text-slate-800"
-          />
-        </div>
-
-        {/* List */}
-        <div className="space-y-2 lg:max-h-[450px] max-h-none lg:overflow-y-auto no-scrollbar">
-          {filteredPatients.map(p => {
-            const isSelected = selectedPatient?.id === p.id;
-            const appts = BillingService.getAppointments();
-            const activeVirtual = appts.find(a => ((a as any).patientId === p.id || (a as any).patient_id === p.id) && ((a as any).isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
-            
-            const encounters = EncounterService.getEncounters().filter(e => e.patientId === p.id || (e as any).patient_id === p.id);
-            const hasRx = encounters.length > 0;
-
-            return (
-              <button
-                key={p.id}
-                onClick={() => setSelectedPatient(p)}
-                className={`w-full p-3 rounded-xl border text-left transition-all relative flex flex-col gap-1.5 cursor-pointer ${
-                  isSelected 
-                    ? 'bg-indigo-500/10 border-indigo-500/30' 
-                    : 'bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-950/20 border-slate-200/50 dark:border-slate-800/40'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate max-w-[70%]">{p.name}</span>
-                  <span className="text-[9px] font-mono text-slate-400">{p.tokenNumber || 'PAT'}</span>
-                </div>
-                
-                <div className="flex items-center justify-between text-[10px] text-slate-500">
-                  <span>{p.phone}</span>
-                  <div className="flex items-center gap-1.5">
-                    {hasRx && (
-                      <span className="text-[8px] font-extrabold px-1.5 py-0.2 bg-indigo-500/15 text-indigo-600 rounded">Rx</span>
-                    )}
-                    {activeVirtual && (
-                      <span className="text-[8px] font-extrabold px-1.5 py-0.2 bg-emerald-500/15 text-emerald-600 rounded animate-pulse">Virtual</span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <button
+          type="button"
+          onClick={() => setInvoiceSectionTab('manual_billing')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            invoiceSectionTab === 'manual_billing'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Receipt className="h-4 w-4" />
+          <span>2. Today's Consultations & Manual Billing (दैनिक परामर्श व बिलिंग)</span>
+          <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full font-mono font-bold">
+            {filteredPatients.length} Active
+          </span>
+        </button>
       </div>
 
-      {/* 2. Middle Billing Details Panel */}
-      <div className="lg:col-span-2 space-y-6">
-        {selectedPatient ? (
-          <div className="glass-panel p-6 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl space-y-6 text-left">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h2 className="text-base font-bold text-slate-800 dark:text-white">{selectedPatient.name}</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  ID: <span className="font-mono text-slate-800 dark:text-slate-200 font-bold bg-slate-100 dark:bg-slate-850 px-2 py-0.5 rounded-lg">{selectedPatient.tokenNumber || 'PAT'}</span> • {selectedPatient.phone}
-                </p>
-              </div>
-
-              {/* Billing Mode Toggle */}
-              <div className="flex border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
-                <button
-                  onClick={() => setBillingMode('digital')}
-                  className={`px-3 py-1.5 text-[10px] font-bold uppercase transition ${
-                    billingMode === 'digital' 
-                      ? 'bg-indigo-600 text-white' 
-                      : 'bg-slate-50 dark:bg-slate-950 text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Digital Sync
-                </button>
-                <button
-                  onClick={() => setBillingMode('manual')}
-                  className={`px-3 py-1.5 text-[10px] font-bold uppercase transition ${
-                    billingMode === 'manual' 
-                      ? 'bg-indigo-600 text-white' 
-                      : 'bg-slate-50 dark:bg-slate-950 text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Manual / Voice
-                </button>
-              </div>
-            </div>
-
-            {/* Voice & Manual Search Workspace */}
-            {billingMode === 'manual' && (
-              <div className="p-5 bg-gradient-to-br from-indigo-50/50 via-slate-50/20 to-white border border-indigo-100 dark:border-slate-800 rounded-2xl space-y-4">
-                
-                {/* Voice Section */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4.5 w-4.5 text-indigo-500" />
-                    <div>
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">Voice Billing Companion</span>
-                      <span className="block text-[9px] text-slate-400">Speak drugs and tests to auto-fill the bill</span>
-                    </div>
+      {/* ── Section 1: AI Prescription Vision OCR & Multi-Dashboard Auto-Dispatch ── */}
+      {invoiceSectionTab === 'ocr_scan' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Area: Prescription Camera & Slip Uploader */}
+          <div className="lg:col-span-6 space-y-4">
+            <div className="glass-panel p-6 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-3xl space-y-5 text-left relative overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center font-black">
+                    <Camera className="h-5 w-5" />
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleStartVoiceBilling}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border-0 transition-all cursor-pointer ${
-                      isListening 
-                        ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/20' 
-                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm hover:shadow'
-                    }`}
-                  >
-                    {isListening ? (
-                      <>
-                        <MicOff className="h-4 w-4 animate-spin text-white-force" />
-                        <span>Listening...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="h-4 w-4 text-white-force" />
-                        <span>Speak Billing</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {voiceTranscript && (
-                  <div className="p-3 bg-slate-100 dark:bg-slate-950/80 border border-slate-200/50 dark:border-slate-800/60 rounded-xl text-[10px] text-slate-650 dark:text-slate-300 font-medium">
-                    {voiceTranscript}
-                  </div>
-                )}
-
-                {/* Manual Catalog Search Area */}
-                <div className="space-y-2">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Search & Add Catalog Item manually</span>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Type medicine name or lab test name to add..."
-                      value={manualItemSearchQuery}
-                      onChange={(e) => setManualItemSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 border border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs outline-none bg-white text-slate-800"
-                    />
-                    
-                    {/* Search suggestions dropdown */}
-                    {catalogSuggestions.length > 0 && (
-                      <div className="absolute top-11 left-0 right-0 z-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-h-[220px] overflow-y-auto overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-                        {catalogSuggestions.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => handleAddSuggestedItem(s)}
-                            className="w-full px-4 py-2.5 text-left text-xs hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-0 bg-transparent flex items-center justify-between"
-                          >
-                            <div>
-                              <span className="font-bold text-slate-800 dark:text-slate-100">{s.name}</span>
-                              <span className="block text-[9px] text-slate-400 uppercase tracking-widest mt-0.5">{s.type === 'pharmacy' ? 'Medicine Stock' : 'Pathology Lab'}</span>
-                            </div>
-                            <span className="font-black text-indigo-600 dark:text-indigo-400">₹{s.price}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 dark:text-white text-sm">Scan Paper Prescription (पर्ची अपलोड)</h3>
+                    <p className="text-[11px] text-slate-500">Handwritten Doctor Prescription Vision OCR</p>
                   </div>
                 </div>
-
-                {/* Upload Section */}
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Upload className="h-4 w-4 text-slate-400" />
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Or Scan Written Slip</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] hover:bg-slate-50 dark:hover:bg-slate-800/80 cursor-pointer shadow-xs transition select-none">
-                      <span>{fileName ? fileName : 'Choose image'}</span>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        accept="image/*,application/pdf"
-                        className="hidden"
-                      />
-                    </label>
-                    {fileName && (
-                      <button
-                        onClick={handleScan}
-                        disabled={isScanning}
-                        className="btn-primary px-3 py-1.5 text-[10px] font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition disabled:opacity-60"
-                      >
-                        {isScanning ? 'Scanning...' : 'Process'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* Interactive Billing Ledger */}
-            {billingLedger && (
-              <div className="space-y-6">
-                
-                {/* 1. OPD Consultation Fee */}
-                <div className="space-y-2">
-                  <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">1. Doctor Consultation OPD</h4>
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800/40 rounded-2xl">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={includeConsult}
-                        onChange={(e) => setIncludeConsult(e.target.checked)}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">OPD Attendance &amp; consultation</span>
-                          {!includeConsult && selectedPatient && (
-                            <span className="text-[9px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-bold px-2 py-0.5 rounded-full font-mono">Paid at Booking ✅</span>
-                          )}
-                        </div>
-                        <span className="block text-[10px] text-slate-500">Regular clinic consultation visit fee</span>
-                      </div>
-                    </label>
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-200">₹{billingLedger.consultFee}</span>
-                  </div>
-                </div>
-
-                {/* Scheduled Minor OT / Daycare Surgery */}
-                {billingLedger.otItem && (
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-405 text-left">Scheduled Daycare / OT Surgery</h4>
-                    <div className="flex items-center justify-between p-3.5 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-200/60 dark:border-rose-900/40 rounded-2xl">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={includeOT}
-                          onChange={(e) => setIncludeOT(e.target.checked)}
-                          className="rounded border-slate-300 text-rose-600 focus:ring-rose-500 h-4 w-4"
-                        />
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{billingLedger.otItem.name}</span>
-                          <span className="block text-[10px] text-slate-500">Daycare surgery admission fee</span>
-                        </div>
-                      </label>
-                      <span className="text-xs font-black text-slate-800 dark:text-slate-200">₹{billingLedger.otItem.price}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Pharmacy items list */}
-                {billingLedger.medicinesList.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">2. Pharmacy Medicines Ledger</h4>
-                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono">Include</th>
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono">Medicine</th>
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono text-right">Price</th>
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono text-center">Quantity</th>
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono text-right">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {billingLedger.medicinesList.map((m, idx) => {
-                            const mNameLower = (m.name || '').toLowerCase();
-                            const state = selectedMedicines[mNameLower] || { selected: false, qty: 10 };
-                            return (
-                              <tr key={`bill-med-${idx}-${m.name}-${m.price}`} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0">
-                                <td className="p-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={state.selected}
-                                    onChange={(e) => setSelectedMedicines(prev => ({
-                                      ...prev,
-                                      [mNameLower]: { ...state, selected: e.target.checked }
-                                    }))}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                                  />
-                                </td>
-                                <td className="p-3">
-                                  <div className="font-bold text-slate-800 dark:text-slate-200">{m.name}</div>
-                                  <div className="text-[10px] text-slate-400 mt-0.5">Batch: {m.batch} | Stock: {m.stock} units</div>
-                                </td>
-                                <td className="p-3 text-right text-slate-600 dark:text-slate-400">₹{m.price}</td>
-                                <td className="p-3 text-center">
-                                  <div className="inline-flex items-center border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900">
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedMedicines(prev => ({
-                                        ...prev,
-                                        [mNameLower]: { ...state, qty: Math.max(1, state.qty - 1) }
-                                      }))}
-                                      className="px-2 py-1 text-slate-500 hover:bg-slate-100 cursor-pointer border-0 bg-transparent text-xs"
-                                    >
-                                      -
-                                    </button>
-                                    <span className="px-2.5 text-xs font-bold text-slate-800 dark:text-slate-200">{state.qty}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setSelectedMedicines(prev => ({
-                                        ...prev,
-                                        [mNameLower]: { ...state, qty: state.qty + 1 }
-                                      }))}
-                                      className="px-2 py-1 text-slate-500 hover:bg-slate-100 cursor-pointer border-0 bg-transparent text-xs"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                </td>
-                                <td className="p-3 text-right font-bold text-slate-800 dark:text-slate-200">
-                                  ₹{m.price * state.qty}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Pathology tests list */}
-                {billingLedger.testsList.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">3. Pathology Requisitions</h4>
-                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono">Include</th>
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono">LOINC Test Code</th>
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono">Test Name</th>
-                            <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase font-mono text-right">Price</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {billingLedger.testsList.map((t, idx) => (
-                            <tr key={`bill-test-${idx}-${t.loincCode}-${t.name}`} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0">
-                              <td className="p-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedTests[t.loincCode] || false}
-                                    onChange={(e) => setSelectedTests(prev => ({
-                                      ...prev,
-                                      [t.loincCode]: e.target.checked
-                                    }))}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
-                                  />
-                              </td>
-                              <td className="p-3 font-mono font-bold text-slate-500 dark:text-slate-400">{t.loincCode}</td>
-                              <td className="p-3 font-semibold text-slate-800 dark:text-slate-200">{t.name}</td>
-                              <td className="p-3 text-right font-bold text-slate-800 dark:text-slate-200">₹{t.price}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Bottom Billing Workspace Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  
-                  {/* Left Column: Split Invoices Print buttons */}
-                  <div className="md:col-span-1 space-y-3">
-                    <h5 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Generate Split Invoices</h5>
-                    <button
-                      type="button"
-                      onClick={() => handlePrintSplitInvoice('pharmacy')}
-                      disabled={billingLedger.pharmacySub === 0}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-350 cursor-pointer shadow-xs transition active:scale-95 disabled:opacity-50"
-                    >
-                      <Printer className="h-4 w-4" />
-                      Pharmacy Receipt
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handlePrintSplitInvoice('lab')}
-                      disabled={billingLedger.labSub === 0}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-350 cursor-pointer shadow-xs transition active:scale-95 disabled:opacity-50"
-                    >
-                      <Printer className="h-4 w-4" />
-                      Diagnostics Receipt
-                    </button>
-                  </div>
-
-                  {/* Middle Column: Payment Details & QR */}
-                  <div className="md:col-span-1 space-y-3">
-                    <h5 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Select Payment Method</h5>
-                    
-                    <div className="flex flex-col gap-2">
-                      {[
-                        { id: 'razorpay', label: 'Razorpay 0% MDR Payment Gateway' },
-                        { id: 'upi', label: 'Razorpay UPI Handle (razorpay.me/@vitalsync3758)' },
-                        { id: 'cash', label: 'Cash Counter' }
-                      ].map((item) => (
-                        <label
-                          key={item.id}
-                          className={`flex items-center gap-2.5 p-2 rounded-xl border cursor-pointer transition select-none ${
-                            paymentMethod === item.id
-                              ? 'bg-indigo-500/10 border-indigo-500/30 font-bold text-slate-800 dark:text-slate-100'
-                              : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            checked={paymentMethod === item.id}
-                            onChange={() => setPaymentMethod(item.id as any)}
-                            className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
-                          />
-                          <span className="text-xs font-mono">{item.label}</span>
-                        </label>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handlePrintFixedTableQRStandee}
-                      className="w-full mt-2 py-2 px-3 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                    >
-                      <QrCode className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                      <span>🖨️ Print Fixed Counter Table QR Standee</span>
-                    </button>
-                  </div>
-
-                  {/* Right Column: Checkout Panel */}
-                  <div className="md:col-span-1 p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
-                    <div className="space-y-1.5 text-xs">
-                      {/* Premium Care Club Membership alert banners */}
-                      {billingLedger.isRefillPurchase && (
-                        <div className="p-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-start gap-1.5 mb-2 text-left animate-fade-in select-none">
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                          <div className="text-[9px] text-emerald-850 dark:text-emerald-300 leading-normal font-semibold">
-                            <span className="font-bold block uppercase text-[8px] tracking-wider text-emerald-700">Premium Club Active</span>
-                            Flat 10% discount on refills automatically applied to medicines.
-                          </div>
-                        </div>
-                      )}
-
-                      {billingLedger.isQualifyingFirstPurchase && (
-                        <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl flex items-start gap-1.5 mb-2 text-left animate-pulse select-none">
-                          <Sparkles className="h-3.5 w-3.5 text-indigo-600 mt-0.5" />
-                          <div className="text-[9px] text-indigo-900 dark:text-indigo-300 leading-normal">
-                            <span className="font-extrabold block uppercase text-[8px] tracking-wider text-indigo-950 dark:text-indigo-200">Premium Qualifying! 🌟</span>
-                            Settling this bill will activate 15-day free virtual consults & 10% future refill discounts.
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between text-slate-500">
-                        <span>Items Subtotal:</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">₹{(billingLedger.consultTotal + billingLedger.pharmacySub + billingLedger.labSub + (billingLedger.otTotal || 0)).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-500">
-                        <span>GST Amount:</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">₹{billingLedger.totalGst.toFixed(2)}</span>
-                      </div>
-                      
-                      {billingLedger.isRefillPurchase && (
-                        <div className="flex justify-between text-emerald-600 dark:text-emerald-450 font-semibold">
-                          <span>10% Refill Discount:</span>
-                          <span>-₹{billingLedger.pharmacyDiscount.toFixed(2)}</span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span>Manual Discount (₹):</span>
-                        <input
-                          type="number"
-                          value={discountInput === 0 ? '' : discountInput}
-                          onChange={(e) => setDiscountInput(Math.max(0, parseFloat(e.target.value) || 0))}
-                          placeholder="0"
-                          className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-right text-xs outline-none bg-white text-slate-800 font-bold"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span>Partial Cash Paid (₹):</span>
-                        <input
-                          type="number"
-                          value={partialCashAmount === 0 ? '' : partialCashAmount}
-                          onChange={(e) => setPartialCashAmount(Math.max(0, parseFloat(e.target.value) || 0))}
-                          placeholder="0"
-                          className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-right text-xs outline-none bg-white text-slate-800 font-bold"
-                        />
-                      </div>
-                      
-                      <div className="h-px bg-slate-200 dark:bg-slate-800 my-2" />
-                      <div className="flex justify-between text-slate-800 dark:text-white font-bold">
-                        <span>Net Payable:</span>
-                        <span className="text-indigo-600 dark:text-indigo-400 font-black">₹{(billingLedger.finalTotal || 0).toFixed(2)}</span>
-                      </div>
-
-                      {partialCashAmount > 0 && (
-                        <div className="p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 rounded-xl text-[10px] space-y-1">
-                          <div className="flex justify-between text-amber-800 dark:text-amber-300 font-bold">
-                            <span>Cash Paid:</span>
-                            <span>₹{partialCashAmount.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-indigo-700 dark:text-indigo-300 font-bold">
-                            <span>Remaining via QR:</span>
-                            <span>₹{Math.max(0, billingLedger.finalTotal - partialCashAmount).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {(paymentMethod === 'upi' || paymentMethod === 'paytm') && billingLedger.finalTotal > 0 && (
-                      <div className="flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-slate-800 shadow-xs text-center">
-                        <img
-                          src={generateQRCodeDataURI(dynamicUpiPayload, { size: 160, color: '#0f172a' }) || `https://quickchart.io/qr?size=160&text=${encodeURIComponent(dynamicUpiPayload)}`}
-                          alt="Dynamic Counter Payment QR"
-                          className="w-24 h-24 rounded-lg p-1 bg-white border border-slate-200 object-contain"
-                        />
-                        <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase font-mono tracking-wider">
-                          {paymentMethod === 'paytm' ? 'Scan Counter Paytm / UPI QR' : 'Scan Zero-Fee Direct UPI QR'}
-                        </span>
-                        <span className="text-[8px] text-slate-400">Scan with GPay, PhonePe, Paytm or BHIM</span>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={handleClearBill}
-                        disabled={isClearing}
-                        className="w-full btn-primary py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Check className="h-4 w-4" />
-                        {isClearing ? 'Clearing...' : 'Clear Bill (Cash/UPI)'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!selectedPatient || !billingLedger) return;
-                          setIsClearing(true);
-                          try {
-                            const invId = `inv-${crypto.randomUUID().substring(0, 8)}`;
-                            const res = await PaymentService.initiatePaymentOrder({
-                              gateway: 'paytm',
-                              invoiceId: invId,
-                              amount: billingLedger.finalTotal,
-                              patientName: selectedPatient.name,
-                              patientPhone: selectedPatient.phone
-                            });
-
-                            if (res.success && res.paymentSessionId) {
-                              window.open(res.paymentSessionId, '_blank');
-                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                detail: {
-                                  title: 'Paytm PG Order Initiated 🚀',
-                                  message: 'Paytm 0% MDR checkout window opened for patient.',
-                                  type: 'success'
-                                }
-                              }));
-                            } else {
-                              handleClearBill();
-                            }
-                          } catch (e) {
-                            console.warn('[Paytm Order] Error initiating order:', e);
-                            handleClearBill();
-                          } finally {
-                            setIsClearing(false);
-                          }
-                        }}
-                        disabled={isClearing}
-                        className="w-full py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
-                      >
-                        <QrCode className="h-4 w-4" />
-                        <span>Pay via Paytm PG (0% MDR)</span>
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="glass-panel p-10 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl flex flex-col items-center justify-center text-center space-y-6 min-h-[400px]">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-500">
-              <QrCode className="h-6 w-6" />
-            </div>
-            
-            <div className="space-y-1 select-none">
-              <h3 className="font-bold text-slate-805 text-sm">No Patient Selected</h3>
-              <p className="text-xs text-slate-500 max-w-sm">Select an active patient registry profile from the left sidebar queue to start checkout, OR directly process a paper prescription below:</p>
-            </div>
-
-            {/* Direct Paper Prescription OCR Upload */}
-            <div className="w-full max-w-sm p-5 border border-dashed border-indigo-200/80 bg-indigo-50/15 rounded-2xl space-y-4">
-              <div className="flex items-center justify-between select-none">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                  AI Paper Slip OCR Scanner
+                <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full font-bold">
+                  ⚡ Groq Llama-3 Vision
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <label className="flex-1 flex items-center justify-between gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] hover:bg-slate-50 cursor-pointer shadow-xs transition select-none">
-                  <span className="truncate max-w-[150px]">{fileName ? fileName : 'Select paper slip image'}</span>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="image/*,application/pdf"
-                    className="hidden"
-                  />
-                </label>
-                {fileName && (
-                  <button
-                    onClick={handleScan}
-                    disabled={isScanning}
-                    className="px-4 py-2 text-[10px] font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition disabled:opacity-60 cursor-pointer border-0 shadow-sm"
+
+              {/* Upload Card & Image Preview */}
+              <div className="space-y-4">
+                {selectedImagePreview ? (
+                  <div className="relative border-2 border-indigo-200 dark:border-indigo-800/60 rounded-2xl p-2 bg-slate-50 dark:bg-slate-900/60 overflow-hidden group">
+                    <img 
+                      src={selectedImagePreview} 
+                      alt="Prescription Preview" 
+                      className="w-full h-56 sm:h-64 object-contain rounded-xl bg-slate-900/10"
+                    />
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedImagePreview(null);
+                          setFileName(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold shadow-md cursor-pointer flex items-center gap-1"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Clear
+                      </button>
+                    </div>
+                    <div className="mt-2 px-2 flex justify-between items-center text-[11px] text-slate-500 font-mono">
+                      <span className="truncate max-w-[200px]">{fileName}</span>
+                      <span className="text-emerald-600 font-bold">Ready to Scan</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-indigo-200 dark:border-indigo-800/60 hover:border-indigo-500 rounded-3xl p-8 bg-indigo-50/20 dark:bg-indigo-950/20 flex flex-col items-center justify-center text-center cursor-pointer transition-all hover:scale-[1.01]"
                   >
-                    {isScanning ? 'Scanning...' : 'Process Slip'}
-                  </button>
+                    <div className="h-14 w-14 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 flex items-center justify-center mb-3">
+                      <Upload className="h-7 w-7" />
+                    </div>
+                    <h4 className="font-extrabold text-slate-800 dark:text-white text-sm">Take Photo or Choose Prescription Slip</h4>
+                    <p className="text-xs text-slate-500 mt-1 max-w-xs">Capture prescription slip using phone camera or choose image/PDF file</p>
+                    <div className="mt-4 flex gap-2">
+                      <span className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-indigo-600 text-white shadow-xs">
+                        📷 Open Camera / Gallery
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                />
+
+                {/* Prominent Action Button */}
+                <button
+                  type="button"
+                  onClick={handleScan}
+                  disabled={isScanning || !fileName}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>{ocrScanStep || 'Processing Vision OCR...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-5 w-5 text-amber-300" />
+                      <span>✨ Submit & Run AI Vision Scan (पर्ची स्कैन करें)</span>
+                    </>
+                  )}
+                </button>
+
+                {isScanning && (
+                  <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/40 text-xs text-indigo-700 dark:text-indigo-300 flex items-center gap-2 animate-pulse font-medium">
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>{ocrScanStep || 'Extracting patient profile, medicines, and diagnostics...'}</span>
+                  </div>
                 )}
               </div>
-              {isScanning && (
-                <div className="text-[10px] text-slate-500 italic animate-pulse select-none">
-                  🤖 AI OCR is extracting patient details, medicines, and diagnostic tests...
-                </div>
-              )}
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Right Area: Scanned Result Dashboard & Auto-Dispatch Hub */}
+          <div className="lg:col-span-6 space-y-4">
+            {lastScannedResult ? (
+              <div className="glass-panel p-6 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-3xl space-y-5 text-left animate-fade-in">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <span className="text-[9px] font-mono font-black uppercase text-indigo-600 tracking-wider">AI Scan Extracted Successfully</span>
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-0.5">{lastScannedResult.patient.name}</h3>
+                    <p className="text-xs text-slate-500 font-mono">📱 +91 {lastScannedResult.patient.phone} · {lastScannedResult.patient.age}y ({lastScannedResult.patient.gender})</p>
+                  </div>
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2.5 py-1 rounded-xl font-bold flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Auto-Matched
+                  </span>
+                </div>
+
+                {/* Prescribed Medicines */}
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Pill className="h-3.5 w-3.5 text-indigo-500" />
+                    Prescribed Medicines ({lastScannedResult.medications.length}) ➔ Dispatched to Pharmacy
+                  </h4>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {lastScannedResult.medications.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No oral medications detected.</p>
+                    ) : (
+                      lastScannedResult.medications.map((m, idx) => (
+                        <div key={`ocr-med-${idx}-${m.medicineName || 'item'}`} className="p-2.5 rounded-xl border border-slate-200/80 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-bold text-slate-800 dark:text-white">{m.medicineName}</span>
+                            <span className="text-[10px] text-slate-500 block font-mono">Dosage: {m.dosage} ({m.frequency || 'twice daily'})</span>
+                          </div>
+                          <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded font-bold font-mono">Reserved ✅</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Prescribed Lab Tests */}
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <FlaskConical className="h-3.5 w-3.5 text-purple-500" />
+                    Prescribed Diagnostics ({lastScannedResult.diagnosticTests.length}) ➔ Dispatched to Pathology Lab
+                  </h4>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {lastScannedResult.diagnosticTests.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No diagnostic lab tests required.</p>
+                    ) : (
+                      lastScannedResult.diagnosticTests.map((t, idx) => (
+                        <div key={`ocr-test-${idx}-${t.loincCode || t.name || 'test'}`} className="p-2.5 rounded-xl border border-slate-200/80 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-bold text-slate-800 dark:text-white">{t.name}</span>
+                            <span className="text-[10px] text-slate-500 block font-mono">LOINC: {t.loincCode}</span>
+                          </div>
+                          <span className="text-[9px] bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded font-bold font-mono">Requisition Created ✅</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Proceed Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPatient(lastScannedResult.patient);
+                    setInvoiceSectionTab('manual_billing');
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>💳 Proceed to Final Billing & Settlement ({lastScannedResult.patient.name})</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="glass-panel p-10 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-3xl flex flex-col items-center justify-center text-center space-y-4 min-h-[320px]">
+                <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-slate-800 dark:text-white text-sm">Awaiting Prescription Upload</h4>
+                  <p className="text-xs text-slate-500 max-w-sm">Capture or select a doctor's handwritten paper prescription on the left. The AI will automatically extract patient information, medicines, and tests.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Section 2: Today's Consultations & Manual Billing Checkout ────────── */}
+      {invoiceSectionTab === 'manual_billing' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* 1. Left Patient Panel (Today's Consultations & OPD Queue) */}
+          <div className="lg:col-span-1 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Users className="h-4 w-4 text-indigo-500" />
+                Today's Consultations Queue
+              </h3>
+              <span className="text-[9px] font-mono font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
+                {filteredPatients.length} Patients
+              </span>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by name, phone, token..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs outline-none bg-white text-slate-800"
+              />
+            </div>
+
+            {/* List */}
+            <div className="space-y-2 lg:max-h-[500px] max-h-none lg:overflow-y-auto no-scrollbar">
+              {filteredPatients.map(p => {
+                const isSelected = selectedPatient?.id === p.id;
+                const appts = BillingService.getAppointments();
+                const activeVirtual = appts.find(a => ((a as any).patientId === p.id || (a as any).patient_id === p.id) && ((a as any).isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
+                
+                const encounters = EncounterService.getEncounters().filter(e => e.patientId === p.id || (e as any).patient_id === p.id);
+                const hasRx = encounters.length > 0;
+
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPatient(p)}
+                    className={`w-full p-3 rounded-xl border text-left transition-all relative flex flex-col gap-1.5 cursor-pointer ${
+                      isSelected 
+                        ? 'bg-indigo-500/10 border-indigo-500/30' 
+                        : 'bg-slate-50/50 hover:bg-slate-50 dark:bg-slate-950/20 border-slate-200/50 dark:border-slate-800/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate max-w-[70%]">{p.name}</span>
+                      <span className="text-[9px] font-mono text-slate-400 font-bold">{p.tokenNumber || 'PAT'}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span>{p.phone}</span>
+                      <div className="flex items-center gap-1.5">
+                        {hasRx && (
+                          <span className="text-[8px] font-extrabold px-1.5 py-0.2 bg-indigo-500/15 text-indigo-600 rounded">Rx Ready</span>
+                        )}
+                        {activeVirtual && (
+                          <span className="text-[8px] font-extrabold px-1.5 py-0.2 bg-emerald-500/15 text-emerald-600 rounded animate-pulse">Virtual</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Middle Billing Details Panel */}
+          <div className="lg:col-span-2 space-y-6">
+            {selectedPatient ? (
+              <div className="glass-panel p-6 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl space-y-6 text-left">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-800 dark:text-white">{selectedPatient.name}</h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      ID: <span className="font-mono text-slate-800 dark:text-slate-200 font-bold bg-slate-100 dark:bg-slate-850 px-2 py-0.5 rounded-lg">{selectedPatient.tokenNumber || 'PAT'}</span> • {selectedPatient.phone}
+                    </p>
+                  </div>
+
+                  {/* Billing Mode Toggle */}
+                  <div className="flex border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
+                    <button
+                      onClick={() => setBillingMode('digital')}
+                      className={`px-3 py-1.5 text-[10px] font-bold uppercase transition ${
+                        billingMode === 'digital' 
+                          ? 'bg-indigo-600 text-white' 
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Digital Sync
+                    </button>
+                    <button
+                      onClick={() => setBillingMode('manual')}
+                      className={`px-3 py-1.5 text-[10px] font-bold uppercase transition ${
+                        billingMode === 'manual' 
+                          ? 'bg-indigo-600 text-white' 
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Manual / Voice
+                    </button>
+                  </div>
+                </div>
+
+                {/* Voice & Manual Search Workspace */}
+                {billingMode === 'manual' && (
+                  <div className="p-5 bg-gradient-to-br from-indigo-50/50 via-slate-50/20 to-white border border-indigo-100 dark:border-slate-800 rounded-2xl space-y-4">
+                    
+                    {/* Voice Section */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4.5 w-4.5 text-indigo-500" />
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">Voice Billing Companion</span>
+                          <span className="block text-[9px] text-slate-400">Speak drugs and tests to auto-fill the bill</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleStartVoiceBilling}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border-0 transition-all cursor-pointer ${
+                          isListening 
+                            ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/20' 
+                            : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm hover:shadow'
+                        }`}
+                      >
+                        {isListening ? (
+                          <>
+                            <MicOff className="h-4 w-4 animate-spin text-white-force" />
+                            <span>Listening...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="h-4 w-4 text-white-force" />
+                            <span>Speak Billing</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {voiceTranscript && (
+                      <div className="p-3 bg-slate-100 dark:bg-slate-950/80 border border-slate-200/50 dark:border-slate-800/60 rounded-xl text-[10px] text-slate-650 dark:text-slate-300 font-medium">
+                        {voiceTranscript}
+                      </div>
+                    )}
+
+                    {/* Manual Catalog Search Area */}
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Search & Add Catalog Item manually</span>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Type medicine name or lab test name to add..."
+                          value={manualItemSearchQuery}
+                          onChange={(e) => setManualItemSearchQuery(e.target.value)}
+                          className="w-full pl-9 pr-4 py-2 border border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs outline-none bg-white text-slate-800"
+                        />
+                        
+                        {/* Search suggestions dropdown */}
+                        {catalogSuggestions.length > 0 && (
+                          <div className="absolute top-11 left-0 right-0 z-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-h-[220px] overflow-y-auto overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                            {catalogSuggestions.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => handleAddSuggestedItem(s)}
+                                className="w-full px-4 py-2.5 text-left text-xs hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-0 bg-transparent flex items-center justify-between"
+                              >
+                                <div>
+                                  <span className="font-bold text-slate-800 dark:text-slate-100">{s.name}</span>
+                                  <span className="block text-[9px] text-slate-400 uppercase tracking-widest mt-0.5">{s.type === 'pharmacy' ? 'Medicine Stock' : 'Pathology Lab'}</span>
+                                </div>
+                                <span className="font-black text-indigo-600 dark:text-indigo-400">₹{s.price}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* Interactive Billing Ledger */}
+                {billingLedger && (
+                  <div className="space-y-6">
+                    
+                    {/* 1. OPD Consultation Fee */}
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">1. Doctor Consultation OPD</h4>
+                      <div className="flex items-center justify-between p-3.5 bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/50 dark:border-slate-800/40 rounded-2xl">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={includeConsult}
+                            onChange={(e) => setIncludeConsult(e.target.checked)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">OPD Attendance &amp; consultation</span>
+                              {!includeConsult && selectedPatient && (
+                                <span className="text-[9px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-bold px-2 py-0.5 rounded-full font-mono">Paid at Booking ✅</span>
+                              )}
+                            </div>
+                            <span className="block text-[10px] text-slate-500">Regular clinic consultation visit fee</span>
+                          </div>
+                        </label>
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200">₹{billingLedger.consultFee}</span>
+                      </div>
+                    </div>
+
+                    {/* Scheduled Minor OT / Daycare Surgery */}
+                    {billingLedger.otItem && (
+                      <div className="space-y-2">
+                        <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-405 text-left">Scheduled Daycare / OT Surgery</h4>
+                        <div className="flex items-center justify-between p-3.5 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-200/60 dark:border-rose-900/40 rounded-2xl">
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={includeOT}
+                              onChange={(e) => setIncludeOT(e.target.checked)}
+                              className="rounded border-rose-300 text-rose-600 focus:ring-rose-500 h-4 w-4"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-rose-800 dark:text-rose-300">{billingLedger.otItem.name}</span>
+                                <span className="text-[9px] bg-rose-500/10 text-rose-600 border border-rose-500/20 font-bold px-2 py-0.5 rounded-full font-mono uppercase">Minor OT</span>
+                              </div>
+                              <span className="block text-[10px] text-rose-500/80">Clinic Daycare Procedure</span>
+                            </div>
+                          </label>
+                          <span className="text-xs font-black text-rose-800 dark:text-rose-300">₹{billingLedger.otItem.price}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Pharmacy Medicines */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">2. Pharmacy Medicines Prescription</h4>
+                        <span className="text-[9px] text-slate-400 font-mono">Stock Synced</span>
+                      </div>
+                      
+                      {billingLedger.medicinesList.length === 0 ? (
+                        <div className="p-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center text-xs text-slate-400">
+                          No medicines in active prescription. Use Voice or Catalog search above to add items.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {billingLedger.medicinesList.map(med => {
+                            const medKey = (med.name || '').toLowerCase();
+                            const isChecked = selectedMedicines[medKey]?.selected ?? false;
+                            const currentQty = selectedMedicines[medKey]?.qty ?? 10;
+                            const isOutOfStock = med.stock <= 0;
+
+                            return (
+                              <div key={med.name} className={`flex items-center justify-between p-3 rounded-2xl border transition ${
+                                isChecked ? 'bg-slate-50/80 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800' : 'bg-slate-50/20 dark:bg-slate-950/10 border-transparent opacity-60'
+                              }`}>
+                                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => handleToggleMedicine(med.name, e.target.checked)}
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                  />
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{med.name}</span>
+                                      {isOutOfStock ? (
+                                        <span className="text-[8px] bg-rose-500/10 text-rose-600 px-1.5 py-0.5 rounded font-bold">Out of Stock</span>
+                                      ) : (
+                                        <span className="text-[8px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded font-mono">Stock: {med.stock}</span>
+                                      )}
+                                    </div>
+                                    <span className="block text-[10px] text-slate-400 font-mono">Batch: {med.batch} • MRP: ₹{med.mrp} (Clinic: ₹{med.price})</span>
+                                  </div>
+                                </label>
+
+                                {isChecked && (
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={currentQty}
+                                        onChange={(e) => handleMedicineQtyChange(med.name, parseInt(e.target.value) || 1)}
+                                        className="w-12 text-center text-xs font-bold outline-none bg-transparent"
+                                      />
+                                      <span className="text-[9px] text-slate-400 pr-1.5">units</span>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-800 dark:text-slate-200 w-16 text-right">
+                                      ₹{((med.price || 0) * (currentQty || 1)).toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Diagnostic Lab Tests */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">3. Diagnostic Pathology Lab Tests</h4>
+                        <span className="text-[9px] text-slate-400 font-mono">LOINC Standardized</span>
+                      </div>
+
+                      {billingLedger.testsList.length === 0 ? (
+                        <div className="p-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center text-xs text-slate-400">
+                          No laboratory tests ordered. Add pathology tests from catalog above.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {billingLedger.testsList.map(test => {
+                            const isChecked = selectedTests[test.loincCode] ?? false;
+
+                            return (
+                              <div key={test.loincCode} className={`flex items-center justify-between p-3 rounded-2xl border transition ${
+                                isChecked ? 'bg-slate-50/80 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800' : 'bg-slate-50/20 dark:bg-slate-950/10 border-transparent opacity-60'
+                              }`}>
+                                <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => handleToggleTest(test.loincCode, e.target.checked)}
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                  />
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{test.name}</span>
+                                      <span className="text-[8px] bg-indigo-500/10 text-indigo-600 px-1.5 py-0.5 rounded font-mono">{test.category}</span>
+                                    </div>
+                                    <span className="block text-[10px] text-slate-400 font-mono">LOINC: {test.loincCode}</span>
+                                  </div>
+                                </label>
+
+                                {isChecked && (
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 w-16 text-right">
+                                    ₹{(test.price || 0).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Summary Calculation Card */}
+                    <div className="p-5 bg-slate-900 text-white rounded-3xl space-y-4 shadow-xl">
+                      <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                        <span className="text-xs font-bold text-slate-400">Checkout Breakdown</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handlePrintSplitInvoice('pharmacy')}
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-[10px] font-bold rounded-lg transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Printer className="h-3 w-3" />
+                            <span>Pharm Slip</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePrintSplitInvoice('lab')}
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-[10px] font-bold rounded-lg transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Printer className="h-3 w-3" />
+                            <span>Lab Slip</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePrintSplitInvoice('combined')}
+                            className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold rounded-lg transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Printer className="h-3 w-3" />
+                            <span>Unified Tax Invoice</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex justify-between text-slate-400">
+                          <span>Doctor Consultation Fee:</span>
+                          <span className="font-mono text-white">₹{billingLedger.consultTotal.toFixed(2)}</span>
+                        </div>
+                        {billingLedger.otTotal > 0 && (
+                          <div className="flex justify-between text-rose-400">
+                            <span>Daycare Surgery / Minor OT:</span>
+                            <span className="font-mono text-rose-400 font-bold">₹{billingLedger.otTotal.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-slate-400">
+                          <span>Pharmacy Medicines Subtotal:</span>
+                          <span className="font-mono text-white">₹{billingLedger.pharmacySub.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>Pathology Lab Subtotal:</span>
+                          <span className="font-mono text-white">₹{billingLedger.labSub.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
+                          <span>GST (5% Medicines + 18% Lab):</span>
+                          <span className="font-mono text-white">₹{billingLedger.totalGst.toFixed(2)}</span>
+                        </div>
+                        
+                        {billingLedger.pharmacyDiscount > 0 && (
+                          <div className="flex justify-between text-emerald-400 font-medium">
+                            <span>Club 10% Refill Discount:</span>
+                            <span className="font-mono">-₹{billingLedger.pharmacyDiscount.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center pt-2">
+                          <span className="text-slate-400">Compounder Custom Discount:</span>
+                          <div className="flex items-center gap-1 bg-slate-800 rounded-lg px-2 py-0.5">
+                            <span className="text-[10px] text-slate-400">₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={discountInput || ''}
+                              onChange={(e) => setDiscountInput(parseFloat(e.target.value) || 0)}
+                              placeholder="0"
+                              className="w-16 bg-transparent text-right text-xs font-bold text-white outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-800 flex justify-between items-baseline">
+                        <div>
+                          <span className="text-sm font-bold text-slate-300">Total Net Amount</span>
+                          {selectedPatient.isPremiumMember && (
+                            <span className="block text-[9px] text-amber-400 font-bold">✨ Premium Care Member Applied</span>
+                          )}
+                        </div>
+                        <span className="text-2xl font-black text-emerald-400">
+                          ₹{billingLedger.finalTotal.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* Payment Mode Selector */}
+                      <div className="pt-2">
+                        <span className="block text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Select Payment Method:</span>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('paytm')}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                              paymentMethod === 'paytm'
+                                ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm'
+                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <QrCode className="h-3.5 w-3.5 text-sky-400" />
+                            <span>Paytm PG (0% MDR)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('upi')}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                              paymentMethod === 'upi'
+                                ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300 shadow-sm'
+                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <QrCode className="h-3.5 w-3.5 text-indigo-400" />
+                            <span>Direct Zero-Fee UPI</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('cash')}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                              paymentMethod === 'cash'
+                                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm'
+                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <Check className="h-3.5 w-3.5 text-emerald-400" />
+                            <span>Cash Counter</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dynamic Direct UPI / Paytm Standee Preview */}
+                      {(paymentMethod === 'upi' || paymentMethod === 'paytm') && (
+                        <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
+                          <img
+                            src={generateQRCodeDataURI(dynamicUpiPayload, { size: 160, color: '#0f172a' }) || `https://quickchart.io/qr?size=160&text=${encodeURIComponent(dynamicUpiPayload)}`}
+                            alt="Dynamic Counter Payment QR"
+                            className="w-24 h-24 rounded-lg p-1 bg-white border border-slate-200 object-contain"
+                          />
+                          <span className="text-[9px] font-bold text-indigo-400 uppercase font-mono tracking-wider">
+                            {paymentMethod === 'paytm' ? 'Scan Counter Paytm / UPI QR' : 'Scan Zero-Fee Direct UPI QR'}
+                          </span>
+                          <span className="text-[8px] text-slate-400">Scan with GPay, PhonePe, Paytm or BHIM</span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={handleClearBill}
+                          disabled={isClearing}
+                          className="w-full btn-primary py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Check className="h-4 w-4" />
+                          {isClearing ? 'Clearing...' : 'Clear Bill (Cash/UPI)'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!selectedPatient || !billingLedger) return;
+                            setIsClearing(true);
+                            try {
+                              const invId = `inv-${crypto.randomUUID().substring(0, 8)}`;
+                              const res = await PaymentService.initiatePaymentOrder({
+                                gateway: 'paytm',
+                                invoiceId: invId,
+                                amount: billingLedger.finalTotal,
+                                patientName: selectedPatient.name,
+                                patientPhone: selectedPatient.phone
+                              });
+
+                              if (res.success && res.paymentSessionId) {
+                                window.open(res.paymentSessionId, '_blank');
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    title: 'Paytm PG Order Initiated 🚀',
+                                    message: 'Paytm 0% MDR checkout window opened for patient.',
+                                    type: 'success'
+                                  }
+                                }));
+                              } else {
+                                handleClearBill();
+                              }
+                            } catch (e) {
+                              console.warn('[Paytm Order] Error initiating order:', e);
+                              handleClearBill();
+                            } finally {
+                              setIsClearing(false);
+                            }
+                          }}
+                          disabled={isClearing}
+                          className="w-full py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                        >
+                          <QrCode className="h-4 w-4" />
+                          <span>Pay via Paytm PG (0% MDR)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="glass-panel p-10 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl flex flex-col items-center justify-center text-center space-y-4 min-h-[400px]">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-500">
+                  <Receipt className="h-6 w-6" />
+                </div>
+                
+                <div className="space-y-1 select-none">
+                  <h3 className="font-bold text-slate-800 dark:text-white text-sm">No Consultation Selected</h3>
+                  <p className="text-xs text-slate-500 max-w-sm">Select any patient from today's consultation queue on the left to start billing, adjust medications/tests, or collect counter payment.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
 
     </div>
   );
