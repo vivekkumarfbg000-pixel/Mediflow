@@ -2050,25 +2050,6 @@ export const CompounderDashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  const nextAppt = activeOpdAppointments.find(a => a.status === 'ready_for_consult');
-                  if (nextAppt) {
-                    handleCallPatientChamber(nextAppt.patientName || 'Patient', nextAppt.tokenNumber || 'Next');
-                  } else {
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: { title: 'Queue Idle', message: 'No patient currently waiting in ready queue.', type: 'info' }
-                    }));
-                  }
-                }}
-                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer border-0"
-                title="Voice Announce Next Token"
-              >
-                <Volume2 className="w-4 h-4" />
-                <span>Call Next Token</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setShowQuickAddSheet(true)}
                 className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer border-0"
               >
@@ -2219,21 +2200,7 @@ export const CompounderDashboard: React.FC = () => {
                 Quick Clinical Actions (त्वरित कार्य)
               </h3>
               
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
-                <button
-                  type="button"
-                  onClick={() => setShowQuickAddSheet(true)}
-                  className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100/60 dark:from-indigo-950/40 dark:to-indigo-900/20 border border-indigo-200 dark:border-indigo-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center mb-3 shadow-md shadow-indigo-500/30">
-                    <UserPlus className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-slate-900 dark:text-white">Quick Add Patient</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Walk-in OPD Entry</div>
-                  </div>
-                </button>
-
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
                 <button
                   type="button"
                   onClick={() => setShowVitalsBottomSheet(true)}
@@ -2244,7 +2211,7 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs font-black text-slate-900 dark:text-white">Quick Vitals Intake</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">BP, SpO2, BMI Pad</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">WhatsApp, QR &amp; BMI Pad</div>
                   </div>
                 </button>
 
@@ -2287,23 +2254,17 @@ export const CompounderDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const nextAppt = activeOpdAppointments.find(a => a.status === 'ready_for_consult');
-                    if (nextAppt) {
-                      handleCallPatientChamber(nextAppt.patientName || 'Patient', nextAppt.tokenNumber || 'Next');
-                    } else {
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: { title: 'Queue Idle', message: 'No patient currently waiting in ready queue.', type: 'info' }
-                      }));
-                    }
+                    setActiveTab('clinical_hub');
+                    setClinicalSubTab('labs');
                   }}
-                  className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100/60 dark:from-rose-950/40 dark:to-rose-900/20 border border-rose-200 dark:border-rose-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer"
+                  className="p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100/60 dark:from-teal-950/40 dark:to-teal-900/20 border border-teal-200 dark:border-teal-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center mb-3 shadow-md shadow-rose-500/30">
-                    <Volume2 className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center mb-3 shadow-md shadow-teal-500/30">
+                    <FlaskConical className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-slate-900 dark:text-white">Call Next Token</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Voice Buzzer Alert</div>
+                    <div className="text-xs font-black text-slate-900 dark:text-white">Lab &amp; Pathology</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Requisitions &amp; Reports</div>
                   </div>
                 </button>
               </div>
