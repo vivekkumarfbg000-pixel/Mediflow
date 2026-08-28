@@ -2172,6 +2172,10 @@ class MediflowApiService {
   async dispatchDailyDosageReminderWhatsApp(params: any): Promise<string> {
     return ClinicalNotificationService.dispatchDailyDosageReminderWhatsApp(params);
   }
+
+  async dispatchLabArrivalRevisitAlert(params: any): Promise<string> {
+    return ClinicalNotificationService.dispatchLabArrivalRevisitAlert(params);
+  }
 }
 
 export const api = new MediflowApiService();

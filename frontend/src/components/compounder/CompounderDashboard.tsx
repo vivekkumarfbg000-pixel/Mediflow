@@ -3372,7 +3372,7 @@ export const CompounderDashboard: React.FC = () => {
                             <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono">Patient Name</th>
                             <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono">Test Order</th>
                             <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono text-center">Status</th>
-                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono text-right">Barcode</th>
+                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono text-right">Action / Alert</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3382,6 +3382,8 @@ export const CompounderDashboard: React.FC = () => {
                             else if (req.status === 'collected') statusClass = "bg-blue-100 text-blue-800 border-blue-200";
                             else if (req.status === 'processed') statusClass = "bg-indigo-100 text-indigo-850 border-indigo-200";
                             else if (req.status === 'completed') statusClass = "bg-emerald-105 text-emerald-850 border-emerald-200";
+
+                            const isReady = req.status === 'completed' || Boolean(req.quantitativeResult);
 
                             return (
                               <tr key={req.id} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 transition-colors">
@@ -3398,8 +3400,40 @@ export const CompounderDashboard: React.FC = () => {
                                     {req.status}
                                   </span>
                                 </td>
-                                <td className="p-3 text-right font-mono text-slate-500 font-bold">
-                                  {req.barcode}
+                                <td className="p-3 text-right">
+                                  {isReady ? (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const p = patients.find(pt => pt.id === req.patientId);
+                                        if (p?.phone) {
+                                          await api.dispatchLabArrivalRevisitAlert({
+                                            patientPhone: p.phone,
+                                            patientName: req.patientName,
+                                            testName: req.testName,
+                                            revisitSlotTime: '04:30 PM - 05:30 PM',
+                                            doctorName: activePod?.doctor_name,
+                                            clinicName: clinicTitle
+                                          });
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: {
+                                              title: 'Revisit WhatsApp Sent 📲',
+                                              message: `Doctor re-visit timing alert sent to ${req.patientName} on WhatsApp!`,
+                                              type: 'success'
+                                            }
+                                          }));
+                                        }
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[9px] font-bold cursor-pointer transition active:scale-95 shadow-xs"
+                                    >
+                                      <MessageSquare className="w-3 h-3 text-indigo-600" />
+                                      <span>Send Re-visit Alert 📲</span>
+                                    </button>
+                                  ) : (
+                                    <span className="font-mono text-slate-400 text-[10px] font-bold">
+                                      {req.barcode}
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             );

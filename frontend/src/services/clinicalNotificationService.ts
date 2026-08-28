@@ -76,6 +76,17 @@ export interface DailyDosageReminderParams {
   }>;
 }
 
+export interface LabArrivalRevisitParams {
+  patientPhone: string;
+  patientName: string;
+  testName: string;
+  revisitSlotTime?: string;
+  revisitSlotDate?: string;
+  revisitNote?: string;
+  doctorName?: string;
+  clinicName?: string;
+}
+
 export class ClinicalNotificationService {
   /**
    * Translates technical prescription dosage codes (1-0-1, OD, BD, TDS)
@@ -455,6 +466,49 @@ export class ClinicalNotificationService {
       patientName,
       timeOfDay,
       medCount: medications.length
+    }, null);
+
+    return msg;
+  }
+
+  /**
+   * 7. AUTOMATED LAB ARRIVAL & DOCTOR RE-VISIT ALERT DELIVERY
+   */
+  public static async dispatchLabArrivalRevisitAlert(params: LabArrivalRevisitParams): Promise<string> {
+    const { patientPhone, patientName, testName, revisitSlotTime, revisitSlotDate, revisitNote, doctorName, clinicName } = params;
+    if (!patientPhone) return '';
+
+    const resolvedClinic = clinicName || WhatsAppService.getDynamicClinicName();
+    const resolvedDoc = doctorName || WhatsAppService.getActiveDoctorName();
+
+    let msg = `📢 *${resolvedClinic} - Lab Report Arrived at Clinic* 🔬\n\n`;
+    msg += `Namaste *${patientName}*! Aapka *${testName}* test result pathology lab se clinic receive ho gaya hai.\n\n`;
+
+    if (revisitSlotTime) {
+      msg += `🕒 *Doctor Re-visit Scheduled:*\n`;
+      msg += `Doctor review ke liye aapka slot *${revisitSlotTime}* ${revisitSlotDate ? `(${revisitSlotDate})` : 'aaj shaam'} par set kiya gaya hai.\n`;
+    } else {
+      msg += `🕒 *Doctor Re-visit Window:*\n`;
+      msg += `Doctor review ke liye shaam *04:00 PM - 06:00 PM* ke beech clinic visit karein.\n`;
+    }
+
+    if (revisitNote) {
+      msg += `ℹ️ *Compounder Note:* ${revisitNote}\n`;
+    }
+
+    msg += `\n🏥 *Choose Review Mode:*\n`;
+    msg += `1️⃣ *Physical Visit at Clinic* 🏥\n`;
+    msg += `2️⃣ *Virtual Video Consult* 💻 (Ghar baithe video call)\n\n`;
+    msg += `Please reply *1* ya *2* to confirm your choice! 🟢`;
+
+    WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
+    await this.relayMetaGraphApi(patientPhone, msg);
+
+    writeAuditLog('WHATSAPP_LAB_ARRIVAL_REVISIT_DISPATCHED', {
+      phone: patientPhone,
+      patientName,
+      testName,
+      revisitSlotTime
     }, null);
 
     return msg;

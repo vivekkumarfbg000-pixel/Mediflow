@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
+import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
+import { generateLabReportPdf } from '../../../utils/pdfGenerator';
 import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
 import { 
@@ -36,7 +39,10 @@ import {
   Stethoscope, 
   ChevronDown, 
   ChevronUp, 
-  X 
+  X,
+  Download,
+  Eye,
+  Sparkles
 } from 'lucide-react';
 import { useClinic } from '../../../context/ClinicContext';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
@@ -209,6 +215,91 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [testSearchQuery, setTestSearchQuery] = useState('');
   const [activeSubTab, setActiveSubTab] = useState<'workup' | 'prescription'>('prescription');
+
+  // Live PDF Lab Report Modal & Overlay States
+  const [selectedLabReportForPdf, setSelectedLabReportForPdf] = useState<any | null>(null);
+  const [labPdfBlobUrl, setLabPdfBlobUrl] = useState<string | null>(null);
+  const [isLabPdfLoading, setIsLabPdfLoading] = useState(false);
+  const [isResendingWhatsApp, setIsResendingWhatsApp] = useState(false);
+
+  // Clean up blob URL on unmount or URL change (Rule 10)
+  useEffect(() => {
+    return () => {
+      if (labPdfBlobUrl) {
+        URL.revokeObjectURL(labPdfBlobUrl);
+      }
+    };
+  }, [labPdfBlobUrl]);
+
+  // Find all active/completed lab reports for selected patient
+  const patientLabReports = useMemo(() => {
+    if (!selectedPatient) return [];
+    const reqs = api.getLabRequisitions().filter(r => (r.patientId === selectedPatient.id || (r as any).patient_id === selectedPatient.id) && (r.status === 'completed' || Boolean(r.quantitativeResult)));
+    const fullReports = api.getFullLabReports().filter(r => (r.patientId === selectedPatient.id || (r as any).patient_id === selectedPatient.id));
+    return [...reqs, ...fullReports];
+  }, [selectedPatient, appointments]);
+
+  const handleOpenLabPdfModal = async (reportItem: any) => {
+    if (!selectedPatient) return;
+    setSelectedLabReportForPdf(reportItem);
+    setIsLabPdfLoading(true);
+
+    try {
+      let biomarkersObj: Record<string, any> = {};
+      if (reportItem.biomarkerJson) {
+        biomarkersObj = reportItem.biomarkerJson.biomarkers || reportItem.biomarkerJson;
+      } else if (reportItem.quantitativeResult) {
+        try {
+          const parsed = JSON.parse(reportItem.quantitativeResult);
+          biomarkersObj = parsed.biomarkers || parsed;
+        } catch {
+          biomarkersObj = { resultValue: reportItem.quantitativeResult };
+        }
+      }
+
+      const testName = reportItem.testName || 'Pathology Diagnostic Panel';
+      const loincCode = reportItem.testCode || reportItem.loincCode || '4544-3';
+      const interpretation = ClinicalNotificationService.generateHinglishLabInterpretation(loincCode, testName, biomarkersObj);
+
+      const pdfBytes = await generateLabReportPdf({
+        reportId: reportItem.id || reportItem.barcode,
+        patientName: selectedPatient.name,
+        patientPhone: selectedPatient.phone,
+        age: selectedPatient.age,
+        gender: selectedPatient.gender,
+        testName,
+        loincCode,
+        biomarkers: biomarkersObj,
+        hinglishSummary: interpretation,
+        doctorName: activePod?.doctor_name || clinicProfile?.display_name || 'Dr. Practitioner',
+        clinicName: activePod?.name || clinicProfile?.clinicName || 'VitalSync Care Clinic',
+        date: getIstDateDisplay()
+      });
+
+      const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setLabPdfBlobUrl(url);
+    } catch (pdfErr) {
+      console.error('[ConsultationTab] Failed to render Lab PDF:', pdfErr);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'PDF Rendering Notice',
+          message: 'Displaying digital biomarker results summary.',
+          type: 'info'
+        }
+      }));
+    } finally {
+      setIsLabPdfLoading(false);
+    }
+  };
+
+  const handleCloseLabPdfModal = () => {
+    if (labPdfBlobUrl) {
+      URL.revokeObjectURL(labPdfBlobUrl);
+      setLabPdfBlobUrl(null);
+    }
+    setSelectedLabReportForPdf(null);
+  };
 
   useEffect(() => {
     if (isSelectingFromDropdown) {
@@ -1431,6 +1522,41 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               )}
             </div>
           </div>
+
+          {/* Top Live Lab Report Alert Bar */}
+          {patientLabReports.length > 0 && (
+            <div className="p-3.5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-emerald-500/10 border border-indigo-200/80 dark:border-indigo-800/60 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-xs animate-fade-in my-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md shrink-0">
+                  <FlaskConical className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-800 dark:text-white">
+                      🔬 Lab Diagnostic Report Available ({(patientLabReports[0] as any).testName || 'Pathology Test'})
+                    </span>
+                    <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-[9px] rounded-full border border-emerald-300 dark:border-emerald-700 uppercase font-mono">
+                      Published &amp; Ready ✅
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Live clinical pathology report is ready. Click to open the official clinical PDF and view AI biomarker analysis.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenLabPdfModal(patientLabReports[0])}
+                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer border-0 text-white-force"
+                >
+                  <FileText className="w-4 h-4 text-white-force" />
+                  <span>📄 Open Full Lab Report PDF &amp; AI Analysis</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Sub-Tabs Switcher */}
           <div className="flex gap-2 border-b border-slate-200 pb-px mb-4">
@@ -3510,6 +3636,234 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
           </div>
         </div>
+      )}
+
+      {/* ─── LIVE LAB REPORT PDF & AI ANALYSIS MODAL ───────────────────────── */}
+      {selectedLabReportForPdf && selectedPatient && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 sm:p-6 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-100">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md">
+                  <FlaskConical className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-white">
+                      Official Pathology Lab Report &amp; AI Analysis
+                    </h3>
+                    <span className="px-2.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[9px] rounded-full uppercase font-mono border border-indigo-200 dark:border-indigo-800">
+                      LOINC: {selectedLabReportForPdf.testCode || selectedLabReportForPdf.loincCode || '4544-3'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Patient: <strong className="text-slate-700 dark:text-slate-200">{selectedPatient.name}</strong> • Age: {selectedPatient.age || '—'} Y • Token: {selectedPatient.tokenNumber || '#TK-001'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {labPdfBlobUrl && (
+                  <a
+                    href={labPdfBlobUrl}
+                    download={`LabReport-${selectedPatient.name.replace(/\s+/g, '_')}-${selectedLabReportForPdf.testCode || 'Dx'}.pdf`}
+                    className="py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer no-underline"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Download PDF</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCloseLabPdfModal}
+                  className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center transition cursor-pointer border-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+              {/* Left Column: Live PDF Document Viewer */}
+              <div className="lg:col-span-7 space-y-3 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                    Electronic PDF Document View
+                  </span>
+                  {selectedLabReportForPdf.reportFileUrl && (
+                    <a
+                      href={selectedLabReportForPdf.reportFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <span>Original Technician Upload</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                <div className="flex-1 min-h-[460px] bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center relative">
+                  {isLabPdfLoading ? (
+                    <div className="flex flex-col items-center gap-2 p-8 text-center">
+                      <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-xs text-slate-500 font-medium">Generating official diagnostic PDF report...</p>
+                    </div>
+                  ) : labPdfBlobUrl ? (
+                    <iframe
+                      src={labPdfBlobUrl}
+                      title="Lab Report PDF Preview"
+                      className="w-full h-full min-h-[460px] border-0 rounded-2xl"
+                    />
+                  ) : (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      Unable to render embedded PDF preview. Biomarker summary available on the right.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: AI Analysis, Biomarkers & WhatsApp Re-send */}
+              <div className="lg:col-span-5 space-y-5">
+                {/* Hinglish AI Analysis Card */}
+                {(() => {
+                  let biomarkersObj: Record<string, any> = {};
+                  if (selectedLabReportForPdf.biomarkerJson) {
+                    biomarkersObj = selectedLabReportForPdf.biomarkerJson.biomarkers || selectedLabReportForPdf.biomarkerJson;
+                  } else if (selectedLabReportForPdf.quantitativeResult) {
+                    try {
+                      const parsed = JSON.parse(selectedLabReportForPdf.quantitativeResult);
+                      biomarkersObj = parsed.biomarkers || parsed;
+                    } catch {
+                      biomarkersObj = { resultValue: selectedLabReportForPdf.quantitativeResult };
+                    }
+                  }
+                  const testName = selectedLabReportForPdf.testName || 'Pathology Diagnostic Panel';
+                  const loincCode = selectedLabReportForPdf.testCode || selectedLabReportForPdf.loincCode || '4544-3';
+                  const interpretation = ClinicalNotificationService.generateHinglishLabInterpretation(loincCode, testName, biomarkersObj);
+                  const entries = Object.entries(biomarkersObj).filter(([k]) => !k.endsWith('_unit') && k !== 'unit' && k !== 'testCode' && k !== 'timestamp' && k !== 'patientId' && k !== 'testName');
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Hinglish Guidance Banner */}
+                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-emerald-500" />
+                          <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                            Patient Hinglish AI Analysis (रोगी मार्गदर्शन)
+                          </h4>
+                        </div>
+                        <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
+                          {interpretation}
+                        </p>
+                      </div>
+
+                      {/* Biomarker Table */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">
+                          Measured Biomarker Parameters ({entries.length})
+                        </span>
+                        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
+                          {entries.length === 0 ? (
+                            <div className="p-4 text-xs text-slate-400 text-center italic">
+                              Standard laboratory panel. Baseline readings verified.
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-slate-200/60 dark:divide-slate-800/60">
+                              {entries.map(([key, val], idx) => {
+                                const unit = biomarkersObj[`${key}_unit`] || biomarkersObj.unit || '';
+                                return (
+                                  <div key={`biomarker-param-${idx}-${key}`} className="p-3 flex items-center justify-between text-xs">
+                                    <div>
+                                      <span className="font-bold text-slate-800 dark:text-white block">
+                                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                                      </span>
+                                      <span className="text-[9px] text-slate-400 font-mono">Standard LOINC Ref</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm">
+                                        {val} {unit}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Doctor Actions */}
+                      <div className="pt-2 space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (notes) {
+                              setNotes(notes + `\n[Lab Findings - ${testName}]: ` + entries.map(([k, v]) => `${k}: ${v}`).join(', '));
+                            } else {
+                              setNotes(`[Lab Findings - ${testName}]: ` + entries.map(([k, v]) => `${k}: ${v}`).join(', '));
+                            }
+                            handleCloseLabPdfModal();
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Biomarkers Imported 📋',
+                                message: 'Imported lab findings directly into consultation notes.',
+                                type: 'success'
+                              }
+                            }));
+                          }}
+                          className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-0 text-white-force bg-indigo-600-force"
+                        >
+                          <FileEdit className="w-4 h-4 text-white-force" />
+                          <span>Import Findings to Consultation Notes</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isResendingWhatsApp}
+                          onClick={async () => {
+                            if (!selectedPatient.phone) return;
+                            setIsResendingWhatsApp(true);
+                            try {
+                              await api.dispatchLabReportWhatsApp({
+                                patientPhone: selectedPatient.phone,
+                                patientName: selectedPatient.name,
+                                testName,
+                                loincCode,
+                                biomarkers: biomarkersObj,
+                                reportPdfUrl: selectedLabReportForPdf.reportFileUrl || undefined,
+                                clinicName: activePod?.name || clinicProfile?.clinicName
+                              });
+                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                detail: {
+                                  title: 'WhatsApp Dispatched 📲',
+                                  message: `Lab analysis & PDF report delivered to +91 ${selectedPatient.phone}.`,
+                                  type: 'success'
+                                }
+                              }));
+                            } catch (e) {
+                              console.error('[WhatsApp Resend] Error:', e);
+                            } finally {
+                              setIsResendingWhatsApp(false);
+                            }
+                          }}
+                          className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-0 text-white-force bg-emerald-600-force disabled:opacity-50"
+                        >
+                          <Send className="w-4 h-4 text-white-force" />
+                          <span>{isResendingWhatsApp ? 'Dispatching...' : 'Re-send Report to Patient WhatsApp'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
